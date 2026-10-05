@@ -1,0 +1,27 @@
+---
+// Toolbar + board markup for the line maze. game.ts fills in the SVG.
+import "./line-maze.css";
+
+interface Props { id: string }
+const { id } = Astro.props;
+---
+<div class="line-maze" id={id}>
+  <div class="bar">
+    <div class="phases" role="group" aria-label="Phase">
+      <button class="phase" data-phase="draw" type="button" aria-pressed="true">1 &middot; Draw the lines</button>
+      <button class="phase" data-phase="walk" type="button" aria-pressed="false" disabled>2 &middot; Walk the maze</button>
+    </div>
+    <div class="progress">
+      <div class="status" aria-live="polite"></div>
+      <div class="meter" aria-hidden="true"><span></span></div>
+    </div>
+    <div class="tools">
+      <button class="btn" data-undo type="button">Undo</button>
+      <button class="btn" data-clear type="button">Start over</button>
+      <button class="btn primary" data-go-walk type="button" hidden>Walk the maze &rarr;</button>
+    </div>
+  </div>
+  <div class="sheet">
+    <svg role="img" aria-label="Number grid"></svg>
+  </div>
+</div>

@@ -1,0 +1,20 @@
+---
+// A 5 x 5 practice board: the full game (draw, then walk) in a minute or two.
+// Data from puzzles/line-maze/generate.py --size 5x5 (see puzzles/build.py).
+import GameShell from "../../layouts/GameShell.astro";
+import LineMazeBoard from "../../games/line-maze/LineMazeBoard.astro";
+import LineMazeRules from "../../games/line-maze/LineMazeRules.astro";
+---
+<GameShell title="Number Line Maze: Practice" description="A small practice board for the Number Line Maze.">
+  <p slot="intro">A 5 &times; 5 warm-up with the same rules as the full maze.</p>
+  <LineMazeBoard id="line-maze" />
+  <LineMazeRules slot="directions" />
+</GameShell>
+
+<script>
+  import { createHost } from "../../lib/game";
+  import { createLineMaze } from "../../games/line-maze/game";
+  import practice from "../../games/line-maze/puzzle-practice.json";
+
+  createLineMaze(practice)(document.getElementById("line-maze")!, createHost("line-maze-practice"));
+</script>

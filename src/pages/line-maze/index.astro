@@ -2,60 +2,17 @@
 // Game 2, sheet 1: an interactive number-line puzzle that turns into a maze.
 // Logic lives in src/games/line-maze/game.ts; puzzle data in puzzle.json.
 import GameShell from "../../layouts/GameShell.astro";
-import "../../games/line-maze/line-maze.css";
+import LineMazeBoard from "../../games/line-maze/LineMazeBoard.astro";
+import LineMazeRules from "../../games/line-maze/LineMazeRules.astro";
 ---
 <GameShell title="Number Line Maze" description="Draw the lines each number asks for, then walk the maze you made.">
-  <div class="line-maze" id="line-maze">
-    <div class="bar">
-      <div class="phases" role="group" aria-label="Phase">
-        <button class="phase" data-phase="draw" type="button" aria-pressed="true">1 &middot; Draw the lines</button>
-        <button class="phase" data-phase="walk" type="button" aria-pressed="false" disabled>2 &middot; Walk the maze</button>
-      </div>
-      <div class="progress">
-        <div class="status" aria-live="polite"></div>
-        <div class="meter" aria-hidden="true"><span></span></div>
-      </div>
-      <div class="tools">
-        <button class="btn" data-undo type="button">Undo</button>
-        <button class="btn" data-clear type="button">Start over</button>
-        <button class="btn primary" data-go-walk type="button" hidden>Walk the maze &rarr;</button>
-      </div>
-    </div>
-    <div class="sheet">
-      <svg role="img" aria-label="Number grid"></svg>
-    </div>
-  </div>
-
-  <section class="rules current" id="rules-draw" slot="directions">
-    <h2>Phase 1 &middot; Draw the lines</h2>
-    <ol>
-      <li>Connect neighboring numbers with lines: up, down, left or right.</li>
-      <li>Each number tells you how many lines touch it.</li>
-      <li>Two numbers share at most one line.</li>
-      <li>All the lines join into one network, with no loops.</li>
-    </ol>
-    <p>Drag across numbers to draw. Drag over a line again, or tap it, to erase. Blue lines are given. A number turns green when it has the right count and red when it has too many.</p>
-  </section>
-  <section class="rules" id="rules-walk" slot="directions">
-    <h2>Phase 2 &middot; Walk the maze</h2>
-    <ol>
-      <li>Start at the arrow in the top-right corner.</li>
-      <li>Move along your lines only.</li>
-      <li>Find the way out at the arrow on the right edge.</li>
-    </ol>
-    <p>Unlocks when the lines are finished. Tap a highlighted number or use the arrow keys. Tap a number on your trail to step back.</p>
-  </section>
+  <LineMazeBoard id="line-maze" />
+  <LineMazeRules slot="directions" />
 </GameShell>
 
 <script>
   import { createHost } from "../../lib/game";
   import { mount } from "../../games/line-maze/game";
 
-  const root = document.getElementById("line-maze")!;
-  root.addEventListener("line-maze:phase", (e) => {
-    const phase = (e as CustomEvent<string>).detail;
-    document.getElementById("rules-draw")!.classList.toggle("current", phase === "draw");
-    document.getElementById("rules-walk")!.classList.toggle("current", phase === "walk");
-  });
-  mount(root, createHost("line-maze"));
+  mount(document.getElementById("line-maze")!, createHost("line-maze"));
 </script>

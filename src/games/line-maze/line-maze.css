@@ -24,7 +24,7 @@
 /* The board takes the screen: as wide as fits, but never taller than the viewport. */
 .line-maze .sheet {
   background: var(--paper); border-radius: 2px; box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
-  padding: 8px; justify-self: center; width: 100%; max-width: max(320px, calc((100dvh - 40px) * var(--ratio, .7)));
+  padding: 8px; justify-self: center; width: 100%; max-width: min(600px, max(320px, calc((100dvh - 40px) * var(--ratio, .7))));
 }
 .line-maze svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
 .line-maze svg text { font-family: var(--mono); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }

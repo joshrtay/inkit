@@ -9,15 +9,22 @@ Then: follow the lines from the start arrow to the exit arrow.
 The answer is a uniform random spanning tree. A backtracking solver proves the
 clues (plus a few pre-drawn hint lines, if needed) have exactly one solution.
 """
+import argparse
 import json
 import random
-import sys
 from pathlib import Path
 
-W, H = 11, 17
-START, EXIT = (0, W - 1), (14, W - 1)     # (row, col): top-right; right side near bottom
-SEED = int(sys.argv[1]) if len(sys.argv) > 1 else 38
-OUT = Path(__file__).resolve().parents[2] / "src" / "games" / "line-maze" / "puzzle.json"
+ap = argparse.ArgumentParser()
+ap.add_argument("--size", default="11x17", help="columns x rows")
+ap.add_argument("--exit-row", type=int, default=14, help="row of the exit arrow on the right edge")
+ap.add_argument("--seed", type=int, default=38)
+ap.add_argument("--out", default="puzzle.json", help="file name inside src/games/line-maze/")
+args = ap.parse_args()
+
+W, H = map(int, args.size.split("x"))
+START, EXIT = (0, W - 1), (args.exit_row, W - 1)   # (row, col): top-right; right side lower down
+SEED = args.seed
+OUT = Path(__file__).resolve().parents[2] / "src" / "games" / "line-maze" / args.out
 
 cells = [(r, c) for r in range(H) for c in range(W)]
 idx = {p: i for i, p in enumerate(cells)}

@@ -109,7 +109,11 @@ puzzle is sound before writing anything:
   and `final` are hand-written HTML in `sheets/`.
 - **line-maze**: `generate.py` builds a random spanning-tree maze, then uses a
   backtracking solver to prove the clues have exactly one solution, adding
-  pre-drawn hint lines until they do. `SEED` picks the maze.
+  pre-drawn hint lines until they do. `--seed` picks the maze and `--size` its
+  dimensions. `build.py` also makes a 5 × 5 practice board
+  (`puzzle-practice.json`, page `/line-maze/practice/`) for testing the whole game
+  quickly. Both pages share `LineMazeBoard.astro` and `LineMazeRules.astro`, and
+  `createLineMaze(puzzle)` turns any puzzle file into a `MountGame`.
 
 `puzzles/build.py` lists every game's generators and sheet order. Sheets must render
 to exactly one Letter page. Rendering needs Google Chrome and Python with PyMuPDF

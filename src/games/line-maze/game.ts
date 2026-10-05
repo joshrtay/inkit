@@ -1,7 +1,19 @@
 // Number Line Maze: phase 1, draw lines so each number has that many; phase 2, walk them.
 // Plain TypeScript + SVG. Puzzle data comes from puzzles/line-maze/generate.py.
 import type { MountGame } from "../../lib/game";
-import puzzle from "./puzzle.json";
+import mainPuzzle from "./puzzle.json";
+
+/** Puzzle data as written by puzzles/line-maze/generate.py. */
+export interface LineMazePuzzle {
+  w: number;
+  h: number;
+  start: number[];
+  exit: number[];
+  clues: number[][];
+  hints: number[][][];
+  solution: number[][][];
+  path: number[][];
+}
 
 type Cell = [number, number];
 type Phase = "draw" | "walk";
@@ -11,7 +23,8 @@ const P = 40, M = 34;                          // pitch between numbers, margin 
 const NS = "http://www.w3.org/2000/svg";
 const STEPS: Record<string, Cell> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
-export const mount: MountGame = (root, host) => {
+/** Build a mountable game for one puzzle. */
+export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host) => {
   const { w: W, h: H, clues } = puzzle;
   const start = puzzle.start as Cell, exit = puzzle.exit as Cell;
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
@@ -236,7 +249,7 @@ export const mount: MountGame = (root, host) => {
     phase = p;
     drawTab.setAttribute("aria-pressed", String(p === "draw"));
     walkTab.setAttribute("aria-pressed", String(p === "walk"));
-    root.dispatchEvent(new CustomEvent("line-maze:phase", { detail: p }));
+    root.dispatchEvent(new CustomEvent("line-maze:phase", { detail: p, bubbles: true }));
     svg.classList.toggle("walking", p === "walk");
     goWalk.hidden = p === "walk" || !solved;
     if (p === "walk") return renderWalk();
@@ -252,3 +265,6 @@ export const mount: MountGame = (root, host) => {
   render();
   return () => document.removeEventListener("keydown", onKey);
 };
+
+/** The full 11 x 17 puzzle. */
+export const mount = createLineMaze(mainPuzzle);

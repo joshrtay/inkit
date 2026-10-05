@@ -29,13 +29,17 @@ PRINTABLE = {
         "sheets": ["letters", "letters_mask", "equations", "grids", "remainders", "fold", "tree", "final"],
     },
 }
-# Interactive games whose generator writes data straight into src/.
-INTERACTIVE = ["line-maze/generate.py"]
+# Interactive games whose generator writes data straight into src/: (script, arguments).
+INTERACTIVE = [
+    ("line-maze/generate.py", []),
+    # 5 x 5 practice board for trying the whole game quickly (/line-maze/practice/)
+    ("line-maze/generate.py", ["--size", "5x5", "--exit-row", "3", "--seed", "18", "--out", "puzzle-practice.json"]),
+]
 
 
-def run(script: Path) -> None:
-    print(f"  {script.relative_to(ROOT)}")
-    out = subprocess.run([sys.executable, script.name], cwd=script.parent, capture_output=True, text=True)
+def run(script: Path, args: list[str] = []) -> None:
+    print(f"  {script.relative_to(ROOT)} {' '.join(args)}".rstrip())
+    out = subprocess.run([sys.executable, script.name, *args], cwd=script.parent, capture_output=True, text=True)
     if out.returncode:
         sys.exit(f"{script.name} failed:\n{out.stdout}{out.stderr}")
     if out.stdout.strip():
@@ -68,9 +72,9 @@ def main() -> None:
                 sys.exit(f"no HTML for sheet '{name}' in {game}")
             render(src, PUBLIC / game / "sheets" / f"{name}.pdf")
         print(f"  rendered {len(spec['sheets'])} sheets -> public/{game}/sheets/")
-    for script in INTERACTIVE:
+    for script, args in INTERACTIVE:
         print(script.split("/")[0] + ":")
-        run(PUZZLES / script)
+        run(PUZZLES / script, args)
 
 
 if __name__ == "__main__":
