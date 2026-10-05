@@ -10,7 +10,7 @@ export function getStaticPaths() {
 }
 
 const { type } = Astro.props;
-const list = instancesOf(type);
+const list = instancesOf(type).slice().reverse();   // newest (highest number) first
 ---
 <Base title={type.name} description={type.blurb}>
   <main class="wrap">

@@ -1,6 +1,6 @@
 """Turn the three hand-drawn RYB figures (scans/game2/..._002.pdf) into levels 4-6.
 
-    python3 puzzles/ryb/from_sketch.py
+    python3 puzzles/three-coats/from_sketch.py
 
 Pieces are traced from the sketch in its own pixel coordinates. Overlapping outlines
 cut the figures into pieces; the circles drawn in figure C are left out. Every number drawn in the sketch is kept as written (1 red, 2 yellow,
@@ -13,7 +13,7 @@ import math
 import random
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parents[2] / "src" / "games" / "ryb"
+OUT = Path(__file__).resolve().parents[2] / "src" / "games" / "three-coats"
 
 
 # ---- geometry ----

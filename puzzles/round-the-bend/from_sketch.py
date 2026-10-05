@@ -1,6 +1,6 @@
-"""Turn the four hand-drawn Lazy River grids into levels 1-4.
+"""Turn the four hand-drawn Round the Bend grids into levels 1-4.
 
-    python3 puzzles/lazy-river/from_sketch.py
+    python3 puzzles/round-the-bend/from_sketch.py
 
 Reads the transcription in scans/game2/rivers-transcription.json (local only) and
 keeps every drawn black cell and wall where possible. puzzles/lib/lazy_river.fit adds
@@ -32,5 +32,5 @@ for n, key, name in LEVELS:
     assert ok, (key, msg)
     level = {"type": "lazy-river", "name": name, "meta": f"{len(grid[0])} × {len(grid)}",
              "river": {"source": f"scans/game2/20261004214832_003.pdf (grid {key})", "grid": grid, "walls": walls}}
-    (ROOT / "src" / "games" / "lazy-river" / f"{n}.json").write_text(json.dumps(level, indent=2) + "\n")
+    (ROOT / "src" / "games" / "round-the-bend" / f"{n}.json").write_text(json.dumps(level, indent=2) + "\n")
     print(f"{n} {name} (sketch grid {key}): {msg}; added walls {added}; toggled cells {toggled}")

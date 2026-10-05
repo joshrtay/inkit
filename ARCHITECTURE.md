@@ -18,18 +18,20 @@ The code separates **game types** (reusable) from **instances** (data):
 |---|---|---|
 | Escape Room (`escape-room`) | `packet` | Printable sheets (PDFs) and the final answer |
 | Number Line Maze (`number-line-maze`) | `number-maze` | A grid of numbers, entrance, exit, any hint walls |
-| RYB (`ryb`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
-| Lazy River (`lazy-river`) | `lazy-river` | A grid of white and black cells, plus walls |
-| Mosaic (`mosaic`) | `mosaic` | A pixel-art picture drawn as letters, plus a color for each letter |
+| Three Coats (`three-coats`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
+| Round the Bend (`round-the-bend`) | `lazy-river` | A grid of white and black cells, plus walls |
+| Picture Squares (`picture-squares`) | `mosaic` | A pixel-art picture drawn as letters, plus a color for each letter |
 
 Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, listed).
 Each instance is `src/games/<type path>/<n>.json`; the number is the file name. Adding
 another game of an existing type needs no code, only a JSON file and its content.
 
 Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5)
-and 2 (The Big Maze, fitted to the game 2 sketch); ryb 1–3 (Triangle, Hexagon, Nine
-Squares) and 4–6 traced from the game 2 shapes sketch (Square in a Kite, Envelope,
-House).
+and 2 (The Big Maze, fitted to the game 2 sketch); three-coats 1–3 (Triangle, Hexagon,
+Nine Squares) and 4–6 traced from the game 2 shapes sketch (Square in a Kite, Envelope,
+House); round-the-bend 1–4 from the game 2 grids sketch; picture-squares 1–5 drawn here
+and 6–8 from the mosaic sketch (POP, BOB, a trophy). Game lists show the newest first.
+Old `/ryb/` links redirect to `/three-coats/` (`astro.config.mjs`).
 
 ## How the pieces fit
 
@@ -44,7 +46,7 @@ src/games/<type>/<n>.json ── instance data ───────────
   number-maze: puzzles/lib/number_maze.py proves one solution          │
                                                                        ▼
 src/pages/[type]/[n]/index.astro → src/game-types/<id>/Game.astro (+ game.ts in the browser)
-        │   (ryb levels are solved here; the build fails unless each has one solution)
+        │   (ryb, lazy-river and mosaic levels are solved here; the build fails unless each has one solution)
         ▼  npm run build (Astro) → dist/ → GitHub Actions → GitHub Pages
 ```
 
@@ -107,14 +109,14 @@ a line through the open squares from entrance to exit.
 `puzzles/lib/number_maze.py`: `check()` proves one solution (or suggests hint walls),
 `generate()` makes a random maze, `fit()` finds the valid maze closest to a sketch.
 
-### RYB (`ryb`)
+### Three Coats (`ryb`)
 
 ```json
 "ryb": { "pieces": [ { "points": [[0, 0], [10, 0], [10, 10], [0, 10]], "clue": "113", "hidden": true } ],
          "totals": { "1": 4, "2": 1 }, "hearts": 3 }
 ```
 
-Based on FLEB's RYB (https://fleb.itch.io/ryb). A figure is cut into polygon pieces
+Based on FLEB's RYB (https://fleb.itch.io/ryb); renamed because that name is taken. A figure is cut into polygon pieces
 (any coordinates; the board is scaled to fit). Paint every piece 1 red, 2 yellow or
 3 blue (instance files use the digits; players only ever see colors, and pick them
 with buttons or the keys R, Y, B). A clue is a string of dots: `"113"` means at least
@@ -126,19 +128,19 @@ pieces lock in. `hidden` clues appear only once their piece is painted. Optional
 `src/game-types/ryb/solver.ts` solves each level during the build; the build fails
 unless there is exactly one solution. To make a level from a drawing, trace each
 shape's corners into `points` and copy its numbers into `clue`.
-`puzzles/ryb/from_sketch.py` does this for the game 2 shapes sketch (levels 4–6):
+`puzzles/three-coats/from_sketch.py` does this for the game 2 shapes sketch (levels 4–6):
 overlapping outlines become separate pieces (the House leaves out its drawn circles and
 splits its left triangle so no two pieces share the same neighbors), every drawn dot is kept, and the fewest extra dots
 are added, avoiding slivers, until there is one solution reachable without guessing.
 Dots are drawn at each piece's roomiest interior point.
 
-### Lazy River (`lazy-river`)
+### Round the Bend (`lazy-river`)
 
 ```json
 "river": { "grid": [".......", ".#.....", "..."], "walls": [[[0, 4], [1, 4]], ...] }
 ```
 
-A clone of Inkwell Games' Loopy River (the classic Japanese "Simple Loop"). Draw one
+A clone of Inkwell Games' Loopy River (the classic Japanese "Simple Loop"), under its own name. Draw one
 closed loop through the centre of every white cell (`.`): no branches, crossings or
 separate loops; it skips black cells (`#`) and never crosses a wall (a pair of
 neighbouring cells). Drag between cells to draw or erase, tap a border for an X;
@@ -146,17 +148,17 @@ Undo, Check and Reset; it checks itself once every cell is filled, against the o
 solution found at build time (`src/game-types/lazy-river/solver.ts`; the build fails
 unless there is exactly one loop). `puzzles/lib/lazy_river.py` has the same solver plus
 `fit()`, which turns a traced sketch into a level by adding the fewest walls (and, if
-no loop fits at all, toggling a black cell). `puzzles/lazy-river/from_sketch.py` made
+no loop fits at all, toggling a black cell). `puzzles/round-the-bend/from_sketch.py` made
 levels 1–4 from the game 2 grids sketch.
 
-### Mosaic (`mosaic`)
+### Picture Squares (`mosaic`)
 
 ```json
 "mosaic": { "title": "Apple", "picture": [".....b....", "..rrbrrr..", "..."],
             "palette": { ".": "#e3f2f6", "r": "#d8443a", "b": "#6b4a2b" } }
 ```
 
-A clone of Inkwell Games' Mosaic: a nonogram whose solution is a pixel-art picture.
+A clone of Inkwell Games' Mosaic, under its own name: a nonogram whose solution is a pixel-art picture.
 Every non-`.` character of `picture` is a shaded cell; row and column clues are worked
 out from it. Tap cycles empty -> shaded -> X (right-click the other way), drag paints
 the first cell's new value, clue numbers can be ticked off; Undo, Hint (highlights a
@@ -263,7 +265,7 @@ list and answer, then `npm run puzzles`.
   maze that changes the fewest and prints which changed. Try a few `--seed` values.
 - Check a grid typed into JSON: `python3 puzzles/number-maze/check.py`.
 
-**A new RYB level:** add `src/games/ryb/<n>.json` with the pieces, then `npm run build`.
+**A new Three Coats level:** add `src/games/three-coats/<n>.json` with the pieces, then `npm run build`.
 If it reports more than one solution, add dots, hide fewer clues, or add `totals`.
 
 **A new game type**

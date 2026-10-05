@@ -64,7 +64,7 @@ def maze_svg(maze: dict, solved: bool) -> str:
 
 # ---- ryb ----
 def ryb_config(n: int) -> dict:
-    page = (ROOT / "dist" / "ryb" / str(n) / "index.html").read_text()
+    page = (ROOT / "dist" / "three-coats" / str(n) / "index.html").read_text()
     m = re.search(r'data-game-type="ryb"[^>]*data-config="([^"]+)"', page)
     if not m:
         sys.exit("run `npm run build` first: covers read RYB solutions from dist/")
@@ -99,7 +99,7 @@ def ryb_svg(cfg: dict, painted: bool) -> str:
 
 # ---- lazy river ----
 def river_config(n: int) -> dict:
-    page = (ROOT / "dist" / "lazy-river" / str(n) / "index.html").read_text()
+    page = (ROOT / "dist" / "round-the-bend" / str(n) / "index.html").read_text()
     m = re.search(r'data-game-type="lazy-river"[^>]*data-config="([^"]+)"', page)
     if not m:
         sys.exit("run `npm run build` first: covers read Lazy River solutions from dist/")
@@ -183,7 +183,7 @@ def main():
     cover([(sheets[0][0], sheets[0][1], 300, 400, 380, -9),
            (sheets[2][0], sheets[2][1], 880, 395, 400, 8),
            (sheets[1][0], sheets[1][1], 590, 380, 430, -1)],
-          ROOT / "public" / "ryb" / "cover.jpg")
+          ROOT / "public" / "three-coats" / "cover.jpg")
 
 
 def mosaic_svg(level: dict):
@@ -196,16 +196,16 @@ def mosaic_svg(level: dict):
 
 
 def mosaic_cover():
-    games = ROOT / "src" / "games" / "mosaic"
+    games = ROOT / "src" / "games" / "picture-squares"
     pics = [mosaic_svg(json.loads((games / f"{n}.json").read_text())["mosaic"]) for n in (3, 5, 2)]
     cover([(pics[0][0], pics[0][1], 330, 395, 380, -9), (pics[1][0], pics[1][1], 870, 400, 380, 8),
-           (pics[2][0], pics[2][1], 600, 380, 440, -1)], ROOT / "public" / "mosaic" / "cover.jpg")
+           (pics[2][0], pics[2][1], 600, 380, 440, -1)], ROOT / "public" / "picture-squares" / "cover.jpg")
 
 
 def lazy_river_cover():
     a, b = river_svg(river_config(3), solved=False), river_svg(river_config(4), solved=True)
     cover([(a[0], a[1], 380, 390, 470, -8), (b[0], b[1], 780, 380, 520, 6)],
-          ROOT / "public" / "lazy-river" / "cover.jpg")
+          ROOT / "public" / "round-the-bend" / "cover.jpg")
 
 
 if __name__ == "__main__":

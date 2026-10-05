@@ -1,11 +1,11 @@
-"""Lazy River (a clone of Inkwell Games' Loopy River; the classic "Simple Loop").
+"""Round the Bend (game type id "lazy-river"; after Inkwell Games' Loopy River, the classic "Simple Loop").
 
 Grid: white cells ('.') and black cells ('#'); thick walls between some neighbouring
 cells. Rules: draw ONE closed loop through the centre of every white cell (each entered
 and left once: no branches, no crossings, no separate mini-loops). The loop never enters
 black cells and never crosses a wall.
 
-An instance's "river" data (src/games/lazy-river/<n>.json):
+An instance's "river" data (src/games/round-the-bend/<n>.json):
   {"grid": ["......", "..#...", ...], "walls": [[[r, c], [r, c]], ...]}
 """
 from __future__ import annotations
