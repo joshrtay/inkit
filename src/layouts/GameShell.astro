@@ -48,6 +48,7 @@ const hasDirections = Astro.slots.has("directions");
 
 <script>
   import { isComplete, markComplete } from "../lib/progress";
+  import { account } from "../lib/account";
 
   const title = document.querySelector<HTMLElement>(".title[data-progress-id]");
   if (title) {
@@ -58,6 +59,8 @@ const hasDirections = Astro.slots.has("directions");
       markComplete(id);
       title.classList.add("done");
       if (fresh) title.classList.add("animate");
+      // First finish while logged out: ask them to log in (after the check mark draws).
+      if (!account()) setTimeout(() => document.dispatchEvent(new CustomEvent("account:required")), 900);
     });
   }
 </script>

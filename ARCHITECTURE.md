@@ -66,6 +66,8 @@ Actions runs it on every push to `main`.
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
 | `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (builds links from the site root); `sha256()`; which games the player has finished. |
 | `src/components/Check.astro` | The animated check mark for finished games. |
+| `src/lib/account.ts`, `src/components/Account.astro` | Player login (name + PIN) and cloud sync of progress. |
+| `worker/` | Cloudflare Worker API for accounts and saves, backed by R2. |
 | `public/<type>/` | Static files: type cover; `<n>/sheets/` PDFs and previews for escape rooms. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
 | `puzzles/covers.py` | Renders the Number Line Maze and RYB cover images from real puzzles (`npm run build` first). |
@@ -173,6 +175,42 @@ players a fresh start instead of old progress on a new board.
 | Puzzles with lots of UI state | A React island (`@astrojs/react`) |
 | Real-time, animated or physics games | Phaser (full engine) or PixiJS (2D rendering) |
 | Printable sheets | The escape room (`packet`) type |
+
+## Accounts and cloud saves
+
+Players can log in with a name and a 4-digit PIN to keep progress across devices.
+Deliberately light security: fine for puzzle progress, not for anything private.
+
+- **API:** `worker/` is a Cloudflare Worker at `https://api.wyattsgames.com`
+  (`POST /login`, `GET`/`PUT /progress`). Logging in with a new name creates the
+  account. PINs are stored as salted SHA-256; 10 wrong PINs lock a name for 15
+  minutes. Login returns a signed token (HMAC with the `TOKEN_SECRET` secret), valid
+  for a year.
+- **Storage:** R2 bucket `wyattsgames-saves`, one object per player:
+  `users/<name>.json` with the PIN hash, completed games and every game save.
+  Saves merge by time (newer wins); completed games merge as a union.
+- **Site:** `src/lib/account.ts` (login, logout, pull, push) and
+  `src/components/Account.astro` (button top-left on every page, plus the dialog).
+  Progress is always written to localStorage first. When logged in, every save
+  (`GameHost.save`) and completion is pushed to the account shortly after, and each
+  page load pulls the account's progress. Logging in merges this browser's progress
+  into the account. Finishing a game while logged out opens the dialog in a required
+  mode (no "Not now"; "Continue without saving" appears only if the server can't be reached).
+- **API address:** `PUBLIC_API_URL` (default `https://api.wyattsgames.com`);
+  `.env.development` points local dev at `http://localhost:8787`.
+
+Local development: run the Worker with `cd worker && npm run dev` (it simulates R2
+on this machine; `worker/.dev.vars` holds a local `TOKEN_SECRET`), alongside `npm run dev`.
+
+Deploying the Worker (once, then after Worker changes):
+
+```bash
+cd worker
+npx wrangler login                                  # opens Cloudflare in the browser
+npx wrangler r2 bucket create wyattsgames-saves     # first time only
+npx wrangler secret put TOKEN_SECRET                # first time only: paste a long random string
+npm run deploy                                      # also creates api.wyattsgames.com
+```
 
 ## Recipes
 

@@ -18,6 +18,7 @@ export function markComplete(id: string) {
   const all = completed();
   all.add(id);
   try { localStorage.setItem(KEY, JSON.stringify([...all])); } catch { /* play without saving */ }
+  void import("./account").then((a) => a.pushSoon());   // send to the account, if logged in
 }
 
 /** How many of the given ids are complete. */

@@ -1,6 +1,7 @@
 ---
 // The page shell every page uses: head, fonts, shared styles and the airmail edges.
 import "../styles/global.css";
+import Account from "../components/Account.astro";
 
 interface Props {
   title: string;
@@ -18,8 +19,9 @@ const { title, description } = Astro.props;
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" />
   </head>
-  <body>
+  <body style="position: relative">
     <div class="airmail" aria-hidden="true"></div>
+    <Account />
     <slot />
     <div class="airmail" aria-hidden="true"></div>
   </body>

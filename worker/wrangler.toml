@@ -1,0 +1,18 @@
+# The Wyatt's Games API: player accounts (username + 4-digit PIN) and saved progress in R2.
+name = "wyattsgames-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+# Served at https://api.wyattsgames.com (Cloudflare creates the DNS record on deploy).
+routes = [{ pattern = "api.wyattsgames.com", custom_domain = true }]
+
+[[r2_buckets]]
+binding = "SAVES"
+bucket_name = "wyattsgames-saves"
+
+[vars]
+# Pages allowed to call the API (comma separated).
+ALLOWED_ORIGINS = "https://wyattsgames.com,http://localhost:4321"
+
+# TOKEN_SECRET is a secret, set with: npx wrangler secret put TOKEN_SECRET
+# For local dev it comes from worker/.dev.vars (not committed).

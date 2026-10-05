@@ -15,3 +15,11 @@ __pycache__/
 
 # local Claude Code settings
 .claude/settings.local.json
+
+# Cloudflare Worker: dependencies, local state, local secrets
+worker/node_modules/
+worker/.wrangler/
+worker/.dev.vars
+
+# local dev points the site at the local Worker
+.env.development

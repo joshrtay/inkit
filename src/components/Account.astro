@@ -1,0 +1,153 @@
+---
+// The account button (top-left of every page) and the log-in dialog.
+// Opens itself in "required" mode when something dispatches "account:required"
+// (GameShell does, the first time a logged-out player finishes a game).
+---
+<div class="account">
+  <button class="account-btn" type="button" data-account-open>
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="7" r="3.6" /><path d="M3.5 17.5c.9-3.4 3.4-5.2 6.5-5.2s5.6 1.8 6.5 5.2" /></svg>
+    <span data-account-label>Log in</span>
+  </button>
+</div>
+
+<dialog class="account-dialog" data-account-dialog aria-labelledby="account-title">
+  <form method="dialog" data-account-form>
+    <h2 id="account-title" data-account-title>Log in</h2>
+    <p class="lead" data-account-lead>Log in to keep your progress on any device. New here? Pick a name and a 4-digit PIN and your account is made for you.</p>
+
+    <div data-account-fields>
+      <label>Name
+        <input name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="20" required />
+      </label>
+      <label>4-digit PIN
+        <input name="pin" type="password" inputmode="numeric" autocomplete="current-password" pattern="\d{4}" maxlength="4" required />
+      </label>
+    </div>
+    <p class="who" data-account-who hidden></p>
+    <p class="error" data-account-error role="alert"></p>
+
+    <div class="actions">
+      <button class="btn primary" type="submit" data-account-submit>Log in</button>
+      <button class="btn" type="button" data-account-logout hidden>Log out</button>
+      <button class="btn link" type="button" data-account-cancel>Not now</button>
+      <button class="btn link" type="button" data-account-skip hidden>Continue without saving</button>
+    </div>
+  </form>
+</dialog>
+
+<style is:global>
+  .account { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 18px); left: 16px; z-index: 5; }
+  .account-btn {
+    display: inline-flex; align-items: center; gap: 7px; font: 700 13px/1 var(--mono); color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px 7px 9px; cursor: pointer;
+  }
+  .account-btn:hover { border-color: var(--ink); }
+  .account-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+  .account-btn.in svg { stroke: var(--good); }
+  /* leave room under the button for page content */
+  body:has(.account) > main.wrap { padding-top: calc(24px + 46px); }
+
+  .account-dialog {
+    width: min(400px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 6px; padding: 0;
+    background: var(--panel); color: var(--ink); box-shadow: 0 24px 60px -20px var(--shadow);
+  }
+  .account-dialog::backdrop { background: rgba(20, 18, 14, .55); }
+  .account-dialog form { display: grid; gap: 14px; padding: 22px 22px 20px; }
+  .account-dialog h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; }
+  .account-dialog .lead, .account-dialog .who { margin: 0; color: var(--muted); font-size: 15px; }
+  .account-dialog [data-account-fields] { display: grid; gap: 12px; }
+  .account-dialog label { display: grid; gap: 5px; font: 700 13px/1 var(--mono); }
+  .account-dialog input {
+    font: 400 18px/1 var(--mono); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 4px; padding: 10px 12px; min-width: 0;
+  }
+  .account-dialog input[name="pin"] { letter-spacing: .4em; width: 9ch; }
+  .account-dialog .error { margin: 0; min-height: 1.2em; color: var(--red); font-family: var(--mono); font-size: 13px; }
+  .account-dialog .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+  .account-dialog .btn.link { background: none; border: none; color: var(--muted); text-decoration: underline; padding-inline: 4px; }
+  .account-dialog.required [data-account-cancel] { display: none; }
+</style>
+
+<script>
+  import { account, login, logout, pull } from "../lib/account";
+
+  const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
+  const dialog = $<HTMLDialogElement>("[data-account-dialog]");
+  const form = $<HTMLFormElement>("[data-account-form]");
+  const openBtn = $<HTMLButtonElement>("[data-account-open]");
+  const label = $("[data-account-label]");
+  const title = $("[data-account-title]"), lead = $("[data-account-lead]"), who = $("[data-account-who]");
+  const fields = $("[data-account-fields]"), error = $("[data-account-error]");
+  const submit = $<HTMLButtonElement>("[data-account-submit]"), logoutBtn = $<HTMLButtonElement>("[data-account-logout]");
+  const cancel = $<HTMLButtonElement>("[data-account-cancel]"), skip = $<HTMLButtonElement>("[data-account-skip]");
+  const LEAD = lead.textContent;
+  let required = false;
+
+  function showButton() {
+    const acct = account();
+    label.textContent = acct ? acct.username : "Log in";
+    openBtn.classList.toggle("in", !!acct);
+    openBtn.setAttribute("aria-label", acct ? `Logged in as ${acct.username}` : "Log in");
+  }
+
+  function open(mode: "login" | "required") {
+    required = mode === "required";
+    dialog.classList.toggle("required", required);
+    const acct = account();
+    const signedIn = !!acct && !required;
+    title.textContent = required ? "Nice work! Save it?" : signedIn ? "Your account" : "Log in";
+    lead.textContent = required
+      ? "Log in to keep this and your other progress. New here? Pick a name and a 4-digit PIN and your account is made for you."
+      : LEAD;
+    lead.hidden = signedIn;
+    who.hidden = !signedIn;
+    who.textContent = signedIn ? `Logged in as ${acct!.username}. Your progress saves to your account.` : "";
+    fields.hidden = signedIn;
+    submit.hidden = signedIn;
+    logoutBtn.hidden = !signedIn;
+    skip.hidden = true;
+    error.textContent = "";
+    form.reset();
+    dialog.showModal();
+    if (!signedIn) (form.elements.namedItem("username") as HTMLInputElement).focus();
+  }
+
+  openBtn.addEventListener("click", () => open("login"));
+  cancel.addEventListener("click", () => dialog.close());
+  skip.addEventListener("click", () => { required = false; dialog.close(); });
+  logoutBtn.addEventListener("click", () => { logout(); dialog.close(); });
+  // A required log-in can't be dismissed with Escape.
+  dialog.addEventListener("cancel", (e) => { if (required) e.preventDefault(); });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = new FormData(form);
+    const pin = String(data.get("pin") ?? "");
+    if (!/^\d{4}$/.test(pin)) { error.textContent = "The PIN is 4 digits."; return; }
+    submit.disabled = true;
+    error.textContent = "";
+    try {
+      const { dirty } = await login(String(data.get("username") ?? ""), pin);
+      dialog.close();
+      if (dirty && !required) location.reload();   // show progress from the account
+      required = false;
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      error.textContent = status ? (err as Error).message : "Couldn't reach the save server. Check your connection and try again.";
+      if (!status && required) skip.hidden = false;   // let players carry on if the server is down
+    } finally {
+      submit.disabled = false;
+    }
+  });
+
+  document.addEventListener("account:change", showButton);
+  document.addEventListener("account:required", () => { if (!account()) open("required"); });
+  showButton();
+  // Bring in progress made on other devices; reload once if anything here changed.
+  pull().then((dirty) => {
+    if (dirty && !sessionStorage.getItem("wyattsgames:pulled")) {
+      sessionStorage.setItem("wyattsgames:pulled", "1");
+      location.reload();
+    }
+  });
+</script>

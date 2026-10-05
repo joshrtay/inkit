@@ -1,3 +1,5 @@
+import { noteSave } from "./account";
+
 // The contract every interactive game follows, whatever it is built with
 // (plain TypeScript + SVG, a React island, Phaser, ...). The page creates a host
 // and hands it to the game's mount function; the game never touches storage or
@@ -39,6 +41,7 @@ export function createHost(id: string): GameHost {
     },
     save(state) {
       try { localStorage.setItem(key, JSON.stringify(state)); } catch { /* ignore */ }
+      noteSave(id);                     // timestamps the save and syncs it when logged in
     },
     clear() {
       try { localStorage.removeItem(key); } catch { /* ignore */ }

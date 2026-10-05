@@ -10,6 +10,7 @@ npm install          # once
 npm run dev          # live preview at http://localhost:4321/
 npm run build        # type-check and build the site into dist/
 npm run puzzles      # regenerate, verify and render every puzzle (needs Chrome + Python)
+cd worker && npm run dev   # local accounts API (http://localhost:8787) for testing logins
 ```
 
 Pushing to `main` publishes the site through GitHub Actions.
