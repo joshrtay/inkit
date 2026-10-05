@@ -7,6 +7,8 @@ export interface MosaicConfig {
   picture: string[];
   /** Colors for each character, e.g. { ".": "#dff3f7", "r": "#d8443a" }. */
   palette: Record<string, string>;
+  /** The sketch this picture was taken from, if any. */
+  source?: string;
 }
 
 /** What the browser receives (built by Game.astro). */

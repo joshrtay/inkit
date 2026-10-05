@@ -1,0 +1,20 @@
+{
+  "type": "mosaic",
+  "name": "Say My Name",
+  "meta": "12 \u00d7 5 \u00b7 from the sketch",
+  "mosaic": {
+    "title": "Bob",
+    "picture": [
+      "bb..bbbb.bb.",
+      "b.b.b..b.b.b",
+      "bb..b..b.bb.",
+      "b.b.b..b.b.b",
+      "bb..bbbb.bb."
+    ],
+    "palette": {
+      ".": "#eef4fb",
+      "b": "#2f6fd8"
+    },
+    "source": "scans/mosaic/20261005002114_001.pdf"
+  }
+}

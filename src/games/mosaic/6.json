@@ -1,0 +1,30 @@
+{
+  "type": "mosaic",
+  "name": "Tall Word",
+  "meta": "3 \u00d7 15 \u00b7 from the sketch",
+  "mosaic": {
+    "title": "Pop",
+    "picture": [
+      "ppp",
+      "p.p",
+      "ppp",
+      "p..",
+      "p..",
+      "...",
+      "ppp",
+      "p.p",
+      "ppp",
+      "...",
+      "ppp",
+      "p.p",
+      "ppp",
+      "p..",
+      "p.."
+    ],
+    "palette": {
+      ".": "#fdf1e4",
+      "p": "#e2508f"
+    },
+    "source": "scans/mosaic/20261005002114_001.pdf"
+  }
+}
