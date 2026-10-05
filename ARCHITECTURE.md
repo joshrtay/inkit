@@ -27,7 +27,7 @@ another game of an existing type needs no code, only a JSON file and its content
 Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5)
 and 2 (The Big Maze, fitted to the game 2 sketch); ryb 1–3 (Triangle, Hexagon, Nine
 Squares) and 4–6 traced from the game 2 shapes sketch (Square in a Kite, Envelope,
-House with Circles).
+House).
 
 ## How the pieces fit
 
@@ -123,8 +123,8 @@ pieces lock in. `hidden` clues appear only once their piece is painted. Optional
 unless there is exactly one solution. To make a level from a drawing, trace each
 shape's corners into `points` and copy its numbers into `clue`.
 `puzzles/ryb/from_sketch.py` does this for the game 2 shapes sketch (levels 4–6):
-overlapping outlines become separate pieces (a circle inside a triangle becomes the
-circle plus three corner pieces), every drawn dot is kept, and the fewest extra dots
+overlapping outlines become separate pieces (the House leaves out its drawn circles and
+splits its left triangle so no two pieces share the same neighbors), every drawn dot is kept, and the fewest extra dots
 are added, avoiding slivers, until there is one solution reachable without guessing.
 Dots are drawn at each piece's roomiest interior point.
 

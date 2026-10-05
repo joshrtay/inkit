@@ -3,8 +3,7 @@
     python3 puzzles/ryb/from_sketch.py
 
 Pieces are traced from the sketch in its own pixel coordinates. Overlapping outlines
-cut the figures into pieces; a circle inside a triangle becomes the circle plus three
-corner pieces. Every number drawn in the sketch is kept as written (1 red, 2 yellow,
+cut the figures into pieces; the circles drawn in figure C are left out. Every number drawn in the sketch is kept as written (1 red, 2 yellow,
 3 blue). Where the sketch's clues allow more than one coloring, the fewest extra dots
 are added to blank pieces until exactly one coloring fits and it can be reached step
 by step without guessing. The Astro build re-checks uniqueness.
@@ -51,30 +50,6 @@ def adjacency(polys):
              any(shares_edge(a, b, c, d, tol) for a, b in edges[i] for c, d in edges[j])] for i in range(len(polys))]
 
 
-def incircle_split(A, B, C, steps=8):
-    """A triangle cut by its inscribed circle: [circle, corner at A, corner at B, corner at C].
-    The circle is a polygon through the three tangent points; each corner piece shares
-    the circle's arc between its two tangent points."""
-    a, b, c = math.dist(B, C), math.dist(C, A), math.dist(A, B)
-    s = (a + b + c) / 2
-    I = ((a * A[0] + b * B[0] + c * C[0]) / (2 * s), (a * A[1] + b * B[1] + c * C[1]) / (2 * s))
-    r = math.sqrt((s - a) * (s - b) * (s - c) / s)
-    foot = lambda P, Q: lerp(P, Q, ((I[0] - P[0]) * (Q[0] - P[0]) + (I[1] - P[1]) * (Q[1] - P[1])) / math.dist(P, Q) ** 2)
-    tAB, tBC, tCA = foot(A, B), foot(B, C), foot(C, A)
-    ang = lambda P: math.atan2(P[1] - I[1], P[0] - I[0])
-
-    def arc(P, Q):  # points from P to Q the short way round, P included, Q excluded
-        a0, a1 = ang(P), ang(Q)
-        d = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
-        return [(I[0] + r * math.cos(a0 + d * k / steps), I[1] + r * math.sin(a0 + d * k / steps)) for k in range(steps)]
-
-    circle = arc(tAB, tBC) + arc(tBC, tCA) + arc(tCA, tAB)
-    corner_A = [A, tAB] + arc(tAB, tCA)[1:] + [tCA]          # arc from tAB back to tCA passes near A
-    corner_B = [B, tBC] + arc(tBC, tAB)[1:] + [tAB]
-    corner_C = [C, tCA] + arc(tCA, tBC)[1:] + [tBC]
-    return circle, corner_A, corner_B, corner_C
-
-
 # ---- the three figures (sketch pixel coordinates) ----
 def figure_a():
     """Square in a kite. Square '11'; the kite's upper part '3'."""
@@ -110,24 +85,25 @@ def figure_b():
 
 
 def figure_c():
-    """House: vertical split, tilted square '33', circles '21' (left) and '13' (top)."""
+    """House: vertical split and a tilted square '33'. The sketch's circles are left out
+    and their clues ('21', '13') go on the shapes they were drawn in. A line from the
+    house's left point to the square's left corner splits the left triangle; without it
+    the top and lower triangles would touch the same pieces and could always swap colors."""
     L, TLc, TRc, BRc, BLc = (40, 195), (160, 75), (445, 55), (460, 350), (200, 355)
     DT = on_segment_x(TLc, TRc, 290)
     DR = on_segment_y(TRc, BRc, 195)
     DB = on_segment_x(BLc, BRc, 330)
     DL = on_segment_y(TLc, BLc, 215)                   # the square's left corner touches the vertical line
-    left = incircle_split(L, TLc, BLc)                 # circle '21' in the left triangle
-    top = incircle_split(TLc, DT, DL)                  # circle '13' in the top triangle
     pieces = [
         [DT, DR, DB, DL],                              # tilted square
-        left[0], left[1], left[2], left[3],
-        top[0], top[1], top[2], top[3],
+        [L, TLc, DL],                                  # upper-left (where circle '21' was)
+        [L, DL, BLc],                                  # lower-left
+        [TLc, DT, DL],                                 # top triangle (where circle '13' was)
         [DT, TRc, DR],                                 # top-right corner
         [DR, BRc, DB],                                 # bottom-right corner
         [DL, DB, BLc],                                 # lower triangle by the vertical line
     ]
-    clues = ["33", "12", "", "", "", "13", "", "", "", "", "", ""]
-    return pieces, clues
+    return pieces, ["33", "12", "", "13", "", "", ""]
 
 
 # ---- solving and clue design ----
@@ -232,7 +208,7 @@ def complete(nb, clues, roomy, seed=1, tries=3000):
 
 
 def main():
-    names = {4: ("Square in a Kite", figure_a), 5: ("Envelope", figure_b), 6: ("House with Circles", figure_c)}
+    names = {4: ("Square in a Kite", figure_a), 5: ("Envelope", figure_b), 6: ("House", figure_c)}
     for n, (name, fig) in names.items():
         polys, clues = fig()
         nb = adjacency(polys)
