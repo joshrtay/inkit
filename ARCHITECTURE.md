@@ -107,13 +107,16 @@ puzzle is sound before writing anything:
   each sheet has one solution and hands the right number to the next sheet
   (APPLE → 600 → 66 → 375,041 → 5,100 → 4,992 → 74,992). `equations`, `remainders`
   and `final` are hand-written HTML in `sheets/`.
-- **line-maze**: `generate.py` builds a random spanning-tree maze, then uses a
-  backtracking solver to prove the clues have exactly one solution, adding
-  pre-drawn hint lines until they do. `--seed` picks the maze and `--size` its
-  dimensions. `build.py` also makes a 5 × 5 practice board
-  (`puzzle-practice.json`, page `/line-maze/practice/`) for testing the whole game
-  quickly. Both pages share `LineMazeBoard.astro` and `LineMazeRules.astro`, and
-  `createLineMaze(puzzle)` turns any puzzle file into a `MountGame`.
+- **line-maze**: numbers sit on the corners of a grid of squares; lines between
+  them are walls, and the outer border (with an entrance and an exit gap) is drawn
+  for the player. `generate.py` carves a random perfect maze of squares, derives
+  the walls and corner counts, then a backtracking solver proves the counts (plus
+  the rules "no wall loops" and "every wall connects to the border") allow only
+  that maze, pre-drawing hint walls until they do. `--seed` picks the maze and
+  `--size` its dimensions. `build.py` also makes a 5 × 5 practice board
+  (`puzzle-practice.json`, page `/line-maze/practice/`). Both pages share
+  `LineMazeBoard.astro` and `LineMazeRules.astro`, and `createLineMaze(puzzle)`
+  turns any puzzle file into a `MountGame`.
 
 `puzzles/build.py` lists every game's generators and sheet order. Sheets must render
 to exactly one Letter page. Rendering needs Google Chrome and Python with PyMuPDF

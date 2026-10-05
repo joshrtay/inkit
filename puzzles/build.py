@@ -33,7 +33,7 @@ PRINTABLE = {
 INTERACTIVE = [
     ("line-maze/generate.py", []),
     # 5 x 5 practice board for trying the whole game quickly (/line-maze/practice/)
-    ("line-maze/generate.py", ["--size", "5x5", "--exit-row", "3", "--seed", "18", "--out", "puzzle-practice.json"]),
+    ("line-maze/generate.py", ["--size", "5x5", "--exit-row", "2", "--seed", "10", "--out", "puzzle-practice.json"]),
 ]
 
 

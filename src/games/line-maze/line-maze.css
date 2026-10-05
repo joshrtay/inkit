@@ -29,24 +29,25 @@
 .line-maze svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
 .line-maze svg text { font-family: var(--mono); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 
-.line-maze .seg { stroke: var(--paper-ink); stroke-width: 4; stroke-linecap: round; }
-.line-maze .seg.hint { stroke: var(--blue); }
+.line-maze .wall { stroke: var(--paper-ink); stroke-width: 5; stroke-linecap: round; }
+.line-maze .wall.hint { stroke: var(--blue); }
+.line-maze .square { fill: transparent; }
 .line-maze .gap { fill: transparent; cursor: pointer; }
-.line-maze .gap:hover { fill: rgba(34, 64, 138, .12); }
-.line-maze .cell circle { fill: #fff; stroke: var(--paper-ink); stroke-width: 1.6; }
-.line-maze .cell text { fill: var(--paper-ink); font-size: 15px; }
-.line-maze .cell.done circle { fill: var(--done-fill); stroke: #1f6b3a; }
-.line-maze .cell.over circle { fill: #f6d6d6; stroke: #b3262f; stroke-width: 2.4; }
-.line-maze .cell.over text { fill: #b3262f; }
-.line-maze .arrow { fill: none; stroke: var(--paper-ink); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.line-maze .gap:hover { fill: rgba(34, 64, 138, .14); }
+.line-maze .num circle { fill: #fff; stroke: var(--paper-ink); stroke-width: 1.4; }
+.line-maze .num text { fill: var(--paper-ink); font-size: 14px; }
+.line-maze .num.done circle { fill: var(--done-fill); stroke: #1f6b3a; }
+.line-maze .num.over circle { fill: #f6d6d6; stroke: #b3262f; stroke-width: 2.2; }
+.line-maze .num.over text { fill: #b3262f; }
+.line-maze .arrow { fill: none; stroke: var(--red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
-.line-maze .walking .seg { stroke: #c9c0ad; stroke-width: 9; }
+/* walking: walls stay dark, numbers shrink into posts, open squares become the floor */
 .line-maze .walking .gap { display: none; }
-.line-maze .walking .cell circle { fill: #fff; stroke: #c9c0ad; }
-.line-maze .walking .cell text { fill: #a49b88; }
-.line-maze .walking .cell.reach { cursor: pointer; }
-.line-maze .walking .cell.reach circle { stroke: var(--trail); stroke-width: 2.4; }
-.line-maze .trail { fill: none; stroke: var(--trail); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.line-maze .walking .wall.hint { stroke: var(--paper-ink); }
+.line-maze .walking .num circle { r: 3.5; fill: var(--paper-ink); stroke: none; }
+.line-maze .walking .num text { display: none; }
+.line-maze .walking .square.reach { fill: rgba(224, 164, 34, .22); cursor: pointer; }
+.line-maze .trail { fill: none; stroke: var(--trail); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
 .line-maze .token { fill: var(--red); stroke: #fff; stroke-width: 2.5; }
 
 @media (max-width: 600px) { .line-maze .sheet { padding: 3px; } .line-maze .phase { padding: 8px 9px; font-size: 13px; } }

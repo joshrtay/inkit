@@ -3,23 +3,22 @@
 ---
 <div class="line-maze-rules">
   <section class="rules current" data-rules="draw">
-    <h2>Phase 1 &middot; Draw the lines</h2>
+    <h2>Phase 1 &middot; Build the walls</h2>
     <ol>
-      <li>Connect neighboring numbers with lines: up, down, left or right.</li>
-      <li>Each number tells you how many lines touch it.</li>
-      <li>Two numbers share at most one line.</li>
-      <li>All the lines join into one network, with no loops.</li>
+      <li>Draw walls between neighboring numbers: up, down, left or right.</li>
+      <li>Each number tells you how many walls touch it. The border counts.</li>
+      <li>Walls never close into a loop, and every wall connects to the border.</li>
     </ol>
-    <p>Drag across numbers to draw. Drag over a line again, or tap it, to erase. Blue lines are given. A number turns green when it has the right count and red when it has too many.</p>
+    <p>The border is drawn for you, with gaps at the two arrows. Drag across numbers to draw a wall; drag over it again, or tap it, to erase. Blue walls are given. A number turns green when it has the right count and red when it has too many.</p>
   </section>
   <section class="rules" data-rules="walk">
     <h2>Phase 2 &middot; Walk the maze</h2>
     <ol>
-      <li>Start at the arrow in the top-right corner.</li>
-      <li>Move along your lines only.</li>
-      <li>Find the way out at the arrow on the right edge.</li>
+      <li>Enter at the arrow on the top edge.</li>
+      <li>Move through the open squares. You can&rsquo;t cross a wall.</li>
+      <li>Leave by the arrow on the right edge.</li>
     </ol>
-    <p>Unlocks when the lines are finished. Tap a highlighted number or use the arrow keys. Tap a number on your trail to step back.</p>
+    <p>Unlocks when the walls are finished. Tap a highlighted square or use the arrow keys. Tap a square on your trail to step back.</p>
   </section>
 </div>
 
