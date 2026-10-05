@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Equations</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime&text=0123456789&display=block" rel="stylesheet">
+<style>
+  @page { size: letter; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  .sheet {
+    position: relative; box-sizing: border-box;
+    width: 215.9mm; height: 279.4mm; padding: 26mm 26mm;
+    font-family: 'Courier Prime', 'Special Elite', 'Courier New', monospace; color: #2b2622;
+    font-size: 15pt; line-height: 1.5;
+  }
+  .reg { position: absolute; width: 9mm; height: 9mm; border: 0 solid #2b2622; }
+  .tl { top: 10mm; left: 10mm; border-top-width: .5mm; border-left-width: .5mm; }
+  .tr { top: 10mm; right: 10mm; border-top-width: .5mm; border-right-width: .5mm; }
+  .bl { bottom: 10mm; left: 10mm; border-bottom-width: .5mm; border-left-width: .5mm; }
+  .br { bottom: 10mm; right: 10mm; border-bottom-width: .5mm; border-right-width: .5mm; }
+
+  p { margin: 0 0 4mm; }
+  .key { margin: 2mm 0 6mm 8mm; }
+  .work { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 12mm; }
+  .eqs { font-size: 17pt; line-height: 1; }
+  .eq { display: flex; align-items: center; height: 15mm; }
+  .eq.tall { height: 24mm; }
+  .frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 .25em; }
+  .frac .num { padding: 0 .2em 1.2mm; border-bottom: .45mm solid #2b2622; }
+  .frac .den { padding-top: 1.2mm; }
+  .note { font-size: 12pt; text-align: center; border: .4mm dashed #2b2622; padding: 4mm 6mm; margin-top: 2mm; line-height: 1.4; }
+  .final { margin-top: 16mm; font-size: 17pt; display: flex; align-items: center; gap: 6mm; }
+  .final .arrow { font-size: 13pt; }
+</style></head>
+<body>
+<div class="sheet">
+  <div class="reg tl"></div><div class="reg tr"></div><div class="reg bl"></div><div class="reg br"></div>
+
+  <p>Use the 5 letter word.</p>
+  <p class="key">a = 1, b = 2, c = 3, &hellip; z = 26</p>
+  <p>What is the sum for your 5 letter word?<br>Call that X.</p>
+
+  <div class="work">
+    <div class="eqs">
+      <div class="eq">X + Y = 200</div>
+      <div class="eq">Y &minus; X = Z</div>
+      <div class="eq tall">A + B =&nbsp;<span class="frac"><span class="num">Y</span><span class="den">10</span></span>&nbsp;= C</div>
+      <div class="eq tall"><span class="frac" style="margin-left:0"><span class="num">A &times; B + C &minus; 1</span><span class="den">10</span></span>&nbsp;= D</div>
+      <div class="eq">D = A</div>
+    </div>
+    <div class="note">All variables are<br>positive integers.</div>
+  </div>
+
+  <div class="final">
+    <span>(B + D) &times; 20 + X + Y + Z</span>
+    <span class="arrow">&rarr; for Page 2</span>
+  </div>
+</div>
+</body></html>

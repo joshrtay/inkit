@@ -1,0 +1,66 @@
+/* Site-wide tokens and base styles. Every page gets these through layouts/Base.astro.
+   Look: a manila envelope edged in airmail stripes, typed in typewriter faces. */
+:root {
+  --bg: #ddd0b3;          /* manila envelope */
+  --panel: #e8ddc5;
+  --ink: #24211c;
+  --muted: #5d5545;
+  --line: #b9a985;
+  --red: #b3262f;         /* airmail red */
+  --blue: #22408a;        /* airmail blue */
+  --good: #1f6b3a;
+  --paper: #ffffff;       /* game boards and sheets are always white paper */
+  --paper-ink: #2b2622;
+  --shadow: rgba(60, 45, 20, .28);
+
+  --display: 'Special Elite', 'Courier New', monospace;
+  --mono: 'Courier Prime', 'Courier New', monospace;
+  --body: 'Source Sans 3', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1b1d22; --panel: #24272e; --ink: #ece4d2; --muted: #a9a08e; --line: #3b3f48;
+    --red: #e0545b; --blue: #7d9be6; --good: #5cc283; --paper: #f7f4ee; --shadow: rgba(0, 0, 0, .55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1b1d22; --panel: #24272e; --ink: #ece4d2; --muted: #a9a08e; --line: #3b3f48;
+  --red: #e0545b; --blue: #7d9be6; --good: #5cc283; --paper: #f7f4ee; --shadow: rgba(0, 0, 0, .55);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; overflow-x: clip; background: var(--bg); color: var(--ink);
+  font-family: var(--body); font-size: 16px; line-height: 1.5;
+}
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.airmail {
+  height: 10px;
+  background: repeating-linear-gradient(-45deg, var(--red) 0 14px, transparent 14px 22px, var(--blue) 22px 36px, transparent 36px 44px);
+}
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 28px; }
+
+.eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.back { font-family: var(--mono); font-size: 14px; color: var(--muted); text-decoration: none; justify-self: start; }
+.back:hover { color: var(--ink); text-decoration: underline; }
+
+.btn {
+  font: 700 14px/1 var(--mono); letter-spacing: .02em; color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; cursor: pointer;
+}
+.btn:hover:not(:disabled) { border-color: var(--ink); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+a.btn { text-decoration: none; display: inline-block; }
+
+/* A card of directions under a game board (GameShell's "directions" slot). */
+.rules { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.rules h2 { font-family: var(--display); font-weight: 400; font-size: 20px; margin: 0; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
+.rules p { margin: 0; font-size: 14px; color: var(--muted); }
+.rules.current { border-color: var(--ink); }

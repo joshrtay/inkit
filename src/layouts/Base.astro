@@ -1,0 +1,26 @@
+---
+// The page shell every page uses: head, fonts, shared styles and the airmail edges.
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description } = Astro.props;
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" />
+  </head>
+  <body>
+    <div class="airmail" aria-hidden="true"></div>
+    <slot />
+    <div class="airmail" aria-hidden="true"></div>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+# dependencies and build output
+node_modules/
+dist/
+.astro/
+
+# original sketches and old copies stay on this machine only (the repo is public)
+scans/
+archive/
+
+# intermediate HTML the puzzle scripts render to PDF
+puzzles/**/.build/
+__pycache__/
+
+.DS_Store
+
+# local Claude Code settings
+.claude/settings.local.json
