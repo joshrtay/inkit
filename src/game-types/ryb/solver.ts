@@ -6,24 +6,28 @@ import type { Color, RybConfig } from "./types";
 const EPS = 1e-6;
 type Pt = number[];
 
-/** Do two segments lie on the same line and overlap for more than a point? */
-function sharesEdge(a1: Pt, a2: Pt, b1: Pt, b2: Pt) {
+/** Do two segments lie on the same line and overlap for more than a point?
+ *  `tol` is in drawing units (a small fraction of the figure's size). */
+function sharesEdge(a1: Pt, a2: Pt, b1: Pt, b2: Pt, tol: number) {
   const dx = a2[0] - a1[0], dy = a2[1] - a1[1];
   const len = Math.hypot(dx, dy);
   if (len < EPS) return false;
   const cross = (p: Pt) => (dx * (p[1] - a1[1]) - dy * (p[0] - a1[0])) / len;
-  if (Math.abs(cross(b1)) > 1e-4 || Math.abs(cross(b2)) > 1e-4) return false;
+  if (Math.abs(cross(b1)) > tol || Math.abs(cross(b2)) > tol) return false;
   const along = (p: Pt) => (dx * (p[0] - a1[0]) + dy * (p[1] - a1[1])) / len;
   const lo = Math.max(0, Math.min(along(b1), along(b2)));
   const hi = Math.min(len, Math.max(along(b1), along(b2)));
-  return hi - lo > 1e-3;
+  return hi - lo > 2 * tol;
 }
 
-/** Neighbor lists for every piece. */
+/** Neighbor lists for every piece. Tolerant of small tracing and rounding errors. */
 export function adjacency(pieces: { points: Pt[] }[]): number[][] {
+  const xs = pieces.flatMap((p) => p.points.map((q) => q[0]));
+  const ys = pieces.flatMap((p) => p.points.map((q) => q[1]));
+  const tol = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 1e-3;
   const edges = pieces.map((p) => p.points.map((pt, i) => [pt, p.points[(i + 1) % p.points.length]]));
   return pieces.map((_, i) => pieces.flatMap((_, j) =>
-    i !== j && edges[i].some(([a, b]) => edges[j].some(([c, d]) => sharesEdge(a, b, c, d))) ? [j] : []));
+    i !== j && edges[i].some(([a, b]) => edges[j].some(([c, d]) => sharesEdge(a, b, c, d, tol))) ? [j] : []));
 }
 
 /** Count of dots per color for a clue string such as "113". */

@@ -18,6 +18,8 @@ export interface RybConfig {
   totals?: Partial<Record<"1" | "2" | "3", number>>;
   /** Mistakes allowed before the board resets (default 3). */
   hearts?: number;
+  /** The sketch this level was traced from, if any (see puzzles/ryb/from_sketch.py). */
+  source?: string;
 }
 
 /** What the browser receives (built by Game.astro after solving). */

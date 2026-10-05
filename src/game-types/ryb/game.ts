@@ -9,17 +9,36 @@ const NS = "http://www.w3.org/2000/svg";
 const NAMES: Record<Color, string> = { 1: "red", 2: "yellow", 3: "blue" };
 interface Saved { painted: (Color | 0)[]; hearts: number }
 
-/** Average of the corners: where the clue dots go. */
-const centre = (pts: number[][]) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
-/** Radius of the largest circle around the centre that stays inside the piece. */
-function room(pts: number[][], [cx, cy]: number[]) {
+const inside = (pts: number[][], x: number, y: number) => {
+  let hit = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, yi] = pts[i], [xj, yj] = pts[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) hit = !hit;
+  }
+  return hit;
+};
+const edgeDistance = (pts: number[][], x: number, y: number) => {
   let best = Infinity;
   pts.forEach((a, i) => {
     const b = pts[(i + 1) % pts.length];
     const dx = b[0] - a[0], dy = b[1] - a[1];
-    const t = Math.max(0, Math.min(1, ((cx - a[0]) * dx + (cy - a[1]) * dy) / (dx * dx + dy * dy || 1)));
-    best = Math.min(best, Math.hypot(cx - (a[0] + t * dx), cy - (a[1] + t * dy)));
+    const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy || 1)));
+    best = Math.min(best, Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy)));
   });
+  return best;
+};
+/** The roomiest point inside a piece (farthest from its edges) and how much room it has. */
+function roomiest(pts: number[][]): { x: number; y: number; room: number } {
+  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  let best = { x: xs.reduce((a, b) => a + b) / xs.length, y: ys.reduce((a, b) => a + b) / ys.length, room: 0 };
+  const N = 28;
+  for (let i = 1; i < N; i++) for (let j = 1; j < N; j++) {
+    const x = x0 + ((x1 - x0) * i) / N, y = y0 + ((y1 - y0) * j) / N;
+    if (!inside(pts, x, y)) continue;
+    const d = edgeDistance(pts, x, y);
+    if (d > best.room) best = { x, y, room: d };
+  }
   return best;
 }
 
@@ -49,10 +68,10 @@ export const createRyb = (config: RybClientConfig): MountGame => (root, host) =>
     el("polygon", { class: "piece", points: p.points.map((pt) => pt.join(",")).join(" "), "data-i": i }, gPieces));
   const dotGroups = pieces.map((p) => {
     const g = el("g", { class: "dots" }, gDots);
-    const [cx, cy] = centre(p.points);
     const n = p.dots.length;
     if (!n) return g;
-    const r = Math.min(span * 0.028, room(p.points, [cx, cy]) / (n > 1 ? 2.4 : 1.6));
+    const { x: cx, y: cy, room } = roomiest(p.points);
+    const r = Math.max(span * 0.014, Math.min(span * 0.028, room / (n > 1 ? 2.4 : 1.6)));
     const ring = n > 1 ? r * (n > 4 ? 1.9 : 1.45) : 0;
     p.dots.forEach((c, k) => {
       const a = -Math.PI / 2 + (2 * Math.PI * k) / n;
