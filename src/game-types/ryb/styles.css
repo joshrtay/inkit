@@ -1,0 +1,59 @@
+/* RYB game type. Global but scoped under .ryb, because game.ts builds the board. */
+.ryb {
+  --r: #c8312f;          /* 1 red    (close to the airmail red) */
+  --y: #e9b52b;          /* 2 yellow */
+  --b: #2d58a6;          /* 3 blue   (close to the airmail blue) */
+  --unpainted: #2b2622;  /* pieces start as dark ink on the paper */
+  display: grid; gap: 18px;
+}
+.ryb .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.ryb .palette { display: flex; gap: 6px; }
+.ryb .swatch {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 700 14px/1 var(--mono); color: var(--ink); background: transparent;
+  border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; cursor: pointer;
+}
+.ryb .swatch i { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
+.ryb .swatch.c1 i { background: var(--r); }
+.ryb .swatch.c2 i { background: var(--y); }
+.ryb .swatch.c3 i { background: var(--b); }
+.ryb .swatch[aria-pressed="true"] { background: var(--panel); border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--ink); }
+.ryb .hearts { display: flex; gap: 2px; font-size: 22px; line-height: 1; color: var(--red); }
+.ryb .heart.lost { color: var(--line); }
+.ryb .status { flex: 1 1 220px; min-width: 0; font-family: var(--mono); font-size: 14px; line-height: 1.3; }
+.ryb .status.good { color: var(--good); }
+.ryb .status.warn { color: var(--red); }
+
+.ryb .sheet {
+  position: relative; background: var(--paper); border-radius: 2px;
+  box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
+  padding: 14px; justify-self: center; width: 100%; max-width: min(640px, calc(100dvh - 40px));
+}
+.ryb svg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
+
+.ryb .piece { fill: var(--unpainted); stroke: var(--paper); stroke-width: .6%; stroke-linejoin: round; cursor: pointer; transition: fill .18s; }
+.ryb .piece:hover { fill: #4a443c; }
+.ryb .piece.c1 { fill: var(--r); cursor: default; }
+.ryb .piece.c2 { fill: var(--y); cursor: default; }
+.ryb .piece.c3 { fill: var(--b); cursor: default; }
+.ryb .piece.wrong { animation: ryb-wrong .45s ease-out; }
+@keyframes ryb-wrong { 0%, 100% { fill: var(--unpainted); } 30% { fill: #8a1b1b; } }
+
+.ryb .dots { pointer-events: none; }
+.ryb .dots.hidden { display: none; }
+.ryb .dot { stroke: #fff; stroke-width: .25%; }
+.ryb .dot.c1 { fill: var(--r); }
+.ryb .dot.c2 { fill: var(--y); }
+.ryb .dot.c3 { fill: var(--b); }
+.ryb .dot-num { fill: #fff; font-family: var(--mono); font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+.ryb .dot.c2 + .dot-num { fill: #2b2622; }
+
+.ryb .totals { position: absolute; top: 10px; right: 12px; display: grid; gap: 4px; font: 700 14px/1 var(--mono); color: var(--paper-ink); }
+.ryb .total { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.ryb .total i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.ryb .total.c1 i { background: var(--r); }
+.ryb .total.c2 i { background: var(--y); }
+.ryb .total.c3 i { background: var(--b); }
+
+@media (max-width: 600px) { .ryb .swatch { padding: 8px 9px; font-size: 13px; } .ryb .sheet { padding: 6px; } }
+@media (prefers-reduced-motion: reduce) { .ryb .piece { transition: none; } .ryb .piece.wrong { animation: none; } }

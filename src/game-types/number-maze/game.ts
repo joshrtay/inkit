@@ -38,7 +38,7 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   for (let r = 0; r + 1 < H; r++) for (const c of [0, W - 1]) border.add(key([r, c], [r + 1, c]));
   for (const g of gaps) border.delete(g);
   const hints = keys(maze.hints);
-  const given = new Set([...border, ...hints]);
+  const given = new Set(hints);                 // only hint walls start drawn; the player draws the border
 
   let walls = new Set([...(host.load<Saved>()?.walls ?? []), ...given]);
   for (const g of gaps) walls.delete(g);
@@ -90,12 +90,13 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
       numEls[r].push(g);
     }
   }
-  // tap targets on every wall spot the player may change (not the border)
+  // tap targets on every wall spot the player may change (everything but the two openings)
   for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
-    if (c + 1 < W && !(onBorder(r, c) && onBorder(r, c + 1) && (r === 0 || r === H - 1)))
-      el("rect", { class: "gap", x: vx(c) + 12, y: vy(r) - 8, width: P - 24, height: 16, "data-k": key([r, c], [r, c + 1]) }, gGaps);
-    if (r + 1 < H && !(c === 0 || c === W - 1))
-      el("rect", { class: "gap", x: vx(c) - 8, y: vy(r) + 12, width: 16, height: P - 24, "data-k": key([r, c], [r + 1, c]) }, gGaps);
+    const right = key([r, c], [r, c + 1]), down = key([r, c], [r + 1, c]);
+    if (c + 1 < W && !gaps.has(right))
+      el("rect", { class: "gap", x: vx(c) + 12, y: vy(r) - 8, width: P - 24, height: 16, "data-k": right }, gGaps);
+    if (r + 1 < H && !gaps.has(down))
+      el("rect", { class: "gap", x: vx(c) - 8, y: vy(r) + 12, width: 16, height: P - 24, "data-k": down }, gGaps);
   }
 
   // ---- phase 1: drawing walls ----
@@ -127,7 +128,7 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
     gWalls.replaceChildren();
     for (const k of walls) {
       const [a, b] = parse(k);
-      const cls = border.has(k) ? "wall border" : hints.has(k) ? "wall hint" : "wall";
+      const cls = hints.has(k) ? "wall hint" : "wall";
       el("line", { class: cls, x1: vx(a[1]), y1: vy(a[0]), x2: vx(b[1]), y2: vy(b[0]) }, gWalls);
     }
     const d = degrees();
@@ -142,7 +143,12 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
     meter.style.width = (100 * done / (W * H)).toFixed(1) + "%";
     if (phase !== "draw") return;
     status.className = "status";
-    if (done === W * H) {
+    const borderLeft = [...border].filter((k) => !walls.has(k)).length;
+    if (done === W * H && borderLeft) {
+      drawn = false;
+      status.className = "status warn";
+      status.textContent = "Every number is satisfied, but the outside edge needs a wall everywhere except at the two arrows.";
+    } else if (done === W * H) {
       const s = structure();
       drawn = s === "ok";
       if (drawn) { status.className = "status good"; status.textContent = "Every number is satisfied. The maze is built."; }
@@ -224,10 +230,10 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
     if (phase === "walk") { trail = [entry]; tail = null; renderWalk(); return; }
     if (!confirmClear) {
       confirmClear = true; clearBtn.textContent = "Erase all walls?";
-      setTimeout(() => { confirmClear = false; clearBtn.textContent = "Start over"; }, 3000);
+      setTimeout(() => { confirmClear = false; clearBtn.textContent = "Reset"; }, 3000);
       return;
     }
-    confirmClear = false; clearBtn.textContent = "Start over";
+    confirmClear = false; clearBtn.textContent = "Reset";
     walls = new Set(given); history = []; render(); save();
   });
 

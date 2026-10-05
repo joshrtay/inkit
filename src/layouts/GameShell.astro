@@ -9,15 +9,17 @@ interface Props {
   title: string;
   description?: string;
   eyebrow?: string;
+  /** Where the back link goes (default: the home page). */
+  back?: { href: string; label: string };
 }
-const { title, description, eyebrow } = Astro.props;
+const { title, description, eyebrow, back = { href: url("/"), label: "All games" } } = Astro.props;
 const hasIntro = Astro.slots.has("intro");
 const hasDirections = Astro.slots.has("directions");
 ---
 <Base title={title} description={description}>
   <main class="wrap">
     <header class="game-header">
-      <a class="back" href={url("/")}>&larr; All games</a>
+      <a class="back" href={back.href}>&larr; {back.label}</a>
       {eyebrow && <span class="eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       {hasIntro && <div class="intro"><slot name="intro" /></div>}

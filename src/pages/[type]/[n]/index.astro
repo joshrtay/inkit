@@ -1,0 +1,21 @@
+---
+// Plays one numbered instance: /<type path>/<n>/, rendered by its game type.
+import { games } from "../../../games";
+import { sha256 } from "../../../lib/hash";
+import PacketGame from "../../../game-types/packet/Game.astro";
+import NumberMazeGame from "../../../game-types/number-maze/Game.astro";
+import RybGame from "../../../game-types/ryb/Game.astro";
+import type { NumberMazeGame as MazeData, PacketGame as PacketData, RybGame as RybData } from "../../../games";
+
+export function getStaticPaths() {
+  return games.map((game) => ({ params: { type: game.type.path, n: String(game.number) }, props: { game } }));
+}
+
+const { game } = Astro.props;
+// Saved progress is keyed to this exact puzzle, so changing a puzzle starts players fresh.
+const { type: _type, number: _n, ...data } = game;
+const hostId = `${game.type.path}-${game.number}-${(await sha256(JSON.stringify(data))).slice(0, 10)}`;
+---
+{game.type.id === "packet" && <PacketGame game={game as PacketData} hostId={hostId} />}
+{game.type.id === "number-maze" && <NumberMazeGame game={game as MazeData} hostId={hostId} />}
+{game.type.id === "ryb" && <RybGame game={game as RybData} hostId={hostId} />}

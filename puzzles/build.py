@@ -1,16 +1,19 @@
-"""Build and verify puzzle content for every game instance in src/games/*.json.
+"""Build and verify puzzle content for every game instance in src/games/<type>/<n>.json.
 
     npm run puzzles          (or: python3 puzzles/build.py)
 
-packet instances
-    If puzzles/<slug>/ exists, every *.py in it is run first (each one generates and
-    verifies sheets, writing HTML to puzzles/<slug>/.build/). Each sheet listed in the
-    instance is then printed to public/<slug>/sheets/<file>.pdf from .build/<file>.html
-    or puzzles/<slug>/sheets/<file>.html. Sheets with no HTML source must already be in
+packet instances (e.g. escape-room/1)
+    If puzzles/<type>/<n>/ exists, every *.py in it is run first (each one generates and
+    verifies sheets, writing HTML to its .build/). Each sheet listed in the instance is
+    then printed to public/<type>/<n>/sheets/<file>.pdf from .build/<file>.html or
+    puzzles/<type>/<n>/sheets/<file>.html. Sheets with no HTML source must already be in
     public/ as PDFs (e.g. made elsewhere). Every PDF gets a PNG preview for the site.
 
 number-maze instances
     The clue grid is checked to have exactly one solution (puzzles/number-maze/check.py).
+
+ryb instances
+    Checked by the Astro build itself (src/game-types/ryb/solver.ts).
 
 Needs: Google Chrome, Python 3 with PyMuPDF (pip install -r puzzles/requirements.txt).
 """
@@ -57,7 +60,7 @@ def preview(pdf: Path) -> None:
 
 
 def build_packet(slug: str, packet: dict) -> None:
-    source = PUZZLES / slug
+    source = PUZZLES / slug               # slug is "<type>/<n>"
     if source.is_dir():
         shutil.rmtree(source / ".build", ignore_errors=True)
         for script in sorted(source.glob("*.py")):
@@ -78,9 +81,9 @@ def build_packet(slug: str, packet: dict) -> None:
 
 def main() -> None:
     failed = False
-    for path in sorted(GAMES.glob("*.json")):
+    for path in sorted(GAMES.glob("*/*.json")):
         instance = json.loads(path.read_text())
-        slug, kind = path.stem, instance.get("type")
+        slug, kind = f"{path.parent.name}/{path.stem}", instance.get("type")
         print(f"{slug} ({kind}):")
         if kind == "packet":
             build_packet(slug, instance["packet"])
@@ -88,6 +91,8 @@ def main() -> None:
             ok, message, _ = number_maze.check(instance["maze"])
             print(f"    {'ok' if ok else 'PROBLEM'}: {message}")
             failed |= not ok
+        elif kind == "ryb":
+            print("    checked by the Astro build (npm run build)")
         else:
             sys.exit(f"{path.name}: unknown game type {kind!r}")
     if failed:

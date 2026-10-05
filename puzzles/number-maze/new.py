@@ -1,7 +1,7 @@
-"""Create (or regenerate) a number-maze game instance in src/games/<slug>.json.
+"""Create (or regenerate) a number-maze game instance in src/games/number-line-maze/<n>.json.
 
-    python3 puzzles/number-maze/new.py --slug line-maze --size 11x17 --exit-row 14 --seed 53
-    python3 puzzles/number-maze/new.py --slug my-maze --size 7x9 --search 40   # try 40 seeds, keep the best
+    python3 puzzles/number-maze/new.py --number 3 --size 11x17 --exit-row 14 --seed 53
+    python3 puzzles/number-maze/new.py --number 4 --size 7x9 --search 40   # try 40 seeds, keep the best
 
 Regenerating an existing instance keeps its name, blurb and other fields and only
 replaces the "maze" data. Use --force to overwrite an existing maze.
@@ -14,10 +14,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 import number_maze as nm  # noqa: E402
 
-GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
+GAMES = Path(__file__).resolve().parents[2] / "src" / "games" / "number-line-maze"
 
 ap = argparse.ArgumentParser()
-ap.add_argument("--slug", required=True)
+ap.add_argument("--number", type=int, required=True, help="instance number: writes src/games/number-line-maze/<n>.json")
 ap.add_argument("--size", default="11x17", help="numbers across x numbers down")
 ap.add_argument("--entry-col", type=int, help="square column of the entrance (default: rightmost)")
 ap.add_argument("--exit-row", type=int, help="square row of the exit (default: near the bottom)")
@@ -39,16 +39,14 @@ for seed in range(args.seed, args.seed + args.search):
         best = (score, seed, board, walls, hints)
 _, seed, board, walls, hints = best
 
-path = GAMES / f"{args.slug}.json"
+path = GAMES / f"{args.number}.json"
 instance = json.loads(path.read_text()) if path.exists() else {}
 if instance.get("maze") and not args.force:
     sys.exit(f"{path.name} already has a maze; pass --force to replace it")
 instance = {
     "type": "number-maze",
-    "name": args.name or instance.get("name") or args.slug.replace("-", " ").title(),
-    "blurb": instance.get("blurb", "Build the walls each number asks for, then find your way out."),
-    "meta": instance.get("meta", "Play in the browser"),
-    "listed": instance.get("listed", False),
+    "name": args.name or instance.get("name") or f"Maze {args.number}",
+    "meta": instance.get("meta") or f"{W} × {H} numbers",
     **{k: v for k, v in instance.items() if k not in ("type", "maze")},
     "maze": {
         "seed": seed,
@@ -60,4 +58,4 @@ instance = {
 }
 GAMES.mkdir(parents=True, exist_ok=True)
 path.write_text(json.dumps(instance, indent=2) + "\n")
-print(f"{path.relative_to(GAMES.parents[1])}: seed {seed}, {len(hints)} hint walls, route {len(board.route(walls))} squares")
+print(f"{path.relative_to(GAMES.parents[2])}: seed {seed}, {len(hints)} hint walls, route {len(board.route(walls))} squares")

@@ -1,0 +1,67 @@
+{
+  "type": "packet",
+  "name": "The Envelope",
+  "meta": "8 sheets · scissors · pencil",
+  "packet": {
+    "answer": "74992",
+    "sheets": [
+      {
+        "id": "letters",
+        "name": "Letters",
+        "kind": "grid",
+        "file": "letters",
+        "note": "A page of typed letters. You'll need something else from the envelope to read it."
+      },
+      {
+        "id": "mask",
+        "name": "Cut-out",
+        "kind": "holes",
+        "file": "letters_mask",
+        "note": "Five numbered circles. Scissors help."
+      },
+      {
+        "id": "page-1",
+        "name": "Page 1",
+        "kind": "algebra",
+        "file": "equations",
+        "note": "Starts from the 5 letter word."
+      },
+      {
+        "id": "page-2",
+        "name": "Page 2",
+        "kind": "grids",
+        "file": "grids",
+        "note": "Each label is the sum of its row or column."
+      },
+      {
+        "id": "page-3",
+        "name": "Page 3",
+        "kind": "division",
+        "file": "remainders",
+        "note": "Quotient, then remainder, written side by side."
+      },
+      {
+        "id": "page-4",
+        "name": "Page 4",
+        "kind": "fold",
+        "file": "fold",
+        "note": "Read it flat, then think about the marked lines."
+      },
+      {
+        "id": "page-5",
+        "name": "Page 5",
+        "kind": "tree",
+        "file": "tree",
+        "note": "Every letter means the same number everywhere on this sheet."
+      },
+      {
+        "id": "page-6",
+        "name": "Page 6",
+        "kind": "finish",
+        "file": "final",
+        "note": "The last step."
+      }
+    ]
+  },
+  "intro": "Every sheet from the envelope, in order. Open each sheet's PDF and print it at 100% (Actual Size) so the cut-out and fold lines land where they should. Each sheet hands a number to the next one; the last sheet gives you the final answer to check below."
+}

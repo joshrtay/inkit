@@ -1,7 +1,7 @@
-"""Make a number-maze instance from a hand-made grid (e.g. transcribed from a sketch).
+"""Make a number-maze instance (src/games/number-line-maze/<n>.json) from a hand-made grid.
 
     python3 puzzles/number-maze/fit.py scans/game2/maze-transcription.txt \\
-        --slug line-maze --entry-col 9 --exit-row 13
+        --number 2 --entry-col 9 --exit-row 13
 
 The grid file has one row of numbers per line; `?` marks a number that couldn't be
 read, and lines starting with # are ignored. The tool finds the valid maze closest to
@@ -17,11 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 import number_maze as nm  # noqa: E402
 
-GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
+GAMES = Path(__file__).resolve().parents[2] / "src" / "games" / "number-line-maze"
 
 ap = argparse.ArgumentParser()
 ap.add_argument("grid", type=Path)
-ap.add_argument("--slug", required=True)
+ap.add_argument("--number", type=int, required=True, help="instance number: writes src/games/number-line-maze/<n>.json")
 ap.add_argument("--entry-col", type=int, required=True, help="square column of the entrance (top edge)")
 ap.add_argument("--exit-row", type=int, required=True, help="square row of the exit (right edge)")
 ap.add_argument("--seed", type=int, default=0)
@@ -48,16 +48,14 @@ for r, row in enumerate(sketch):
     print(" ".join(f"{x:>4}" for x in cells))
 print("   [n] = filled in for an unreadable cell;  a>b = sketch said a, maze needs b")
 
-path = GAMES / f"{args.slug}.json"
+path = GAMES / f"{args.number}.json"
 instance = json.loads(path.read_text()) if path.exists() else {}
 if instance.get("maze") and not args.force:
     sys.exit(f"\n{path.name} already has a maze; pass --force to replace it")
 instance = {
     "type": "number-maze",
-    "name": args.name or instance.get("name") or args.slug.replace("-", " ").title(),
-    "blurb": instance.get("blurb", "Build the walls each number asks for, then find your way out."),
-    "meta": instance.get("meta", "Play in the browser"),
-    "listed": instance.get("listed", False),
+    "name": args.name or instance.get("name") or f"Maze {args.number}",
+    "meta": instance.get("meta") or f"{len(sketch[0])} × {len(sketch)} numbers",
     **{k: v for k, v in instance.items() if k not in ("type", "maze")},
     "maze": {
         "source": str(args.grid),
@@ -69,4 +67,4 @@ instance = {
     },
 }
 path.write_text(json.dumps(instance, indent=2) + "\n")
-print(f"\nwrote {path.relative_to(GAMES.parents[1])}")
+print(f"\nwrote {path.relative_to(GAMES.parents[2])}")

@@ -1,16 +1,18 @@
 ---
-// Number maze game type: one page per instance (see src/pages/[slug]/index.astro).
+// Number maze game type: one page per instance (see src/pages/[type]/[n]/index.astro).
 import GameShell from "../../layouts/GameShell.astro";
 import Board from "./Board.astro";
 import Rules from "./Rules.astro";
 import type { NumberMazeGame } from "../../games";
+import { url } from "../../lib/paths";
 
-interface Props { game: NumberMazeGame }
-const { game } = Astro.props;
+interface Props { game: NumberMazeGame; hostId: string }
+const { game, hostId } = Astro.props;
 ---
-<GameShell title={game.name} eyebrow={game.eyebrow} description={game.blurb}>
+<GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}>
   {game.intro && <p slot="intro">{game.intro}</p>}
-  <Board gameId={game.slug} config={game.maze} />
+  <Board gameId={hostId} config={game.maze} />
   <Rules slot="directions" />
 </GameShell>
 

@@ -1,28 +1,30 @@
 ---
 // Packet game type: a set of printable sheets (PDFs) and a final answer.
-// One page per instance (see src/pages/[slug]/index.astro).
+// One page per instance (see src/pages/[type]/[n]/index.astro).
 import GameShell from "../../layouts/GameShell.astro";
 import { url } from "../../lib/paths";
-import type { PacketGame } from "../../games";
+import { gamePath, type PacketGame } from "../../games";
 import type { PacketClientConfig } from "./types";
-import { normalizeAnswer, sha256 } from "./game";
+import { normalizeAnswer } from "./game";
+import { sha256 } from "../../lib/hash";
 import "./styles.css";
 
-interface Props { game: PacketGame }
-const { game } = Astro.props;
+interface Props { game: PacketGame; hostId: string }
+const { game, hostId } = Astro.props;
 const { sheets, answer } = game.packet;
 
 // Only a hash of the answer reaches the browser.
 const config: PacketClientConfig = {
   sheets,
-  sheetsBase: url(`${game.slug}/sheets/`),
+  sheetsBase: url(`${gamePath(game)}sheets/`),
   answerHash: await sha256(normalizeAnswer(answer)),
 };
 ---
-<GameShell title={game.name} eyebrow={game.eyebrow} description={game.blurb}>
+<GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}>
   {game.intro && <p slot="intro">{game.intro}</p>}
 
-  <div class="packet" data-game-type="packet" data-game-id={game.slug} data-config={JSON.stringify(config)}>
+  <div class="packet" data-game-type="packet" data-game-id={hostId} data-config={JSON.stringify(config)}>
     <section class="viewer" aria-label="Sheets">
       <ul class="sheets" data-sheet-list></ul>
       <div class="stage">
@@ -37,8 +39,8 @@ const config: PacketClientConfig = {
       </div>
     </section>
 
-    <section class="slip" aria-labelledby={`${game.slug}-check`}>
-      <h2 id={`${game.slug}-check`}>Check your final answer</h2>
+    <section class="slip" aria-labelledby="packet-check">
+      <h2 id="packet-check">Check your final answer</h2>
       <p>Enter the number from the last sheet. Commas and spaces are fine.</p>
       <form data-check autocomplete="off">
         <input data-answer name="answer" inputmode="numeric" placeholder="00,000" aria-label="Final answer" />

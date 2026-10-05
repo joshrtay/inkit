@@ -4,27 +4,29 @@ Wyatt's Games is a static website of puzzle games, built with
 [Astro](https://astro.build) and published to GitHub Pages at
 https://joshrtay.github.io/wyattsgames/.
 
-## Game types and game instances
+## Site structure: game types and numbered instances
 
-The site separates **game types** (reusable code) from **game instances** (data):
+| URL | Page |
+|---|---|
+| `/` | Home: a card for each listed game type |
+| `/<type path>/` | That type's numbered games, e.g. `/number-line-maze/` |
+| `/<type path>/<n>/` | Play one, e.g. `/number-line-maze/2/` |
 
-| Game type | What an instance supplies | Code |
+The code separates **game types** (reusable) from **instances** (data):
+
+| Type (URL path) | Code id | What an instance supplies |
 |---|---|---|
-| `packet` | A list of printable sheets (PDFs) and the final answer | `src/game-types/packet/` |
-| `number-maze` | A grid of numbers (plus entrance, exit, any hint walls) | `src/game-types/number-maze/` |
+| Escape Room (`escape-room`) | `packet` | Printable sheets (PDFs) and the final answer |
+| Number Line Maze (`number-line-maze`) | `number-maze` | A grid of numbers, entrance, exit, any hint walls |
+| RYB (`ryb`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
 
-Each instance is one JSON file, `src/games/<slug>.json`. The file name is the URL
-(`/wyattsgames/<slug>/`). A single page template, `src/pages/[slug]/index.astro`,
-renders every instance with its type's `Game.astro`. Adding another game of an
-existing type needs no code, only a JSON file and its content.
+Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, listed).
+Each instance is `src/games/<type path>/<n>.json`; the number is the file name. Adding
+another game of an existing type needs no code, only a JSON file and its content.
 
-Current instances:
-
-| Instance | Type | Listed |
-|---|---|---|
-| `escape-room-packet` | packet | yes |
-| `line-maze` | number-maze (11 × 16, fitted to the game 2 sketch) | no (game 2, in progress) |
-| `line-maze-practice` | number-maze (5 × 5) | no (for testing) |
+Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5)
+and 2 (The Big Maze, fitted to the game 2 sketch); ryb 1–3 (Triangle, Hexagon, Nine
+Squares).
 
 ## How the pieces fit
 
@@ -32,115 +34,110 @@ Current instances:
 sketches (scans/, not in git)
         │
         ▼
-src/games/<slug>.json ── instance data ──────────────────────────┐
-        │                                                        │
-        ▼  npm run puzzles (puzzles/build.py)                    │
-  packet:      puzzles/<slug>/*.py → HTML → Chrome → public/<slug>/sheets/*.pdf + .png
-  number-maze: puzzles/lib/number_maze.py proves one solution    │
-                                                                 ▼
-src/pages/[slug]/index.astro → src/game-types/<type>/Game.astro (+ game.ts in the browser)
-        │
+src/games/<type>/<n>.json ── instance data ────────────────────────────┐
+        │                                                              │
+        ▼  npm run puzzles (puzzles/build.py)                          │
+  escape-room: puzzles/<type>/<n>/*.py → HTML → Chrome → public/<type>/<n>/sheets/
+  number-maze: puzzles/lib/number_maze.py proves one solution          │
+                                                                       ▼
+src/pages/[type]/[n]/index.astro → src/game-types/<id>/Game.astro (+ game.ts in the browser)
+        │   (ryb levels are solved here; the build fails unless each has one solution)
         ▼  npm run build (Astro) → dist/ → GitHub Actions → GitHub Pages
 ```
 
 `npm run puzzles` (Python, on your machine) makes and checks puzzle content; its
-output is committed. `npm run build` (Astro) builds the site; GitHub Actions runs
-it on every push to `main`.
+output is committed. `npm run build` (Astro) type-checks and builds the site; GitHub
+Actions runs it on every push to `main`.
 
 ## Folder layout
 
 | Path | What lives there |
 |---|---|
-| `src/games/<slug>.json` | One game instance: type, name, card text, and the type's data. |
-| `src/games.ts` | Loads every instance and defines their TypeScript types. |
-| `src/game-types/<type>/` | A game type: `Game.astro` (page), `game.ts` (browser code), `styles.css`, `types.ts`. |
-| `src/pages/index.astro` | Home page: a card for each listed instance. |
-| `src/pages/[slug]/index.astro` | Builds a page for every instance. |
+| `src/games.ts` | Game types, instance loading and their TypeScript types. |
+| `src/games/<type>/<n>.json` | One instance: `type` (code id), `name`, optional `meta` and `intro`, and the type's data. |
+| `src/game-types/<id>/` | A game type: `Game.astro` (page), `game.ts` (browser code), `styles.css`, `types.ts`. |
+| `src/pages/index.astro` | Home: game type cards. |
+| `src/pages/[type]/index.astro` | A type's numbered list. |
+| `src/pages/[type]/[n]/index.astro` | Plays an instance with its type's `Game.astro`. |
 | `src/layouts/Base.astro` | Every page's shell: `<head>`, fonts, global styles, airmail edges. |
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
-| `src/lib/paths.ts` | `url()` helper that adds the `/wyattsgames/` base path. |
-| `public/<slug>/` | Static files per instance: cover, sheet PDFs and previews. |
+| `src/lib/paths.ts`, `src/lib/hash.ts` | `url()` (adds the `/wyattsgames/` base path); `sha256()`. |
+| `public/<type>/` | Static files: type cover; `<n>/sheets/` PDFs and previews for escape rooms. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
-| `puzzles/lib/number_maze.py` | Number-maze logic: board, maze carving, solver, checker. |
-| `puzzles/number-maze/` | `new.py` generates a maze instance, `fit.py` fits one to a sketch, `check.py` validates grids. |
-| `puzzles/<slug>/` | Sheet sources for one packet instance: generator scripts and `sheets/*.html`. |
-| `scans/`, `archive/` | Original sketches and old copies. Ignored by git (the repo is public). |
-
-## Instance files
-
-Shared fields (see `GameBase` in `src/games.ts`): `type`, `name`, `blurb`, `meta`,
-`listed`, and optional `cover` (path in `public/`, 1200 × 750), `coverAlt`,
-`eyebrow`, `intro`.
-
-**packet** adds:
-
-```json
-"packet": {
-  "answer": "74992",
-  "sheets": [
-    { "id": "page-1", "name": "Page 1", "kind": "algebra", "file": "equations", "note": "..." }
-  ]
-}
-```
-
-Each sheet's PDF lives at `public/<slug>/sheets/<file>.pdf`. Only a SHA-256 hash of
-the answer is sent to the browser; answers are compared as digits, ignoring commas
-and spaces.
-
-**number-maze** adds:
-
-```json
-"maze": { "clues": [[2, 2, 3], ...], "entryCol": 9, "exitRow": 14, "hints": [[[r, c], [r, c]], ...] }
-```
-
-`clues` is the grid of numbers on the corners of the squares (rows top to bottom).
-The outer border is drawn automatically, with an entrance gap above square column
-`entryCol` and an exit gap beside square row `exitRow`. `hints` are walls drawn for
-the player.
+| `puzzles/<type>/<n>/` | Sheet sources for one escape room: generator scripts and `sheets/*.html`. |
+| `puzzles/lib/number_maze.py` | Number-maze logic: board, carving, solver, checker, sketch fitting. |
+| `puzzles/number-maze/` | `new.py` (generate), `fit.py` (fit to a sketch), `check.py` (validate). |
+| `scans/`, `archive/` | Original sketches, transcriptions and old copies. Ignored by git (the repo is public). |
 
 ## Game types
 
-### packet
+### Escape Room (`packet`)
+
+```json
+"packet": { "answer": "74992", "sheets": [ { "id": "page-1", "name": "Page 1", "kind": "algebra", "file": "equations", "note": "..." } ] }
+```
 
 A sheet viewer (list, preview, Prev/Next, Print (PDF) link, `#id` deep links) and an
-answer check. Sheets are made outside the site: either by scripts in
-`puzzles/<slug>/` (as for the escape room packet), or as PDFs dropped straight into
-`public/<slug>/sheets/`. `npm run puzzles` creates the preview PNGs either way.
+answer check. Each sheet's PDF is `public/escape-room/<n>/sheets/<file>.pdf`, made by
+scripts in `puzzles/escape-room/<n>/` or dropped in as PDFs; `npm run puzzles` makes
+the previews. Only a SHA-256 hash of the answer reaches the browser.
 
-### number-maze
+### Number Line Maze (`number-maze`)
+
+```json
+"maze": { "clues": [[2, 2, 3], ...], "entryCol": 9, "exitRow": 13, "hints": [[[r, c], [r, c]], ...] }
+```
 
 Numbers sit on the corners of a grid of squares; lines between them are walls.
-Phase 1: draw walls so each number has that many touching it (border included),
-with no wall loops and every wall connected to the border. These are exactly the
-conditions for a perfect maze. Phase 2: drag a line through the open squares from
-the entrance to the exit. The page shows the board as large as the screen allows,
-with the directions below.
+Phase 1: draw walls so each number has that many touching it, including the outside
+edge, which is wall everywhere except the entrance (top, above square column
+`entryCol`) and exit (right, beside square row `exitRow`). Walls never loop and all
+connect to the edge: exactly a perfect maze. Only `hints` start drawn. Phase 2: drag
+a line through the open squares from entrance to exit.
 
-`puzzles/lib/number_maze.py` holds the shared logic. `check()` proves an instance
-has exactly one solution (and, if not, suggests hint walls). `generate()` carves a
-random perfect maze and adds hint walls until the numbers allow only it.
+`puzzles/lib/number_maze.py`: `check()` proves one solution (or suggests hint walls),
+`generate()` makes a random maze, `fit()` finds the valid maze closest to a sketch.
+
+### RYB (`ryb`)
+
+```json
+"ryb": { "pieces": [ { "points": [[0, 0], [10, 0], [10, 10], [0, 10]], "clue": "113", "hidden": true } ],
+         "totals": { "1": 4, "2": 1 }, "hearts": 3 }
+```
+
+Based on FLEB's RYB (https://fleb.itch.io/ryb). A figure is cut into polygon pieces
+(any coordinates; the board is scaled to fit). Paint every piece 1 red, 2 yellow or
+3 blue. A clue is a string of dots: `"113"` means at least two neighbors are red and at
+least one is blue; each dot needs its own neighbor. Neighbors share part of an edge,
+computed from the polygons. A wrong color is rejected and costs a heart; correct
+pieces lock in. `hidden` clues appear only once their piece is painted. Optional
+`totals` show how many of each color are left to place.
+
+`src/game-types/ryb/solver.ts` solves each level during the build; the build fails
+unless there is exactly one solution. To make a level from a drawing, trace each
+shape's corners into `points` and copy its numbers into `clue`.
 
 ## Pages and layouts
 
 - `Base.astro` is the outermost shell; shared styles come from `global.css`.
 - `GameShell.astro` wraps every game page. Slots: default (the game, the bulk of
-  the screen), `intro` (under the title) and `directions` (rule cards below).
+  the screen), `intro` and `directions` (rule cards below). Its back link goes to the
+  type's list.
 - All internal links and asset paths go through `url()` from `src/lib/paths.ts`.
 - A type's styles are global but scoped under its root class (`.packet`,
-  `.number-maze`), because `game.ts` creates elements at runtime that Astro's
-  scoped styles would not reach.
+  `.number-maze`, `.ryb`), because `game.ts` creates elements at runtime.
 
 ## The game interface
 
-Every game type's browser code plugs into the site the same way (`src/lib/game.ts`):
+Every game type's browser code plugs in the same way (`src/lib/game.ts`):
 
 ```ts
 export type MountGame = (root: HTMLElement, host: GameHost) => void | (() => void);
 
 interface GameHost {
-  id: string;                         // the instance slug
+  id: string;
   load<T>(): T | null;                // saved progress (this browser only)
   save(state: unknown): void;
   clear(): void;
@@ -148,49 +145,47 @@ interface GameHost {
 }
 ```
 
-`Game.astro` renders the markup with `data-game-type`, `data-game-id` and
-`data-config` (the instance's data as JSON). Its script calls the type's
-`mountAll(createHost)`, which mounts every root of that type on the page. Games
-save only through the host and call `host.solved(...)` when finished.
+`Game.astro` renders markup with `data-game-type`, `data-game-id` and `data-config`
+(the instance's data as JSON); its script calls the type's `mountAll(createHost)`.
+The host id is `<type>-<n>-<hash of the instance data>`, so editing a puzzle gives
+players a fresh start instead of old progress on a new board.
 
 ### Choosing a technology for a new game type
 
 | Kind of game | Use |
 |---|---|
-| Grid and logic puzzles, turn-based | Plain TypeScript + SVG (like number-maze) |
+| Grid and logic puzzles, turn-based | Plain TypeScript + SVG (like number-maze and ryb) |
 | Puzzles with lots of UI state | A React island (`@astrojs/react`) |
 | Real-time, animated or physics games | Phaser (full engine) or PixiJS (2D rendering) |
-| Printable sheets | The packet type |
-
-Whatever it uses, a type's `game.ts` exports a `MountGame` and a `mountAll`.
+| Printable sheets | The escape room (`packet`) type |
 
 ## Recipes
 
-**A new packet game**
-1. Make the sheets: scripts and HTML in `puzzles/<slug>/`, or PDFs in `public/<slug>/sheets/`.
-2. Add `src/games/<slug>.json` with `"type": "packet"`, the sheet list and the answer.
-3. Add a cover at `public/<slug>/cover.jpg`, then run `npm run puzzles`.
+**A new escape room:** make the sheets in `puzzles/escape-room/<n>/` (or PDFs in
+`public/escape-room/<n>/sheets/`), add `src/games/escape-room/<n>.json` with the sheet
+list and answer, then `npm run puzzles`.
 
 **A new number maze**
-- Generated: `python3 puzzles/number-maze/new.py --slug my-maze --size 9x13 --search 40`
+- Generated: `python3 puzzles/number-maze/new.py --number 3 --size 9x13 --search 40`
 - From a sketch: transcribe the numbers into a text file (one row per line, `?` for
   unreadable cells; keep it in `scans/`), then
-  `python3 puzzles/number-maze/fit.py scans/<file>.txt --slug <slug> --entry-col C --exit-row R`.
-  It keeps every readable number if any valid maze allows that; otherwise it finds
-  the maze that changes the fewest, adds the fewest hint walls for one solution,
-  and prints which numbers changed. Try a few `--seed` values and keep the best.
-- To check a grid typed straight into a JSON file:
-  `python3 puzzles/number-maze/check.py src/games/<slug>.json`.
+  `python3 puzzles/number-maze/fit.py scans/<file>.txt --number <n> --entry-col C --exit-row R`.
+  It keeps every readable number if any valid maze allows that; otherwise it finds the
+  maze that changes the fewest and prints which changed. Try a few `--seed` values.
+- Check a grid typed into JSON: `python3 puzzles/number-maze/check.py`.
+
+**A new RYB level:** add `src/games/ryb/<n>.json` with the pieces, then `npm run build`.
+If it reports more than one solution, add dots, hide fewer clues, or add `totals`.
 
 **A new game type**
-1. Add `src/game-types/<type>/` with `Game.astro`, `game.ts` (`MountGame` + `mountAll`),
-   `styles.css` and `types.ts`.
-2. Add the type to `Game` and `GAME_TYPES` in `src/games.ts`, and a branch in
-   `src/pages/[slug]/index.astro`.
+1. Add `src/game-types/<id>/` with `Game.astro` (props `game`, `hostId`), `game.ts`
+   (`MountGame` + `mountAll`), `styles.css` and `types.ts`.
+2. Add it to `gameTypes` and the `Game` union in `src/games.ts`, and a branch in
+   `src/pages/[type]/[n]/index.astro`.
 3. If its content needs building or checking, add a branch in `puzzles/build.py`.
 
 Then `npm run dev` to try it and `npm run build` to type-check before committing.
-Set `"listed": false` until a game is ready for the home page.
+Set `listed: false` on a type until it's ready for the home page.
 
 ## Deploying
 

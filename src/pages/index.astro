@@ -1,27 +1,28 @@
 ---
 import Base from "../layouts/Base.astro";
-import { games } from "../games";
+import { gameTypes, instancesOf } from "../games";
 import { url } from "../lib/paths";
 
-const listed = games.filter((g) => g.listed);
+const listed = gameTypes.filter((t) => t.listed && instancesOf(t).length);
+const count = (n: number) => `${n} game${n === 1 ? "" : "s"}`;
 ---
 <Base title="Wyatt's Games" description="Printable and in-browser escape room puzzles.">
   <main class="wrap">
     <header>
       <span class="eyebrow">Paper puzzles, sent by post</span>
       <h1>Wyatt's Games</h1>
-      <p>Each game is a set of printable sheets or a puzzle you play right here. Print sheets at actual size, figure out how to use each one, and check your final answer online.</p>
+      <p>Pick a kind of puzzle, then a numbered game. Some are printable sheets (print them at actual size); others you play right here.</p>
     </header>
 
     <ul class="games">
       {listed.map((g) => (
         <li>
-          <a class="game" href={url(`${g.slug}/`)}>
+          <a class="game" href={url(`${g.path}/`)}>
             {g.cover
               ? <img src={url(g.cover)} alt={g.coverAlt ?? ""} width="1200" height="750" />
               : <div class="no-cover" aria-hidden="true">{g.name}</div>}
             <div class="text">
-              <span class="meta">{g.meta}</span>
+              <span class="meta">{count(instancesOf(g).length)} &middot; {g.meta}</span>
               <h2>{g.name}</h2>
               <p>{g.blurb}</p>
             </div>
@@ -53,7 +54,7 @@ const listed = games.filter((g) => g.listed);
   }
   .game:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -14px var(--shadow); }
   .game:focus-visible { outline-offset: 3px; }
-  .game img, .no-cover { display: block; width: 100%; aspect-ratio: 8 / 5; object-fit: cover; border-bottom: 1px solid var(--line); }
+  .game img, .no-cover { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; border-bottom: 1px solid var(--line); }
   .no-cover { display: grid; place-content: center; font-family: var(--display); font-size: 26px; background: var(--bg); color: var(--muted); }
   .text { padding: 16px 18px 18px; display: grid; gap: 6px; align-content: start; }
   .text h2 { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.15; margin: 0; }

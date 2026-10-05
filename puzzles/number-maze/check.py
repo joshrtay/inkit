@@ -1,7 +1,7 @@
 """Check every number-maze instance (or the files given) has exactly one solution.
 
-    python3 puzzles/number-maze/check.py                  # all src/games/*.json of this type
-    python3 puzzles/number-maze/check.py src/games/x.json
+    python3 puzzles/number-maze/check.py                  # every src/games/number-line-maze/*.json
+    python3 puzzles/number-maze/check.py src/games/number-line-maze/2.json
 
 Use this after typing in a grid by hand (for example from a sketch): it reports
 whether the numbers allow no maze, exactly one, or several, and for several it
@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib"))
 import number_maze as nm  # noqa: E402
 
-GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
+GAMES = Path(__file__).resolve().parents[2] / "src" / "games" / "number-line-maze"
 
 
 def main(paths):

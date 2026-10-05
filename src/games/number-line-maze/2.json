@@ -1,9 +1,7 @@
 {
   "type": "number-maze",
-  "name": "Number Line Maze",
-  "blurb": "Build the walls each number asks for, then find your way out.",
-  "meta": "Play in the browser",
-  "listed": false,
+  "name": "The Big Maze",
+  "meta": "11 × 16 numbers",
   "maze": {
     "source": "scans/game2/maze-transcription.txt",
     "seed": 2,

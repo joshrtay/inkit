@@ -1,0 +1,71 @@
+---
+// RYB game type: one page per instance (see src/pages/[type]/[n]/index.astro).
+// The level is solved at build time; the build fails unless it has exactly one solution.
+import GameShell from "../../layouts/GameShell.astro";
+import type { RybGame } from "../../games";
+import { url } from "../../lib/paths";
+import type { Color, RybClientConfig } from "./types";
+import { dotsOf, solve } from "./solver";
+import "./styles.css";
+
+interface Props { game: RybGame; hostId: string }
+const { game, hostId } = Astro.props;
+const level = game.ryb;
+
+const sols = solve(level);
+if (sols.length !== 1) {
+  throw new Error(`src/games/${game.type.path}/${game.number}.json: RYB level has ${sols.length === 0 ? "no solution" : "more than one solution"}; adjust its clues or totals`);
+}
+
+// Fit the drawing into a padded square-ish viewBox.
+const xs = level.pieces.flatMap((p) => p.points.map((pt) => pt[0]));
+const ys = level.pieces.flatMap((p) => p.points.map((pt) => pt[1]));
+const pad = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 0.04;
+const config: RybClientConfig = {
+  pieces: level.pieces.map((p) => ({ points: p.points, dots: dotsOf(p.clue), hidden: !!p.hidden })),
+  solution: sols[0],
+  totals: level.totals
+    ? { 1: level.totals["1"] ?? 0, 2: level.totals["2"] ?? 0, 3: level.totals["3"] ?? 0 } as Record<Color, number>
+    : null,
+  hearts: level.hearts ?? 3,
+  viewBox: `${Math.min(...xs) - pad} ${Math.min(...ys) - pad} ${Math.max(...xs) - Math.min(...xs) + 2 * pad} ${Math.max(...ys) - Math.min(...ys) + 2 * pad}`,
+};
+---
+<GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}>
+  {game.intro && <p slot="intro">{game.intro}</p>}
+
+  <div class="ryb" data-game-type="ryb" data-game-id={hostId} data-config={JSON.stringify(config)}>
+    <div class="bar">
+      <div class="palette" role="group" aria-label="Paint color">
+        <button class="swatch c1" data-color="1" type="button" aria-pressed="true"><i></i>1 &middot; Red</button>
+        <button class="swatch c2" data-color="2" type="button" aria-pressed="false"><i></i>2 &middot; Yellow</button>
+        <button class="swatch c3" data-color="3" type="button" aria-pressed="false"><i></i>3 &middot; Blue</button>
+      </div>
+      <div class="hearts" data-hearts role="img"></div>
+      <div class="status" aria-live="polite"></div>
+      <button class="btn" data-clear type="button">Reset</button>
+    </div>
+    <div class="sheet">
+      <svg role="img" aria-label="Puzzle figure"></svg>
+      {config.totals && <div class="totals" data-totals aria-label="Pieces left to place"></div>}
+    </div>
+  </div>
+
+  <section class="rules current" slot="directions">
+    <h2>How to play</h2>
+    <ol>
+      <li>Paint every piece 1 (red), 2 (yellow) or 3 (blue).</li>
+      <li>Each dot in a piece means at least that many of its neighbors are that color. Neighbors share an edge; touching at a corner doesn&rsquo;t count.</li>
+      <li>A wrong color is rejected and costs a heart. Correct pieces lock in.</li>
+    </ol>
+    <p>Pick a color with the buttons or keys 1, 2 and 3, then click a piece. Some pieces hide their dots until you paint them. Counts beside the board show how many of each color are left to place.</p>
+  </section>
+</GameShell>
+
+<script>
+  import { createHost } from "../../lib/game";
+  import { mountAll } from "./game";
+
+  mountAll(createHost);
+</script>

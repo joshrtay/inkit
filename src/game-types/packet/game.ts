@@ -1,15 +1,10 @@
 // Packet game type: page through printable sheets, open each PDF, check the final answer.
 import type { MountGame } from "../../lib/game";
 import type { PacketClientConfig } from "./types";
+import { sha256 } from "../../lib/hash";
 
 /** Answers are compared as plain digits, so "74,992" and "74992" both match. */
 export const normalizeAnswer = (raw: string) => raw.replace(/[\s,._']/g, "").replace(/^0+(?=\d)/, "");
-
-/** Hex SHA-256 (Web Crypto: works in the browser and in Node at build time). */
-export async function sha256(text: string) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 export const createPacket = (config: PacketClientConfig): MountGame => (root, host) => {
   const { sheets, sheetsBase: base, answerHash } = config;
