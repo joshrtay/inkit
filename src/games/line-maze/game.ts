@@ -228,7 +228,7 @@ export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host
   const clearBtn = q<HTMLButtonElement>("[data-clear]");
   let confirmClear = false;
   clearBtn.addEventListener("click", () => {
-    if (phase === "walk") { trail = [entry]; renderWalk(); return; }
+    if (phase === "walk") { trail = [entry]; tail = null; renderWalk(); return; }
     if (!confirmClear) {
       confirmClear = true; clearBtn.textContent = "Erase all walls?";
       setTimeout(() => { confirmClear = false; clearBtn.textContent = "Start over"; }, 3000);
@@ -249,44 +249,125 @@ export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host
     .map(([dr, dc]): Pt => [s[0] + dr, s[1] + dc])
     .filter((n) => n[0] >= 0 && n[0] < CH && n[1] >= 0 && n[1] < CW && !walls.has(wallBetween(s, n)));
   let token: Element | null = null;
+  let walking = false;                          // a drag is in progress
+  let tail: [number, number] | null = null;     // live end of the line under the finger
+  let reported = false;
+
+  const centre = ([r, c]: Pt): [number, number] => [sx(c), sy(r)];
+  const head = () => trail[trail.length - 1];
+  const isOut = () => same(head(), exit);
+  const EXIT_POINT: [number, number] = [vx(W - 1) + 14, sy(exit[0])];
 
   function renderWalk() {
     gTrail.replaceChildren();
-    const pts = [[sx(entry[1]), vy(0) - 8], ...trail.map(([r, c]) => [sx(c), sy(r)])];
-    const here = trail[trail.length - 1];
-    const out = same(here, exit);
-    if (out) pts.push([vx(W - 1) + 14, sy(exit[0])]);
+    const out = isOut();
+    const pts: number[][] = [[sx(entry[1]), vy(0) - 8], ...trail.map(centre)];
+    if (out) pts.push(EXIT_POINT);
+    else if (tail) pts.push(tail);
     el("polyline", { class: "trail", points: pts.map((p) => p.join(",")).join(" ") }, gTrail);
     for (const row of squareEls) for (const s of row) s.classList.remove("reach");
-    if (!out) for (const n of openNeighbors(here)) squareEls[n[0]][n[1]].classList.add("reach");
-    token?.remove();
-    token = el("circle", { class: "token", cx: out ? vx(W - 1) + 14 : sx(here[1]), cy: sy(here[0]), r: 9 }, gTop);
+    if (!out && !walking) for (const n of openNeighbors(head())) squareEls[n[0]][n[1]].classList.add("reach");
+    const [tx, ty] = out ? EXIT_POINT : tail ?? centre(head());
+    token ??= el("circle", { class: "token", r: 9 }, gTop);
+    token.setAttribute("cx", String(tx));
+    token.setAttribute("cy", String(ty));
     if (out) {
       status.className = "status good";
       status.textContent = `You're out! ${trail.length} squares from entrance to exit.`;
-      host.solved({ squares: trail.length });
+      if (!reported) { reported = true; host.solved({ squares: trail.length }); }
     } else {
+      reported = false;
       status.className = "status";
       status.textContent = `${trail.length} square${trail.length === 1 ? "" : "s"} so far. Head for the arrow on the right edge.`;
     }
   }
-  function moveTo(n: Pt) {
-    const here = trail[trail.length - 1];
-    if (same(here, exit)) return;
-    const back = trail.findIndex((p) => same(p, n));
-    if (back >= 0) { trail = trail.slice(0, back + 1); renderWalk(); return; }   // step back along the trail
-    if (openNeighbors(here).some((x) => same(x, n))) { trail.push(n); renderWalk(); }
+
+  /** Shortest open route from one square to another, at most 4 steps (covers fast drags). */
+  function route(from: Pt, to: Pt): Pt[] | null {
+    const prev = new Map<string, Pt>();
+    const seen = new Set([String(from)]);
+    let frontier = [from];
+    for (let d = 0; d < 4 && frontier.length; d++) {
+      const next: Pt[] = [];
+      for (const s of frontier) for (const n of openNeighbors(s)) {
+        if (seen.has(String(n))) continue;
+        seen.add(String(n)); prev.set(String(n), s);
+        if (same(n, to)) {
+          const steps: Pt[] = [];
+          for (let u: Pt = n; !same(u, from); u = prev.get(String(u))!) steps.unshift(u);
+          return steps;
+        }
+        next.push(n);
+      }
+      frontier = next;
+    }
+    return null;
   }
-  svg.addEventListener("click", (evt) => {
-    if (phase !== "walk") return;
+  /** Extend or pull back the trail so it ends at square `s`. */
+  function goTo(s: Pt) {
+    if (isOut() || same(s, head())) return false;
+    const back = trail.findIndex((p) => same(p, s));
+    if (back >= 0) { trail = trail.slice(0, back + 1); return true; }
+    const steps = route(head(), s);
+    if (!steps) return false;
+    for (const n of steps) {            // the maze is a tree, so a route may first back up the trail
+      if (trail.length > 1 && same(n, trail[trail.length - 2])) trail.pop();
+      else trail.push(n);
+      if (same(n, exit)) break;
+    }
+    return true;
+  }
+  /** Stretch the line from the last square toward the finger, along an open corridor only. */
+  function stretchTo(p: DOMPoint) {
+    tail = null;
+    if (isOut()) return;
+    const [hx, hy] = centre(head());
+    let best: Pt | null = null, reach = 0;
+    for (const n of openNeighbors(head())) {
+      const dx = n[1] - head()[1], dy = n[0] - head()[0];
+      const along = (p.x - hx) * dx + (p.y - hy) * dy;
+      if (along > reach) { reach = along; best = [dx, dy]; }
+    }
+    if (best) tail = [hx + best[0] * Math.min(reach, P), hy + best[1] * Math.min(reach, P)];
+  }
+
+  svg.addEventListener("pointerdown", (evt) => {
+    if (phase !== "walk" || isOut()) return;
     const s = squareAt(evt);
-    if (s) moveTo(s);
+    if (!s) return;
+    const onTrail = trail.some((p) => same(p, s));
+    if (!onTrail && !route(head(), s)) return;
+    goTo(s);
+    walking = true;
+    try { svg.setPointerCapture(evt.pointerId); } catch { /* synthetic events */ }
+    stretchTo(toBoard(evt));
+    renderWalk();
   });
+  svg.addEventListener("pointermove", (evt) => {
+    if (!walking) return;
+    const s = squareAt(evt);
+    if (s) goTo(s);
+    stretchTo(toBoard(evt));
+    renderWalk();
+  });
+  const endWalk = () => {
+    if (!walking) return;
+    walking = false; tail = null;
+    renderWalk();
+  };
+  svg.addEventListener("pointerup", endWalk);
+  svg.addEventListener("pointercancel", endWalk);
+
+  function moveTo(n: Pt) {                      // one step, for the arrow keys
+    if (isOut()) return;
+    if (trail.length > 1 && same(n, trail[trail.length - 2])) { trail.pop(); renderWalk(); return; }
+    if (openNeighbors(head()).some((x) => same(x, n))) { trail.push(n); renderWalk(); }
+  }
   const onKey = (evt: KeyboardEvent) => {
     if (phase !== "walk" || !(evt.key in STEPS)) return;
     evt.preventDefault();
-    const here = trail[trail.length - 1], [dr, dc] = STEPS[evt.key];
-    moveTo([here[0] + dr, here[1] + dc]);
+    const [dr, dc] = STEPS[evt.key];
+    moveTo([head()[0] + dr, head()[1] + dc]);
   };
   document.addEventListener("keydown", onKey);
 
