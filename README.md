@@ -1,13 +1,13 @@
 # Wyatt's Games
 
 Printable and in-browser escape room puzzles, published at
-https://joshrtay.github.io/wyattsgames/.
+https://wyattsgames.com/.
 
 ## Quick start
 
 ```bash
 npm install          # once
-npm run dev          # live preview at http://localhost:4321/wyattsgames/
+npm run dev          # live preview at http://localhost:4321/
 npm run build        # type-check and build the site into dist/
 npm run puzzles      # regenerate, verify and render every puzzle (needs Chrome + Python)
 ```

@@ -7,6 +7,6 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing anything; it is the sour
 - Every puzzle must have exactly one solution; generators assert this. Confirm intended handoff numbers with the user.
 - Each sheet's variables are local to that sheet; only the stated number passes between sheets.
 - Each game type's `game.ts` exports a `MountGame` and `mountAll`, and uses the `GameHost` for saving and reporting a solve.
-- Build links with `url()` from `src/lib/paths.ts` (the site lives under `/wyattsgames/`).
+- Build links with `url()` from `src/lib/paths.ts` (keeps links working if the site ever moves under a sub-path).
 - `scans/` and `archive/` are local-only (gitignored); the repo is public.
 - Run `npm run build` (type-check + build) before committing.

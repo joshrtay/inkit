@@ -1,9 +1,9 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 
-// The site is served from GitHub Pages at https://joshrtay.github.io/wyattsgames/
+// The site is served from GitHub Pages at its own domain, https://wyattsgames.com/
 export default defineConfig({
-  site: "https://joshrtay.github.io",
-  base: "/wyattsgames",
+  site: "https://wyattsgames.com",
+  base: "/",
   trailingSlash: "always",
 });

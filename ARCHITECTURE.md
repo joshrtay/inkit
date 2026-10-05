@@ -2,7 +2,7 @@
 
 Wyatt's Games is a static website of puzzle games, built with
 [Astro](https://astro.build) and published to GitHub Pages at
-https://joshrtay.github.io/wyattsgames/.
+https://wyattsgames.com/.
 
 ## Site structure: game types and numbered instances
 
@@ -64,7 +64,7 @@ Actions runs it on every push to `main`.
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
-| `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (adds the `/wyattsgames/` base path); `sha256()`; which games the player has finished. |
+| `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (builds links from the site root); `sha256()`; which games the player has finished. |
 | `src/components/Check.astro` | The animated check mark for finished games. |
 | `public/<type>/` | Static files: type cover; `<n>/sheets/` PDFs and previews for escape rooms. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
