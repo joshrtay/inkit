@@ -67,6 +67,7 @@ Actions runs it on every push to `main`.
 | `src/components/Check.astro` | The animated check mark for finished games. |
 | `public/<type>/` | Static files: type cover; `<n>/sheets/` PDFs and previews for escape rooms. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
+| `puzzles/covers.py` | Renders the Number Line Maze and RYB cover images from real puzzles (`npm run build` first). |
 | `puzzles/<type>/<n>/` | Sheet sources for one escape room: generator scripts and `sheets/*.html`. |
 | `puzzles/lib/number_maze.py` | Number-maze logic: board, carving, solver, checker, sketch fitting. |
 | `puzzles/number-maze/` | `new.py` (generate), `fit.py` (fit to a sketch), `check.py` (validate). |

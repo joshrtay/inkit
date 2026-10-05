@@ -39,6 +39,8 @@ export const gameTypes: GameType[] = [
     name: "Number Line Maze",
     blurb: "Build the walls each number asks for, then find your way out.",
     meta: "Play in the browser",
+    cover: "number-line-maze/cover.jpg",
+    coverAlt: "A sheet of numbered circles beside a finished maze with its route drawn through",
     listed: true,
   },
   {
@@ -47,6 +49,8 @@ export const gameTypes: GameType[] = [
     name: "RYB",
     blurb: "Paint every shape red, yellow or blue so each dot sees its color next door.",
     meta: "Play in the browser",
+    cover: "ryb/cover.jpg",
+    coverAlt: "Puzzle figures painted red, yellow and blue, with colored clue dots",
     listed: true,
   },
 ];

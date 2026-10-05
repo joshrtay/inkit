@@ -1,8 +1,8 @@
 /* RYB game type. Global but scoped under .ryb, because game.ts builds the board. */
 .ryb {
-  --r: #c8312f;          /* 1 red    (close to the airmail red) */
-  --y: #e9b52b;          /* 2 yellow */
-  --b: #2d58a6;          /* 3 blue   (close to the airmail blue) */
+  --r: #ed1c24;          /* 1 red    \                              */
+  --y: #fff200;          /* 2 yellow  } the original RYB's primaries */
+  --b: #00aeef;          /* 3 blue   /                              */
   --unpainted: #2b2622;  /* pieces start as dark ink on the paper */
   display: grid; gap: 18px;
 }
@@ -37,13 +37,13 @@
 .ryb .piece.c2 { fill: var(--y); cursor: default; }
 .ryb .piece.c3 { fill: var(--b); cursor: default; }
 .ryb .piece.wrong { animation: ryb-wrong .45s ease-out; }
-@keyframes ryb-wrong { 0%, 100% { fill: var(--unpainted); } 30% { fill: #8a1b1b; } }
+@keyframes ryb-wrong { 0%, 100% { fill: var(--unpainted); } 30% { fill: #9c0f15; } }
 
 .ryb .dots { pointer-events: none; }
 .ryb .dots.hidden { display: none; }
 .ryb .dot { stroke: #fff; stroke-width: .35%; }
 .ryb .dot.c1 { fill: var(--r); }
-.ryb .dot.c2 { fill: var(--y); }
+.ryb .dot.c2 { fill: var(--y); stroke: #2b2622; }   /* yellow needs a dark rim to show on yellow */
 .ryb .dot.c3 { fill: var(--b); }
 
 .ryb .totals { position: absolute; top: 10px; right: 12px; display: grid; gap: 4px; font: 700 14px/1 var(--mono); color: var(--paper-ink); }
