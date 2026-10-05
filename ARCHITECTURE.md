@@ -63,7 +63,8 @@ Actions runs it on every push to `main`.
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
-| `src/lib/paths.ts`, `src/lib/hash.ts` | `url()` (adds the `/wyattsgames/` base path); `sha256()`. |
+| `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (adds the `/wyattsgames/` base path); `sha256()`; which games the player has finished. |
+| `src/components/Check.astro` | The animated check mark for finished games. |
 | `public/<type>/` | Static files: type cover; `<n>/sheets/` PDFs and previews for escape rooms. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
 | `puzzles/<type>/<n>/` | Sheet sources for one escape room: generator scripts and `sheets/*.html`. |
@@ -109,8 +110,9 @@ a line through the open squares from entrance to exit.
 
 Based on FLEB's RYB (https://fleb.itch.io/ryb). A figure is cut into polygon pieces
 (any coordinates; the board is scaled to fit). Paint every piece 1 red, 2 yellow or
-3 blue. A clue is a string of dots: `"113"` means at least two neighbors are red and at
-least one is blue; each dot needs its own neighbor. Neighbors share part of an edge,
+3 blue (instance files use the digits; players only ever see colors, and pick them
+with buttons or the keys R, Y, B). A clue is a string of dots: `"113"` means at least
+two neighbors are red and at least one is blue; each dot needs its own neighbor. Neighbors share part of an edge,
 computed from the polygons. A wrong color is rejected and costs a heart; correct
 pieces lock in. `hidden` clues appear only once their piece is painted. Optional
 `totals` show how many of each color are left to place.
@@ -147,6 +149,12 @@ interface GameHost {
 
 `Game.astro` renders markup with `data-game-type`, `data-game-id` and `data-config`
 (the instance's data as JSON); its script calls the type's `mountAll(createHost)`.
+
+**Completion.** `GameShell` (given `progressId`, "<type path>/<n>") listens for
+`game:solved`, records the game in `src/lib/progress.ts` (localStorage key
+`wyattsgames:completed`) and animates a check mark beside the title
+(`src/components/Check.astro`). The type list shows checks on finished games and the
+home page shows "n of m solved" per type.
 The host id is `<type>-<n>-<hash of the instance data>`, so editing a puzzle gives
 players a fresh start instead of old progress on a new board.
 

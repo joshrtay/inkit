@@ -10,7 +10,8 @@ interface Props { game: NumberMazeGame; hostId: string }
 const { game, hostId } = Astro.props;
 ---
 <GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
-  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}>
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
+  progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}
   <Board gameId={hostId} config={game.maze} />
   <Rules slot="directions" />

@@ -3,6 +3,7 @@
 import Base from "../../layouts/Base.astro";
 import { gamePath, gameTypes, instancesOf } from "../../games";
 import { url } from "../../lib/paths";
+import Check from "../../components/Check.astro";
 
 export function getStaticPaths() {
   return gameTypes.map((type) => ({ params: { type: type.path }, props: { type } }));
@@ -22,8 +23,8 @@ const list = instancesOf(type);
     <ol class="instances">
       {list.map((g) => (
         <li>
-          <a href={url(gamePath(g))}>
-            <span class="num">{g.number}</span>
+          <a href={url(gamePath(g))} data-progress-id={`${type.path}/${g.number}`}>
+            <span class="num">{g.number}<Check size={22} /></span>
             <span class="text">
               <strong>{g.name}</strong>
               {g.meta && <span class="meta">{g.meta}</span>}
@@ -49,12 +50,22 @@ const list = instancesOf(type);
   }
   .instances a:hover { border-color: var(--ink); transform: translateX(3px); }
   .num {
-    font-family: var(--display); font-size: 26px; width: 48px; height: 48px; border-radius: 50%;
+    position: relative; font-family: var(--display); font-size: 26px; width: 48px; height: 48px; border-radius: 50%;
     display: grid; place-items: center; border: 2px solid var(--ink); font-variant-numeric: tabular-nums;
   }
+  .num :global(.check) { position: absolute; right: -8px; bottom: -6px; }
+  .done .num { border-color: var(--good); }
   .text { display: grid; gap: 2px; min-width: 0; }
   .text strong { font-family: var(--display); font-weight: 400; font-size: 21px; }
   .meta { font-family: var(--mono); font-size: 13px; color: var(--muted); }
   .go { font-family: var(--mono); font-size: 20px; color: var(--muted); }
   @media (prefers-reduced-motion: reduce) { .instances a { transition: none; } .instances a:hover { transform: none; } }
 </style>
+
+<script>
+  import { completed } from "../../lib/progress";
+
+  const done = completed();
+  document.querySelectorAll<HTMLElement>("[data-progress-id]").forEach((a) =>
+    a.classList.toggle("done", done.has(a.dataset.progressId!)));
+</script>

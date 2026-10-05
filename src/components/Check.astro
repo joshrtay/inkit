@@ -1,0 +1,27 @@
+---
+// A check mark badge. Hidden until its container gets the "done" class; add "animate"
+// as well to draw it in (used the moment a game is finished).
+interface Props { size?: number; label?: string }
+const { size = 30, label = "Solved" } = Astro.props;
+---
+<span class="check" role="img" aria-label={label} style={`--size: ${size}px`}>
+  <svg viewBox="0 0 32 32" aria-hidden="true">
+    <circle cx="16" cy="16" r="14" />
+    <path d="M9.5 16.5 L14 21 L23 11.5" />
+  </svg>
+</span>
+
+<style is:global>
+  .check { display: none; width: var(--size); height: var(--size); flex: none; vertical-align: middle; }
+  .done > .check, .done .check { display: inline-block; }
+  .check svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .check circle { fill: var(--good); }
+  .check path { fill: none; stroke: #fff; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .animate .check circle { transform-origin: 16px 16px; animation: check-pop .45s cubic-bezier(.3, 1.6, .5, 1) both; }
+    .animate .check path { stroke-dasharray: 24; stroke-dashoffset: 24; animation: check-draw .35s .3s ease-out forwards; }
+  }
+  @keyframes check-pop { from { transform: scale(0); } to { transform: scale(1); } }
+  @keyframes check-draw { to { stroke-dashoffset: 0; } }
+</style>

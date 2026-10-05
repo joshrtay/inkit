@@ -1,4 +1,5 @@
-// RYB game type: paint each piece red (1), yellow (2) or blue (3) so every clue holds.
+// RYB game type: paint each piece red, yellow or blue so every clue holds.
+// (Instance files write colors as 1 = red, 2 = yellow, 3 = blue; players only see colors.)
 // Faithful to FLEB's RYB: a wrong color is rejected and costs a heart; correct pieces
 // lock in and reveal any hidden clue. Plain TypeScript + SVG.
 import type { MountGame } from "../../lib/game";
@@ -57,7 +58,6 @@ export const createRyb = (config: RybClientConfig): MountGame => (root, host) =>
       const a = -Math.PI / 2 + (2 * Math.PI * k) / n;
       const x = cx + ring * Math.cos(a), y = cy + ring * Math.sin(a);
       el("circle", { class: `dot c${c}`, cx: x, cy: y, r }, g);
-      el("text", { class: "dot-num", x, y: y + r * 0.05, "font-size": r * 1.25 }, g).textContent = String(c);
     });
     return g;
   });
@@ -70,11 +70,13 @@ export const createRyb = (config: RybClientConfig): MountGame => (root, host) =>
   function pick(c: Color) {
     brush = c;
     swatches.forEach((s) => s.setAttribute("aria-pressed", String(Number(s.dataset.color) === c)));
+    if (hearts > 0 && painted.some((x) => !x)) render();
   }
   swatches.forEach((s) => s.addEventListener("click", () => pick(Number(s.dataset.color) as Color)));
   const onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement).closest("input, textarea")) return;
-    if (e.key === "1" || e.key === "2" || e.key === "3") pick(Number(e.key) as Color);
+    const c = ({ r: 1, y: 2, b: 3, "1": 1, "2": 2, "3": 3 } as Record<string, Color>)[e.key.toLowerCase()];
+    if (c) pick(c);
   };
   document.addEventListener("keydown", onKey);
 
@@ -108,7 +110,7 @@ export const createRyb = (config: RybClientConfig): MountGame => (root, host) =>
       if (!reported) { reported = true; host.solved({ mistakes: config.hearts - hearts }); }
     } else if (hearts > 0) {
       status.className = "status";
-      status.textContent = `${pieces.length - done} of ${pieces.length} pieces left. Painting ${NAMES[brush]} (${brush}).`;
+      status.textContent = `${pieces.length - done} of ${pieces.length} pieces left. Painting ${NAMES[brush]}.`;
     }
   }
 

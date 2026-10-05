@@ -41,12 +41,10 @@
 
 .ryb .dots { pointer-events: none; }
 .ryb .dots.hidden { display: none; }
-.ryb .dot { stroke: #fff; stroke-width: .25%; }
+.ryb .dot { stroke: #fff; stroke-width: .35%; }
 .ryb .dot.c1 { fill: var(--r); }
 .ryb .dot.c2 { fill: var(--y); }
 .ryb .dot.c3 { fill: var(--b); }
-.ryb .dot-num { fill: #fff; font-family: var(--mono); font-weight: 700; text-anchor: middle; dominant-baseline: central; }
-.ryb .dot.c2 + .dot-num { fill: #2b2622; }
 
 .ryb .totals { position: absolute; top: 10px; right: 12px; display: grid; gap: 4px; font: 700 14px/1 var(--mono); color: var(--paper-ink); }
 .ryb .total { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }

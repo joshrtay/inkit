@@ -32,15 +32,16 @@ const config: RybClientConfig = {
 };
 ---
 <GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
-  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}>
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
+  progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}
 
   <div class="ryb" data-game-type="ryb" data-game-id={hostId} data-config={JSON.stringify(config)}>
     <div class="bar">
       <div class="palette" role="group" aria-label="Paint color">
-        <button class="swatch c1" data-color="1" type="button" aria-pressed="true"><i></i>1 &middot; Red</button>
-        <button class="swatch c2" data-color="2" type="button" aria-pressed="false"><i></i>2 &middot; Yellow</button>
-        <button class="swatch c3" data-color="3" type="button" aria-pressed="false"><i></i>3 &middot; Blue</button>
+        <button class="swatch c1" data-color="1" type="button" aria-pressed="true"><i></i>Red</button>
+        <button class="swatch c2" data-color="2" type="button" aria-pressed="false"><i></i>Yellow</button>
+        <button class="swatch c3" data-color="3" type="button" aria-pressed="false"><i></i>Blue</button>
       </div>
       <div class="hearts" data-hearts role="img"></div>
       <div class="status" aria-live="polite"></div>
@@ -55,11 +56,11 @@ const config: RybClientConfig = {
   <section class="rules current" slot="directions">
     <h2>How to play</h2>
     <ol>
-      <li>Paint every piece 1 (red), 2 (yellow) or 3 (blue).</li>
-      <li>Each dot in a piece means at least that many of its neighbors are that color. Neighbors share an edge; touching at a corner doesn&rsquo;t count.</li>
+      <li>Paint every piece red, yellow or blue.</li>
+      <li>Each colored dot in a piece means one of its neighbors is that color; two red dots mean at least two red neighbors, and so on. Neighbors share an edge; touching at a corner doesn&rsquo;t count.</li>
       <li>A wrong color is rejected and costs a heart. Correct pieces lock in.</li>
     </ol>
-    <p>Pick a color with the buttons or keys 1, 2 and 3, then click a piece. Some pieces hide their dots until you paint them. Counts beside the board show how many of each color are left to place.</p>
+    <p>Pick a color with the buttons or the keys R, Y and B, then click a piece. Some pieces hide their dots until you paint them. Counts beside the board show how many of each color are left to place.</p>
   </section>
 </GameShell>
 
