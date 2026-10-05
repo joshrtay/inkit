@@ -1,0 +1,21 @@
+; DNS records for wyattsgames.com -> GitHub Pages (joshrtay/wyattsgames)
+; Import in Cloudflare: DNS > Records > Import and Export > Import DNS records.
+; Leave "Proxy imported DNS records" UNCHECKED: GitHub must see requests directly
+; to issue the HTTPS certificate. The cf_tags comments also mark each record DNS only.
+$ORIGIN wyattsgames.com.
+$TTL 3600
+
+; Apex: GitHub Pages IPv4 addresses
+@	3600	IN	A	185.199.108.153	; cf_tags=cf-proxied:false
+@	3600	IN	A	185.199.109.153	; cf_tags=cf-proxied:false
+@	3600	IN	A	185.199.110.153	; cf_tags=cf-proxied:false
+@	3600	IN	A	185.199.111.153	; cf_tags=cf-proxied:false
+
+; Apex: GitHub Pages IPv6 addresses
+@	3600	IN	AAAA	2606:50c0:8000::153	; cf_tags=cf-proxied:false
+@	3600	IN	AAAA	2606:50c0:8001::153	; cf_tags=cf-proxied:false
+@	3600	IN	AAAA	2606:50c0:8002::153	; cf_tags=cf-proxied:false
+@	3600	IN	AAAA	2606:50c0:8003::153	; cf_tags=cf-proxied:false
+
+; www redirects to the apex once the custom domain is set on GitHub
+www	3600	IN	CNAME	joshrtay.github.io.	; cf_tags=cf-proxied:false

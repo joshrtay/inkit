@@ -207,3 +207,9 @@ Set `listed: false` on a type until it's ready for the home page.
 `.github/workflows/deploy.yml` builds with `withastro/action` and publishes with
 `actions/deploy-pages` on every push to `main`. The repository's Pages source is set
 to **GitHub Actions**.
+
+**Domain.** `wyattsgames.com` is registered at Cloudflare, which also hosts its DNS.
+The records are in `dns/wyattsgames.com.zone` (GitHub Pages addresses for the apex,
+`www` → `joshrtay.github.io`, all DNS only, not proxied). The repository's Pages
+custom domain is `wyattsgames.com` with HTTPS enforced; `www`, plain http and the old
+`joshrtay.github.io/wyattsgames/` address all redirect there. Astro's `base` is `/`.
