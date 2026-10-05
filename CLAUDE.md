@@ -6,6 +6,6 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing anything; it is the sour
 - Every puzzle must have exactly one solution; generators assert this. Confirm intended handoff numbers with the user.
 - Each sheet's variables are local to that sheet; only the stated number passes between sheets.
 - Interactive games export `mount: MountGame` and use the `GameHost` for saving and reporting a solve.
-- Build links with `url()` from `src/lib/paths.ts` (the site lives under `/escape-room/`).
+- Build links with `url()` from `src/lib/paths.ts` (the site lives under `/wyattsgames/`).
 - `scans/` and `archive/` are local-only (gitignored); the repo is public.
 - Run `npm run build` (type-check + build) before committing.

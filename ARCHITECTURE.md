@@ -1,9 +1,9 @@
 # Architecture
 
-Mailed Escape Rooms is a static website of puzzle games. Some games are printable
+Wyatt's Games is a static website of puzzle games. Some games are printable
 sheets you solve on paper; others are played in the browser. It is built with
 [Astro](https://astro.build) and published to GitHub Pages at
-https://joshrtay.github.io/escape-room/.
+https://joshrtay.github.io/wyattsgames/.
 
 ## How the pieces fit
 
@@ -40,7 +40,7 @@ There are two separate build steps on purpose:
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
-| `src/lib/paths.ts` | `url()` helper that adds the `/escape-room/` base path. |
+| `src/lib/paths.ts` | `url()` helper that adds the `/wyattsgames/` base path. |
 | `src/games/<slug>/` | An interactive game's code (`game.ts`), styles and `puzzle.json`. |
 | `public/<slug>/` | Static files served as-is: covers, sheet PDFs and previews. |
 | `puzzles/` | Python scripts that generate, verify and render puzzles. `build.py` runs them all. |
@@ -57,7 +57,7 @@ There are two separate build steps on purpose:
   - `intro`: optional text under the title
   - `directions`: rule cards shown **below** the board (`<section class="rules">`)
 - All internal links and asset paths go through `url()` from `src/lib/paths.ts`,
-  because the site lives under `/escape-room/` on GitHub Pages.
+  because the site lives under `/wyattsgames/` on GitHub Pages.
 - Styles for elements that a script creates at runtime must be global (a
   plain `.css` file imported by the page, or `<style is:global>`), scoped under a
   game-specific class such as `.line-maze`. Astro's scoped `<style>` only reaches
