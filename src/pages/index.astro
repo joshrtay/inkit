@@ -4,14 +4,11 @@ import { gameTypes, instancesOf } from "../games";
 import { url } from "../lib/paths";
 
 const listed = gameTypes.filter((t) => t.listed && instancesOf(t).length);
-const count = (n: number) => `${n} game${n === 1 ? "" : "s"}`;
 ---
 <Base title="Wyatt's Games" description="Printable and in-browser escape room puzzles.">
   <main class="wrap">
     <header>
-      <span class="eyebrow">Paper puzzles, sent by post</span>
       <h1>Wyatt's Games</h1>
-      <p>Pick a kind of puzzle, then a numbered game. Some are printable sheets (print them at actual size); others you play right here.</p>
     </header>
 
     <ul class="games">
@@ -23,20 +20,12 @@ const count = (n: number) => `${n} game${n === 1 ? "" : "s"}`;
               ? <img src={url(g.cover)} alt={g.coverAlt ?? ""} width="1200" height="750" />
               : <div class="no-cover" aria-hidden="true">{g.name}</div>}
             <div class="text">
-              <span class="meta">{count(instancesOf(g).length)} &middot; {g.meta}</span>
               <span class="solved" hidden></span>
               <h2>{g.name}</h2>
-              <p>{g.blurb}</p>
             </div>
           </a>
         </li>
       ))}
-      <li>
-        <div class="soon">
-          <strong>Next game</strong>
-          <span>in the mail</span>
-        </div>
-      </li>
     </ul>
   </main>
 </Base>
@@ -45,7 +34,6 @@ const count = (n: number) => `${n} game${n === 1 ? "" : "s"}`;
   .wrap { gap: 36px; padding-block: 36px 64px; }
   header { display: grid; gap: 10px; max-width: 60ch; }
   h1 { font-family: var(--display); font-weight: 400; font-size: clamp(36px, 7vw, 60px); line-height: 1; margin: 0; text-wrap: balance; }
-  header p { margin: 0; color: var(--muted); }
 
   .games { list-style: none; margin: 0; padding: 0; display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
   .game {
@@ -60,17 +48,9 @@ const count = (n: number) => `${n} game${n === 1 ? "" : "s"}`;
   .no-cover { display: grid; place-content: center; font-family: var(--display); font-size: 26px; background: var(--bg); color: var(--muted); }
   .text { padding: 16px 18px 18px; display: grid; gap: 6px; align-content: start; }
   .text h2 { font-family: var(--display); font-weight: 400; font-size: 24px; line-height: 1.15; margin: 0; }
-  .meta { font-family: var(--mono); font-size: 13px; letter-spacing: .04em; color: var(--muted); }
-  .text p { margin: 0; color: var(--muted); font-size: 15px; }
   .solved { justify-self: start; font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--good); }
   .solved::before { content: "\2713  "; }
 
-  .soon {
-    border: 1px dashed var(--line); border-radius: 4px; height: 100%; min-height: 220px;
-    display: grid; place-content: center; gap: 6px; text-align: center; padding: 24px; color: var(--muted);
-  }
-  .soon strong { font-family: var(--display); font-weight: 400; font-size: 22px; color: var(--ink); }
-  .soon span { font-family: var(--mono); font-size: 13px; letter-spacing: .04em; }
   @media (prefers-reduced-motion: reduce) { .game { transition: none; } .game:hover { transform: none; } }
 </style>
 
