@@ -97,6 +97,48 @@ def ryb_svg(cfg: dict, painted: bool) -> str:
     return f'<svg viewBox="{min(xs) - pad} {min(ys) - pad} {w} {h}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', w / h
 
 
+# ---- lazy river ----
+def river_config(n: int) -> dict:
+    page = (ROOT / "dist" / "lazy-river" / str(n) / "index.html").read_text()
+    m = re.search(r'data-game-type="lazy-river"[^>]*data-config="([^"]+)"', page)
+    if not m:
+        sys.exit("run `npm run build` first: covers read Lazy River solutions from dist/")
+    return json.loads(htmllib.unescape(m.group(1)))
+
+
+def river_svg(cfg: dict, solved: bool):
+    grid, walls, sol = cfg["grid"], cfg["walls"], cfg["solution"]
+    H, W, S, P = len(grid), len(grid[0]), 44, 12
+    x0 = lambda c: P + c * S
+    y0 = lambda r: P + r * S
+    out = []
+    for r in range(H):
+        for c in range(W):
+            fill = INK if grid[r][c] == "#" else ("#f6f2e9" if (r + c) % 2 else "#fff")
+            out.append(f'<rect x="{x0(c)}" y="{y0(r)}" width="{S}" height="{S}" fill="{fill}"/>')
+    for r in range(H + 1):
+        out.append(f'<line x1="{P}" y1="{y0(r)}" x2="{P + W * S}" y2="{y0(r)}" stroke="#d9cfbd"/>')
+    for c in range(W + 1):
+        out.append(f'<line x1="{x0(c)}" y1="{P}" x2="{x0(c)}" y2="{P + H * S}" stroke="#d9cfbd"/>')
+    if solved:
+        for r in range(H):
+            for c in range(W):
+                cx, cy = x0(c) + S / 2, y0(r) + S / 2
+                if sol[r][c] & 2:
+                    out.append(f'<line x1="{cx}" y1="{cy}" x2="{cx + S}" y2="{cy}" stroke="#2f8fd8" stroke-width="9" stroke-linecap="round"/>')
+                if sol[r][c] & 4:
+                    out.append(f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy + S}" stroke="#2f8fd8" stroke-width="9" stroke-linecap="round"/>')
+    for r in range(H):
+        for c in range(W):
+            if walls[r][c] & 2:
+                out.append(f'<line x1="{x0(c + 1)}" y1="{y0(r)}" x2="{x0(c + 1)}" y2="{y0(r + 1)}" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>')
+            if walls[r][c] & 4:
+                out.append(f'<line x1="{x0(c)}" y1="{y0(r + 1)}" x2="{x0(c + 1)}" y2="{y0(r + 1)}" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>')
+    out.append(f'<rect x="{P}" y="{P}" width="{W * S}" height="{H * S}" fill="none" stroke="{INK}" stroke-width="3"/>')
+    vw, vh = W * S + 2 * P, H * S + 2 * P
+    return f'<svg viewBox="0 0 {vw} {vh}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', vw / vh
+
+
 # ---- page ----
 def cover(sheets, out: Path):
     """sheets: list of (svg, aspect, centre_x, centre_y, height, angle_deg)."""
@@ -144,5 +186,12 @@ def main():
           ROOT / "public" / "ryb" / "cover.jpg")
 
 
+def lazy_river_cover():
+    a, b = river_svg(river_config(3), solved=False), river_svg(river_config(4), solved=True)
+    cover([(a[0], a[1], 380, 390, 470, -8), (b[0], b[1], 780, 380, 520, 6)],
+          ROOT / "public" / "lazy-river" / "cover.jpg")
+
+
 if __name__ == "__main__":
     main()
+    lazy_river_cover()

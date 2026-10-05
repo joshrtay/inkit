@@ -1,0 +1,32 @@
+/* Lazy River game type. Global but scoped under .lazy-river, because game.ts builds the board. */
+.lazy-river {
+  --water: #2f8fd8;
+  --water-done: #1f6b3a;
+  display: grid; gap: 18px;
+}
+.lazy-river .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.lazy-river .status { flex: 1 1 240px; min-width: 0; font-family: var(--mono); font-size: 14px; line-height: 1.3; }
+.lazy-river .status.good { color: var(--good); }
+.lazy-river .status.warn { color: var(--red); }
+.lazy-river .tools { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.lazy-river .sheet {
+  background: var(--paper); border-radius: 2px; box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
+  padding: 10px; justify-self: center; width: 100%; max-width: min(620px, calc(100dvh - 60px));
+}
+.lazy-river svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.lazy-river .cell { fill: #fff; }
+.lazy-river .cell.alt { fill: #f6f2e9; }
+.lazy-river .cell.black { fill: #2b2622; }
+.lazy-river .cell.bad { fill: #f8d4d4; }
+.lazy-river .gridline { stroke: #d9cfbd; stroke-width: 1; }
+.lazy-river .frame { fill: none; stroke: #2b2622; stroke-width: 3; }
+.lazy-river .wall { stroke: #2b2622; stroke-width: 6; stroke-linecap: round; }
+.lazy-river .river { stroke: var(--water); stroke-width: 9; stroke-linecap: round; }
+.lazy-river .joint { fill: var(--water); }
+.lazy-river .river.done { stroke: var(--water-done); }
+.lazy-river .joint.done { fill: var(--water-done); }
+.lazy-river .xmark { stroke: #b3262f; stroke-width: 2.4; stroke-linecap: round; }
+
+@media (max-width: 600px) { .lazy-river .sheet { padding: 4px; } }

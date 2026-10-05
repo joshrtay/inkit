@@ -4,10 +4,11 @@
 import type { PacketConfig } from "./game-types/packet/types";
 import type { NumberMazeConfig } from "./game-types/number-maze/types";
 import type { RybConfig } from "./game-types/ryb/types";
+import type { LazyRiverConfig } from "./game-types/lazy-river/types";
 
 export interface GameType {
   /** Code id: the folder in src/game-types/. */
-  id: "packet" | "number-maze" | "ryb";
+  id: "packet" | "number-maze" | "ryb" | "lazy-river";
   /** URL path and content folder name. */
   path: string;
   name: string;
@@ -53,6 +54,16 @@ export const gameTypes: GameType[] = [
     coverAlt: "Puzzle figures painted red, yellow and blue, with colored clue dots",
     listed: true,
   },
+  {
+    id: "lazy-river",
+    path: "lazy-river",
+    name: "Lazy River",
+    blurb: "Draw one river that winds through every white cell, around the rocks and walls.",
+    meta: "Play in the browser",
+    cover: "lazy-river/cover.jpg",
+    coverAlt: "A river grid with dark rocks and thick walls, and a finished blue river looping through it",
+    listed: true,
+  },
 ];
 
 interface InstanceBase {
@@ -69,7 +80,8 @@ interface InstanceBase {
 export type PacketGame = InstanceBase & { packet: PacketConfig };
 export type NumberMazeGame = InstanceBase & { maze: NumberMazeConfig };
 export type RybGame = InstanceBase & { ryb: RybConfig };
-export type Game = PacketGame | NumberMazeGame | RybGame;
+export type LazyRiverGame = InstanceBase & { river: LazyRiverConfig };
+export type Game = PacketGame | NumberMazeGame | RybGame | LazyRiverGame;
 
 const files = import.meta.glob<{ default: Record<string, unknown> }>("./games/*/*.json", { eager: true });
 

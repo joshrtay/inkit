@@ -34,6 +34,7 @@ PREVIEW_DPI = 130
 
 sys.path.insert(0, str(PUZZLES / "lib"))
 import number_maze  # noqa: E402
+import lazy_river  # noqa: E402
 
 
 def run(script: Path) -> None:
@@ -89,6 +90,10 @@ def main() -> None:
             build_packet(slug, instance["packet"])
         elif kind == "number-maze":
             ok, message, _ = number_maze.check(instance["maze"])
+            print(f"    {'ok' if ok else 'PROBLEM'}: {message}")
+            failed |= not ok
+        elif kind == "lazy-river":
+            ok, message = lazy_river.check(instance["river"])
             print(f"    {'ok' if ok else 'PROBLEM'}: {message}")
             failed |= not ok
         elif kind == "ryb":

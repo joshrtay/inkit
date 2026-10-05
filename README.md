@@ -24,6 +24,7 @@ The home page lists game types; each type has numbered games at `/<type>/<n>/`.
 | Escape Room (`/escape-room/`) | 1 The Envelope (8 printable sheets) |
 | Number Line Maze (`/number-line-maze/`) | 1 Warm-up (5 × 5), 2 The Big Maze (11 × 16) |
 | RYB (`/ryb/`) | 1 Triangle, 2 Hexagon, 3 Nine Squares, 4 Square in a Kite, 5 Envelope, 6 House |
+| Lazy River (`/lazy-river/`) | 1 Little Pond, 2 Stepping Stones, 3 Canyon Run, 4 Long Bend |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the site, the game interface and the
 puzzle scripts fit together, and how to add a game.

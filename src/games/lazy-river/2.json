@@ -1,0 +1,15 @@
+{
+  "type": "lazy-river",
+  "name": "Stepping Stones",
+  "meta": "4 \u00d7 4",
+  "river": {
+    "source": "scans/game2/20261004214832_003.pdf (grid C)",
+    "grid": [
+      "#..#",
+      "....",
+      "..#.",
+      "#..."
+    ],
+    "walls": []
+  }
+}

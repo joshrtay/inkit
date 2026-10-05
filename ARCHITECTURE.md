@@ -19,6 +19,7 @@ The code separates **game types** (reusable) from **instances** (data):
 | Escape Room (`escape-room`) | `packet` | Printable sheets (PDFs) and the final answer |
 | Number Line Maze (`number-line-maze`) | `number-maze` | A grid of numbers, entrance, exit, any hint walls |
 | RYB (`ryb`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
+| Lazy River (`lazy-river`) | `lazy-river` | A grid of white and black cells, plus walls |
 
 Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, listed).
 Each instance is `src/games/<type path>/<n>.json`; the number is the file name. Adding
@@ -129,6 +130,23 @@ overlapping outlines become separate pieces (the House leaves out its drawn circ
 splits its left triangle so no two pieces share the same neighbors), every drawn dot is kept, and the fewest extra dots
 are added, avoiding slivers, until there is one solution reachable without guessing.
 Dots are drawn at each piece's roomiest interior point.
+
+### Lazy River (`lazy-river`)
+
+```json
+"river": { "grid": [".......", ".#.....", "..."], "walls": [[[0, 4], [1, 4]], ...] }
+```
+
+A clone of Inkwell Games' Loopy River (the classic Japanese "Simple Loop"). Draw one
+closed loop through the centre of every white cell (`.`): no branches, crossings or
+separate loops; it skips black cells (`#`) and never crosses a wall (a pair of
+neighbouring cells). Drag between cells to draw or erase, tap a border for an X;
+Undo, Check and Reset; it checks itself once every cell is filled, against the one
+solution found at build time (`src/game-types/lazy-river/solver.ts`; the build fails
+unless there is exactly one loop). `puzzles/lib/lazy_river.py` has the same solver plus
+`fit()`, which turns a traced sketch into a level by adding the fewest walls (and, if
+no loop fits at all, toggling a black cell). `puzzles/lazy-river/from_sketch.py` made
+levels 1–4 from the game 2 grids sketch.
 
 ## Pages and layouts
 
