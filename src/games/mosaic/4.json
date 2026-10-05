@@ -1,0 +1,26 @@
+{
+  "type": "mosaic",
+  "name": "In the Forest",
+  "meta": "10 \u00d7 10",
+  "mosaic": {
+    "title": "Mushroom",
+    "picture": [
+      "..rrrrrr..",
+      ".rrwwrrrr.",
+      "rrwwrrrwwr",
+      "rrrrrrrwwr",
+      "rwwrrrrrrr",
+      "..cccccc..",
+      "...cccc...",
+      "...cccc...",
+      "...cccc...",
+      "..cccccc.."
+    ],
+    "palette": {
+      ".": "#e8f1dc",
+      "r": "#d8443a",
+      "w": "#fff6e8",
+      "c": "#e9dcc0"
+    }
+  }
+}

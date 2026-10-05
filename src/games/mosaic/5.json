@@ -1,0 +1,25 @@
+{
+  "type": "mosaic",
+  "name": "Sitting Pretty",
+  "meta": "10 \u00d7 10",
+  "mosaic": {
+    "title": "Cat",
+    "picture": [
+      "k...k.....",
+      "kk.kk.....",
+      "kkkkk.....",
+      "kekek.....",
+      "kkkkk...k.",
+      ".kkk....k.",
+      ".kkkkkkkk.",
+      ".kkkkkkk..",
+      ".k.k..k.k.",
+      ".k.k..k.k."
+    ],
+    "palette": {
+      ".": "#fbeed7",
+      "k": "#3b3633",
+      "e": "#f2c94c"
+    }
+  }
+}

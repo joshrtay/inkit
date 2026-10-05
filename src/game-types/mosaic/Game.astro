@@ -1,0 +1,71 @@
+---
+// Mosaic game type: one page per instance (see src/pages/[type]/[n]/index.astro).
+// Clues come from the picture; the build fails unless they have exactly one solution.
+import GameShell from "../../layouts/GameShell.astro";
+import type { MosaicGame } from "../../games";
+import { url } from "../../lib/paths";
+import type { MosaicClientConfig } from "./types";
+import { runs, solve } from "./solver";
+import "./styles.css";
+
+interface Props { game: MosaicGame; hostId: string }
+const { game, hostId } = Astro.props;
+const { picture, palette, title } = game.mosaic;
+const where = `src/games/${game.type.path}/${game.number}.json`;
+if (picture.some((row) => row.length !== picture[0].length)) throw new Error(`${where}: picture rows must be the same length`);
+for (const ch of new Set(picture.join(""))) if (!(ch in palette)) throw new Error(`${where}: no palette color for "${ch}"`);
+
+const mask = picture.map((row) => [...row].map((ch) => ch !== "."));
+const rows = mask.map(runs), cols = mask[0].map((_, c) => runs(mask.map((r) => r[c])));
+const sols = solve(rows, cols);
+if (sols.length !== 1) throw new Error(`${where}: Mosaic clues have ${sols.length === 0 ? "no solution" : "more than one solution"}; adjust the picture`);
+
+const config: MosaicClientConfig = {
+  title, width: mask[0].length, height: mask.length, rows, cols, mask,
+  colors: picture.map((row) => [...row].map((ch) => palette[ch])),
+};
+---
+<GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
+  progressId={`${game.type.path}/${game.number}`}>
+  {game.intro && <p slot="intro">{game.intro}</p>}
+
+  <div class="mosaic" data-game-type="mosaic" data-game-id={hostId} data-config={JSON.stringify(config)}>
+    <div class="bar">
+      <div class="status" aria-live="polite"></div>
+      <div class="tools">
+        <button class="btn" data-undo type="button">Undo</button>
+        <button class="btn" data-hint type="button">Hint</button>
+        <button class="btn" data-check type="button">Check</button>
+        <button class="btn" data-reset type="button">Reset</button>
+      </div>
+    </div>
+    <div class="sheet">
+      <svg role="img" aria-label="Picture grid"></svg>
+      <button class="sign" data-sign type="button" aria-label="Show what the picture is">
+        <span class="q">?</span><span class="title">It&rsquo;s {title.toLowerCase().match(/^[aeiou]/) ? "an" : "a"} {title}!</span>
+      </button>
+    </div>
+    <div class="prefs">
+      <label><input type="checkbox" data-pref="autoTick" /> Tick off clues when a line is finished</label>
+      <label><input type="checkbox" data-pref="autoX" /> X out the rest of a line once all its clues are ticked</label>
+    </div>
+  </div>
+
+  <section class="rules current" slot="directions">
+    <h2>How to play</h2>
+    <ol>
+      <li>Shade cells to uncover a picture.</li>
+      <li>The numbers beside each row and above each column are the runs of shaded cells in that line, in order. &ldquo;3 1&rdquo; means a run of 3, a gap, then a run of 1.</li>
+      <li>Every line must match its numbers exactly.</li>
+    </ol>
+    <p>Tap a cell to shade it, again for an X (a cell you know is empty), again to clear it. Right-click goes the other way. Drag to paint many cells at once. Tap a clue number to tick it off.</p>
+  </section>
+</GameShell>
+
+<script>
+  import { createHost } from "../../lib/game";
+  import { mountAll } from "./game";
+
+  mountAll(createHost);
+</script>

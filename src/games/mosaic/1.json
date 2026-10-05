@@ -1,0 +1,19 @@
+{
+  "type": "mosaic",
+  "name": "Something Sweet",
+  "meta": "5 \u00d7 5",
+  "mosaic": {
+    "title": "Heart",
+    "picture": [
+      ".r.r.",
+      "rrrrr",
+      "rrrrr",
+      ".rrr.",
+      "..r.."
+    ],
+    "palette": {
+      ".": "#e3f2f6",
+      "r": "#d8443a"
+    }
+  }
+}

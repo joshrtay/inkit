@@ -1,0 +1,27 @@
+{
+  "type": "mosaic",
+  "name": "Out on the Water",
+  "meta": "10 \u00d7 10",
+  "mosaic": {
+    "title": "Sailboat",
+    "picture": [
+      "....w.....",
+      "....ww....",
+      "....www...",
+      "....wwww..",
+      "....wwwww.",
+      "....m.....",
+      ".bbbbbbbb.",
+      "..bbbbbb..",
+      "~~~~~~~~~~",
+      ".~~.~~.~~."
+    ],
+    "palette": {
+      ".": "#e3f2f6",
+      "w": "#ffffff",
+      "m": "#6b4a2b",
+      "b": "#a0662f",
+      "~": "#2f8fd8"
+    }
+  }
+}

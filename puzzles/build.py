@@ -96,7 +96,7 @@ def main() -> None:
             ok, message = lazy_river.check(instance["river"])
             print(f"    {'ok' if ok else 'PROBLEM'}: {message}")
             failed |= not ok
-        elif kind == "ryb":
+        elif kind in ("ryb", "mosaic"):
             print("    checked by the Astro build (npm run build)")
         else:
             sys.exit(f"{path.name}: unknown game type {kind!r}")

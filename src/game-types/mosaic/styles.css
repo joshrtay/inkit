@@ -1,0 +1,57 @@
+/* Mosaic game type. Global but scoped under .mosaic, because game.ts builds the board. */
+.mosaic { --fill: #2b2622; --wrong: #f2a490; display: grid; gap: 16px; }
+.mosaic .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
+.mosaic .status { flex: 1 1 240px; min-width: 0; font-family: var(--mono); font-size: 14px; line-height: 1.3; }
+.mosaic .status.good { color: var(--good); }
+.mosaic .status.warn { color: var(--red); }
+.mosaic .tools { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.mosaic .sheet {
+  position: relative; background: var(--paper); border-radius: 2px;
+  box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
+  padding: 12px; justify-self: center; width: 100%; max-width: min(640px, calc(100dvh - 40px));
+  transition: padding .6s ease;
+}
+.mosaic svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+
+.mosaic .cell { fill: #fff; transition: fill .12s; }
+.mosaic .cell.filled { fill: var(--fill); }
+.mosaic .cell.wrong { fill: var(--wrong); }
+.mosaic .x { fill: none; stroke: transparent; stroke-width: 2.2; stroke-linecap: round; pointer-events: none; }
+.mosaic .x.on { stroke: #8a7f6c; }
+.mosaic .x.on.wrong { stroke: #b3262f; }
+.mosaic .line { stroke: #d9cfbd; stroke-width: 1; }
+.mosaic .line.major { stroke: #9e927c; stroke-width: 2.5; }
+.mosaic .frame { fill: none; stroke: #2b2622; stroke-width: 2.5; }
+.mosaic .clue {
+  font-family: var(--mono); font-weight: 700; font-size: 15px; fill: #2b2622;
+  text-anchor: middle; dominant-baseline: central; cursor: pointer;
+}
+.mosaic .clue.done { fill: #b6ab95; text-decoration: line-through; }
+.mosaic .hint-line { fill: rgba(224, 164, 34, .16); stroke: #e0a422; stroke-width: 2; pointer-events: none; }
+.mosaic .hint-fill { fill: rgba(43, 38, 34, .35); pointer-events: none; }
+.mosaic .hint-x { fill: none; stroke: rgba(43, 38, 34, .5); stroke-width: 2.4; stroke-linecap: round; pointer-events: none; }
+
+.mosaic .prefs { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); justify-content: center; }
+.mosaic .prefs label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+/* the reveal: cells fade to the picture's colors in a diagonal wave, clues and grid fade out */
+.mosaic.revealed .cell { fill: var(--reveal); transition: fill .5s ease var(--delay); }
+.mosaic.revealed .x, .mosaic.revealed .line { opacity: 0; transition: opacity .6s; }
+.mosaic.revealed .clues { opacity: 0; transition: opacity .6s; }
+.mosaic.revealed .frame { stroke-width: 4; }
+.mosaic .sign {
+  display: none; margin: 14px auto 2px; align-items: center; gap: 10px;
+  font: 700 16px/1 var(--mono); color: var(--ink); background: var(--panel);
+  border: 2px solid var(--ink); border-radius: 6px; padding: 10px 16px; cursor: pointer;
+}
+.mosaic .sign .q { font-family: var(--display); font-size: 24px; }
+.mosaic .sign .title { display: none; font-family: var(--display); font-size: 22px; font-weight: 400; }
+.mosaic.revealed .sign { display: flex; animation: mosaic-pop .4s 1.2s both; }
+.mosaic.titled .sign .q { display: none; }
+.mosaic.titled .sign .title { display: inline; }
+@keyframes mosaic-pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .mosaic.revealed .cell { transition: none; }
+  .mosaic.revealed .sign { animation: none; }
+}

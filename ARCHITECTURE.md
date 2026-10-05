@@ -20,6 +20,7 @@ The code separates **game types** (reusable) from **instances** (data):
 | Number Line Maze (`number-line-maze`) | `number-maze` | A grid of numbers, entrance, exit, any hint walls |
 | RYB (`ryb`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
 | Lazy River (`lazy-river`) | `lazy-river` | A grid of white and black cells, plus walls |
+| Mosaic (`mosaic`) | `mosaic` | A pixel-art picture drawn as letters, plus a color for each letter |
 
 Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, listed).
 Each instance is `src/games/<type path>/<n>.json`; the number is the file name. Adding
@@ -147,6 +148,23 @@ unless there is exactly one loop). `puzzles/lib/lazy_river.py` has the same solv
 `fit()`, which turns a traced sketch into a level by adding the fewest walls (and, if
 no loop fits at all, toggling a black cell). `puzzles/lazy-river/from_sketch.py` made
 levels 1–4 from the game 2 grids sketch.
+
+### Mosaic (`mosaic`)
+
+```json
+"mosaic": { "title": "Apple", "picture": [".....b....", "..rrbrrr..", "..."],
+            "palette": { ".": "#e3f2f6", "r": "#d8443a", "b": "#6b4a2b" } }
+```
+
+A clone of Inkwell Games' Mosaic: a nonogram whose solution is a pixel-art picture.
+Every non-`.` character of `picture` is a shaded cell; row and column clues are worked
+out from it. Tap cycles empty -> shaded -> X (right-click the other way), drag paints
+the first cell's new value, clue numbers can be ticked off; Undo, Hint (highlights a
+line and ghosts what its clue gives away), Check (marks wrong cells) and Reset; two
+optional helpers (auto-tick finished clues, auto-X ticked lines). Solving fades the grid
+into the colored picture, and a sign reveals its `title`.
+`src/game-types/mosaic/solver.ts` proves at build time that the clues have exactly one
+solution. To make a level, draw the picture in letters and pick a color per letter.
 
 ## Pages and layouts
 

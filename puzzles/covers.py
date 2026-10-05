@@ -186,6 +186,22 @@ def main():
           ROOT / "public" / "ryb" / "cover.jpg")
 
 
+def mosaic_svg(level: dict):
+    pic, pal = level["picture"], level["palette"]
+    H, W, S = len(pic), len(pic[0]), 30
+    cells = "".join(f'<rect x="{c * S}" y="{r * S}" width="{S + .5}" height="{S + .5}" fill="{pal[ch]}"/>'
+                    for r, row in enumerate(pic) for c, ch in enumerate(row))
+    frame = f'<rect x="0" y="0" width="{W * S}" height="{H * S}" fill="none" stroke="{INK}" stroke-width="4"/>'
+    return f'<svg viewBox="0 0 {W * S} {H * S}" xmlns="http://www.w3.org/2000/svg">{cells}{frame}</svg>', W / H
+
+
+def mosaic_cover():
+    games = ROOT / "src" / "games" / "mosaic"
+    pics = [mosaic_svg(json.loads((games / f"{n}.json").read_text())["mosaic"]) for n in (3, 5, 2)]
+    cover([(pics[0][0], pics[0][1], 330, 395, 380, -9), (pics[1][0], pics[1][1], 870, 400, 380, 8),
+           (pics[2][0], pics[2][1], 600, 380, 440, -1)], ROOT / "public" / "mosaic" / "cover.jpg")
+
+
 def lazy_river_cover():
     a, b = river_svg(river_config(3), solved=False), river_svg(river_config(4), solved=True)
     cover([(a[0], a[1], 380, 390, 470, -8), (b[0], b[1], 780, 380, 520, 6)],
@@ -195,3 +211,4 @@ def lazy_river_cover():
 if __name__ == "__main__":
     main()
     lazy_river_cover()
+    mosaic_cover()
