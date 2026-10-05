@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Escape Room Packet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+  /* Layout: an envelope edged in airmail stripes; sheet list beside a paper viewer, answer slip below. */
+  :root {
+    --bg: #ddd0b3;          /* manila envelope */
+    --panel: #e8ddc5;
+    --ink: #24211c;
+    --muted: #5d5545;
+    --line: #b9a985;
+    --red: #b3262f;          /* airmail red */
+    --blue: #22408a;         /* airmail blue */
+    --good: #1f6b3a;
+    --paper: #ffffff;
+    --shadow: rgba(60, 45, 20, .28);
+    --display: 'Special Elite', 'Courier New', monospace;
+    --mono: 'Courier Prime', 'Courier New', monospace;
+    --body: 'Source Sans 3', system-ui, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1d22; --panel: #24272e; --ink: #ece4d2; --muted: #a9a08e; --line: #3b3f48;
+      --red: #e0545b; --blue: #7d9be6; --good: #5cc283; --paper: #f7f4ee; --shadow: rgba(0, 0, 0, .55);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1d22; --panel: #24272e; --ink: #ece4d2; --muted: #a9a08e; --line: #3b3f48;
+    --red: #e0545b; --blue: #7d9be6; --good: #5cc283; --paper: #f7f4ee; --shadow: rgba(0, 0, 0, .55);
+    color-scheme: dark;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+  body { overflow-x: clip; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.5; }
+  .airmail {
+    height: 10px;
+    background: repeating-linear-gradient(-45deg, var(--red) 0 14px, transparent 14px 22px, var(--blue) 22px 36px, transparent 36px 44px);
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 56px; display: grid; gap: 32px; }
+
+  header { display: grid; gap: 8px; max-width: 62ch; }
+  .back { font-family: var(--mono); font-size: 14px; color: var(--muted); text-decoration: none; justify-self: start; margin-bottom: 6px; }
+  .back:hover { color: var(--ink); text-decoration: underline; }
+  .back:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(32px, 6vw, 48px); line-height: 1.05; margin: 0; text-wrap: balance; }
+  header p { margin: 0; color: var(--muted); }
+
+  .viewer { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 28px; align-items: start; }
+  .sheets { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+  .sheets button {
+    width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    font: 400 15px/1.2 var(--mono); color: var(--ink); background: transparent;
+    border: 1px solid transparent; border-radius: 4px; padding: 9px 10px; cursor: pointer; text-align: left;
+  }
+  .sheets button:hover { border-color: var(--line); }
+  .sheets button[aria-current="true"] { background: var(--panel); border-color: var(--line); font-weight: 700; }
+  .sheets .kind { font-size: 12px; color: var(--muted); font-weight: 400; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  .stage { display: grid; gap: 14px; justify-items: center; min-width: 0; }
+  .paper {
+    width: 100%; max-width: 640px; aspect-ratio: 8.5 / 11; background: var(--paper);
+    box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow); border-radius: 2px; overflow: hidden;
+  }
+  .paper img { display: block; width: 100%; height: 100%; object-fit: contain; }
+  .controls { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .controls .where { font-family: var(--mono); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .btn {
+    font: 700 14px/1 var(--mono); letter-spacing: .04em; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 4px; padding: 10px 14px; cursor: pointer;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--ink); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  a.btn { text-decoration: none; display: inline-block; }
+  .print { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .note { font-size: 14px; color: var(--muted); max-width: 640px; text-align: center; margin: 0; }
+
+  .slip {
+    background: var(--panel); border: 1px dashed var(--line); border-radius: 4px;
+    padding: 22px 20px; display: grid; gap: 14px; max-width: 640px; width: 100%; justify-self: center;
+  }
+  .slip h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; }
+  .slip p { margin: 0; color: var(--muted); }
+  .slip form { display: flex; flex-wrap: wrap; gap: 10px; }
+  .slip input {
+    flex: 1 1 180px; min-width: 0; font: 400 22px/1 var(--mono); letter-spacing: .08em; font-variant-numeric: tabular-nums;
+    color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
+  }
+  .slip .btn { background: var(--ink); color: var(--panel); border-color: var(--ink); padding-inline: 18px; }
+  .result { min-height: 1.5em; font-family: var(--mono); font-size: 15px; }
+  .result.bad { color: var(--red); }
+  .stamp {
+    display: inline-grid; justify-items: center; gap: 2px; padding: 10px 18px; color: var(--good);
+    border: 3px double var(--good); border-radius: 50% / 40%; transform: rotate(-4deg);
+    font-family: var(--display); font-size: 22px; letter-spacing: .08em;
+  }
+  .stamp small { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; }
+  @media (prefers-reduced-motion: no-preference) { .stamp { animation: thump .35s ease-out; } }
+  @keyframes thump { from { transform: rotate(-4deg) scale(1.4); opacity: 0; } to { transform: rotate(-4deg) scale(1); opacity: 1; } }
+
+  @media (max-width: 720px) {
+    .viewer { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .sheets { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+    .sheets li { flex: 0 0 auto; }
+    .sheets button { padding: 8px 10px; }
+    .sheets .kind { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="airmail" aria-hidden="true"></div>
+<main class="wrap">
+  <header>
+    <a class="back" href="../">&larr; All games</a>
+    <span class="eyebrow">Mailed escape room &middot; 8 sheets</span>
+    <h1>Escape Room Packet</h1>
+    <p>Every sheet from the envelope, in order. Open each sheet&rsquo;s PDF and print it at 100% (Actual Size) so the cut-out and fold lines land where they should. Each sheet hands a number to the next one; the last sheet gives you the final answer to check below.</p>
+  </header>
+
+  <section class="viewer" aria-label="Sheets">
+    <ul class="sheets" id="sheet-list"></ul>
+    <div class="stage">
+      <div class="paper"><img id="sheet-img" alt="" width="1105" height="1430"></div>
+      <div class="controls">
+        <button class="btn" id="prev" type="button">&larr; Prev</button>
+        <span class="where" id="where"></span>
+        <button class="btn" id="next" type="button">Next &rarr;</button>
+      </div>
+      <div class="actions">
+        <a class="btn print" id="pdf-link" href="sheets/letters.pdf" target="_blank" rel="noopener">Print (PDF)</a>
+      </div>
+      <p class="note" id="sheet-note"></p>
+    </div>
+  </section>
+
+  <section class="slip" aria-labelledby="check-title">
+    <h2 id="check-title">Check your final answer</h2>
+    <p>Enter the number from the last sheet. Commas and spaces are fine.</p>
+    <form id="check-form" autocomplete="off">
+      <input id="answer" name="answer" inputmode="numeric" placeholder="00,000" aria-label="Final answer">
+      <button class="btn" type="submit">Check answer</button>
+    </form>
+    <div class="result" id="result" aria-live="polite"></div>
+  </section>
+</main>
+<div class="airmail" aria-hidden="true"></div>
+
+<script>
+  const SHEETS = [
+    { id: "letters", name: "Letters", kind: "grid", src: "sheets/letters.png",
+      note: "A page of typed letters. You'll need something else from the envelope to read it." },
+    { id: "mask", name: "Cut-out", kind: "holes", src: "sheets/letters_mask.png",
+      note: "Five numbered circles. Scissors help." },
+    { id: "page-1", name: "Page 1", kind: "algebra", src: "sheets/equations.png",
+      note: "Starts from the 5 letter word." },
+    { id: "page-2", name: "Page 2", kind: "grids", src: "sheets/grids.png",
+      note: "Each label is the sum of its row or column." },
+    { id: "page-3", name: "Page 3", kind: "division", src: "sheets/remainders.png",
+      note: "Quotient, then remainder, written side by side." },
+    { id: "page-4", name: "Page 4", kind: "fold", src: "sheets/fold.png",
+      note: "Read it flat, then think about the marked lines." },
+    { id: "page-5", name: "Page 5", kind: "tree", src: "sheets/tree.png",
+      note: "Every letter means the same number everywhere on this sheet." },
+    { id: "page-6", name: "Page 6", kind: "finish", src: "sheets/final.png",
+      note: "The last step." },
+  ];
+  // SHA-256 of the final answer, so it isn't sitting in the page as plain text.
+  const ANSWER_HASH = "c363c2c9dc38e1f30f16b103a6b0d9853ec2fae6dc661492cd2ebc673d3a1475";
+
+  const list = document.getElementById("sheet-list");
+  const img = document.getElementById("sheet-img");
+  const where = document.getElementById("where");
+  const note = document.getElementById("sheet-note");
+  const prev = document.getElementById("prev");
+  const next = document.getElementById("next");
+  let current = 0;
+
+  SHEETS.forEach((s, i) => {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.innerHTML = `<span>${s.name}</span><span class="kind">${s.kind}</span>`;
+    b.addEventListener("click", () => show(i, true));
+    li.appendChild(b);
+    list.appendChild(li);
+  });
+  // Warm the cache so paging is instant.
+  SHEETS.forEach(s => { const p = new Image(); p.src = s.src; });
+
+  function show(i, fromUser) {
+    current = Math.max(0, Math.min(SHEETS.length - 1, i));
+    const s = SHEETS[current];
+    img.src = s.src;
+    document.getElementById("pdf-link").href = s.src.replace(/\.png$/, ".pdf");
+    img.alt = `${s.name}: ${s.note}`;
+    where.textContent = `${current + 1} / ${SHEETS.length}`;
+    note.textContent = s.note;
+    prev.disabled = current === 0;
+    next.disabled = current === SHEETS.length - 1;
+    list.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-current", j === current ? "true" : "false"));
+    if (fromUser) history.replaceState(null, "", "#" + s.id);
+  }
+
+  prev.addEventListener("click", () => show(current - 1, true));
+  next.addEventListener("click", () => show(current + 1, true));
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea")) return;
+    if (e.key === "ArrowLeft") show(current - 1, true);
+    if (e.key === "ArrowRight") show(current + 1, true);
+  });
+
+  const start = SHEETS.findIndex(s => "#" + s.id === location.hash);
+  show(start >= 0 ? start : 0, false);
+
+  async function sha256(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  const result = document.getElementById("result");
+  document.getElementById("check-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const raw = document.getElementById("answer").value;
+    const digits = raw.replace(/[\s,._']/g, "");
+    result.className = "result";
+    if (!digits) { result.textContent = "Type the number from the last sheet first."; return; }
+    if (!/^\d+$/.test(digits)) { result.className = "result bad"; result.textContent = "Use digits only."; return; }
+    const ok = (await sha256(String(Number(digits)))) === ANSWER_HASH;
+    if (ok) {
+      result.innerHTML = `<span class="stamp">ESCAPED<small>${Number(digits).toLocaleString("en-US")} &middot; DELIVERED</small></span>`;
+    } else {
+      result.className = "result bad";
+      result.textContent = "That's not it. Recheck the number each sheet hands to the next.";
+    }
+  });
+</script>
+</body>
+</html>
