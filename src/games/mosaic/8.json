@@ -1,0 +1,25 @@
+{
+  "type": "mosaic",
+  "name": "First Place",
+  "meta": "7 \u00d7 10 \u00b7 from the sketch",
+  "mosaic": {
+    "title": "Trophy",
+    "picture": [
+      ".ttttt.",
+      "t.....t",
+      ".......",
+      "t.ttt.t",
+      "t.ttt.t",
+      "t.....t",
+      "ttttttt",
+      ".......",
+      "..ttt..",
+      "..ttt.."
+    ],
+    "palette": {
+      ".": "#eef4fb",
+      "t": "#e0a422"
+    },
+    "source": "scans/mosaic/20261005002114_001.pdf"
+  }
+}
