@@ -129,9 +129,13 @@ class Board:
 
 
 class _Solver:
+    """Counts wall layouts. `clues` cells may be None (unknown: any count from 1 to 4)."""
+
     def __init__(self, board: Board, clues, fixed):
         self.b = board
-        self.deg = [clues[r][c] for r, c in board.verts]
+        vals = [clues[r][c] for r, c in board.verts]
+        self.lo = [1 if v is None else v for v in vals]
+        self.hi = [4 if v is None else v for v in vals]
         self.fixed = fixed
         self.sols = []
 
@@ -161,12 +165,12 @@ class _Solver:
                 es = b.vert_edges[i]
                 on = sum(val[e] == 1 for e in es)
                 unk = [e for e in es if val[e] == -1]
-                need = self.deg[i] - on
-                if need < 0 or need > len(unk): return False
-                if unk and need == 0:
+                need_lo, need_hi = self.lo[i] - on, self.hi[i] - on
+                if need_hi < 0 or need_lo > len(unk): return False
+                if unk and need_hi == 0:
                     for e in unk: val[e] = 0
                     changed = True
-                elif unk and need == len(unk):
+                elif unk and need_lo == len(unk):
                     for e in unk: val[e] = 1
                     changed = True
         parent = list(range(len(b.verts)))                      # every wall must reach the border
@@ -174,7 +178,7 @@ class _Solver:
             if v != 0:
                 x, y = (self.find(i, parent) for i in b.edges[e]); parent[x] = y
         touching = {self.find(i, parent) for i in range(len(b.verts)) if b.on_border(i)}
-        return all(self.find(i, parent) in touching for i in range(len(b.verts)) if self.deg[i] > 0)
+        return all(self.find(i, parent) in touching for i in range(len(b.verts)) if self.hi[i] > 0)
 
     def search(self, val, limit):
         if len(self.sols) >= limit or not self.propagate(val): return
@@ -243,3 +247,71 @@ def check(maze: dict):
     if board.route(sols[0]) is None:
         return False, "the walls leave no route from entrance to exit", None
     return True, f"one solution; route {len(board.route(sols[0]))} squares", sols[0]
+
+
+def _mismatch(board: Board, walls, sketch):
+    """Corners whose wall count differs from the sketch (unknown cells never count)."""
+    got = board.clues_of(walls)
+    return [(r, c) for r in range(board.H) for c in range(board.W)
+            if sketch[r][c] is not None and got[r][c] != sketch[r][c]]
+
+
+def fit(sketch, entry_col, exit_row, seed=0, steps=200_000, log=print):
+    """The valid maze closest to a hand-made grid (None = unreadable cell).
+
+    First looks for a maze matching every readable number exactly. If there is none,
+    searches perfect mazes (swapping one passage at a time) for the fewest changed
+    numbers. Returns (board, walls, hints, changed_cells).
+    """
+    board = Board(len(sketch[0]), len(sketch), entry_col, exit_row)
+    rng = random.Random(seed)
+    exact = solve(board, sketch, limit=1)
+    if exact:
+        walls = exact[0]
+        log("an exact match exists: every readable number is kept")
+    else:
+        walls = _anneal(board, sketch, rng, steps, log)
+    return board, walls, hints_for(board, walls, rng), _mismatch(board, walls, sketch)
+
+
+def _anneal(board: Board, sketch, rng, steps, log):
+    """Simulated annealing over perfect mazes, minimising changed numbers."""
+    import math
+    cells = [(r, c) for r in range(board.CH) for c in range(board.CW)]
+    pairs = [(a, b) for a in cells for b in ((a[0], a[1] + 1), (a[0] + 1, a[1])) if b[0] < board.CH and b[1] < board.CW]
+    walls = board.carve(rng)
+    passages = {p for p in pairs if board.wall_between(*p) not in walls}
+
+    def cost(ws):
+        got = board.clues_of(ws)
+        return sum(abs(got[r][c] - sketch[r][c]) + 1 for r in range(board.H) for c in range(board.W)
+                   if sketch[r][c] is not None and got[r][c] != sketch[r][c])
+
+    def component(start, ps):
+        adj = {}
+        for a, b in ps: adj.setdefault(a, []).append(b); adj.setdefault(b, []).append(a)
+        seen, stack = {start}, [start]
+        while stack:
+            for v in adj.get(stack.pop(), []):
+                if v not in seen: seen.add(v); stack.append(v)
+        return seen
+
+    cur = best = cost(walls)
+    best_walls = set(walls)
+    for step in range(steps):
+        t = max(0.05, 2.0 * (1 - step / steps))
+        cut = rng.choice(sorted(passages))
+        rest = passages - {cut}
+        side = component(cut[0], rest)
+        options = [p for p in pairs if (p[0] in side) != (p[1] in side) and p != cut]
+        add = rng.choice(options)
+        new_passages = rest | {add}
+        new_walls = (walls - {board.wall_between(*add)}) | {board.wall_between(*cut)}
+        new = cost(new_walls)
+        if new <= cur or rng.random() < math.exp((cur - new) / t):
+            passages, walls, cur = new_passages, new_walls, new
+            if cur < best:
+                best, best_walls = cur, set(walls)
+                log(f"  step {step}: {len(_mismatch(board, walls, sketch))} numbers differ")
+                if best == 0: break
+    return best_walls

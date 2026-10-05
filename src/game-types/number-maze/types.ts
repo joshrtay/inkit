@@ -8,6 +8,8 @@ export interface NumberMazeConfig {
   exitRow: number;
   /** Extra walls drawn for the player, as pairs of [row, col] corners. */
   hints: number[][][];
-  /** Generator seed, if the maze was generated. */
+  /** Generator or fit seed. */
   seed?: number;
+  /** Transcribed sketch the maze was fitted to (puzzles/number-maze/fit.py), if any. */
+  source?: string;
 }

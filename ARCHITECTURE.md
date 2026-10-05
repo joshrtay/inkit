@@ -23,7 +23,7 @@ Current instances:
 | Instance | Type | Listed |
 |---|---|---|
 | `escape-room-packet` | packet | yes |
-| `line-maze` | number-maze (11 × 17) | no (game 2, in progress) |
+| `line-maze` | number-maze (11 × 16, fitted to the game 2 sketch) | no (game 2, in progress) |
 | `line-maze-practice` | number-maze (5 × 5) | no (for testing) |
 
 ## How the pieces fit
@@ -64,7 +64,7 @@ it on every push to `main`.
 | `public/<slug>/` | Static files per instance: cover, sheet PDFs and previews. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
 | `puzzles/lib/number_maze.py` | Number-maze logic: board, maze carving, solver, checker. |
-| `puzzles/number-maze/` | `new.py` creates a maze instance; `check.py` validates grids. |
+| `puzzles/number-maze/` | `new.py` generates a maze instance, `fit.py` fits one to a sketch, `check.py` validates grids. |
 | `puzzles/<slug>/` | Sheet sources for one packet instance: generator scripts and `sheets/*.html`. |
 | `scans/`, `archive/` | Original sketches and old copies. Ignored by git (the repo is public). |
 
@@ -173,9 +173,14 @@ Whatever it uses, a type's `game.ts` exports a `MountGame` and a `mountAll`.
 
 **A new number maze**
 - Generated: `python3 puzzles/number-maze/new.py --slug my-maze --size 9x13 --search 40`
-- From a hand-made grid: write `src/games/<slug>.json` with the `maze` data, then
-  run `python3 puzzles/number-maze/check.py src/games/<slug>.json` and add any hint
-  walls it suggests until it reports one solution.
+- From a sketch: transcribe the numbers into a text file (one row per line, `?` for
+  unreadable cells; keep it in `scans/`), then
+  `python3 puzzles/number-maze/fit.py scans/<file>.txt --slug <slug> --entry-col C --exit-row R`.
+  It keeps every readable number if any valid maze allows that; otherwise it finds
+  the maze that changes the fewest, adds the fewest hint walls for one solution,
+  and prints which numbers changed. Try a few `--seed` values and keep the best.
+- To check a grid typed straight into a JSON file:
+  `python3 puzzles/number-maze/check.py src/games/<slug>.json`.
 
 **A new game type**
 1. Add `src/game-types/<type>/` with `Game.astro`, `game.ts` (`MountGame` + `mountAll`),
