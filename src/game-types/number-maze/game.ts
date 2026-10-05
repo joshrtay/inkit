@@ -1,38 +1,25 @@
-// Number Line Maze. Numbers sit on the corners of a grid of squares; lines between
+// Number maze game type. Numbers sit on the corners of a grid of squares; lines between
 // them are walls. Phase 1: draw the walls so each number has that many touching it.
-// Phase 2: walk through the open squares from the entrance to the exit.
-// Plain TypeScript + SVG. Puzzle data comes from puzzles/line-maze/generate.py.
+// Phase 2: drag a line through the open squares from the entrance to the exit.
+// Plain TypeScript + SVG. Each instance supplies a NumberMazeConfig (see types.ts).
 import type { MountGame } from "../../lib/game";
-import mainPuzzle from "./puzzle.json";
+import type { NumberMazeConfig } from "./types";
 
 type Pt = [number, number];                    // [row, col] of a number or a square
 type Phase = "draw" | "walk";
 interface Saved { walls: string[] }
-
-/** Puzzle data as written by puzzles/line-maze/generate.py. */
-export interface LineMazePuzzle {
-  w: number;                // numbers across
-  h: number;                // numbers down
-  entry: number[];          // square under the entrance arrow (top edge)
-  exit: number[];           // square beside the exit arrow (right edge)
-  clues: number[][];
-  border: number[][][];     // outer walls, drawn for the player
-  gaps: number[][][];       // the two openings in the border
-  hints: number[][][];      // extra walls drawn for the player
-  solution: number[][][];
-  path: number[][];         // squares from entrance to exit
-}
 
 const P = 40;                                   // distance between numbers
 const ML = 22, MT = 46, MR = 52, MB = 22;       // margins (room for the arrows)
 const NS = "http://www.w3.org/2000/svg";
 const STEPS: Record<string, Pt> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
-/** Build a mountable game for one puzzle. */
-export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host) => {
-  const { w: W, h: H, clues } = puzzle;
+/** Build a mountable game for one maze. */
+export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, host) => {
+  const clues = maze.clues;
+  const H = clues.length, W = clues[0].length;  // numbers down / across
   const CW = W - 1, CH = H - 1;                 // squares across / down
-  const entry = puzzle.entry as Pt, exit = puzzle.exit as Pt;
+  const entry: Pt = [0, maze.entryCol], exit: Pt = [maze.exitRow, CW - 1];
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
 
   const key = (a: Pt, b: Pt) => {               // canonical key for the wall between two numbers
@@ -44,7 +31,13 @@ export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host
   const same = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
   const onBorder = (r: number, c: number) => r === 0 || r === H - 1 || c === 0 || c === W - 1;
 
-  const border = keys(puzzle.border), hints = keys(puzzle.hints), gaps = keys(puzzle.gaps);
+  // The border is given, except the entrance gap (top) and the exit gap (right).
+  const gaps = new Set([key([0, entry[1]], [0, entry[1] + 1]), key([exit[0], W - 1], [exit[0] + 1, W - 1])]);
+  const border = new Set<string>();
+  for (let c = 0; c + 1 < W; c++) for (const r of [0, H - 1]) border.add(key([r, c], [r, c + 1]));
+  for (let r = 0; r + 1 < H; r++) for (const c of [0, W - 1]) border.add(key([r, c], [r + 1, c]));
+  for (const g of gaps) border.delete(g);
+  const hints = keys(maze.hints);
   const given = new Set([...border, ...hints]);
 
   let walls = new Set([...(host.load<Saved>()?.walls ?? []), ...given]);
@@ -375,7 +368,7 @@ export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host
     phase = p;
     drawTab.setAttribute("aria-pressed", String(p === "draw"));
     walkTab.setAttribute("aria-pressed", String(p === "walk"));
-    root.dispatchEvent(new CustomEvent("line-maze:phase", { detail: p, bubbles: true }));
+    root.dispatchEvent(new CustomEvent("number-maze:phase", { detail: p, bubbles: true }));
     svg.classList.toggle("walking", p === "walk");
     goWalk.hidden = p === "walk" || !drawn;
     if (p === "walk") return renderWalk();
@@ -392,5 +385,10 @@ export const createLineMaze = (puzzle: LineMazePuzzle): MountGame => (root, host
   return () => document.removeEventListener("keydown", onKey);
 };
 
-/** The full 11 x 17 puzzle. */
-export const mount = createLineMaze(mainPuzzle);
+/** Mount every number-maze board on the page (each carries its config and id as data attributes). */
+export function mountAll(createHost: (id: string) => Parameters<MountGame>[1]) {
+  document.querySelectorAll<HTMLElement>("[data-game-type=number-maze]").forEach((root) => {
+    const config = JSON.parse(root.dataset.config!) as NumberMazeConfig;
+    createNumberMaze(config)(root, createHost(root.dataset.gameId!));
+  });
+}

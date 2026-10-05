@@ -1,0 +1,14 @@
+---
+// One page per game instance in src/games/*.json, rendered by its game type.
+import { games } from "../../games";
+import PacketGame from "../../game-types/packet/Game.astro";
+import NumberMazeGame from "../../game-types/number-maze/Game.astro";
+
+export function getStaticPaths() {
+  return games.map((game) => ({ params: { slug: game.slug }, props: { game } }));
+}
+
+const { game } = Astro.props;
+---
+{game.type === "packet" && <PacketGame game={game} />}
+{game.type === "number-maze" && <NumberMazeGame game={game} />}

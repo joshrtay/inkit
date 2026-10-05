@@ -1,0 +1,50 @@
+{
+  "type": "number-maze",
+  "name": "Number Line Maze: Practice",
+  "blurb": "Build the walls each number asks for, then find your way out.",
+  "meta": "Play in the browser",
+  "listed": false,
+  "maze": {
+    "seed": 10,
+    "entryCol": 3,
+    "exitRow": 2,
+    "hints": [],
+    "clues": [
+      [
+        2,
+        2,
+        3,
+        1,
+        1
+      ],
+      [
+        2,
+        1,
+        2,
+        2,
+        3
+      ],
+      [
+        2,
+        1,
+        2,
+        3,
+        1
+      ],
+      [
+        2,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        3,
+        3,
+        2,
+        2
+      ]
+    ]
+  }
+}

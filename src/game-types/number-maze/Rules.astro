@@ -1,7 +1,7 @@
 ---
 // The two direction cards shown under the board. The current phase's card is outlined.
 ---
-<div class="line-maze-rules">
+<div class="number-maze-rules">
   <section class="rules current" data-rules="draw">
     <h2>Phase 1 &middot; Build the walls</h2>
     <ol>
@@ -23,11 +23,11 @@
 </div>
 
 <style>
-  .line-maze-rules { display: contents; }
+  .number-maze-rules { display: contents; }
 </style>
 
 <script>
-  document.addEventListener("line-maze:phase", (e) => {
+  document.addEventListener("number-maze:phase", (e) => {
     const phase = (e as CustomEvent<string>).detail;
     document.querySelectorAll<HTMLElement>("[data-rules]").forEach((card) =>
       card.classList.toggle("current", card.dataset.rules === phase));

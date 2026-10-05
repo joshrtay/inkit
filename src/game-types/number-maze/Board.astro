@@ -1,11 +1,12 @@
 ---
-// Toolbar + board markup for the line maze. game.ts fills in the SVG.
-import "./line-maze.css";
+// Toolbar + board markup for a number maze. game.ts fills in the SVG from data-config.
+import "./styles.css";
+import type { NumberMazeConfig } from "./types";
 
-interface Props { id: string }
-const { id } = Astro.props;
+interface Props { gameId: string; config: NumberMazeConfig }
+const { gameId, config } = Astro.props;
 ---
-<div class="line-maze" id={id}>
+<div class="number-maze" data-game-type="number-maze" data-game-id={gameId} data-config={JSON.stringify(config)}>
   <div class="bar">
     <div class="phases" role="group" aria-label="Phase">
       <button class="phase" data-phase="draw" type="button" aria-pressed="true">1 &middot; Build the walls</button>

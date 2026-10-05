@@ -1,0 +1,55 @@
+/* Packet game type: sheet viewer, print link and answer check.
+   Global but scoped under .packet, because game.ts creates some of these elements. */
+.packet { display: grid; gap: 28px; }
+
+.packet .viewer { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 28px; align-items: start; }
+.packet .sheets { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+.packet .sheets button {
+  width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font: 400 15px/1.2 var(--mono); color: var(--ink); background: transparent;
+  border: 1px solid transparent; border-radius: 4px; padding: 9px 10px; cursor: pointer; text-align: left;
+}
+.packet .sheets button:hover { border-color: var(--line); }
+.packet .sheets button[aria-current="true"] { background: var(--panel); border-color: var(--line); font-weight: 700; }
+.packet .sheets .kind { font-size: 12px; color: var(--muted); font-weight: 400; }
+
+.packet .stage { display: grid; gap: 14px; justify-items: center; min-width: 0; }
+.packet .paper {
+  width: 100%; max-width: 640px; aspect-ratio: 8.5 / 11; background: var(--paper);
+  box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow); border-radius: 2px; overflow: hidden;
+}
+.packet .paper img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.packet .controls { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.packet .where { font-family: var(--mono); font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.packet .note { font-size: 14px; color: var(--muted); max-width: 640px; text-align: center; margin: 0; }
+
+.packet .slip {
+  background: var(--panel); border: 1px dashed var(--line); border-radius: 4px;
+  padding: 22px 20px; display: grid; gap: 14px; max-width: 640px; width: 100%; justify-self: center;
+}
+.packet .slip h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; }
+.packet .slip p { margin: 0; color: var(--muted); }
+.packet .slip form { display: flex; flex-wrap: wrap; gap: 10px; }
+.packet .slip input {
+  flex: 1 1 180px; min-width: 0; font: 400 22px/1 var(--mono); letter-spacing: .08em; font-variant-numeric: tabular-nums;
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px;
+}
+.packet .slip .btn { padding-inline: 18px; }
+.packet .result { min-height: 1.5em; font-family: var(--mono); font-size: 15px; }
+.packet .result.bad { color: var(--red); }
+.packet .stamp {
+  display: inline-grid; justify-items: center; gap: 2px; padding: 10px 18px; color: var(--good);
+  border: 3px double var(--good); border-radius: 50% / 40%; transform: rotate(-4deg);
+  font-family: var(--display); font-size: 22px; letter-spacing: .08em;
+}
+.packet .stamp small { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; }
+@media (prefers-reduced-motion: no-preference) { .packet .stamp { animation: packet-thump .35s ease-out; } }
+@keyframes packet-thump { from { transform: rotate(-4deg) scale(1.4); opacity: 0; } to { transform: rotate(-4deg) scale(1); opacity: 1; } }
+
+@media (max-width: 720px) {
+  .packet .viewer { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .packet .sheets { position: static; display: flex; flex-wrap: wrap; gap: 6px; }
+  .packet .sheets li { flex: 0 0 auto; }
+  .packet .sheets button { padding: 8px 10px; }
+  .packet .sheets .kind { display: none; }
+}

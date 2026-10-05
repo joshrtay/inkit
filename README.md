@@ -16,10 +16,13 @@ Pushing to `main` publishes the site through GitHub Actions.
 
 ## Games
 
+Each game is an instance of a game type, defined by a JSON file in `src/games/`.
+
 | Game | Type | Path |
 |---|---|---|
-| Escape Room Packet | 8 printable sheets | `/escape-room-packet/` |
-| Number Line Maze | In the browser (game 2, in progress) | `/line-maze/` |
+| Escape Room Packet | packet (8 printable sheets) | `/escape-room-packet/` |
+| Number Line Maze | number-maze (in progress, unlisted) | `/line-maze/` |
+| Number Line Maze: Practice | number-maze (5 × 5, unlisted) | `/line-maze-practice/` |
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the site, the game interface and the
 puzzle scripts fit together, and how to add a game.
