@@ -1,7 +1,8 @@
 ---
-// The page shell every page uses: head, fonts, shared styles and the airmail edges.
+// The page shell every page uses: head, fonts, shared styles and the top nav.
 import "../styles/global.css";
 import Account from "../components/Account.astro";
+import { url } from "../lib/paths";
 
 interface Props {
   title: string;
@@ -19,10 +20,11 @@ const { title, description } = Astro.props;
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Courier+Prime:wght@400;700&family=Source+Sans+3:wght@400;600&display=swap" />
   </head>
-  <body style="position: relative">
-    <div class="airmail" aria-hidden="true"></div>
-    <Account />
+  <body>
+    <header class="topnav">
+      <a class="brand" href={url("/")}>Wyatt&rsquo;s Games</a>
+      <Account />
+    </header>
     <slot />
-    <div class="airmail" aria-hidden="true"></div>
   </body>
 </html>

@@ -60,7 +60,7 @@ Actions runs it on every push to `main`.
 | `src/pages/index.astro` | Home: game type cards. |
 | `src/pages/[type]/index.astro` | A type's numbered list. |
 | `src/pages/[type]/[n]/index.astro` | Plays an instance with its type's `Game.astro`. |
-| `src/layouts/Base.astro` | Every page's shell: `<head>`, fonts, global styles, airmail edges. |
+| `src/layouts/Base.astro` | Every page's shell: `<head>`, fonts, global styles, and the top nav (Wyatt's Games on the left, login on the right). |
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
@@ -70,7 +70,7 @@ Actions runs it on every push to `main`.
 | `worker/` | Cloudflare Worker API for accounts and saves, backed by R2. |
 | `public/<type>/` | Static files: type cover; `<n>/sheets/` PDFs and previews for escape rooms. |
 | `puzzles/build.py` | Builds and checks puzzle content for every instance. |
-| `puzzles/covers.py` | Renders the Number Line Maze and RYB cover images from real puzzles (`npm run build` first). |
+| `puzzles/covers.py` | Renders every game type's cover image from real puzzles and sheets (`npm run build` first). |
 | `puzzles/<type>/<n>/` | Sheet sources for one escape room: generator scripts and `sheets/*.html`. |
 | `puzzles/lib/number_maze.py` | Number-maze logic: board, carving, solver, checker, sketch fitting. |
 | `puzzles/number-maze/` | `new.py` (generate), `fit.py` (fit to a sketch), `check.py` (validate). |
@@ -190,7 +190,7 @@ Deliberately light security: fine for puzzle progress, not for anything private.
   `users/<name>.json` with the PIN hash, completed games and every game save.
   Saves merge by time (newer wins); completed games merge as a union.
 - **Site:** `src/lib/account.ts` (login, logout, pull, push) and
-  `src/components/Account.astro` (button top-left on every page, plus the dialog).
+  `src/components/Account.astro` (button at the right of the top nav, plus the dialog).
   Progress is always written to localStorage first. When logged in, every save
   (`GameHost.save`) and completion is pushed to the account shortly after, and each
   page load pulls the account's progress. Logging in merges this browser's progress

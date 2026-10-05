@@ -4,8 +4,9 @@
 
 Number Line Maze: the Warm-up as a fresh puzzle and the Big Maze solved, with its route.
 RYB: levels painted in their solution colors (read from the built pages), one unpainted.
-Each board is drawn as SVG on a sheet of paper, fanned out on manila with airmail
-stripes like the Escape Room cover, then screenshotted with headless Chrome.
+Escape Room: three of its printed sheets (the preview images in public/).
+Each board is drawn on a sheet of paper and fanned out on manila, then screenshotted
+with headless Chrome.
 """
 import html as htmllib
 import json
@@ -106,12 +107,10 @@ def cover(sheets, out: Path):
                      f'transform:rotate({ang}deg)">{svg}</div>')
     page = f"""<!doctype html><html><head><meta charset="utf-8"><style>
       html, body {{ margin: 0; width: 1200px; height: 750px; overflow: hidden; background: #ddd0b3; }}
-      .stripe {{ position: absolute; left: 0; right: 0; height: 22px;
-        background: repeating-linear-gradient(-45deg, {RED} 0 20px, transparent 20px 30px, #22408a 30px 50px, transparent 50px 60px); }}
       .sheet {{ position: absolute; padding: 18px; background: #fff;
         box-shadow: 0 2px 3px rgba(60,45,20,.25), 0 22px 40px -12px rgba(60,45,20,.45); }}
-      .sheet svg {{ display: block; width: 100%; height: 100%; }}
-    </style></head><body><div class="stripe" style="top:0"></div>{"".join(cards)}<div class="stripe" style="bottom:0"></div></body></html>"""
+      .sheet svg, .sheet img {{ display: block; width: 100%; height: 100%; }}
+    </style></head><body>{"".join(cards)}</body></html>"""
     with tempfile.TemporaryDirectory() as tmp:
         src, png = Path(tmp) / "cover.html", Path(tmp) / "cover.png"
         src.write_text(page)
@@ -123,6 +122,12 @@ def cover(sheets, out: Path):
 
 
 def main():
+    sheets_dir = ROOT / "public" / "escape-room" / "1" / "sheets"
+    sheet = lambda name: (f'<img src="{(sheets_dir / f"{name}.png").as_uri()}">', 8.5 / 11)
+    (g, ga), (l, la), (t, ta) = sheet("grids"), sheet("letters"), sheet("tree")
+    cover([(g, ga, 400, 400, 560, -11), (t, ta, 800, 410, 560, 9), (l, la, 600, 385, 560, -1)],
+          ROOT / "public" / "escape-room" / "cover.jpg")
+
     games = ROOT / "src" / "games"
     warm = json.loads((games / "number-line-maze" / "1.json").read_text())["maze"]
     big = json.loads((games / "number-line-maze" / "2.json").read_text())["maze"]

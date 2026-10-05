@@ -7,9 +7,6 @@ const listed = gameTypes.filter((t) => t.listed && instancesOf(t).length);
 ---
 <Base title="Wyatt's Games" description="Printable and in-browser escape room puzzles.">
   <main class="wrap">
-    <header>
-      <h1>Wyatt's Games</h1>
-    </header>
 
     <ul class="games">
       {listed.map((g) => (
@@ -33,19 +30,17 @@ const listed = gameTypes.filter((t) => t.listed && instancesOf(t).length);
 
 <style>
   .wrap { gap: 36px; padding-block: 36px 64px; }
-  header { display: grid; gap: 10px; max-width: 60ch; }
-  h1 { font-family: var(--display); font-weight: 400; font-size: clamp(36px, 7vw, 60px); line-height: 1; margin: 0; text-wrap: balance; }
 
   .games { list-style: none; margin: 0; padding: 0; display: grid; gap: 24px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
   .game {
     display: grid; grid-template-rows: auto 1fr; height: 100%;
     color: inherit; text-decoration: none; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
+    border-radius: 6px; overflow: hidden;
     transition: transform .15s ease, box-shadow .15s ease;
   }
   .game:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -14px var(--shadow); }
   .game:focus-visible { outline-offset: 3px; }
-  .game img, .no-cover { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; border-bottom: 1px solid var(--line); }
+  .game img, .no-cover { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; }
   .no-cover { display: grid; place-content: center; font-family: var(--display); font-size: 26px; background: var(--bg); color: var(--muted); }
   .text { padding: 16px 18px 18px; display: grid; gap: 6px; align-content: start; }
   .text p { margin: 0; color: var(--muted); font-size: 15px; }

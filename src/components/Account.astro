@@ -1,5 +1,5 @@
 ---
-// The account button (top-left of every page) and the log-in dialog.
+// The account button (top-right of the nav on every page) and the log-in dialog.
 // Opens itself in "required" mode when something dispatches "account:required"
 // (GameShell does, the first time a logged-out player finishes a game).
 ---
@@ -36,7 +36,7 @@
 </dialog>
 
 <style is:global>
-  .account { position: absolute; top: calc(env(safe-area-inset-top, 0px) + 18px); left: 16px; z-index: 5; }
+  .account { display: flex; }
   .account-btn {
     display: inline-flex; align-items: center; gap: 7px; font: 700 13px/1 var(--mono); color: var(--ink);
     background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px 7px 9px; cursor: pointer;
@@ -44,8 +44,6 @@
   .account-btn:hover { border-color: var(--ink); }
   .account-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .account-btn.in svg { stroke: var(--good); }
-  /* leave room under the button for page content */
-  body:has(.account) > main.wrap { padding-top: calc(24px + 46px); }
 
   .account-dialog {
     width: min(400px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 6px; padding: 0;
