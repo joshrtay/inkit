@@ -56,14 +56,13 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   const save = () => host.save({ walls: [...walls] } satisfies Saved);
 
   // ---- board geometry ----
-  const svg = q<SVGSVGElement>("svg");
+  const svg = q<SVGSVGElement>("svg.board");
   // margins leave room for the arrows: 46 beside the entrance, 52 beside the exit, else 22
   const room = (side: string) => Math.max(22, doors.entry.side === side ? 46 : 0, doors.exit.side === side ? 52 : 0);
   const ML = room("left"), MT = room("top"), MR = room("right"), MB = room("bottom");
   const vbW = ML + CW * P + MR, vbH = MT + CH * P + MB;
   svg.setAttribute("viewBox", `0 0 ${vbW} ${vbH}`);
   addInk(svg, root);
-  q<HTMLElement>(".sheet").style.setProperty("--ratio", (vbW / vbH).toFixed(4));
   const vx = (c: number) => ML + c * P, vy = (r: number) => MT + r * P;          // a number's centre
   const sx = (c: number) => vx(c) + P / 2, sy = (r: number) => vy(r) + P / 2;    // a square's centre
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
@@ -117,7 +116,7 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   }
 
   // ---- phase 1: drawing walls ----
-  const status = q<HTMLElement>(".status"), meter = q<HTMLElement>(".meter span");
+  const status = q<HTMLElement>(".status");
   const goWalk = q<HTMLButtonElement>("[data-go-walk]");
   const drawTab = q<HTMLButtonElement>("[data-phase=draw]"), walkTab = q<HTMLButtonElement>("[data-phase=walk]");
 
@@ -157,7 +156,6 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
       if (d[r][c] === need) done++;
       if (d[r][c] > need) over++;
     }
-    meter.style.width = (100 * done / (W * H)).toFixed(1) + "%";
     if (phase !== "draw") return;
     status.className = "status";
     const borderLeft = [...border].filter((k) => !walls.has(k)).length;
@@ -246,11 +244,11 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   clearBtn.addEventListener("click", () => {
     if (phase === "walk") { trail = [entry]; tail = null; renderWalk(); return; }
     if (!confirmClear) {
-      confirmClear = true; clearBtn.textContent = "Erase all walls?";
-      setTimeout(() => { confirmClear = false; clearBtn.textContent = "Reset"; }, 3000);
+      confirmClear = true; clearBtn.dataset.confirm = "Erase all walls? Tap again";
+      setTimeout(() => { confirmClear = false; delete clearBtn.dataset.confirm; }, 3000);
       return;
     }
-    confirmClear = false; clearBtn.textContent = "Reset";
+    confirmClear = false; delete clearBtn.dataset.confirm;
     walls = new Set(given); history = []; render(); save();
   });
 

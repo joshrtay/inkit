@@ -31,7 +31,7 @@ export const createMosaic = (config: MosaicClientConfig): MountGame => (root, ho
   const S = 32;
   const CW = Math.max(...rows.map((r) => r.length)) * 24 + 12;          // width of the row-clue area
   const CH = Math.max(...cols.map((c) => c.length)) * 18 + 10;          // height of the column-clue area
-  const svg = q<SVGSVGElement>("svg");
+  const svg = q<SVGSVGElement>("svg.board");
   svg.setAttribute("viewBox", `0 0 ${CW + W * S + 4} ${CH + H * S + 4}`);
   addInk(svg, root);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
@@ -221,11 +221,11 @@ export const createMosaic = (config: MosaicClientConfig): MountGame => (root, ho
   let confirming = false;
   reset.addEventListener("click", () => {
     if (!confirming) {
-      confirming = true; reset.textContent = "Clear the grid?";
-      setTimeout(() => { confirming = false; reset.textContent = "Reset"; }, 3000);
+      confirming = true; reset.dataset.confirm = "Clear the grid? Tap again";
+      setTimeout(() => { confirming = false; delete reset.dataset.confirm; }, 3000);
       return;
     }
-    confirming = false; reset.textContent = "Reset";
+    confirming = false; delete reset.dataset.confirm;
     cells = Array.from({ length: H }, () => Array<V>(W).fill(0));
     marks.rows.forEach((m) => m.fill(false)); marks.cols.forEach((m) => m.fill(false));
     history = []; solved = false; root.classList.remove("revealed", "titled");

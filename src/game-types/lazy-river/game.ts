@@ -37,7 +37,7 @@ export const createLazyRiver = (config: LazyRiverClientConfig): MountGame => (ro
 
   // ---- board ----
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
-  const svg = q<SVGSVGElement>("svg");
+  const svg = q<SVGSVGElement>("svg.board");
   svg.setAttribute("viewBox", `0 0 ${W * S + 2 * PAD} ${H * S + 2 * PAD}`);
   addInk(svg, root);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
@@ -217,11 +217,11 @@ export const createLazyRiver = (config: LazyRiverClientConfig): MountGame => (ro
   let confirming = false;
   reset.addEventListener("click", () => {
     if (!confirming) {
-      confirming = true; reset.textContent = "Clear the river?";
-      setTimeout(() => { confirming = false; reset.textContent = "Reset"; }, 3000);
+      confirming = true; reset.dataset.confirm = "Clear the river? Tap again";
+      setTimeout(() => { confirming = false; delete reset.dataset.confirm; }, 3000);
       return;
     }
-    confirming = false; reset.textContent = "Reset";
+    confirming = false; delete reset.dataset.confirm;
     lines = new Set(); xs = new Set(); history = []; solved = false; reported = false;
     save(); render(); progress();
   });

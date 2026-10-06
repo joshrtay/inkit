@@ -6,6 +6,7 @@ import type { LazyRiverGame } from "../../games";
 import { url } from "../../lib/paths";
 import type { LazyRiverClientConfig } from "./types";
 import { board, solve, toBits, wallBits } from "./solver";
+import Icon from "../../components/Icon.astro";
 import "./styles.css";
 
 interface Props { game: LazyRiverGame; hostId: string }
@@ -18,22 +19,23 @@ if (sols.length !== 1) {
 }
 const config: LazyRiverClientConfig = { grid: level.grid, walls: wallBits(level), solution: toBits(b, sols[0]) };
 ---
-<GameShell ink={game.type.ink} title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+<GameShell ink={game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}
 
   <div class="lazy-river" data-game-type="lazy-river" data-game-id={hostId} data-config={JSON.stringify(config)}>
-    <div class="bar">
-      <div class="status" aria-live="polite"></div>
-      <div class="tools">
-        <button class="btn" data-undo type="button">Undo</button>
-        <button class="btn" data-check type="button">Check</button>
-        <button class="btn" data-reset type="button">Reset</button>
-      </div>
-    </div>
     <div class="sheet">
-      <svg role="img" aria-label="River grid"></svg>
+      <div class="paper-bar">
+        <div class="group"></div>
+        <div class="status" aria-live="polite"></div>
+        <div class="group">
+          <button class="tool" data-undo type="button" aria-label="Undo" title="Undo"><Icon name="undo" /></button>
+          <button class="tool" data-check type="button" aria-label="Check" title="Check"><Icon name="check" /></button>
+          <button class="tool" data-reset type="button" aria-label="Reset" title="Reset"><Icon name="reset" /></button>
+        </div>
+      </div>
+      <svg class="board" role="img" aria-label="River grid"></svg>
     </div>
   </div>
 

@@ -2,19 +2,9 @@
 .lazy-river {
   --water: var(--wash-blue);
   --water-done: var(--wash-green);
-  display: grid; gap: 18px;
+  display: grid;
 }
-.lazy-river .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; }
-.lazy-river .status { flex: 1 1 240px; min-width: 0; font-family: var(--mono); font-size: 14px; line-height: 1.3; }
-.lazy-river .status.good { color: var(--good); }
-.lazy-river .status.warn { color: var(--red); }
-.lazy-river .tools { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.lazy-river .sheet {
-  background: var(--paper); border-radius: 2px; box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
-  padding: 10px; justify-self: center; width: 100%; max-width: min(620px, calc(100dvh - 60px));
-}
-.lazy-river svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+.lazy-river svg { touch-action: none; user-select: none; -webkit-user-select: none; }
 
 .lazy-river .cell { fill: #fff; }
 .lazy-river .cell.alt { fill: color-mix(in srgb, var(--paper-ink) 4%, #fff); }
@@ -30,4 +20,3 @@
 .lazy-river .joint.done { fill: var(--water-done); }
 .lazy-river .xmark { stroke: var(--paper-red); stroke-width: 2.4; stroke-linecap: round; }
 
-@media (max-width: 600px) { .lazy-river .sheet { padding: 4px; } }

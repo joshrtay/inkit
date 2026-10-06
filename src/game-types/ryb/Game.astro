@@ -6,6 +6,7 @@ import type { RybGame } from "../../games";
 import { url } from "../../lib/paths";
 import type { Color, RybClientConfig } from "./types";
 import { dotsOf, solve } from "./solver";
+import Icon from "../../components/Icon.astro";
 import "./styles.css";
 
 interface Props { game: RybGame; hostId: string }
@@ -31,25 +32,29 @@ const config: RybClientConfig = {
   viewBox: `${Math.min(...xs) - pad} ${Math.min(...ys) - pad} ${Math.max(...xs) - Math.min(...xs) + 2 * pad} ${Math.max(...ys) - Math.min(...ys) + 2 * pad}`,
 };
 ---
-<GameShell ink={game.type.ink} title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+<GameShell ink={game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}
 
   <div class="ryb" data-game-type="ryb" data-game-id={hostId} data-config={JSON.stringify(config)}>
-    <div class="bar">
-      <div class="palette" role="group" aria-label="Paint color">
-        <button class="swatch c1" data-color="1" type="button" aria-pressed="true"><i></i>Red</button>
-        <button class="swatch c2" data-color="2" type="button" aria-pressed="false"><i></i>Yellow</button>
-        <button class="swatch c3" data-color="3" type="button" aria-pressed="false"><i></i>Blue</button>
-      </div>
-      <div class="hearts" data-hearts role="img"></div>
-      <div class="status" aria-live="polite"></div>
-      <button class="btn" data-clear type="button">Reset</button>
-    </div>
     <div class="sheet">
-      <svg role="img" aria-label="Puzzle figure"></svg>
-      {config.totals && <div class="totals" data-totals aria-label="Pieces left to place"></div>}
+      <div class="paper-bar">
+        <div class="group">
+          <div class="palette" role="group" aria-label="Paint color">
+            <button class="swatch c1" data-color="1" type="button" aria-pressed="true" aria-label="Red (R)" title="Red (R)"><i></i></button>
+            <button class="swatch c2" data-color="2" type="button" aria-pressed="false" aria-label="Yellow (Y)" title="Yellow (Y)"><i></i></button>
+            <button class="swatch c3" data-color="3" type="button" aria-pressed="false" aria-label="Blue (B)" title="Blue (B)"><i></i></button>
+          </div>
+          {config.totals && <div class="totals" data-totals aria-label="Pieces left to place"></div>}
+        </div>
+        <div class="status" aria-live="polite"></div>
+        <div class="group">
+          <div class="hearts" data-hearts role="img"></div>
+          <button class="tool" data-clear type="button" aria-label="Reset" title="Reset"><Icon name="reset" /></button>
+        </div>
+      </div>
+      <svg class="board" role="img" aria-label="Puzzle figure"></svg>
     </div>
   </div>
 
@@ -60,7 +65,7 @@ const config: RybClientConfig = {
       <li>Each colored dot in a piece means one of its neighbors is that color; two red dots mean at least two red neighbors, and so on. Neighbors share an edge; touching at a corner doesn&rsquo;t count.</li>
       <li>A wrong color is rejected and costs a heart. Correct pieces lock in.</li>
     </ol>
-    <p>Pick a color with the buttons or the keys R, Y and B, then click a piece. Some pieces hide their dots until you paint them. Counts beside the board show how many of each color are left to place.</p>
+    <p>Pick a color with the buttons or the keys R, Y and B, then click a piece. Some pieces hide their dots until you paint them. Counts beside the paint pots show how many of each color are left to place.</p>
   </section>
 </GameShell>
 

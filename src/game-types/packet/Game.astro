@@ -7,6 +7,7 @@ import { gamePath, type PacketGame } from "../../games";
 import type { PacketClientConfig } from "./types";
 import { normalizeAnswer } from "./game";
 import { sha256 } from "../../lib/hash";
+import Icon from "../../components/Icon.astro";
 import "./styles.css";
 
 interface Props { game: PacketGame; hostId: string }
@@ -20,7 +21,7 @@ const config: PacketClientConfig = {
   answerHash: await sha256(normalizeAnswer(answer)),
 };
 ---
-<GameShell ink={game.type.ink} title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+<GameShell ink={game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}
@@ -29,13 +30,19 @@ const config: PacketClientConfig = {
     <section class="viewer" aria-label="Sheets">
       <ul class="sheets" data-sheet-list></ul>
       <div class="stage">
-        <div class="paper"><img data-sheet-img alt="" width="1105" height="1430" /></div>
-        <div class="controls">
-          <button class="btn" data-prev type="button">&larr; Prev</button>
-          <span class="where" data-where></span>
-          <button class="btn" data-next type="button">Next &rarr;</button>
+        <div class="sheet" style="--ratio: 0.7727">
+          <div class="paper-bar">
+            <div class="group">
+              <button class="tool" data-prev type="button" aria-label="Previous sheet" title="Previous sheet"><Icon name="prev" /></button>
+              <span class="where" data-where></span>
+              <button class="tool" data-next type="button" aria-label="Next sheet" title="Next sheet"><Icon name="next" /></button>
+            </div>
+            <div class="group">
+              <a class="tool" data-pdf href={`${config.sheetsBase}${sheets[0].file}.pdf`} target="_blank" rel="noopener" aria-label="Print this sheet (PDF)" title="Print this sheet (PDF)"><Icon name="print" /></a>
+            </div>
+          </div>
+          <img data-sheet-img alt="" width="1105" height="1430" />
         </div>
-        <a class="btn primary" data-pdf href={`${config.sheetsBase}${sheets[0].file}.pdf`} target="_blank" rel="noopener">Print (PDF)</a>
         <p class="note" data-note></p>
       </div>
     </section>

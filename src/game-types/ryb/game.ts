@@ -46,7 +46,7 @@ function roomiest(pts: number[][]): { x: number; y: number; room: number } {
 export const createRyb = (config: RybClientConfig): MountGame => (root, host) => {
   const { pieces, solution, totals } = config;
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
-  const svg = q<SVGSVGElement>("svg");
+  const svg = q<SVGSVGElement>("svg.board");
   svg.setAttribute("viewBox", config.viewBox);
   addInk(svg, root);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {

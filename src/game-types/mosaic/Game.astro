@@ -6,6 +6,7 @@ import type { MosaicGame } from "../../games";
 import { url } from "../../lib/paths";
 import type { MosaicClientConfig } from "./types";
 import { runs, solve } from "./solver";
+import Icon from "../../components/Icon.astro";
 import "./styles.css";
 
 interface Props { game: MosaicGame; hostId: string }
@@ -25,23 +26,24 @@ const config: MosaicClientConfig = {
   colors: picture.map((row) => [...row].map((ch) => palette[ch])),
 };
 ---
-<GameShell ink={game.type.ink} title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+<GameShell ink={game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}
 
   <div class="mosaic" data-game-type="mosaic" data-game-id={hostId} data-config={JSON.stringify(config)}>
-    <div class="bar">
-      <div class="status" aria-live="polite"></div>
-      <div class="tools">
-        <button class="btn" data-undo type="button">Undo</button>
-        <button class="btn" data-hint type="button">Hint</button>
-        <button class="btn" data-check type="button">Check</button>
-        <button class="btn" data-reset type="button">Reset</button>
-      </div>
-    </div>
     <div class="sheet">
-      <svg role="img" aria-label="Picture grid"></svg>
+      <div class="paper-bar">
+        <div class="group"></div>
+        <div class="status" aria-live="polite"></div>
+        <div class="group">
+          <button class="tool" data-undo type="button" aria-label="Undo" title="Undo"><Icon name="undo" /></button>
+          <button class="tool" data-hint type="button" aria-label="Hint" title="Hint"><Icon name="hint" /></button>
+          <button class="tool" data-check type="button" aria-label="Check" title="Check"><Icon name="check" /></button>
+          <button class="tool" data-reset type="button" aria-label="Reset" title="Reset"><Icon name="reset" /></button>
+        </div>
+      </div>
+      <svg class="board" role="img" aria-label="Picture grid"></svg>
       <button class="sign" data-sign type="button" aria-label="Show what the picture is">
         <span class="q">?</span><span class="title">It&rsquo;s {title.toLowerCase().match(/^[aeiou]/) ? "an" : "a"} {title}!</span>
       </button>

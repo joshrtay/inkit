@@ -178,9 +178,15 @@ solution. To make a level, draw the picture in letters and pick a color per lett
 ## Pages and layouts
 
 - `Base.astro` is the outermost shell; shared styles come from `global.css`.
-- `GameShell.astro` wraps every game page. Slots: default (the game, the bulk of
-  the screen), `intro` and `directions` (rule cards below). Its back link goes to the
-  type's list.
+- `GameShell.astro` wraps every game page: one slim header line (back link, title,
+  number, check mark), then the game, then the `intro` and `directions` slots below.
+- A board is a `.sheet` of paper (global.css) sized to fill the screen from its `--ratio`
+  (set by `addInk()`) and the page's `--chrome`. Its controls sit on the paper in a
+  `.paper-bar` strip: ink icon buttons (`.tool` with `Icon.astro`), handwritten word
+  buttons (`.word`), and a `.status` note that only appears for a mistake (`.warn`) or a
+  win (`.good`); running counts are never shown. Reset asks to confirm by setting
+  `data-confirm` on its button. The board's own SVG has class `board`, so game code
+  finds it with `svg.board` rather than the first SVG (the icons are SVGs too).
 - All internal links and asset paths go through `url()` from `src/lib/paths.ts`.
 - A type's styles are global but scoped under its root class (`.packet`,
   `.number-maze`, `.ryb`), because `game.ts` creates elements at runtime.

@@ -11,7 +11,7 @@ interface Props { game: NumberMazeGame; hostId: string }
 const { game, hostId } = Astro.props;
 const doors = openings(game.maze);
 ---
-<GameShell ink={game.type.ink} title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+<GameShell ink={game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}

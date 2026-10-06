@@ -12,7 +12,9 @@ const SHOWN_WIDTH = 600;   // boards are shown about this many CSS pixels wide
 let boards = 0;
 
 export function addInk(svg: SVGSVGElement, root: HTMLElement) {
-  const u = svg.viewBox.baseVal.width / SHOWN_WIDTH || 1;   // board units per pixel
+  const vb = svg.viewBox.baseVal;
+  const u = vb.width / SHOWN_WIDTH || 1;   // board units per pixel
+  root.style.setProperty("--ratio", (vb.width / vb.height).toFixed(4));   // sizes the paper (global.css .sheet)
   const id = `ink${++boards}-wash`;
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element) => {
     const n = document.createElementNS(NS, tag);

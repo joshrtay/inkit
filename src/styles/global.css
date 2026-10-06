@@ -112,5 +112,57 @@ a.btn { text-decoration: none; display: inline-block; }
 .rules p { margin: 0; font-size: 15px; color: var(--muted); }
 .rules.current { border-color: var(--line-strong); }
 
-/* Every game board is a sheet of paper, drawn on with a slightly wobbly pen. */
-.sheet svg { filter: url(#pen); }
+/* Every game board is a sheet of white paper, as big as the screen allows (--ratio is the
+   board's width / height, set by src/lib/ink.ts; --chrome is the height of everything on the
+   page that isn't the board). Its controls sit on the paper in a strip across the top
+   (.paper-bar), drawn in the board's ink, so they read as part of the puzzle. */
+.sheet {
+  --pad: 12px;
+  position: relative; display: grid; gap: 4px; justify-self: center;
+  width: min(100%, calc((100dvh - var(--chrome, 190px)) * var(--ratio, 1) + 2 * var(--pad)));
+  padding: 6px var(--pad) var(--pad); background: var(--paper); color: var(--paper-ink); border-radius: 3px;
+  box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
+}
+.sheet > svg { display: block; width: 100%; height: auto; filter: url(#pen); }   /* the board: a slightly wobbly pen */
+@media (max-width: 600px) { .sheet { --pad: 4px; } }
+
+.paper-bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 10px;
+  min-height: 42px; font-family: var(--hand); color: var(--paper-ink);
+}
+.paper-bar .group { display: flex; align-items: center; gap: 2px; }
+/* The status line says something only when it matters, a mistake (.warn) or a win (.good),
+   as a note pinned to the paper just under the strip. Running counts are never shown. */
+.paper-bar .status {
+  position: absolute; z-index: 1; top: 46px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px);
+  text-align: center; font: 700 16px/1.25 var(--hand); background: var(--paper); padding: 5px 12px; border-radius: 4px;
+  box-shadow: 0 2px 10px var(--shadow); pointer-events: none;
+}
+.paper-bar .status:not(.good):not(.warn), .paper-bar .status:empty { display: none; }
+.paper-bar .status.good { color: var(--paper-good); }
+.paper-bar .status.warn { color: var(--paper-red); }
+
+/* ink-drawn icon buttons */
+.tool {
+  position: relative; display: grid; place-items: center; width: 40px; height: 40px; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; color: var(--paper-ink); cursor: pointer;
+}
+.tool:hover:not(:disabled) { background: color-mix(in srgb, var(--paper-ink) 10%, transparent); }
+.tool:disabled { opacity: .35; cursor: default; }
+.tool .icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }
+.tool:focus-visible { outline: 2px solid var(--paper-ink); outline-offset: 0; }
+/* "are you sure?" for Reset, written beside the button */
+.tool[data-confirm] { background: color-mix(in srgb, var(--paper-red) 14%, transparent); color: var(--paper-red); }
+.tool[data-confirm]::after {
+  content: attr(data-confirm); position: absolute; top: calc(100% + 2px); right: 0; z-index: 2; white-space: nowrap;
+  font: 700 15px/1 var(--hand); color: var(--paper-red); background: var(--paper);
+  padding: 6px 9px; border-radius: 4px; box-shadow: 0 2px 8px var(--shadow);
+}
+/* a handwritten word button on the paper (tabs, "walk the maze") */
+.word {
+  font: 700 16px/1.1 var(--hand); color: var(--paper-ink); background: transparent; border: 0;
+  padding: 8px 8px 6px; cursor: pointer; border-radius: 4px; text-decoration-thickness: 2px; text-underline-offset: 4px;
+}
+.word:hover:not(:disabled) { background: color-mix(in srgb, var(--paper-ink) 8%, transparent); }
+.word[aria-pressed="true"] { text-decoration-line: underline; }
+.word:disabled { opacity: .35; cursor: default; }
