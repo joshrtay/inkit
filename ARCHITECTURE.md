@@ -193,8 +193,8 @@ screen (`--page` in `global.css`). Dark mode is a charcoal page with pale ink fo
 the text; game boards stay white paper. Dark is the default. Players pick Light, Dark or Match
 device in the account menu (`src/lib/theme.ts`); it sets `data-theme` on `<html>`, and
 an inline script in `Base.astro` applies the saved choice before the page draws. Only the puzzles are handwritten: numbers and clues on boards
-use Kalam (`--hand`). The site is plain Nunito, with Kaushan Script kept for the logo
-and page titles.
+use Kalam (`--hand`). The site is plain Nunito (headings in its heavy weight), with
+Kaushan Script kept only for the logo.
 - Each game type draws its boards in its own ink (`ink` in `src/games.ts`, set as
   `--paper-ink` on the page): blue for the escape room and mazes, black for Three
   Coats, green for Round the Bend, red for Picture Squares.

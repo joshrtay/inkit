@@ -33,28 +33,30 @@
   --wash-pink: #f07ab8;
 
   /* Only the puzzles are handwritten (--hand: numbers and clues on boards). The site itself
-     is plain type, with the brush script kept for the logo and page titles. */
-  --display: 'Kaushan Script', 'Brush Script MT', cursive;
+     is plain type; the brush script is kept only for the logo. */
+  --brand: 'Kaushan Script', 'Brush Script MT', cursive;
   --hand: 'Kalam', 'Comic Sans MS', cursive;
   --body: 'Nunito', system-ui, sans-serif;
+  --display: var(--body); /* headings, set heavy */
   --mono: var(--body);    /* labels, buttons and status lines */
 
-  /* the pen line around cards, so white cards stand off the near-white paper */
-  --card-border: 1.5px solid color-mix(in srgb, var(--ink) 32%, transparent);
+  /* a quiet gray line around cards, so they stand off the paper */
+  --line-strong: #aaa59c;
+  --card-border: 1px solid var(--line);
 
   --radius: 6px;
 }
 /* Dark mode: a charcoal page with pale ink for the text. Game boards stay white paper. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
+    --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c; --line-strong: #6c675f;
     --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
     --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
+  --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c; --line-strong: #6c675f;
   --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
   --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
   color-scheme: dark;
@@ -81,7 +83,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
   border-bottom: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 .topnav .brand {
-  font-family: var(--display); font-size: 30px; line-height: 1.1; color: var(--ink); text-decoration: none;
+  font-family: var(--brand); font-size: 30px; line-height: 1.1; color: var(--ink); text-decoration: none;
 }
 .topnav .brand:hover { color: var(--muted); }
 .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 28px; }
@@ -105,10 +107,10 @@ a.btn { text-decoration: none; display: inline-block; }
   background: var(--panel); border: 1.4px solid var(--line); border-radius: var(--radius);
   padding: 14px 18px; display: grid; gap: 8px; align-content: start;
 }
-.rules h2 { font-family: var(--display); font-weight: 400; font-size: 23px; margin: 0; }
+.rules h2 { font-family: var(--display); font-weight: 800; font-size: 19px; margin: 0; }
 .rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
 .rules p { margin: 0; font-size: 15px; color: var(--muted); }
-.rules.current { border-color: var(--ink); border-width: 1.8px; }
+.rules.current { border-color: var(--line-strong); }
 
 /* Every game board is a sheet of paper, drawn on with a slightly wobbly pen. */
 .sheet svg { filter: url(#pen); }

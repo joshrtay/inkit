@@ -27,7 +27,7 @@
   background: var(--panel); border: 1.6px dashed var(--ink); border-radius: var(--radius);
   padding: 22px 20px; display: grid; gap: 14px; max-width: 640px; width: 100%; justify-self: center;
 }
-.packet .slip h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; }
+.packet .slip h2 { font-family: var(--display); font-weight: 800; font-size: 22px; margin: 0; }
 .packet .slip p { margin: 0; color: var(--muted); }
 .packet .slip form { display: flex; flex-wrap: wrap; gap: 10px; }
 .packet .slip input {
@@ -40,7 +40,7 @@
 .packet .stamp {
   display: inline-grid; justify-items: center; gap: 2px; padding: 10px 18px; color: var(--good);
   border: 3px double var(--good); border-radius: 50% / 40%; transform: rotate(-4deg);
-  font-family: var(--display); font-size: 22px; letter-spacing: .08em;
+  font-family: var(--display); font-weight: 800; font-size: 20px; letter-spacing: .08em;
 }
 .packet .stamp small { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; }
 @media (prefers-reduced-motion: no-preference) { .packet .stamp { animation: packet-thump .35s ease-out; } }
