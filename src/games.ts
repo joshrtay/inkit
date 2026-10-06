@@ -42,7 +42,7 @@ export const gameTypes: GameType[] = [
     blurb: "Build the walls each number asks for, then find your way out.",
     meta: "Play in the browser",
     cover: "number-line-maze/cover.jpg",
-    coverAlt: "A sheet of numbered circles beside a finished maze with its route drawn through",
+    coverAlt: "Two sheets of numbered circles with arrows marking the way in and out",
     listed: true,
   },
   {
@@ -52,7 +52,7 @@ export const gameTypes: GameType[] = [
     blurb: "Paint every shape red, yellow or blue so each dot sees its color next door.",
     meta: "Play in the browser",
     cover: "three-coats/cover.jpg",
-    coverAlt: "Puzzle figures painted red, yellow and blue, with colored clue dots",
+    coverAlt: "Unpainted puzzle figures with red, yellow and blue clue dots",
     listed: true,
   },
   {
@@ -62,7 +62,7 @@ export const gameTypes: GameType[] = [
     blurb: "Draw one river that winds through every white cell, around the rocks and walls.",
     meta: "Play in the browser",
     cover: "round-the-bend/cover.jpg",
-    coverAlt: "A river grid with dark rocks and thick walls, and a finished blue river looping through it",
+    coverAlt: "Two river grids with dark rocks and thick walls",
     listed: true,
   },
   {
@@ -72,7 +72,7 @@ export const gameTypes: GameType[] = [
     blurb: "Shade the cells the numbers ask for to uncover a hidden picture.",
     meta: "Play in the browser",
     cover: "picture-squares/cover.jpg",
-    coverAlt: "Finished pixel pictures of a sailboat, an apple and a cat",
+    coverAlt: "Three blank grids with number clues along their edges",
     listed: true,
   },
 ];
