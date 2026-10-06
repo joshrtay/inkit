@@ -34,6 +34,9 @@
   --mono: 'Kalam', 'Comic Sans MS', cursive;    /* numbers and labels: handwritten */
   --body: 'Kalam', 'Comic Sans MS', cursive;
 
+  /* the pen line around cards, so white cards stand off the near-white paper */
+  --card-border: 1.5px solid color-mix(in srgb, var(--ink) 32%, transparent);
+
   /* a wobbly hand-drawn box: uneven corner radii */
   --sketch-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }

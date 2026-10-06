@@ -18,6 +18,10 @@ const { title, description, ink } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
+    <!-- the saved light/dark choice (src/lib/theme.ts), applied before anything draws -->
+    <script is:inline>
+      try { const t = localStorage.getItem("wyattsgames:theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+    </script>
     {description && <meta name="description" content={description} />}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&display=swap" />

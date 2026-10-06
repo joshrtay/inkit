@@ -40,12 +40,12 @@ const listed = gameTypes.filter((t) => t.listed && instancesOf(t).length);
   .game {
     display: grid; grid-template-rows: auto 1fr; height: 100%;
     color: inherit; text-decoration: none; background: var(--panel);
-    border-radius: 6px; overflow: hidden;
+    border: var(--card-border); border-radius: 6px; overflow: hidden;
     transition: transform .15s ease, box-shadow .15s ease;
   }
-  .game:hover { transform: translateY(-3px); box-shadow: 0 14px 28px -14px var(--shadow); }
+  .game:hover { transform: translateY(-3px); border-color: var(--ink); box-shadow: 0 14px 28px -14px var(--shadow); }
   .game:focus-visible { outline-offset: 3px; }
-  .game img, .no-cover { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; }
+  .game img, .no-cover { border-bottom: var(--card-border); display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: cover; }
   .no-cover { display: grid; place-content: center; font-family: var(--display); font-size: 26px; background: var(--bg); color: var(--muted); }
   .text { padding: 16px 18px 18px; display: grid; gap: 6px; align-content: start; }
   .text p { margin: 0; color: var(--muted); font-size: 15px; }

@@ -69,6 +69,7 @@ Actions runs it on every push to `main`.
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
+| `src/lib/theme.ts` | Light / dark / match-device choice, saved in this browser; picked in the account menu. |
 | `src/lib/ink.ts` | The watercolor filter for a board's SVG, at its scale (see Look). |
 | `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (builds links from the site root); `sha256()`; which games the player has finished. |
 | `src/components/Check.astro` | The animated check mark for finished games. |
@@ -189,7 +190,9 @@ solution. To make a level, draw the picture in letters and pick a color per lett
 After the game Inked: ballpoint pen on white paper. The page is nearly white paper with a
 faint cloudy texture (`public/paper.svg`) that darkens slightly toward the edges of the
 screen (`--page` in `global.css`). Dark mode is the same paper dimmer: the full texture and
-a heavier vignette, with the same inks. Headings are in Kaushan Script, everything else
+a heavier vignette, with the same inks. Players pick Light, Dark or Match device in the account menu
+(`src/lib/theme.ts`); it sets `data-theme` on `<html>`, and an inline script in
+`Base.astro` applies the saved choice before the page draws. Headings are in Kaushan Script, everything else
 in Kalam.
 - Each game type draws its boards in its own ink (`ink` in `src/games.ts`, set as
   `--paper-ink` on the page): blue for the escape room and mazes, black for Three

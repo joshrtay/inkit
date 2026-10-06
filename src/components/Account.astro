@@ -26,6 +26,13 @@
     <p class="who" data-account-who hidden></p>
     <p class="error" data-account-error role="alert"></p>
 
+    <fieldset class="look">
+      <legend>Look</legend>
+      <label><input type="radio" name="theme" value="light" /> Light</label>
+      <label><input type="radio" name="theme" value="dark" /> Dark</label>
+      <label><input type="radio" name="theme" value="auto" /> Match device</label>
+    </fieldset>
+
     <div class="actions">
       <button class="btn primary" type="submit" data-account-submit>Log in</button>
       <button class="btn" type="button" data-account-logout hidden>Log out</button>
@@ -64,10 +71,15 @@
   .account-dialog .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .account-dialog .btn.link { background: none; border: none; color: var(--muted); text-decoration: underline; padding-inline: 4px; }
   .account-dialog.required [data-account-cancel] { display: none; }
+  .account-dialog .look { border: 0; border-top: 1px solid var(--line); margin: 2px 0 0; padding: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .account-dialog .look legend { float: left; width: 100%; padding: 0; margin-bottom: 4px; font: 700 13px/1 var(--mono); }
+  .account-dialog .look label { display: inline-flex; align-items: center; gap: 6px; font: 400 15px/1.2 var(--body); cursor: pointer; }
+  .account-dialog .look input { accent-color: var(--ink); margin: 0; padding: 0; border: 0; width: auto; }
 </style>
 
 <script>
   import { account, login, logout, pull } from "../lib/account";
+  import { setTheme, theme, type Theme } from "../lib/theme";
 
   const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
   const dialog = $<HTMLDialogElement>("[data-account-dialog]");
@@ -106,11 +118,17 @@
     skip.hidden = true;
     error.textContent = "";
     form.reset();
+    (form.elements.namedItem("theme") as RadioNodeList).value = theme();
     dialog.showModal();
     if (!signedIn) (form.elements.namedItem("username") as HTMLInputElement).focus();
   }
 
   openBtn.addEventListener("click", () => open("login"));
+  // light / dark switches at once and is remembered in this browser
+  form.addEventListener("change", (e) => {
+    const t = e.target as HTMLInputElement;
+    if (t.name === "theme") setTheme(t.value as Theme);
+  });
   cancel.addEventListener("click", () => dialog.close());
   skip.addEventListener("click", () => { required = false; dialog.close(); });
   logoutBtn.addEventListener("click", () => { logout(); dialog.close(); });
