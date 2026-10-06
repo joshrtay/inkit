@@ -1,32 +1,47 @@
 /* Site-wide tokens and base styles. Every page gets these through layouts/Base.astro.
-   Look: manila paper and typewriter faces. */
+   Look: ballpoint pen on white paper, after the game Inked. One ink color per game type
+   (each type sets --paper-ink on its board), pale pen streaks behind everything, and
+   watercolor washes for color. Boards get a pen wobble (#pen, in Base.astro) and their own
+   hatching and wash (src/lib/ink.ts). */
 :root {
-  --bg: #ddd0b3;          /* manila envelope */
-  --panel: #e8ddc5;
-  --ink: #24211c;
-  --muted: #5d5545;
-  --line: #b9a985;
-  --red: #b3262f;         /* airmail red */
-  --blue: #22408a;        /* airmail blue */
-  --good: #1f6b3a;
-  --paper: #ffffff;       /* game boards and sheets are always white paper */
-  --paper-ink: #2b2622;
-  --shadow: rgba(60, 45, 20, .28);
+  --bg: #f8f7f2;          /* paper */
+  --panel: #ffffff;
+  --ink: #26398f;         /* ballpoint blue */
+  --muted: #5d6698;
+  --line: #c3c9e4;
+  --red: #c4364b;
+  --blue: #26398f;
+  --good: #2b7a52;
+  --paper: #fffefa;       /* game boards and sheets are always white paper */
+  --paper-ink: #26398f;   /* the pen a board is drawn with; game types pick their own */
+  --shadow: rgba(38, 57, 143, .2);
+  --streaks: url("/paper.svg");
 
-  --display: 'Special Elite', 'Courier New', monospace;
-  --mono: 'Courier Prime', 'Courier New', monospace;
-  --body: 'Source Sans 3', system-ui, sans-serif;
+  /* watercolor washes */
+  --wash-red: #ef5a6a;
+  --wash-yellow: #f7cf3d;
+  --wash-blue: #3fb0e6;
+  --wash-orange: #f29a38;
+  --wash-green: #7cc68f;
+  --wash-pink: #f07ab8;
+
+  --display: 'Kaushan Script', 'Brush Script MT', cursive;
+  --mono: 'Kalam', 'Comic Sans MS', cursive;    /* numbers and labels: handwritten */
+  --body: 'Kalam', 'Comic Sans MS', cursive;
+
+  /* a wobbly hand-drawn box: uneven corner radii */
+  --sketch-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1b1d22; --panel: #24272e; --ink: #ece4d2; --muted: #a9a08e; --line: #3b3f48;
-    --red: #e0545b; --blue: #7d9be6; --good: #5cc283; --paper: #f7f4ee; --shadow: rgba(0, 0, 0, .55);
+    --bg: #151a30; --panel: #1d2340; --ink: #d5dbff; --muted: #9aa3d6; --line: #36406e;
+    --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #1b1d22; --panel: #24272e; --ink: #ece4d2; --muted: #a9a08e; --line: #3b3f48;
-  --red: #e0545b; --blue: #7d9be6; --good: #5cc283; --paper: #f7f4ee; --shadow: rgba(0, 0, 0, .55);
+  --bg: #151a30; --panel: #1d2340; --ink: #d5dbff; --muted: #9aa3d6; --line: #36406e;
+  --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
   color-scheme: dark;
 }
 
@@ -34,39 +49,52 @@
 img { max-width: 100%; }
 [hidden] { display: none !important; }
 body {
-  margin: 0; overflow-x: clip; background: var(--bg); color: var(--ink);
-  font-family: var(--body); font-size: 16px; line-height: 1.5;
+  margin: 0; overflow-x: clip; color: var(--ink);
+  background: var(--streaks) 0 0 / 600px 600px, var(--bg);
+  font-family: var(--body); font-size: 17px; line-height: 1.5;
 }
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+
+/* The #pen filter lives in an invisible SVG at the top of <body>. */
+.ink-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.hatch-ink { stroke: var(--paper-ink); }
 
 .topnav {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
-  background: var(--bg);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 8px;
+  background: var(--streaks) 0 0 / 600px 600px, var(--bg);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 35%, transparent);
 }
 .topnav .brand {
-  font-family: var(--display); font-size: 24px; line-height: 1; color: var(--ink); text-decoration: none;
+  font-family: var(--display); font-size: 30px; line-height: 1.1; color: var(--ink); text-decoration: none;
 }
 .topnav .brand:hover { color: var(--muted); }
 .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 28px; }
 
-.eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.back { font-family: var(--mono); font-size: 14px; color: var(--muted); text-decoration: none; justify-self: start; }
-.back:hover { color: var(--ink); text-decoration: underline; }
+.eyebrow { font-family: var(--mono); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.back { font-family: var(--mono); font-size: 15px; color: var(--muted); text-decoration: none; justify-self: start; }
+.back:hover { color: var(--ink); text-decoration: underline wavy; }
 
 .btn {
-  font: 700 14px/1 var(--mono); letter-spacing: .02em; color: var(--ink); background: var(--panel);
-  border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; cursor: pointer;
+  font: 700 15px/1 var(--mono); color: var(--ink); background: var(--panel);
+  border: 1.6px solid var(--ink); border-radius: var(--sketch-radius); padding: 9px 14px 8px; cursor: pointer;
 }
-.btn:hover:not(:disabled) { border-color: var(--ink); }
-.btn:disabled { opacity: .45; cursor: default; }
+.btn:hover:not(:disabled) { background: color-mix(in srgb, var(--wash-blue) 18%, var(--panel)); }
+.btn:disabled { opacity: .4; cursor: default; }
 .btn.primary { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 85%, var(--wash-blue)); }
 a.btn { text-decoration: none; display: inline-block; }
 
 /* A card of directions under a game board (GameShell's "directions" slot). */
-.rules { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
-.rules h2 { font-family: var(--display); font-weight: 400; font-size: 20px; margin: 0; }
-.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
-.rules p { margin: 0; font-size: 14px; color: var(--muted); }
-.rules.current { border-color: var(--ink); }
+.rules {
+  background: var(--panel); border: 1.4px solid var(--line); border-radius: var(--sketch-radius);
+  padding: 14px 18px; display: grid; gap: 8px; align-content: start;
+}
+.rules h2 { font-family: var(--display); font-weight: 400; font-size: 23px; margin: 0; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 16px; }
+.rules p { margin: 0; font-size: 15px; color: var(--muted); }
+.rules.current { border-color: var(--ink); border-width: 1.8px; }
+
+/* Every game board is a sheet of paper, drawn on with a slightly wobbly pen. */
+.sheet svg { filter: url(#pen); }

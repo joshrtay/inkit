@@ -3,6 +3,7 @@
 // Phase 2: drag a line through the open squares from the entrance to the exit.
 // Plain TypeScript + SVG. Each instance supplies a NumberMazeConfig (see types.ts).
 import type { MountGame } from "../../lib/game";
+import { addInk } from "../../lib/ink";
 import { openings, type NumberMazeConfig, type Opening } from "./types";
 
 type Pt = [number, number];                    // [row, col] of a number or a square
@@ -61,6 +62,7 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   const ML = room("left"), MT = room("top"), MR = room("right"), MB = room("bottom");
   const vbW = ML + CW * P + MR, vbH = MT + CH * P + MB;
   svg.setAttribute("viewBox", `0 0 ${vbW} ${vbH}`);
+  addInk(svg, root);
   q<HTMLElement>(".sheet").style.setProperty("--ratio", (vbW / vbH).toFixed(4));
   const vx = (c: number) => ML + c * P, vy = (r: number) => MT + r * P;          // a number's centre
   const sx = (c: number) => vx(c) + P / 2, sy = (r: number) => vy(r) + P / 2;    // a square's centre

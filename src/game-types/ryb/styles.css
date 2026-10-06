@@ -3,7 +3,7 @@
   --r: #ed1c24;          /* 1 red    \                              */
   --y: #fff200;          /* 2 yellow  } the original RYB's primaries */
   --b: #00aeef;          /* 3 blue   /                              */
-  --unpainted: #2b2622;  /* pieces start as dark ink on the paper */
+  --unpainted: var(--hatch);  /* pieces start as pen hatching on the paper */
   display: grid; gap: 18px;
 }
 .ryb .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
@@ -11,7 +11,7 @@
 .ryb .swatch {
   display: inline-flex; align-items: center; gap: 8px;
   font: 700 14px/1 var(--mono); color: var(--ink); background: transparent;
-  border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; cursor: pointer;
+  border: 1.4px solid var(--line); border-radius: var(--sketch-radius); padding: 8px 12px 7px; cursor: pointer;
 }
 .ryb .swatch i { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
 .ryb .swatch.c1 i { background: var(--r); }
@@ -31,19 +31,20 @@
 }
 .ryb svg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
 
-.ryb .piece { fill: var(--unpainted); stroke: var(--paper); stroke-width: .6%; stroke-linejoin: round; cursor: pointer; transition: fill .18s; }
-.ryb .piece:hover { fill: #4a443c; }
-.ryb .piece.c1 { fill: var(--r); cursor: default; }
-.ryb .piece.c2 { fill: var(--y); cursor: default; }
-.ryb .piece.c3 { fill: var(--b); cursor: default; }
+.ryb .piece { fill: var(--unpainted); stroke: var(--paper-ink); stroke-width: .5%; stroke-linejoin: round; cursor: pointer; }
+.ryb .piece:hover { fill: var(--crosshatch); }
+.ryb .piece.c1, .ryb .piece.c2, .ryb .piece.c3 { cursor: default; filter: var(--wash); }
+.ryb .piece.c1 { fill: var(--r); }
+.ryb .piece.c2 { fill: var(--y); }
+.ryb .piece.c3 { fill: var(--b); }
 .ryb .piece.wrong { animation: ryb-wrong .45s ease-out; }
-@keyframes ryb-wrong { 0%, 100% { fill: var(--unpainted); } 30% { fill: #9c0f15; } }
+@keyframes ryb-wrong { 0%, 100% { opacity: 1; } 30% { fill: var(--red); opacity: .8; } }
 
 .ryb .dots { pointer-events: none; }
 .ryb .dots.hidden { display: none; }
-.ryb .dot { stroke: #fff; stroke-width: .35%; }
+.ryb .dot { stroke: var(--paper-ink); stroke-width: .35%; }
 .ryb .dot.c1 { fill: var(--r); }
-.ryb .dot.c2 { fill: var(--y); stroke: #2b2622; }   /* yellow needs a dark rim to show on yellow */
+.ryb .dot.c2 { fill: var(--y); }
 .ryb .dot.c3 { fill: var(--b); }
 
 .ryb .totals { position: absolute; top: 10px; right: 12px; display: grid; gap: 4px; font: 700 14px/1 var(--mono); color: var(--paper-ink); }
@@ -54,4 +55,4 @@
 .ryb .total.c3 i { background: var(--b); }
 
 @media (max-width: 600px) { .ryb .swatch { padding: 8px 9px; font-size: 13px; } .ryb .sheet { padding: 6px; } }
-@media (prefers-reduced-motion: reduce) { .ryb .piece { transition: none; } .ryb .piece.wrong { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ryb .piece.wrong { animation: none; } }

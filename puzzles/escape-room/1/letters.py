@@ -112,17 +112,17 @@ def page(svg_body, title):
     return f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{title}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=block" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime&text=0123456789&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&text=0123456789&display=block" rel="stylesheet">
 <style>
   @page {{ size: letter; margin: 0; }}
   html, body {{ margin: 0; padding: 0; background: #fff; }}
   svg {{ display: block; width: 215.9mm; height: 279.4mm; }}
-  .ltr {{ font-family: 'Special Elite', 'Courier New', monospace; fill: #2b2622;
+  .ltr {{ font-family: 'Kalam', cursive; fill: #26398f;
           text-anchor: middle; dominant-baseline: central; }}
-  .reg {{ fill: none; stroke: #2b2622; stroke-width: 0.5; }}
-  .cut {{ fill: none; stroke: #2b2622; stroke-width: 0.35; stroke-dasharray: 1.2 0.9; }}
-  .num {{ font-family: 'Courier Prime', 'Special Elite', 'Courier New', monospace; fill: #2b2622;
+  .reg {{ fill: none; stroke: #26398f; stroke-width: 0.5; }}
+  .cut {{ fill: none; stroke: #26398f; stroke-width: 0.35; stroke-dasharray: 1.2 0.9; }}
+  .num {{ font-family: 'Kalam', cursive; fill: #26398f;
           font-size: 4.6px; text-anchor: middle; dominant-baseline: central; }}
 </style></head>
 <body><svg viewBox="0 0 {PAGE_W} {PAGE_H}" xmlns="http://www.w3.org/2000/svg">

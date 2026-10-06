@@ -6,8 +6,8 @@ Every cover shows puzzles as a player first sees them, never a solution.
 Number Line Maze: two mazes' number grids. Three Coats: three levels, unpainted.
 Round the Bend: two empty grids. Picture Squares: three blank grids with their clues.
 Escape Room: three of its printed sheets (the preview images in public/).
-Each board is drawn on a sheet of paper and fanned out on manila, then screenshotted
-with headless Chrome.
+Each board is drawn in its game type's ballpoint ink on a sheet of paper, fanned out on
+the site's streaked paper, then screenshotted with headless Chrome.
 """
 import html as htmllib
 import json
@@ -25,8 +25,25 @@ sys.path.insert(0, str(ROOT / "puzzles" / "lib"))
 import number_maze as nm  # noqa: E402
 
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-INK, RED, YEL, BLU, TRAIL = "#2b2622", "#c8312f", "#e9b52b", "#2d58a6", "#e0a422"   # site / maze colors
+# Ballpoint inks, one per game type (as in src/games.ts), and the site's red.
+MAZE_INK, RYB_INK, RIVER_INK, PIC_INK, RED = "#26398f", "#2b2b30", "#2d6a45", "#a3343f", "#c4364b"
 FILL = {1: "#ed1c24", 2: "#fff200", 3: "#00aeef"}   # RYB uses the original game's primaries
+FONT = 'font-family="Kalam, cursive" font-weight="700"'
+PAPER_STREAKS = (ROOT / "public" / "paper.svg").as_uri()
+_ids = 0
+
+
+def hatch(ink: str, unit: float, cross: bool = False):
+    """(defs, fill) for pen hatching drawn in `ink`, spaced for a board of `unit` units per pixel."""
+    global _ids
+    _ids += 1
+    g = 6 * unit
+    lines = f'<line x1="0" y1="{g / 2}" x2="{g}" y2="{g / 2}" stroke="{ink}" stroke-width="{1.5 * unit}"/>'
+    if cross:
+        lines += f'<line x1="{g / 2}" y1="0" x2="{g / 2}" y2="{g}" stroke="{ink}" stroke-width="{1.1 * unit}"/>'
+    pid = f"h{_ids}"
+    return (f'<defs><pattern id="{pid}" width="{g}" height="{g}" patternUnits="userSpaceOnUse" '
+            f'patternTransform="rotate(-35)">{lines}</pattern></defs>', f"url(#{pid})")
 
 
 # ---- number maze ----
@@ -57,19 +74,19 @@ def maze_svg(maze: dict, solved: bool) -> str:
         route = board.route(walls)
         pts = [outside(board.entry, 10)] + [(vx(c) + P / 2, vy(r) + P / 2) for r, c in route]
         pts.append(outside(board.exit, 14))
-        out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{TRAIL}" '
+        out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="#f29a38" '
                    'stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>')
         for e in walls:
             (r1, c1), (r2, c2) = board.pair(e)
-            out.append(f'<line x1="{vx(c1)}" y1="{vy(r1)}" x2="{vx(c2)}" y2="{vy(r2)}" stroke="{INK}" stroke-width="5" stroke-linecap="round"/>')
+            out.append(f'<line x1="{vx(c1)}" y1="{vy(r1)}" x2="{vx(c2)}" y2="{vy(r2)}" stroke="{MAZE_INK}" stroke-width="5" stroke-linecap="round"/>')
     else:
         for (r1, c1), (r2, c2) in maze.get("hints", []):
-            out.append(f'<line x1="{vx(c1)}" y1="{vy(r1)}" x2="{vx(c2)}" y2="{vy(r2)}" stroke="{BLU}" stroke-width="5" stroke-linecap="round"/>')
+            out.append(f'<line x1="{vx(c1)}" y1="{vy(r1)}" x2="{vx(c2)}" y2="{vy(r2)}" stroke="{MAZE_INK}" stroke-width="5" stroke-linecap="round"/>')
         for r in range(H):
             for c in range(W):
-                out.append(f'<circle cx="{vx(c)}" cy="{vy(r)}" r="12" fill="#fff" stroke="{INK}" stroke-width="1.4"/>'
-                           f'<text x="{vx(c)}" y="{vy(r) + 5}" font-size="14" font-weight="700" text-anchor="middle" '
-                           f'font-family="Courier Prime, Courier New, monospace" fill="{INK}">{maze["clues"][r][c]}</text>')
+                out.append(f'<circle cx="{vx(c)}" cy="{vy(r)}" r="12.5" fill="#fff" stroke="{MAZE_INK}" stroke-width="1.6"/>'
+                           f'<text x="{vx(c)}" y="{vy(r) + 6}" font-size="16" text-anchor="middle" '
+                           f'{FONT} fill="{MAZE_INK}">{maze["clues"][r][c]}</text>')
     out.append(arrow(outside(board.entry, 36), outside(board.entry, 10)))   # points in
     out.append(arrow(outside(board.exit, 10), outside(board.exit, 38)))     # points out
     vbw, vbh = ML + (W - 1) * P + MR, MT + (H - 1) * P + MB
@@ -86,13 +103,14 @@ def ryb_config(n: int) -> dict:
 
 
 def ryb_svg(cfg: dict, painted: bool) -> str:
-    out = []
     xs = [p[0] for pc in cfg["pieces"] for p in pc["points"]]
     span = max(xs) - min(xs)
+    defs, hatched = hatch(RYB_INK, span / 400)
+    out = [defs]
     for i, pc in enumerate(cfg["pieces"]):
-        fill = FILL[cfg["solution"][i]] if painted else INK
+        fill = FILL[cfg["solution"][i]] if painted else hatched
         pts = " ".join(f"{x},{y}" for x, y in pc["points"])
-        out.append(f'<polygon points="{pts}" fill="{fill}" stroke="#fff" stroke-width="{span * 0.006}" stroke-linejoin="round"/>')
+        out.append(f'<polygon points="{pts}" fill="{fill}" stroke="{RYB_INK}" stroke-width="{span * 0.005}" stroke-linejoin="round"/>')
     for pc in cfg["pieces"]:
         dots = pc["dots"]
         if not dots or (pc["hidden"] and not painted):
@@ -104,7 +122,7 @@ def ryb_svg(cfg: dict, painted: bool) -> str:
         for k, c in enumerate(dots):
             a = -math.pi / 2 + 2 * math.pi * k / len(dots)
             out.append(f'<circle cx="{cx + ring * math.cos(a)}" cy="{cy + ring * math.sin(a)}" r="{r}" '
-                       f'fill="{FILL[c]}" stroke="{INK if c == 2 else "#fff"}" stroke-width="{span * 0.0035}"/>')
+                       f'fill="{FILL[c]}" stroke="{RYB_INK}" stroke-width="{span * 0.0035}"/>')
     ys = [p[1] for pc in cfg["pieces"] for p in pc["points"]]
     pad = span * 0.06
     w, h = span + 2 * pad, max(ys) - min(ys) + 2 * pad
@@ -125,30 +143,31 @@ def river_svg(cfg: dict, solved: bool):
     H, W, S, P = len(grid), len(grid[0]), 44, 12
     x0 = lambda c: P + c * S
     y0 = lambda r: P + r * S
-    out = []
+    defs, rock = hatch(RIVER_INK, 1, cross=True)
+    out = [defs]
     for r in range(H):
         for c in range(W):
-            fill = INK if grid[r][c] == "#" else ("#f6f2e9" if (r + c) % 2 else "#fff")
+            fill = rock if grid[r][c] == "#" else ("#f5f8f5" if (r + c) % 2 else "#fff")
             out.append(f'<rect x="{x0(c)}" y="{y0(r)}" width="{S}" height="{S}" fill="{fill}"/>')
     for r in range(H + 1):
-        out.append(f'<line x1="{P}" y1="{y0(r)}" x2="{P + W * S}" y2="{y0(r)}" stroke="#d9cfbd"/>')
+        out.append(f'<line x1="{P}" y1="{y0(r)}" x2="{P + W * S}" y2="{y0(r)}" stroke="{RIVER_INK}" stroke-opacity=".28"/>')
     for c in range(W + 1):
-        out.append(f'<line x1="{x0(c)}" y1="{P}" x2="{x0(c)}" y2="{P + H * S}" stroke="#d9cfbd"/>')
+        out.append(f'<line x1="{x0(c)}" y1="{P}" x2="{x0(c)}" y2="{P + H * S}" stroke="{RIVER_INK}" stroke-opacity=".28"/>')
     if solved:
         for r in range(H):
             for c in range(W):
                 cx, cy = x0(c) + S / 2, y0(r) + S / 2
                 if sol[r][c] & 2:
-                    out.append(f'<line x1="{cx}" y1="{cy}" x2="{cx + S}" y2="{cy}" stroke="#2f8fd8" stroke-width="9" stroke-linecap="round"/>')
+                    out.append(f'<line x1="{cx}" y1="{cy}" x2="{cx + S}" y2="{cy}" stroke="#3fb0e6" stroke-width="9" stroke-linecap="round"/>')
                 if sol[r][c] & 4:
-                    out.append(f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy + S}" stroke="#2f8fd8" stroke-width="9" stroke-linecap="round"/>')
+                    out.append(f'<line x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy + S}" stroke="#3fb0e6" stroke-width="9" stroke-linecap="round"/>')
     for r in range(H):
         for c in range(W):
             if walls[r][c] & 2:
-                out.append(f'<line x1="{x0(c + 1)}" y1="{y0(r)}" x2="{x0(c + 1)}" y2="{y0(r + 1)}" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>')
+                out.append(f'<line x1="{x0(c + 1)}" y1="{y0(r)}" x2="{x0(c + 1)}" y2="{y0(r + 1)}" stroke="{RIVER_INK}" stroke-width="6" stroke-linecap="round"/>')
             if walls[r][c] & 4:
-                out.append(f'<line x1="{x0(c)}" y1="{y0(r + 1)}" x2="{x0(c + 1)}" y2="{y0(r + 1)}" stroke="{INK}" stroke-width="6" stroke-linecap="round"/>')
-    out.append(f'<rect x="{P}" y="{P}" width="{W * S}" height="{H * S}" fill="none" stroke="{INK}" stroke-width="3"/>')
+                out.append(f'<line x1="{x0(c)}" y1="{y0(r + 1)}" x2="{x0(c + 1)}" y2="{y0(r + 1)}" stroke="{RIVER_INK}" stroke-width="6" stroke-linecap="round"/>')
+    out.append(f'<rect x="{P}" y="{P}" width="{W * S}" height="{H * S}" fill="none" stroke="{RIVER_INK}" stroke-width="3"/>')
     vw, vh = W * S + 2 * P, H * S + 2 * P
     return f'<svg viewBox="0 0 {vw} {vh}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', vw / vh
 
@@ -161,16 +180,23 @@ def cover(sheets, out: Path):
         w = h * aspect
         cards.append(f'<div class="sheet" style="left:{x - w / 2 - 18}px;top:{y - h / 2 - 18}px;width:{w}px;height:{h}px;'
                      f'transform:rotate({ang}deg)">{svg}</div>')
-    page = f"""<!doctype html><html><head><meta charset="utf-8"><style>
-      html, body {{ margin: 0; width: 1200px; height: 750px; overflow: hidden; background: #ddd0b3; }}
+    page = f"""<!doctype html><html><head><meta charset="utf-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&display=block"><style>
+      html, body {{ margin: 0; width: 1200px; height: 750px; overflow: hidden;
+        background: url("{PAPER_STREAKS}") 0 0 / 600px 600px, #f8f7f2; }}
       .sheet {{ position: absolute; padding: 18px; background: #fff;
-        box-shadow: 0 2px 3px rgba(60,45,20,.25), 0 22px 40px -12px rgba(60,45,20,.45); }}
+        box-shadow: 0 2px 3px rgba(38,57,143,.18), 0 22px 40px -12px rgba(38,57,143,.35); }}
+      .sheet svg {{ filter: url(#pen); }}
       .sheet svg, .sheet img {{ display: block; width: 100%; height: 100%; }}
-    </style></head><body>{"".join(cards)}</body></html>"""
+    </style></head><body>
+    <svg width="0" height="0" style="position:absolute"><filter id="pen" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4"/>
+      <feDisplacementMap in="SourceGraphic" scale="2.2" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+    {"".join(cards)}</body></html>"""
     with tempfile.TemporaryDirectory() as tmp:
         src, png = Path(tmp) / "cover.html", Path(tmp) / "cover.png"
         src.write_text(page)
-        subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars", "--window-size=1200,750",
+        subprocess.run([CHROME, "--headless", "--disable-gpu", "--hide-scrollbars", "--window-size=1200,750", "--virtual-time-budget=4000",
                         f"--screenshot={png}", src.as_uri()], check=True, capture_output=True)
         out.parent.mkdir(parents=True, exist_ok=True)
         Image.open(png).convert("RGB").crop((0, 0, 1200, 750)).save(out, quality=86, optimize=True)
@@ -206,19 +232,19 @@ def mosaic_svg(level: dict):
     H, W, S = len(pic), len(pic[0]), 30
     runs = lambda line: [len(r) for r in "".join("#" if ch != "." else "." for ch in line).split(".") if r] or [0]
     rows, cols = [runs(row) for row in pic], [runs([row[c] for row in pic]) for c in range(W)]
-    L, T, F = max(map(len, rows)) * 22 + 10, max(map(len, cols)) * 24 + 8, 'font-family="Courier Prime, Courier New, monospace" font-size="17" font-weight="700"'
+    L, T, F = max(map(len, rows)) * 22 + 10, max(map(len, cols)) * 24 + 8, 'font-size="18" ' + FONT
     out = []
     for r in range(H + 1):
-        out.append(f'<line x1="{L}" y1="{T + r * S}" x2="{L + W * S}" y2="{T + r * S}" stroke="#d9cfbd" stroke-width="{2 if r % 5 == 0 else 1}"/>')
+        out.append(f'<line x1="{L}" y1="{T + r * S}" x2="{L + W * S}" y2="{T + r * S}" stroke="{PIC_INK}" stroke-opacity="{.6 if r % 5 == 0 else .28}" stroke-width="{2 if r % 5 == 0 else 1}"/>')
     for c in range(W + 1):
-        out.append(f'<line x1="{L + c * S}" y1="{T}" x2="{L + c * S}" y2="{T + H * S}" stroke="#d9cfbd" stroke-width="{2 if c % 5 == 0 else 1}"/>')
+        out.append(f'<line x1="{L + c * S}" y1="{T}" x2="{L + c * S}" y2="{T + H * S}" stroke="{PIC_INK}" stroke-opacity="{.6 if c % 5 == 0 else .28}" stroke-width="{2 if c % 5 == 0 else 1}"/>')
     for r, clue in enumerate(rows):
         for k, n in enumerate(reversed(clue)):
-            out.append(f'<text x="{L - 12 - k * 22}" y="{T + r * S + S / 2 + 6}" text-anchor="middle" {F} fill="{INK}">{n}</text>')
+            out.append(f'<text x="{L - 12 - k * 22}" y="{T + r * S + S / 2 + 6}" text-anchor="middle" {F} fill="{PIC_INK}">{n}</text>')
     for c, clue in enumerate(cols):
         for k, n in enumerate(reversed(clue)):
-            out.append(f'<text x="{L + c * S + S / 2}" y="{T - 10 - k * 24}" text-anchor="middle" {F} fill="{INK}">{n}</text>')
-    out.append(f'<rect x="{L}" y="{T}" width="{W * S}" height="{H * S}" fill="none" stroke="{INK}" stroke-width="3"/>')
+            out.append(f'<text x="{L + c * S + S / 2}" y="{T - 10 - k * 24}" text-anchor="middle" {F} fill="{PIC_INK}">{n}</text>')
+    out.append(f'<rect x="{L}" y="{T}" width="{W * S}" height="{H * S}" fill="none" stroke="{PIC_INK}" stroke-width="2.5"/>')
     vw, vh = L + W * S + 6, T + H * S + 6
     return f'<svg viewBox="0 0 {vw} {vh}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', vw / vh
 

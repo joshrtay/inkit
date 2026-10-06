@@ -20,6 +20,8 @@ export interface GameType {
   /** Cover image path inside public/ (1200 x 750), or none for a plain card. */
   cover?: string;
   coverAlt?: string;
+  /** The pen its boards are drawn with (like the chapters of Inked, each type has its own ink). */
+  ink: string;
   /** Unlisted types still build and can be visited by URL, but get no card on the home page. */
   listed: boolean;
 }
@@ -33,6 +35,7 @@ export const gameTypes: GameType[] = [
     meta: "Print · scissors · pencil",
     cover: "escape-room/cover.jpg",
     coverAlt: "Three typed puzzle sheets fanned out on a manila envelope",
+    ink: "#26398f",
     listed: true,
   },
   {
@@ -43,6 +46,7 @@ export const gameTypes: GameType[] = [
     meta: "Play in the browser",
     cover: "number-line-maze/cover.jpg",
     coverAlt: "Two sheets of numbered circles with arrows marking the way in and out",
+    ink: "#26398f",
     listed: true,
   },
   {
@@ -53,6 +57,7 @@ export const gameTypes: GameType[] = [
     meta: "Play in the browser",
     cover: "three-coats/cover.jpg",
     coverAlt: "Unpainted puzzle figures with red, yellow and blue clue dots",
+    ink: "#2b2b30",
     listed: true,
   },
   {
@@ -63,6 +68,7 @@ export const gameTypes: GameType[] = [
     meta: "Play in the browser",
     cover: "round-the-bend/cover.jpg",
     coverAlt: "Two river grids with dark rocks and thick walls",
+    ink: "#2d6a45",
     listed: true,
   },
   {
@@ -73,6 +79,7 @@ export const gameTypes: GameType[] = [
     meta: "Play in the browser",
     cover: "picture-squares/cover.jpg",
     coverAlt: "Three blank grids with number clues along their edges",
+    ink: "#a3343f",
     listed: true,
   },
 ];

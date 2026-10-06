@@ -2,6 +2,7 @@
 // Games' Loopy River). Drag between cells to draw or erase; tap a border to mark an X
 // where the river can't go. Undo, Check, Reset; checks itself once every cell is filled.
 import type { MountGame } from "../../lib/game";
+import { addInk } from "../../lib/ink";
 import { DOWN, LEFT, RIGHT, UP, type LazyRiverClientConfig } from "./types";
 
 type Cell = [number, number];
@@ -38,6 +39,7 @@ export const createLazyRiver = (config: LazyRiverClientConfig): MountGame => (ro
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
   const svg = q<SVGSVGElement>("svg");
   svg.setAttribute("viewBox", `0 0 ${W * S + 2 * PAD} ${H * S + 2 * PAD}`);
+  addInk(svg, root);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
     const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, String(attrs[k]));

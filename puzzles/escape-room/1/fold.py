@@ -11,7 +11,7 @@ from pathlib import Path
 OUT = Path(__file__).parent / ".build"   # intermediate HTML; build.py renders it to PDF
 OUT.mkdir(exist_ok=True)
 PAGE_W, PAGE_H = 215.9, 279.4
-INK = "#2b2622"
+INK = "#26398f"
 K, M = 9, 22          # band starts at column K and is M columns wide
 CW = 3.3              # mm per character column
 FONT = 5.4            # mm
@@ -88,13 +88,13 @@ def corner_marks():
 html = f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>Fold-In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=block" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime&text=0123456789&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&display=block" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&text=0123456789&display=block" rel="stylesheet">
 <style>
   @page {{ size: letter; margin: 0; }}
   html, body {{ margin: 0; padding: 0; background: #fff; }}
   svg {{ display: block; width: 215.9mm; height: 279.4mm; }}
-  text {{ font-family: 'Courier Prime', 'Special Elite', 'Courier New', monospace; fill: {INK};
+  text {{ font-family: 'Kalam', cursive; fill: {INK};
           font-size: {FONT}px; text-anchor: middle; dominant-baseline: central; }}
   text.hint {{ font-size: {FONT * .8:.2f}px; text-anchor: start; }}
   .reg {{ fill: none; stroke: {INK}; stroke-width: .5; }}

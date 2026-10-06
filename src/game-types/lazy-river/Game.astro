@@ -18,7 +18,7 @@ if (sols.length !== 1) {
 }
 const config: LazyRiverClientConfig = { grid: level.grid, walls: wallBits(level), solution: toBits(b, sols[0]) };
 ---
-<GameShell title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
+<GameShell ink={game.type.ink} title={game.name} eyebrow={`${game.type.name} · No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
   {game.intro && <p slot="intro">{game.intro}</p>}

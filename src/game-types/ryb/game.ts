@@ -3,6 +3,7 @@
 // Faithful to FLEB's RYB: a wrong color is rejected and costs a heart; correct pieces
 // lock in and reveal any hidden clue. Plain TypeScript + SVG.
 import type { MountGame } from "../../lib/game";
+import { addInk } from "../../lib/ink";
 import type { Color, RybClientConfig } from "./types";
 
 const NS = "http://www.w3.org/2000/svg";
@@ -47,6 +48,7 @@ export const createRyb = (config: RybClientConfig): MountGame => (root, host) =>
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
   const svg = q<SVGSVGElement>("svg");
   svg.setAttribute("viewBox", config.viewBox);
+  addInk(svg, root);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
     const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, String(attrs[k]));

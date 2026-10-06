@@ -14,12 +14,14 @@ interface Props {
   back?: { href: string; label: string };
   /** "<type path>/<n>": marks the game finished (check mark) when it fires game:solved. */
   progressId?: string;
+  /** The game type's pen color (see GameType.ink). */
+  ink?: string;
 }
-const { title, description, eyebrow, back = { href: url("/"), label: "All games" }, progressId } = Astro.props;
+const { title, description, eyebrow, back = { href: url("/"), label: "All games" }, progressId, ink } = Astro.props;
 const hasIntro = Astro.slots.has("intro");
 const hasDirections = Astro.slots.has("directions");
 ---
-<Base title={title} description={description}>
+<Base title={title} description={description} ink={ink}>
   <main class="wrap">
     <header class="game-header">
       <a class="back" href={back.href}>&larr; {back.label}</a>

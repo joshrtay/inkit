@@ -3,6 +3,7 @@
 // way; dragging paints the first cell's new value. Tap a clue number to tick it off.
 // Undo, Hint, Check, Reset. Solving fades the grid into the colored picture.
 import type { MountGame } from "../../lib/game";
+import { addInk } from "../../lib/ink";
 import { runs, solveLine, type Cell } from "./solver";
 import type { MosaicClientConfig } from "./types";
 
@@ -32,6 +33,7 @@ export const createMosaic = (config: MosaicClientConfig): MountGame => (root, ho
   const CH = Math.max(...cols.map((c) => c.length)) * 18 + 10;          // height of the column-clue area
   const svg = q<SVGSVGElement>("svg");
   svg.setAttribute("viewBox", `0 0 ${CW + W * S + 4} ${CH + H * S + 4}`);
+  addInk(svg, root);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
     const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, String(attrs[k]));
