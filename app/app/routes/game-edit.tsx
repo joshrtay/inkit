@@ -9,8 +9,6 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { canEdit, canHide, roleIn } from "~/lib/permissions.server";
 import { changeGame, isFeatured, rereadDrawing } from "~/lib/games.server";
-import { parseSketch } from "~/games/sketch";
-import { layoutOf } from "~/games/layout-of";
 import { ConfirmDrawing } from "~/components/ConfirmDrawing";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { SketchEditor } from "~/components/SketchEditor";
@@ -29,16 +27,11 @@ async function load(request: Request, env: Env, id: string) {
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
-  const parsed = parseSketch(game.sketch, game.sketchVersion);
   return {
     game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },
     may, featured: await isFeatured(db, game.id),
     // a draft made from a drawing is confirmed against it first
-    drawing: game.sketchImage && game.state === "draft" && may.edit ? {
-      play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
-      problems: parsed.ok ? [] : parsed.errors,
-      notes: game.parseNotes ?? [],
-    } : null,
+    drawing: game.sketchImage && game.state === "draft" && may.edit ? { notes: game.parseNotes ?? [] } : null,
   };
 }
 
@@ -49,7 +42,9 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   return attempt(async () => {
     if (intent === "reread") { await rereadDrawing(db, env, me, game, form); return { error: undefined, done: intent }; }
     await changeGame(db, me, game, form);
-    return intent === "save" || intent === "publish" ? redirect(`/g/${game.id}`) : { error: undefined, done: intent };
+    // saving a drawing's corrected reading keeps the creator on the confirm screen
+    const confirming = game.sketchImage && game.state === "draft" && intent === "save" && form.get("stay") === "1";
+    return (intent === "save" || intent === "publish") && !confirming ? redirect(`/g/${game.id}`) : { error: undefined, done: intent };
   });
 }
 
@@ -70,7 +65,7 @@ export default function EditGame({ loaderData: { game, may, featured, drawing },
       {drawing ? (
         <>
           <ConfirmDrawing gameId={game.id} title={game.title} description={game.description} sketch={game.sketch}
-            play={drawing.play} notes={drawing.notes} problems={drawing.problems} error={error} />
+            notes={drawing.notes} error={error} />
           <details className="advanced">
             <summary>Edit the sketch text yourself</summary>
             <SketchEditor key={game.sketch} initial={game} saveLabel="Save draft" />

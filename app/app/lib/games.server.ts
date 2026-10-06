@@ -167,7 +167,7 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
   if (!stored) throw new Invalid("This game has no uploaded sketch to re-read.");
   const type = (stored.httpMetadata?.contentType ?? "image/jpeg") as (typeof IMAGE_TYPES)[number];
   const { reading, sketch } = await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
-    { sketch: game.sketch, feedback });
+    { previous: { sketch: game.sketch, feedback } });
   await db.update(schema.games).set({
     sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
     parseNotes: [...reading.notes, ...sketchProblems(sketch)], updatedAt: new Date(),

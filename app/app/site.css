@@ -123,3 +123,32 @@ textarea.sketch { font: 400 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monos
 .advanced { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
 .advanced summary { cursor: pointer; color: var(--muted); font-weight: 600; margin-bottom: 14px; }
 @media (max-width: 760px) { .compare { grid-template-columns: minmax(0, 1fr); } }
+
+/* the visual clue editor */
+.givens-editor { display: grid; gap: 8px; }
+.ge-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 14px; }
+.ge-bar button { font: 600 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); padding: 6px 9px; cursor: pointer; }
+.ge-bar button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.ge-size { display: inline-flex; align-items: center; gap: 5px; }
+.ge-size b { min-width: 1.6em; text-align: center; }
+.ge-tools { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ge-bar input { width: 4.2em; font: 400 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 6px; }
+.ge-compass { display: inline-flex; gap: 6px; }
+.ge-grid { width: 100%; max-height: 70vh; background: #fff; border-radius: 4px; cursor: pointer; touch-action: manipulation; }
+.ge-cell { fill: #fff; stroke: #b9bfd6; stroke-width: 1; }
+.ge-cell.painted { fill: #26398f; }
+.ge-cell:hover { fill: #eef1fb; }
+.ge-cell.painted:hover { fill: #3a4da3; }
+.ge-rock { fill: #8b97c4; }
+.ge-wall { stroke: #26398f; stroke-width: 6; stroke-linecap: round; }
+.ge-diamond { fill: #fff; stroke: #26398f; stroke-width: 2.5; }
+.ge-diamond.filled { fill: #26398f; }
+.ge-text { font: 700 22px var(--hand); fill: #26398f; text-anchor: middle; pointer-events: none; }
+.ge-text.small { font-size: 12px; }
+.ge-text circle { fill: #26398f; }
+.ge-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); }
+.chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.ge-rules select { font-size: 14px; padding: 5px 8px; }
+.ge-rules input { width: 4em; padding: 5px 6px; }
