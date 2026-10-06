@@ -24,38 +24,41 @@ const config: PacketClientConfig = {
 <GameShell ink={game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
   progressId={`${game.type.path}/${game.number}`}>
-  {game.intro && <p slot="intro">{game.intro}</p>}
-
   <div class="packet" data-game-type="packet" data-game-id={hostId} data-config={JSON.stringify(config)}>
-    <section class="viewer" aria-label="Sheets">
-      <ul class="sheets" data-sheet-list></ul>
-      <div class="stage">
-        <div class="sheet" style="--ratio: 0.7727">
-          <div class="paper-bar">
-            <div class="group">
-              <button class="tool" data-prev type="button" aria-label="Previous sheet" title="Previous sheet"><Icon name="prev" /></button>
-              <span class="where" data-where></span>
-              <button class="tool" data-next type="button" aria-label="Next sheet" title="Next sheet"><Icon name="next" /></button>
-            </div>
-            <div class="group">
-              <a class="tool" data-pdf href={`${config.sheetsBase}${sheets[0].file}.pdf`} target="_blank" rel="noopener" aria-label="Print this sheet (PDF)" title="Print this sheet (PDF)"><Icon name="print" /></a>
-            </div>
-          </div>
-          <img data-sheet-img alt="" width="1105" height="1430" />
+    <div class="sheet" style="--ratio: 0.7727">
+      <div class="paper-bar">
+        <div class="group">
+          <button class="tool" data-prev type="button" aria-label="Previous sheet" title="Previous sheet"><Icon name="prev" /></button>
+          <span class="where" data-where></span>
+          <button class="tool" data-next type="button" aria-label="Next sheet" title="Next sheet"><Icon name="next" /></button>
         </div>
-        <p class="note" data-note></p>
+        <div class="group">
+          <a class="tool" data-pdf href={`${config.sheetsBase}${sheets[0].file}.pdf`} target="_blank" rel="noopener"
+             aria-label="Print this sheet (PDF, print at 100%)" title="Print this sheet (PDF, print at 100%)"><Icon name="print" /></a>
+        </div>
       </div>
-    </section>
+      <img data-sheet-img alt="" width="1105" height="1430" />
+    </div>
 
-    <section class="slip" aria-labelledby="packet-check">
-      <h2 id="packet-check">Check your final answer</h2>
-      <p>Enter the number from the last sheet. Commas and spaces are fine.</p>
-      <form data-check autocomplete="off">
-        <input data-answer name="answer" inputmode="numeric" placeholder="00,000" aria-label="Final answer" />
-        <button class="btn primary" type="submit">Check answer</button>
-      </form>
-      <div class="result" data-result aria-live="polite"></div>
-    </section>
+    <aside class="side">
+      <label class="pick">
+        <span>Sheet</span>
+        <select data-sheet-select>
+          {sheets.map((s, i) => <option value={i}>{s.name} &middot; {s.kind}</option>)}
+        </select>
+      </label>
+      <p class="note" data-note></p>
+
+      <section class="slip" aria-labelledby="packet-check">
+        <h2 id="packet-check">Check your final answer</h2>
+        <p>Enter the number from the last sheet. Commas and spaces are fine.</p>
+        <form data-check autocomplete="off">
+          <input data-answer name="answer" inputmode="numeric" placeholder="00,000" aria-label="Final answer" />
+          <button class="btn primary" type="submit">Check answer</button>
+        </form>
+        <div class="result" data-result aria-live="polite"></div>
+      </section>
+    </aside>
   </div>
 </GameShell>
 

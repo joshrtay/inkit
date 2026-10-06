@@ -9,22 +9,14 @@ export const normalizeAnswer = (raw: string) => raw.replace(/[\s,._']/g, "").rep
 export const createPacket = (config: PacketClientConfig): MountGame => (root, host) => {
   const { sheets, sheetsBase: base, answerHash } = config;
   const q = <T extends HTMLElement>(sel: string) => root.querySelector(sel) as T;
-  const list = q("[data-sheet-list]"), img = q<HTMLImageElement>("[data-sheet-img]");
+  const select = q<HTMLSelectElement>("[data-sheet-select]"), img = q<HTMLImageElement>("[data-sheet-img]");
   const where = q("[data-where]"), note = q("[data-note]");
   const prev = q<HTMLButtonElement>("[data-prev]"), next = q<HTMLButtonElement>("[data-next]");
   const pdf = q<HTMLAnchorElement>("[data-pdf]");
   let current = 0;
 
-  sheets.forEach((s, i) => {
-    const li = document.createElement("li");
-    const b = document.createElement("button");
-    b.type = "button";
-    b.innerHTML = `<span>${s.name}</span><span class="kind">${s.kind}</span>`;
-    b.addEventListener("click", () => show(i, true));
-    li.appendChild(b);
-    list.appendChild(li);
-    new Image().src = `${base}${s.file}.png`;   // warm the cache so paging is instant
-  });
+  sheets.forEach((s) => { new Image().src = `${base}${s.file}.png`; });   // warm the cache so paging is instant
+  select.addEventListener("change", () => show(Number(select.value), true));
 
   function show(i: number, fromUser: boolean) {
     current = Math.max(0, Math.min(sheets.length - 1, i));
@@ -36,14 +28,14 @@ export const createPacket = (config: PacketClientConfig): MountGame => (root, ho
     note.textContent = s.note;
     prev.disabled = current === 0;
     next.disabled = current === sheets.length - 1;
-    list.querySelectorAll("button").forEach((b, j) => b.setAttribute("aria-current", String(j === current)));
+    select.value = String(current);
     if (fromUser) history.replaceState(null, "", "#" + s.id);
   }
 
   prev.addEventListener("click", () => show(current - 1, true));
   next.addEventListener("click", () => show(current + 1, true));
   const onKey = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement).closest("input, textarea")) return;
+    if ((e.target as HTMLElement).closest("input, textarea, select")) return;
     if (e.key === "ArrowLeft") show(current - 1, true);
     if (e.key === "ArrowRight") show(current + 1, true);
   };
