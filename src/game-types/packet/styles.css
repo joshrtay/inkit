@@ -7,7 +7,7 @@
 .packet .sheets button {
   width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
   font: 400 15px/1.2 var(--mono); color: var(--ink); background: transparent;
-  border: 1.4px solid transparent; border-radius: var(--sketch-radius); padding: 8px 10px 7px; cursor: pointer; text-align: left;
+  border: 1.4px solid transparent; border-radius: var(--radius); padding: 8px 10px; cursor: pointer; text-align: left;
 }
 .packet .sheets button:hover { border-color: var(--line); }
 .packet .sheets button[aria-current="true"] { background: var(--panel); border-color: var(--line); font-weight: 700; }
@@ -24,7 +24,7 @@
 .packet .note { font-size: 14px; color: var(--muted); max-width: 640px; text-align: center; margin: 0; }
 
 .packet .slip {
-  background: var(--panel); border: 1.6px dashed var(--ink); border-radius: var(--sketch-radius);
+  background: var(--panel); border: 1.6px dashed var(--ink); border-radius: var(--radius);
   padding: 22px 20px; display: grid; gap: 14px; max-width: 640px; width: 100%; justify-self: center;
 }
 .packet .slip h2 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; }
@@ -32,7 +32,7 @@
 .packet .slip form { display: flex; flex-wrap: wrap; gap: 10px; }
 .packet .slip input {
   flex: 1 1 180px; min-width: 0; font: 400 22px/1 var(--mono); letter-spacing: .08em; font-variant-numeric: tabular-nums;
-  color: var(--ink); background: var(--bg); border: 1.4px solid var(--ink); border-radius: var(--sketch-radius); padding: 10px 12px 8px;
+  color: var(--ink); background: var(--bg); border: 1.4px solid var(--ink); border-radius: var(--radius); padding: 10px 12px;
 }
 .packet .slip .btn { padding-inline: 18px; }
 .packet .result { min-height: 1.5em; font-family: var(--mono); font-size: 15px; }

@@ -13,18 +13,22 @@ interface Props {
 const { title, description, ink } = Astro.props;
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>{title}</title>
     <!-- the saved light/dark choice (src/lib/theme.ts), applied before anything draws -->
     <script is:inline>
-      try { const t = localStorage.getItem("wyattsgames:theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}
+      (() => {
+        let t = "dark";   // the default
+        try { t = localStorage.getItem("wyattsgames:theme") || "dark"; } catch {}
+        if (t !== "auto") document.documentElement.dataset.theme = t === "light" ? "light" : "dark";
+      })();
     </script>
     {description && <meta name="description" content={description} />}
     <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700&display=swap" />
   </head>
   <body style={ink ? `--paper-ink: ${ink}` : undefined}>
     <!-- The pen wobble every game board is drawn with (global.css: .sheet svg). Hatching and

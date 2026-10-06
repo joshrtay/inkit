@@ -190,10 +190,11 @@ solution. To make a level, draw the picture in letters and pick a color per lett
 After the game Inked: ballpoint pen on white paper. The page is nearly white paper with a
 faint cloudy texture (`public/paper.svg`) that darkens slightly toward the edges of the
 screen (`--page` in `global.css`). Dark mode is a charcoal page with pale ink for
-the text; game boards stay white paper. Players pick Light, Dark or Match device in the account menu
-(`src/lib/theme.ts`); it sets `data-theme` on `<html>`, and an inline script in
-`Base.astro` applies the saved choice before the page draws. Headings are in Kaushan Script, everything else
-in Kalam.
+the text; game boards stay white paper. Dark is the default. Players pick Light, Dark or Match
+device in the account menu (`src/lib/theme.ts`); it sets `data-theme` on `<html>`, and
+an inline script in `Base.astro` applies the saved choice before the page draws. Only the puzzles are handwritten: numbers and clues on boards
+use Kalam (`--hand`). The site is plain Nunito, with Kaushan Script kept for the logo
+and page titles.
 - Each game type draws its boards in its own ink (`ink` in `src/games.ts`, set as
   `--paper-ink` on the page): blue for the escape room and mazes, black for Three
   Coats, green for Round the Bend, red for Picture Squares.

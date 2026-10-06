@@ -9,7 +9,7 @@
 .number-maze .phases { display: flex; gap: 6px; }
 .number-maze .phase {
   font: 700 14px/1.2 var(--mono); color: var(--ink); background: transparent;
-  border: 1.4px solid var(--line); border-radius: var(--sketch-radius); padding: 8px 12px 7px; cursor: pointer;
+  border: 1.4px solid var(--line); border-radius: var(--radius); padding: 8px 12px; cursor: pointer;
 }
 .number-maze .phase[aria-pressed="true"] { background: var(--panel); border-color: var(--ink); }
 .number-maze .phase:disabled { opacity: .45; cursor: not-allowed; }
@@ -27,7 +27,7 @@
   padding: 8px; justify-self: center; width: 100%; max-width: min(600px, max(320px, calc((100dvh - 40px) * var(--ratio, .7))));
 }
 .number-maze svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
-.number-maze svg text { font-family: var(--mono); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.number-maze svg text { font-family: var(--hand); font-weight: 700; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 
 .number-maze .wall { stroke: var(--paper-ink); stroke-width: 5; stroke-linecap: round; }
 .number-maze .wall.hint { stroke: var(--blue); }
@@ -36,10 +36,10 @@
 .number-maze .gap:hover { fill: color-mix(in srgb, var(--wash-blue) 30%, transparent); }
 .number-maze .num circle { fill: #fff; stroke: var(--paper-ink); stroke-width: 1.5; }
 .number-maze .num text { fill: var(--paper-ink); font-size: 16px; }
-.number-maze .num.done circle { fill: var(--done-fill); stroke: var(--good); }
-.number-maze .num.over circle { fill: color-mix(in srgb, var(--wash-red) 30%, #fff); stroke: var(--red); stroke-width: 2.2; }
-.number-maze .num.over text { fill: var(--red); }
-.number-maze .arrow { fill: none; stroke: var(--red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.number-maze .num.done circle { fill: var(--done-fill); stroke: var(--paper-good); }
+.number-maze .num.over circle { fill: color-mix(in srgb, var(--wash-red) 30%, #fff); stroke: var(--paper-red); stroke-width: 2.2; }
+.number-maze .num.over text { fill: var(--paper-red); }
+.number-maze .arrow { fill: none; stroke: var(--paper-red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
 /* walking: walls stay dark, numbers shrink into posts, open squares become the floor */
 .number-maze .walking .gap { display: none; }
@@ -48,7 +48,7 @@
 .number-maze .walking .num text { display: none; }
 .number-maze .walking .square.reach { fill: color-mix(in srgb, var(--wash-orange) 25%, transparent); cursor: pointer; }
 .number-maze .trail { fill: none; stroke: var(--trail); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; opacity: .8; filter: var(--wash); }
-.number-maze .token { fill: var(--red); stroke: #fff; stroke-width: 2.5; }
+.number-maze .token { fill: var(--paper-red); stroke: #fff; stroke-width: 2.5; }
 
 @media (max-width: 600px) { .number-maze .sheet { padding: 3px; } .number-maze .phase { padding: 8px 9px; font-size: 13px; } }
 @media (prefers-reduced-motion: reduce) { .number-maze .meter span { transition: none; } }

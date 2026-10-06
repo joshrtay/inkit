@@ -15,6 +15,8 @@
   --good: #2b7a52;
   --paper: #fffefa;       /* game boards and sheets are always white paper */
   --paper-ink: #26398f;   /* the pen a board is drawn with; game types pick their own */
+  --paper-red: #c4364b;   /* red and green on the boards: fixed, since boards are white paper in every mode */
+  --paper-good: #2b7a52;
   --shadow: rgba(70, 62, 52, .22);
   /* the page: paper texture (faded most of the way to white) under a faint vignette, fixed to
      the screen like a sheet under the camera */
@@ -30,15 +32,17 @@
   --wash-green: #7cc68f;
   --wash-pink: #f07ab8;
 
+  /* Only the puzzles are handwritten (--hand: numbers and clues on boards). The site itself
+     is plain type, with the brush script kept for the logo and page titles. */
   --display: 'Kaushan Script', 'Brush Script MT', cursive;
-  --mono: 'Kalam', 'Comic Sans MS', cursive;    /* numbers and labels: handwritten */
-  --body: 'Kalam', 'Comic Sans MS', cursive;
+  --hand: 'Kalam', 'Comic Sans MS', cursive;
+  --body: 'Nunito', system-ui, sans-serif;
+  --mono: var(--body);    /* labels, buttons and status lines */
 
   /* the pen line around cards, so white cards stand off the near-white paper */
   --card-border: 1.5px solid color-mix(in srgb, var(--ink) 32%, transparent);
 
-  /* a wobbly hand-drawn box: uneven corner radii */
-  --sketch-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --radius: 6px;
 }
 /* Dark mode: a charcoal page with pale ink for the text. Game boards stay white paper. */
 @media (prefers-color-scheme: dark) {
@@ -62,9 +66,9 @@ img { max-width: 100%; }
 body {
   margin: 0; overflow-x: clip; color: var(--ink);
   background: var(--page), var(--bg);
-  font-family: var(--body); font-size: 17px; line-height: 1.5;
+  font-family: var(--body); font-size: 16px; line-height: 1.5;
 }
-button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 /* The #pen filter lives in an invisible SVG at the top of <body>. */
 .ink-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
@@ -82,13 +86,13 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px dashed
 .topnav .brand:hover { color: var(--muted); }
 .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 28px; }
 
-.eyebrow { font-family: var(--mono); font-size: 14px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .back { font-family: var(--mono); font-size: 15px; color: var(--muted); text-decoration: none; justify-self: start; }
-.back:hover { color: var(--ink); text-decoration: underline wavy; }
+.back:hover { color: var(--ink); text-decoration: underline; }
 
 .btn {
-  font: 700 15px/1 var(--mono); color: var(--ink); background: var(--panel);
-  border: 1.6px solid var(--ink); border-radius: var(--sketch-radius); padding: 9px 14px 8px; cursor: pointer;
+  font: 700 14px/1 var(--mono); color: var(--ink); background: var(--panel);
+  border: 1.5px solid var(--ink); border-radius: var(--radius); padding: 9px 14px; cursor: pointer;
 }
 .btn:hover:not(:disabled) { background: color-mix(in srgb, var(--wash-blue) 18%, var(--panel)); }
 .btn:disabled { opacity: .4; cursor: default; }
@@ -98,11 +102,11 @@ a.btn { text-decoration: none; display: inline-block; }
 
 /* A card of directions under a game board (GameShell's "directions" slot). */
 .rules {
-  background: var(--panel); border: 1.4px solid var(--line); border-radius: var(--sketch-radius);
+  background: var(--panel); border: 1.4px solid var(--line); border-radius: var(--radius);
   padding: 14px 18px; display: grid; gap: 8px; align-content: start;
 }
 .rules h2 { font-family: var(--display); font-weight: 400; font-size: 23px; margin: 0; }
-.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 16px; }
+.rules ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
 .rules p { margin: 0; font-size: 15px; color: var(--muted); }
 .rules.current { border-color: var(--ink); border-width: 1.8px; }
 

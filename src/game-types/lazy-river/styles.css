@@ -28,6 +28,6 @@
 .lazy-river .joint { fill: var(--water); }
 .lazy-river .river.done { stroke: var(--water-done); }
 .lazy-river .joint.done { fill: var(--water-done); }
-.lazy-river .xmark { stroke: var(--red); stroke-width: 2.4; stroke-linecap: round; }
+.lazy-river .xmark { stroke: var(--paper-red); stroke-width: 2.4; stroke-linecap: round; }
 
 @media (max-width: 600px) { .lazy-river .sheet { padding: 4px; } }
