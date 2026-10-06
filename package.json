@@ -14,6 +14,7 @@
     "typescript": "^6.0.3"
   },
   "devDependencies": {
-    "@types/node": "^26.6.4"
+    "@types/node": "^26.6.4",
+    "clingo-wasm": "^0.6.0"
   }
 }
