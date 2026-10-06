@@ -3,7 +3,7 @@
   --r: #ed1c24;          /* 1 red    \                              */
   --y: #fff200;          /* 2 yellow  } the original RYB's primaries */
   --b: #00aeef;          /* 3 blue   /                              */
-  --unpainted: var(--hatch);  /* pieces start as pen hatching on the paper */
+  --unpainted: color-mix(in srgb, var(--paper-ink) 26%, #fff);  /* pieces start as a pale ink wash */
   display: grid; gap: 18px;
 }
 .ryb .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
@@ -31,9 +31,10 @@
 }
 .ryb svg { display: block; width: 100%; height: auto; user-select: none; -webkit-user-select: none; }
 
-.ryb .piece { fill: var(--unpainted); stroke: var(--paper-ink); stroke-width: .5%; stroke-linejoin: round; cursor: pointer; }
-.ryb .piece:hover { fill: var(--crosshatch); }
-.ryb .piece.c1, .ryb .piece.c2, .ryb .piece.c3 { cursor: default; filter: var(--wash); }
+.ryb .piece { fill: var(--unpainted); cursor: pointer; filter: var(--wash); }
+.ryb .piece:hover { fill: color-mix(in srgb, var(--paper-ink) 42%, #fff); }
+.ryb .edge { fill: none; stroke: var(--paper-ink); stroke-width: .5%; stroke-linejoin: round; pointer-events: none; }
+.ryb .piece.c1, .ryb .piece.c2, .ryb .piece.c3 { cursor: default; }
 .ryb .piece.c1 { fill: var(--r); }
 .ryb .piece.c2 { fill: var(--y); }
 .ryb .piece.c3 { fill: var(--b); }

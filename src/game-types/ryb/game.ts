@@ -65,9 +65,10 @@ export const createRyb = (config: RybClientConfig): MountGame => (root, host) =>
 
   // ---- board ----
   const span = Number(config.viewBox.split(" ")[2]);
-  const gPieces = el("g", {}), gDots = el("g", {});
-  const shapeEls = pieces.map((p, i) =>
-    el("polygon", { class: "piece", points: p.points.map((pt) => pt.join(",")).join(" "), "data-i": i }, gPieces));
+  const gPieces = el("g", {}), gEdges = el("g", { class: "edges" }), gDots = el("g", {});
+  const pointsOf = (p: (typeof pieces)[number]) => p.points.map((pt) => pt.join(",")).join(" ");
+  const shapeEls = pieces.map((p, i) => el("polygon", { class: "piece", points: pointsOf(p), "data-i": i }, gPieces));
+  for (const p of pieces) el("polygon", { class: "edge", points: pointsOf(p) }, gEdges);   // pen outlines, drawn over the paint
   const dotGroups = pieces.map((p) => {
     const g = el("g", { class: "dots" }, gDots);
     const n = p.dots.length;

@@ -1,8 +1,8 @@
 /* Site-wide tokens and base styles. Every page gets these through layouts/Base.astro.
    Look: ballpoint pen on white paper, after the game Inked. One ink color per game type
    (each type sets --paper-ink on its board), pale pen streaks behind everything, and
-   watercolor washes for color. Boards get a pen wobble (#pen, in Base.astro) and their own
-   hatching and wash (src/lib/ink.ts). */
+   watercolor washes for every fill. Boards get a pen wobble (#pen, in Base.astro) and their
+   own watercolor filter (src/lib/ink.ts). */
 :root {
   --bg: #f8f7f2;          /* paper */
   --panel: #ffffff;
@@ -57,7 +57,6 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px dashed
 
 /* The #pen filter lives in an invisible SVG at the top of <body>. */
 .ink-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
-.hatch-ink { stroke: var(--paper-ink); }
 
 .topnav {
   position: sticky; top: 0; z-index: 10;

@@ -49,7 +49,7 @@ export const createLazyRiver = (config: LazyRiverClientConfig): MountGame => (ro
   const x0 = (c: number) => PAD + c * S, y0 = (r: number) => PAD + r * S;
   const cx = (c: number) => x0(c) + S / 2, cy = (r: number) => y0(r) + S / 2;
 
-  const gCells = el("g", {}), gGrid = el("g", {}), gWalls = el("g", {}), gMarks = el("g", {}), gRiver = el("g", {});
+  const gCells = el("g", {}), gGrid = el("g", {}), gWalls = el("g", {}), gMarks = el("g", {}), gRiver = el("g", { class: "water" });
   const cellEls: Element[][] = [];
   for (let r = 0; r < H; r++) {
     cellEls.push([]);
@@ -87,7 +87,7 @@ export const createLazyRiver = (config: LazyRiverClientConfig): MountGame => (ro
     }
     // a dot on each cell the river passes through, so joints look rounded
     for (let r = 0; r < H; r++) for (let c = 0; c < W; c++)
-      if (d[r][c]) el("circle", { class: "joint" + (solved ? " done" : ""), cx: cx(c), cy: cy(r), r: 4.5 }, gRiver);
+      if (d[r][c]) el("circle", { class: "joint" + (solved ? " done" : ""), cx: cx(c), cy: cy(r), r: 6.5 }, gRiver);
     for (const k of xs) {
       const [a, b] = parse(k);
       const mx = (cx(a[1]) + cx(b[1])) / 2, my = (cy(a[0]) + cy(b[0])) / 2, s = 5;

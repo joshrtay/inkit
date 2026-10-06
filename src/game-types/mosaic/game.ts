@@ -42,7 +42,7 @@ export const createMosaic = (config: MosaicClientConfig): MountGame => (root, ho
   };
   const X = (c: number) => CW + c * S, Y = (r: number) => CH + r * S;
 
-  const gClues = el("g", { class: "clues" }), gGrid = el("g", {}), gLines = el("g", {}), gHint = el("g", {});
+  const gClues = el("g", { class: "clues" }), gGrid = el("g", { class: "cells" }), gLines = el("g", {}), gHint = el("g", {});
   const cellEls: Element[][] = [], xEls: Element[][] = [];
   for (let r = 0; r < H; r++) {
     cellEls.push([]); xEls.push([]);

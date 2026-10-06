@@ -33,17 +33,33 @@ PAPER_STREAKS = (ROOT / "public" / "paper.svg").as_uri()
 _ids = 0
 
 
-def hatch(ink: str, unit: float, cross: bool = False):
-    """(defs, fill) for pen hatching drawn in `ink`, spaced for a board of `unit` units per pixel."""
+def wash(u: float):
+    """(defs, filter) for the site's watercolor (src/lib/ink.ts), for a board of `u` units per pixel."""
     global _ids
     _ids += 1
-    g = 6 * unit
-    lines = f'<line x1="0" y1="{g / 2}" x2="{g}" y2="{g / 2}" stroke="{ink}" stroke-width="{1.5 * unit}"/>'
-    if cross:
-        lines += f'<line x1="{g / 2}" y1="0" x2="{g / 2}" y2="{g}" stroke="{ink}" stroke-width="{1.1 * unit}"/>'
-    pid = f"h{_ids}"
-    return (f'<defs><pattern id="{pid}" width="{g}" height="{g}" patternUnits="userSpaceOnUse" '
-            f'patternTransform="rotate(-35)">{lines}</pattern></defs>', f"url(#{pid})")
+    fid = f"wash{_ids}"
+    dark = lambda k: f"{k} 0 0 0 0  0 {k} 0 0 0  0 0 {k} 0 0  0 0 0 1 0"
+    return (f'''<defs><filter id="{fid}" x="-15%" y="-15%" width="130%" height="130%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="{0.025 / u}" numOctaves="3" seed="3" result="blot"/>
+      <feTurbulence type="fractalNoise" baseFrequency="{0.006 / u} {0.09 / u}" numOctaves="2" seed="8" result="streak"/>
+      <feDisplacementMap in="SourceGraphic" in2="blot" scale="{5 * u}" xChannelSelector="R" yChannelSelector="G" result="shape"/>
+      <feMorphology in="shape" operator="erode" radius="{4 * u}" result="core0"/>
+      <feGaussianBlur in="core0" stdDeviation="{3.5 * u}" result="core"/>
+      <feComposite in="shape" in2="core" operator="out" result="rim0"/>
+      <feColorMatrix in="rim0" type="matrix" values="{dark(0.62)}" result="rim"/>
+      <feColorMatrix in="blot" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.75 0 0 0 -0.33" result="light0"/>
+      <feComposite in="light0" in2="shape" operator="in" result="light"/>
+      <feColorMatrix in="shape" type="matrix" values="{dark(0.8)}" result="deep"/>
+      <feColorMatrix in="streak" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1.6 0 0 0 -0.85" result="streakA"/>
+      <feComposite in="deep" in2="streakA" operator="in" result="streaks"/>
+      <feMerge result="paint"><feMergeNode in="shape"/><feMergeNode in="light"/><feMergeNode in="streaks"/><feMergeNode in="rim"/></feMerge>
+      <feGaussianBlur in="paint" stdDeviation="{0.5 * u}"/></filter></defs>''', f"url(#{fid})")
+
+
+def tint(ink: str, k: float) -> str:
+    """`ink` mixed with white: k = 1 is the ink itself."""
+    rgb = [int(ink[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(255 - (255 - v) * k):02x}" for v in rgb)
 
 
 # ---- number maze ----
@@ -105,12 +121,14 @@ def ryb_config(n: int) -> dict:
 def ryb_svg(cfg: dict, painted: bool) -> str:
     xs = [p[0] for pc in cfg["pieces"] for p in pc["points"]]
     span = max(xs) - min(xs)
-    defs, hatched = hatch(RYB_INK, span / 400)
-    out = [defs]
+    defs, wc = wash(span / 400)
+    out, edges = [defs], []
     for i, pc in enumerate(cfg["pieces"]):
-        fill = FILL[cfg["solution"][i]] if painted else hatched
+        fill = FILL[cfg["solution"][i]] if painted else tint(RYB_INK, 0.26)
         pts = " ".join(f"{x},{y}" for x, y in pc["points"])
-        out.append(f'<polygon points="{pts}" fill="{fill}" stroke="{RYB_INK}" stroke-width="{span * 0.005}" stroke-linejoin="round"/>')
+        out.append(f'<polygon points="{pts}" fill="{fill}" filter="{wc}"/>')
+        edges.append(f'<polygon points="{pts}" fill="none" stroke="{RYB_INK}" stroke-width="{span * 0.005}" stroke-linejoin="round"/>')
+    out += edges
     for pc in cfg["pieces"]:
         dots = pc["dots"]
         if not dots or (pc["hidden"] and not painted):
@@ -143,12 +161,14 @@ def river_svg(cfg: dict, solved: bool):
     H, W, S, P = len(grid), len(grid[0]), 44, 12
     x0 = lambda c: P + c * S
     y0 = lambda r: P + r * S
-    defs, rock = hatch(RIVER_INK, 1, cross=True)
+    defs, wc = wash(1)
     out = [defs]
     for r in range(H):
         for c in range(W):
-            fill = rock if grid[r][c] == "#" else ("#f5f8f5" if (r + c) % 2 else "#fff")
+            fill = "#f5f8f5" if (r + c) % 2 else "#fff"
             out.append(f'<rect x="{x0(c)}" y="{y0(r)}" width="{S}" height="{S}" fill="{fill}"/>')
+            if grid[r][c] == "#":
+                out.append(f'<rect x="{x0(c)}" y="{y0(r)}" width="{S}" height="{S}" fill="{tint(RIVER_INK, 0.75)}" filter="{wc}"/>')
     for r in range(H + 1):
         out.append(f'<line x1="{P}" y1="{y0(r)}" x2="{P + W * S}" y2="{y0(r)}" stroke="{RIVER_INK}" stroke-opacity=".28"/>')
     for c in range(W + 1):

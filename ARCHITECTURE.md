@@ -69,7 +69,7 @@ Actions runs it on every push to `main`.
 | `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
-| `src/lib/ink.ts` | Pen hatching and watercolor for a board's SVG, at its scale (see Look). |
+| `src/lib/ink.ts` | The watercolor filter for a board's SVG, at its scale (see Look). |
 | `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (builds links from the site root); `sha256()`; which games the player has finished. |
 | `src/components/Check.astro` | The animated check mark for finished games. |
 | `src/lib/account.ts`, `src/components/Account.astro` | Player login (name + PIN) and cloud sync of progress. |
@@ -192,10 +192,12 @@ After the game Inked: ballpoint pen on white paper. The page has pale pen streak
   `--paper-ink` on the page): blue for the escape room and mazes, black for Three
   Coats, green for Round the Bend, red for Picture Squares.
 - Every board's SVG gets a slight pen wobble (`#pen` filter in `Base.astro`).
-- Shaded areas are pen hatching, and color is watercolor. Both are added per board at
-  its own scale by `addInk()` in `src/lib/ink.ts`, which a type's `game.ts` calls
-  after setting the viewBox; styles use `var(--hatch)`, `var(--crosshatch)` and
-  `var(--wash)`.
+- Every fill is watercolor, after the washes in Inked: pigment pools darker at the
+  edges, the middle is mottled, faint brush streaks run through it and the edge bleeds.
+  `addInk()` in `src/lib/ink.ts` adds the filter to a board at its own scale (a type's
+  `game.ts` calls it after setting the viewBox); styles use `filter: var(--wash)` on a
+  plain fill color. Put it on a whole layer, not each piece, when touching areas should
+  pool into one wash (Picture Squares' cells, Round the Bend's river).
 - Printed sheets and home-page covers (`puzzles/covers.py`) use the same inks and fonts.
 
 ## The game interface
