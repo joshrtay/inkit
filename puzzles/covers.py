@@ -2,8 +2,9 @@
 
     npm run build && python3 puzzles/covers.py
 
-Number Line Maze: the Warm-up as a fresh puzzle and the Big Maze solved, with its route.
-RYB: levels painted in their solution colors (read from the built pages), one unpainted.
+Every cover shows puzzles as a player first sees them, never a solution.
+Number Line Maze: two mazes' number grids. Three Coats: three levels, unpainted.
+Round the Bend: two empty grids. Picture Squares: three blank grids with their clues.
 Escape Room: three of its printed sheets (the preview images in public/).
 Each board is drawn on a sheet of paper and fanned out on manila, then screenshotted
 with headless Chrome.
@@ -187,12 +188,12 @@ def main():
     warm = json.loads((games / "number-line-maze" / "1.json").read_text())["maze"]
     big = json.loads((games / "number-line-maze" / "2.json").read_text())["maze"]
     w_svg, w_ar = maze_svg(warm, solved=False)
-    b_svg, b_ar = maze_svg(big, solved=True)
+    b_svg, b_ar = maze_svg(big, solved=False)
     cover([(w_svg, w_ar, 360, 390, 470, -8), (b_svg, b_ar, 740, 380, 640, 5)],
           ROOT / "public" / "number-line-maze" / "cover.jpg")
 
     t, hx, sq = ryb_config(1), ryb_config(2), ryb_config(3)
-    sheets = [ryb_svg(sq, painted=False), ryb_svg(t, painted=True), ryb_svg(hx, painted=True)]
+    sheets = [ryb_svg(sq, painted=False), ryb_svg(t, painted=False), ryb_svg(hx, painted=False)]
     cover([(sheets[0][0], sheets[0][1], 300, 400, 380, -9),
            (sheets[2][0], sheets[2][1], 880, 395, 400, 8),
            (sheets[1][0], sheets[1][1], 590, 380, 430, -1)],
@@ -200,12 +201,26 @@ def main():
 
 
 def mosaic_svg(level: dict):
-    pic, pal = level["picture"], level["palette"]
+    """A blank grid with its row and column clues, as the puzzle starts."""
+    pic = level["picture"]
     H, W, S = len(pic), len(pic[0]), 30
-    cells = "".join(f'<rect x="{c * S}" y="{r * S}" width="{S + .5}" height="{S + .5}" fill="{pal[ch]}"/>'
-                    for r, row in enumerate(pic) for c, ch in enumerate(row))
-    frame = f'<rect x="0" y="0" width="{W * S}" height="{H * S}" fill="none" stroke="{INK}" stroke-width="4"/>'
-    return f'<svg viewBox="0 0 {W * S} {H * S}" xmlns="http://www.w3.org/2000/svg">{cells}{frame}</svg>', W / H
+    runs = lambda line: [len(r) for r in "".join("#" if ch != "." else "." for ch in line).split(".") if r] or [0]
+    rows, cols = [runs(row) for row in pic], [runs([row[c] for row in pic]) for c in range(W)]
+    L, T, F = max(map(len, rows)) * 22 + 10, max(map(len, cols)) * 24 + 8, 'font-family="Courier Prime, Courier New, monospace" font-size="17" font-weight="700"'
+    out = []
+    for r in range(H + 1):
+        out.append(f'<line x1="{L}" y1="{T + r * S}" x2="{L + W * S}" y2="{T + r * S}" stroke="#d9cfbd" stroke-width="{2 if r % 5 == 0 else 1}"/>')
+    for c in range(W + 1):
+        out.append(f'<line x1="{L + c * S}" y1="{T}" x2="{L + c * S}" y2="{T + H * S}" stroke="#d9cfbd" stroke-width="{2 if c % 5 == 0 else 1}"/>')
+    for r, clue in enumerate(rows):
+        for k, n in enumerate(reversed(clue)):
+            out.append(f'<text x="{L - 12 - k * 22}" y="{T + r * S + S / 2 + 6}" text-anchor="middle" {F} fill="{INK}">{n}</text>')
+    for c, clue in enumerate(cols):
+        for k, n in enumerate(reversed(clue)):
+            out.append(f'<text x="{L + c * S + S / 2}" y="{T - 10 - k * 24}" text-anchor="middle" {F} fill="{INK}">{n}</text>')
+    out.append(f'<rect x="{L}" y="{T}" width="{W * S}" height="{H * S}" fill="none" stroke="{INK}" stroke-width="3"/>')
+    vw, vh = L + W * S + 6, T + H * S + 6
+    return f'<svg viewBox="0 0 {vw} {vh}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', vw / vh
 
 
 def mosaic_cover():
@@ -216,7 +231,7 @@ def mosaic_cover():
 
 
 def lazy_river_cover():
-    a, b = river_svg(river_config(3), solved=False), river_svg(river_config(4), solved=True)
+    a, b = river_svg(river_config(3), solved=False), river_svg(river_config(4), solved=False)
     cover([(a[0], a[1], 380, 390, 470, -8), (b[0], b[1], 780, 380, 520, 6)],
           ROOT / "public" / "round-the-bend" / "cover.jpg")
 
