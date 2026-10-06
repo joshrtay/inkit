@@ -3,7 +3,7 @@
 // predicates it can use), describe itself in plain words, and say which derived
 // structures it needs. A puzzle's rules are blocks with settings, e.g. { rule: "size", is: 4 }.
 import type { Board, Problem, Puzzle, RuleSpec } from "./types.ts";
-import { lineGraph, shadedGroups, shapeKey, type Regions } from "./derive.ts";
+import { lineGraph, regionsOf, shadedGroups, shapeKey, type Regions } from "./derive.ts";
 
 /** A nudge for the player: what to look at, and what it gives away. */
 export interface Hint { message: string; area: number[]; cells: { cell: number; shade: 0 | 1 }[] }
@@ -17,6 +17,8 @@ export interface Block {
   asp(s: RuleSpec, p: Puzzle): string;
   /** which shared encodings it needs */
   needs?: ("regions" | "shapes")[];
+  /** the player shades the clue cells themselves (Hitori) */
+  shadeClues?: boolean;
   /** an optional logical hint for the current board */
   hint?(s: RuleSpec, p: Puzzle, b: Board): Hint | null;
 }
@@ -52,6 +54,77 @@ const touching = (p: Puzzle, i: number) => {
   return out;
 };
 const other = (p: Puzzle, l: number, i: number) => { const [a, c] = p.grid.links[l].cells; return a === i ? c : a; };
+/** The cells right around a grid point (in half-cell units): 1, 2 or 4 of them. */
+export const galaxyCore = (p: Puzzle, [y, x]: [number, number]) => {
+  const rs = y % 2 ? [(y - 1) / 2] : [y / 2 - 1, y / 2], cs = x % 2 ? [(x - 1) / 2] : [x / 2 - 1, x / 2];
+  return rs.flatMap((r) => cs.map((c) => p.grid.cell(r, c)));
+};
+/** A cell turned halfway round a point, or -1 if that falls off the grid. */
+const mirrorOf = (p: Puzzle, i: number, [y, x]: [number, number]) => {
+  const g = p.grid, [r, c] = g.rc(i), r2 = (2 * y - (2 * r + 1) - 1) / 2, c2 = (2 * x - (2 * c + 1) - 1) / 2;
+  return r2 >= 0 && c2 >= 0 && r2 < g.rows && c2 < g.cols ? g.cell(r2, c2) : -1;
+};
+const boxOf = (p: Puzzle, cs: number[]) => {
+  const rs = cs.map((i) => p.grid.rc(i)[0]), ks = cs.map((i) => p.grid.rc(i)[1]);
+  return [Math.max(...rs) - Math.min(...rs) + 1, Math.max(...ks) - Math.min(...ks) + 1];
+};
+/** The four links around each inner grid point: [top, bottom, left, right]. */
+const quads = (p: Puzzle) => {
+  const g = p.grid, out: [number, number, number, number][] = [];
+  const link = (a: number, b: number) => g.borders[g.borderBetween(a, b)].link;
+  for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++) {
+    const A = g.cell(r, c), B = g.cell(r, c + 1), C = g.cell(r + 1, c), D = g.cell(r + 1, c + 1);
+    out.push([link(A, B), link(C, D), link(A, C), link(B, D)]);
+  }
+  return out;
+};
+/** Rectangles: around each inner grid point, two cuts meeting at a right angle make a corner that
+ *  points into a region: not allowed. (A lone cut is already ruled out: a cut separates two regions.) */
+const cornerRule = (p: Puzzle) => quads(p).flatMap(([top, bottom, left, right]) =>
+  [[top, left, bottom, right], [top, right, bottom, left], [bottom, left, top, right], [bottom, right, top, left]]
+    .map(([x, y, u, v]) => `:- cut(${x}), cut(${y}), not cut(${u}), not cut(${v}).`)).join("\n");
+const barLen = (s: RuleSpec) => (typeof s.length === "number" ? s.length : 3);
+/** Every place a straight block of `len` cells fits (not on clue cells or rocks). */
+const barPlacements = (p: Puzzle, len: number) => {
+  const g = p.grid, out: number[][] = [], free = (r: number, c: number) => r < g.rows && c < g.cols && !p.cellGivens.has(g.cell(r, c));
+  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) {
+    if (Array.from({ length: len }, (_, k) => free(r, c + k)).every(Boolean)) out.push(Array.from({ length: len }, (_, k) => g.cell(r, c + k)));
+    if (len > 1 && Array.from({ length: len }, (_, k) => free(r + k, c)).every(Boolean)) out.push(Array.from({ length: len }, (_, k) => g.cell(r + k, c)));
+  }
+  return out;
+};
+/** Can these cells be split exactly into straight blocks of `len`? */
+const tiles = (p: Puzzle, cells: Set<number>, len: number): boolean => {
+  if (!cells.size) return true;
+  const g = p.grid, first = Math.min(...cells), [r, c] = g.rc(first);
+  for (const [dr, dc] of len > 1 ? [[0, 1], [1, 0]] : [[0, 1]]) {
+    const piece = Array.from({ length: len }, (_, k) => [r + dr * k, c + dc * k]);
+    if (piece.some(([y, x]) => y >= g.rows || x >= g.cols || !cells.has(g.cell(y, x)))) continue;
+    const rest = new Set(cells); for (const [y, x] of piece) rest.delete(g.cell(y, x));
+    if (tiles(p, rest, len)) return true;
+  }
+  return false;
+};
+/** Pairs of cells in one row or column holding the same number (Hitori). */
+const sameLinePairs = (p: Puzzle) => {
+  const num = new Map(numberClues(p)), out: [number, number][] = [];
+  for (const line of linesOf(p)) for (let a = 0; a < line.length; a++) for (let b = a + 1; b < line.length; b++)
+    if (num.has(line[a]) && num.get(line[a]) === num.get(line[b])) out.push([line[a], line[b]]);
+  return out;
+};
+const linesOf = (p: Puzzle) => {
+  const g = p.grid;
+  return [...Array.from({ length: g.rows }, (_, r) => Array.from({ length: g.cols }, (_, c) => g.cell(r, c))),
+    ...Array.from({ length: g.cols }, (_, c) => Array.from({ length: g.rows }, (_, r) => g.cell(r, c)))];
+};
+/** The cells of a row or column, from the side a clue outside the grid looks in from. */
+export const rayIn = (p: Puzzle, cell: number, side: string) => {
+  const g = p.grid, [r, c] = g.rc(cell);
+  return side === "left" ? Array.from({ length: g.cols }, (_, x) => g.cell(r, x)) : side === "right" ? Array.from({ length: g.cols }, (_, x) => g.cell(r, g.cols - 1 - x))
+    : side === "top" ? Array.from({ length: g.rows }, (_, y) => g.cell(y, c)) : Array.from({ length: g.rows }, (_, y) => g.cell(g.rows - 1 - y, c));
+};
+export const symbolOf = (p: Puzzle, d: number) => p.style.symbols?.[d - 1] ?? String(d);
+const symbolList = (p: Puzzle) => { const all = Array.from({ length: p.digits }, (_, k) => symbolOf(p, k + 1)); return `${all.slice(0, -1).join(", ")} and ${all.at(-1)}`; };
 /** The cells a cell sees along its row and column, up to a blocked cell or the edge. */
 const sees = (p: Puzzle, i: number) => {
   const g = p.grid, [r, c] = g.rc(i), out: number[] = [];
@@ -322,6 +395,56 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
   },
 
   // ---- digits ----
+  letters: {
+    describe: (s, p) => `Each row and each column has each of ${symbolList(p)} exactly once; the other cells stay empty.`,
+    check(s, p, b) {
+      const g = p.grid, out: Problem[] = [];
+      for (const line of linesOf(p)) for (let d = 1; d <= p.digits; d++) {
+        if (line.filter((i) => b.digit[i] === d).length !== 1) { out.push({ message: `Each row and column has each of ${symbolList(p)} exactly once.`, cells: line }); break; }
+      }
+      void g; void s;
+      return out;
+    },
+    asp: (_s, p) => linesOf(p).map((line, k) => `:- d(D), #count{I: digit(I,D), lin(${k},I)} != 1.\n${line.map((i) => `lin(${k},${i}).`).join(" ")}`).join("\n"),
+  },
+  "first-seen": {
+    describe: (_s, p) => `A ${p.style.symbols ? "letter" : "number"} outside the grid is the first one met looking in from that side.`,
+    check(_s, p, b) {
+      return p.edgeClues.filter((c) => c.kind === "first").flatMap((c) => {
+        const ray = rayIn(p, c.cell, c.side), first = ray.find((i) => b.digit[i]);
+        return first === undefined || b.digit[first] !== c.value ? [{ message: `Looking in from here, the first ${p.style.symbols ? "letter" : "number"} must be ${symbolOf(p, c.value)}.`, cells: ray }] : [];
+      });
+    },
+    asp: (_s, p) => p.edgeClues.filter((c) => c.kind === "first").map((c) => {
+      const ray = rayIn(p, c.cell, c.side);
+      return ray.map((i, k) => `:- digit(${i},D), D != ${c.value}${ray.slice(0, k).map((j) => `, not filled(${j})`).join("")}.`).join("\n")
+        + `\n:- ${ray.map((i) => `not filled(${i})`).join(", ")}.`;
+    }).join("\n") + "\nfilled(I) :- digit(I,_).",
+  },
+  skyscrapers: {
+    describe: () => "Digits are building heights. A number outside the grid counts the buildings you'd see looking in from there: taller ones hide shorter ones behind them.",
+    check(_s, p, b) {
+      return p.edgeClues.filter((c) => c.kind === "skyscraper").flatMap((c) => {
+        const ray = rayIn(p, c.cell, c.side);
+        let top = 0, seen = 0;
+        for (const i of ray) if (b.digit[i] > top) { top = b.digit[i]; seen++; }
+        return seen !== c.value ? [{ message: `From here you must see exactly ${c.value} building${c.value === 1 ? "" : "s"}.`, cells: ray }] : [];
+      });
+    },
+    asp: (_s, p) => p.edgeClues.filter((c) => c.kind === "skyscraper").map((c, q) => {
+      const ray = rayIn(p, c.cell, c.side);
+      return ray.map((i, k) => ray.slice(0, k).map((j) => `hid(${q},${i}) :- digit(${i},D), digit(${j},E), E > D.`).join("\n")).filter(Boolean).join("\n")
+        + `\n:- #count{I: digit(I,_), sky(${q},I), not hid(${q},I)} != ${c.value}.\n${ray.map((i) => `sky(${q},${i}).`).join(" ")}`;
+    }).join("\n"),
+  },
+  thermo: {
+    describe: () => "Along a thermometer, digits increase from the bulb to the tip.",
+    check(_s, p, b) {
+      return p.thermos.filter((t) => t.some((i, k) => k > 0 && b.digit[i] && b.digit[t[k - 1]] && b.digit[i] <= b.digit[t[k - 1]]))
+        .map((t) => ({ message: "Digits must rise along a thermometer, from the bulb up.", cells: t }));
+    },
+    asp: (_s, p) => p.thermos.flatMap((t) => t.slice(1).map((i, k) => `:- digit(${t[k]},X), digit(${i},Y), Y <= X.`)).join("\n"),
+  },
   latin: {
     describe: (_s, p) => `Fill every cell with a digit from 1 to ${p.digits}. Each row and each column has every digit once.`,
     check(_s, p, b) {
@@ -399,6 +522,45 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
         .map(([i, k]) => ({ message: `This ${k} needs exactly ${k} ${p.style.shaded === "bulb" ? (k === 1 ? "bulb" : "bulbs") : "shaded"} beside it.`, cells: [i] }));
     },
     asp: (_s, p) => numberClues(p).map(([i, k]) => `:- #count{J: adj(${i},J,_), shaded(J)} != ${k}.`).join("\n"),
+  },
+  bars: {
+    describe: (s) => `Shaded cells are blocks of ${barLen(s)} in a straight line (side by side or one above another). Blocks may touch.`,
+    check(s, p, b) {
+      const cells = Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => b.shade[i] === 1);
+      return tiles(p, new Set(cells), barLen(s)) ? [] : [{ message: `The shaded cells must split into straight blocks of ${barLen(s)}.`, cells }];
+    },
+    asp(s, p) {
+      const out: string[] = [];
+      barPlacements(p, barLen(s)).forEach((cs, k) => out.push(`barp(${k}). ${cs.map((i) => `inbar(${k},${i}).`).join(" ")}`));
+      out.push("{bar(K)} :- barp(K).", ":- bar(K), inbar(K,I), not shaded(I).", ":- shaded(I), #count{K: bar(K), inbar(K,I)} != 1.");
+      return out.join("\n");
+    },
+  },
+  "no-adjacent": {
+    describe: () => "Shaded cells never touch side to side (corners are fine).",
+    check(_s, p, b) {
+      const bad = p.grid.links.filter((l) => b.shade[l.cells[0]] === 1 && b.shade[l.cells[1]] === 1).flatMap((l) => l.cells);
+      return bad.length ? [{ message: "Shaded cells can't share a side.", cells: bad }] : [];
+    },
+    asp: () => ":- shaded(I), shaded(J), adj(I,J,_).",
+  },
+  "unique-unshaded": {
+    describe: () => "In every row and column, the numbers left unshaded are all different.",
+    shadeClues: true,
+    check(_s, p, b) {
+      const bad = new Set<number>();
+      for (const [i, j] of sameLinePairs(p)) if (b.shade[i] !== 1 && b.shade[j] !== 1) { bad.add(i); bad.add(j); }
+      return bad.size ? [{ message: "A number repeats in a row or column: shade one of them.", cells: [...bad] }] : [];
+    },
+    asp: (_s, p) => sameLinePairs(p).map(([i, j]) => `:- not shaded(${i}), not shaded(${j}).`).join("\n"),
+  },
+  "mine-count": {
+    describe: (_s, p) => `A number counts the ${p.style.shaded === "mine" ? "mines" : "shaded cells"} in the eight cells around it, diagonals included.`,
+    check(_s, p, b) {
+      return numberClues(p).filter(([i, k]) => touching(p, i).filter((j) => b.shade[j] === 1).length !== k)
+        .map(([i, k]) => ({ message: `This ${k} needs exactly ${k} ${p.style.shaded === "mine" ? (k === 1 ? "mine" : "mines") : "shaded"} around it.`, cells: [i] }));
+    },
+    asp: (_s, p) => numberClues(p).map(([i, k]) => `:- #count{${touching(p, i).map((j) => `${j}: shaded(${j})`).join("; ")}} != ${k}.`).join("\n"),
   },
   "unshaded-connected": {
     describe: () => "All the white (unshaded) cells form one connected group.",
@@ -541,6 +703,43 @@ cmp(R1,R2) :- op(R1,R2).
 :- op(R1,R2), same(R1,R2).`,
     needs: ["regions", "shapes"],
   },
+  squares: {
+    describe: () => "Every region is a square.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      return r().cells.filter((cs) => { const [h, w] = boxOf(p, cs); return h !== w || h * w !== cs.length; })
+        .map((cs) => ({ message: "Every region must be a square.", cells: cs }));
+    },
+    asp: (_s, p) => `${cornerRule(p)}
+sqr0(R,X) :- root(R), X = #min{Y: member(R,I), row(I,Y)}.
+sqr1(R,X) :- root(R), X = #max{Y: member(R,I), row(I,Y)}.
+sqc0(R,X) :- root(R), X = #min{Y: member(R,I), col(I,Y)}.
+sqc1(R,X) :- root(R), X = #max{Y: member(R,I), col(I,Y)}.
+:- sqr0(R,A), sqr1(R,B), sqc0(R,C), sqc1(R,D), B-A != D-C.`,
+  },
+  "no-four-corners": {
+    describe: () => "Four regions never meet at a point.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const g = p.grid, of = r().of, bad: number[] = [];
+      for (let y = 0; y + 1 < g.rows; y++) for (let x = 0; x + 1 < g.cols; x++) {
+        const [A, B, C, D] = [g.cell(y, x), g.cell(y, x + 1), g.cell(y + 1, x), g.cell(y + 1, x + 1)];
+        if (of[A] !== of[B] && of[C] !== of[D] && of[A] !== of[C] && of[B] !== of[D]) bad.push(A, B, C, D);
+      }
+      return bad.length ? [{ message: "Four regions can't meet at one point.", cells: bad }] : [];
+    },
+    asp: (_s, p) => quads(p).map(([t, b, l, r]) => `:- cut(${t}), cut(${b}), cut(${l}), cut(${r}).`).join("\n"),
+  },
+  "side-clue": {
+    describe: () => "A number gives the side length of the square it's in.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const reg = r();
+      return numberClues(p).filter(([i, k]) => reg.cells[reg.of[i]].length !== k * k)
+        .map(([i, k]) => ({ message: `This ${k} sits in a ${k}×${k} square.`, cells: [i] }));
+    },
+    asp: (_s, p) => numberClues(p).map(([i, k]) => `:- member(R,${i}), size(R,N), N != ${k * k}.`).join("\n"),
+  },
   rectangles: {
     describe: () => "Every region is a rectangle (or a square).",
     needs: ["regions"],
@@ -551,17 +750,32 @@ cmp(R1,R2) :- op(R1,R2).
         return (Math.max(...rs) - Math.min(...rs) + 1) * (Math.max(...ks) - Math.min(...ks) + 1) !== cs.length;
       }).map((cs) => ({ message: "Every region must be a rectangle.", cells: cs }));
     },
-    // around each inner grid point, two cuts meeting at a right angle make a corner that points
-    // into a region: not allowed. (A lone cut is already ruled out: a cut separates two regions.)
-    asp: (_s, p) => {
+    asp: (_s, p) => cornerRule(p),
+  },
+  galaxies: {
+    describe: () => "Split the grid into regions, one around each circle. Each region is symmetric about its circle: turn it halfway round the circle and it looks the same.",
+    check(_s, p, b) {
+      const reg = regionsOf(p, b), out: number[][] = [];
+      reg.cells.forEach((cs) => {
+        const set = new Set(cs), inside = p.galaxies.filter((gx) => galaxyCore(p, gx).every((i) => set.has(i)));
+        if (inside.length !== 1 || cs.some((i) => !set.has(mirrorOf(p, i, inside[0])))) out.push(cs);
+      });
+      return out.length ? [{ message: "Each region holds one circle and is symmetric about it.", cells: out.flat() }] : [];
+    },
+    asp(_s, p) {
       const g = p.grid, out: string[] = [];
-      const link = (a: number, b: number) => g.links[g.borders[g.borderBetween(a, b)].link].id;
-      for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++) {
-        const A = g.cell(r, c), B = g.cell(r, c + 1), C = g.cell(r + 1, c), D = g.cell(r + 1, c + 1);
-        const top = link(A, B), bottom = link(C, D), left = link(A, C), right = link(B, D);
-        for (const [x, y, u, v] of [[top, left, bottom, right], [top, right, bottom, left], [bottom, left, top, right], [bottom, right, top, left]])
-          out.push(`:- cut(${x}), cut(${y}), not cut(${u}), not cut(${v}).`);
-      }
+      p.galaxies.forEach((gx, k) => {
+        out.push(`galaxy(${k}). ${galaxyCore(p, gx).map((i) => `gal(${i},${k}).`).join(" ")}`);
+        for (let i = 0; i < g.cellCount; i++) { const j = mirrorOf(p, i, gx); out.push(j < 0 ? `nomir(${i},${k}).` : `mir(${i},${k},${j}).`); }
+        out.push(galaxyCore(p, gx).map((i) => `greach(${i},${k}).`).join(" "));
+      });
+      out.push(`1 { gal(I,G) : galaxy(G) } 1 :- cell(I).
+:- gal(I,G), nomir(I,G).
+:- gal(I,G), mir(I,G,J), not gal(J,G).
+greach(J,G) :- greach(I,G), adj(I,J,_), gal(J,G).
+:- gal(I,G), not greach(I,G).
+:- adj(I,J,L), gal(I,G), gal(J,G), cut(L).
+:- adj(I,J,L), gal(I,G), not gal(J,G), not cut(L).`);
       return out.join("\n");
     },
   },
@@ -737,7 +951,7 @@ const pearlClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.filt
 function checkLinks(p: Puzzle, b: Board, cover: boolean): Problem[] {
   const { edges, deg } = lineGraph(p, b, "loop"), g = p.grid;
   const value = new Map(numberClues(p));
-  const bad = deg.map((d, v) => v).filter((v) => (value.has(v) ? deg[v] > 1 : deg[v] > 2));
+  const bad = deg.map((_, v) => v).filter((v) => (value.has(v) ? deg[v] > 1 : deg[v] > 2));
   if (bad.length) return [{ message: "Lines can't branch, and a number has just one line.", cells: bad }];
   const adj = new Map<number, number[]>();
   for (const [a, c] of edges) { adj.set(a, [...(adj.get(a) ?? []), c]); adj.set(c, [...(adj.get(c) ?? []), a]); }

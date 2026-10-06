@@ -7,6 +7,7 @@ import { makePuzzle, check } from "./puzzle.ts";
 import { program, boardOf } from "./solve.ts";
 import { regionsOf } from "./derive.ts";
 import { solvePaint } from "./paint.ts";
+import { blockFor } from "./rules.ts";
 import { emptyBoard, type Board, type GridSpec, type Puzzle } from "./types.ts";
 
 const rounds = Number(process.argv[2] ?? 40);
@@ -36,7 +37,8 @@ function* allBoards(p: Puzzle): Generator<Board> {
       yield b;
     }
   } else if (p.marks.includes("shade")) {
-    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !p.cellGivens.has(i));
+    const clues = p.rules.some((s) => blockFor(s).shadeClues);   // Hitori shades the numbers themselves
+    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => (clues ? !p.blocked.has(i) : !p.cellGivens.has(i)));
     for (let m = 0; m < 1 << free.length; m++) {
       const b = emptyBoard(g);
       free.forEach((i, k) => { if (m & (1 << k)) b.shade[i] = 1; });
@@ -57,15 +59,16 @@ function* allBoards(p: Puzzle): Generator<Board> {
       yield b;
     }
   } else if (p.marks.includes("digit")) {
+    const base = p.blanks ? p.digits + 1 : p.digits, low = p.blanks ? 0 : 1;
     const fixed = new Map<number, number>();
     for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") fixed.set(i, x.value as number);
     const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i));
-    const total = p.digits ** free.length;
+    const total = base ** free.length;
     for (let m = 0; m < total; m++) {
       const b = emptyBoard(g);
       for (const [i, v] of fixed) b.digit[i] = v;
       let x = m;
-      for (const i of free) { b.digit[i] = (x % p.digits) + 1; x = Math.floor(x / p.digits); }
+      for (const i of free) { b.digit[i] = (x % base) + low; x = Math.floor(x / base); }
       yield b;
     }
   } else {
@@ -92,7 +95,8 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
+    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -103,6 +107,64 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "simple-loop", size: [rows, cols], givens };
+  }
+  const num = (i: number, cols: number, v: number) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "number" as const, value: v });
+  if (kind === "square-jam") {
+    const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
+    return { genre: "square-jam", size: [rows, cols], givens: shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * 4)).map((i) => num(i, cols, 1 + Math.floor(rand() * 2))) };
+  }
+  if (kind === "wittgenstein-briquet") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
+    return { genre: "wittgenstein-briquet", size: [rows, cols], givens: shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * 4)).map((i) => num(i, cols, Math.floor(rand() * 3))) };
+  }
+  if (kind === "hitori") {
+    const [rows, cols] = pick([[3, 3], [3, 4]]);
+    return { genre: "hitori", size: [rows, cols], givens: Array.from({ length: rows * cols }, (_, i) => num(i, cols, 1 + Math.floor(rand() * 3))) };
+  }
+  if (kind === "minesweeper") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
+    return { genre: "minesweeper", size: [rows, cols], givens: shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, 1 + Math.floor(rand() * 4)).map((i) => num(i, cols, Math.floor(rand() * 4))) };
+  }
+  if (kind === "spiral-galaxies") {
+    const [rows, cols] = pick([[2, 3], [3, 3], [2, 4]]);
+    // rectangles are symmetric about their centres, so circles there always allow a solution;
+    // sometimes one circle moves off centre
+    const rects: [number, number, number, number][] = [];
+    const split = (r: number, c: number, h: number, w: number) => {
+      if (h * w > 1 && rand() < 0.6) {
+        if (h > 1 && (w === 1 || rand() < 0.5)) { const k = 1 + Math.floor(rand() * (h - 1)); split(r, c, k, w); split(r + k, c, h - k, w); return; }
+        if (w > 1) { const k = 1 + Math.floor(rand() * (w - 1)); split(r, c, h, k); split(r, c + k, h, w - k); return; }
+      }
+      rects.push([r, c, h, w]);
+    };
+    split(0, 0, rows, cols);
+    const points = rects.map(([r, c, h, w]) => [2 * r + h, 2 * c + w] as [number, number]);
+    if (rand() < 0.3) points[0] = [1 + Math.floor(rand() * (2 * rows - 1)), 1 + Math.floor(rand() * (2 * cols - 1))];
+    return { genre: "spiral-galaxies", size: [rows, cols], givens: points.map((point) => ({ at: "point" as const, point, kind: "galaxy" as const })) };
+  }
+  if (kind === "thermo-sudoku") {
+    const solved = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]];
+    const open = new Set(shuffle(Array.from({ length: 16 }, (_, i) => i)).slice(0, 4 + Math.floor(rand() * 3)));
+    const givens: NonNullable<GridSpec["givens"]> = Array.from({ length: 16 }, (_, i) => i).filter((i) => !open.has(i)).map((i) => num(i, 4, solved[Math.floor(i / 4)][i % 4]));
+    const start = pick([...open]), [r, c] = cellOf(start, 4), next: [number, number] = c + 1 < 4 ? [r, c + 1] : [r + 1 < 4 ? r + 1 : r - 1, c];
+    givens.push({ at: "cells", cells: rand() < 0.5 ? [[r, c], next] : [next, [r, c]], kind: "thermo" });
+    return { genre: "thermo-sudoku", size: [4, 4], givens };
+  }
+  if (kind === "skyscrapers") {
+    const sides = ["top", "right", "bottom", "left"] as const, givens: NonNullable<GridSpec["givens"]> = [];
+    for (let k = 0; k < 1 + Math.floor(rand() * 4); k++) {
+      const side = pick([...sides]), at = Math.floor(rand() * 3);
+      givens.push({ at: "edge", side, cell: side === "top" ? [0, at] : side === "bottom" ? [2, at] : side === "left" ? [at, 0] : [at, 2], kind: "skyscraper", value: 1 + Math.floor(rand() * 3) });
+    }
+    return { genre: "skyscrapers", size: [3, 3], givens };
+  }
+  if (kind === "easy-as-abc") {
+    const sides = ["top", "right", "bottom", "left"] as const, givens: NonNullable<GridSpec["givens"]> = [];
+    for (let k = 0; k < 1 + Math.floor(rand() * 4); k++) {
+      const side = pick([...sides]), at = Math.floor(rand() * 3);
+      givens.push({ at: "edge", side, cell: side === "top" ? [0, at] : side === "bottom" ? [2, at] : side === "left" ? [at, 0] : [at, 2], kind: "first", value: 1 + Math.floor(rand() * 2) });
+    }
+    return { genre: "easy-as-abc", size: [3, 3], rules: [{ rule: "letters", count: 2 }], givens, style: { symbols: "AB" } };
   }
   if (kind === "aquarium") {
     const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
@@ -268,7 +330,7 @@ for (let n = 0; n < rounds; n++) {
   try { p = makePuzzle(spec); } catch { continue; }   // e.g. two givens on one border
   const brute = new Set<string>();
   for (const b of allBoards(p)) if (!check(p, b).length) brute.add(key(p, b));
-  const res = await clingo.run(program(p), 0) as { Result: string; Error?: string; Call?: { Witnesses?: { Value: string[] }[] }[] };
+  const res = await clingo.run(program(p), 0, ["--project=show"]) as { Result: string; Error?: string; Call?: { Witnesses?: { Value: string[] }[] }[] };
   if (res.Result === "ERROR") { console.log("clingo error", res.Error, JSON.stringify(spec)); failures++; continue; }
   const asp = new Set((res.Call?.[0]?.Witnesses ?? []).map((w) => key(p, boardOf(p, w.Value))));
   const same = brute.size === asp.size && [...brute].every((k) => asp.has(k));

@@ -6385,6 +6385,2200 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   }
  ]
 }', 'aquarium', 'published', (unixepoch() * 1000) + 37);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('square-jam-1', 'c-wyatt', 'wyatt', 'Square Deal', 'square-jam
+{
+ "size": [
+  6,
+  6
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    5
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  }
+ ]
+}', 'square-jam', 'published', (unixepoch() * 1000) + 38);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('square-jam-2', 'c-wyatt', 'wyatt', 'Tiled Floor', 'square-jam
+{
+ "size": [
+  8,
+  8
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    6
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    7,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  }
+ ]
+}', 'square-jam', 'published', (unixepoch() * 1000) + 39);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('wittgenstein-briquet-1', 'c-wyatt', 'wyatt', 'Desks', 'wittgenstein-briquet
+{
+ "size": [
+  6,
+  6
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    1
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 0
+  }
+ ]
+}', 'wittgenstein-briquet', 'published', (unixepoch() * 1000) + 40);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('wittgenstein-briquet-2', 'c-wyatt', 'wyatt', 'Office Plan', 'wittgenstein-briquet
+{
+ "size": [
+  8,
+  8
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    4
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    6
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    5
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    6
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    7
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    7,
+    1
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    7,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    7
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 0
+  }
+ ]
+}', 'wittgenstein-briquet', 'published', (unixepoch() * 1000) + 41);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hitori-1', 'c-wyatt', 'wyatt', 'Odd One Out', 'hitori
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  }
+ ]
+}', 'hitori', 'published', (unixepoch() * 1000) + 42);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hitori-2', 'c-wyatt', 'wyatt', 'Leave Me Alone', 'hitori
+{
+ "size": [
+  7,
+  7
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    5
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    6
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    5
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    6
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    5
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    6
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    5
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    6
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    5
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    6
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    2
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    3
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    4
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    5
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    6
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    1
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    4
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    5
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    6
+   ],
+   "kind": "number",
+   "value": 6
+  }
+ ]
+}', 'hitori', 'published', (unixepoch() * 1000) + 43);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('minesweeper-1', 'c-wyatt', 'wyatt', 'Dig Site', 'minesweeper
+{
+ "size": [
+  6,
+  6
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    0
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    5
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    4
+   ],
+   "kind": "number",
+   "value": 4
+  }
+ ]
+}', 'minesweeper', 'published', (unixepoch() * 1000) + 44);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('minesweeper-2', 'c-wyatt', 'wyatt', 'Quarry', 'minesweeper
+{
+ "size": [
+  8,
+  8
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    7
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    6
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    6
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    5
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    2
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    6
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    3
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    1
+   ],
+   "kind": "number",
+   "value": 0
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    6
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    5
+   ],
+   "kind": "number",
+   "value": 3
+  }
+ ]
+}', 'minesweeper', 'published', (unixepoch() * 1000) + 45);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('spiral-galaxies-1', 'c-wyatt', 'wyatt', 'Pinwheel', 'spiral-galaxies
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "point",
+   "point": [
+    2,
+    9
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    5,
+    9
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    7,
+    6
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    1,
+    2
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    4,
+    4
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    3,
+    1
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    9,
+    9
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    1,
+    5
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    9,
+    2
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    9,
+    7
+   ],
+   "kind": "galaxy"
+  }
+ ]
+}', 'spiral-galaxies', 'published', (unixepoch() * 1000) + 46);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('spiral-galaxies-2', 'c-wyatt', 'wyatt', 'Milky Way', 'spiral-galaxies
+{
+ "size": [
+  7,
+  7
+ ],
+ "givens": [
+  {
+   "at": "point",
+   "point": [
+    12,
+    10
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    3,
+    13
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    6,
+    11
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    3,
+    6
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    10,
+    5
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    4,
+    3
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    2,
+    1
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    12,
+    1
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    7,
+    9
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    9,
+    2
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    13,
+    7
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    7,
+    13
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    7,
+    1
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    13,
+    13
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    1,
+    11
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    11,
+    7
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    10,
+    13
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    3,
+    9
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    1,
+    9
+   ],
+   "kind": "galaxy"
+  },
+  {
+   "at": "point",
+   "point": [
+    5,
+    1
+   ],
+   "kind": "galaxy"
+  }
+ ]
+}', 'spiral-galaxies', 'published', (unixepoch() * 1000) + 47);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('thermo-sudoku-1', 'c-wyatt', 'wyatt', 'Warming Up', 'thermo-sudoku
+{
+ "size": [
+  6,
+  6
+ ],
+ "givens": [
+  {
+   "at": "cells",
+   "cells": [
+    [
+     4,
+     4
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     5,
+     3
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     5,
+     5
+    ],
+    [
+     4,
+     5
+    ],
+    [
+     3,
+     5
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     2,
+     2
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     0,
+     2
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    5
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  }
+ ]
+}', 'thermo-sudoku', 'published', (unixepoch() * 1000) + 48);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('thermo-sudoku-2', 'c-wyatt', 'wyatt', 'Heat Wave', 'thermo-sudoku
+{
+ "size": [
+  9,
+  9
+ ],
+ "givens": [
+  {
+   "at": "cells",
+   "cells": [
+    [
+     3,
+     2
+    ],
+    [
+     2,
+     2
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     3,
+     7
+    ],
+    [
+     3,
+     6
+    ],
+    [
+     4,
+     6
+    ],
+    [
+     4,
+     7
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     6,
+     1
+    ],
+    [
+     6,
+     2
+    ],
+    [
+     7,
+     2
+    ],
+    [
+     7,
+     3
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     4,
+     4
+    ],
+    [
+     5,
+     4
+    ],
+    [
+     5,
+     3
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     6,
+     5
+    ],
+    [
+     7,
+     5
+    ],
+    [
+     8,
+     5
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cells",
+   "cells": [
+    [
+     3,
+     0
+    ],
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "kind": "thermo"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    7,
+    6
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    5
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    6
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    1
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    5
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    7
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    6
+   ],
+   "kind": "number",
+   "value": 8
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    8
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    6,
+    4
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 8
+  }
+ ]
+}', 'thermo-sudoku', 'published', (unixepoch() * 1000) + 49);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('skyscrapers-1', 'c-wyatt', 'wyatt', 'Skyline', 'skyscrapers
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "edge",
+   "side": "right",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "skyscraper",
+   "value": 3
+  },
+  {
+   "at": "edge",
+   "side": "bottom",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "skyscraper",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  }
+ ]
+}', 'skyscrapers', 'published', (unixepoch() * 1000) + 50);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('skyscrapers-2', 'c-wyatt', 'wyatt', 'Downtown', 'skyscrapers
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "edge",
+   "side": "top",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "skyscraper",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "edge",
+   "side": "left",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "skyscraper",
+   "value": 3
+  }
+ ]
+}', 'skyscrapers', 'published', (unixepoch() * 1000) + 51);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('easy-as-abc-1', 'c-wyatt', 'wyatt', 'First Letters', 'easy-as-abc
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "edge",
+   "side": "left",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "first",
+   "value": 1
+  },
+  {
+   "at": "edge",
+   "side": "bottom",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "first",
+   "value": 2
+  },
+  {
+   "at": "edge",
+   "side": "top",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "first",
+   "value": 2
+  },
+  {
+   "at": "edge",
+   "side": "left",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "first",
+   "value": 1
+  },
+  {
+   "at": "edge",
+   "side": "right",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "first",
+   "value": 2
+  }
+ ]
+}', 'easy-as-abc', 'published', (unixepoch() * 1000) + 52);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('easy-as-abc-2', 'c-wyatt', 'wyatt', 'Alphabet Soup', 'easy-as-abc
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "edge",
+   "side": "top",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "first",
+   "value": 1
+  },
+  {
+   "at": "edge",
+   "side": "right",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "first",
+   "value": 1
+  },
+  {
+   "at": "edge",
+   "side": "left",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "first",
+   "value": 3
+  },
+  {
+   "at": "edge",
+   "side": "top",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "first",
+   "value": 3
+  },
+  {
+   "at": "edge",
+   "side": "bottom",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "first",
+   "value": 2
+  },
+  {
+   "at": "edge",
+   "side": "top",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "first",
+   "value": 1
+  },
+  {
+   "at": "edge",
+   "side": "left",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "first",
+   "value": 2
+  }
+ ]
+}', 'easy-as-abc', 'published', (unixepoch() * 1000) + 53);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-1', 'c-wyatt', 'wyatt', 'Something Sweet', 'nonogram
 {
  "size": [
@@ -6405,7 +8599,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Heart"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 38);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 54);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-2', 'c-wyatt', 'wyatt', 'From the Tree', 'nonogram
 {
  "size": [
@@ -6434,7 +8628,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Apple"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 39);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 55);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-3', 'c-wyatt', 'wyatt', 'Out on the Water', 'nonogram
 {
  "size": [
@@ -6463,7 +8657,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Sailboat"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 40);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 56);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-4', 'c-wyatt', 'wyatt', 'In the Forest', 'nonogram
 {
  "size": [
@@ -6491,7 +8685,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Mushroom"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 41);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 57);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-5', 'c-wyatt', 'wyatt', 'Sitting Pretty', 'nonogram
 {
  "size": [
@@ -6518,7 +8712,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Cat"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 42);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 58);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-6', 'c-wyatt', 'wyatt', 'Tall Word', 'nonogram
 {
  "size": [
@@ -6549,7 +8743,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Pop"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 43);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 59);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-7', 'c-wyatt', 'wyatt', 'Say My Name', 'nonogram
 {
  "size": [
@@ -6570,7 +8764,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Bob"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 44);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 60);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-8', 'c-wyatt', 'wyatt', 'First Place', 'nonogram
 {
  "size": [
@@ -6596,7 +8790,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Trophy"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 45);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 61);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-9', 'c-wyatt', 'wyatt', 'Standing Tall', 'nonogram
 {
  "size": [
@@ -6622,7 +8816,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Human"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 46);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 62);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('slitherlink-1', 'c-wyatt', 'wyatt', 'First Loop', 'slitherlink
 {
  "size": [
@@ -6730,7 +8924,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 2
   }
  ]
-}', 'slitherlink', 'published', (unixepoch() * 1000) + 47);
+}', 'slitherlink', 'published', (unixepoch() * 1000) + 63);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('slitherlink-2', 'c-wyatt', 'wyatt', 'Long Way Round', 'slitherlink
 {
  "size": [
@@ -6856,7 +9050,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 1
   }
  ]
-}', 'slitherlink', 'published', (unixepoch() * 1000) + 48);
+}', 'slitherlink', 'published', (unixepoch() * 1000) + 64);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nurikabe-1', 'c-wyatt', 'wyatt', 'Five Islands', 'nurikabe
 {
  "size": [
@@ -6910,7 +9104,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 5
   }
  ]
-}', 'nurikabe', 'published', (unixepoch() * 1000) + 49);
+}', 'nurikabe', 'published', (unixepoch() * 1000) + 65);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nurikabe-2', 'c-wyatt', 'wyatt', 'Archipelago', 'nurikabe
 {
  "size": [
@@ -6982,7 +9176,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 1
   }
  ]
-}', 'nurikabe', 'published', (unixepoch() * 1000) + 50);
+}', 'nurikabe', 'published', (unixepoch() * 1000) + 66);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panes-1', 'c-wyatt', 'wyatt', 'Four by Four', 'panes
 {
  "size": [
@@ -7045,7 +9239,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "opposites"
   }
  ]
-}', 'panes', 'published', (unixepoch() * 1000) + 51);
+}', 'panes', 'published', (unixepoch() * 1000) + 67);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panes-2', 'c-wyatt', 'wyatt', 'Compass Rose', 'panes
 {
  "size": [
@@ -7122,7 +9316,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    }
   }
  ]
-}', 'panes', 'published', (unixepoch() * 1000) + 52);
+}', 'panes', 'published', (unixepoch() * 1000) + 68);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sudoku-1', 'c-wyatt', 'wyatt', 'Warm-up', 'sudoku
 {
  "size": [
@@ -7167,7 +9361,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 1
   }
  ]
-}', 'sudoku', 'published', (unixepoch() * 1000) + 53);
+}', 'sudoku', 'published', (unixepoch() * 1000) + 69);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sudoku-2', 'c-wyatt', 'wyatt', 'Six by Six', 'sudoku
 {
  "size": [
@@ -7257,7 +9451,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 3
   }
  ]
-}', 'sudoku', 'published', (unixepoch() * 1000) + 54);
+}', 'sudoku', 'published', (unixepoch() * 1000) + 70);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sudoku-3', 'c-wyatt', 'wyatt', 'Classic', 'sudoku
 {
  "size": [
@@ -7491,5 +9685,5 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 7
   }
  ]
-}', 'sudoku', 'published', (unixepoch() * 1000) + 55);
+}', 'sudoku', 'published', (unixepoch() * 1000) + 71);
 INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES ('simple-loop-5', 0, 'wyatt'), ('panes-1', 1, 'wyatt'), ('sudoku-1', 2, 'wyatt'), ('nonogram-2', 3, 'wyatt');

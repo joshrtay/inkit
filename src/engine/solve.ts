@@ -9,7 +9,7 @@ export { boardOf, maxRegion, program } from "./encode.ts";
 
 interface ClingoResult { Result: string; Call?: { Witnesses?: { Value: string[] }[] }[]; Error?: string }
 
-/** Up to `limit` solutions. Throws if clingo finds one that the rule checks reject.
+/** Up to `limit` solutions (different answers: helper atoms that aren't shown don't count). Throws if clingo finds one that the rule checks reject.
  *  Answers are cached on disk (node_modules/.cache/grid-engine), keyed by the program, so the
  *  preview server and repeat builds don't re-prove unchanged puzzles. */
 export async function solve(p: Puzzle, limit = 2): Promise<Board[]> {
@@ -22,7 +22,7 @@ export async function solve(p: Puzzle, limit = 2): Promise<Board[]> {
   try { answers = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* not cached */ }
   if (!answers) {
     const clingo = await import("clingo-wasm");
-    const res = (await clingo.run(prog, limit)) as ClingoResult;
+    const res = (await clingo.run(prog, limit, ["--project=show"])) as ClingoResult;
     if (res.Result === "ERROR") throw new Error(`clingo: ${res.Error}`);
     answers = (res.Call?.[0]?.Witnesses ?? []).map((w) => w.Value);
     try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(answers)); } catch { /* read-only: fine */ }

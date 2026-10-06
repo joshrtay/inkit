@@ -1,0 +1,103 @@
+{
+  "type": "grid",
+  "name": "Dig Site",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          4
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          1
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          4
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          0
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          4
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          5
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          3
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          4
+        ],
+        "kind": "number",
+        "value": 4
+      }
+    ]
+  }
+}

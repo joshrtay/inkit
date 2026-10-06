@@ -10,6 +10,7 @@ export interface Layout {
   title?: string;         // a nonogram picture's title, revealed when solved
   nonogram: boolean;
   hearts: number;         // mistakes allowed in a paint puzzle; 0 = free play
+  symbols?: string;       // a digit puzzle's digits shown as letters (Easy as ABC)
   ink?: string;
 }
 

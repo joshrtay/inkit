@@ -1,0 +1,83 @@
+{
+  "type": "grid",
+  "name": "Alphabet Soup",
+  "meta": "5 × 5",
+  "grid": {
+    "size": [
+      5,
+      5
+    ],
+    "givens": [
+      {
+        "at": "edge",
+        "side": "top",
+        "cell": [
+          0,
+          4
+        ],
+        "kind": "first",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "side": "right",
+        "cell": [
+          3,
+          4
+        ],
+        "kind": "first",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "side": "left",
+        "cell": [
+          2,
+          0
+        ],
+        "kind": "first",
+        "value": 3
+      },
+      {
+        "at": "edge",
+        "side": "top",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "first",
+        "value": 3
+      },
+      {
+        "at": "edge",
+        "side": "bottom",
+        "cell": [
+          4,
+          3
+        ],
+        "kind": "first",
+        "value": 2
+      },
+      {
+        "at": "edge",
+        "side": "top",
+        "cell": [
+          0,
+          2
+        ],
+        "kind": "first",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "side": "left",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "first",
+        "value": 2
+      }
+    ]
+  }
+}

@@ -59,7 +59,7 @@ const title = puzzle.spec.picture?.title;
       {digits && (
         <div class="paper-bar pad" role="group" aria-label="Digits">
           <div class="group">
-            {Array.from({ length: puzzle.digits }, (_, i) => <button class="word num" data-digit={i + 1} type="button">{i + 1}</button>)}
+            {Array.from({ length: puzzle.digits }, (_, i) => <button class="word num" data-digit={i + 1} type="button">{puzzle.style.symbols?.[i] ?? i + 1}</button>)}
           </div>
           <div class="group">
             <button class="word" data-pencil type="button" aria-pressed="false" title="Pencil notes (P)">pencil</button>

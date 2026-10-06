@@ -1,0 +1,58 @@
+{
+  "type": "grid",
+  "name": "Tiled Floor",
+  "meta": "8 × 8",
+  "grid": {
+    "size": [
+      8,
+      8
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          6
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          7,
+          1
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          4
+        ],
+        "kind": "number",
+        "value": 3
+      }
+    ]
+  }
+}

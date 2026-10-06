@@ -79,6 +79,56 @@ export const genres = {
     rules: [{ rule: "water" }, { rule: "line-totals" }],
     style: { shaded: "water", empty: "x" },
   },
+  // Square Jam: split the grid into squares; four never meet at a point; a number is its square's side
+  "square-jam": {
+    marks: ["regions"],
+    rules: [{ rule: "squares" }, { rule: "no-four-corners" }, { rule: "side-clue" }],
+    style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
+  },
+  // Wittgenstein Briquet: straight 1×3 blocks; numbers count block cells beside them; the cells left
+  // over all connect
+  "wittgenstein-briquet": {
+    marks: ["shade"],
+    rules: [{ rule: "bars", length: 3 }, { rule: "adjacent-count" }, { rule: "unshaded-connected" }],
+    style: { empty: "x" },
+  },
+  // Hitori: shade repeated numbers away; shaded cells never share a side; the rest connect
+  hitori: {
+    marks: ["shade"],
+    rules: [{ rule: "unique-unshaded" }, { rule: "no-adjacent" }, { rule: "unshaded-connected" }],
+    style: { empty: "dot" },
+  },
+  // Minesweeper: every number counts the mines around it
+  minesweeper: {
+    marks: ["shade"],
+    rules: [{ rule: "mine-count" }],
+    style: { shaded: "mine", empty: "dot" },
+  },
+  // Spiral Galaxies: regions symmetric about their circles
+  "spiral-galaxies": {
+    marks: ["regions"],
+    rules: [{ rule: "galaxies" }],
+    style: { palette: ["#4f9fdc", "#f2c23a", "#e2667a", "#6cbf7e", "#a77bd6", "#f29a52"] },
+  },
+  // Thermo Sudoku: a sudoku whose thermometers rise from the bulb
+  "thermo-sudoku": {
+    marks: ["digit"],
+    rules: [{ rule: "latin" }, { rule: "boxes" }, { rule: "thermo" }],
+    style: {},
+  },
+  // Skyscrapers: a latin square of heights; numbers outside count the buildings seen
+  skyscrapers: {
+    marks: ["digit"],
+    rules: [{ rule: "latin" }, { rule: "skyscrapers" }],
+    style: {},
+  },
+  // Easy as ABC: each row and column has A, B and C once (other cells empty); letters outside are
+  // the first one seen from that side
+  "easy-as-abc": {
+    marks: ["digit"],
+    rules: [{ rule: "letters", count: 3 }, { rule: "first-seen" }],
+    style: { symbols: "ABC" },
+  },
   // Irregular Sudoku: a sudoku whose boxes are the outlined areas
   "irregular-sudoku": {
     marks: ["digit"],
@@ -131,6 +181,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   const grid = fig ? fig.grid : squareGrid(spec.size[0], spec.size[1]);
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>(), cornerGivens = new Map<number, Given[]>();
   const doors = new Map<number, "in" | "out">();
+  const edgeClues: Puzzle["edgeClues"] = [], thermos: number[][] = [], galaxies: [number, number][] = [];
   const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
   const rowTotals = new Map<number, number>(), colTotals = new Map<number, number>();
   const blocked = new Set<number>(), walls = new Set<number>();
@@ -152,8 +203,21 @@ export function makePuzzle(spec: GridSpec): Puzzle {
       push(cornerGivens, grid.corner(r, c), g);
     } else if (g.at === "edge") {
       const e = outsideBorder(grid, g.cell, g.side);
-      if (e < 0) throw new Error(`a door goes on the outside edge (row ${g.cell[0]}, column ${g.cell[1]}, ${g.side} isn't)`);
-      doors.set(e, g.role);
+      if (e < 0) throw new Error(`a ${g.kind === "door" ? "door" : "clue outside the grid"} goes on the outside edge (row ${g.cell[0]}, column ${g.cell[1]}, ${g.side} isn't)`);
+      if (g.kind === "door") doors.set(e, g.role);
+      else edgeClues.push({ cell: grid.cell(...g.cell), side: g.side, kind: g.kind, value: g.value });
+    } else if (g.at === "cells") {
+      const cells = g.cells.map(([r, c]) => {
+        if (r < 0 || c < 0 || r >= grid.rows || c >= grid.cols) throw new Error(`cell ${r},${c} is outside the grid`);
+        return grid.cell(r, c);
+      });
+      if (cells.length < 2 || g.cells.some(([r, c], k) => k > 0 && Math.max(Math.abs(r - g.cells[k - 1][0]), Math.abs(c - g.cells[k - 1][1])) !== 1))
+        throw new Error("a thermometer runs through two or more cells, each next to the one before");
+      thermos.push(cells);
+    } else if (g.at === "point") {
+      const [y, x] = g.point;
+      if (y < 1 || x < 1 || y > 2 * grid.rows - 1 || x > 2 * grid.cols - 1) throw new Error(`a galaxy centre must be inside the grid (${y},${x})`);
+      galaxies.push([y, x]);
     } else if (g.kind === "total") (g.at === "row" ? rowTotals : colTotals).set(g.index, g.value);
     else (g.at === "row" ? rowRuns : colRuns).set(g.index, g.value);
   }
@@ -169,7 +233,9 @@ export function makePuzzle(spec: GridSpec): Puzzle {
       throw new Error(`a ${rules.some((s) => s.rule === "path") ? "path" : "maze"} needs one way in and one way out on its outside edge`);
   }
   return {
-    spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls, digits: spec.size[1],
+    spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
+    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? spec.size[1],
+    blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
     areas: areasOf(spec, grid), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };

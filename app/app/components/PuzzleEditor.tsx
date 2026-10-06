@@ -26,7 +26,7 @@ export const SPEC_PARTS: Record<keyof GridSpec, string> = {
 
 /** Every clue kind: its tool label, and whether it sits in a cell, on a border, beside a line, on a
  *  corner, or in the outside edge. */
-const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | "corner" | "edge" }> = {
+const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | "corner" | "edge" | "cells" | "point" }> = {
   number: { label: "Number", on: "cell" },
   block: { label: "Rock", on: "cell" },
   symbol: { label: "Symbol", on: "cell" },
@@ -39,6 +39,10 @@ const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | 
   count: { label: "Corner number", on: "corner" },
   dots: { label: "Paint dots", on: "cell" },
   pearl: { label: "Pearl", on: "cell" },
+  first: { label: "Letter outside", on: "edge" },
+  skyscraper: { label: "Number outside", on: "edge" },
+  thermo: { label: "Thermometer", on: "cells" },
+  galaxy: { label: "Galaxy circle", on: "point" },
   door: { label: "Door", on: "edge" },
 };
 
@@ -52,6 +56,14 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   akari: ["block", "number"],
   numberlink: ["number"],
   cave: ["number"],
+  "square-jam": ["number"],
+  "wittgenstein-briquet": ["number"],
+  hitori: ["number"],
+  minesweeper: ["number"],
+  "spiral-galaxies": ["galaxy"],
+  "thermo-sudoku": ["number", "thermo"],
+  skyscrapers: ["skyscraper", "number"],
+  "easy-as-abc": ["first"],
   aquarium: ["total"],
   masyu: ["pearl"],
   shikaku: ["number"],
@@ -89,6 +101,14 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   sight: { label: "Numbers count the white cells they see", settings: [] },
   water: { label: "Shaded cells are water that settles in its tank", settings: [] },
   "line-totals": { label: "Numbers count shaded cells per row / column", settings: [] },
+  bars: { label: "Shaded cells are straight blocks", settings: [{ key: "length", label: "block length", type: "number" }] },
+  "no-adjacent": { label: "Shaded cells never share a side", settings: [] },
+  "unique-unshaded": { label: "Unshaded numbers differ in each row and column", settings: [] },
+  "mine-count": { label: "Numbers count mines around them (diagonals too)", settings: [] },
+  letters: { label: "Each letter once per row and column (some cells empty)", settings: [{ key: "count", label: "how many letters", type: "number" }] },
+  "first-seen": { label: "Letters outside are the first seen", settings: [] },
+  skyscrapers: { label: "Numbers outside count buildings seen", settings: [] },
+  thermo: { label: "Digits rise along thermometers", settings: [] },
   connected: { label: "Shaded cells connect", settings: [] },
   "no-pool": { label: "No 2×2 shaded block", settings: [] },
   size: { label: "Region size", settings: [{ key: "is", label: "exactly", type: "number" }, { key: "min", label: "at least", type: "number" }, { key: "max", label: "at most", type: "number" }] },
@@ -97,6 +117,10 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   twins: { label: "◆ joins same shapes", settings: [] },
   opposites: { label: "◇ joins different shapes", settings: [] },
   rectangles: { label: "Every region is a rectangle", settings: [] },
+  squares: { label: "Every region is a square", settings: [] },
+  "no-four-corners": { label: "Four regions never meet at a point", settings: [] },
+  "side-clue": { label: "A number is its square's side", settings: [] },
+  galaxies: { label: "Regions symmetric about their circles", settings: [] },
   "all-different": { label: "All regions differ in shape", settings: [] },
   compass: { label: "Compasses count their region", settings: [] },
   "corner-count": { label: "Corner numbers count their walls", settings: [] },
@@ -107,13 +131,14 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
 };
 
 /** Every style option. */
-const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" | "number" | "choice"; choices?: string[] }> = {
+const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" | "number" | "choice" | "text"; choices?: string[] }> = {
+  symbols: { label: "Digits shown as letters (e.g. ABC)", type: "text" },
   ink: { label: "Ink", type: "color" },
   wash: { label: "Shading / loop color", type: "color" },
   grid: { label: "Grid", type: "choice", choices: ["lines", "dots"] },
   major: { label: "Heavy line every", type: "number" },
   empty: { label: "Known-empty mark", type: "choice", choices: ["dot", "x"] },
-  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star", "bulb", "water"] },
+  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star", "bulb", "water", "mine"] },
   palette: { label: "Region colors", type: "colors" },
 };
 
@@ -151,6 +176,8 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const [number, setNumber] = useState(1);
   const [role, setRole] = useState<"in" | "out">("in");
   const [pearl, setPearl] = useState<"white" | "black">("white");
+  const [thermo, setThermo] = useState<RC[]>([]);   // a thermometer being drawn, bulb first
+  const letters = spec.style?.symbols ?? (genres[genre]?.style as { symbols?: string } | undefined)?.symbols;
   const [dots, setDots] = useState<number[]>([1]);
   const paintColors = spec.style?.palette?.length ? spec.style.palette : ["#ef5a6a", "#f7cf3d", "#3fb0e6"];
   const paints = (spec.marks ?? (genres[genre]?.marks as MarkKind[] | undefined) ?? []).includes("paint");
@@ -166,7 +193,9 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
     const inside = ([y, x]: RC) => y < r && x < c;
     const kept = givens.filter((g) => g.at === "cell" ? inside(g.cell) : g.at === "border" ? g.cells.every(inside)
       : g.at === "corner" ? g.corner[0] <= r && g.corner[1] <= c
-        : g.at === "edge" ? inside(g.cell) && onEdge(g.cell, g.side, r, c) : g.index < (g.at === "row" ? r : c));
+        : g.at === "edge" ? inside(g.cell) && onEdge(g.cell, g.side, r, c)
+          : g.at === "cells" ? g.cells.every(inside) : g.at === "point" ? g.point[0] < 2 * r && g.point[1] < 2 * c
+            : g.index < (g.at === "row" ? r : c));
     set({
       size: [r, c], givens: kept,
       ...(picture ? { picture: { ...picture, rows: Array.from({ length: r }, (_, y) => (picture.rows[y] ?? "").padEnd(c, ".").slice(0, c)) } } : {}),
@@ -196,9 +225,19 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
     if (tool === "door") {
       if (!nearEdge) return;
       const had = givens.find(atEdge);
-      const rest = givens.filter((g) => !atEdge(g) && !(g.at === "edge" && g.role === role));   // one way in, one way out
+      const rest = givens.filter((g) => !atEdge(g) && !(g.kind === "door" && g.role === role));   // one way in, one way out
       return setGivens([...rest, ...(had && had.kind === "door" && had.role === role ? [] : [{ at: "edge", ...nearEdge, kind: "door", role } as Given])]);
     }
+    if (tool === "first" || tool === "skyscraper") {
+      if (!nearEdge) return;
+      const had = givens.find(atEdge);
+      return setGivens([...givens.filter((g) => !atEdge(g)), ...(had && had.kind === tool && had.value === number ? [] : [{ at: "edge", ...nearEdge, kind: tool, value: number } as Given])]);
+    }
+    // galaxy circles sit on cell centres, edge midpoints or corners (half-cell steps)
+    const py = Math.max(1, Math.min(2 * rows - 1, Math.round(y / (S / 2)))), px = Math.max(1, Math.min(2 * cols - 1, Math.round(x / (S / 2))));
+    const atPoint = (g: Given) => g.at === "point" && g.point[0] === py && g.point[1] === px;
+    if (tool === "galaxy") return setGivens(givens.some(atPoint) ? givens.filter((g) => !atPoint(g)) : [...givens, { at: "point", point: [py, px], kind: "galaxy" }]);
+    if (tool === "erase" && givens.some(atPoint) && Math.hypot(x - (px * S) / 2, y - (py * S) / 2) < S * 0.2) return setGivens(givens.filter((g) => !atPoint(g)));
     if (tool === "erase" && (givens.some(atCorner) || givens.some(atEdge))) return setGivens(givens.filter((g) => !atCorner(g) && !atEdge(g)));
     const c = Math.floor(x / S), r = Math.floor(y / S);
     if (r < 0 || c < 0 || r >= rows || c >= cols) return;
@@ -217,8 +256,16 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
       const rowsNow = picture.rows.map((row, y) => y !== r ? row : row.slice(0, c) + (row[c] === ink ? "." : ink) + row.slice(c + 1));
       return set({ picture: { ...picture, rows: rowsNow } });
     }
+    if (tool === "thermo") {
+      const last = thermo.at(-1);
+      if (thermo.some((t) => same(t, cell))) return;
+      if (last && Math.max(Math.abs(last[0] - r), Math.abs(last[1] - c)) !== 1) return;   // each cell next to the one before
+      return setThermo([...thermo, cell]);
+    }
     if (tool === "erase") {
       if (border && givens.some((g) => onBorder(g, ...border))) return setGivens(givens.filter((g) => !onBorder(g, ...border)));
+      const onThermo = (g: Given) => g.at === "cells" && g.cells.some((t) => same(t, cell));
+      if (givens.some(onThermo) && !givens.some((g) => g.at === "cell" && same(g.cell, cell))) return setGivens(givens.filter((g) => !onThermo(g)));
       return setGivens(givens.filter((g) => !(g.at === "cell" && same(g.cell, cell))));
     }
     if (CLUES[tool].on === "border") {
@@ -387,6 +434,18 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
               <button type="button" onClick={() => setDots(dots.slice(0, -1))} disabled={dots.length <= 1}>−</button>
             </span>
           )}
+          {tool === "thermo" && (
+            <span className="ge-tools">
+              <span className="hint">{thermo.length ? `${thermo.length} cell${thermo.length === 1 ? "" : "s"}, bulb first.` : "Click the bulb, then each cell to the tip."}</span>
+              <button type="button" disabled={thermo.length < 2} onClick={() => { setGivens([...givens, { at: "cells", cells: thermo, kind: "thermo" }]); setThermo([]); }}>Finish thermometer</button>
+              {thermo.length > 0 && <button type="button" className="link" onClick={() => setThermo([])}>Cancel</button>}
+            </span>
+          )}
+          {tool === "first" && letters && (
+            <span className="ge-tools" role="group" aria-label="Letter">
+              {[...letters].map((ch, k) => <button key={ch} type="button" aria-pressed={number === k + 1} onClick={() => setNumber(k + 1)}>{ch}</button>)}
+            </span>
+          )}
           {tool === "pearl" && (
             <span className="ge-tools" role="group" aria-label="Pearl">
               <button type="button" aria-pressed={pearl === "white"} onClick={() => setPearl("white")}>○ White</button>
@@ -399,7 +458,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
               <button type="button" aria-pressed={role === "out"} onClick={() => setRole("out")}>Way out</button>
             </span>
           )}
-          {(tool === "number" || tool === "count") && <label>Value <input type="number" min={0} max={30} value={number} onChange={(e) => setNumber(Number(e.target.value))} /></label>}
+          {(tool === "number" || tool === "count" || tool === "skyscraper") && <label>Value <input type="number" min={0} max={30} value={number} onChange={(e) => setNumber(Number(e.target.value))} /></label>}
           {tool === "symbol" && <label>Symbol <input value={symbol} maxLength={2} onChange={(e) => setSymbol(e.target.value)} /></label>}
           {tool === "compass" && (
             <span className="ge-compass">{(["n", "e", "s", "w"] as const).map((k) =>
@@ -466,10 +525,13 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
                 const { x, y } = at(...g.corner);
                 return <g key={i} className="ge-corner"><circle cx={x} cy={y} r={10} /><text x={x} y={y + 5}>{g.value}</text></g>;
               }
+              if (g.at === "cells") return <polyline key={i} points={g.cells.map(([r, c]) => { const a = at(r, c); return `${a.x + S / 2},${a.y + S / 2}`; }).join(" ")} className="ge-thermo" />;
+              if (g.at === "point") return <circle key={i} cx={PAD + (g.point[1] * S) / 2} cy={PAD + (g.point[0] * S) / 2} r={7} className="ge-galaxy" />;
               if (g.at === "edge") {
                 const { x, y } = at(...g.cell), [cx, cy] = [x + S / 2, y + S / 2];
                 const [dx, dy] = g.side === "top" ? [0, -1] : g.side === "bottom" ? [0, 1] : g.side === "left" ? [-1, 0] : [1, 0];
                 const [mx, my] = [cx + dx * S / 2, cy + dy * S / 2];
+                if (g.kind !== "door") return <text key={i} x={mx + dx * 13} y={my + dy * 13 + 6} className="ge-text small outside">{g.kind === "first" ? (letters?.[g.value - 1] ?? g.value) : g.value}</text>;
                 const [ax, ay, hx, hy] = g.role === "in" ? [mx + dx * 20, my + dy * 20, mx + dx * 3, my + dy * 3] : [mx + dx * 3, my + dy * 3, mx + dx * 20, my + dy * 20];
                 const ux = Math.sign(hx - ax), uy = Math.sign(hy - ay), bx = hx - 6 * ux, by = hy - 6 * uy;
                 return <g key={i} className="ge-door">
@@ -479,6 +541,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
               }
               return null;
             })}
+            {thermo.length > 0 && <polyline points={thermo.map(([r, c]) => { const a = at(r, c); return `${a.x + S / 2},${a.y + S / 2}`; }).join(" ")} className="ge-thermo draft" />}
           </svg>
         </div>
       </div>
@@ -546,6 +609,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
                     {v !== undefined && <button type="button" className="link" onClick={() => setStyle(k, undefined)}>default</button>}
                   </span>
                 )}
+                {def.type === "text" && <input value={typeof v === "string" ? v : ""} maxLength={9} onChange={(e) => setStyle(k, e.target.value.toUpperCase() || undefined)} />}
                 {def.type === "number" && <input type="number" min={0} max={30} value={v === undefined ? "" : Number(v)} onChange={(e) => setStyle(k, e.target.value === "" ? undefined : Number(e.target.value))} />}
                 {def.type === "choice" && (
                   <select value={String(v ?? "")} onChange={(e) => setStyle(k, e.target.value || undefined)}>

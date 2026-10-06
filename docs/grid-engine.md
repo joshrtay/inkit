@@ -2,8 +2,11 @@
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with seventeen genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Numberlink
-(`numberlink`), Masyu (`masyu`), Cave (`cave`), Aquarium (`aquarium`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Numberlink
+(`numberlink`), Masyu (`masyu`), Cave (`cave`), Aquarium (`aquarium`), Square Jam (`square-jam`),
+Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
+Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
+Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
 ## The model
@@ -40,7 +43,9 @@ them (`shaded-per-area`), and `boxes` uses them as a sudoku's boxes when they're
 digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, a
 number on a corner (`count`), paint `dots` in a piece (colors, optionally `hidden` until
 it's painted), a `door` in the outside edge (a maze's way in or out), and a
-nonogram's runs or a `total` beside a row or above a column. A nonogram's runs can instead come from its
+nonogram's runs or a `total` beside a row or above a column, a clue outside the grid looking in
+(`first` letter seen, `skyscraper` count), a `thermo` through a run of cells (bulb first), and a
+`galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners). A nonogram's runs can instead come from its
 `picture`, which solving reveals.
 
 **Rules** are configured *building blocks* (`src/engine/rules.ts`). Each block does four
@@ -77,6 +82,18 @@ puzzle can use it.
 | `sight` | A number counts the unshaded cells it sees along its row and column, itself included (Cave). |
 | `water` | Shaded cells are water in the outlined tanks: water in a cell means water in every cell of its tank it could flow to at that level or below (Aquarium). |
 | `line-totals` | A `total` beside a row / above a column counts its shaded cells (Aquarium). |
+| `squares` | Every region is a square (Square Jam). |
+| `no-four-corners` | Four regions never meet at a point (Square Jam). |
+| `side-clue` | A number gives the side of its square (Square Jam). |
+| `bars` | Shaded cells split into straight blocks of `length` (3: Wittgenstein Briquet). |
+| `no-adjacent` | Shaded cells never share a side (Hitori). |
+| `unique-unshaded` | Unshaded numbers differ in each row and column; the player shades the number cells themselves (Hitori). |
+| `mine-count` | A number counts the shaded cells (mines) in the 8 around it (Minesweeper). |
+| `letters` | Each of `count` letters once per row and column, other cells empty; shown with the style's `symbols` (Easy as ABC). |
+| `first-seen` | A letter outside is the first one met looking in (Easy as ABC). |
+| `skyscrapers` | A number outside counts the buildings seen looking in (Skyscrapers). |
+| `thermo` | Digits rise along a thermometer (Thermo Sudoku). |
+| `galaxies` | Each region holds one galaxy centre and is symmetric about it (Spiral Galaxies). |
 | `connected` | All shaded cells form one connected group. |
 | `no-pool` | No 2×2 block of shaded cells. |
 | `size` | Every region has `is` cells (or `min` / `max`). |
@@ -104,6 +121,11 @@ Mechanics are fair game; other sites' art and levels aren't ours to copy, so puz
 (or generated).
 
 ## Solving and the one-solution guarantee
+
+clingo runs with `--project=show`: two answers only count as different if their shown marks
+differ, so helper atoms (how a shading splits into blocks, which galaxy a cell belongs to) never
+make one answer look like several.
+
 
 At build time, `src/engine/solve.ts` turns a puzzle into an answer set program: a choice for
 every mark, the shared region and shape predicates the rules need, and each rule's

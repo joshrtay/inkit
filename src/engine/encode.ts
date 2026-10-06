@@ -34,11 +34,12 @@ export function program(p: Puzzle): string {
   // the marks the player can make
   if (p.marks.includes("fence")) out.push("{fence(B)} :- border(B).");
   if (p.marks.includes("loop")) out.push("{line(L)} :- link(L), not wall(L).\n:- line(L), lc(I,L), blocked(I).");
-  if (p.marks.includes("shade")) out.push("{shaded(I)} :- cell(I), not clue(I).");
+  // shading: not on clue cells, unless a rule shades the clues themselves (Hitori)
+  if (p.marks.includes("shade")) out.push(p.rules.some((s) => blockFor(s).shadeClues) ? "{shaded(I)} :- cell(I), not blocked(I)." : "{shaded(I)} :- cell(I), not clue(I).");
   if (p.marks.includes("regions")) out.push("{cut(L)} :- link(L).");
   if (p.marks.includes("paint")) out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
   if (p.marks.includes("digit")) {
-    out.push(`d(1..${p.digits}).\n1 { digit(I,D) : d(D) } 1 :- cell(I).`);
+    out.push(`d(1..${p.digits}).\n${p.blanks ? "" : "1 "}{ digit(I,D) : d(D) } 1 :- cell(I).`);
     for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "number") out.push(`digit(${i},${giv.value}).`);
   }
 

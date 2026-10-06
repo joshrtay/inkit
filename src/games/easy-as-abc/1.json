@@ -1,0 +1,63 @@
+{
+  "type": "grid",
+  "name": "First Letters",
+  "meta": "4 × 4",
+  "grid": {
+    "size": [
+      4,
+      4
+    ],
+    "givens": [
+      {
+        "at": "edge",
+        "side": "left",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "first",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "side": "bottom",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "first",
+        "value": 2
+      },
+      {
+        "at": "edge",
+        "side": "top",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "first",
+        "value": 2
+      },
+      {
+        "at": "edge",
+        "side": "left",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "first",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "side": "right",
+        "cell": [
+          1,
+          3
+        ],
+        "kind": "first",
+        "value": 2
+      }
+    ]
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "type": "grid",
+  "name": "Warming Up",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "givens": [
+      {
+        "at": "cells",
+        "cells": [
+          [
+            4,
+            4
+          ],
+          [
+            5,
+            4
+          ],
+          [
+            5,
+            3
+          ]
+        ],
+        "kind": "thermo"
+      },
+      {
+        "at": "cells",
+        "cells": [
+          [
+            5,
+            5
+          ],
+          [
+            4,
+            5
+          ],
+          [
+            3,
+            5
+          ]
+        ],
+        "kind": "thermo"
+      },
+      {
+        "at": "cells",
+        "cells": [
+          [
+            2,
+            2
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "kind": "thermo"
+      },
+      {
+        "at": "cells",
+        "cells": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "kind": "thermo"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          2
+        ],
+        "kind": "number",
+        "value": 5
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          5
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          2
+        ],
+        "kind": "number",
+        "value": 1
+      }
+    ]
+  }
+}

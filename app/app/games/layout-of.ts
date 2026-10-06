@@ -14,5 +14,6 @@ export function layoutOf(spec: GridSpec): Layout {
     title: p.spec.picture?.title,
     nonogram: p.rowRuns.size > 0,
     ink: p.style.ink,
+    symbols: p.marks.includes("digit") ? p.style.symbols : undefined,
   };
 }

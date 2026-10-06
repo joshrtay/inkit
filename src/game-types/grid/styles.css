@@ -16,6 +16,13 @@
 .grid-game .pearl.black { fill: var(--paper-ink); }
 .grid-game .shaded.water { fill: var(--wash-blue); }
 .grid-game .clue.total { pointer-events: none; }
+.grid-game .clue.on-shade { fill: var(--paper); }
+.grid-game .clue.outside { font-size: 22px; }
+.grid-game .mine { fill: var(--paper-ink); }
+.grid-game .mine-spikes { stroke: var(--paper-ink); stroke-width: 3; stroke-linecap: round; }
+.grid-game .galaxy { fill: var(--paper); stroke: var(--paper-ink); stroke-width: 2.4; }
+.grid-game .thermo { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .thermo-bulb { fill: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); }
 .grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: 2; stroke-linejoin: round; filter: var(--wash); }
 
 /* clues are handwritten in the board's ink */

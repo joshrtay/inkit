@@ -89,7 +89,7 @@ function jigsaw(): string[] {
   return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
 }
 
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "star-battle" || genre === "akari" || genre === "cave" || genre === "aquarium" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "shikaku" ? regionKey(spec, b) : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc"].includes(genre) ? [...b.digit].join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
 async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -126,7 +126,115 @@ const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
 let result: GridSpec | null = null;
 
 for (let attempt = 0; attempt < 40 && !result; attempt++) {
-  if (genre === "cave") {
+  const near4 = (i: number) => { const r = Math.floor(i / cols), c = i % cols; return [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1].filter((j) => j >= 0); };
+  const near8 = (i: number) => { const r = Math.floor(i / cols), c = i % cols, out: number[] = []; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if ((dr || dc) && r + dr >= 0 && c + dc >= 0 && r + dr < rows && c + dc < cols) out.push((r + dr) * cols + c + dc); return out; };
+  /** Every clue outside the grid, read off a finished digit board. */
+  const edgePool = (b: Board, kind: "first" | "skyscraper"): Given[] => {
+    const out: Given[] = [];
+    const add = (side: "top" | "bottom" | "left" | "right", cell: number, ray: number[]) => {
+      let value = 0;
+      if (kind === "first") value = b.digit[ray.find((i) => b.digit[i]) ?? -1] ?? 0;
+      else { let top = 0; for (const i of ray) if (b.digit[i] > top) { top = b.digit[i]; value++; } }
+      if (value) out.push({ at: "edge", side, cell: at(cell), kind, value });
+    };
+    for (let r = 0; r < rows; r++) { const row = Array.from({ length: cols }, (_, c) => r * cols + c); add("left", row[0], row); add("right", row.at(-1)!, [...row].reverse()); }
+    for (let c = 0; c < cols; c++) { const col = Array.from({ length: rows }, (_, r) => r * cols + c); add("top", col[0], col); add("bottom", col.at(-1)!, [...col].reverse()); }
+    return out;
+  };
+  if (genre === "square-jam") {
+    // squares no bigger than 3 x 3, so there are plenty of them
+    const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const target = await randomBoard(base, `:- root(R), size(R,N), N > 9.\n:- #count{R: root(R)} < ${Math.round(rows * cols / 5)}.`);
+    if (!target) continue;
+    const reg = regionsOf(makePuzzle(base), target);
+    const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: Math.round(Math.sqrt(reg.cells[reg.of[i]].length)) }));
+    result = await narrow(base, target, pool);
+  } else if (genre === "wittgenstein-briquet" || genre === "minesweeper") {
+    // a random answer (blocks with the rest connected / mines), then numbers in the other cells
+    const n = rows * cols, base: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const [lo, hi] = genre === "minesweeper" ? [0.15, 0.25] : [0.25, 0.4];
+    const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * lo)}.\n:- #count{I: shaded(I)} > ${Math.round(n * hi)}.`);
+    if (!target) continue;
+    const around = genre === "minesweeper" ? near8 : near4;
+    const pool: Given[] = Array.from({ length: n }, (_, i) => i).filter((i) => target.shade[i] !== 1)
+      .map((i) => ({ at: "cell", cell: at(i), kind: "number", value: around(i).filter((j) => target.shade[j] === 1).length }));
+    result = await narrow(base, target, pool);
+  } else if (genre === "hitori") {
+    // a shading (no two side by side, the rest connected); numbers from a latin square, then each
+    // shaded cell copies a number left in its row or column so it has to go
+    const n = rows * cols, shadeSpec: GridSpec = { size: [rows, cols], marks: ["shade"], rules: [{ rule: "no-adjacent" }, { rule: "unshaded-connected" }] };
+    const target = await randomBoard(shadeSpec, `:- #count{I: shaded(I)} < ${Math.round(n * 0.2)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.32)}.`);
+    if (!target) continue;
+    const latin = await randomBoard({ genre: "sudoku", size: [rows, cols], rules: [{ rule: "boxes", box: [1, cols] }] }, "");
+    if (!latin) continue;
+    for (let t = 0; t < 30 && !result; t++) {
+      const v = [...latin.digit];
+      for (let i = 0; i < n; i++) if (target.shade[i] === 1) {
+        const [r, c] = at(i), mates = [...Array.from({ length: cols }, (_, x) => r * cols + x), ...Array.from({ length: rows }, (_, y) => y * cols + c)].filter((j) => j !== i && target.shade[j] !== 1);
+        v[i] = latin.digit[mates[Math.floor(rand() * mates.length)]];
+      }
+      const spec: GridSpec = { genre, size: [rows, cols], givens: v.map((value, i) => ({ at: "cell", cell: at(i), kind: "number", value })) };
+      if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+    }
+  } else if (genre === "spiral-galaxies") {
+    // grow symmetric regions: a centre on a cell, an edge or a corner, then pairs of mirrored cells
+    for (let t = 0; t < 60 && !result; t++) {
+      const owner = new Array<number>(rows * cols).fill(-1), points: [number, number][] = [];
+      const free = (r: number, c: number) => r >= 0 && c >= 0 && r < rows && c < cols && owner[r * cols + c] < 0;
+      for (let start = 0; start < rows * cols; start++) {
+        const order = shuffle(Array.from({ length: rows * cols }, (_, i) => i).filter((i) => owner[i] < 0));
+        if (!order.length) break;
+        const [r, c] = at(order[0]);
+        // centre options: the cell, its right / lower edge, its lower-right corner (if those cells are free)
+        const opts: [number, number, number[]][] = [[2 * r + 1, 2 * c + 1, [order[0]]]];
+        if (free(r, c + 1)) opts.push([2 * r + 1, 2 * c + 2, [order[0], order[0] + 1]]);
+        if (free(r + 1, c)) opts.push([2 * r + 2, 2 * c + 1, [order[0], order[0] + cols]]);
+        if (free(r, c + 1) && free(r + 1, c) && free(r + 1, c + 1)) opts.push([2 * r + 2, 2 * c + 2, [order[0], order[0] + 1, order[0] + cols, order[0] + cols + 1]]);
+        const [py, px, core] = opts[Math.floor(rand() * opts.length)], k = points.length;
+        points.push([py, px]); for (const i of core) owner[i] = k;
+        const want = 2 + Math.floor(rand() * 8);
+        for (let g = 0; g < 40 && owner.filter((o) => o === k).length < want; g++) {
+          const mine = owner.flatMap((o, i) => (o === k ? [i] : []));
+          const cand = shuffle(mine.flatMap(near4).filter((j) => owner[j] < 0));
+          const pick = cand.find((j) => { const [y, x] = at(j), y2 = py - 1 - y, x2 = px - 1 - x; return free(y2, x2) && y2 * cols + x2 !== j; });
+          if (pick === undefined) break;
+          const [y, x] = at(pick); owner[pick] = k; owner[(py - 1 - y) * cols + (px - 1 - x)] = k;
+        }
+      }
+      const spec: GridSpec = { genre, size: [rows, cols], givens: points.map((point) => ({ at: "point", point, kind: "galaxy" })) };
+      if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+    }
+  } else if (genre === "thermo-sudoku") {
+    // a full grid, thermometers traced up rising digits, then given digits until it's the only one
+    const base0: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const full = await randomBoard(base0, "");
+    if (!full) continue;
+    const thermos: Given[] = [], used = new Set<number>();
+    for (let t = 0; t < 40 && thermos.length < Math.round(rows * 0.7); t++) {
+      let cur = Math.floor(rand() * rows * cols);
+      if (used.has(cur)) continue;
+      const path = [cur];
+      while (path.length < 5) {
+        const up = shuffle(near4(cur)).find((j) => !used.has(j) && !path.includes(j) && full.digit[j] > full.digit[cur]);
+        if (up === undefined) break;
+        path.push(up); cur = up;
+      }
+      if (path.length < 3) continue;
+      path.forEach((i) => used.add(i));
+      thermos.push({ at: "cells", cells: path.map(at), kind: "thermo" });
+    }
+    const base: GridSpec = { genre, size: [rows, cols], givens: thermos };
+    const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: full.digit[i] }));
+    result = await narrow(base, full, pool);
+  } else if (genre === "skyscrapers" || genre === "easy-as-abc") {
+    // a random answer, then clues outside (and, for Skyscrapers, a few digits if needed)
+    const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const target = await randomBoard(base, "");
+    if (!target) continue;
+    const pool = [...edgePool(target, genre === "skyscrapers" ? "skyscraper" : "first"),
+      ...(genre === "skyscrapers" ? Array.from({ length: rows * cols }, (_, i): Given => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] })) : [])];
+    result = await narrow(base, target, pool);
+  } else if (genre === "cave") {
     // a random cave (about half the grid shaded), then numbers in white cells until it's the only one
     const n = rows * cols, base: GridSpec = { genre, size: [rows, cols], givens: [] };
     const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * 0.38)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.55)}.`);
@@ -358,7 +466,7 @@ for (let attempt = 0; attempt < 40 && !result; attempt++) {
       spec.rules = rules.filter((r) => ["size", "all-different"].includes(r.rule) || used.has(r.rule));
       // a cell can hold only one clue: keep the first
       const seen = new Set<string>();
-      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
       if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
     }
   } else throw new Error(`no generator for genre "${genre}"`);

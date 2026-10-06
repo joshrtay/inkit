@@ -35,6 +35,19 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   Leave out lines drawn as the answer.`,
   masyu: `masyu: white and black circles (pearls) in cells, {kind: "pearl", pearl: "white" / "black"}. Leave out the loop if
   it's drawn as the answer.`,
+  "square-jam": `square-jam (Square Jam): numbers in cells, {kind: "number", value} (a square's side length). Leave out squares drawn as the answer.`,
+  "wittgenstein-briquet": `wittgenstein-briquet (Wittgenstein Briquet): numbers 0-4 in cells, {kind: "number", value}. Leave out blocks drawn as the answer.`,
+  hitori: `hitori: a number (or letter, numbered 1, 2, 3...) in every cell, {kind: "number", value}. Leave out shading drawn as the answer.`,
+  minesweeper: `minesweeper: numbers 0-8 in some cells, {kind: "number", value}. Leave out mines drawn as the answer.`,
+  "spiral-galaxies": `spiral-galaxies (Spiral Galaxies / Tentai Show): small circles at cell centres, on the middle of a line between two
+  cells, or where four cells meet. Each is {kind: "galaxy", point: {row, col}} in half-cell steps: a cell's centre is
+  row 2r+1, col 2c+1; the line below cell (r, c) is row 2r+2; a corner is an even row and an even column.`,
+  "thermo-sudoku": `thermo-sudoku (Thermo Sudoku): a sudoku (usually 6x6 or 9x9) with printed digits {kind: "number", value} and
+  thermometers drawn through cells: {kind: "thermo", path: [cells from the bulb to the tip]}.`,
+  skyscrapers: `skyscrapers: an n x n grid with numbers outside it, beside rows and above / below columns: {kind: "skyscraper",
+  value, cell: the cell next to the number, side: which side of that cell the number is on}. Printed digits inside are {kind: "number"}.`,
+  "easy-as-abc": `easy-as-abc (Easy as ABC): letters outside the grid: {kind: "first", value: 1 for A, 2 for B..., cell: the cell next
+  to it, side}. If it uses more or fewer letters than A-C, set the rule letters with count, and style symbols isn't needed.`,
   cave: `cave: numbers in cells, {kind: "number", value}. Leave out shading drawn as the answer.`,
   aquarium: `aquarium: a grid split into outlined tanks (thick lines), with a number beside some rows and above some
   columns. Give the tanks as "areas" (one string per row, one letter per cell) and each number in "runs" as a
@@ -78,6 +91,10 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   count: "a number on a corner, where grid lines cross (mazes): value, with cell = the corner's row and column (0..rows, 0..cols)",
   dots: "colored dots in a piece (Three Coats): dots = the colors, 1 red, 2 yellow, 3 blue, with cell {row: 0, col: piece index}",
   pearl: "a white or black circle in a cell (masyu): pearl",
+  first: "a letter outside the grid (easy-as-abc): value 1 = A..., cell + side",
+  skyscraper: "a number outside the grid (skyscrapers): value, cell + side",
+  thermo: "a thermometer (thermo-sudoku): path, bulb first",
+  galaxy: "a galaxy circle (spiral-galaxies): point, in half-cell steps",
   door: "an arrow at the outside edge (mazes): cell = the cell beside it, side = that cell's side, role = in or out",
 };
 
@@ -96,6 +113,18 @@ const RULE_GUIDE: Record<RuleName, string> = {
   lit: "bulbs light their row and column; every white cell lit, no two bulbs see each other (comes with akari)",
   "adjacent-count": "a number counts the shaded cells / bulbs right beside it (comes with akari)",
   rectangles: "every region is a rectangle (comes with shikaku)",
+  squares: "every region is a square (comes with square-jam)",
+  "no-four-corners": "four regions never meet at a point (comes with square-jam)",
+  "side-clue": "a number is the side of its square (comes with square-jam)",
+  galaxies: "regions are symmetric about their circles (comes with spiral-galaxies)",
+  bars: "shaded cells are straight blocks of length (comes with wittgenstein-briquet, length 3)",
+  "no-adjacent": "shaded cells never share a side (comes with hitori)",
+  "unique-unshaded": "unshaded numbers differ in each row and column (comes with hitori)",
+  "mine-count": "a number counts the mines in the 8 cells around it (comes with minesweeper)",
+  letters: "each of count letters once per row and column, other cells empty (comes with easy-as-abc, count 3)",
+  "first-seen": "a letter outside is the first one seen from that side (comes with easy-as-abc)",
+  skyscrapers: "a number outside counts the buildings seen from there (comes with skyscrapers)",
+  thermo: "digits rise from a thermometer's bulb to its tip (comes with thermo-sudoku)",
   "unshaded-connected": "the white cells form one connected group (comes with cave)",
   "shaded-to-edge": "every group of shaded cells touches the edge (comes with cave)",
   sight: "a number counts the white cells it sees in its row and column, itself included (comes with cave)",
@@ -134,6 +163,8 @@ const Reading = z.object({
     box: z.array(int).nullable().describe("boxes: [rows, cols]; else null"),
     red: int.nullable(), yellow: int.nullable(), blue: int.nullable(),
     n: int.nullable().describe("shaded-per-line / shaded-per-area: how many; else null"),
+    count: int.nullable().describe("letters: how many letters; else null"),
+    length: int.nullable().describe("bars: block length; else null"),
   })).describe("rules written on the sketch beyond the ones the game type always has; null for settings a rule doesn't use"),
   givens: z.array(z.object({
     kind: z.enum(clueKinds),
@@ -146,6 +177,8 @@ const Reading = z.object({
     role: z.enum(["in", "out"]).nullable().describe("door: the way in or the way out; else null"),
     dots: z.array(int).nullable().describe("dots: the dot colors, 1 red, 2 yellow, 3 blue; else null"),
     pearl: z.enum(["white", "black"]).nullable().describe("pearl: its color; else null"),
+    path: z.array(Cell).nullable().describe("thermo: its cells from bulb to tip; else null"),
+    point: Cell.nullable().describe("galaxy: its centre in half-cell steps; else null"),
   })),
   runs: z.array(z.object({ line: z.enum(["row", "col"]), index: int, runs: z.array(int) }))
     .describe("nonogram clue numbers written beside rows / above columns; empty when you give a picture instead"),
@@ -284,6 +317,9 @@ export function toSketch(r: Reading): string {
         const v = Object.fromEntries(Object.entries(g.compass ?? {}).filter(([, n]) => n !== null)) as { n?: number; e?: number; s?: number; w?: number };
         return [{ at: "cell", cell: rc(g.cell), kind: "compass", value: v }];
       }
+      case "first": case "skyscraper": return g.side && g.value !== null ? [{ at: "edge", cell: rc(g.cell), side: g.side, kind: g.kind, value: g.value }] : [];
+      case "thermo": return g.path && g.path.length > 1 ? [{ at: "cells", cells: g.path.map(rc), kind: "thermo" }] : [];
+      case "galaxy": return g.point ? [{ at: "point", point: rc(g.point), kind: "galaxy" }] : [];
       case "pearl": return g.pearl ? [{ at: "cell", cell: rc(g.cell), kind: "pearl", value: g.pearl }] : [];
       case "dots": return g.dots?.length ? [{ at: "cell", cell: rc(g.cell), kind: "dots", value: g.dots }] : [];
       case "count": return g.value === null ? [] : [{ at: "corner", corner: rc(g.cell), kind: "count", value: g.value }];

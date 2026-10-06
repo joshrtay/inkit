@@ -1,0 +1,175 @@
+{
+  "type": "grid",
+  "name": "Quarry",
+  "meta": "8 × 8",
+  "grid": {
+    "size": [
+      8,
+      8
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          4
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          7
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          2
+        ],
+        "kind": "number",
+        "value": 5
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          6
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          6
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          4
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          0
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          5
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          2
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          6
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          3
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          1
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          6
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          5
+        ],
+        "kind": "number",
+        "value": 3
+      }
+    ]
+  }
+}

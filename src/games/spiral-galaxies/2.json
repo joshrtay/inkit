@@ -1,0 +1,173 @@
+{
+  "type": "grid",
+  "name": "Milky Way",
+  "meta": "7 × 7",
+  "grid": {
+    "size": [
+      7,
+      7
+    ],
+    "givens": [
+      {
+        "at": "point",
+        "point": [
+          12,
+          10
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          3,
+          13
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          6,
+          11
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          3,
+          6
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          10,
+          5
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          4,
+          3
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          2,
+          1
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          12,
+          1
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          7,
+          9
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          9,
+          2
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          13,
+          7
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          7,
+          13
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          7,
+          1
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          13,
+          13
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          1,
+          11
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          11,
+          7
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          10,
+          13
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          3,
+          9
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          1,
+          9
+        ],
+        "kind": "galaxy"
+      },
+      {
+        "at": "point",
+        "point": [
+          5,
+          1
+        ],
+        "kind": "galaxy"
+      }
+    ]
+  }
+}

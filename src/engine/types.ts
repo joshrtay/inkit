@@ -14,6 +14,9 @@ export type Given =
   | { at: "border"; cells: [RC, RC]; kind: "twins" | "opposites" | "wall" }   // a wall: loops can't cross it; in a maze, a wall given already drawn
   | { at: "corner"; corner: RC; kind: "count"; value: number }               // a number on a corner: how many walls touch it (mazes)
   | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
+  | { at: "edge"; cell: RC; side: Side; kind: "first" | "skyscraper"; value: number }   // outside the grid, looking in: the first letter seen (Easy as ABC) / how many buildings are seen (Skyscrapers)
+  | { at: "cells"; cells: RC[]; kind: "thermo" }                              // a thermometer from its bulb (first cell) to its tip
+  | { at: "point"; point: RC; kind: "galaxy" }                                // a galaxy centre in half-cell units: [2r+1, 2c+1] is a cell's centre, even numbers lie on lines
   | { at: "row" | "col"; index: number; kind: "runs"; value: number[] }      // nonogram clue beside a row / above a column
   | { at: "row" | "col"; index: number; kind: "total"; value: number };      // how many shaded cells in that row / column (Aquarium)
 
@@ -28,7 +31,8 @@ export interface GridStyle {
   grid?: "lines" | "dots";
   major?: number;                // a heavier grid line every n cells (nonograms: 5)
   empty?: "dot" | "x";           // how a known-empty shade cell is marked
-  shaded?: "wash" | "star" | "bulb" | "water";   // how a shaded cell looks: an ink wash, a star (Star Battle), a light bulb (Akari)
+  shaded?: "wash" | "star" | "bulb" | "water" | "mine";
+  symbols?: string;              // a digit puzzle's digits shown as these letters instead (Easy as ABC: "ABC")   // how a shaded cell looks: an ink wash, a star (Star Battle), a light bulb (Akari)
   palette?: string[];            // region / glass colors
   wash?: string;                 // shading and loop color
 }
@@ -104,6 +108,14 @@ export interface Puzzle {
   figure: number[][][] | null;
   /** mistakes allowed (0 = free play) */
   hearts: number;
+  /** clues outside the grid (not doors): the cell they look in at, from which side */
+  edgeClues: { cell: number; side: Side; kind: "first" | "skyscraper"; value: number }[];
+  /** thermometers, bulb first */
+  thermos: number[][];
+  /** galaxy centres, in half-cell units */
+  galaxies: [number, number][];
+  /** a digit puzzle whose cells may stay empty (Easy as ABC) */
+  blanks: boolean;
   /** outlined areas: each cell's area index, and each area's cells (null if none) */
   areas: { of: number[]; cells: number[][] } | null;
 }

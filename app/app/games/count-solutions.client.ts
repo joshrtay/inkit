@@ -11,7 +11,7 @@ export type Count = { solutions: 0 | 1 | 2 } | { error: string };
 export async function countSolutions(spec: GridSpec): Promise<Count> {
   const clingo = await import("clingo-wasm");
   const p = makePuzzle(spec);
-  const res = await clingo.run(program(p), 2);
+  const res = await clingo.run(program(p), 2, ["--project=show"]);
   if (res.Result === "ERROR") return { error: `The solver failed: ${"Error" in res ? res.Error : "unknown error"}` };
   const answers = ("Call" in res ? res.Call?.[0]?.Witnesses ?? [] : []).map((w) => w.Value);
   for (const atoms of answers) {

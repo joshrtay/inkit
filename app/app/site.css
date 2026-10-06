@@ -146,6 +146,10 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .fe-piece-bar b { margin-right: 4px; }
 .ge-text { font: 700 22px var(--hand); fill: #26398f; text-anchor: middle; pointer-events: none; }
 .ge-text.on-rock { fill: #fff; }
+.ge-text.outside { font-size: 18px; }
+.ge-thermo { fill: none; stroke: #c9cde0; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.ge-thermo.draft { stroke: #f2c23a; }
+.ge-galaxy { fill: #fff; stroke: #26398f; stroke-width: 2.4; pointer-events: none; }
 .ge-pearl { stroke: #26398f; stroke-width: 2.4; }
 .ge-pearl.white { fill: #fff; }
 .ge-pearl.black { fill: #26398f; }

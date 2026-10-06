@@ -20,7 +20,7 @@ function markup(l: Layout) {
     : "";
   const pad = l.digits
     ? `<div class="paper-bar pad" role="group" aria-label="Digits"><div class="group">${Array.from({ length: l.digits }, (_, i) =>
-        `<button class="word num" data-digit="${i + 1}" type="button">${i + 1}</button>`).join("")}</div>
+        `<button class="word num" data-digit="${i + 1}" type="button">${esc(l.symbols?.[i] ?? String(i + 1))}</button>`).join("")}</div>
        <div class="group"><button class="word" data-pencil type="button" aria-pressed="false" title="Pencil notes (P)">pencil</button>
        <button class="word" data-digit="0" type="button" title="Erase (Backspace)">erase</button></div></div>`
     : "";

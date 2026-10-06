@@ -1,0 +1,121 @@
+{
+  "type": "grid",
+  "name": "Office Plan",
+  "meta": "8 × 8",
+  "grid": {
+    "size": [
+      8,
+      8
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          4
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          6
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          5
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          1
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          6
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          7
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          1
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          7,
+          1
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          7,
+          2
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          7
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "number",
+        "value": 0
+      }
+    ]
+  }
+}

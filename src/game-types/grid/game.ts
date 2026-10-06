@@ -12,7 +12,7 @@ import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
-import { blockFor, boxLines, runsOf, type Hint } from "../../engine/rules.ts";
+import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/rules.ts";
 import { emptyBoard, type Board, type Problem } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
@@ -68,7 +68,11 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   };
   // row / column totals (Aquarium) sit left of the rows and above the columns
   const totalsRoom = (side: string) => (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0;
-  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side));
+  // clues outside the grid (Skyscrapers, Easy as ABC) sit beside the row or column they look along
+  const edgeRoom = (side: string) => (p.edgeClues.some((c) => c.side === side) ? 38 : 0);
+  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side), edgeRoom(side));
+  const shadeClues = p.rules.some((s) => blockFor(s).shadeClues);   // Hitori shades the numbers
+  const label = (d: number) => symbolOf(p, d);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top"), MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
   const svg = q<SVGSVGElement>("svg.board");
@@ -141,11 +145,27 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     cornerEls.set(v, [n, giv.value]);
   }
   const digitEls = new Map<number, SVGTextElement>();
+  // thermometers: a pale tube from a round bulb, under the digits
+  for (const t of p.thermos) {
+    el("polyline", { class: "thermo", points: t.map((i) => center(i).join(",")).join(" ") }, gTint);
+    const [bx, by] = center(t[0]);
+    el("circle", { class: "thermo-bulb", cx: bx, cy: by, r: S * 0.36 }, gTint);
+  }
+  // galaxy centres
+  for (const [y, x] of p.galaxies) el("circle", { class: "galaxy", cx: ML + (x * S) / 2, cy: MT + (y * S) / 2, r: 7 }, gGivens);
+  // clues outside the grid, beside the row / column they look along
+  for (const c of p.edgeClues) {
+    const [cx, cy] = center(c.cell), d = S / 2 + 18;
+    const [x, y] = c.side === "top" ? [cx, cy - d] : c.side === "bottom" ? [cx, cy + d] : c.side === "left" ? [cx - d, cy] : [cx + d, cy];
+    el("text", { class: "clue outside", x, y: y + 1 }, gGivens).textContent = c.kind === "first" ? label(c.value) : String(c.value);
+  }
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
     const [x, y] = center(i);
     if (giv.kind === "number" && !digits) {
       if (links) el("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 }, gGivens);
-      el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens).textContent = String(giv.value);
+      const t = el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens) as SVGTextElement;
+      t.textContent = String(giv.value);
+      if (shadeClues) digitEls.set(i, t);
     }
     else if (giv.kind === "pearl") el("circle", { class: `pearl ${giv.value}`, cx: x, cy: y, r: S * 0.3 }, gGivens);
     else if (giv.kind === "symbol") el("text", { class: "clue symbol", x, y: y + 1 }, gGivens).textContent = "✦";
@@ -243,7 +263,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       const [x, y] = center(i);
       if (marks.includes("shade") && board.shade[i] === 1) {
         if (p.style.shaded === "star") el("path", { class: "star", d: starPath(x, y, S * 0.36) }, gMarks);
-        else if (p.style.shaded === "bulb") {
+        else if (p.style.shaded === "mine") {
+          el("circle", { class: "mine", cx: x, cy: y, r: S * 0.2 }, gMarks);
+          el("path", { class: "mine-spikes", d: `M${x - S * 0.3} ${y}H${x + S * 0.3}M${x} ${y - S * 0.3}V${y + S * 0.3}M${x - S * 0.21} ${y - S * 0.21}L${x + S * 0.21} ${y + S * 0.21}M${x + S * 0.21} ${y - S * 0.21}L${x - S * 0.21} ${y + S * 0.21}` }, gMarks);
+        } else if (p.style.shaded === "bulb") {
           el("circle", { class: "bulb", cx: x, cy: y - 2, r: S * 0.22 }, gMarks);
           el("rect", { class: "bulb-base", x: x - S * 0.1, y: y + S * 0.16, width: S * 0.2, height: S * 0.12, rx: 2 }, gMarks);
         }
@@ -254,12 +277,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         if (p.style.empty === "x") xMark(x, y, S * 0.18, "xmark cellx"); else el("circle", { class: "dotmark", cx: x, cy: y, r: 3.5 }, gMarks);
       }
       if (digits && board.digit[i]) {
-        el("text", { class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2 }, gMarks).textContent = String(board.digit[i]);
+        el("text", { class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2 }, gMarks).textContent = label(board.digit[i]);
       } else if (digits && board.pencil[i]) {
         const per = Math.ceil(Math.sqrt(p.digits));
         for (let d = 1; d <= p.digits; d++) if (board.pencil[i] & (1 << d)) {
           const k = d - 1, px = x - S / 2 + (S / per) * ((k % per) + 0.5), py = y - S / 2 + (S / per) * (Math.floor(k / per) + 0.5);
-          el("text", { class: "pencil", x: px, y: py + 1 }, gMarks).textContent = String(d);
+          el("text", { class: "pencil", x: px, y: py + 1 }, gMarks).textContent = label(d);
         }
       }
     }
@@ -289,6 +312,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       if (board.loop[l.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
     }
     for (const [k, t] of clueEls) t.classList.toggle("done", ticks.has(k));
+    for (const [i, t] of digitEls) t.classList.toggle("on-shade", board.shade[i] === 1);
     for (const [cs, k, t] of totalEls) t.classList.toggle("done", cs.filter((i) => board.shade[i] === 1).length === k);
     for (const [v, [n, want]] of cornerEls) {
       const have = g.cornerBorders[v].filter((e) => board.fence[e] === 1).length;
@@ -468,7 +492,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       const i = cellAt(pt);
       if (i < 0) return;
       if (marks.includes("shade")) {
-        if (p.cellGivens.has(i)) return;
+        if (p.cellGivens.has(i) && !shadeClues) return;
         const v = (board.shade[i] + (back ? 2 : 1)) % 3;
         drag = { kind: "cells", layer: "shade", value: v, last: i };
         set("shade", i, v);
@@ -492,7 +516,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       const [r0, c0] = g.rc(drag.last), [r1, c1] = g.rc(i), steps = Math.max(Math.abs(r1 - r0), Math.abs(c1 - c0));
       for (let s = 1; s <= steps; s++) {
         const j = g.cell(Math.round(r0 + ((r1 - r0) * s) / steps), Math.round(c0 + ((c1 - c0) * s) / steps));
-        if (!(drag.layer === "shade" && p.cellGivens.has(j))) set(drag.layer, j, drag.value);
+        if (!(drag.layer === "shade" && p.cellGivens.has(j) && !shadeClues)) set(drag.layer, j, drag.value);
       }
       drag.last = i; render();
       return;
@@ -545,6 +569,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       do { r = (r + dr + g.rows) % g.rows; c = (c + dc + g.cols) % g.cols; } while (givenDigit.has(g.cell(r, c)) && g.cell(r, c) !== sel);
       sel = g.cell(r, c); render();
     } else if (/^[1-9]$/.test(e.key) && Number(e.key) <= p.digits) enter(Number(e.key));
+    else if (p.style.symbols && p.style.symbols.toLowerCase().includes(e.key.toLowerCase()) && e.key.length === 1) enter(p.style.symbols.toLowerCase().indexOf(e.key.toLowerCase()) + 1);
     else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") enter(0);
     else if (e.key === "p" || e.key === "P") setPencil(!pencilMode);
   };
