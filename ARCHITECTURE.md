@@ -29,8 +29,9 @@ another game of an existing type needs no code, only a JSON file and its content
 Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5),
 2 (The Big Maze, fitted to the game 2 sketch) and 3 (Side Doors, fitted to the maze3 sketch, both doors on the left); three-coats 1–3 (Triangle, Hexagon,
 Nine Squares) and 4–6 traced from the game 2 shapes sketch (Square in a Kite, Envelope,
-House); round-the-bend 1–4 from the game 2 grids sketch; picture-squares 1–5 drawn here
-and 6–8 from the mosaic sketch (POP, BOB, a trophy). Game lists show the newest first.
+House); round-the-bend 1–4 from the game 2 grids sketch and 5–7 from the batch3 photos;
+picture-squares 1–5 drawn here, 6–8 from the mosaic sketch (POP, BOB, a trophy) and
+9 from a batch3 photo (a person). Game lists show the newest first.
 Old `/ryb/` links redirect to `/three-coats/` (`astro.config.mjs`).
 
 ## How the pieces fit
@@ -151,8 +152,9 @@ Undo, Check and Reset; it checks itself once every cell is filled, against the o
 solution found at build time (`src/game-types/lazy-river/solver.ts`; the build fails
 unless there is exactly one loop). `puzzles/lib/lazy_river.py` has the same solver plus
 `fit()`, which turns a traced sketch into a level by adding the fewest walls (and, if
-no loop fits at all, toggling a black cell). `puzzles/round-the-bend/from_sketch.py` made
-levels 1–4 from the game 2 grids sketch.
+no loop fits at all, toggling a black cell). `puzzles/round-the-bend/from_sketch.py` makes
+levels from traced sketches; when a sketch shows its solution loop, it adds only the walls
+needed to make that loop the only one.
 
 ### Picture Squares (`mosaic`)
 

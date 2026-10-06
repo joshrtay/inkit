@@ -1,0 +1,15 @@
+{
+  "type": "lazy-river",
+  "name": "Little Loop",
+  "meta": "4 \u00d7 4",
+  "river": {
+    "source": "scans/batch3/IMG_0339.heic",
+    "grid": [
+      "...#",
+      ".#..",
+      "....",
+      "..##"
+    ],
+    "walls": []
+  }
+}
