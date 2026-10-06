@@ -1,5 +1,9 @@
 ---
 // The two direction cards shown under the board. The current phase's card is outlined.
+import type { Side } from "./types";
+
+interface Props { entry: Side; exit: Side }
+const { entry, exit } = Astro.props;
 ---
 <div class="number-maze-rules">
   <section class="rules current" data-rules="draw">
@@ -14,9 +18,9 @@
   <section class="rules" data-rules="walk">
     <h2>Phase 2 &middot; Walk the maze</h2>
     <ol>
-      <li>Enter at the arrow on the top edge.</li>
+      <li>Enter at the arrow on the {entry} edge.</li>
       <li>Move through the open squares. You can&rsquo;t cross a wall.</li>
-      <li>Leave by the arrow on the right edge.</li>
+      <li>Leave by the arrow on the {exit} edge.</li>
     </ol>
     <p>Unlocks when the walls are finished. Drag the red marker through the maze; drag back over your line to undo it. Tapping squares and the arrow keys work too.</p>
   </section>

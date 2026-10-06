@@ -26,8 +26,8 @@ Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, liste
 Each instance is `src/games/<type path>/<n>.json`; the number is the file name. Adding
 another game of an existing type needs no code, only a JSON file and its content.
 
-Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5)
-and 2 (The Big Maze, fitted to the game 2 sketch); three-coats 1–3 (Triangle, Hexagon,
+Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5),
+2 (The Big Maze, fitted to the game 2 sketch) and 3 (Side Doors, fitted to the maze3 sketch, both doors on the left); three-coats 1–3 (Triangle, Hexagon,
 Nine Squares) and 4–6 traced from the game 2 shapes sketch (Square in a Kite, Envelope,
 House); round-the-bend 1–4 from the game 2 grids sketch; picture-squares 1–5 drawn here
 and 6–8 from the mosaic sketch (POP, BOB, a trophy). Game lists show the newest first.
@@ -96,13 +96,16 @@ the previews. Only a SHA-256 hash of the answer reaches the browser.
 ### Number Line Maze (`number-maze`)
 
 ```json
-"maze": { "clues": [[2, 2, 3], ...], "entryCol": 9, "exitRow": 13, "hints": [[[r, c], [r, c]], ...] }
+"maze": { "clues": [[2, 2, 3], ...], "entry": { "side": "left", "at": 0 }, "exit": { "side": "left", "at": 6 },
+          "hints": [[[r, c], [r, c]], ...] }
 ```
 
 Numbers sit on the corners of a grid of squares; lines between them are walls.
 Phase 1: draw walls so each number has that many touching it, including the outside
-edge, which is wall everywhere except the entrance (top, above square column
-`entryCol`) and exit (right, beside square row `exitRow`). Walls never loop and all
+edge, which is wall everywhere except the entrance and exit. Each is a gap on any
+side (`top`, `right`, `bottom`, `left`) beside square `at`, counted along that side (a
+column for top/bottom, a row for left/right). Older instances use `entryCol` (a top
+gap) and `exitRow` (a right gap) instead; both forms work. Walls never loop and all
 connect to the edge: exactly a perfect maze. Only `hints` start drawn. Phase 2: drag
 a line through the open squares from entrance to exit.
 
@@ -260,7 +263,8 @@ list and answer, then `npm run puzzles`.
 - Generated: `python3 puzzles/number-maze/new.py --number 3 --size 9x13 --search 40`
 - From a sketch: transcribe the numbers into a text file (one row per line, `?` for
   unreadable cells; keep it in `scans/`), then
-  `python3 puzzles/number-maze/fit.py scans/<file>.txt --number <n> --entry-col C --exit-row R`.
+  `python3 puzzles/number-maze/fit.py scans/<file>.txt --number <n> --entry top:9 --exit right:13`
+  (each gap as side:square).
   It keeps every readable number if any valid maze allows that; otherwise it finds the
   maze that changes the fewest and prints which changed. Try a few `--seed` values.
 - Check a grid typed into JSON: `python3 puzzles/number-maze/check.py`.

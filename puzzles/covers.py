@@ -32,15 +32,30 @@ FILL = {1: "#ed1c24", 2: "#fff200", 3: "#00aeef"}   # RYB uses the original game
 def maze_svg(maze: dict, solved: bool) -> str:
     board = nm.board_for(maze)
     ok, _, walls = nm.check(maze)
-    P, ML, MT, MR, MB = 40, 22, 46, 52, 22
+    P = 40
+    # margins leave room for the arrows: 46 beside the entrance, 52 beside the exit, else 22
+    room = {s: max([22] + [m for o, m in ((board.entry, 46), (board.exit, 52)) if o.side == s]) for s in nm.SIDES}
+    ML, MT, MR, MB = room["left"], room["top"], room["right"], room["bottom"]
     vx = lambda c: ML + c * P
     vy = lambda r: MT + r * P
     W, H = board.W, board.H
+
+    def outside(o, d):            # point d units out from the middle of a gap
+        (r, c), (dr, dc) = board.doorway(o)
+        return vx(c) + dc * d, vy(r) + dr * d
+
+    def arrow(a, b):              # a line from a to b with its head at b
+        (x1, y1), (x2, y2) = a, b
+        ux, uy = (x2 - x1) / math.hypot(x2 - x1, y2 - y1), (y2 - y1) / math.hypot(x2 - x1, y2 - y1)
+        h1 = (x2 - 7 * ux - 6 * uy, y2 - 7 * uy + 6 * ux)
+        h2 = (x2 - 7 * ux + 6 * uy, y2 - 7 * uy - 6 * ux)
+        return (f'<path d="M{x1} {y1} L{x2} {y2} M{h1[0]} {h1[1]} L{x2} {y2} L{h2[0]} {h2[1]}" fill="none" '
+                f'stroke="{RED}" stroke-width="3" stroke-linecap="round"/>')
     out = []
     if solved:
         route = board.route(walls)
-        pts = [(vx(maze["entryCol"]) + P / 2, vy(0) - 10)] + [(vx(c) + P / 2, vy(r) + P / 2) for r, c in route]
-        pts.append((vx(W - 1) + 14, vy(maze["exitRow"]) + P / 2))
+        pts = [outside(board.entry, 10)] + [(vx(c) + P / 2, vy(r) + P / 2) for r, c in route]
+        pts.append(outside(board.exit, 14))
         out.append(f'<polyline points="{" ".join(f"{x},{y}" for x, y in pts)}" fill="none" stroke="{TRAIL}" '
                    'stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>')
         for e in walls:
@@ -54,10 +69,8 @@ def maze_svg(maze: dict, solved: bool) -> str:
                 out.append(f'<circle cx="{vx(c)}" cy="{vy(r)}" r="12" fill="#fff" stroke="{INK}" stroke-width="1.4"/>'
                            f'<text x="{vx(c)}" y="{vy(r) + 5}" font-size="14" font-weight="700" text-anchor="middle" '
                            f'font-family="Courier Prime, Courier New, monospace" fill="{INK}">{maze["clues"][r][c]}</text>')
-    ax, ay = vx(maze["entryCol"]) + P / 2, vy(0)
-    bx, by = vx(W - 1), vy(maze["exitRow"]) + P / 2
-    out.append(f'<path d="M{ax} {ay - 36} V{ay - 10} M{ax - 6} {ay - 17} L{ax} {ay - 10} L{ax + 6} {ay - 17}" fill="none" stroke="{RED}" stroke-width="3" stroke-linecap="round"/>')
-    out.append(f'<path d="M{bx + 10} {by} H{bx + 38} M{bx + 31} {by - 6} L{bx + 38} {by} L{bx + 31} {by + 6}" fill="none" stroke="{RED}" stroke-width="3" stroke-linecap="round"/>')
+    out.append(arrow(outside(board.entry, 36), outside(board.entry, 10)))   # points in
+    out.append(arrow(outside(board.exit, 10), outside(board.exit, 38)))     # points out
     vbw, vbh = ML + (W - 1) * P + MR, MT + (H - 1) * P + MB
     return f'<svg viewBox="0 0 {vbw} {vbh}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', vbw / vbh
 

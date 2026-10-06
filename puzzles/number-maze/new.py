@@ -1,6 +1,6 @@
 """Create (or regenerate) a number-maze game instance in src/games/number-line-maze/<n>.json.
 
-    python3 puzzles/number-maze/new.py --number 3 --size 11x17 --exit-row 14 --seed 53
+    python3 puzzles/number-maze/new.py --number 3 --size 11x17 --exit right:14 --seed 53
     python3 puzzles/number-maze/new.py --number 4 --size 7x9 --search 40   # try 40 seeds, keep the best
 
 Regenerating an existing instance keeps its name, blurb and other fields and only
@@ -19,8 +19,8 @@ GAMES = Path(__file__).resolve().parents[2] / "src" / "games" / "number-line-maz
 ap = argparse.ArgumentParser()
 ap.add_argument("--number", type=int, required=True, help="instance number: writes src/games/number-line-maze/<n>.json")
 ap.add_argument("--size", default="11x17", help="numbers across x numbers down")
-ap.add_argument("--entry-col", type=int, help="square column of the entrance (default: rightmost)")
-ap.add_argument("--exit-row", type=int, help="square row of the exit (default: near the bottom)")
+ap.add_argument("--entry", type=nm.Opening.parse, help="entrance as side:square, e.g. top:9 (default: top, rightmost)")
+ap.add_argument("--exit", type=nm.Opening.parse, help="exit as side:square, e.g. right:13 (default: right, near the bottom)")
 ap.add_argument("--seed", type=int, default=1)
 ap.add_argument("--search", type=int, default=1, help="try this many seeds from --seed; keep fewest hints, longest route")
 ap.add_argument("--name", help="display name for a new instance")
@@ -28,12 +28,12 @@ ap.add_argument("--force", action="store_true", help="replace an existing maze")
 args = ap.parse_args()
 
 W, H = map(int, args.size.split("x"))
-entry_col = args.entry_col if args.entry_col is not None else W - 2
-exit_row = args.exit_row if args.exit_row is not None else max(0, H - 4)
+entry = args.entry or nm.Opening("top", W - 2)
+exit = args.exit or nm.Opening("right", max(0, H - 4))
 
 best = None
 for seed in range(args.seed, args.seed + args.search):
-    board, walls, hints = nm.generate(W, H, entry_col, exit_row, seed)
+    board, walls, hints = nm.generate(W, H, entry, exit, seed)
     score = (len(hints), -len(board.route(walls)))
     if best is None or score < best[0]:
         best = (score, seed, board, walls, hints)
@@ -50,8 +50,8 @@ instance = {
     **{k: v for k, v in instance.items() if k not in ("type", "maze")},
     "maze": {
         "seed": seed,
-        "entryCol": entry_col,
-        "exitRow": exit_row,
+        "entry": entry.json(),
+        "exit": exit.json(),
         "hints": sorted(board.pair(e) for e in hints),
         "clues": board.clues_of(walls),
     },

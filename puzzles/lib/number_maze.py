@@ -1,9 +1,10 @@
 """Number maze: the game-type logic shared by every number-maze instance.
 
 Board: numbers sit on the corners of a grid of squares. Lines between neighbouring
-numbers are walls. The outer border is pre-drawn except for two gaps: the entrance
-on the top edge (above square column `entry_col`) and the exit on the right edge
-(beside square row `exit_row`).
+numbers are walls. The outer border is walled except for two gaps, the entrance and
+the exit. Each gap is an Opening (side, at): a side of the board ("top", "right",
+"bottom" or "left") and the square beside the gap, counted along that side (a column
+for top/bottom, a row for left/right).
 
 Rules the player sees:
   - Each number says how many walls touch it; border walls count.
@@ -11,28 +12,52 @@ Rules the player sees:
 Those rules describe exactly a perfect maze (every square reachable, one route
 between any two), so a grid with exactly one solution is a valid puzzle.
 
-An instance's "maze" data (in src/games/<slug>.json):
-  {"clues": [[...], ...], "entryCol": int, "exitRow": int, "hints": [[[r, c], [r, c]], ...]}
+An instance's "maze" data (in src/games/number-line-maze/<n>.json):
+  {"clues": [[...], ...], "entry": {"side": "left", "at": 0}, "exit": {"side": "left", "at": 6},
+   "hints": [[[r, c], [r, c]], ...]}
+Older instances give "entryCol" (top edge) and "exitRow" (right edge) instead.
 """
 from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
+from typing import NamedTuple
+
+SIDES = ("top", "right", "bottom", "left")
+
+
+class Opening(NamedTuple):
+    side: str                   # "top", "right", "bottom" or "left"
+    at: int                     # square column (top/bottom) or square row (left/right)
+
+    @classmethod
+    def parse(cls, text: str) -> "Opening":
+        """'left:0' -> Opening('left', 0)"""
+        side, _, at = text.partition(":")
+        if side not in SIDES or not at.lstrip("-").isdigit():
+            raise ValueError(f"expected side:square, e.g. left:0 (sides: {', '.join(SIDES)}), got {text!r}")
+        return cls(side, int(at))
+
+    def json(self): return {"side": self.side, "at": self.at}
 
 
 @dataclass
 class Board:
     W: int                      # numbers across
     H: int                      # numbers down
-    entry_col: int              # square column under the entrance gap (top edge)
-    exit_row: int               # square row beside the exit gap (right edge)
+    entry: Opening              # the entrance gap
+    exit: Opening               # the exit gap
     verts: list = field(init=False)
     edges: list = field(init=False)
 
     def __post_init__(self):
         W, H = self.W, self.H
-        if not (0 <= self.entry_col < W - 1 and 0 <= self.exit_row < H - 1):
-            raise ValueError("entrance or exit is outside the board")
+        self.entry, self.exit = Opening(*self.entry), Opening(*self.exit)
+        for o in (self.entry, self.exit):
+            if o.side not in SIDES or not 0 <= o.at < (W - 1 if o.side in ("top", "bottom") else H - 1):
+                raise ValueError(f"opening {o} is outside the board")
+        if self.entry == self.exit:
+            raise ValueError("the entrance and exit are the same gap")
         self.verts = [(r, c) for r in range(H) for c in range(W)]
         self.vid = {p: i for i, p in enumerate(self.verts)}
         self.edges, self.eid = [], {}
@@ -45,8 +70,7 @@ class Board:
         self.vert_edges = [[] for _ in self.verts]
         for e, (a, b) in enumerate(self.edges):
             self.vert_edges[a].append(e); self.vert_edges[b].append(e)
-        self.entry_gap = self.eid[((0, self.entry_col), (0, self.entry_col + 1))]
-        self.exit_gap = self.eid[((self.exit_row, W - 1), (self.exit_row + 1, W - 1))]
+        self.entry_gap, self.exit_gap = self._gap(self.entry), self._gap(self.exit)
         self.border = {e for e in range(len(self.edges)) if self._border_edge(e)}
 
     # ---- geometry ----
@@ -55,9 +79,25 @@ class Board:
     @property
     def CH(self): return self.H - 1
     @property
-    def entry_square(self): return (0, self.entry_col)
+    def entry_square(self): return self._square(self.entry)
     @property
-    def exit_square(self): return (self.exit_row, self.CW - 1)
+    def exit_square(self): return self._square(self.exit)
+
+    def _square(self, o: Opening):
+        return {"top": (0, o.at), "bottom": (self.CH - 1, o.at),
+                "left": (o.at, 0), "right": (o.at, self.CW - 1)}[o.side]
+
+    def doorway(self, o: Opening):
+        """Where a gap sits, for drawing: its midpoint as (row, col) in corner units, and the
+        unit step (dr, dc) pointing out of the board."""
+        return {"top": ((0, o.at + .5), (-1, 0)), "bottom": ((self.H - 1, o.at + .5), (1, 0)),
+                "left": ((o.at + .5, 0), (0, -1)), "right": ((o.at + .5, self.W - 1), (0, 1))}[o.side]
+
+    def _gap(self, o: Opening):
+        r, c = {"top": (0, o.at), "bottom": (self.H - 1, o.at),
+                "left": (o.at, 0), "right": (o.at, self.W - 1)}[o.side]
+        q = (r, c + 1) if o.side in ("top", "bottom") else (r + 1, c)
+        return self.eid[((r, c), q)]
 
     def on_border(self, v):
         r, c = self.verts[v]
@@ -216,17 +256,24 @@ def hints_for(board: Board, walls, rng: random.Random):
         hints.add(rng.choice(sorted(walls - alt - board.border)))
 
 
-def generate(W, H, entry_col, exit_row, seed):
+def generate(W, H, entry: Opening, exit: Opening, seed):
     """A new puzzle: (board, walls, hints) with exactly one solution."""
-    board = Board(W, H, entry_col, exit_row)
+    board = Board(W, H, entry, exit)
     rng = random.Random(seed)
     walls = board.carve(rng)
     return board, walls, hints_for(board, walls, rng)
 
 
+def openings(maze: dict):
+    """(entry, exit) of an instance's maze data, including the older entryCol/exitRow form."""
+    entry = Opening(**maze["entry"]) if "entry" in maze else Opening("top", maze["entryCol"])
+    exit = Opening(**maze["exit"]) if "exit" in maze else Opening("right", maze["exitRow"])
+    return entry, exit
+
+
 def board_for(maze: dict) -> Board:
     clues = maze["clues"]
-    return Board(len(clues[0]), len(clues), maze["entryCol"], maze["exitRow"])
+    return Board(len(clues[0]), len(clues), *openings(maze))
 
 
 def check(maze: dict):
@@ -256,14 +303,14 @@ def _mismatch(board: Board, walls, sketch):
             if sketch[r][c] is not None and got[r][c] != sketch[r][c]]
 
 
-def fit(sketch, entry_col, exit_row, seed=0, steps=200_000, log=print):
+def fit(sketch, entry: Opening, exit: Opening, seed=0, steps=200_000, log=print):
     """The valid maze closest to a hand-made grid (None = unreadable cell).
 
     First looks for a maze matching every readable number exactly. If there is none,
     searches perfect mazes (swapping one passage at a time) for the fewest changed
     numbers. Returns (board, walls, hints, changed_cells).
     """
-    board = Board(len(sketch[0]), len(sketch), entry_col, exit_row)
+    board = Board(len(sketch[0]), len(sketch), entry, exit)
     rng = random.Random(seed)
     exact = solve(board, sketch, limit=1)
     if exact:

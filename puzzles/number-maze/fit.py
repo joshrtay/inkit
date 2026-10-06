@@ -1,7 +1,7 @@
 """Make a number-maze instance (src/games/number-line-maze/<n>.json) from a hand-made grid.
 
     python3 puzzles/number-maze/fit.py scans/game2/maze-transcription.txt \\
-        --number 2 --entry-col 9 --exit-row 13
+        --number 2 --entry top:9 --exit right:13
 
 The grid file has one row of numbers per line; `?` marks a number that couldn't be
 read, and lines starting with # are ignored. The tool finds the valid maze closest to
@@ -22,8 +22,9 @@ GAMES = Path(__file__).resolve().parents[2] / "src" / "games" / "number-line-maz
 ap = argparse.ArgumentParser()
 ap.add_argument("grid", type=Path)
 ap.add_argument("--number", type=int, required=True, help="instance number: writes src/games/number-line-maze/<n>.json")
-ap.add_argument("--entry-col", type=int, required=True, help="square column of the entrance (top edge)")
-ap.add_argument("--exit-row", type=int, required=True, help="square row of the exit (right edge)")
+ap.add_argument("--entry", type=nm.Opening.parse, required=True,
+                help="entrance as side:square, e.g. top:9 or left:0 (square column for top/bottom, row for left/right)")
+ap.add_argument("--exit", type=nm.Opening.parse, required=True, help="exit as side:square, e.g. right:13")
 ap.add_argument("--seed", type=int, default=0)
 ap.add_argument("--steps", type=int, default=400_000, help="search length when no exact match exists")
 ap.add_argument("--name", help="display name for a new instance")
@@ -35,7 +36,7 @@ sketch = [[None if v == "?" else int(v) for v in line.split()]
 if any(len(row) != len(sketch[0]) for row in sketch):
     sys.exit("every row of the grid must have the same number of entries")
 
-board, walls, hints, changed = nm.fit(sketch, args.entry_col, args.exit_row, args.seed, steps=args.steps, log=lambda *a: None)
+board, walls, hints, changed = nm.fit(sketch, args.entry, args.exit, args.seed, steps=args.steps, log=lambda *a: None)
 clues = board.clues_of(walls)
 
 print(f"\n{len(sketch)} x {len(sketch[0])} grid; {len(changed)} readable numbers changed, {len(hints)} hint walls, "
@@ -60,8 +61,8 @@ instance = {
     "maze": {
         "source": str(args.grid),
         "seed": args.seed,
-        "entryCol": args.entry_col,
-        "exitRow": args.exit_row,
+        "entry": args.entry.json(),
+        "exit": args.exit.json(),
         "hints": sorted(board.pair(e) for e in hints),
         "clues": clues,
     },

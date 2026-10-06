@@ -3,14 +3,13 @@
 // Phase 2: drag a line through the open squares from the entrance to the exit.
 // Plain TypeScript + SVG. Each instance supplies a NumberMazeConfig (see types.ts).
 import type { MountGame } from "../../lib/game";
-import type { NumberMazeConfig } from "./types";
+import { openings, type NumberMazeConfig, type Opening } from "./types";
 
 type Pt = [number, number];                    // [row, col] of a number or a square
 type Phase = "draw" | "walk";
 interface Saved { walls: string[] }
 
 const P = 40;                                   // distance between numbers
-const ML = 22, MT = 46, MR = 52, MB = 22;       // margins (room for the arrows)
 const NS = "http://www.w3.org/2000/svg";
 const STEPS: Record<string, Pt> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
@@ -19,7 +18,10 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   const clues = maze.clues;
   const H = clues.length, W = clues[0].length;  // numbers down / across
   const CW = W - 1, CH = H - 1;                 // squares across / down
-  const entry: Pt = [0, maze.entryCol], exit: Pt = [maze.exitRow, CW - 1];
+  const doors = openings(maze);
+  const squareBy = ({ side, at }: Opening): Pt =>
+    side === "top" ? [0, at] : side === "bottom" ? [CH - 1, at] : side === "left" ? [at, 0] : [at, CW - 1];
+  const entry = squareBy(doors.entry), exit = squareBy(doors.exit);
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
 
   const key = (a: Pt, b: Pt) => {               // canonical key for the wall between two numbers
@@ -31,8 +33,12 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   const same = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
   const onBorder = (r: number, c: number) => r === 0 || r === H - 1 || c === 0 || c === W - 1;
 
-  // The border is given, except the entrance gap (top) and the exit gap (right).
-  const gaps = new Set([key([0, entry[1]], [0, entry[1] + 1]), key([exit[0], W - 1], [exit[0] + 1, W - 1])]);
+  // The border is walled, except the entrance and exit gaps.
+  const gapKey = ({ side, at }: Opening) => {
+    const a: Pt = side === "top" ? [0, at] : side === "bottom" ? [H - 1, at] : side === "left" ? [at, 0] : [at, W - 1];
+    return key(a, side === "top" || side === "bottom" ? [a[0], a[1] + 1] : [a[0] + 1, a[1]]);
+  };
+  const gaps = new Set([gapKey(doors.entry), gapKey(doors.exit)]);
   const border = new Set<string>();
   for (let c = 0; c + 1 < W; c++) for (const r of [0, H - 1]) border.add(key([r, c], [r, c + 1]));
   for (let r = 0; r + 1 < H; r++) for (const c of [0, W - 1]) border.add(key([r, c], [r + 1, c]));
@@ -50,6 +56,9 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
 
   // ---- board geometry ----
   const svg = q<SVGSVGElement>("svg");
+  // margins leave room for the arrows: 46 beside the entrance, 52 beside the exit, else 22
+  const room = (side: string) => Math.max(22, doors.entry.side === side ? 46 : 0, doors.exit.side === side ? 52 : 0);
+  const ML = room("left"), MT = room("top"), MR = room("right"), MB = room("bottom");
   const vbW = ML + CW * P + MR, vbH = MT + CH * P + MB;
   svg.setAttribute("viewBox", `0 0 ${vbW} ${vbH}`);
   q<HTMLElement>(".sheet").style.setProperty("--ratio", (vbW / vbH).toFixed(4));
@@ -65,11 +74,17 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   const gSquares = el("g", {}), gWalls = el("g", {}), gGaps = el("g", {}), gTrail = el("g", {});
   const gNums = el("g", {}), gTop = el("g", {});
 
-  // entrance arrow points down into the top gap; exit arrow points out of the right gap
-  const ax = sx(entry[1]), ay = vy(0);
-  el("path", { class: "arrow", d: `M${ax} ${ay - 36} V${ay - 10} M${ax - 6} ${ay - 17} L${ax} ${ay - 10} L${ax + 6} ${ay - 17}` }, gTop);
-  const bx = vx(W - 1), by = sy(exit[0]);
-  el("path", { class: "arrow", d: `M${bx + 10} ${by} H${bx + 38} M${bx + 31} ${by - 6} L${bx + 38} ${by} L${bx + 31} ${by + 6}` }, gTop);
+  /** The point `d` units outside the middle of a gap. */
+  const outside = ({ side, at }: Opening, d: number): [number, number] =>
+    side === "top" ? [sx(at), vy(0) - d] : side === "bottom" ? [sx(at), vy(H - 1) + d]
+      : side === "left" ? [vx(0) - d, sy(at)] : [vx(W - 1) + d, sy(at)];
+  const arrow = ([x1, y1]: [number, number], [x2, y2]: [number, number]) => {   // head at the second point
+    const len = Math.hypot(x2 - x1, y2 - y1), ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+    const bx = x2 - 7 * ux, by = y2 - 7 * uy;
+    el("path", { class: "arrow", d: `M${x1} ${y1} L${x2} ${y2} M${bx - 6 * uy} ${by + 6 * ux} L${x2} ${y2} L${bx + 6 * uy} ${by - 6 * ux}` }, gTop);
+  };
+  arrow(outside(doors.entry, 36), outside(doors.entry, 10));   // points in
+  arrow(outside(doors.exit, 10), outside(doors.exit, 38));     // points out
 
   // squares (used in phase 2)
   const squareEls: Element[][] = [];
@@ -255,12 +270,12 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
   const centre = ([r, c]: Pt): [number, number] => [sx(c), sy(r)];
   const head = () => trail[trail.length - 1];
   const isOut = () => same(head(), exit);
-  const EXIT_POINT: [number, number] = [vx(W - 1) + 14, sy(exit[0])];
+  const EXIT_POINT = outside(doors.exit, 14);
 
   function renderWalk() {
     gTrail.replaceChildren();
     const out = isOut();
-    const pts: number[][] = [[sx(entry[1]), vy(0) - 8], ...trail.map(centre)];
+    const pts: number[][] = [outside(doors.entry, 8), ...trail.map(centre)];
     if (out) pts.push(EXIT_POINT);
     else if (tail) pts.push(tail);
     el("polyline", { class: "trail", points: pts.map((p) => p.join(",")).join(" ") }, gTrail);
@@ -277,7 +292,7 @@ export const createNumberMaze = (maze: NumberMazeConfig): MountGame => (root, ho
     } else {
       reported = false;
       status.className = "status";
-      status.textContent = `${trail.length} square${trail.length === 1 ? "" : "s"} so far. Head for the arrow on the right edge.`;
+      status.textContent = `${trail.length} square${trail.length === 1 ? "" : "s"} so far. Head for the arrow on the ${doors.exit.side} edge.`;
     }
   }
 
