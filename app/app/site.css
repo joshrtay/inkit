@@ -1,0 +1,53 @@
+/* Styles for the social site's own pages. The look (colors, fonts, paper, boards) comes from the
+   current site's ../src/styles/global.css, imported first in root.tsx. */
+.nav-actions { display: flex; align-items: center; gap: 14px; }
+.nav-link { font: 600 15px/1 var(--body); color: var(--muted); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
+.nav-link:hover { color: var(--ink); text-decoration: underline; }
+.wrap.narrow { max-width: 460px; }
+h1 { font: 800 30px/1.15 var(--display); margin: 0; }
+h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.wrap a { color: var(--ink); }
+
+/* game lists */
+.shelf { display: grid; gap: 4px; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.game-card {
+  display: grid; gap: 4px; height: 100%; padding: 16px 18px; color: inherit; text-decoration: none;
+  background: var(--panel); border: var(--card-border); border-radius: var(--radius); transition: transform .15s, border-color .15s;
+}
+.wrap .game-card { color: inherit; }
+.game-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.game-card .kind { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.game-card strong { font: 800 18px/1.25 var(--display); }
+.game-card .desc { font-size: 14px; color: var(--muted); }
+.game-card .by { font-size: 13px; color: var(--muted); }
+.state { justify-self: start; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.state.hidden { background: color-mix(in srgb, var(--red) 22%, transparent); color: var(--red); }
+
+/* a game's page */
+.game-page { gap: 12px; }
+.game-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.game-head h1 { font-size: 22px; }
+.game-spot { display: grid; }
+.game-desc { max-width: 64ch; color: var(--muted); margin: 0; }
+.problems { color: var(--red); }
+
+/* collections */
+.collection-head { display: grid; gap: 6px; }
+.collection-head p { margin: 0; }
+.members { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; color: var(--muted); }
+
+/* forms */
+.form { display: grid; gap: 16px; }
+.form label { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+.form input {
+  font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 11px 12px;
+}
+.form .hint { font-weight: 400; font-size: 13px; color: var(--muted); }
+.form .btn { justify-self: start; padding: 11px 18px; }
+.error { color: var(--red); margin: 0; }
+.or { text-align: center; color: var(--muted); margin: 4px 0; }
+.btn.google { width: 100%; padding: 11px; }
+@media (max-width: 600px) { .nav-actions .nav-link:first-child { display: none; } }

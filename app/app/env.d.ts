@@ -1,0 +1,7 @@
+// Optional secrets beyond those `wrangler types` finds in wrangler.jsonc and .dev.vars (set in
+// .dev.vars locally, `wrangler secret put` in production). Google sign-in is offered only when
+// both Google keys are set.
+interface Env {
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+}

@@ -1,0 +1,33 @@
+/**
+ * The Wyatt's Games social site: React Router on Cloudflare Workers, with D1 (database)
+ * and R2 (thumbnails). `npm run dev` runs it all locally; nothing here touches the real
+ * Cloudflare account until `npm run deploy` (create the D1 database and R2 bucket first,
+ * and put the real database_id below).
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "wyattsgames",
+	"compatibility_date": "2026-10-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"main": "./workers/app.ts",
+	"observability": { "enabled": true },
+	"upload_source_maps": true,
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "wyattsgames-db",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "drizzle"
+		}
+	],
+	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "wyattsgames-media" }],
+	"vars": {
+		/** Where the site is served; Better Auth builds links and checks request origins with it. */
+		"BETTER_AUTH_URL": "http://localhost:5173"
+	}
+	/**
+	 * Secrets (never committed): BETTER_AUTH_SECRET, and optionally GOOGLE_CLIENT_ID and
+	 * GOOGLE_CLIENT_SECRET. Locally they come from .dev.vars; in production set them with
+	 * `npx wrangler secret put <NAME>`.
+	 */
+}

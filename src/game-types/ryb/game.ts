@@ -2,7 +2,7 @@
 // (Instance files write colors as 1 = red, 2 = yellow, 3 = blue; players only see colors.)
 // Faithful to FLEB's RYB: a wrong color is rejected and costs a heart; correct pieces
 // lock in and reveal any hidden clue. Plain TypeScript + SVG.
-import type { MountGame } from "../../lib/game";
+import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
 import type { Color, RybClientConfig } from "./types";
 

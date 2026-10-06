@@ -1,0 +1,37 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    ".react-router/types/**/*",
+    "app/**/*",
+    "app/**/.server/**/*",
+    "app/**/.client/**/*",
+    "workers/**/*",
+    "worker-configuration.d.ts",
+    "../src/game-types/grid/*.ts",
+    "../src/engine/geometry.ts",
+    "../src/engine/derive.ts",
+    "../src/engine/rules.ts",
+    "../src/engine/puzzle.ts",
+    "../src/engine/types.ts",
+    "../src/lib/ink.ts",
+    "../src/lib/game-api.ts"
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "strict": true,
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["vite/client"],
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "rootDirs": [".", "./.react-router/types"],
+    "paths": {
+      "~/*": ["./app/*"],
+      "~site/*": ["../src/*"]
+    },
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true
+  }
+}

@@ -326,3 +326,11 @@ The records are in `dns/wyattsgames.com.zone` (GitHub Pages addresses for the ap
 `www` → `joshrtay.github.io`, all DNS only, not proxied). The repository's Pages
 custom domain is `wyattsgames.com` with HTTPS enforced; `www`, plain http and the old
 `joshrtay.github.io/wyattsgames/` address all redirect there. Astro's `base` is `/`.
+
+## The social site (in progress, `app/`)
+
+A separate app on the `social` branch: creators, collections (studios), memberships and games,
+with sign-in, on Cloudflare Workers + D1 + R2. It reuses this site's grid engine, game code and
+styles from `src/` (game code imports its interface types from `src/lib/game-api.ts`, which has
+no storage or account code). See `app/README.md`.
+

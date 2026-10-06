@@ -2,7 +2,7 @@
 // them are walls. Phase 1: draw the walls so each number has that many touching it.
 // Phase 2: drag a line through the open squares from the entrance to the exit.
 // Plain TypeScript + SVG. Each instance supplies a NumberMazeConfig (see types.ts).
-import type { MountGame } from "../../lib/game";
+import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
 import { openings, type NumberMazeConfig, type Opening } from "./types";
 

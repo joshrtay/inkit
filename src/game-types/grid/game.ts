@@ -6,7 +6,7 @@
 //   color         pick a pot and paint cells (regions puzzles)
 //   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
-import type { MountGame } from "../../lib/game";
+import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";

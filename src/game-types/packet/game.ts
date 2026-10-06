@@ -1,5 +1,5 @@
 // Packet game type: page through printable sheets, open each PDF, check the final answer.
-import type { MountGame } from "../../lib/game";
+import type { MountGame } from "../../lib/game-api";
 import type { PacketClientConfig } from "./types";
 import { sha256 } from "../../lib/hash";
 

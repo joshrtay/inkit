@@ -23,7 +23,7 @@ export function addInk(svg: SVGSVGElement, root: HTMLElement) {
     return n;
   };
   const defs = el("defs", {}, svg);
-  svg.prepend(defs);
+  svg.insertBefore(defs, svg.firstChild);
   const f = el("filter", { id, x: "-15%", y: "-15%", width: "130%", height: "130%", "color-interpolation-filters": "sRGB" }, defs);
   const step = (tag: string, attrs: Record<string, string | number>) => el(tag, attrs, f);
   const darker = (k: number, a = 1) => `${k} 0 0 0 0  0 ${k} 0 0 0  0 0 ${k} 0 0  0 0 0 ${a} 0`;
