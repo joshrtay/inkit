@@ -1,4 +1,5 @@
-// A game's "code" is its sketch: the text a game parser turns into a playable game.
+// A game's "code" is its sketch: the stored text a game parser turns into a playable game. Creators
+// never see or type it: Claude writes it from their drawing, and the visual clue editor rewrites it.
 //
 // Sketch format v1 (grid puzzles, src/engine; see docs/grid-engine.md):
 //

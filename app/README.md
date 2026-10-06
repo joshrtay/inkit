@@ -24,12 +24,13 @@ size, rocks, walls, numbers, diamonds, symbols, compasses, picture cells, Panes 
 wrong and Claude reads it again with those corrections. Then the one-solution check, and publish. The photo is kept in R2 and shown at
 `/g/<id>/sketch`. Needs `ANTHROPIC_API_KEY`.
 
-**Typing a sketch** (`/new`, "type the sketch by hand"; `/g/<id>/edit`): the editor previews it as you type, and
-**Check** proves it has exactly one solution with clingo in the browser
-(`app/games/count-solutions.client.ts`; solving is too heavy for a Worker request on the free plan).
-Publishing needs that check for the exact sketch being saved. Authors (while members) and
-owners edit; owners and admins take games down with a note (only admins restore an admin's
-take-down); admins curate Featured. See `app/lib/games.server.ts`.
+**Editing a game** (`/g/<id>/edit`, `GameEditor.tsx`): the puzzle (beside its drawing, if it
+has one), "Fix the clues" for the visual editor, title and description, the one-solution check
+(clingo in the browser, `count-solutions.client.ts`), and save / publish. Publishing, or saving a
+published game with changed clues, needs that check for the exact puzzle being saved. Authors
+(while members) and owners edit; owners and admins take games down with a note (only admins
+restore an admin's take-down); admins curate Featured. See `app/lib/games.server.ts`. Creators
+never see the sketch text: Claude writes it from the drawing and the editor rewrites it.
 
 **Collections** (`/studios/new`, `/<slug>/settings`): anyone starts a studio as its owner;
 owners rename it, add creators by handle as owners or contributors, change roles and remove

@@ -1,16 +1,14 @@
 // Make a new game: wyattsgames.com/new (optionally ?in=<collection slug>).
 // Upload a photo of a hand-drawn sketch; Claude reads it into a draft, which the creator then
-// confirms and checks on its edit page. (Typing the sketch text by hand is still an option.)
+// confirms (or fixes) and checks on its edit page.
 import { useState } from "react";
 import { Form, redirect, useNavigation, useSubmit } from "react-router";
 import type { Route } from "./+types/new";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { createFromDrawing, createGame, publishTargets } from "~/lib/games.server";
+import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
-import { SketchEditor } from "~/components/SketchEditor";
-import { EXAMPLES } from "~/games/examples";
 
 export const meta: Route.MetaFunction = () => [{ title: "New game · Wyatt's Games" }];
 
@@ -28,10 +26,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const me = await currentCreator(env, request);
   if (!me) signInFirst(request);
   const form = await request.formData();
-  const db = getDb(env);
-  return attempt(async () => form.has("image")
-    ? redirect(`/g/${await createFromDrawing(db, env, me, form)}/edit`)
-    : redirect(`/g/${await createGame(db, me, form)}`));
+  return attempt(async () => redirect(`/g/${await createFromDrawing(getDb(env), env, me, form)}/edit`));
 }
 
 /** Shrink a photo in the browser (phone photos are large) to a JPEG at most 2000px across. */
@@ -53,18 +48,7 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
   const busy = useNavigation().state !== "idle";
   const [preview, setPreview] = useState<string>();
   const [photo, setPhoto] = useState<Blob>();
-  const [byHand, setByHand] = useState(false);
   const error = actionData && "error" in actionData ? actionData.error : undefined;
-
-  if (byHand) {
-    return (
-      <main className="wrap">
-        <h1>New game</h1>
-        <p><button className="link" type="button" onClick={() => setByHand(false)}>Upload a drawing instead</button></p>
-        <SketchEditor initial={{ title: "", description: "", sketch: EXAMPLES.river, collection }} targets={targets} error={error} />
-      </main>
-    );
-  }
 
   return (
     <main className="wrap narrow">
@@ -103,7 +87,6 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
           {busy ? "Reading your sketch… (up to a minute)" : "Read my sketch"}
         </button>
       </Form>
-      <p className="muted"><button className="link" type="button" onClick={() => setByHand(true)}>Type the sketch by hand instead</button></p>
     </main>
   );
 }

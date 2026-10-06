@@ -9,9 +9,8 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { canEdit, canHide, roleIn } from "~/lib/permissions.server";
 import { changeGame, isFeatured, rereadDrawing } from "~/lib/games.server";
-import { ConfirmDrawing } from "~/components/ConfirmDrawing";
+import { GameEditor } from "~/components/GameEditor";
 import { attempt, signInFirst } from "~/lib/http.server";
-import { SketchEditor } from "~/components/SketchEditor";
 
 async function load(request: Request, env: Env, id: string) {
   const me = await currentCreator(env, request);
@@ -31,7 +30,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },
     may, featured: await isFeatured(db, game.id),
     // a draft made from a drawing is confirmed against it first
-    drawing: game.sketchImage && game.state === "draft" && may.edit ? { notes: game.parseNotes ?? [] } : null,
+    drawing: !!game.sketchImage,
+    notes: game.parseNotes ?? [],
   };
 }
 
@@ -50,7 +50,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · Wyatt's Games` }];
 
-export default function EditGame({ loaderData: { game, may, featured, drawing }, actionData }: Route.ComponentProps) {
+export default function EditGame({ loaderData: { game, may, featured, drawing, notes }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;
   const published = game.state === "published";
   return (
@@ -62,17 +62,9 @@ export default function EditGame({ loaderData: { game, may, featured, drawing },
       </header>
       {game.state === "hidden" && <p className="state hidden">Taken down: {game.hiddenNote}</p>}
 
-      {drawing ? (
-        <>
-          <ConfirmDrawing gameId={game.id} title={game.title} description={game.description} sketch={game.sketch}
-            notes={drawing.notes} error={error} />
-          <details className="advanced">
-            <summary>Edit the sketch text yourself</summary>
-            <SketchEditor key={game.sketch} initial={game} saveLabel="Save draft" />
-          </details>
-        </>
-      ) : may.edit ? (
-        <SketchEditor key={game.sketch} initial={game} error={error} saveLabel={published ? "Save" : "Save draft"} showPublish={game.state === "draft"} />
+      {may.edit ? (
+        <GameEditor key={game.sketch} gameId={game.id} title={game.title} description={game.description} sketch={game.sketch}
+          state={game.state} drawing={drawing} notes={notes} error={error} />
       ) : (
         error && <p className="error" role="alert">{error}</p>
       )}

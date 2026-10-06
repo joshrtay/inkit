@@ -52,22 +52,6 @@ async function validated(f: Fields, publishing: boolean) {
   return parsed;
 }
 
-export async function createGame(db: Db, me: Creator, form: FormData) {
-  const collectionId = String(form.get("collection") ?? "");
-  const role = await roleIn(db, collectionId, me.id);
-  if (!canPublishInto(role)) throw new Forbidden("You can only add games to collections you belong to.");
-  const publish = form.get("intent") === "publish";
-  const f = fieldsFrom(form);
-  const parsed = await validated(f, publish);
-  const id = newId();
-  await db.insert(schema.games).values({
-    id, collectionId, authorId: me.id, title: f.title, description: f.description, sketch: f.sketch,
-    sketchVersion: SKETCH_VERSION, kind: parsed.kind, state: publish ? "published" : "draft",
-    publishedAt: publish ? new Date() : null,
-  });
-  return id;
-}
-
 /** The editor's buttons: save, publish, back to draft, take down, restore, feature. */
 export async function changeGame(db: Db, me: Creator, game: Game, form: FormData) {
   const intent = String(form.get("intent"));
