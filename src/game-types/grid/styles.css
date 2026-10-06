@@ -1,0 +1,37 @@
+/* Grid engine boards. Global but scoped under .grid-game, because game.ts builds the board. */
+.grid-game { display: grid; }
+.grid-game .sheet > svg { touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+
+.grid-game .gridline { stroke: color-mix(in srgb, var(--paper-ink) 28%, transparent); stroke-width: 1; }
+.grid-game .frame { fill: none; stroke: var(--paper-ink); stroke-width: 2.5; }
+.grid-game .dot { fill: var(--paper-ink); }
+
+/* clues are handwritten in the board's ink */
+.grid-game .clue { font: 700 24px/1 var(--hand); fill: var(--paper-ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.grid-game .clue.small { font-size: 13px; }
+.grid-game .clue.symbol { font-size: 22px; fill: color-mix(in srgb, var(--paper-ink) 80%, var(--wash-yellow)); }
+.grid-game .compass path { stroke: color-mix(in srgb, var(--paper-ink) 45%, transparent); stroke-width: 1.4; stroke-linecap: round; }
+.grid-game .diamond { stroke: var(--paper-ink); stroke-width: 1.8; stroke-linejoin: round; pointer-events: none; }
+.grid-game .diamond.twins { fill: var(--paper-ink); }
+.grid-game .diamond.opposites { fill: var(--paper); }
+
+/* marks: pen lines, a watercolor river, shaded washes, stained-glass lead */
+.grid-game .wash { filter: var(--wash); }
+.grid-game .shaded { fill: color-mix(in srgb, var(--paper-ink) 78%, #fff); }
+.grid-game .pen { stroke: var(--paper-ink); stroke-width: 5; stroke-linecap: round; }
+.grid-game .river { stroke: var(--wash-blue); stroke-width: 12; stroke-linecap: round; }
+.grid-game .lead { fill: none; stroke: var(--paper-ink); stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .xmark { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 55%, transparent); stroke-width: 2; stroke-linecap: round; }
+.grid-game .dotmark { fill: color-mix(in srgb, var(--paper-ink) 55%, transparent); }
+.grid-game .errors rect { fill: color-mix(in srgb, var(--paper-red) 22%, transparent); }
+.grid-game .errors line { stroke: var(--paper-red); stroke-width: 7; stroke-linecap: round; opacity: .7; }
+
+/* glass color pots (regions puzzles) */
+.grid-game .pots { display: flex; gap: 2px; padding-left: 2px; }
+.grid-game .pot { width: 32px; height: 32px; padding: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; border: 2px solid transparent; cursor: pointer; }
+.grid-game .pot i { width: 22px; height: 22px; border-radius: 50%; background: var(--c); box-shadow: inset -3px -4px 0 rgba(0, 0, 0, .12); }
+.grid-game .pot.erase i { background: var(--paper); border: 1.6px dashed color-mix(in srgb, var(--paper-ink) 50%, transparent); box-shadow: none; }
+.grid-game .pot[aria-pressed="true"] { border-color: var(--paper-ink); }
+
+/* solved: the glass lights up */
+.grid-game.solved .wash { filter: var(--wash) saturate(1.25) brightness(1.06); transition: filter .6s; }

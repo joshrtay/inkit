@@ -69,6 +69,9 @@ Actions runs it on every push to `main`.
 | `src/layouts/GameShell.astro` | Frame for game pages: path in the top nav, the game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
+| `src/engine/` | The grid engine: one engine for grid logic puzzles (Slitherlink, Nurikabe, Panes, ...). See [docs/grid-engine.md](docs/grid-engine.md). |
+| `src/game-types/grid/` | Plays any grid-engine genre; genres are `gameTypes` entries with `id: "grid"` and a `genre`. |
+| `puzzles/grid/new.ts` | Makes a grid-engine puzzle with exactly one solution (`node puzzles/grid/new.ts --genre ...`). |
 | `src/lib/theme.ts` | Light / dark / match-device choice, saved in this browser; picked in the account menu. |
 | `src/lib/ink.ts` | The watercolor filter for a board's SVG, at its scale (see Look). |
 | `src/lib/paths.ts`, `src/lib/hash.ts`, `src/lib/progress.ts` | `url()` (builds links from the site root); `sha256()`; which games the player has finished. |

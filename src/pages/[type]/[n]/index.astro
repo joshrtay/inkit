@@ -7,7 +7,8 @@ import NumberMazeGame from "../../../game-types/number-maze/Game.astro";
 import RybGame from "../../../game-types/ryb/Game.astro";
 import LazyRiverGame from "../../../game-types/lazy-river/Game.astro";
 import MosaicGame from "../../../game-types/mosaic/Game.astro";
-import type { MosaicGame as MosaicData, LazyRiverGame as RiverData, NumberMazeGame as MazeData, PacketGame as PacketData, RybGame as RybData } from "../../../games";
+import GridGame from "../../../game-types/grid/Game.astro";
+import type { GridGame as GridData, MosaicGame as MosaicData, LazyRiverGame as RiverData, NumberMazeGame as MazeData, PacketGame as PacketData, RybGame as RybData } from "../../../games";
 
 export function getStaticPaths() {
   return games.map((game) => ({ params: { type: game.type.path, n: String(game.number) }, props: { game } }));
@@ -23,3 +24,4 @@ const hostId = `${game.type.path}-${game.number}-${(await sha256(JSON.stringify(
 {game.type.id === "ryb" && <RybGame game={game as RybData} hostId={hostId} />}
 {game.type.id === "lazy-river" && <LazyRiverGame game={game as RiverData} hostId={hostId} />}
 {game.type.id === "mosaic" && <MosaicGame game={game as MosaicData} hostId={hostId} />}
+{game.type.id === "grid" && <GridGame game={game as GridData} hostId={hostId} />}

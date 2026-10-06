@@ -1,0 +1,73 @@
+---
+// Grid engine game type: one page per instance of any grid genre (src/engine, docs/grid-engine.md).
+// The puzzle is solved at build time; the build fails unless it has exactly one solution.
+import GameShell from "../../layouts/GameShell.astro";
+import Icon from "../../components/Icon.astro";
+import type { GridGame } from "../../games";
+import { url } from "../../lib/paths";
+import { describe, makePuzzle } from "../../engine/puzzle.ts";
+import { solve } from "../../engine/solve.ts";
+import type { GridClientConfig } from "./types";
+import "./styles.css";
+
+interface Props { game: GridGame; hostId: string }
+const { game, hostId } = Astro.props;
+const spec = { genre: game.type.genre, ...game.grid };
+const puzzle = makePuzzle(spec);
+const sols = await solve(puzzle, 2);
+if (sols.length !== 1) {
+  throw new Error(`src/games/${game.type.path}/${game.number}.json: ${sols.length === 0 ? "no solution" : "more than one solution"}; add or change clues`);
+}
+const config: GridClientConfig = { spec };
+const rules = describe(puzzle);
+const regions = puzzle.marks.includes("regions");
+const palette = puzzle.style.palette ?? [];
+---
+<GameShell ink={puzzle.style.ink ?? game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
+  description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
+  progressId={`${game.type.path}/${game.number}`}>
+  {game.intro && <p slot="intro">{game.intro}</p>}
+
+  <div class="grid-game" data-game-type="grid" data-game-id={hostId} data-config={JSON.stringify(config)}>
+    <div class="sheet">
+      <div class="paper-bar">
+        <div class="group">
+          {regions && (
+            <div class="pots" role="group" aria-label="Glass color">
+              {palette.map((c, i) => (
+                <button class="pot" data-color={i + 1} type="button" aria-pressed={i === 0 ? "true" : "false"} aria-label={`Color ${i + 1}`} style={`--c: ${c}`}><i></i></button>
+              ))}
+              <button class="pot erase" data-color="0" type="button" aria-pressed="false" aria-label="Clear color" title="Clear color"><i></i></button>
+            </div>
+          )}
+        </div>
+        <div class="status" aria-live="polite"></div>
+        <div class="group">
+          <button class="tool" data-undo type="button" aria-label="Undo" title="Undo"><Icon name="undo" /></button>
+          <button class="tool" data-check type="button" aria-label="Check" title="Check"><Icon name="check" /></button>
+          <button class="tool" data-reset type="button" aria-label="Reset" title="Reset"><Icon name="reset" /></button>
+        </div>
+      </div>
+      <svg class="board" role="img" aria-label="Puzzle grid"></svg>
+    </div>
+  </div>
+
+  <section class="rules current" slot="directions">
+    <h2>How to play</h2>
+    <ol>{rules.map((r) => <li>{r}</li>)}</ol>
+    <p>
+      {puzzle.marks.includes("fence") && "Drag along the dotted lines to draw; drag over a line again to erase. Tap a line to cycle line, X (no line) and empty. "}
+      {puzzle.marks.includes("loop") && "Drag from cell to cell to draw; drag back over it to erase. "}
+      {puzzle.marks.includes("shade") && "Tap a cell to shade it, again for a dot (known open), again to clear. Drag to paint many cells. "}
+      {regions && "Drag along the lines between cells to cut the glass, or pick a color and paint cells to group them. A pane is a connected group of one color, not cut apart. "}
+      Check marks anything that breaks a rule; the puzzle notices when it's solved.
+    </p>
+  </section>
+</GameShell>
+
+<script>
+  import { createHost } from "../../lib/game";
+  import { mountAll } from "./game";
+
+  mountAll(createHost);
+</script>
