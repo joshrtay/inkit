@@ -147,17 +147,22 @@ def ryb_svg(cfg: dict, painted: bool) -> str:
     return f'<svg viewBox="{min(xs) - pad} {min(ys) - pad} {w} {h}" xmlns="http://www.w3.org/2000/svg">{"".join(out)}</svg>', w / h
 
 
-# ---- lazy river ----
+# ---- round the bend ----
 def river_config(n: int) -> dict:
-    page = (ROOT / "dist" / "round-the-bend" / str(n) / "index.html").read_text()
-    m = re.search(r'data-game-type="lazy-river"[^>]*data-config="([^"]+)"', page)
-    if not m:
-        sys.exit("run `npm run build` first: covers read Lazy River solutions from dist/")
-    return json.loads(htmllib.unescape(m.group(1)))
+    """A Round the Bend level (grid engine data) as rock rows and wall bits (2 right, 4 below)."""
+    spec = json.loads((ROOT / "src" / "games" / "round-the-bend" / f"{n}.json").read_text())["grid"]
+    H, W = spec["size"]
+    rocks = {tuple(g["cell"]) for g in spec["givens"] if g["kind"] == "block"}
+    walls = [[0] * W for _ in range(H)]
+    for g in spec["givens"]:
+        if g["kind"] == "wall":
+            (r1, c1), (r2, c2) = sorted(map(tuple, g["cells"]))
+            walls[r1][c1] |= 2 if r1 == r2 else 4
+    return {"grid": ["".join("#" if (r, c) in rocks else "." for c in range(W)) for r in range(H)], "walls": walls}
 
 
 def river_svg(cfg: dict, solved: bool):
-    grid, walls, sol = cfg["grid"], cfg["walls"], cfg["solution"]
+    grid, walls, sol = cfg["grid"], cfg["walls"], cfg.get("solution")
     H, W, S, P = len(grid), len(grid[0]), 44, 12
     x0 = lambda c: P + c * S
     y0 = lambda r: P + r * S
@@ -272,7 +277,7 @@ def mosaic_svg(level: dict):
 
 def mosaic_cover():
     games = ROOT / "src" / "games" / "picture-squares"
-    pics = [mosaic_svg(json.loads((games / f"{n}.json").read_text())["mosaic"]) for n in (3, 5, 2)]
+    pics = [mosaic_svg({"picture": json.loads((games / f"{n}.json").read_text())["grid"]["picture"]["rows"]}) for n in (3, 5, 2)]
     cover([(pics[0][0], pics[0][1], 330, 395, 380, -9), (pics[1][0], pics[1][1], 870, 400, 380, 8),
            (pics[2][0], pics[2][1], 600, 380, 440, -1)], ROOT / "public" / "picture-squares" / "cover.jpg")
 

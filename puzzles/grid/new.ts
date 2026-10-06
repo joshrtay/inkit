@@ -3,6 +3,7 @@
 //   node puzzles/grid/new.ts --genre slitherlink --size 5x5 --number 1 --name "First Loop" [--seed 3]
 //   node puzzles/grid/new.ts --genre nurikabe --size 5x5 --number 1 --name "Islands"
 //   node puzzles/grid/new.ts --genre panes --size 4x5 --number 1 --name "First Window" --rules "size=4,twins,opposites,compass"
+//   node puzzles/grid/new.ts --genre sudoku --size 9x9 --number 1 --name "Classic"
 //
 // 1. clingo picks a random finished board that obeys the genre's rules (a loop, a wall,
 //    a set of panes), 2. every clue that's true of that board goes in a pool, 3. clues
@@ -32,7 +33,7 @@ async function randomBoard(spec: GridSpec, extra: string): Promise<Board | null>
 }
 
 const regionKey = (spec: GridSpec, b: Board) => regionsOf(makePuzzle(spec), b).of.join(",");
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "nurikabe" ? [...b.shade].join("") : [...b.fence].join(""));
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
 async function narrow(base: GridSpec, target: Board, pool: Given[]): Promise<GridSpec | null> {
@@ -69,6 +70,13 @@ for (let attempt = 0; attempt < 40 && !result; attempt++) {
     if (!target) continue;
     const g = makePuzzle(base).grid;
     const pool: Given[] = Array.from({ length: g.cellCount }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: g.cellBorders[i].filter((e) => target.fence[e] === 1).length }));
+    result = await narrow(base, target, pool);
+  } else if (genre === "sudoku") {
+    // a random full grid, then given digits until it's the only one
+    const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const target = await randomBoard(base, "");
+    if (!target) continue;
+    const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
     result = await narrow(base, target, pool);
   } else if (genre === "nurikabe") {
     // a wall first (connected, no pools, islands of 1..5), then one number per island
@@ -121,7 +129,7 @@ for (let attempt = 0; attempt < 40 && !result; attempt++) {
       spec.rules = rules.filter((r) => ["size", "all-different"].includes(r.rule) || used.has(r.rule));
       // a cell can hold only one clue: keep the first
       const seen = new Set<string>();
-      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : `b${x.cells}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : `${x.at}${x.index}`; if (seen.has(k)) return false; seen.add(k); return true; });
       if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
     }
   } else throw new Error(`no generator for genre "${genre}"`);

@@ -3,7 +3,8 @@
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, and our own Round the Bend and Picture
 Squares. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with three genres: Slitherlink, Nurikabe and Panes.
+the `grid-engine` branch, with six genres: Round the Bend (`river`), Picture Squares
+(`nonogram`), Slitherlink, Nurikabe, Panes and Sudoku.
 
 ## The model
 
@@ -21,14 +22,16 @@ geometries with the same interface.
 | `fence` | borders | empty, line, X | Slitherlink |
 | `loop` | links | empty, line, X | Round the Bend, Masyu |
 | `regions` | borders + cell colors | cut / color | Panes (Glimmith-style), Fillomino, Shikaku |
-| `digit` | cells | 1..n, pencil marks | Sudoku, Kakuro (later) |
+| `digit` | cells | 1..n, pencil notes | Sudoku (Kakuro later) |
 
 Regions come from either input: painting cells a color, or cutting borders. A region is a
 connected group of same-color cells not separated by a cut. For shading puzzles, the
 *islands* (connected unshaded cells) are regions too, so region rules work for both.
 
-**Givens** are clues fixed to an element: a number in a cell, a symbol, a compass, a ◆ or
-◇ on a border.
+**Givens** are clues fixed to an element: a number in a cell (in a digit puzzle, a given
+digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, and a
+nonogram's runs beside a row or above a column. A nonogram's runs can instead come from its
+`picture`, which solving reveals.
 
 **Rules** are configured *building blocks* (`src/engine/rules.ts`). Each block does four
 jobs:
@@ -59,6 +62,9 @@ puzzle can use it.
 | `opposites` | The two regions on either side of a ◇ are different regions with different shapes. |
 | `all-different` | No two regions have the same shape. |
 | `compass` | A compass clue's numbers count the cells of its region that lie north, east, south and west of it. |
+| `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |
+| `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
+| `boxes` | Each box (`box: [h, w]`, or sized from the grid) has each digit once. |
 
 Names are our own. Mechanics are fair game; another game's rule names, art and levels
 aren't ours to copy, so puzzles are Wyatt's (or generated).
@@ -92,8 +98,10 @@ that uses a mark gets the same behavior:
 - `fence` / region cuts: drag along the lines from corner to corner (fast drags fill in the
   skipped edges); tap a line to cycle line / X / empty (cuts toggle).
 - `loop`: drag from cell to cell; tap between two cells to cycle the link.
-- `shade`: tap cycles shaded / dot / empty (right-click the other way); dragging paints what
-  the first cell got.
+- `shade`: tap cycles shaded / dot (or X, for nonograms) / empty (right-click the other way);
+  dragging paints what the first cell got. Nonogram clue numbers can be tapped to tick them.
+- `digit`: tap a cell, then a number on the pad (on the paper, under the board) or the
+  keyboard; pencil notes; arrow keys move, Backspace erases.
 - `regions`: pick a glass color and paint cells, or drag along a border to cut. Drags that
   start on a border cut; drags that start inside a cell paint.
 - One gesture is one undo step. Check highlights what the note is about; a solved board is
@@ -118,9 +126,11 @@ A sketch headed with a genre (`slitherlink`) or a rule list
     "givens": [{ "at": "border", "cells": [[1, 1], [1, 2]], "kind": "twins" }] } }
 ```
 
+Blocks can also offer a **hint** (`hint()`), shown by the Hint button: an area to look at and
+what it gives away. `runs` does; others can add one.
+
 ## Next
 
-1. Port Round the Bend and Picture Squares onto the engine, and confirm the solvers agree.
-2. Digits (Sudoku), more blocks (runs for nonograms, sums, polyomino shape clues), keyboard
-   play, more geometries.
+1. More blocks: sums and cages (Kakuro, Killer), polyomino shape clues, Masyu pearls.
+2. Port Number Line Maze and Three Coats (needs an irregular geometry).
 3. Covers for the new genres; a feel pass on phones.

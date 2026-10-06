@@ -12,11 +12,14 @@ const rounds = Number(process.argv[2] ?? 40);
 let seed = Number(process.argv[3] ?? 7);
 const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
 const pick = <T>(xs: T[]) => xs[Math.floor(rand() * xs.length)];
+const shuffle = <T>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
 
 /** A canonical string for a board, so the same solution compares equal either way. */
 function key(p: Puzzle, b: Board): string {
   if (p.marks.includes("regions")) return regionsOf(p, b).of.join(",");
   if (p.marks.includes("shade")) return [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("");
+  if (p.marks.includes("loop")) return [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("");
+  if (p.marks.includes("digit")) return [...b.digit].join("");
   return [...b.fence].join("");
 }
 
@@ -37,6 +40,24 @@ function* allBoards(p: Puzzle): Generator<Board> {
       free.forEach((i, k) => { if (m & (1 << k)) b.shade[i] = 1; });
       yield b;
     }
+  } else if (p.marks.includes("loop")) {
+    for (let m = 0; m < 1 << g.links.length; m++) {
+      const b = emptyBoard(g);
+      g.links.forEach((l, k) => { if (m & (1 << k)) b.loop[l.id] = 1; });
+      yield b;
+    }
+  } else if (p.marks.includes("digit")) {
+    const fixed = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") fixed.set(i, x.value as number);
+    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i));
+    const total = p.digits ** free.length;
+    for (let m = 0; m < total; m++) {
+      const b = emptyBoard(g);
+      for (const [i, v] of fixed) b.digit[i] = v;
+      let x = m;
+      for (const i of free) { b.digit[i] = (x % p.digits) + 1; x = Math.floor(x / p.digits); }
+      yield b;
+    }
   } else {
     for (let m = 0; m < 1 << g.borders.length; m++) {
       const b = emptyBoard(g);
@@ -47,7 +68,37 @@ function* allBoards(p: Puzzle): Generator<Board> {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["panes", "panes", "panes", "nurikabe", "slitherlink"]);
+  const kind = pick(["panes", "panes", "panes", "nurikabe", "slitherlink", "river", "river", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
+  if (kind === "river") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
+    const givens: NonNullable<GridSpec["givens"]> = [];
+    for (let i = 0; i < rows * cols; i++) if (rand() < 0.15) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "block" });
+    for (let k = 0; k < 2; k++) if (rand() < 0.5) {
+      const r = Math.floor(rand() * rows), c = Math.floor(rand() * (cols - 1));
+      givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
+    }
+    return { genre: "river", size: [rows, cols], givens };
+  }
+  if (kind === "nonogram") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [2, 5]]);
+    const rowsOf = Array.from({ length: rows }, () => Array.from({ length: cols }, () => (rand() < 0.5 ? "#" : ".")).join(""));
+    return { genre: "nonogram", size: [rows, cols], picture: { rows: rowsOf, palette: { "#": "#000", ".": "#fff" } } };
+  }
+  if (kind === "sudoku") {
+    // 3x3 latin squares (no boxes), or 4x4 with boxes and most cells given
+    if (rand() < 0.5) {
+      const givens = Array.from({ length: 9 }, (_, i) => i).filter(() => rand() < 0.25)
+        .map((i) => ({ at: "cell" as const, cell: cellOf(i, 3), kind: "number" as const, value: 1 + Math.floor(rand() * 3) }));
+      return { genre: "sudoku", size: [3, 3], givens };
+    }
+    const solved = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]];
+    // keep at most 7 cells open so every board can be tried (4^7)
+    const open = new Set(shuffle(Array.from({ length: 16 }, (_, i) => i)).slice(0, 4 + Math.floor(rand() * 4)));
+    const givens = Array.from({ length: 16 }, (_, i) => i).filter((i) => !open.has(i))
+      .map((i) => ({ at: "cell" as const, cell: cellOf(i, 4), kind: "number" as const, value: rand() < 0.9 ? solved[Math.floor(i / 4)][i % 4] : 1 + Math.floor(rand() * 4) }));
+    return { genre: "sudoku", size: [4, 4], givens };
+  }
   if (kind === "slitherlink") {
     const [rows, cols] = pick([[2, 2], [2, 3]]);
     const givens = Array.from({ length: rows * cols }, (_, i) => i).filter(() => rand() < 0.5)

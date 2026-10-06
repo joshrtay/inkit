@@ -6,6 +6,7 @@ import Icon from "../../components/Icon.astro";
 import type { GridGame } from "../../games";
 import { url } from "../../lib/paths";
 import { describe, makePuzzle } from "../../engine/puzzle.ts";
+import { blockFor } from "../../engine/rules.ts";
 import { solve } from "../../engine/solve.ts";
 import type { GridClientConfig } from "./types";
 import "./styles.css";
@@ -20,8 +21,11 @@ if (sols.length !== 1) {
 }
 const config: GridClientConfig = { spec };
 const rules = describe(puzzle);
-const regions = puzzle.marks.includes("regions");
+const regions = puzzle.marks.includes("regions"), digits = puzzle.marks.includes("digit");
+const nonogram = puzzle.rowRuns.size > 0;
+const hints = puzzle.rules.some((s) => blockFor(s).hint);
 const palette = puzzle.style.palette ?? [];
+const title = puzzle.spec.picture?.title;
 ---
 <GameShell ink={puzzle.style.ink ?? game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
   description={game.type.blurb} back={{ href: url(`${game.type.path}/`), label: game.type.name }}
@@ -29,7 +33,7 @@ const palette = puzzle.style.palette ?? [];
   {game.intro && <p slot="intro">{game.intro}</p>}
 
   <div class="grid-game" data-game-type="grid" data-game-id={hostId} data-config={JSON.stringify(config)}>
-    <div class="sheet">
+    <div class="sheet" style={digits ? "--below: 46px" : undefined}>
       <div class="paper-bar">
         <div class="group">
           {regions && (
@@ -44,12 +48,35 @@ const palette = puzzle.style.palette ?? [];
         <div class="status" aria-live="polite"></div>
         <div class="group">
           <button class="tool" data-undo type="button" aria-label="Undo" title="Undo"><Icon name="undo" /></button>
+          {hints && <button class="tool" data-hint type="button" aria-label="Hint" title="Hint"><Icon name="hint" /></button>}
           <button class="tool" data-check type="button" aria-label="Check" title="Check"><Icon name="check" /></button>
           <button class="tool" data-reset type="button" aria-label="Reset" title="Reset"><Icon name="reset" /></button>
         </div>
       </div>
       <svg class="board" role="img" aria-label="Puzzle grid"></svg>
+      {digits && (
+        <div class="paper-bar pad" role="group" aria-label="Digits">
+          <div class="group">
+            {Array.from({ length: puzzle.digits }, (_, i) => <button class="word num" data-digit={i + 1} type="button">{i + 1}</button>)}
+          </div>
+          <div class="group">
+            <button class="word" data-pencil type="button" aria-pressed="false" title="Pencil notes (P)">pencil</button>
+            <button class="word" data-digit="0" type="button" title="Erase (Backspace)">erase</button>
+          </div>
+        </div>
+      )}
+      {title && (
+        <button class="sign" data-sign type="button" aria-label="Show what the picture is">
+          <span class="q">?</span><span class="title">It&rsquo;s {title.toLowerCase().match(/^[aeiou]/) ? "an" : "a"} {title}!</span>
+        </button>
+      )}
     </div>
+    {nonogram && (
+      <div class="prefs">
+        <label><input type="checkbox" data-pref="autoTick" /> Tick off clues when a line is finished</label>
+        <label><input type="checkbox" data-pref="autoX" /> X out the rest of a line once all its clues are ticked</label>
+      </div>
+    )}
   </div>
 
   <section class="rules current" slot="directions">
@@ -58,7 +85,9 @@ const palette = puzzle.style.palette ?? [];
     <p>
       {puzzle.marks.includes("fence") && "Drag along the dotted lines to draw; drag over a line again to erase. Tap a line to cycle line, X (no line) and empty. "}
       {puzzle.marks.includes("loop") && "Drag from cell to cell to draw; drag back over it to erase. "}
-      {puzzle.marks.includes("shade") && "Tap a cell to shade it, again for a dot (known open), again to clear. Drag to paint many cells. "}
+      {puzzle.marks.includes("shade") && `Tap a cell to shade it, again for ${puzzle.style.empty === "x" ? "an X" : "a dot"} (known empty), again to clear; right-click goes the other way. Drag to paint many cells. `}
+      {nonogram && "Tap a clue number to tick it off. "}
+      {digits && "Tap a cell, then a number (or type it). Pencil adds small notes; arrow keys move, Backspace erases. "}
       {regions && "Drag along the lines between cells to cut the glass, or pick a color and paint cells to group them. A pane is a connected group of one color, not cut apart. "}
       Check marks anything that breaks a rule; the puzzle notices when it's solved.
     </p>

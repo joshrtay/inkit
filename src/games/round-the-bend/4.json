@@ -1,78 +1,130 @@
 {
-  "type": "lazy-river",
+  "type": "grid",
   "name": "Long Bend",
   "meta": "7 \u00d7 6",
-  "river": {
-    "source": "scans/game2/20261004214832_003.pdf (grid A)",
-    "grid": [
-      ".......",
-      ".#.....",
-      ".......",
-      ".......",
-      ".#...#.",
-      "...#..."
+  "source": "scans/game2/20261004214832_003.pdf (grid A)",
+  "grid": {
+    "size": [
+      6,
+      7
     ],
-    "walls": [
-      [
-        [
-          0,
-          4
-        ],
-        [
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
           1,
-          4
-        ]
-      ],
-      [
-        [
-          1,
-          3
+          1
         ],
-        [
-          1,
-          4
-        ]
-      ],
-      [
-        [
-          2,
-          2
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          1
         ],
-        [
-          2,
-          3
-        ]
-      ],
-      [
-        [
-          2,
-          3
-        ],
-        [
-          3,
-          3
-        ]
-      ],
-      [
-        [
-          3,
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
           5
         ],
-        [
-          3,
-          6
-        ]
-      ],
-      [
-        [
-          2,
-          1
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          3
         ],
-        [
-          3,
-          1
-        ]
-      ]
+        "kind": "block"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            0,
+            4
+          ],
+          [
+            1,
+            4
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            4
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            2,
+            2
+          ],
+          [
+            2,
+            3
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            3,
+            5
+          ],
+          [
+            3,
+            6
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            2,
+            1
+          ],
+          [
+            3,
+            1
+          ]
+        ],
+        "kind": "wall"
+      }
     ]
   }
 }

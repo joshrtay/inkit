@@ -11,7 +11,7 @@ export interface Regions {
  *  shading puzzle: the islands of unshaded cells. */
 export function regionsOf(p: Puzzle, b: Board): Regions {
   const g = p.grid;
-  const open = (i: number) => (p.marks.includes("regions") ? true : b.shade[i] !== 1);
+  const open = (i: number) => !p.blocked.has(i) && (p.marks.includes("regions") ? true : b.shade[i] !== 1);
   const joined = (l: number) => {
     const [a, c] = g.links[l].cells;
     if (!open(a) || !open(c)) return false;

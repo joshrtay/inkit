@@ -1,27 +1,33 @@
 {
-  "type": "mosaic",
+  "type": "grid",
   "name": "From the Tree",
   "meta": "10 \u00d7 10",
-  "mosaic": {
-    "title": "Apple",
-    "picture": [
-      ".....b....",
-      "....bgg...",
-      "..rrbrrr..",
-      ".rrrrrrhr.",
-      "rrrrrrrrhr",
-      "rrrrrrrrrr",
-      "rrrrrrrrrr",
-      ".rrrrrrrr.",
-      ".rrrrrrrr.",
-      "..rr..rr.."
+  "grid": {
+    "size": [
+      10,
+      10
     ],
-    "palette": {
-      ".": "#e3f2f6",
-      "r": "#d8443a",
-      "h": "#f29a8c",
-      "b": "#6b4a2b",
-      "g": "#4a9a3b"
+    "picture": {
+      "rows": [
+        ".....b....",
+        "....bgg...",
+        "..rrbrrr..",
+        ".rrrrrrhr.",
+        "rrrrrrrrhr",
+        "rrrrrrrrrr",
+        "rrrrrrrrrr",
+        ".rrrrrrrr.",
+        ".rrrrrrrr.",
+        "..rr..rr.."
+      ],
+      "palette": {
+        ".": "#e3f2f6",
+        "r": "#d8443a",
+        "h": "#f29a8c",
+        "b": "#6b4a2b",
+        "g": "#4a9a3b"
+      },
+      "title": "Apple"
     }
   }
 }

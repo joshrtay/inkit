@@ -22,6 +22,8 @@ export function program(p: Puzzle): string {
   }
   for (const l of g.links) out.push(`adj(${l.cells[0]},${l.cells[1]},${l.id}). adj(${l.cells[1]},${l.cells[0]},${l.id}). link(${l.id}). lc(${l.cells[0]},${l.id}). lc(${l.cells[1]},${l.id}).`);
   for (const i of p.cellGivens.keys()) out.push(`clue(${i}).`);
+  for (const i of p.blocked) out.push(`blocked(${i}).`);
+  for (const l of p.walls) out.push(`wall(${l}).`);
   if (p.marks.includes("fence")) {
     for (let v = 0; v < g.cornerCount; v++) out.push(`corner(${v}).`);
     for (const e of g.borders) out.push(`border(${e.id}). vb(${e.corners[0]},${e.id}). vb(${e.corners[1]},${e.id}).` + e.cells.filter((x) => x >= 0).map((x) => ` cb(${x},${e.id}).`).join(""));
@@ -31,9 +33,13 @@ export function program(p: Puzzle): string {
 
   // the marks the player can make
   if (p.marks.includes("fence")) out.push("{fence(B)} :- border(B).");
-  if (p.marks.includes("loop")) out.push("{line(L)} :- link(L).");
+  if (p.marks.includes("loop")) out.push("{line(L)} :- link(L), not wall(L).\n:- line(L), lc(I,L), blocked(I).");
   if (p.marks.includes("shade")) out.push("{shaded(I)} :- cell(I), not clue(I).");
   if (p.marks.includes("regions")) out.push("{cut(L)} :- link(L).");
+  if (p.marks.includes("digit")) {
+    out.push(`d(1..${p.digits}).\n1 { digit(I,D) : d(D) } 1 :- cell(I).`);
+    for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "number") out.push(`digit(${i},${giv.value}).`);
+  }
 
   const needs = new Set(p.rules.flatMap((s) => blockFor(s).needs ?? []));
   if (needs.has("regions") || needs.has("shapes")) {
@@ -69,7 +75,7 @@ diff(R1,R2,T) :- cmp(R1,R2), t(T), norm(R1,T,A,B), not norm(R2,0,A,B).
 same(R1,R2) :- cmp(R1,R2), size(R1,N), size(R2,N), t(T), not diff(R1,R2,T).`);
 
   for (const s of p.rules) out.push(`% ${s.rule}\n${blockFor(s).asp(s, p)}`);
-  out.push("#show fence/1. #show line/1. #show shaded/1. #show cut/1.");
+  out.push("#show fence/1. #show line/1. #show shaded/1. #show cut/1. #show digit/2.");
   return out.join("\n");
 }
 
@@ -89,6 +95,8 @@ export function maxRegion(p: Puzzle): number {
 export function boardOf(p: Puzzle, atoms: string[]): Board {
   const b = emptyBoard(p.grid);
   for (const a of atoms) {
+    const dm = /^digit\((\d+),(\d+)\)$/.exec(a);
+    if (dm) { b.digit[Number(dm[1])] = Number(dm[2]); continue; }
     const m = /^(\w+)\((\d+)\)$/.exec(a);
     if (!m) continue;
     const i = Number(m[2]);

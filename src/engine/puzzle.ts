@@ -18,6 +18,23 @@ export const genres: Record<string, Genre> = {
     rules: [{ rule: "size-clue" }, { rule: "one-each", of: "number" }, { rule: "connected" }, { rule: "no-pool" }],
     style: {},
   },
+  // Round the Bend: one loop through every open cell, around rocks and walls
+  river: {
+    marks: ["loop"],
+    rules: [{ rule: "loop", of: "loop", cover: true }],
+    style: {},
+  },
+  // Picture Squares: a nonogram whose clues come from a picture
+  nonogram: {
+    marks: ["shade"],
+    rules: [{ rule: "runs" }],
+    style: { major: 5, empty: "x" },
+  },
+  sudoku: {
+    marks: ["digit"],
+    rules: [{ rule: "latin" }, { rule: "boxes" }],
+    style: {},
+  },
   // our region-division puzzles in the style of The Artisan of Glimmith: each puzzle lists its rules
   panes: {
     marks: ["regions"],
@@ -31,29 +48,52 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   if (spec.genre && !genre) throw new Error(`unknown genre "${spec.genre}"`);
   const grid = squareGrid(spec.size[0], spec.size[1]);
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>();
+  const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
+  const blocked = new Set<number>(), walls = new Set<number>();
   const push = <K>(m: Map<K, Given[]>, k: K, g: Given) => m.set(k, [...(m.get(k) ?? []), g]);
-  for (const g of spec.givens ?? []) {
-    if (g.at === "cell") push(cellGivens, grid.cell(...g.cell), g);
-    else {
+  const givens = [...(spec.givens ?? []), ...pictureClues(spec)];
+  for (const g of givens) {
+    if (g.at === "cell") {
+      push(cellGivens, grid.cell(...g.cell), g);
+      if (g.kind === "block") blocked.add(grid.cell(...g.cell));
+    } else if (g.at === "border") {
       const e = grid.borderBetween(grid.cell(...g.cells[0]), grid.cell(...g.cells[1]));
       if (e < 0) throw new Error(`a ${g.kind} mark needs two neighbouring cells`);
       push(borderGivens, e, g);
-    }
+      if (g.kind === "wall") walls.add(grid.borders[e].link);
+    } else (g.at === "row" ? rowRuns : colRuns).set(g.index, g.value);
   }
   const rules = [...(genre?.rules ?? []), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
   return {
-    spec, grid, cellGivens, borderGivens, rules,
+    spec, grid, cellGivens, borderGivens, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
     marks: spec.marks ?? genre?.marks ?? [],
     style: { ...genre?.style, ...spec.style },
   };
+}
+
+/** A nonogram's row and column clues, worked out from its picture (unless given). */
+function pictureClues(spec: GridSpec): Given[] {
+  if (!spec.picture || spec.givens?.some((g) => g.at === "row" || g.at === "col")) return [];
+  const on = spec.picture.rows.map((row) => [...row].map((ch) => ch !== "."));
+  const runs = (line: boolean[]) => { const out: number[] = []; let n = 0; for (const x of [...line, false]) { if (x) n++; else if (n) { out.push(n); n = 0; } } return out.length ? out : [0]; };
+  return [
+    ...on.map((row, r): Given => ({ at: "row", index: r, kind: "runs", value: runs(row) })),
+    ...on[0].map((_, c): Given => ({ at: "col", index: c, kind: "runs", value: runs(on.map((row) => row[c])) })),
+  ];
 }
 
 /** Every broken rule on this board; an empty list means it's solved. */
 export function check(p: Puzzle, b: Board): Problem[] {
   let reg: Regions | undefined;
   const regions = () => (reg ??= regionsOf(p, b));
-  return p.rules.flatMap((s) => blockFor(s).check(s, p, b, regions));
+  const out: Problem[] = [];
+  // a digit puzzle's given digits stay as given
+  if (p.marks.includes("digit")) {
+    const changed = [...p.cellGivens].filter(([i, gs]) => gs.some((g) => g.kind === "number" && b.digit[i] !== g.value)).map(([i]) => i);
+    if (changed.length) out.push({ message: "The printed digits can't change.", cells: changed });
+  }
+  return [...out, ...p.rules.flatMap((s) => blockFor(s).check(s, p, b, regions))];
 }
 
 /** The rules in plain words, for the "How to play" card. */

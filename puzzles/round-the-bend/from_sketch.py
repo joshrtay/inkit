@@ -57,7 +57,10 @@ for n, file, key, name, source in LEVELS:
     walls = [w for w in walls if all(grid[r][c] != "#" for r, c in w)]
     ok, msg = lr.check({"grid": grid, "walls": walls})
     assert ok, (key, msg)
-    level = {"type": "lazy-river", "name": name, "meta": f"{len(grid[0])} × {len(grid)}",
-             "river": {"source": source, "grid": grid, "walls": walls}}
+    # grid engine format (src/engine): rocks are "block" cells, walls are "wall" borders
+    givens = [{"at": "cell", "cell": [r, c], "kind": "block"} for r, row in enumerate(grid) for c, ch in enumerate(row) if ch == "#"]
+    givens += [{"at": "border", "cells": [list(a), list(b)], "kind": "wall"} for a, b in walls]
+    level = {"type": "grid", "name": name, "meta": f"{len(grid[0])} × {len(grid)}", "source": source,
+             "grid": {"size": [len(grid), len(grid[0])], "givens": givens}}
     (ROOT / "src" / "games" / "round-the-bend" / f"{n}.json").write_text(json.dumps(level, indent=2) + "\n")
     print(f"{n} {name} ({key}): {msg}; added walls {added}; toggled cells {toggled}")

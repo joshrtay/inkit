@@ -19,8 +19,9 @@ The code separates **game types** (reusable) from **instances** (data):
 | Escape Room (`escape-room`) | `packet` | Printable sheets (PDFs) and the final answer |
 | Number Line Maze (`number-line-maze`) | `number-maze` | A grid of numbers, entrance, exit, any hint walls |
 | Three Coats (`three-coats`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
-| Round the Bend (`round-the-bend`) | `lazy-river` | A grid of white and black cells, plus walls |
-| Picture Squares (`picture-squares`) | `mosaic` | A pixel-art picture drawn as letters, plus a color for each letter |
+| Round the Bend (`round-the-bend`) | `grid` (genre `river`) | A grid size, rock cells and walls |
+| Picture Squares (`picture-squares`) | `grid` (genre `nonogram`) | A pixel-art picture drawn as letters, plus a color for each letter |
+| Slitherlink, Nurikabe, Panes, Sudoku | `grid` (genre = path) | A grid size and its clues (see Grid engine genres) |
 
 Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, listed).
 Each instance is `src/games/<type path>/<n>.json`; the number is the file name. Adding
@@ -47,7 +48,7 @@ src/games/<type>/<n>.json ── instance data ───────────
   number-maze: puzzles/lib/number_maze.py proves one solution          │
                                                                        ▼
 src/pages/[type]/[n]/index.astro → src/game-types/<id>/Game.astro (+ game.ts in the browser)
-        │   (ryb, lazy-river and mosaic levels are solved here; the build fails unless each has one solution)
+        │   (ryb and grid-engine levels are solved here; the build fails unless each has one solution)
         ▼  npm run build (Astro) → dist/ → GitHub Actions → GitHub Pages
 ```
 
@@ -143,40 +144,34 @@ splits its left triangle so no two pieces share the same neighbors), every drawn
 are added, avoiding slivers, until there is one solution reachable without guessing.
 Dots are drawn at each piece's roomiest interior point.
 
-### Round the Bend (`lazy-river`)
+### Grid engine genres (`grid`)
+
+Round the Bend, Picture Squares, Slitherlink, Nurikabe, Panes and Sudoku are all
+`id: "grid"` types: one engine, a `genre` each (`src/engine`, see
+[docs/grid-engine.md](docs/grid-engine.md)). An instance's data is a `"grid"` object.
 
 ```json
-"river": { "grid": [".......", ".#.....", "..."], "walls": [[[0, 4], [1, 4]], ...] }
+"grid": { "size": [6, 7], "givens": [{ "at": "cell", "cell": [1, 1], "kind": "block" },
+                                     { "at": "border", "cells": [[0, 4], [1, 4]], "kind": "wall" }] }
+"grid": { "size": [10, 10], "picture": { "rows": [".....b....", "..."], "palette": { ".": "#e3f2f6", "b": "#6b4a2b" }, "title": "Apple" } }
 ```
 
-A clone of Inkwell Games' Loopy River (the classic Japanese "Simple Loop"), under its own name. Draw one
-closed loop through the centre of every white cell (`.`): no branches, crossings or
-separate loops; it skips black cells (`#`) and never crosses a wall (a pair of
-neighbouring cells). Drag between cells to draw or erase, tap a border for an X;
-Undo, Check and Reset; it checks itself once every cell is filled, against the one
-solution found at build time (`src/game-types/lazy-river/solver.ts`; the build fails
-unless there is exactly one loop). `puzzles/lib/lazy_river.py` has the same solver plus
-`fit()`, which turns a traced sketch into a level by adding the fewest walls (and, if
-no loop fits at all, toggling a black cell). `puzzles/round-the-bend/from_sketch.py` makes
-levels from traced sketches; when a sketch shows its solution loop, it adds only the walls
-needed to make that loop the only one.
+- **Round the Bend** (`river`): one loop through the centre of every open cell; rocks are
+  `block` cells and walls are `wall` borders. A clone of Inkwell's Loopy River under its own
+  name. `puzzles/round-the-bend/from_sketch.py` makes levels from traced sketches (with
+  `puzzles/lib/lazy_river.py`'s `fit()`), adding only the walls needed for one loop.
+- **Picture Squares** (`nonogram`): a nonogram whose clues are worked out from `picture`
+  (one letter per cell, `.` empty); solving washes the picture in and a sign shows its
+  `title`. Hint, clue ticking, and the auto-tick / auto-X helpers work as before. To make a
+  level, draw the picture in letters and pick a color per letter.
+- **Sudoku** (`sudoku`): given digits are `number` cells; boxes are sized from the grid
+  (9: 3×3, 6: 2×3, 4: 2×2). Tap a cell, then the pad or the keyboard; pencil notes too.
+- **Slitherlink**, **Nurikabe** and **Panes** (stained-glass regions in the style of The
+  Artisan of Glimmith, each puzzle listing its own rules).
 
-### Picture Squares (`mosaic`)
-
-```json
-"mosaic": { "title": "Apple", "picture": [".....b....", "..rrbrrr..", "..."],
-            "palette": { ".": "#e3f2f6", "r": "#d8443a", "b": "#6b4a2b" } }
-```
-
-A clone of Inkwell Games' Mosaic, under its own name: a nonogram whose solution is a pixel-art picture.
-Every non-`.` character of `picture` is a shaded cell; row and column clues are worked
-out from it. Tap cycles empty -> shaded -> X (right-click the other way), drag paints
-the first cell's new value, clue numbers can be ticked off; Undo, Hint (highlights a
-line and ghosts what its clue gives away), Check (marks wrong cells) and Reset; two
-optional helpers (auto-tick finished clues, auto-X ticked lines). Solving fades the grid
-into the colored picture, and a sign reveals its `title`.
-`src/game-types/mosaic/solver.ts` proves at build time that the clues have exactly one
-solution. To make a level, draw the picture in letters and pick a color per letter.
+New puzzles for any genre: `node puzzles/grid/new.ts --genre <g> --size RxC --number <n>`.
+The build proves each one has exactly one solution (clingo); saves for the two moved
+genres started fresh when they moved onto the engine.
 
 ## Pages and layouts
 

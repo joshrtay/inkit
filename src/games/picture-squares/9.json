@@ -1,25 +1,31 @@
 {
-  "type": "mosaic",
+  "type": "grid",
   "name": "Standing Tall",
-  "meta": "4 × 8 · from the sketch",
-  "mosaic": {
-    "title": "Human",
-    "picture": [
-      ".ss.",
-      "rrrr",
-      ".rr.",
-      ".rr.",
-      "bbbb",
-      "b..b",
-      "b..b",
-      "b..b"
+  "meta": "4 \u00d7 8 \u00b7 from the sketch",
+  "source": "scans/batch3/IMG_0341.heic",
+  "grid": {
+    "size": [
+      8,
+      4
     ],
-    "palette": {
-      ".": "#f3efe6",
-      "s": "#e8b48a",
-      "r": "#d8443a",
-      "b": "#2d58a6"
-    },
-    "source": "scans/batch3/IMG_0341.heic"
+    "picture": {
+      "rows": [
+        ".ss.",
+        "rrrr",
+        ".rr.",
+        ".rr.",
+        "bbbb",
+        "b..b",
+        "b..b",
+        "b..b"
+      ],
+      "palette": {
+        ".": "#f3efe6",
+        "s": "#e8b48a",
+        "r": "#d8443a",
+        "b": "#2d58a6"
+      },
+      "title": "Human"
+    }
   }
 }

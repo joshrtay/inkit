@@ -4,13 +4,11 @@
 import type { PacketConfig } from "./game-types/packet/types";
 import type { NumberMazeConfig } from "./game-types/number-maze/types";
 import type { RybConfig } from "./game-types/ryb/types";
-import type { LazyRiverConfig } from "./game-types/lazy-river/types";
-import type { MosaicConfig } from "./game-types/mosaic/types";
 import type { GridSpec } from "./engine/types";
 
 export interface GameType {
   /** Code id: the folder in src/game-types/. */
-  id: "packet" | "number-maze" | "ryb" | "lazy-river" | "mosaic" | "grid";
+  id: "packet" | "number-maze" | "ryb" | "grid";
   /** For "grid" types: the genre its puzzles default to (src/engine/puzzle.ts). */
   genre?: string;
   /** URL path and content folder name. */
@@ -64,7 +62,8 @@ export const gameTypes: GameType[] = [
     listed: true,
   },
   {
-    id: "lazy-river",
+    id: "grid",
+    genre: "river",
     path: "round-the-bend",
     name: "Round the Bend",
     blurb: "Draw one river that winds through every white cell, around the rocks and walls.",
@@ -75,7 +74,8 @@ export const gameTypes: GameType[] = [
     listed: true,
   },
   {
-    id: "mosaic",
+    id: "grid",
+    genre: "nonogram",
     path: "picture-squares",
     name: "Picture Squares",
     blurb: "Shade the cells the numbers ask for to uncover a hidden picture.",
@@ -116,6 +116,16 @@ export const gameTypes: GameType[] = [
     ink: "#2b2b30",
     listed: true,
   },
+  {
+    id: "grid",
+    genre: "sudoku",
+    path: "sudoku",
+    name: "Sudoku",
+    blurb: "Fill the grid so every row, column and box holds each digit once.",
+    meta: "Play in the browser",
+    ink: "#26398f",
+    listed: true,
+  },
 ];
 
 interface InstanceBase {
@@ -132,10 +142,8 @@ interface InstanceBase {
 export type PacketGame = InstanceBase & { packet: PacketConfig };
 export type NumberMazeGame = InstanceBase & { maze: NumberMazeConfig };
 export type RybGame = InstanceBase & { ryb: RybConfig };
-export type LazyRiverGame = InstanceBase & { river: LazyRiverConfig };
-export type MosaicGame = InstanceBase & { mosaic: MosaicConfig };
 export type GridGame = InstanceBase & { grid: GridSpec };
-export type Game = PacketGame | NumberMazeGame | RybGame | LazyRiverGame | MosaicGame | GridGame;
+export type Game = PacketGame | NumberMazeGame | RybGame | GridGame;
 
 const files = import.meta.glob<{ default: Record<string, unknown> }>("./games/*/*.json", { eager: true });
 

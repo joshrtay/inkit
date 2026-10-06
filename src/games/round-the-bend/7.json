@@ -1,15 +1,46 @@
 {
-  "type": "lazy-river",
+  "type": "grid",
   "name": "Little Loop",
   "meta": "4 \u00d7 4",
-  "river": {
-    "source": "scans/batch3/IMG_0339.heic",
-    "grid": [
-      "...#",
-      ".#..",
-      "....",
-      "..##"
+  "source": "scans/batch3/IMG_0339.heic",
+  "grid": {
+    "size": [
+      4,
+      4
     ],
-    "walls": []
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "block"
+      }
+    ]
   }
 }

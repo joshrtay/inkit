@@ -1,37 +1,58 @@
 {
-  "type": "lazy-river",
+  "type": "grid",
   "name": "Narrow Pass",
   "meta": "4 \u00d7 5",
-  "river": {
-    "source": "scans/batch3/IMG_0338.heic",
-    "grid": [
-      "...#",
-      "....",
-      "....",
-      "....",
-      "#..."
+  "source": "scans/batch3/IMG_0338.heic",
+  "grid": {
+    "size": [
+      5,
+      4
     ],
-    "walls": [
-      [
-        [
-          1,
-          2
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
         ],
-        [
-          2,
-          2
-        ]
-      ],
-      [
-        [
-          2,
-          1
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          0
         ],
-        [
-          2,
-          2
-        ]
-      ]
+        "kind": "block"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            2
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            2,
+            1
+          ],
+          [
+            2,
+            2
+          ]
+        ],
+        "kind": "wall"
+      }
     ]
   }
 }

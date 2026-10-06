@@ -1,25 +1,31 @@
 {
-  "type": "mosaic",
+  "type": "grid",
   "name": "First Place",
   "meta": "7 \u00d7 10 \u00b7 from the sketch",
-  "mosaic": {
-    "title": "Trophy",
-    "picture": [
-      ".ttttt.",
-      "t.....t",
-      ".......",
-      "t.ttt.t",
-      "t.ttt.t",
-      "t.....t",
-      "ttttttt",
-      ".......",
-      "..ttt..",
-      "..ttt.."
+  "source": "scans/mosaic/20261005002114_001.pdf",
+  "grid": {
+    "size": [
+      10,
+      7
     ],
-    "palette": {
-      ".": "#eef4fb",
-      "t": "#e0a422"
-    },
-    "source": "scans/mosaic/20261005002114_001.pdf"
+    "picture": {
+      "rows": [
+        ".ttttt.",
+        "t.....t",
+        ".......",
+        "t.ttt.t",
+        "t.ttt.t",
+        "t.....t",
+        "ttttttt",
+        ".......",
+        "..ttt..",
+        "..ttt.."
+      ],
+      "palette": {
+        ".": "#eef4fb",
+        "t": "#e0a422"
+      },
+      "title": "Trophy"
+    }
   }
 }
