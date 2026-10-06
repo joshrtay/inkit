@@ -13,7 +13,15 @@ shelf. Rules the database can't express are in `app/lib/permissions.server.ts`.
 list (`panes: size 4, twins`), then the puzzle as JSON (size, givens, ...). The grid engine
 (`../src/engine`, see `../docs/grid-engine.md`) checks and plays it.
 
-**Making games** (`/new`, `/g/<id>/edit`): the editor previews the sketch as you type, and
+**Making games from a drawing** (`/new`): upload a photo of a hand-drawn puzzle. Claude
+(`claude-opus-5-5`, `app/lib/read-sketch.server.ts`) reads it into a structured description
+(game type, size, the clues the player starts with, rules, notes about anything uncertain),
+which becomes a draft. On its edit page the creator compares the reading with the photo
+(`ConfirmDrawing.tsx`): confirm it, or say what's wrong and Claude reads it again with those
+corrections. Then the one-solution check, and publish. The photo is kept in R2 and shown at
+`/g/<id>/sketch`. Needs `ANTHROPIC_API_KEY`.
+
+**Typing a sketch** (`/new`, "type the sketch by hand"; `/g/<id>/edit`): the editor previews it as you type, and
 **Check** proves it has exactly one solution with clingo in the browser
 (`app/games/count-solutions.client.ts`; solving is too heavy for a Worker request on the free plan).
 Publishing needs that check for the exact sketch being saved. Authors (while members) and

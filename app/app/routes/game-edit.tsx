@@ -8,7 +8,10 @@ import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { canEdit, canHide, roleIn } from "~/lib/permissions.server";
-import { changeGame, isFeatured } from "~/lib/games.server";
+import { changeGame, isFeatured, rereadDrawing } from "~/lib/games.server";
+import { parseSketch } from "~/games/sketch";
+import { layoutOf } from "~/games/layout-of";
+import { ConfirmDrawing } from "~/components/ConfirmDrawing";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { SketchEditor } from "~/components/SketchEditor";
 
@@ -21,22 +24,30 @@ async function load(request: Request, env: Env, id: string) {
   const role = await roleIn(db, game.collectionId, me.id);
   const may = { edit: canEdit(game, me, role), hide: canHide(me, role), feature: me.isAdmin };
   if (!may.edit && !may.hide) throw data(null, { status: 404 });
-  return { db, me, game, may };
+  return { db, env, me, game, may };
 }
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
+  const parsed = parseSketch(game.sketch, game.sketchVersion);
   return {
     game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },
     may, featured: await isFeatured(db, game.id),
+    // a draft made from a drawing is confirmed against it first
+    drawing: game.sketchImage && game.state === "draft" && may.edit ? {
+      play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
+      problems: parsed.ok ? [] : parsed.errors,
+      notes: game.parseNotes ?? [],
+    } : null,
   };
 }
 
 export async function action({ params, request, context }: Route.ActionArgs) {
-  const { db, me, game } = await load(request, context.get(cloudflareContext).env, params.id);
+  const { db, env, me, game } = await load(request, context.get(cloudflareContext).env, params.id);
   const form = await request.formData();
   const intent = String(form.get("intent"));
   return attempt(async () => {
+    if (intent === "reread") { await rereadDrawing(db, env, me, game, form); return { error: undefined, done: intent }; }
     await changeGame(db, me, game, form);
     return intent === "save" || intent === "publish" ? redirect(`/g/${game.id}`) : { error: undefined, done: intent };
   });
@@ -44,7 +55,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · Wyatt's Games` }];
 
-export default function EditGame({ loaderData: { game, may, featured }, actionData }: Route.ComponentProps) {
+export default function EditGame({ loaderData: { game, may, featured, drawing }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;
   const published = game.state === "published";
   return (
@@ -56,8 +67,17 @@ export default function EditGame({ loaderData: { game, may, featured }, actionDa
       </header>
       {game.state === "hidden" && <p className="state hidden">Taken down: {game.hiddenNote}</p>}
 
-      {may.edit ? (
-        <SketchEditor initial={game} error={error} saveLabel={published ? "Save" : "Save draft"} showPublish={game.state === "draft"} />
+      {drawing ? (
+        <>
+          <ConfirmDrawing gameId={game.id} title={game.title} description={game.description} sketch={game.sketch}
+            play={drawing.play} notes={drawing.notes} problems={drawing.problems} error={error} />
+          <details className="advanced">
+            <summary>Edit the sketch text yourself</summary>
+            <SketchEditor key={game.sketch} initial={game} saveLabel="Save draft" />
+          </details>
+        </>
+      ) : may.edit ? (
+        <SketchEditor key={game.sketch} initial={game} error={error} saveLabel={published ? "Save" : "Save draft"} showPublish={game.state === "draft"} />
       ) : (
         error && <p className="error" role="alert">{error}</p>
       )}

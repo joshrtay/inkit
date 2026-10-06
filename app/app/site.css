@@ -96,3 +96,30 @@ textarea.sketch { font: 400 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monos
 .member-actions { display: flex; align-items: center; gap: 12px; }
 .member-actions select { padding: 5px 8px; font-size: 14px; }
 .studio-list { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 6px; }
+
+/* making a game from a drawing */
+.drop { display: grid; place-items: center; gap: 8px; min-height: 180px; padding: 14px; cursor: pointer; text-align: center;
+  border: 2px dashed var(--line-strong); border-radius: var(--radius); color: var(--muted); font-weight: 600; }
+.drop:hover { border-color: var(--ink); }
+.drop img { max-width: 100%; max-height: 360px; border-radius: 4px; }
+.drop input[type=file] { font-size: 14px; color: var(--muted); }
+.steps { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); counter-reset: step; }
+.steps li { counter-increment: step; }
+.steps li::before { content: counter(step) ". "; }
+.steps li.done { color: var(--good); }
+.steps li.done::before { content: "✓ "; }
+.steps li.now { color: var(--ink); font-weight: 700; }
+.confirm { display: grid; gap: 18px; }
+.compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.compare figure { margin: 0; display: grid; gap: 8px; }
+.compare figcaption { font-weight: 700; font-size: 14px; color: var(--muted); }
+.compare img { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 4px; background: #fff; }
+.compare .sheet { width: 100%; }
+.notes { padding: 12px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.notes h2 { font-size: 16px; margin-bottom: 6px; }
+.notes ul { margin: 0; padding-left: 20px; font-size: 15px; }
+.decide, .publish-step { display: grid; gap: 10px; max-width: 560px; }
+.decide h2, .publish-step h2 { margin: 0; }
+.advanced { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+.advanced summary { cursor: pointer; color: var(--muted); font-weight: 600; margin-bottom: 14px; }
+@media (max-width: 760px) { .compare { grid-template-columns: minmax(0, 1fr); } }

@@ -9,6 +9,7 @@ export default [
   route("studios/new", "routes/studio-new.tsx"),
   route("g/:id", "routes/game.tsx"),
   route("g/:id/edit", "routes/game-edit.tsx"),
+  route("g/:id/sketch", "routes/game-sketch.ts"),
   route(":slug/settings", "routes/collection-settings.tsx"),
   // Collections live at the top level (wyattsgames.com/<slug>), so this route comes last.
   route(":slug", "routes/collection.tsx"),

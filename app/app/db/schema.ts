@@ -116,6 +116,10 @@ export const games = sqliteTable("games", {
   kind: text("kind").notNull(),
   /** Thumbnail image key in R2, if any. */
   thumbnail: text("thumbnail"),
+  /** The hand-drawn sketch it was made from: an image key in R2. */
+  sketchImage: text("sketch_image"),
+  /** What Claude wasn't sure of when it read the drawing (JSON list of notes), for the creator to confirm. */
+  parseNotes: text("parse_notes", { mode: "json" }).$type<string[]>(),
   state: text("state", { enum: GAME_STATES }).notNull().default("draft"),
   /** Why it was hidden, and by whom (an admin or a collection owner). */
   hiddenNote: text("hidden_note"),

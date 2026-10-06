@@ -9,11 +9,13 @@ import { schema, type Db } from "../db";
 import { parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
 import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
+import { IMAGE_TYPES, readSketch, sketchProblems, toBase64 } from "./read-sketch.server";
 
 type Creator = typeof schema.creators.$inferSelect;
 type Game = typeof schema.games.$inferSelect;
 
-export class Invalid extends Error {}
+import { Invalid } from "./errors.server";
+export { Invalid };
 
 export async function sketchHash(sketch: string) {
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sketch)));
@@ -123,3 +125,52 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
 
 export const isFeatured = async (db: Db, gameId: string) =>
   !!(await db.query.featured.findFirst({ where: eq(schema.featured.gameId, gameId) }));
+
+// ---- games made from a hand-drawn sketch ----
+
+const MAX_UPLOAD = 8 * 1024 * 1024;
+
+/** The uploaded drawing from a form, checked. */
+async function imageFrom(form: FormData) {
+  const file = form.get("image");
+  if (!(file instanceof File) || !file.size) throw new Invalid("Choose a photo of your sketch.");
+  if (!(IMAGE_TYPES as readonly string[]).includes(file.type)) throw new Invalid("Use a JPEG, PNG, WebP or GIF photo.");
+  if (file.size > MAX_UPLOAD) throw new Invalid("That photo is too big (8 MB at most).");
+  return { bytes: new Uint8Array(await file.arrayBuffer()), type: file.type as (typeof IMAGE_TYPES)[number] };
+}
+
+/** Upload a drawing: Claude reads it, and it becomes a draft to confirm. Returns the game's id. */
+export async function createFromDrawing(db: Db, env: Env, me: Creator, form: FormData) {
+  const collectionId = String(form.get("collection") ?? "");
+  if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
+  const image = await imageFrom(form);
+  const { reading, sketch } = await readSketch(env, { data: toBase64(image.bytes), type: image.type });
+
+  const id = newId();
+  const key = `sketches/${id}/${crypto.randomUUID()}.${image.type.split("/")[1]}`;
+  await env.MEDIA.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
+  await db.insert(schema.games).values({
+    id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
+    title: String(form.get("title") ?? "").trim().slice(0, 120) || reading.title || "Untitled",
+    sketchImage: key, parseNotes: [...reading.notes, ...sketchProblems(sketch)],
+  });
+  return id;
+}
+
+/** Read the drawing again, with the creator's corrections. */
+export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, form: FormData) {
+  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
+  if (game.state !== "draft") throw new Invalid("Move the game back to draft before re-reading its sketch.");
+  const feedback = String(form.get("feedback") ?? "").trim().slice(0, 2000);
+  if (!feedback) throw new Invalid("Say what's wrong, e.g. \"row 3 has a rock in column 2, not 3\".");
+  const stored = game.sketchImage ? await env.MEDIA.get(game.sketchImage) : null;
+  if (!stored) throw new Invalid("This game has no uploaded sketch to re-read.");
+  const type = (stored.httpMetadata?.contentType ?? "image/jpeg") as (typeof IMAGE_TYPES)[number];
+  const { reading, sketch } = await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
+    { sketch: game.sketch, feedback });
+  await db.update(schema.games).set({
+    sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
+    parseNotes: [...reading.notes, ...sketchProblems(sketch)], updatedAt: new Date(),
+  }).where(eq(schema.games.id, game.id));
+}
+

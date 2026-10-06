@@ -4,4 +4,6 @@
 interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  /** Reads uploaded sketches with Claude (app/lib/read-sketch.server.ts). */
+  ANTHROPIC_API_KEY?: string;
 }

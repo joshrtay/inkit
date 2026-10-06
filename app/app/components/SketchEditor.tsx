@@ -8,12 +8,33 @@ import { layoutOf } from "~/games/layout-of";
 import { EXAMPLES } from "~/games/examples";
 import { kindName } from "~/games/kinds";
 import { GameBoard } from "./GameBoard";
+import type { GridSpec } from "~site/engine/types.ts";
 
 interface Target { id: string; title: string; personal: boolean }
 
 async function hash(text: string) {
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** The one-solution check for a sketch, run in this browser. `checked` is the sketch's hash once it
+ *  passed (the form sends it so the server lets the game be published); it clears if the sketch changes. */
+export function useOneSolutionCheck(sketch: string, spec: GridSpec | null) {
+  const [check, setCheck] = useState<{ sketch: string; text: string; ok: boolean; hash?: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const current = check && check.sketch === sketch ? check : null;
+  async function run() {
+    if (!spec) return;
+    setChecking(true);
+    try {
+      const { countSolutions } = await import("~/games/count-solutions.client");
+      const r = await countSolutions(spec);
+      if ("error" in r) setCheck({ sketch, text: r.error, ok: false });
+      else if (r.solutions === 1) setCheck({ sketch, text: "Exactly one solution. Ready to publish.", ok: true, hash: await hash(sketch) });
+      else setCheck({ sketch, text: r.solutions === 0 ? "No solution: the clues contradict each other." : "More than one solution: add clues until only one fits.", ok: false });
+    } finally { setChecking(false); }
+  }
+  return { run, checking, result: current, stale: !!check && !current, checked: current?.ok ? current.hash! : "" };
 }
 
 export function SketchEditor({ initial, targets, error, children, saveLabel = "Save draft", showPublish = true }: {
@@ -36,21 +57,8 @@ export function SketchEditor({ initial, targets, error, children, saveLabel = "S
   const play = useMemo(() => (parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null), [parsed]);
 
   // the one-solution check, for exactly the sketch it ran on
-  const [check, setCheck] = useState<{ sketch: string; text: string; ok: boolean; hash?: string } | null>(null);
-  const [checking, setChecking] = useState(false);
-  const checked = check?.ok && check.sketch === sketch ? check.hash : "";
-
-  async function runCheck() {
-    if (!parsed.ok || settled !== sketch) return;
-    setChecking(true);
-    try {
-      const { countSolutions } = await import("~/games/count-solutions.client");
-      const r = await countSolutions(parsed.spec);
-      if ("error" in r) setCheck({ sketch, text: r.error, ok: false });
-      else if (r.solutions === 1) setCheck({ sketch, text: "Exactly one solution. Ready to publish.", ok: true, hash: await hash(sketch) });
-      else setCheck({ sketch, text: r.solutions === 0 ? "No solution: the clues contradict each other." : "More than one solution: add clues until only one fits.", ok: false });
-    } finally { setChecking(false); }
-  }
+  const check = useOneSolutionCheck(sketch, parsed.ok && settled === sketch ? parsed.spec : null);
+  const checked = check.checked;
 
   return (
     <Form method="post" className="editor">
@@ -77,11 +85,11 @@ export function SketchEditor({ initial, targets, error, children, saveLabel = "S
         <input type="hidden" name="checked" value={checked ?? ""} />
 
         <div className="check-row">
-          <button className="btn" type="button" onClick={runCheck} disabled={!parsed.ok || checking || settled !== sketch}>
-            {checking ? "Checking…" : "Check"}
+          <button className="btn" type="button" onClick={check.run} disabled={!parsed.ok || check.checking || settled !== sketch}>
+            {check.checking ? "Checking…" : "Check"}
           </button>
-          {check && check.sketch === sketch && <span className={check.ok ? "good" : "error"}>{check.text}</span>}
-          {check && check.sketch !== sketch && <span className="muted">Changed since the last check.</span>}
+          {check.result && <span className={check.result.ok ? "good" : "error"}>{check.result.text}</span>}
+          {check.stale && <span className="muted">Changed since the last check.</span>}
         </div>
         {error && <p className="error" role="alert">{error}</p>}
         <div className="editor-actions">
