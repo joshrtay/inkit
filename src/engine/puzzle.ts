@@ -65,6 +65,20 @@ export const genres = {
     rules: [{ rule: "loop", of: "loop" }, { rule: "pearls" }],
     style: {},
   },
+  // Cave: shade cells so the white cells make one connected cave, every shaded group reaches the
+  // edge, and each number counts the white cells it sees in a straight line (itself included)
+  cave: {
+    marks: ["shade"],
+    rules: [{ rule: "unshaded-connected" }, { rule: "shaded-to-edge" }, { rule: "sight" }],
+    style: { empty: "dot" },
+  },
+  // Aquarium: fill some cells of the outlined tanks with water, which settles level and from the
+  // bottom up; numbers beside the rows and columns count the water cells
+  aquarium: {
+    marks: ["shade"],
+    rules: [{ rule: "water" }, { rule: "line-totals" }],
+    style: { shaded: "water", empty: "x" },
+  },
   // Irregular Sudoku: a sudoku whose boxes are the outlined areas
   "irregular-sudoku": {
     marks: ["digit"],
@@ -118,6 +132,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>(), cornerGivens = new Map<number, Given[]>();
   const doors = new Map<number, "in" | "out">();
   const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
+  const rowTotals = new Map<number, number>(), colTotals = new Map<number, number>();
   const blocked = new Set<number>(), walls = new Set<number>();
   const push = <K>(m: Map<K, Given[]>, k: K, g: Given) => m.set(k, [...(m.get(k) ?? []), g]);
   const givens = [...(spec.givens ?? []), ...pictureClues(spec)];
@@ -139,7 +154,8 @@ export function makePuzzle(spec: GridSpec): Puzzle {
       const e = outsideBorder(grid, g.cell, g.side);
       if (e < 0) throw new Error(`a door goes on the outside edge (row ${g.cell[0]}, column ${g.cell[1]}, ${g.side} isn't)`);
       doors.set(e, g.role);
-    } else (g.at === "row" ? rowRuns : colRuns).set(g.index, g.value);
+    } else if (g.kind === "total") (g.at === "row" ? rowTotals : colTotals).set(g.index, g.value);
+    else (g.at === "row" ? rowRuns : colRuns).set(g.index, g.value);
   }
   const marks = spec.marks ?? genre?.marks ?? [];
   if (fig && (marks.length !== 1 || marks[0] !== "paint")) throw new Error("a figure of pieces is played by painting them");
@@ -153,7 +169,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
       throw new Error(`a ${rules.some((s) => s.rule === "path") ? "path" : "maze"} needs one way in and one way out on its outside edge`);
   }
   return {
-    spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
+    spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls, digits: spec.size[1],
     areas: areasOf(spec, grid), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };

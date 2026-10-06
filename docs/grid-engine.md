@@ -2,8 +2,8 @@
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with fifteen genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Numberlink
-(`numberlink`), Masyu (`masyu`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+the `grid-engine` branch, with seventeen genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Numberlink
+(`numberlink`), Masyu (`masyu`), Cave (`cave`), Aquarium (`aquarium`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
 ## The model
@@ -40,7 +40,7 @@ them (`shaded-per-area`), and `boxes` uses them as a sudoku's boxes when they're
 digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, a
 number on a corner (`count`), paint `dots` in a piece (colors, optionally `hidden` until
 it's painted), a `door` in the outside edge (a maze's way in or out), and a
-nonogram's runs beside a row or above a column. A nonogram's runs can instead come from its
+nonogram's runs or a `total` beside a row or above a column. A nonogram's runs can instead come from its
 `picture`, which solving reveals.
 
 **Rules** are configured *building blocks* (`src/engine/rules.ts`). Each block does four
@@ -72,6 +72,11 @@ puzzle can use it.
 | `no-touch` | Shaded cells never touch, not even diagonally. |
 | `lit` | Shaded cells are light bulbs: each lights its row and column up to a rock; every open cell is lit and no two bulbs see each other (Akari). |
 | `adjacent-count` | A number counts the shaded cells (bulbs) orthogonally beside it; in Akari the numbers sit on rocks. |
+| `unshaded-connected` | All unshaded cells form one group (Cave). |
+| `shaded-to-edge` | Every group of shaded cells touches the grid's edge (Cave). |
+| `sight` | A number counts the unshaded cells it sees along its row and column, itself included (Cave). |
+| `water` | Shaded cells are water in the outlined tanks: water in a cell means water in every cell of its tank it could flow to at that level or below (Aquarium). |
+| `line-totals` | A `total` beside a row / above a column counts its shaded cells (Aquarium). |
 | `connected` | All shaded cells form one connected group. |
 | `no-pool` | No 2×2 block of shaded cells. |
 | `size` | Every region has `is` cells (or `min` / `max`). |

@@ -35,6 +35,10 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   Leave out lines drawn as the answer.`,
   masyu: `masyu: white and black circles (pearls) in cells, {kind: "pearl", pearl: "white" / "black"}. Leave out the loop if
   it's drawn as the answer.`,
+  cave: `cave: numbers in cells, {kind: "number", value}. Leave out shading drawn as the answer.`,
+  aquarium: `aquarium: a grid split into outlined tanks (thick lines), with a number beside some rows and above some
+  columns. Give the tanks as "areas" (one string per row, one letter per cell) and each number in "runs" as a
+  single-number list ({line: "row" / "col", index, runs: [n]}). Leave out water drawn as the answer.`,
   shikaku: `shikaku: numbers in cells, {kind: "number", value}; the grid gets cut into rectangles each holding one number.
   Leave out rectangles drawn as the answer.`,
   "irregular-sudoku": `irregular-sudoku (Irregular / Jigsaw Sudoku): a sudoku whose boxes are irregular outlined areas.
@@ -63,7 +67,7 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   list each one in "rules".`,
 };
 
-const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
+const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   number: "a number (or a printed digit) in a cell: value",
   block: "a rock: a shaded or crossed-out cell",
   symbol: "a symbol (★, ●, a letter...) in a cell: symbol",
@@ -92,6 +96,11 @@ const RULE_GUIDE: Record<RuleName, string> = {
   lit: "bulbs light their row and column; every white cell lit, no two bulbs see each other (comes with akari)",
   "adjacent-count": "a number counts the shaded cells / bulbs right beside it (comes with akari)",
   rectangles: "every region is a rectangle (comes with shikaku)",
+  "unshaded-connected": "the white cells form one connected group (comes with cave)",
+  "shaded-to-edge": "every group of shaded cells touches the edge (comes with cave)",
+  sight: "a number counts the white cells it sees in its row and column, itself included (comes with cave)",
+  water: "shaded cells are water settling in the outlined tanks (comes with aquarium)",
+  "line-totals": "numbers beside rows / above columns count shaded cells (comes with aquarium)",
   connected: "all shaded cells connect (comes with nurikabe)",
   "no-pool": "no 2×2 block of shaded cells (comes with nurikabe)",
   size: "every region has exactly N cells (is), or at least / at most (min / max)",
@@ -110,7 +119,7 @@ const RULE_GUIDE: Record<RuleName, string> = {
 
 const int = z.number().int();
 const Cell = z.object({ row: int, col: int });
-const clueKinds = Object.keys(CLUE_GUIDE) as [Exclude<ClueKind, "runs">, ...Exclude<ClueKind, "runs">[]];
+const clueKinds = Object.keys(CLUE_GUIDE) as [Exclude<ClueKind, "runs" | "total">, ...Exclude<ClueKind, "runs" | "total">[]];
 const Reading = z.object({
   readable: z.boolean().describe("false only if the image isn't a puzzle drawing at all; a messy or blurry puzzle is still readable"),
   problem: z.string().nullable().describe("when not readable: what's wrong, in one sentence for the creator"),
@@ -282,7 +291,9 @@ export function toSketch(r: Reading): string {
       default: return g.other ? [{ at: "border", cells: [rc(g.cell), rc(g.other)], kind: g.kind }] : [];
     }
   });
-  for (const run of r.runs) givens.push({ at: run.line, index: run.index, kind: "runs", value: run.runs });
+  for (const run of r.runs) givens.push(r.genre === "aquarium"
+    ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
+    : { at: run.line, index: run.index, kind: "runs", value: run.runs });
   // every rule written on the sketch, with only the settings it uses
   const rules: RuleSpec[] = r.rules.map(({ rule, ...settings }) =>
     ({ rule, ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v !== null)) }));

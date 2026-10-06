@@ -35,6 +35,7 @@ const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | 
   twins: { label: "◆ Same shape", on: "border" },
   opposites: { label: "◇ Different shape", on: "border" },
   runs: { label: "Clue numbers", on: "line" },
+  total: { label: "Row / column totals", on: "line" },
   count: { label: "Corner number", on: "corner" },
   dots: { label: "Paint dots", on: "cell" },
   pearl: { label: "Pearl", on: "cell" },
@@ -50,6 +51,8 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   "star-battle": [],
   akari: ["block", "number"],
   numberlink: ["number"],
+  cave: ["number"],
+  aquarium: ["total"],
   masyu: ["pearl"],
   shikaku: ["number"],
   "irregular-sudoku": ["number"],
@@ -81,6 +84,11 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "no-touch": { label: "Shaded cells (stars) never touch, even diagonally", settings: [] },
   lit: { label: "Bulbs light every white cell, never each other", settings: [] },
   "adjacent-count": { label: "Numbers count the shaded cells (bulbs) beside them", settings: [] },
+  "unshaded-connected": { label: "White cells connect", settings: [] },
+  "shaded-to-edge": { label: "Every shaded group reaches the edge", settings: [] },
+  sight: { label: "Numbers count the white cells they see", settings: [] },
+  water: { label: "Shaded cells are water that settles in its tank", settings: [] },
+  "line-totals": { label: "Numbers count shaded cells per row / column", settings: [] },
   connected: { label: "Shaded cells connect", settings: [] },
   "no-pool": { label: "No 2×2 shaded block", settings: [] },
   size: { label: "Region size", settings: [{ key: "is", label: "exactly", type: "number" }, { key: "min", label: "at least", type: "number" }, { key: "max", label: "at most", type: "number" }] },
@@ -105,7 +113,7 @@ const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" |
   grid: { label: "Grid", type: "choice", choices: ["lines", "dots"] },
   major: { label: "Heavy line every", type: "number" },
   empty: { label: "Known-empty mark", type: "choice", choices: ["dot", "x"] },
-  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star", "bulb"] },
+  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star", "bulb", "water"] },
   palette: { label: "Region colors", type: "colors" },
 };
 
@@ -139,7 +147,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const [areaInk, setAreaInk] = useState("a");
   const areas = spec.areas;
   const areaLetters = [...new Set((areas ?? []).join(""))].sort();
-  const needsAreas = genres[genre]?.rules.some((r) => r.rule === "shaded-per-area") || genre === "irregular-sudoku";
+  const needsAreas = genres[genre]?.rules.some((r) => r.rule === "shaded-per-area" || r.rule === "water") || genre === "irregular-sudoku";
   const [number, setNumber] = useState(1);
   const [role, setRole] = useState<"in" | "out">("in");
   const [pearl, setPearl] = useState<"white" | "black">("white");
@@ -239,6 +247,18 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const setRuns = (at: "row" | "col", index: number, text: string) =>
     setGivens([...givens.filter((g) => !(g.at === at && g.index === index)), { at, index, kind: "runs", value: parseRuns(text) }]);
   const nonogram = genre === "nonogram";
+  // numbers beside the rows and above the columns: a nonogram's runs, or totals (Aquarium)
+  const lineClue: "runs" | "total" | null = nonogram && !picture ? "runs"
+    : GENRE_CLUES[genre]?.includes("total") || givens.some((g) => g.kind === "total") ? "total" : null;
+  const lineText = (at: "row" | "col", index: number) => {
+    const g = givens.find((x) => x.at === at && x.index === index);
+    return lineClue === "runs" ? runsText(runsAt(at, index)) : g?.kind === "total" ? String(g.value) : "";
+  };
+  const setLine = (at: "row" | "col", index: number, text: string) => {
+    if (lineClue === "runs") return setRuns(at, index, text);
+    const v = parseInt(text, 10), rest = givens.filter((g) => !(g.at === at && g.index === index));
+    setGivens(Number.isInteger(v) && v >= 0 ? [...rest, { at, index, kind: "total", value: v }] : rest);
+  };
   function toPicture() {
     set({ givens: givens.filter((g) => g.at !== "row" && g.at !== "col"), picture: { rows: Array.from({ length: rows }, () => ".".repeat(cols)), palette: { ".": "#ffffff", a: "#26398f" } } });
     setTool("paint"); setInk("a");
@@ -390,16 +410,16 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
       )}
       <p className="hint">{tool === "area" ? "Click cells to put them in the chosen area." : tool === "paint" ? "Click cells to paint them; click again to clear." : tool === "erase" ? "Click a clue or a line mark to remove it." : tool === "count" ? "Click a corner where grid lines meet." : tool === "door" ? "Click the outside edge beside a cell." : !picture && CLUES[tool].on === "border" ? "Click the line between two cells." : "Click a cell; click again to remove."}</p>
 
-      <div className={nonogram && !picture ? "ge-with-runs" : undefined}>
-        {nonogram && !picture && (
+      <div className={lineClue ? "ge-with-runs" : undefined}>
+        {lineClue && (
           <div className="ge-col-runs" style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
-            {Array.from({ length: cols }, (_, c) => <input key={c} aria-label={`Column ${c + 1} clue`} defaultValue={runsText(runsAt("col", c))} onBlur={(e) => setRuns("col", c, e.target.value)} />)}
+            {Array.from({ length: cols }, (_, c) => <input key={c} aria-label={`Column ${c + 1} clue`} defaultValue={lineText("col", c)} onBlur={(e) => setLine("col", c, e.target.value)} />)}
           </div>
         )}
         <div className="ge-row-wrap">
-          {nonogram && !picture && (
+          {lineClue && (
             <div className="ge-row-runs" style={{ gridTemplateRows: `repeat(${rows}, 1fr)` }}>
-              {Array.from({ length: rows }, (_, r) => <input key={r} aria-label={`Row ${r + 1} clue`} defaultValue={runsText(runsAt("row", r))} onBlur={(e) => setRuns("row", r, e.target.value)} />)}
+              {Array.from({ length: rows }, (_, r) => <input key={r} aria-label={`Row ${r + 1} clue`} defaultValue={lineText("row", r)} onBlur={(e) => setLine("row", r, e.target.value)} />)}
             </div>
           )}
           <svg className="ge-grid" viewBox={`0 0 ${W} ${H}`} onClick={click} role="img" aria-label="Puzzle editor">

@@ -1,0 +1,51 @@
+{
+  "type": "grid",
+  "name": "Fish Tank",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "areas": [
+      "iiaadb",
+      "iiiaeb",
+      "fiiaee",
+      "fggghh",
+      "fgggch",
+      "fffcch"
+    ],
+    "givens": [
+      {
+        "at": "col",
+        "index": 1,
+        "kind": "total",
+        "value": 3
+      },
+      {
+        "at": "row",
+        "index": 0,
+        "kind": "total",
+        "value": 3
+      },
+      {
+        "at": "col",
+        "index": 4,
+        "kind": "total",
+        "value": 0
+      },
+      {
+        "at": "col",
+        "index": 3,
+        "kind": "total",
+        "value": 5
+      },
+      {
+        "at": "row",
+        "index": 5,
+        "kind": "total",
+        "value": 0
+      }
+    ]
+  }
+}

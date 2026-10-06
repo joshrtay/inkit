@@ -14,6 +14,8 @@
 .grid-game .pearl { stroke: var(--paper-ink); stroke-width: 2.4; }
 .grid-game .pearl.white { fill: var(--paper); }
 .grid-game .pearl.black { fill: var(--paper-ink); }
+.grid-game .shaded.water { fill: var(--wash-blue); }
+.grid-game .clue.total { pointer-events: none; }
 .grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: 2; stroke-linejoin: round; filter: var(--wash); }
 
 /* clues are handwritten in the board's ink */

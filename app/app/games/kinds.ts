@@ -8,6 +8,8 @@ export const KIND_NAMES: Record<GenreName, string> = {
   "star-battle": "Star Battle",
   akari: "Akari",
   numberlink: "Numberlink",
+  cave: "Cave",
+  aquarium: "Aquarium",
   masyu: "Masyu",
   shikaku: "Shikaku",
   "irregular-sudoku": "Irregular Sudoku",

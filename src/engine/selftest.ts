@@ -92,7 +92,7 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -103,6 +103,19 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "simple-loop", size: [rows, cols], givens };
+  }
+  if (kind === "aquarium") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
+    const givens: NonNullable<GridSpec["givens"]> = [];
+    for (let r = 0; r < rows; r++) if (rand() < 0.3) givens.push({ at: "row", index: r, kind: "total", value: Math.floor(rand() * (cols + 1)) });
+    for (let c = 0; c < cols; c++) if (rand() < 0.3) givens.push({ at: "col", index: c, kind: "total", value: Math.floor(rand() * (rows + 1)) });
+    return { genre: "aquarium", size: [rows, cols], areas: randomAreas(rows, cols, 2 + Math.floor(rand() * 3)), givens };
+  }
+  if (kind === "cave") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
+    const givens = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, 1 + Math.floor(rand() * 3))
+      .map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "number" as const, value: 1 + Math.floor(rand() * (rows + cols - 1)) }));
+    return { genre: "cave", size: [rows, cols], givens };
   }
   if (kind === "numberlink") {
     const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);

@@ -64,6 +64,38 @@ const sees = (p: Puzzle, i: number) => {
   }
   return out;
 };
+/** Where water in cell i must also be: the cells of its tank (outlined area, or the whole grid)
+ *  reachable from it through cells at its level or lower. */
+const floods = (p: Puzzle, i: number) => {
+  const g = p.grid, level = g.rc(i)[0], tank = (j: number) => (p.areas ? p.areas.of[j] : 0);
+  const seen = new Set([i]), stack = [i];
+  while (stack.length) for (const l of g.cellLinks[stack.pop()!]) {
+    const [a, c] = g.links[l].cells;
+    for (const j of [a, c]) if (!seen.has(j) && tank(j) === tank(i) && g.rc(j)[0] >= level && !p.blocked.has(j)) { seen.add(j); stack.push(j); }
+  }
+  seen.delete(i);
+  return [...seen];
+};
+/** Groups of cells (side by side) that pass a test. */
+const groups = (p: Puzzle, ok: (i: number) => boolean) => {
+  const g = p.grid, seen = new Set<number>(), out: number[][] = [];
+  for (let s = 0; s < g.cellCount; s++) {
+    if (!ok(s) || seen.has(s)) continue;
+    const part = [s]; seen.add(s);
+    for (let k = 0; k < part.length; k++) for (const l of g.cellLinks[part[k]]) { const j = other(p, l, part[k]); if (ok(j) && !seen.has(j)) { seen.add(j); part.push(j); } }
+    out.push(part);
+  }
+  return out;
+};
+/** The cells out from a cell in each of the four directions, nearest first (up to a rock). */
+const rays = (p: Puzzle, i: number) => {
+  const g = p.grid, [r, c] = g.rc(i);
+  return [[-1, 0], [1, 0], [0, -1], [0, 1]].map(([dr, dc]) => {
+    const ray: number[] = [];
+    for (let y = r + dr, x = c + dc; y >= 0 && x >= 0 && y < g.rows && x < g.cols && !p.blocked.has(g.cell(y, x)); y += dr, x += dc) ray.push(g.cell(y, x));
+    return ray;
+  });
+};
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
 
 export const blocks = {
@@ -367,6 +399,63 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
         .map(([i, k]) => ({ message: `This ${k} needs exactly ${k} ${p.style.shaded === "bulb" ? (k === 1 ? "bulb" : "bulbs") : "shaded"} beside it.`, cells: [i] }));
     },
     asp: (_s, p) => numberClues(p).map(([i, k]) => `:- #count{J: adj(${i},J,_), shaded(J)} != ${k}.`).join("\n"),
+  },
+  "unshaded-connected": {
+    describe: () => "All the white (unshaded) cells form one connected group.",
+    check(_s, p, b) {
+      const parts = groups(p, (i) => b.shade[i] !== 1 && !p.blocked.has(i));
+      return parts.length > 1 ? [{ message: "The white cells must all connect.", cells: parts.slice(1).flat() }] : [];
+    },
+    asp: () => `uo(I) :- cell(I), not shaded(I), not blocked(I).
+ulow(I) :- uo(I), uo(J), J < I.
+ureach(I) :- uo(I), not ulow(I).
+ureach(J) :- ureach(I), adj(I,J,_), uo(J).
+:- uo(I), not ureach(I).`,
+  },
+  "shaded-to-edge": {
+    describe: () => "Every group of shaded cells touches the edge of the grid.",
+    check(_s, p, b) {
+      const g = p.grid, onEdge = (i: number) => { const [r, c] = g.rc(i); return r === 0 || c === 0 || r === g.rows - 1 || c === g.cols - 1; };
+      const shut = groups(p, (i) => b.shade[i] === 1).filter((cs) => !cs.some(onEdge));
+      return shut.length ? [{ message: "Shaded cells can't be closed in: every shaded group reaches the edge.", cells: shut.flat() }] : [];
+    },
+    asp: (_s, p) => {
+      const g = p.grid, edge = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => { const [r, c] = g.rc(i); return r === 0 || c === 0 || r === g.rows - 1 || c === g.cols - 1; });
+      return `${edge.map((i) => `edgecell(${i}).`).join(" ")}
+sreach(I) :- shaded(I), edgecell(I).
+sreach(J) :- sreach(I), adj(I,J,_), shaded(J).
+:- shaded(I), not sreach(I).`;
+    },
+  },
+  sight: {
+    describe: () => "A number counts the white cells it can see along its row and column, itself included. Shaded cells block the view.",
+    check(_s, p, b) {
+      return numberClues(p).filter(([i, k]) => 1 + rays(p, i).reduce((n, ray) => { let m = 0; for (const j of ray) { if (b.shade[j] === 1 || p.blocked.has(j)) break; m++; } return n + m; }, 0) !== k)
+        .map(([i, k]) => ({ message: `This ${k} must see exactly ${k} white cell${k === 1 ? "" : "s"}, itself included.`, cells: [i] }));
+    },
+    asp: (_s, p) => numberClues(p).map(([i, k]) => {
+      const lines = rays(p, i).flatMap((ray) => ray.map((j, d) => `see(${i},${j}) :- ${ray.slice(0, d + 1).map((x) => `not shaded(${x})`).join(", ")}.`));
+      return `${lines.join("\n")}\n:- #count{J: see(${i},J)} != ${k - 1}.`;
+    }).join("\n"),
+  },
+  water: {
+    describe: () => "Shaded cells are water in the outlined tanks. Water settles: if a cell holds water, so does every cell of its tank it could flow to at that level or below (each body of water has one flat surface).",
+    check(_s, p, b) {
+      const bad = new Set<number>();
+      for (let i = 0; i < p.grid.cellCount; i++) if (b.shade[i] === 1) for (const j of floods(p, i)) if (b.shade[j] !== 1) bad.add(j);
+      return bad.size ? [{ message: "Water flows down and sideways to an even level: these cells must fill too.", cells: [...bad] }] : [];
+    },
+    asp: (_s, p) => Array.from({ length: p.grid.cellCount }, (_, i) => floods(p, i).map((j) => `:- shaded(${i}), not shaded(${j}).`).join("\n")).filter(Boolean).join("\n"),
+  },
+  "line-totals": {
+    describe: () => "A number beside a row or above a column counts its shaded cells.",
+    check(_s, p, b) {
+      const g = p.grid, out: Problem[] = [];
+      for (const [r, k] of p.rowTotals) { const cs = Array.from({ length: g.cols }, (_, c) => g.cell(r, c)); if (cs.filter((i) => b.shade[i] === 1).length !== k) out.push({ message: `This row needs ${k} shaded.`, cells: cs }); }
+      for (const [c, k] of p.colTotals) { const cs = Array.from({ length: g.rows }, (_, r) => g.cell(r, c)); if (cs.filter((i) => b.shade[i] === 1).length !== k) out.push({ message: `This column needs ${k} shaded.`, cells: cs }); }
+      return out;
+    },
+    asp: (_s, p) => [...[...p.rowTotals].map(([r, k]) => `:- #count{I: shaded(I), row(I,${r})} != ${k}.`), ...[...p.colTotals].map(([c, k]) => `:- #count{I: shaded(I), col(I,${c})} != ${k}.`)].join("\n"),
   },
   connected: {
     describe: () => "All the shaded cells connect into one group (side to side, not at corners).",

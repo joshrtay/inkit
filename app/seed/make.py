@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
-GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": "simple-loop", "simple-path": "simple-path", "star-battle": "star-battle", "irregular-sudoku": "irregular-sudoku", "akari": "akari", "shikaku": "shikaku", "numberlink": "numberlink", "masyu": "masyu", "picture-squares": "nonogram", "slitherlink": "slitherlink",
+GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": "simple-loop", "simple-path": "simple-path", "star-battle": "star-battle", "irregular-sudoku": "irregular-sudoku", "akari": "akari", "shikaku": "shikaku", "numberlink": "numberlink", "masyu": "masyu", "cave": "cave", "aquarium": "aquarium", "picture-squares": "nonogram", "slitherlink": "slitherlink",
           "nurikabe": "nurikabe", "panes": "panes", "sudoku": "sudoku"}
 FEATURED = ["simple-loop-5", "panes-1", "sudoku-1", "nonogram-2"]
 

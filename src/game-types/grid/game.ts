@@ -66,7 +66,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const b = g.borders[e];
     return b.horizontal ? (b.cells[0] < 0 ? "top" : "bottom") : (b.cells[0] < 0 ? "left" : "right");
   };
-  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0);
+  // row / column totals (Aquarium) sit left of the rows and above the columns
+  const totalsRoom = (side: string) => (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0;
+  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side));
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top"), MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
   const svg = q<SVGSVGElement>("svg.board");
@@ -174,6 +176,16 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     t.textContent = String(n); clueEls.push([`c${i}:${k}`, t]);
   });
 
+  const totalEls: [number[], number, SVGTextElement][] = [];
+  for (const [r, k] of p.rowTotals) {
+    const t = el("text", { class: "clue run total", x: ML - 20, y: Y(r) + S / 2 + 1 }, gClues) as SVGTextElement;
+    t.textContent = String(k); totalEls.push([Array.from({ length: g.cols }, (_, c) => g.cell(r, c)), k, t]);
+  }
+  for (const [c, k] of p.colTotals) {
+    const t = el("text", { class: "clue run total", x: X(c) + S / 2, y: MT - 18 }, gClues) as SVGTextElement;
+    t.textContent = String(k); totalEls.push([Array.from({ length: g.rows }, (_, r) => g.cell(r, c)), k, t]);
+  }
+
   // ---- drawing the board ----
   const status = q<HTMLElement>(".status");
   let solved = false, reported = false, sel = -1, pencilMode = false;
@@ -235,7 +247,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
           el("circle", { class: "bulb", cx: x, cy: y - 2, r: S * 0.22 }, gMarks);
           el("rect", { class: "bulb-base", x: x - S * 0.1, y: y + S * 0.16, width: S * 0.2, height: S * 0.12, rx: 2 }, gMarks);
         }
-        else cellRect(i, "shaded", gWash, -0.5);
+        else cellRect(i, p.style.shaded === "water" ? "shaded water" : "shaded", gWash, -0.5);
       }
       if (regionsPuzzle && colors[i] > 0) el("rect", { x: x - S / 2 - 0.5, y: y - S / 2 - 0.5, width: S + 1, height: S + 1, fill: palette[colors[i] - 1] ?? "#ccc" }, gWash);
       if (marks.includes("shade") && board.shade[i] === 2) {
@@ -277,6 +289,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       if (board.loop[l.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
     }
     for (const [k, t] of clueEls) t.classList.toggle("done", ticks.has(k));
+    for (const [cs, k, t] of totalEls) t.classList.toggle("done", cs.filter((i) => board.shade[i] === 1).length === k);
     for (const [v, [n, want]] of cornerEls) {
       const have = g.cornerBorders[v].filter((e) => board.fence[e] === 1).length;
       n.classList.toggle("done", have === want); n.classList.toggle("over", have > want);

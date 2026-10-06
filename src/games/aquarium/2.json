@@ -1,0 +1,71 @@
+{
+  "type": "grid",
+  "name": "Water Works",
+  "meta": "8 × 8",
+  "grid": {
+    "size": [
+      8,
+      8
+    ],
+    "areas": [
+      "iiikkddd",
+      "ppikofdf",
+      "pppoofff",
+      "pnnoolgg",
+      "anneelgc",
+      "anmeellc",
+      "aammhhhb",
+      "aammjjjj"
+    ],
+    "givens": [
+      {
+        "at": "col",
+        "index": 7,
+        "kind": "total",
+        "value": 3
+      },
+      {
+        "at": "col",
+        "index": 2,
+        "kind": "total",
+        "value": 5
+      },
+      {
+        "at": "row",
+        "index": 5,
+        "kind": "total",
+        "value": 7
+      },
+      {
+        "at": "col",
+        "index": 5,
+        "kind": "total",
+        "value": 5
+      },
+      {
+        "at": "col",
+        "index": 3,
+        "kind": "total",
+        "value": 5
+      },
+      {
+        "at": "row",
+        "index": 1,
+        "kind": "total",
+        "value": 0
+      },
+      {
+        "at": "row",
+        "index": 2,
+        "kind": "total",
+        "value": 0
+      },
+      {
+        "at": "col",
+        "index": 0,
+        "kind": "total",
+        "value": 5
+      }
+    ]
+  }
+}

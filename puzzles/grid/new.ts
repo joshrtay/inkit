@@ -6,6 +6,8 @@
 //   node puzzles/grid/new.ts --genre sudoku --size 9x9 --number 1 --name "Classic"
 //   node puzzles/grid/new.ts --genre simple-path --size 6x6 --number 1 --name "First Steps"
 //   node puzzles/grid/new.ts --genre star-battle --size 6x6 --number 1 --name "First Stars"
+//   node puzzles/grid/new.ts --genre cave --size 7x7 --number 1 --name "Grotto"
+//   node puzzles/grid/new.ts --genre aquarium --size 6x6 --number 1 --name "Fish Tank"
 //   node puzzles/grid/new.ts --genre numberlink --size 6x6 --number 1 --name "Pairs"
 //   node puzzles/grid/new.ts --genre masyu --size 6x6 --number 1 --name "Pearls"
 //   node puzzles/grid/new.ts --genre akari --size 7x7 --number 1 --name "Lights On"
@@ -87,7 +89,7 @@ function jigsaw(): string[] {
   return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
 }
 
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "star-battle" || genre === "akari" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "shikaku" ? regionKey(spec, b) : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "star-battle" || genre === "akari" || genre === "cave" || genre === "aquarium" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "shikaku" ? regionKey(spec, b) : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
 async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -124,7 +126,34 @@ const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
 let result: GridSpec | null = null;
 
 for (let attempt = 0; attempt < 40 && !result; attempt++) {
-  if (genre === "numberlink") {
+  if (genre === "cave") {
+    // a random cave (about half the grid shaded), then numbers in white cells until it's the only one
+    const n = rows * cols, base: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * 0.38)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.55)}.`);
+    if (!target) continue;
+    const p0 = makePuzzle(base), g = p0.grid;
+    const sees = (i: number) => {
+      const [r, c] = g.rc(i); let k = 1;
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) for (let y = r + dr, x = c + dc; y >= 0 && x >= 0 && y < rows && x < cols && target.shade[g.cell(y, x)] !== 1; y += dr, x += dc) k++;
+      return k;
+    };
+    const pool: Given[] = Array.from({ length: n }, (_, i) => i).filter((i) => target.shade[i] !== 1).map((i) => ({ at: "cell", cell: at(i), kind: "number", value: sees(i) }));
+    result = await narrow(base, target, pool);
+  } else if (genre === "aquarium") {
+    // random tanks, a random settled fill, then row / column totals until it's the only one
+    const tanks = growAreas(shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.round(rows * cols / 4)));
+    if (!tanks) continue;
+    const base: GridSpec = { genre, size: [rows, cols], areas: tanks, givens: [] };
+    const n = rows * cols;
+    const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * 0.35)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.6)}.`);
+    if (!target) continue;
+    const g = makePuzzle(base).grid;
+    const pool: Given[] = [
+      ...Array.from({ length: rows }, (_, r): Given => ({ at: "row", index: r, kind: "total", value: Array.from({ length: cols }, (_, c) => target.shade[g.cell(r, c)] === 1).filter(Boolean).length })),
+      ...Array.from({ length: cols }, (_, c): Given => ({ at: "col", index: c, kind: "total", value: Array.from({ length: rows }, (_, r) => target.shade[g.cell(r, c)] === 1).filter(Boolean).length })),
+    ];
+    result = await narrow(base, target, pool);
+  } else if (genre === "numberlink") {
     // Connectlink style: a random path through every cell (a Simple Path between two random edge
     // cells), cut into pieces of 3 to 7 cells; each piece's ends are a numbered pair
     const edgeCells = Array.from({ length: rows * cols }, (_, i) => i).filter((i) => { const [r, c] = at(i); return r === 0 || c === 0 || r === rows - 1 || c === cols - 1; });
@@ -329,7 +358,7 @@ for (let attempt = 0; attempt < 40 && !result; attempt++) {
       spec.rules = rules.filter((r) => ["size", "all-different"].includes(r.rule) || used.has(r.rule));
       // a cell can hold only one clue: keep the first
       const seen = new Set<string>();
-      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : `${x.at}${x.index}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
       if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
     }
   } else throw new Error(`no generator for genre "${genre}"`);

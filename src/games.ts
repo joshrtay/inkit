@@ -88,6 +88,26 @@ export const gameTypes: GameType[] = [
   // ---- grid engine (src/engine, docs/grid-engine.md) ----
   {
     id: "grid",
+    genre: "cave",
+    path: "cave",
+    name: "Cave",
+    blurb: "Shade the rock around one connected cave; each number counts the cave cells it can see.",
+    meta: "Play in the browser",
+    ink: "#2b2b30",
+    listed: true,
+  },
+  {
+    id: "grid",
+    genre: "aquarium",
+    path: "aquarium",
+    name: "Aquarium",
+    blurb: "Fill the tanks with water that settles level; the numbers count the water in each row and column.",
+    meta: "Play in the browser",
+    ink: "#26398f",
+    listed: true,
+  },
+  {
+    id: "grid",
     genre: "numberlink",
     path: "numberlink",
     name: "Numberlink",
