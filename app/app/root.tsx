@@ -59,6 +59,7 @@ function TopNav({ crumbs }: { crumbs?: React.ReactNode }) {
       <div className="nav-actions">
         {me ? (
           <>
+            <Link className="btn primary" to="/new">New game</Link>
             <Link className="nav-link" to={`/${me.handle}`}>@{me.handle}</Link>
             <button className="nav-link" type="button"
               onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>

@@ -13,6 +13,7 @@
     "../src/engine/rules.ts",
     "../src/engine/puzzle.ts",
     "../src/engine/types.ts",
+    "../src/engine/encode.ts",
     "../src/lib/ink.ts",
     "../src/lib/game-api.ts"
   ],

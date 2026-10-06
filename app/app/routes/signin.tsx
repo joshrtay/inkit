@@ -25,7 +25,7 @@ export default function SignIn({ loaderData: { google } }: Route.ComponentProps)
     const { error } = await authClient.signIn.email({ email: String(f.get("email")), password: String(f.get("password")) });
     setBusy(false);
     if (error) return setError(error.status === 401 ? "That email and password don't match." : error.message ?? "Couldn't sign in.");
-    location.href = "/";
+    location.href = new URLSearchParams(location.search).get("next") || "/";
   }
 
   return (

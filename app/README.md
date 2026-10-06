@@ -13,6 +13,18 @@ shelf. Rules the database can't express are in `app/lib/permissions.server.ts`.
 list (`panes: size 4, twins`), then the puzzle as JSON (size, givens, ...). The grid engine
 (`../src/engine`, see `../docs/grid-engine.md`) checks and plays it.
 
+**Making games** (`/new`, `/g/<id>/edit`): the editor previews the sketch as you type, and
+**Check** proves it has exactly one solution with clingo in the browser
+(`app/games/count-solutions.client.ts`; solving is too heavy for a Worker request on the free plan).
+Publishing needs that check for the exact sketch being saved. Authors (while members) and
+owners edit; owners and admins take games down with a note (only admins restore an admin's
+take-down); admins curate Featured. See `app/lib/games.server.ts`.
+
+**Collections** (`/studios/new`, `/<slug>/settings`): anyone starts a studio as its owner;
+owners rename it, add creators by handle as owners or contributors, change roles and remove
+members; members leave (keeping their games' credit); owners delete studios (games go
+offline). A collection always keeps an owner. See `app/lib/collections.server.ts`.
+
 **Sign-in** (`app/lib/auth.server.ts`): Better Auth, email + password, and Google when
 `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` are set.
 

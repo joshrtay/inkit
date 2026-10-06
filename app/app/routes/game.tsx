@@ -5,10 +5,10 @@ import type { Route } from "./+types/game";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { canEdit, canView, roleIn } from "~/lib/permissions.server";
-import { parseSketch } from "~/games/sketch.server";
+import { canEdit, canHide, canView, roleIn } from "~/lib/permissions.server";
+import { parseSketch } from "~/games/sketch";
 import { kindName } from "~/games/kinds";
-import { layoutOf } from "~/games/layout.server";
+import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "~/components/GameBoard";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -35,7 +35,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     summary: parsed.ok ? parsed.summary : kindName(game.kind),
     rules: parsed.ok ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
-    editable: canEdit(game, viewer, role),
+    editable: canEdit(game, viewer, role) || canHide(viewer, role),
   };
 }
 
@@ -43,7 +43,7 @@ export const meta: Route.MetaFunction = ({ loaderData: data }) => data
   ? [{ title: `${data.game.title} · Wyatt's Games` }, { name: "description", content: data.game.description || `A ${kindName(data.game.kind)} puzzle.` }]
   : [{ title: "Not found · Wyatt's Games" }];
 
-export default function Game({ loaderData: { game, collection, author, play, summary, rules, errors } }: Route.ComponentProps) {
+export default function Game({ loaderData: { game, collection, author, play, summary, rules, errors, editable } }: Route.ComponentProps) {
   return (
     <main className="wrap game-page">
       <header className="game-head">
@@ -53,6 +53,7 @@ export default function Game({ loaderData: { game, collection, author, play, sum
           {author.deleted ? author.name : <Link to={`/${author.handle}`}>@{author.handle}</Link>}
           {!collection.personal && <> in <Link to={`/${collection.slug}`}>{collection.title}</Link></>}
         </span>
+        {editable && <Link className="btn" to={`/g/${game.id}/edit`}>Edit</Link>}
         {game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}
         {game.state === "hidden" && <span className="state hidden">Taken down{game.hiddenNote ? `: ${game.hiddenNote}` : "."}</span>}
       </header>

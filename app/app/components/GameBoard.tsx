@@ -39,7 +39,8 @@ function markup(l: Layout) {
     </div>${prefs}</div>`;
 }
 
-export function GameBoard({ play, saveId, onSolved }: { play: Playable; saveId: string; onSolved?: () => void }) {
+/** `saveId` keeps the player's progress in this browser; without it (the editor's preview), nothing is saved. */
+export function GameBoard({ play, saveId, onSolved }: { play: Playable; saveId?: string; onSolved?: () => void }) {
   const spot = useRef<HTMLDivElement>(null);
   const solved = useRef(onSolved);
   solved.current = onSolved;
@@ -50,7 +51,8 @@ export function GameBoard({ play, saveId, onSolved }: { play: Playable; saveId: 
     holder.innerHTML = markup(play.layout);
     const root = holder.firstElementChild as HTMLElement;
     spot.current.appendChild(root);
-    const cleanup = createGrid({ spec: play.spec })(root, createHost(saveId, () => solved.current?.()));
+    const host = createHost(saveId ?? "", () => solved.current?.(), !saveId);
+    const cleanup = createGrid({ spec: play.spec })(root, host);
     return () => { cleanup?.(); root.remove(); };
   }, [play, saveId]);
 

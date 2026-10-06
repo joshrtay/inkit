@@ -14,4 +14,7 @@ export default defineConfig({
     alias: { "~site": fileURLToPath(new URL("../src", import.meta.url)) },
   },
   server: { fs: { allow: [".."] } },
+  // clingo-wasm starts a Web Worker from its own files; pre-bundling would break that path.
+  optimizeDeps: { exclude: ["clingo-wasm"] },
+  worker: { format: "es" },
 });
