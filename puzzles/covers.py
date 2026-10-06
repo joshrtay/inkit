@@ -4,7 +4,7 @@
 
 Every cover shows puzzles as a player first sees them, never a solution.
 Number Line Maze: two mazes' number grids. Three Coats: three levels, unpainted.
-Round the Bend: two empty grids. Picture Squares: three blank grids with their clues.
+Simple Loop: two empty grids. Nonogram: three blank grids with their clues.
 Escape Room: three of its printed sheets (the preview images in public/).
 Each board is drawn in its game type's ballpoint ink on a sheet of paper, fanned out on
 the site's paper, then screenshotted with headless Chrome.
@@ -149,7 +149,7 @@ def ryb_svg(cfg: dict, painted: bool) -> str:
 
 # ---- round the bend ----
 def river_config(n: int) -> dict:
-    """A Round the Bend level (grid engine data) as rock rows and wall bits (2 right, 4 below)."""
+    """A Simple Loop level (grid engine data) as rock rows and wall bits (2 right, 4 below)."""
     spec = json.loads((ROOT / "src" / "games" / "round-the-bend" / f"{n}.json").read_text())["grid"]
     H, W = spec["size"]
     rocks = {tuple(g["cell"]) for g in spec["givens"] if g["kind"] == "block"}

@@ -19,11 +19,11 @@ type ImageType = (typeof IMAGE_TYPES)[number];
 // until it's described here too (the visual editor has the same guard; see docs/grid-engine.md).
 
 const GENRE_GUIDE: Record<GenreName, string> = {
-  river: `river (Round the Bend): draw one loop through every open cell. Shaded / crossed-out cells are
+  "simple-loop": `simple-loop (Simple Loop, also drawn as "Round the Bend" or "river"): draw one loop through every open cell. Shaded / crossed-out cells are
   rocks: {kind: "block"}. Thick lines between two cells are walls the loop can't cross: {kind: "wall", cell, other}.`,
   slitherlink: `slitherlink: numbers in cells count how many of the cell's four sides the loop uses: {kind: "number", value}.`,
   nurikabe: `nurikabe: numbered cells are islands of that size: {kind: "number", value}.`,
-  nonogram: `nonogram (Picture Squares): numbers beside each row and above each column. If the drawing shows the
+  nonogram: `nonogram (also "Picture Squares"): numbers beside each row and above each column. If the drawing shows the
   shaded picture, give it as "picture" (one letter per cell, "." for empty, a color per letter: the colors
   drawn, or a dark ink color for plain shading), and check it against the numbers; note any row or column
   where they disagree. If there's no picture, give the numbers as "runs".`,
@@ -59,7 +59,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
-  loop: "the lines form one loop (comes with river and slitherlink)",
+  loop: "the lines form one loop (comes with simple-loop and slitherlink)",
   sides: "a number counts the loop's sides around it (comes with slitherlink)",
   runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
   latin: "each digit once per row and column (comes with sudoku)",
@@ -127,7 +127,7 @@ description that a puzzle engine can play. Read the drawing carefully: the grid,
 Coordinates: rows count from 0 at the top, columns from 0 at the left. "rows" and "cols" are the
 number of cells. Count grid cells, not lines.
 
-The game type may be written at the top of the sketch (e.g. "river", "Round the Bend",
+The game type may be written at the top of the sketch (e.g. "simple loop", "Round the Bend",
 "slitherlink", "panes: size 4, twins"). Otherwise work it out from what's drawn:
 
 ${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
@@ -222,7 +222,7 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
   if (!reading.sure) out.push("not sure of its reading");
   out.push(...sketchProblems(sketch));
   const rocks = reading.givens.filter((g) => g.kind === "block").length;
-  if (reading.genre === "river" && (reading.rows * reading.cols - rocks) % 2) out.push("an odd number of open cells can't hold a loop");
+  if (reading.genre === "simple-loop" && (reading.rows * reading.cols - rocks) % 2) out.push("an odd number of open cells can't hold a loop");
   if (reading.genre === "coats" && !reading.figure?.length) out.push("no pieces in the figure");
   if (reading.genre === "sudoku" && (reading.rows !== reading.cols || ![4, 6, 9].includes(reading.rows))) out.push("not a 4x4, 6x6 or 9x9 sudoku");
   if (reading.genre === "nonogram" && reading.picture && (reading.picture.rows.length !== reading.rows || reading.picture.rows.some((r) => r.length !== reading.cols))) {

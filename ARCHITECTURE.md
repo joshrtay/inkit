@@ -19,8 +19,8 @@ The code separates **game types** (reusable) from **instances** (data):
 | Escape Room (`escape-room`) | `packet` | Printable sheets (PDFs) and the final answer |
 | Number Line Maze (`number-line-maze`) | `number-maze` | A grid of numbers, entrance, exit, any hint walls |
 | Three Coats (`three-coats`) | `ryb` | Polygon pieces with clue dots (1 red, 2 yellow, 3 blue) |
-| Round the Bend (`round-the-bend`) | `grid` (genre `river`) | A grid size, rock cells and walls |
-| Picture Squares (`picture-squares`) | `grid` (genre `nonogram`) | A pixel-art picture drawn as letters, plus a color for each letter |
+| Simple Loop (`round-the-bend`) | `grid` (genre `simple-loop`) | A grid size, rock cells and walls |
+| Nonogram (`picture-squares`) | `grid` (genre `nonogram`) | A pixel-art picture drawn as letters, plus a color for each letter |
 | Slitherlink, Nurikabe, Panes, Sudoku | `grid` (genre = path) | A grid size and its clues (see Grid engine genres) |
 
 Types are declared in `src/games.ts` (`gameTypes`: name, card text, cover, listed).
@@ -146,7 +146,7 @@ Dots are drawn at each piece's roomiest interior point.
 
 ### Grid engine genres (`grid`)
 
-Round the Bend, Picture Squares, Slitherlink, Nurikabe, Panes and Sudoku are all
+Simple Loop, Nonogram, Slitherlink, Nurikabe, Panes and Sudoku are all
 `id: "grid"` types: one engine, a `genre` each (`src/engine`, see
 [docs/grid-engine.md](docs/grid-engine.md)). An instance's data is a `"grid"` object.
 
@@ -156,11 +156,11 @@ Round the Bend, Picture Squares, Slitherlink, Nurikabe, Panes and Sudoku are all
 "grid": { "size": [10, 10], "picture": { "rows": [".....b....", "..."], "palette": { ".": "#e3f2f6", "b": "#6b4a2b" }, "title": "Apple" } }
 ```
 
-- **Round the Bend** (`river`): one loop through the centre of every open cell; rocks are
+- **Simple Loop** (`simple-loop`): one loop through the centre of every open cell; rocks are
   `block` cells and walls are `wall` borders. A clone of Inkwell's Loopy River under its own
   name. `puzzles/round-the-bend/from_sketch.py` makes levels from traced sketches (with
   `puzzles/lib/lazy_river.py`'s `fit()`), adding only the walls needed for one loop.
-- **Picture Squares** (`nonogram`): a nonogram whose clues are worked out from `picture`
+- **Nonogram** (`nonogram`): a nonogram whose clues are worked out from `picture`
   (one letter per cell, `.` empty); solving washes the picture in and a sign shows its
   `title`. Hint, clue ticking, and the auto-tick / auto-X helpers work as before. To make a
   level, draw the picture in letters and pick a color per letter.
@@ -204,14 +204,14 @@ use Kalam (`--hand`). The site is plain Nunito (headings in its heavy weight), w
 Kaushan Script kept only for the logo.
 - Each game type draws its boards in its own ink (`ink` in `src/games.ts`, set as
   `--paper-ink` on the page): blue for the escape room and mazes, black for Three
-  Coats, green for Round the Bend, red for Picture Squares.
+  Coats, green for Simple Loop, red for Nonogram.
 - Every board's SVG gets a slight pen wobble (`#pen` filter in `Base.astro`).
 - Every fill is watercolor, after the washes in Inked: pigment pools darker at the
   edges, the middle is mottled, faint brush streaks run through it and the edge bleeds.
   `addInk()` in `src/lib/ink.ts` adds the filter to a board at its own scale (a type's
   `game.ts` calls it after setting the viewBox); styles use `filter: var(--wash)` on a
   plain fill color. Put it on a whole layer, not each piece, when touching areas should
-  pool into one wash (Picture Squares' cells, Round the Bend's river).
+  pool into one wash (Nonogram' cells, Simple Loop's river).
 - Printed sheets and home-page covers (`puzzles/covers.py`) use the same inks and fonts.
 
 ## The game interface

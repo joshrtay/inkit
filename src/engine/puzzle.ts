@@ -18,13 +18,13 @@ export const genres = {
     rules: [{ rule: "size-clue" }, { rule: "one-each", of: "number" }, { rule: "connected" }, { rule: "no-pool" }],
     style: {},
   },
-  // Round the Bend: one loop through every open cell, around rocks and walls
-  river: {
+  // Simple Loop: one loop through every open cell, around rocks and walls (Wyatt's Round the Bend)
+  "simple-loop": {
     marks: ["loop"],
     rules: [{ rule: "loop", of: "loop", cover: true }],
     style: {},
   },
-  // Picture Squares: a nonogram whose clues come from a picture
+  // Nonogram: clues worked out from a picture (Wyatt's Picture Squares)
   nonogram: {
     marks: ["shade"],
     rules: [{ rule: "runs" }],

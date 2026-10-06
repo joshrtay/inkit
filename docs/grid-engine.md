@@ -1,9 +1,8 @@
 # Grid engine (design)
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
-puzzles in the style of The Artisan of Glimmith, and our own Round the Bend and Picture
-Squares. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with eight genres: Round the Bend (`river`), Picture Squares
+puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
+the `grid-engine` branch, with eight genres: Simple Loop (`simple-loop`), Nonogram
 (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
@@ -24,7 +23,7 @@ played by painting.
 |---|---|---|---|
 | `shade` | cells | empty, shaded, dot | Nurikabe, nonograms, LITS |
 | `fence` | borders | empty, line, X | Slitherlink |
-| `loop` | links | empty, line, X | Round the Bend, Masyu |
+| `loop` | links | empty, line, X | Simple Loop, Masyu |
 | `regions` | borders + cell colors | cut / color | Panes (Glimmith-style), Fillomino, Shikaku |
 | `digit` | cells | 1..n, pencil notes | Sudoku (Kakuro later) |
 | `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats |
@@ -79,9 +78,9 @@ puzzle can use it.
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 
 Genre names: use the standard name when a genre has one that's used across puzzle sites
-(Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku...). Wyatt's own games keep
-their names (Round the Bend, Picture Squares, Number Line Maze, Three Coats). Only a name that
-belongs to one site's own invention (e.g. a single app's branded variant) gets a name of ours.
+(Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku, Simple Loop, Nonogram...),
+Wyatt's games included. A genre with no shared name (Number Line Maze), or whose only name is one
+commercial game's (Three Coats, after FLEB's RYB), gets a name of ours.
 Mechanics are fair game; other sites' art and levels aren't ours to copy, so puzzles are Wyatt's
 (or generated).
 

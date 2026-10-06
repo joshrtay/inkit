@@ -78,9 +78,9 @@ function* allBoards(p: Puzzle): Generator<Board> {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "river", "river", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
-  if (kind === "river") {
+  if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
     const givens: NonNullable<GridSpec["givens"]> = [];
     for (let i = 0; i < rows * cols; i++) if (rand() < 0.15) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "block" });
@@ -88,7 +88,7 @@ function randomSpec(): GridSpec {
       const r = Math.floor(rand() * rows), c = Math.floor(rand() * (cols - 1));
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
-    return { genre: "river", size: [rows, cols], givens };
+    return { genre: "simple-loop", size: [rows, cols], givens };
   }
   if (kind === "coats") {
     // a figure: a row of triangles over a row of squares, so pieces have 1-3 neighbours

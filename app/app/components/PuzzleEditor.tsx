@@ -20,7 +20,7 @@ type ClueKind = Given["kind"];
 /** Every part of a puzzle description, and where this editor edits it. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the game type menu", size: "Rows / Columns", givens: "the clue tools", rules: "Rules",
-  style: "Look", picture: "the picture painter (Picture Squares)", marks: "Look › what the player draws",
+  style: "Look", picture: "the picture painter (Nonogram)", marks: "Look › what the player draws",
   figure: "the figure editor (Three Coats)", hearts: "Hearts (paint puzzles)",
 };
 
@@ -44,7 +44,7 @@ const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | 
 const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   slitherlink: ["number"],
   nurikabe: ["number"],
-  river: ["block", "wall"],
+  "simple-loop": ["block", "wall"],
   nonogram: ["runs"],
   sudoku: ["number"],
   panes: ["number", "symbol", "compass", "twins", "opposites", "block"],
@@ -107,7 +107,7 @@ const onEdge = ([r, c]: RC, side: Side, rows: number, cols: number) =>
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 
 export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (spec: GridSpec) => void }) {
-  const genre = (spec.genre ?? "river") as GenreName;
+  const genre = (spec.genre ?? "simple-loop") as GenreName;
   const [rows, cols] = spec.size;
   const givens = spec.givens ?? [];
   const firstTools = GENRE_CLUES[genre] ?? [];

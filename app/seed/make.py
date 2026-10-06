@@ -10,9 +10,9 @@ import json
 from pathlib import Path
 
 GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
-GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": "river", "picture-squares": "nonogram", "slitherlink": "slitherlink",
+GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": "simple-loop", "picture-squares": "nonogram", "slitherlink": "slitherlink",
           "nurikabe": "nurikabe", "panes": "panes", "sudoku": "sudoku"}
-FEATURED = ["river-5", "panes-1", "sudoku-1", "nonogram-2"]
+FEATURED = ["simple-loop-5", "panes-1", "sudoku-1", "nonogram-2"]
 
 q = lambda s: "'" + s.replace("'", "''") + "'"
 out = [

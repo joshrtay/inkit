@@ -56,7 +56,7 @@ function ruleFrom(text: string): RuleSpec {
 /** A puzzle description back to sketch text (the visual editor's output). */
 export function specToSketch(spec: GridSpec): string {
   const { genre, ...body } = spec;
-  return `${genre ?? "river"}\n${JSON.stringify(body, null, 1)}`;
+  return `${genre ?? "simple-loop"}\n${JSON.stringify(body, null, 1)}`;
 }
 
 /** The puzzle a sketch describes, even if it doesn't make a valid game yet (so it can be fixed in
