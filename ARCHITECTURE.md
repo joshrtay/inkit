@@ -189,8 +189,8 @@ solution. To make a level, draw the picture in letters and pick a color per lett
 
 After the game Inked: ballpoint pen on white paper. The page is nearly white paper with a
 faint cloudy texture (`public/paper.svg`) that darkens slightly toward the edges of the
-screen (`--page` in `global.css`). Dark mode is the same paper dimmer: the full texture and
-a heavier vignette, with the same inks. Players pick Light, Dark or Match device in the account menu
+screen (`--page` in `global.css`). Dark mode is a charcoal page with pale ink for
+the text; game boards stay white paper. Players pick Light, Dark or Match device in the account menu
 (`src/lib/theme.ts`); it sets `data-theme` on `<html>`, and an inline script in
 `Base.astro` applies the saved choice before the page draws. Headings are in Kaushan Script, everything else
 in Kalam.

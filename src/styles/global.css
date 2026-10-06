@@ -40,18 +40,20 @@
   /* a wobbly hand-drawn box: uneven corner radii */
   --sketch-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
-/* Dark mode is dimmer paper: the full cloudy texture and a heavier vignette, same inks. */
+/* Dark mode: a charcoal page with pale ink for the text. Game boards stay white paper. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #f4f4f1;
-    --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(120, 112, 102, .16) 75%, rgba(95, 88, 80, .34) 100%) fixed,
-            url("/paper.svg") 0 0 / 512px 512px fixed;
+    --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
+    --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
+    --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #f4f4f1;
-  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(120, 112, 102, .16) 75%, rgba(95, 88, 80, .34) 100%) fixed,
-          url("/paper.svg") 0 0 / 512px 512px fixed;
+  --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
+  --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
+  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
