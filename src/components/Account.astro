@@ -51,6 +51,10 @@
   .account-btn:hover { border-color: var(--line-strong); }
   .account-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; }
   .account-btn.in svg { stroke: var(--good); }
+  @media (max-width: 600px) {   /* just the icon on a phone; the name is in its label for screen readers */
+    .account-btn { padding: 8px; }
+    .account-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  }
 
   .account-dialog {
     width: min(400px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 6px; padding: 0;

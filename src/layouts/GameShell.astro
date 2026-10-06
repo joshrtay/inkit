@@ -1,5 +1,5 @@
 ---
-// Shared frame for every game page: back link, title, the game itself, then directions.
+// Shared frame for every game page: the path to it in the top bar, the game itself, then directions.
 // Slots: default = the board and its controls; "intro" = text under the title;
 //        "directions" = rule cards shown below the board.
 import Base from "./Base.astro";
@@ -22,17 +22,18 @@ const hasIntro = Astro.slots.has("intro");
 const hasDirections = Astro.slots.has("directions");
 ---
 <Base title={title} description={description} ink={ink}>
-  <main class="wrap game-page">
-    <!-- one slim line, so the board gets the screen -->
-    <header class="game-header">
-      <a class="back" href={back.href}>&larr; {back.label}</a>
-      <div class="title" data-progress-id={progressId}>
-        <h1>{title}</h1>
-        {eyebrow && <span class="eyebrow">{eyebrow}</span>}
-        {progressId && <Check size={22} />}
-      </div>
-    </header>
+  <Fragment slot="crumbs">
+    <span class="sep" aria-hidden="true">/</span>
+    <a class="crumb" href={back.href}>{back.label}</a>
+    <span class="sep" aria-hidden="true">/</span>
+    <span class="here title" data-progress-id={progressId}>
+      <h1>{title}</h1>
+      {eyebrow && <span class="eyebrow">{eyebrow}</span>}
+      {progressId && <Check size={20} />}
+    </span>
+  </Fragment>
 
+  <main class="wrap game-page">
     <slot />
 
     {hasIntro && <div class="intro"><slot name="intro" /></div>}
@@ -41,12 +42,8 @@ const hasDirections = Astro.slots.has("directions");
 </Base>
 
 <style>
-  /* height of everything that isn't the board: top nav, this header, the paper's control strip, gaps */
-  .game-page { --chrome: 176px; max-width: 1400px; gap: 10px; padding-block: 6px 48px; }
-  .game-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; min-height: 30px; }
-  .title { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  h1 { font-family: var(--display); font-weight: 800; font-size: 20px; line-height: 1.2; margin: 0; }
-  .eyebrow { font-size: 12px; }
+  /* the board starts --frame below the top bar; a board that fills the screen ends --frame above the bottom */
+  .game-page { max-width: 1400px; gap: 10px; padding-block: var(--frame) 48px; }
   .intro { color: var(--muted); max-width: 64ch; margin-top: 14px; }
   .intro :global(p) { margin: 0; }
   .directions { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; margin-top: 14px; }

@@ -40,7 +40,10 @@ const { title, description, ink } = Astro.props;
       </filter>
     </svg>
     <header class="topnav">
-      <a class="brand" href={url("/")}>Wyatt&rsquo;s Games</a>
+      <nav class="crumbs" aria-label="Where you are">
+        <a class="brand" href={url("/")}>Wyatt&rsquo;s Games</a>
+        <slot name="crumbs" />
+      </nav>
       <Account />
     </header>
     <slot />

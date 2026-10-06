@@ -13,10 +13,12 @@ const { type } = Astro.props;
 const list = instancesOf(type).slice().reverse();   // newest (highest number) first
 ---
 <Base title={type.name} description={type.blurb}>
+  <Fragment slot="crumbs">
+    <span class="sep" aria-hidden="true">/</span>
+    <span class="here"><h1>{type.name}</h1></span>
+  </Fragment>
   <main class="wrap">
     <header>
-      <a class="back" href={url("/")}>&larr; All games</a>
-      <h1>{type.name}</h1>
       <p>{type.blurb}</p>
     </header>
 
@@ -40,7 +42,6 @@ const list = instancesOf(type).slice().reverse();   // newest (highest number) f
 <style>
   .wrap { max-width: 760px; }
   header { display: grid; gap: 8px; }
-  h1 { font-family: var(--display); font-weight: 800; font-size: clamp(28px, 5vw, 40px); line-height: 1.05; margin: 0; }
   header p { margin: 0; color: var(--muted); }
   .instances { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
   .instances a {

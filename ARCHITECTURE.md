@@ -65,8 +65,8 @@ Actions runs it on every push to `main`.
 | `src/pages/index.astro` | Home: game type cards. |
 | `src/pages/[type]/index.astro` | A type's numbered list. |
 | `src/pages/[type]/[n]/index.astro` | Plays an instance with its type's `Game.astro`. |
-| `src/layouts/Base.astro` | Every page's shell: `<head>`, fonts, global styles, and the top nav (Wyatt's Games on the left, login on the right). |
-| `src/layouts/GameShell.astro` | Frame for game pages: back link, title, game, then directions. |
+| `src/layouts/Base.astro` | Every page's shell: `<head>`, fonts, global styles, and the top nav (Wyatt's Games and the path to the page on the left, login on the right). |
+| `src/layouts/GameShell.astro` | Frame for game pages: path in the top nav, the game, then directions. |
 | `src/styles/global.css` | Color and font tokens (light and dark), base styles, shared `.btn`, `.rules`. |
 | `src/lib/game.ts` | The game interface (`GameHost`, `MountGame`, `createHost`). |
 | `src/lib/theme.ts` | Light / dark / match-device choice, saved in this browser; picked in the account menu. |
@@ -178,10 +178,13 @@ solution. To make a level, draw the picture in letters and pick a color per lett
 ## Pages and layouts
 
 - `Base.astro` is the outermost shell; shared styles come from `global.css`.
-- `GameShell.astro` wraps every game page: one slim header line (back link, title,
-  number, check mark), then the game, then the `intro` and `directions` slots below.
+- `Base.astro`'s top bar has a fixed height (`--nav-h`) and shows the path to the page
+  after the logo: pages fill its `crumbs` slot (type list: its name; game page: type
+  link, title, number and check mark). On a phone the middle step is dropped.
+- `GameShell.astro` wraps every game page: the game, then the `intro` and `directions`
+  slots below. A board that fills the screen has the same `--frame` above and below it.
 - A board is a `.sheet` of paper (global.css) sized to fill the screen from its `--ratio`
-  (set by `addInk()`) and the page's `--chrome`. Its controls sit on the paper in a
+  (set by `addInk()`), `--nav-h` and `--frame`. Its controls sit on the paper in a
   `.paper-bar` strip: ink icon buttons (`.tool` with `Icon.astro`), handwritten word
   buttons (`.word`), and a `.status` note that only appears for a mistake (`.warn`) or a
   win (`.good`); running counts are never shown. Reset asks to confirm by setting

@@ -45,6 +45,8 @@
   --card-border: 1px solid var(--line);
 
   --radius: 6px;
+  --nav-h: 52px;          /* the top bar's height (fixed, so boards can size to what's left) */
+  --frame: 16px;          /* space above and below a board that fills the screen */
 }
 /* Dark mode: a charcoal page with pale ink for the text. Game boards stay white paper. */
 @media (prefers-color-scheme: dark) {
@@ -78,14 +80,32 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 .topnav {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 8px;
+  height: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 16px 0;
   background: var(--page), var(--bg);
   border-bottom: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 .topnav .brand {
-  font-family: var(--brand); font-size: 30px; line-height: 1.1; color: var(--ink); text-decoration: none;
+  flex: none; font-family: var(--brand); font-size: 28px; line-height: 1.1; color: var(--ink); text-decoration: none;
 }
 .topnav .brand:hover { color: var(--muted); }
+
+/* The path to this page, after the logo: Wyatt's Games / Number Line Maze / Side Doors No. 3 */
+.crumbs { display: flex; align-items: center; gap: 10px; min-width: 0; white-space: nowrap; }
+.crumbs .sep { color: var(--line-strong); font-size: 18px; flex: none; }
+.crumbs .crumb { color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.crumbs .crumb:hover { color: var(--ink); text-decoration: underline; }
+.crumbs .here { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.crumbs h1 { font: 800 16px/1.2 var(--display); margin: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+.crumbs .eyebrow { flex: none; font-size: 11px; }
+@media (max-width: 600px) {
+  :root { --frame: 10px; }
+  .topnav { gap: 10px; padding-inline: 12px; }
+  .topnav .brand { font-size: 22px; }
+  .crumbs { gap: 7px; }
+  /* no room for the middle step on a phone: the logo leads home, the page's name stays */
+  .crumbs .crumb, .crumbs .crumb + .sep { display: none; }
+  .crumbs .eyebrow { display: none; }
+}
 .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 28px; }
 
 .eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
@@ -119,7 +139,10 @@ a.btn { text-decoration: none; display: inline-block; }
 .sheet {
   --pad: 12px;
   position: relative; display: grid; gap: 4px; justify-self: center;
-  width: min(100%, calc((100dvh - var(--chrome, 190px)) * var(--ratio, 1) + 2 * var(--pad)));
+  /* tall boards: the paper's height is the screen minus the top bar and a --frame above and
+     below; the board gets that minus the paper's top padding (6px), its strip (42px), the gap
+     (4px) and the bottom padding */
+  width: min(100%, calc((100dvh - var(--nav-h) - env(safe-area-inset-top, 0px) - 2 * var(--frame) - 52px - var(--pad)) * var(--ratio, 1) + 2 * var(--pad)));
   padding: 6px var(--pad) var(--pad); background: var(--paper); color: var(--paper-ink); border-radius: 3px;
   box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
 }
@@ -127,8 +150,8 @@ a.btn { text-decoration: none; display: inline-block; }
 @media (max-width: 600px) { .sheet { --pad: 4px; } }
 
 .paper-bar {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 10px;
-  min-height: 42px; font-family: var(--hand); color: var(--paper-ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  height: 42px; font-family: var(--hand); color: var(--paper-ink);
 }
 .paper-bar .group { display: flex; align-items: center; gap: 2px; }
 /* The status line says something only when it matters, a mistake (.warn) or a win (.good),
