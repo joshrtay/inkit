@@ -203,8 +203,8 @@ def cover(sheets, out: Path):
     page = f"""<!doctype html><html><head><meta charset="utf-8">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&display=block"><style>
       html, body {{ margin: 0; width: 1200px; height: 750px; overflow: hidden;
-        background: radial-gradient(ellipse 80% 75% at 50% 45%, transparent 55%, rgba(120,112,102,.07) 82%, rgba(95,88,80,.14) 100%),
-          url("{PAPER}") 0 0 / 512px 512px, #f4f4f1; }}
+        background: radial-gradient(ellipse 80% 75% at 50% 45%, transparent 55%, rgba(120,112,102,.05) 82%, rgba(95,88,80,.1) 100%),
+          linear-gradient(rgba(251,251,249,.6), rgba(251,251,249,.6)), url("{PAPER}") 0 0 / 512px 512px, #fbfbf9; }}
       .sheet {{ position: absolute; padding: 18px; background: #fff;
         box-shadow: 0 2px 3px rgba(70,62,52,.2), 0 22px 40px -12px rgba(70,62,52,.4); }}
       .sheet svg {{ filter: url(#pen); }}

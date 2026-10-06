@@ -186,9 +186,11 @@ solution. To make a level, draw the picture in letters and pick a color per lett
 
 ## Look
 
-After the game Inked: ballpoint pen on white paper. The page is warm paper with a faint
-cloudy texture (`public/paper.svg`) that darkens toward the edges of the screen (`--page`
-in `global.css`); headings are in Kaushan Script and everything else in Kalam.
+After the game Inked: ballpoint pen on white paper. The page is nearly white paper with a
+faint cloudy texture (`public/paper.svg`) that darkens slightly toward the edges of the
+screen (`--page` in `global.css`). Dark mode is the same paper dimmer: the full texture and
+a heavier vignette, with the same inks. Headings are in Kaushan Script, everything else
+in Kalam.
 - Each game type draws its boards in its own ink (`ink` in `src/games.ts`, set as
   `--paper-ink` on the page): blue for the escape room and mazes, black for Three
   Coats, green for Round the Bend, red for Picture Squares.

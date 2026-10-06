@@ -5,7 +5,7 @@
    watercolor washes for every fill. Boards get a pen wobble (#pen, in Base.astro) and their
    own watercolor filter (src/lib/ink.ts). */
 :root {
-  --bg: #f4f4f1;          /* paper */
+  --bg: #fbfbf9;          /* paper, nearly white like Inked's */
   --panel: #ffffff;
   --ink: #26398f;         /* ballpoint blue */
   --muted: #5a5f86;
@@ -16,8 +16,10 @@
   --paper: #fffefa;       /* game boards and sheets are always white paper */
   --paper-ink: #26398f;   /* the pen a board is drawn with; game types pick their own */
   --shadow: rgba(70, 62, 52, .22);
-  /* the page: paper texture under a soft vignette, fixed to the screen like a sheet under the camera */
-  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(120, 112, 102, .16) 75%, rgba(95, 88, 80, .34) 100%) fixed,
+  /* the page: paper texture (faded most of the way to white) under a faint vignette, fixed to
+     the screen like a sheet under the camera */
+  --page: radial-gradient(ellipse 80% 75% at 50% 45%, transparent 55%, rgba(120, 112, 102, .05) 80%, rgba(95, 88, 80, .12) 100%) fixed,
+          linear-gradient(rgba(251, 251, 249, .7), rgba(251, 251, 249, .7)) fixed,
           url("/paper.svg") 0 0 / 512px 512px fixed;
 
   /* watercolor washes */
@@ -35,19 +37,18 @@
   /* a wobbly hand-drawn box: uneven corner radii */
   --sketch-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
+/* Dark mode is dimmer paper: the full cloudy texture and a heavier vignette, same inks. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
-    --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
-    --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
-    color-scheme: dark;
+    --bg: #f4f4f1;
+    --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(120, 112, 102, .16) 75%, rgba(95, 88, 80, .34) 100%) fixed,
+            url("/paper.svg") 0 0 / 512px 512px fixed;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
-  --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
-  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
-  color-scheme: dark;
+  --bg: #f4f4f1;
+  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(120, 112, 102, .16) 75%, rgba(95, 88, 80, .34) 100%) fixed,
+          url("/paper.svg") 0 0 / 512px 512px fixed;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
