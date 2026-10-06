@@ -29,7 +29,7 @@ another game of an existing type needs no code, only a JSON file and its content
 Current instances: escape-room 1 (The Envelope); number-line-maze 1 (Warm-up, 5 × 5),
 2 (The Big Maze, fitted to the game 2 sketch) and 3 (Side Doors, fitted to the maze3 sketch, both doors on the left); three-coats 1–3 (Triangle, Hexagon,
 Nine Squares) and 4–6 traced from the game 2 shapes sketch (Square in a Kite, Envelope,
-House); round-the-bend 1–4 from the game 2 grids sketch and 5–7 from the batch3 photos;
+House); round-the-bend 1–4 from the game 2 grids sketch and 5–8 from the batch3 photos;
 picture-squares 1–5 drawn here, 6–8 from the mosaic sketch (POP, BOB, a trophy) and
 9 from a batch3 photo (a person). Game lists show the newest first.
 Old `/ryb/` links redirect to `/three-coats/` (`astro.config.mjs`).

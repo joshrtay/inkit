@@ -28,6 +28,7 @@ LEVELS = [  # (level, transcription, sketch key, name, source)
     (5, BATCH3, "IMG_0337", "Twin Peaks", "scans/batch3/IMG_0337.heic"),
     (6, BATCH3, "IMG_0338", "Narrow Pass", "scans/batch3/IMG_0338.heic"),
     (7, BATCH3, "IMG_0339", "Little Loop", "scans/batch3/IMG_0339.heic"),
+    (8, BATCH3, "IMG_0340", "Six Rows Down", "scans/batch3/IMG_0340.heic"),
 ]
 only = {int(a) for a in sys.argv[1:]}   # optional: level numbers to (re)make
 
