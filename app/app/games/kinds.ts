@@ -1,5 +1,8 @@
-/** Game types by genre id (a sketch's first word), with their display names. Safe to use anywhere. */
-export const KIND_NAMES: Record<string, string> = {
+import type { GenreName } from "~site/engine/puzzle.ts";
+
+/** Game types by genre id (a sketch's first word), with their display names. Safe to use anywhere.
+ *  Typed against the engine's genres, so a new genre needs a name here before the build passes. */
+export const KIND_NAMES: Record<GenreName, string> = {
   river: "Round the Bend",
   nonogram: "Picture Squares",
   slitherlink: "Slitherlink",
@@ -7,4 +10,4 @@ export const KIND_NAMES: Record<string, string> = {
   panes: "Panes",
   sudoku: "Sudoku",
 };
-export const kindName = (id: string) => KIND_NAMES[id] ?? id;
+export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;

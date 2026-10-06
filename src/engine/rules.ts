@@ -25,7 +25,7 @@ const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) =>
   gs.filter((g) => g.kind === "number").map((g) => [i, g.value as number] as [number, number]));
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
 
-export const blocks: Record<string, Block> = {
+export const blocks = {
   // ---- lines ----
   loop: {
     describe: (s, p) => s.cover
@@ -158,8 +158,8 @@ sreach(J) :- sreach(I), adj(I,J,_), shaded(J).
     describe: (s) => s.is !== undefined ? `Every region has exactly ${s.is} cells.`
       : s.min !== undefined && s.max !== undefined ? `Every region has ${s.min} to ${s.max} cells.`
       : s.min !== undefined ? `Every region has at least ${s.min} cells.` : `Every region has at most ${s.max} cells.`,
-    check(s, p, _b, r) {
-      return r().cells.filter((cs) => !sizeOk(cs.length, s)).map((cs) => ({ message: blocks.size.describe(s, p), cells: cs }));
+    check(s, p, _b, r): Problem[] {
+      return r().cells.filter((cs) => !sizeOk(cs.length, s)).map((cs) => ({ message: blocks.size.describe(s), cells: cs }));
     },
     asp: (s) => [
       s.is !== undefined && `:- size(R,N), N != ${s.is}.`,
@@ -257,7 +257,12 @@ cmp(R1,R2) :- ad(R1,R2).
     },
     needs: ["regions"],
   },
-};
+} satisfies Record<string, Block>;
+
+/** Every rule block's name. The visual editor (app/app/components/PuzzleEditor.tsx) and the sketch
+ *  reader list them all, so the build fails if a new block isn't added there too. */
+export type RuleName = keyof typeof blocks;
+export const RULE_NAMES = Object.keys(blocks) as RuleName[];
 
 /** the cells of row / column i, in order */
 const lineCells = (p: Puzzle, kind: "row" | "col", i: number) =>
@@ -367,7 +372,7 @@ function checkLoop(p: Puzzle, b: Board, kind: "fence" | "loop", cover: boolean):
 }
 
 export const blockFor = (s: RuleSpec): Block => {
-  const block = blocks[s.rule];
+  const block = (blocks as Record<string, Block>)[s.rule];
   if (!block) throw new Error(`unknown rule "${s.rule}"`);
   return block;
 };

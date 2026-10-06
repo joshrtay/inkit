@@ -28,7 +28,7 @@ export function parseSketch(sketch: string, version = SKETCH_VERSION): Parsed {
 
   const [name, ruleList] = header.split(/:(.*)/s).map((s) => s?.trim());
   const genre = name.toLowerCase();
-  if (!genres[genre]) {
+  if (!(genre in genres)) {
     return { ok: false, errors: [`"${name}" isn't a game type. Try one of: ${Object.keys(genres).join(", ")}.`] };
   }
   let body: Partial<GridSpec>;

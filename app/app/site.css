@@ -108,7 +108,7 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .decide h2, .publish-step h2 { margin: 0; }
 @media (max-width: 760px) { .compare { grid-template-columns: minmax(0, 1fr); } }
 
-/* the visual clue editor */
+/* the visual puzzle editor (PuzzleEditor.tsx) */
 .givens-editor { display: grid; gap: 8px; }
 .ge-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 14px; }
 .ge-bar button { font: 600 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong);
@@ -139,3 +139,32 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .solo { display: grid; max-width: 640px; }
 .solo figure { margin: 0; display: grid; gap: 8px; }
 .solo figcaption { font-weight: 700; font-size: 14px; color: var(--muted); }
+.ge-bar label { display: inline-flex; align-items: center; gap: 6px; }
+.ge-bar select { font-size: 14px; padding: 5px 8px; }
+.ge-bar input.wide { width: 12em; }
+.ge-tools .link { border: 0; background: none; text-decoration: underline; color: var(--muted); }
+.swatch-edit { display: inline-flex; align-items: center; gap: 2px; }
+.swatch-edit > button:first-child { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.swatch-edit > button[aria-pressed="true"] { border-color: var(--ink); outline: 2px solid var(--panel); outline-offset: -4px; }
+.swatch-edit input[type=color] { width: 28px; height: 26px; padding: 0; border: 0; background: none; }
+.swatch-edit .x { border: 0; background: none; color: var(--muted); padding: 0 3px; font-size: 16px; }
+/* nonogram clue numbers, lined up with the grid */
+.ge-col-runs { display: grid; gap: 2px; margin-left: 76px; padding: 0 2.2%; }
+.ge-row-wrap { display: flex; gap: 4px; align-items: stretch; }
+.ge-row-runs { display: grid; gap: 2px; width: 72px; padding: 2.2% 0; }
+.ge-row-wrap .ge-grid { flex: 1; min-width: 0; }
+.ge-col-runs input, .ge-row-runs input { width: 100%; min-width: 0; font: 600 13px/1 var(--body); text-align: center; padding: 4px 2px;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.ge-section { border-top: 1px solid var(--line); padding-top: 8px; }
+.ge-section summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); }
+.ge-section .hint { margin: 6px 0; }
+.ge-rules .setting { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.ge-rules .setting input[type=number] { width: 3.6em; padding: 3px 4px; }
+.ge-rules .setting input:not([type]) { width: 4.5em; padding: 3px 4px; }
+.ge-rules .setting select { font-size: 13px; padding: 3px 4px; }
+.ge-look { display: grid; gap: 10px; margin-top: 8px; font-size: 14px; }
+.ge-look > label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 600; }
+.ge-look input[type=number] { width: 4em; }
+.ge-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 400; }
+.ge-marks { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
+.ge-marks legend { font-weight: 600; padding: 0; margin-bottom: 4px; }

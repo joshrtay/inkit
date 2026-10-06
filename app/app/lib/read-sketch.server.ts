@@ -6,29 +6,79 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import type { Given, GridSpec, RuleSpec } from "~site/engine/types.ts";
+import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
+import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
 import { parseSketch } from "../games/sketch";
 import { Invalid } from "./errors.server";
 
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
 
+// ---- what Claude is told, per genre / clue kind / rule ----
+// Typed against the engine's own lists, so a new genre, clue kind or rule block fails the build
+// until it's described here too (the visual editor has the same guard; see docs/grid-engine.md).
+
+const GENRE_GUIDE: Record<GenreName, string> = {
+  river: `river (Round the Bend): draw one loop through every open cell. Shaded / crossed-out cells are
+  rocks: {kind: "block"}. Thick lines between two cells are walls the loop can't cross: {kind: "wall", cell, other}.`,
+  slitherlink: `slitherlink: numbers in cells count how many of the cell's four sides the loop uses: {kind: "number", value}.`,
+  nurikabe: `nurikabe: numbered cells are islands of that size: {kind: "number", value}.`,
+  nonogram: `nonogram (Picture Squares): numbers beside each row and above each column. If the drawing shows the
+  shaded picture, give it as "picture" (one letter per cell, "." for empty, a color per letter: the colors
+  drawn, or a dark ink color for plain shading), and check it against the numbers; note any row or column
+  where they disagree. If there's no picture, give the numbers as "runs".`,
+  sudoku: `sudoku: the printed digits: {kind: "number", value}. The grid is 4x4, 6x6 or 9x9.`,
+  panes: `panes: split the grid into regions. The rules are written on the sketch (e.g. "panes: size 4, twins");
+  list each one in "rules".`,
+};
+
+const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
+  number: "a number (or a printed digit) in a cell: value",
+  block: "a rock: a shaded or crossed-out cell",
+  symbol: "a symbol (★, ●, a letter...) in a cell: symbol",
+  compass: "a compass in a cell: numbers to its north, east, south and west (any can be missing): compass",
+  wall: "a thick wall on the border between two cells: cell + other",
+  twins: "a filled diamond ◆ on the border between two cells: cell + other",
+  opposites: "an empty diamond ◇ on the border between two cells: cell + other",
+};
+
+const RULE_GUIDE: Record<RuleName, string> = {
+  loop: "the lines form one loop (comes with river and slitherlink)",
+  sides: "a number counts the loop's sides around it (comes with slitherlink)",
+  runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
+  latin: "each digit once per row and column (comes with sudoku)",
+  boxes: "each digit once per box (comes with sudoku); box: [rows, cols] if the boxes aren't the usual size",
+  connected: "all shaded cells connect (comes with nurikabe)",
+  "no-pool": "no 2×2 block of shaded cells (comes with nurikabe)",
+  size: "every region has exactly N cells (is), or at least / at most (min / max)",
+  "size-clue": "a numbered cell's region has that many cells",
+  "one-each": "every region holds exactly one number or symbol (of)",
+  twins: "the two regions on either side of a ◆ have the same shape",
+  opposites: "the two regions on either side of a ◇ have different shapes",
+  "all-different": "no two regions share a shape",
+  compass: "a compass clue counts its region's cells to the north, east, south and west",
+};
+
 const int = z.number().int();
 const Cell = z.object({ row: int, col: int });
+const clueKinds = Object.keys(CLUE_GUIDE) as [Exclude<ClueKind, "runs">, ...Exclude<ClueKind, "runs">[]];
 const Reading = z.object({
   readable: z.boolean().describe("false only if the image isn't a puzzle drawing at all; a messy or blurry puzzle is still readable"),
   problem: z.string().nullable().describe("when not readable: what's wrong, in one sentence for the creator"),
-  genre: z.enum(["river", "slitherlink", "nurikabe", "nonogram", "sudoku", "panes"]),
+  genre: z.enum(GENRE_NAMES as [GenreName, ...GenreName[]]),
   title: z.string().nullable().describe("a title written on the sketch, if any"),
   rows: int, cols: int,
   rules: z.array(z.object({
-    rule: z.enum(["size", "size-clue", "one-each", "twins", "opposites", "all-different", "compass"]),
-    value: int.nullable().describe("size: the region size; otherwise null"),
-    of: z.enum(["number", "symbol"]).nullable().describe("one-each: what each region holds exactly one of; otherwise null"),
-  })).describe("panes only: the rules written on the sketch; empty for other game types"),
+    rule: z.enum(RULE_NAMES as [RuleName, ...RuleName[]]),
+    is: int.nullable(), min: int.nullable(), max: int.nullable(),
+    of: z.enum(["number", "symbol", "fence", "loop"]).nullable(),
+    cover: z.boolean().nullable(),
+    box: z.array(int).nullable().describe("boxes: [rows, cols]; else null"),
+  })).describe("rules written on the sketch beyond the ones the game type always has; null for settings a rule doesn't use"),
   givens: z.array(z.object({
-    kind: z.enum(["number", "block", "compass", "symbol", "twins", "opposites", "wall"]),
+    kind: z.enum(clueKinds),
     cell: Cell.describe("the cell (for marks on a border: the cell on the top / left side)"),
-    other: Cell.nullable().describe("marks on a border (twins, opposites, wall): the neighbouring cell on the other side; else null"),
+    other: Cell.nullable().describe("marks on a border: the neighbouring cell on the other side; else null"),
     value: int.nullable().describe("number: its value; else null"),
     symbol: z.string().nullable().describe("symbol: a single character; else null"),
     compass: z.object({ n: int.nullable(), e: int.nullable(), s: int.nullable(), w: int.nullable() }).nullable(),
@@ -53,24 +103,13 @@ number of cells. Count grid cells, not lines.
 The game type may be written at the top of the sketch (e.g. "river", "Round the Bend",
 "slitherlink", "panes: size 4, twins"). Otherwise work it out from what's drawn:
 
-- river (Round the Bend): draw one loop through every open cell. Shaded / crossed-out cells are rocks:
-  {kind: "block"}. Thick lines between two cells are walls the loop can't cross: {kind: "wall",
-  cell, other}.
-- slitherlink: numbers in cells count how many of the cell's four sides the loop uses:
-  {kind: "number", value}.
-- nurikabe: numbered cells are islands of that size: {kind: "number", value}.
-- nonogram (Picture Squares): numbers beside each row and above each column. If the drawing shows the
-  shaded picture, give it as "picture" (one letter per cell, "." for empty, a color per letter, e.g.
-  the colors drawn, or a dark ink color for plain shading), and check it against the numbers; note any
-  row or column where they disagree. If there's no picture, give the numbers as "runs".
-- sudoku: the printed digits: {kind: "number", value}. The grid is 4x4, 6x6 or 9x9.
-- panes: split the grid into regions. Rules are written on the sketch; list each one:
-  size N (every region has N cells), size-clue (a numbered cell's region has that many cells),
-  one-each (every region holds exactly one number or symbol), twins (the two regions on either side of
-  a filled diamond ◆ have the same shape), opposites (an empty diamond ◇: different shapes),
-  all-different (no two regions share a shape), compass (a compass clue counts its region's cells to
-  the north, east, south and west). Clues: diamonds sit on the border between two cells
-  ({kind: "twins" | "opposites", cell, other}); numbers, symbols and compasses sit in cells.
+${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
+
+Clues ("givens"):
+${Object.entries(CLUE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+
+Rules (list only the ones written on the sketch beyond what its game type always has):
+${Object.entries(RULE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
 
 Only transcribe what the player starts with. If the drawing also shows the solution (a loop drawn
 through the cells, filled-in digits, shaded answer cells in a nurikabe), use it to help you read the
@@ -90,6 +129,7 @@ const READERS = {
   careful: { model: "claude-opus-5-5", effort: "high" },
 } as const;
 export type Reader = keyof typeof READERS;
+type ClueKind = Given["kind"];
 
 /** Read a sketch photo. The quick reader goes first unless `careful`; if its reading looks shaky,
  *  the careful reader reads it again. `previous` + `feedback` ask for a corrected re-read. */
@@ -179,10 +219,9 @@ export function toSketch(r: Reading): string {
     }
   });
   for (const run of r.runs) givens.push({ at: run.line, index: run.index, kind: "runs", value: run.runs });
-  const rules: RuleSpec[] = r.genre === "panes" ? r.rules.map((x) =>
-    x.rule === "size" ? { rule: "size", is: x.value ?? undefined }
-      : x.rule === "one-each" ? { rule: "one-each", of: x.of ?? "number" }
-        : { rule: x.rule }) : [];
+  // every rule written on the sketch, with only the settings it uses
+  const rules: RuleSpec[] = r.rules.map(({ rule, ...settings }) =>
+    ({ rule, ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v !== null)) }));
   const body: Omit<GridSpec, "genre"> = {
     size: [r.rows, r.cols],
     ...(rules.length ? { rules } : {}),

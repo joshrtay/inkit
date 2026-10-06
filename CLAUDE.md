@@ -9,4 +9,5 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) before changing anything; it is the sour
 - Each game type's `game.ts` exports a `MountGame` and `mountAll`, and uses the `GameHost` for saving and reporting a solve.
 - Build links with `url()` from `src/lib/paths.ts` (keeps links working if the site ever moves under a sub-path).
 - `scans/` and `archive/` are local-only (gitignored); the repo is public.
-- Run `npm run build` (type-check + build) before committing.
+- **Grid engine changes reach the editor and the reader in the same change.** Whenever `src/engine` gains anything (a genre, a clue kind, a rule block or a rule setting, a style option, a mark, a puzzle field), add it to the visual puzzle editor (`app/app/components/PuzzleEditor.tsx`) and the sketch reader (`app/app/lib/read-sketch.server.ts`), and give a new genre a name in `app/app/games/kinds.ts`. Creators can only change puzzles through the editor, so it must stay able to express everything the engine can. Their coverage tables are typed against the engine's lists, so `npm --prefix app run typecheck` fails until they're updated; settings inside a rule and fields inside a clue aren't checked that way, so add those by hand. See `docs/grid-engine.md`, "The visual editor".
+- Run `npm run build` (type-check + build) before committing; for the social site in `app/`, also `npm --prefix app run typecheck`.

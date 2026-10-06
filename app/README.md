@@ -32,6 +32,12 @@ published game with changed clues, needs that check for the exact puzzle being s
 restore an admin's take-down); admins curate Featured. See `app/lib/games.server.ts`. Creators
 never see the sketch text: Claude writes it from the drawing and the editor rewrites it.
 
+**The visual puzzle editor** (`PuzzleEditor.tsx`) is the only way to change a puzzle, so it covers
+everything the grid engine can express. Whenever the engine gains a genre, clue kind, rule, setting,
+style option or mark, add it to the editor and to the sketch reader in the same change; their
+coverage tables are typed against the engine, so the type check fails until you do (see
+`../docs/grid-engine.md`, "The visual editor").
+
 **Collections** (`/studios/new`, `/<slug>/settings`): anyone starts a studio as its owner;
 owners rename it, add creators by handle as owners or contributors, change roles and remove
 members; members leave (keeping their games' credit); owners delete studios (games go

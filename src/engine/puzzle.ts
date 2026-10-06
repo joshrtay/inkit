@@ -7,7 +7,7 @@ import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, Rule
 
 export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle }
 
-export const genres: Record<string, Genre> = {
+export const genres = {
   slitherlink: {
     marks: ["fence"],
     rules: [{ rule: "loop", of: "fence" }, { rule: "sides" }],
@@ -41,10 +41,15 @@ export const genres: Record<string, Genre> = {
     rules: [],
     style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
-};
+} satisfies Record<string, Genre>;
+
+/** Every genre's name. The visual editor and the sketch reader list them all, so the build fails
+ *  if a new genre isn't added there too. */
+export type GenreName = keyof typeof genres;
+export const GENRE_NAMES = Object.keys(genres) as GenreName[];
 
 export function makePuzzle(spec: GridSpec): Puzzle {
-  const genre = spec.genre ? genres[spec.genre] : undefined;
+  const genre = spec.genre ? (genres as Record<string, Genre>)[spec.genre] : undefined;
   if (spec.genre && !genre) throw new Error(`unknown genre "${spec.genre}"`);
   const grid = squareGrid(spec.size[0], spec.size[1]);
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>();

@@ -129,6 +129,41 @@ A sketch headed with a genre (`slitherlink`) or a rule list
 Blocks can also offer a **hint** (`hint()`), shown by the Hint button: an area to look at and
 what it gives away. `runs` does; others can add one.
 
+## The visual editor
+
+On the social site (`app/`), creators never see or type a sketch: Claude reads their drawing
+(`app/app/lib/read-sketch.server.ts`) and they change it only in the visual puzzle editor
+(`app/app/components/PuzzleEditor.tsx`). So the editor must be able to express everything this
+engine can, and the reader must know how to read it.
+
+**Rule: whenever the engine gains something, add it to the editor and the reader in the same
+change.** That means a genre, a clue kind, a rule block or a new setting on one, a style option, a
+mark, or a field of `GridSpec`.
+
+The editor covers:
+- the game type and grid size
+- every clue kind: in cells, on borders, and nonogram row / column numbers
+- a nonogram's picture: painted in any number of colors, with its title
+- rules beyond the genre's own, with every setting
+- the style options, and which marks the player draws
+
+Both files keep **coverage tables typed against the engine's own lists**:
+
+| Engine list | Editor | Reader |
+|---|---|---|
+| `GenreName` (`puzzle.ts`) | `GENRE_CLUES` | `GENRE_GUIDE` |
+| `Given["kind"]` (`types.ts`) | `CLUES` | `CLUE_GUIDE` |
+| `RuleName` (`rules.ts`) | `RULES`, with each setting | `RULE_GUIDE` |
+| `keyof GridStyle` | `STYLE` | |
+| `MarkKind` | `MARKS` | |
+| `keyof GridSpec` | `SPEC_PARTS` | |
+
+Game type names live in `app/app/games/kinds.ts` (`KIND_NAMES`).
+
+A name missing from a table fails `npm --prefix app run typecheck`. The tables can't see inside a
+rule's settings or a clue's fields, so a new setting on an existing rule, or a new field on a clue,
+has to be added by hand: a control in the editor and a line in the reader's guide.
+
 ## Next
 
 1. More blocks: sums and cages (Kakuro, Killer), polyomino shape clues, Masyu pearls.

@@ -9,7 +9,7 @@ import { Form, useNavigation } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "./GameBoard";
-import { GivensEditor } from "./GivensEditor";
+import { PuzzleEditor } from "./PuzzleEditor";
 import { useOneSolutionCheck } from "./useOneSolutionCheck";
 
 export function GameEditor({ gameId, title, description, sketch: saved, state, drawing, notes, error }: {
@@ -41,7 +41,7 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
   const needsCheck = state === "draft" ? false : edited;
 
   const puzzle = mode === "edit" && loose
-    ? <GivensEditor spec={loose} onChange={(s) => setSketch(specToSketch(s))} />
+    ? <PuzzleEditor spec={loose} onChange={(s) => setSketch(specToSketch(s))} />
     : play ? <GameBoard play={play} />
       : <div className="problems"><p>This puzzle can&rsquo;t be played yet:</p><ul>{problems.map((p) => <li key={p}>{p}</li>)}</ul></div>;
 
