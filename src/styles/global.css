@@ -1,21 +1,24 @@
 /* Site-wide tokens and base styles. Every page gets these through layouts/Base.astro.
    Look: ballpoint pen on white paper, after the game Inked. One ink color per game type
-   (each type sets --paper-ink on its board), pale pen streaks behind everything, and
+   (each type sets --paper-ink on its board), a paper background that darkens toward the
+   edges of the screen, and
    watercolor washes for every fill. Boards get a pen wobble (#pen, in Base.astro) and their
    own watercolor filter (src/lib/ink.ts). */
 :root {
-  --bg: #f8f7f2;          /* paper */
+  --bg: #f4f4f1;          /* paper */
   --panel: #ffffff;
   --ink: #26398f;         /* ballpoint blue */
-  --muted: #5d6698;
-  --line: #c3c9e4;
+  --muted: #5a5f86;
+  --line: #d3d0c9;
   --red: #c4364b;
   --blue: #26398f;
   --good: #2b7a52;
   --paper: #fffefa;       /* game boards and sheets are always white paper */
   --paper-ink: #26398f;   /* the pen a board is drawn with; game types pick their own */
-  --shadow: rgba(38, 57, 143, .2);
-  --streaks: url("/paper.svg");
+  --shadow: rgba(70, 62, 52, .22);
+  /* the page: paper texture under a soft vignette, fixed to the screen like a sheet under the camera */
+  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(120, 112, 102, .16) 75%, rgba(95, 88, 80, .34) 100%) fixed,
+          url("/paper.svg") 0 0 / 512px 512px fixed;
 
   /* watercolor washes */
   --wash-red: #ef5a6a;
@@ -34,14 +37,16 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #151a30; --panel: #1d2340; --ink: #d5dbff; --muted: #9aa3d6; --line: #36406e;
+    --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
     --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
+    --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #151a30; --panel: #1d2340; --ink: #d5dbff; --muted: #9aa3d6; --line: #36406e;
+  --bg: #1f1e1c; --panel: #2a2826; --ink: #d5dbff; --muted: #a7a8bd; --line: #44413c;
   --red: #ff7d8e; --blue: #a9b7ff; --good: #6fd39b; --paper: #fbfaf5; --shadow: rgba(0, 0, 0, .55);
+  --page: radial-gradient(ellipse 75% 70% at 50% 45%, transparent 45%, rgba(0, 0, 0, .35) 100%) fixed;
   color-scheme: dark;
 }
 
@@ -50,7 +55,7 @@ img { max-width: 100%; }
 [hidden] { display: none !important; }
 body {
   margin: 0; overflow-x: clip; color: var(--ink);
-  background: var(--streaks) 0 0 / 600px 600px, var(--bg);
+  background: var(--page), var(--bg);
   font-family: var(--body); font-size: 17px; line-height: 1.5;
 }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
@@ -62,8 +67,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px dashed
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 8px;
-  background: var(--streaks) 0 0 / 600px 600px, var(--bg);
-  border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 35%, transparent);
+  background: var(--page), var(--bg);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
 .topnav .brand {
   font-family: var(--display); font-size: 30px; line-height: 1.1; color: var(--ink); text-decoration: none;

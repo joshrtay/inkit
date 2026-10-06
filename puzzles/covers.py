@@ -7,7 +7,7 @@ Number Line Maze: two mazes' number grids. Three Coats: three levels, unpainted.
 Round the Bend: two empty grids. Picture Squares: three blank grids with their clues.
 Escape Room: three of its printed sheets (the preview images in public/).
 Each board is drawn in its game type's ballpoint ink on a sheet of paper, fanned out on
-the site's streaked paper, then screenshotted with headless Chrome.
+the site's paper, then screenshotted with headless Chrome.
 """
 import html as htmllib
 import json
@@ -29,7 +29,7 @@ CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 MAZE_INK, RYB_INK, RIVER_INK, PIC_INK, RED = "#26398f", "#2b2b30", "#2d6a45", "#a3343f", "#c4364b"
 FILL = {1: "#ed1c24", 2: "#fff200", 3: "#00aeef"}   # RYB uses the original game's primaries
 FONT = 'font-family="Kalam, cursive" font-weight="700"'
-PAPER_STREAKS = (ROOT / "public" / "paper.svg").as_uri()
+PAPER = (ROOT / "public" / "paper.svg").as_uri()   # the site's paper texture
 _ids = 0
 
 
@@ -203,9 +203,10 @@ def cover(sheets, out: Path):
     page = f"""<!doctype html><html><head><meta charset="utf-8">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kalam:wght@700&display=block"><style>
       html, body {{ margin: 0; width: 1200px; height: 750px; overflow: hidden;
-        background: url("{PAPER_STREAKS}") 0 0 / 600px 600px, #f8f7f2; }}
+        background: radial-gradient(ellipse 80% 75% at 50% 45%, transparent 55%, rgba(120,112,102,.07) 82%, rgba(95,88,80,.14) 100%),
+          url("{PAPER}") 0 0 / 512px 512px, #f4f4f1; }}
       .sheet {{ position: absolute; padding: 18px; background: #fff;
-        box-shadow: 0 2px 3px rgba(38,57,143,.18), 0 22px 40px -12px rgba(38,57,143,.35); }}
+        box-shadow: 0 2px 3px rgba(70,62,52,.2), 0 22px 40px -12px rgba(70,62,52,.4); }}
       .sheet svg {{ filter: url(#pen); }}
       .sheet svg, .sheet img {{ display: block; width: 100%; height: 100%; }}
     </style></head><body>
