@@ -6,6 +6,8 @@
 //   node puzzles/grid/new.ts --genre sudoku --size 9x9 --number 1 --name "Classic"
 //   node puzzles/grid/new.ts --genre simple-path --size 6x6 --number 1 --name "First Steps"
 //   node puzzles/grid/new.ts --genre star-battle --size 6x6 --number 1 --name "First Stars"
+//   node puzzles/grid/new.ts --genre numberlink --size 6x6 --number 1 --name "Pairs"
+//   node puzzles/grid/new.ts --genre masyu --size 6x6 --number 1 --name "Pearls"
 //   node puzzles/grid/new.ts --genre akari --size 7x7 --number 1 --name "Lights On"
 //   node puzzles/grid/new.ts --genre shikaku --size 6x6 --number 1 --name "Boxes"
 //   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
@@ -85,14 +87,14 @@ function jigsaw(): string[] {
   return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
 }
 
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" ? [...b.loop].join("") : genre === "star-battle" || genre === "akari" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "shikaku" ? regionKey(spec, b) : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "star-battle" || genre === "akari" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "shikaku" ? regionKey(spec, b) : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
-async function narrow(base: GridSpec, target: Board, pool: Given[]): Promise<GridSpec | null> {
+async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
   const spec: GridSpec = { ...base, givens: [...(base.givens ?? [])] };
-  const tk = boardKey(spec, target);
+  let tk = boardKey(spec, target);
   const added: Given[] = [];
-  for (let round = 0; round < 60; round++) {
+  for (let round = 0; round < 120; round++) {
     const sols = await solve(makePuzzle(spec), 2);
     const alt = sols.find((s) => boardKey(spec, s) !== tk);
     if (!alt) break;
@@ -100,7 +102,13 @@ async function narrow(base: GridSpec, target: Board, pool: Given[]): Promise<Gri
       const p2 = makePuzzle({ ...spec, givens: [...spec.givens!, c] });
       return check(p2, alt).length > 0 && check(p2, target).length === 0;
     });
-    if (!useful) return null;
+    if (!useful && poolOf) {
+      // nothing true of the target rules out the other solution: aim for that one instead (it
+      // fits every clue so far), with its own clues
+      target = alt; tk = boardKey(spec, alt); pool = poolOf(alt);
+      continue;
+    }
+    if (!useful) { if (process.env.DEBUG) console.error(`narrow: no pool clue rules out the other solution after ${added.length} clues`); return null; }
     added.push(useful); spec.givens!.push(useful);
   }
   const sols = await solve(makePuzzle(spec), 2);
@@ -116,7 +124,54 @@ const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
 let result: GridSpec | null = null;
 
 for (let attempt = 0; attempt < 40 && !result; attempt++) {
-  if (genre === "akari") {
+  if (genre === "numberlink") {
+    // Connectlink style: a random path through every cell (a Simple Path between two random edge
+    // cells), cut into pieces of 3 to 7 cells; each piece's ends are a numbered pair
+    const edgeCells = Array.from({ length: rows * cols }, (_, i) => i).filter((i) => { const [r, c] = at(i); return r === 0 || c === 0 || r === rows - 1 || c === cols - 1; });
+    const [a, b] = shuffle(edgeCells).slice(0, 2);
+    const sideOf = (i: number) => { const [r, c] = at(i); return r === 0 ? "top" : r === rows - 1 ? "bottom" : c === 0 ? "left" : "right"; };
+    const pathSpec: GridSpec = { genre: "simple-path", size: [rows, cols], givens: [{ at: "edge", cell: at(a), side: sideOf(a), kind: "door", role: "in" }, { at: "edge", cell: at(b), side: sideOf(b), kind: "door", role: "out" }] };
+    const walk = await randomBoard(pathSpec, "");
+    if (!walk) continue;
+    const g = makePuzzle(pathSpec).grid, order = [a];
+    for (let prev = -1, cur = a; ;) {
+      const l = g.cellLinks[cur].find((x) => walk.loop[x] === 1 && !g.links[x].cells.includes(prev));
+      if (l === undefined) break;
+      prev = cur; cur = g.links[l].cells.find((c) => c !== cur)!; order.push(cur);
+    }
+    for (let t = 0; t < 60 && !result; t++) {
+      const givens: Given[] = [];
+      let k = 0, v = 1;
+      while (k < order.length) {
+        let len = 3 + Math.floor(rand() * 5);
+        if (order.length - (k + len) < 3) len = order.length - k;   // no piece shorter than 3
+        givens.push({ at: "cell", cell: at(order[k]), kind: "number", value: v }, { at: "cell", cell: at(order[k + len - 1]), kind: "number", value: v });
+        k += len; v++;
+      }
+      const spec: GridSpec = { genre, size: [rows, cols], rules: [{ rule: "links", cover: true }], givens };
+      if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+    }
+  } else if (genre === "masyu") {
+    // a random loop over most of the grid, then pearls that are true of it until it's the only one
+    const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+    const target = await randomBoard(base, `:- #count{I: cell(I), go(I,_)} < ${Math.round(rows * cols * 0.6)}.`);
+    if (!target) continue;
+    const g = makePuzzle(base).grid;
+    const pearlsOf = (target: Board) => {
+      const dirs = (i: number) => { const [r, c] = g.rc(i); return [[-1, 0], [0, 1], [1, 0], [0, -1]].filter(([dr, dc]) => r + dr >= 0 && c + dc >= 0 && r + dr < rows && c + dc < cols && target.loop[g.links[g.borders[g.borderBetween(i, g.cell(r + dr, c + dc))].link].id] === 1); };
+      const straight = (i: number) => { const d = dirs(i); return d.length === 2 && d[0][0] === -d[1][0] && d[0][1] === -d[1][1]; };
+      const next = (i: number, [dr, dc]: number[]) => { const [r, c] = g.rc(i); return g.cell(r + dr, c + dc); };
+      const pool: Given[] = [];
+      for (let i = 0; i < g.cellCount; i++) {
+        const d = dirs(i);
+        if (d.length !== 2) continue;
+        if (straight(i) && !d.every((x) => straight(next(i, x)))) pool.push({ at: "cell", cell: at(i), kind: "pearl", value: "white" });
+        if (!straight(i) && d.every((x) => dirs(next(i, x)).some((y) => y[0] === x[0] && y[1] === x[1]))) pool.push({ at: "cell", cell: at(i), kind: "pearl", value: "black" });
+      }
+      return pool;
+    };
+    result = await narrow(base, target, pearlsOf(target), pearlsOf);
+  } else if (genre === "akari") {
     // black cells (symmetric, about a fifth), a random lighting, then numbers on black cells until
     // it's the only one
     const n = rows * cols, givens: Given[] = [];

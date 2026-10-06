@@ -92,7 +92,7 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -103,6 +103,18 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "simple-loop", size: [rows, cols], givens };
+  }
+  if (kind === "numberlink") {
+    const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
+    const spots = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, pick([2, 4, 4, 5]));
+    const givens = spots.map((i, k) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "number" as const, value: 1 + (k >> 1) }));
+    return { genre: "numberlink", size: [rows, cols], givens, ...(rand() < 0.5 ? { rules: [{ rule: "links", cover: true }] } : {}) };
+  }
+  if (kind === "masyu") {
+    const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
+    const givens = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, 1 + Math.floor(rand() * 3))
+      .map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "pearl" as const, value: rand() < 0.5 ? "white" as const : "black" as const }));
+    return { genre: "masyu", size: [rows, cols], givens };
   }
   if (kind === "akari") {
     const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);

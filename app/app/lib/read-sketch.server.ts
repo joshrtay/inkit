@@ -30,6 +30,11 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   "2 stars" (or similar), set the rules shaded-per-line and shaded-per-area with n: 2.`,
   akari: `akari (Akari / Light Up): black cells, some with a number 0-4. Each black cell is {kind: "block"}; a numbered
   black cell is both {kind: "block"} and {kind: "number", value} on the same cell. Leave out any bulbs drawn as the answer.`,
+  numberlink: `numberlink (Numberlink / Connectlink / Flow): pairs of equal numbers (or letters / colors, numbered 1, 2, 3...)
+  in cells, {kind: "number", value}. If the sketch says every cell must be used, add the rule links with cover: true.
+  Leave out lines drawn as the answer.`,
+  masyu: `masyu: white and black circles (pearls) in cells, {kind: "pearl", pearl: "white" / "black"}. Leave out the loop if
+  it's drawn as the answer.`,
   shikaku: `shikaku: numbers in cells, {kind: "number", value}; the grid gets cut into rectangles each holding one number.
   Leave out rectangles drawn as the answer.`,
   "irregular-sudoku": `irregular-sudoku (Irregular / Jigsaw Sudoku): a sudoku whose boxes are irregular outlined areas.
@@ -68,12 +73,15 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
   opposites: "an empty diamond ◇ on the border between two cells: cell + other",
   count: "a number on a corner, where grid lines cross (mazes): value, with cell = the corner's row and column (0..rows, 0..cols)",
   dots: "colored dots in a piece (Three Coats): dots = the colors, 1 red, 2 yellow, 3 blue, with cell {row: 0, col: piece index}",
+  pearl: "a white or black circle in a cell (masyu): pearl",
   door: "an arrow at the outside edge (mazes): cell = the cell beside it, side = that cell's side, role = in or out",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
   loop: "the lines form one loop (comes with simple-loop and slitherlink)",
   path: "one path from the way in to the way out (comes with simple-path); cover: through every open cell",
+  links: "join each pair of matching numbers with a line (comes with numberlink); cover: every cell used",
+  pearls: "the loop goes straight through white pearls and turns on black ones (comes with masyu)",
   sides: "a number counts the loop's sides around it (comes with slitherlink)",
   runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
   latin: "each digit once per row and column (comes with sudoku)",
@@ -128,6 +136,7 @@ const Reading = z.object({
     side: z.enum(["top", "right", "bottom", "left"]).nullable().describe("door: which side of its cell; else null"),
     role: z.enum(["in", "out"]).nullable().describe("door: the way in or the way out; else null"),
     dots: z.array(int).nullable().describe("dots: the dot colors, 1 red, 2 yellow, 3 blue; else null"),
+    pearl: z.enum(["white", "black"]).nullable().describe("pearl: its color; else null"),
   })),
   runs: z.array(z.object({ line: z.enum(["row", "col"]), index: int, runs: z.array(int) }))
     .describe("nonogram clue numbers written beside rows / above columns; empty when you give a picture instead"),
@@ -266,6 +275,7 @@ export function toSketch(r: Reading): string {
         const v = Object.fromEntries(Object.entries(g.compass ?? {}).filter(([, n]) => n !== null)) as { n?: number; e?: number; s?: number; w?: number };
         return [{ at: "cell", cell: rc(g.cell), kind: "compass", value: v }];
       }
+      case "pearl": return g.pearl ? [{ at: "cell", cell: rc(g.cell), kind: "pearl", value: g.pearl }] : [];
       case "dots": return g.dots?.length ? [{ at: "cell", cell: rc(g.cell), kind: "dots", value: g.dots }] : [];
       case "count": return g.value === null ? [] : [{ at: "corner", corner: rc(g.cell), kind: "count", value: g.value }];
       case "door": return g.side && g.role ? [{ at: "edge", cell: rc(g.cell), side: g.side, kind: "door", role: g.role }] : [];

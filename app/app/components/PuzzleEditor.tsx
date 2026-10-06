@@ -37,6 +37,7 @@ const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | 
   runs: { label: "Clue numbers", on: "line" },
   count: { label: "Corner number", on: "corner" },
   dots: { label: "Paint dots", on: "cell" },
+  pearl: { label: "Pearl", on: "cell" },
   door: { label: "Door", on: "edge" },
 };
 
@@ -48,6 +49,8 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   "simple-path": ["door", "block", "wall"],
   "star-battle": [],
   akari: ["block", "number"],
+  numberlink: ["number"],
+  masyu: ["pearl"],
   shikaku: ["number"],
   "irregular-sudoku": ["number"],
   nonogram: ["runs"],
@@ -67,6 +70,8 @@ type Setting =
 const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   loop: { label: "One loop", settings: [{ key: "of", label: "drawn", type: "choice", choices: ["fence", "loop"] }, { key: "cover", label: "through every open cell", type: "flag" }] },
   path: { label: "One path from the way in to the way out", settings: [{ key: "cover", label: "through every open cell", type: "flag" }] },
+  links: { label: "Join matching numbers with lines", settings: [{ key: "cover", label: "every cell used", type: "flag" }] },
+  pearls: { label: "Pearls: straight through white, turn on black", settings: [] },
   sides: { label: "Numbers count the loop's sides", settings: [] },
   runs: { label: "Row and column clue numbers", settings: [] },
   latin: { label: "Each digit once per row and column", settings: [] },
@@ -137,6 +142,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const needsAreas = genres[genre]?.rules.some((r) => r.rule === "shaded-per-area") || genre === "irregular-sudoku";
   const [number, setNumber] = useState(1);
   const [role, setRole] = useState<"in" | "out">("in");
+  const [pearl, setPearl] = useState<"white" | "black">("white");
   const [dots, setDots] = useState<number[]>([1]);
   const paintColors = spec.style?.palette?.length ? spec.style.palette : ["#ef5a6a", "#f7cf3d", "#3fb0e6"];
   const paints = (spec.marks ?? (genres[genre]?.marks as MarkKind[] | undefined) ?? []).includes("paint");
@@ -217,6 +223,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
         : tool === "number" ? { at: "cell", cell, kind: "number", value: number }
           : tool === "symbol" ? { at: "cell", cell, kind: "symbol", value: symbol }
           : tool === "dots" ? { at: "cell", cell, kind: "dots", value: dots }
+          : tool === "pearl" ? { at: "cell", cell, kind: "pearl", value: pearl }
             : { at: "cell", cell, kind: "compass", value: Object.fromEntries(Object.entries(compass).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])) };
     // a number and a black cell can share a cell (Akari); anything else replaces what's there
     const pairs = (a: Given, b: Given) => (a.kind === "number" && b.kind === "block") || (a.kind === "block" && b.kind === "number");
@@ -360,6 +367,12 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
               <button type="button" onClick={() => setDots(dots.slice(0, -1))} disabled={dots.length <= 1}>−</button>
             </span>
           )}
+          {tool === "pearl" && (
+            <span className="ge-tools" role="group" aria-label="Pearl">
+              <button type="button" aria-pressed={pearl === "white"} onClick={() => setPearl("white")}>○ White</button>
+              <button type="button" aria-pressed={pearl === "black"} onClick={() => setPearl("black")}>● Black</button>
+            </span>
+          )}
           {tool === "door" && (
             <span className="ge-tools" role="group" aria-label="Door">
               <button type="button" aria-pressed={role === "in"} onClick={() => setRole("in")}>Way in</button>
@@ -408,6 +421,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
                 const { x, y } = at(...g.cell), cx = x + S / 2, cy = y + S / 2;
                 if (g.kind === "dots") return <g key={i} className={g.hidden ? "ge-dots hidden" : "ge-dots"}>{g.value.map((c, j) =>
                   <circle key={j} cx={cx + (j - (g.value.length - 1) / 2) * 11} cy={cy} r={4.5} fill={paintColors[c - 1] ?? "#999"} />)}</g>;
+                if (g.kind === "pearl") return <circle key={i} cx={cx} cy={cy} r={S * 0.28} className={`ge-pearl ${g.value}`} />;
                 if (g.kind === "block") return <rect key={i} x={x + 2} y={y + 2} width={S - 4} height={S - 4} className="ge-rock" />;
                 if (g.kind === "compass") {
                   const v = g.value;

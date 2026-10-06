@@ -1,0 +1,91 @@
+{
+  "type": "grid",
+  "name": "Pairs",
+  "meta": "5 × 5",
+  "grid": {
+    "size": [
+      5,
+      5
+    ],
+    "rules": [
+      {
+        "rule": "links",
+        "cover": true
+      }
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          4
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          3
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "number",
+        "value": 4
+      }
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "type": "grid",
+  "name": "Pearls",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          4
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "pearl",
+        "value": "black"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          1
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          3
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          2
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          4
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          4
+        ],
+        "kind": "pearl",
+        "value": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "pearl",
+        "value": "white"
+      }
+    ]
+  }
+}

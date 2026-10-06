@@ -88,6 +88,26 @@ export const gameTypes: GameType[] = [
   // ---- grid engine (src/engine, docs/grid-engine.md) ----
   {
     id: "grid",
+    genre: "numberlink",
+    path: "numberlink",
+    name: "Numberlink",
+    blurb: "Join each pair of matching numbers with a line. Lines never cross, and every cell gets used.",
+    meta: "Play in the browser",
+    ink: "#26398f",
+    listed: true,
+  },
+  {
+    id: "grid",
+    genre: "masyu",
+    path: "masyu",
+    name: "Masyu",
+    blurb: "Draw one loop: straight through white pearls, turning on black ones.",
+    meta: "Play in the browser",
+    ink: "#2b2b30",
+    listed: true,
+  },
+  {
+    id: "grid",
     genre: "akari",
     path: "akari",
     name: "Akari",

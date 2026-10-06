@@ -103,6 +103,48 @@ preach(J) :- preach(I), line(L), lc(I,L), lc(J,L).
 ${s.cover ? ":- cell(I), not blocked(I), not preach(I)." : ""}`;
     },
   },
+  links: {
+    describe: (s) => `Join each pair of matching numbers with a line through the cells. Lines go straight or turn, and never branch, cross or touch another number${s.cover ? ". Every cell is used" : ""}.`,
+    check: (s, p, b) => checkLinks(p, b, !!s.cover),
+    asp(s, p) {
+      const nums = numberClues(p);
+      return `${nums.map(([i, v]) => `lend(${i},${v}).`).join(" ")}
+kdeg(I,N) :- cell(I), N = #count{L: line(L), lc(I,L)}.
+:- lend(I,_), kdeg(I,N), N != 1.
+:- cell(I), not lend(I,_), kdeg(I,N), N != 0, N != 2.
+lab(I,V) :- lend(I,V).
+lab(J,V) :- lab(I,V), line(L), lc(I,L), lc(J,L).
+:- lab(I,V), lab(I,W), V < W.
+:- kdeg(I,N), N > 0, not lab(I,_).
+${s.cover ? ":- cell(I), not blocked(I), kdeg(I,0)." : ""}`;
+    },
+  },
+  pearls: {
+    describe: () => "The loop goes straight through every white pearl and turns in the cell before or after it (or both). It turns at every black pearl and goes straight through the cells on both sides of it.",
+    check: (_s, p, b) => checkPearls(p, b),
+    asp(_s, p) {
+      const g = p.grid, out: string[] = [];
+      for (let i = 0; i < g.cellCount; i++) {
+        const [r, c] = g.rc(i);
+        for (const [d, dr, dc] of [["n", -1, 0], ["e", 0, 1], ["s", 1, 0], ["w", 0, -1]] as const) {
+          if (r + dr < 0 || c + dc < 0 || r + dr >= g.rows || c + dc >= g.cols) continue;
+          const j = g.cell(r + dr, c + dc);
+          out.push(`nb(${i},${d},${j},${g.links[g.borders[g.borderBetween(i, j)].link].id}).`);
+        }
+      }
+      for (const [i, colour] of pearlClues(p)) out.push(`${colour}(${i}).`);
+      out.push(`go(I,D) :- nb(I,D,_,L), line(L).
+straight(I) :- go(I,n), go(I,s).
+straight(I) :- go(I,e), go(I,w).
+onl(I) :- go(I,_).
+:- black(I), not onl(I).
+:- black(I), straight(I).
+:- black(I), go(I,D), nb(I,D,J,_), not go(J,D).
+:- white(I), not straight(I).
+:- white(I), go(I,D), nb(I,D,J,_), go(I,E), nb(I,E,K,_), D < E, straight(J), straight(K).`);
+      return out.join("\n");
+    },
+  },
   sides: {
     describe: () => "A number in a cell says how many of its four sides the loop runs along.",
     check(_s, p, b) {
@@ -599,6 +641,55 @@ function checkPath(p: Puzzle, b: Board, cover: boolean): Problem[] {
     if (missing.length) return [{ message: "The path must pass through every open cell.", cells: missing }];
   }
   return [];
+}
+
+const pearlClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.filter((g) => g.kind === "pearl").map((g) => [i, g.value as "white" | "black"] as [number, "white" | "black"]));
+
+function checkLinks(p: Puzzle, b: Board, cover: boolean): Problem[] {
+  const { edges, deg } = lineGraph(p, b, "loop"), g = p.grid;
+  const value = new Map(numberClues(p));
+  const bad = deg.map((d, v) => v).filter((v) => (value.has(v) ? deg[v] > 1 : deg[v] > 2));
+  if (bad.length) return [{ message: "Lines can't branch, and a number has just one line.", cells: bad }];
+  const adj = new Map<number, number[]>();
+  for (const [a, c] of edges) { adj.set(a, [...(adj.get(a) ?? []), c]); adj.set(c, [...(adj.get(c) ?? []), a]); }
+  const seen = new Set<number>(), out: Problem[] = [];
+  for (const start of adj.keys()) {
+    if (seen.has(start)) continue;
+    const part = [start]; seen.add(start);
+    for (let k = 0; k < part.length; k++) for (const n of adj.get(part[k]) ?? []) if (!seen.has(n)) { seen.add(n); part.push(n); }
+    const nums = part.filter((v) => value.has(v));
+    if (nums.length !== 2 || value.get(nums[0]) !== value.get(nums[1])) out.push({ message: nums.length === 2 ? "A line must join two matching numbers." : "Every line runs from a number to its matching number.", cells: part });
+  }
+  if (out.length) return out.slice(0, 1);
+  const loose = [...value.keys()].filter((v) => deg[v] !== 1);
+  if (loose.length) return [{ message: "Join every number to its match.", cells: loose }];
+  if (cover) {
+    const empty = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i) && !deg[i]);
+    if (empty.length) return [{ message: "Every cell must be used by a line.", cells: empty }];
+  }
+  return [];
+}
+
+function checkPearls(p: Puzzle, b: Board): Problem[] {
+  const g = p.grid;
+  const go = (i: number) => {
+    const [r, c] = g.rc(i), dirs: [number, number][] = [];
+    for (const [dr, dc] of [[-1, 0], [0, 1], [1, 0], [0, -1]]) {
+      if (r + dr < 0 || c + dc < 0 || r + dr >= g.rows || c + dc >= g.cols) continue;
+      if (b.loop[g.links[g.borders[g.borderBetween(i, g.cell(r + dr, c + dc))].link].id] === 1) dirs.push([dr, dc]);
+    }
+    return dirs;
+  };
+  const straight = (i: number) => { const d = go(i); return d.length === 2 && d[0][0] === -d[1][0] && d[0][1] === -d[1][1]; };
+  const step = (i: number, [dr, dc]: [number, number]) => { const [r, c] = g.rc(i); return g.cell(r + dr, c + dc); };
+  const bad: number[] = [];
+  for (const [i, colour] of pearlClues(p)) {
+    const d = go(i);
+    if (d.length !== 2) { bad.push(i); continue; }
+    if (colour === "black" && (straight(i) || d.some((x) => !go(step(i, x)).some((y) => y[0] === x[0] && y[1] === x[1])))) bad.push(i);
+    if (colour === "white" && (!straight(i) || d.every((x) => straight(step(i, x))))) bad.push(i);
+  }
+  return bad.length ? [{ message: "A pearl's rule is broken: straight through white (turning next to it), turning on black (straight on both sides).", cells: bad }] : [];
 }
 
 function checkLoop(p: Puzzle, b: Board, kind: "fence" | "loop", cover: boolean): Problem[] {

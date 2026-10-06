@@ -51,6 +51,20 @@ export const genres = {
     rules: [{ rule: "rectangles" }, { rule: "one-each", of: "number" }, { rule: "size-clue" }],
     style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
+  // Numberlink: join each pair of equal numbers with a line through the cells; lines never branch,
+  // cross or touch numbers they don't join. (Connectlink: with cover, every cell is used.)
+  numberlink: {
+    marks: ["loop"],
+    rules: [{ rule: "links" }],
+    style: {},
+  },
+  // Masyu: one loop through cell centres; it goes straight through white pearls and turns at
+  // black ones (with the extra conditions on the neighbouring cells)
+  masyu: {
+    marks: ["loop"],
+    rules: [{ rule: "loop", of: "loop" }, { rule: "pearls" }],
+    style: {},
+  },
   // Irregular Sudoku: a sudoku whose boxes are the outlined areas
   "irregular-sudoku": {
     marks: ["digit"],
@@ -129,7 +143,9 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   }
   const marks = spec.marks ?? genre?.marks ?? [];
   if (fig && (marks.length !== 1 || marks[0] !== "paint")) throw new Error("a figure of pieces is played by painting them");
-  const rules = [...(genre?.rules ?? []), ...(spec.rules ?? [])];
+  // a puzzle's own rule replaces the genre's rule of the same name (e.g. 2 stars instead of 1)
+  const own = new Set((spec.rules ?? []).map((s) => s.rule));
+  const rules = [...(genre?.rules ?? []).filter((s) => !own.has(s.rule)), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
   if (rules.some((s) => s.rule === "perfect-maze" || s.rule === "path")) {
     const roles = [...doors.values()];

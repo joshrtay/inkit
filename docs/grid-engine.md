@@ -2,8 +2,8 @@
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with thirteen genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Star Battle
-(`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+the `grid-engine` branch, with fifteen genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Numberlink
+(`numberlink`), Masyu (`masyu`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
 ## The model
@@ -51,7 +51,8 @@ jobs:
 3. **describe** itself in plain words for the "How to play" card,
 4. say which shared structures (regions, shapes) its encoding needs.
 
-A puzzle lists its rules with their settings, e.g. `{"rule": "size", "is": 4}` or
+A puzzle's own rule replaces its genre's rule of the same name, so a 2-star Star Battle lists
+`{"rule": "shaded-per-line", "n": 2}` (and the same for areas). A puzzle lists its rules with their settings, e.g. `{"rule": "size", "is": 4}` or
 `{"rule": "twins"}`. A *genre* (`src/engine/puzzle.ts`) is a preset of marks + rules +
 style, so a Slitherlink puzzle only lists its givens. Creators mix blocks freely; a rule
 that can't be built from existing blocks is a new block (reviewed code), and then every
@@ -63,6 +64,8 @@ puzzle can use it.
 |---|---|
 | `loop` | The lines (fence or loop marks) form exactly one closed loop; `cover` makes it pass through every open cell. |
 | `path` | The loop marks form one path from the way-in door's cell to the way-out door's cell; `cover` makes it pass through every open cell (Simple Path). |
+| `links` | Lines (loop marks) join each pair of matching numbers; they never branch or cross; `cover` uses every cell (Connectlink). |
+| `pearls` | Masyu: the loop goes straight through white pearls, turning in a cell next to them; it turns on black pearls and goes straight through the cells on both sides. |
 | `sides` | A number in a cell counts the fence lines on its four sides. |
 | `shaded-per-line` | Every row and column has `n` shaded cells (Star Battle's stars). |
 | `shaded-per-area` | Every outlined area has `n` shaded cells. |

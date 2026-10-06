@@ -26,6 +26,9 @@ const S = 48, M = 26;                           // cell size and plain margin, i
 const NS = "http://www.w3.org/2000/svg";
 const PREFS = "wyattsgames:mosaic-prefs";       // nonogram helpers (same key as before the engine)
 
+/** Line colors for Numberlink pairs, by number. */
+const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];
+
 /** A five-pointed star around (x, y). */
 const starPath = (x: number, y: number, r: number) => Array.from({ length: 10 }, (_, k) => {
   const a = -Math.PI / 2 + (k * Math.PI) / 5, d = k % 2 ? r * 0.42 : r;
@@ -37,6 +40,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   if (marks.includes("paint")) return createFigure(p, root, host);   // painted pieces (Three Coats)
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
+  const links = p.rules.some((s) => s.rule === "links");
   const palette = p.style.palette ?? [];
   const board = emptyBoard(g);
   const saved = host.load<Saved>();
@@ -137,7 +141,11 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const digitEls = new Map<number, SVGTextElement>();
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
     const [x, y] = center(i);
-    if (giv.kind === "number" && !digits) el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens).textContent = String(giv.value);
+    if (giv.kind === "number" && !digits) {
+      if (links) el("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 }, gGivens);
+      el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens).textContent = String(giv.value);
+    }
+    else if (giv.kind === "pearl") el("circle", { class: `pearl ${giv.value}`, cx: x, cy: y, r: S * 0.3 }, gGivens);
     else if (giv.kind === "symbol") el("text", { class: "clue symbol", x, y: y + 1 }, gGivens).textContent = "✦";
     else if (giv.kind === "compass") {
       const c = el("g", { class: "compass" }, gGivens);
@@ -252,9 +260,20 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         if (board.cut[e.id] === 1 || colors[a] !== colors[b]) el("line", { class: "mark lead", x1, y1, x2, y2 }, gLines);
       }
     }
+    // Numberlink: each line takes the color of the number it leaves from
+    const lineColor = new Map<number, string>();
+    if (links) {
+      const value = new Map<number, number>();
+      for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") value.set(i, x.value);
+      for (const [start, v] of value) {
+        const stack = [start], seen = new Set([start]);
+        while (stack.length) { const i = stack.pop()!; lineColor.set(i, LINK_COLORS[(v - 1) % LINK_COLORS.length]); for (const l of g.cellLinks[i]) if (board.loop[l] === 1) { const j = g.links[l].cells.find((c) => c !== i)!; if (!seen.has(j) && !value.has(j)) { seen.add(j); stack.push(j); } } }
+      }
+    }
     if (marks.includes("loop")) for (const l of g.links) {
       const [x1, y1] = center(l.cells[0]), [x2, y2] = center(l.cells[1]);
-      if (board.loop[l.id] === 1) { el("line", { class: "river", x1, y1, x2, y2 }, gWater); el("circle", { class: "joint", cx: x1, cy: y1, r: 6.5 }, gWater); el("circle", { class: "joint", cx: x2, cy: y2, r: 6.5 }, gWater); }
+      const tint = lineColor.get(l.cells[0]) ?? lineColor.get(l.cells[1]), style = tint ? `stroke:${tint};fill:${tint}` : "";
+      if (board.loop[l.id] === 1) { el("line", { class: "river", x1, y1, x2, y2, style }, gWater); el("circle", { class: "joint", cx: x1, cy: y1, r: 6.5, style }, gWater); el("circle", { class: "joint", cx: x2, cy: y2, r: 6.5, style }, gWater); }
       if (board.loop[l.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
     }
     for (const [k, t] of clueEls) t.classList.toggle("done", ticks.has(k));

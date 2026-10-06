@@ -7,6 +7,8 @@ export const KIND_NAMES: Record<GenreName, string> = {
   "simple-path": "Simple Path",
   "star-battle": "Star Battle",
   akari: "Akari",
+  numberlink: "Numberlink",
+  masyu: "Masyu",
   shikaku: "Shikaku",
   "irregular-sudoku": "Irregular Sudoku",
   nonogram: "Nonogram",
