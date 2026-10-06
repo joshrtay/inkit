@@ -9,8 +9,13 @@ export type Given =
   | { at: "cell"; cell: RC; kind: "block" }                       // a rock: no marks, not part of any loop or region
   | { at: "cell"; cell: RC; kind: "compass"; value: { n?: number; e?: number; s?: number; w?: number } }
   | { at: "cell"; cell: RC; kind: "symbol"; value: string }
-  | { at: "border"; cells: [RC, RC]; kind: "twins" | "opposites" | "wall" }   // a wall: loops can't cross it
+  | { at: "border"; cells: [RC, RC]; kind: "twins" | "opposites" | "wall" }   // a wall: loops can't cross it; in a maze, a wall given already drawn
+  | { at: "corner"; corner: RC; kind: "count"; value: number }               // a number on a corner: how many walls touch it (mazes)
+  | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
   | { at: "row" | "col"; index: number; kind: "runs"; value: number[] };     // nonogram clue beside a row / above a column
+
+/** A side of a cell. */
+export type Side = "top" | "right" | "bottom" | "left";
 
 /** One configured building block, e.g. { rule: "size", is: 4 }. */
 export interface RuleSpec { rule: string; [setting: string]: unknown }
@@ -64,9 +69,12 @@ export interface Puzzle {
   marks: MarkKind[];
   rules: RuleSpec[];
   style: GridStyle;
-  /** clues indexed by cell / border id */
+  /** clues indexed by cell / border / corner id */
   cellGivens: Map<number, Given[]>;
   borderGivens: Map<number, Given[]>;
+  cornerGivens: Map<number, Given[]>;
+  /** a maze's doors: outside-edge border id -> in or out */
+  doors: Map<number, "in" | "out">;
   /** nonogram clues per row / column */
   rowRuns: Map<number, number[]>;
   colRuns: Map<number, number[]>;

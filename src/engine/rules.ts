@@ -23,6 +23,8 @@ export interface Block {
 
 const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) =>
   gs.filter((g) => g.kind === "number").map((g) => [i, g.value as number] as [number, number]));
+const cornerClues = (p: Puzzle) => [...p.cornerGivens].flatMap(([v, gs]) =>
+  gs.filter((g) => g.kind === "count").map((g) => [v, g.value as number] as [number, number]));
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
 
 export const blocks = {
@@ -54,6 +56,66 @@ ${s.cover ? ":- cell(I), not blocked(I), ldeg(I,N), N != 2." : ""}`;
         .map(([i, n]) => ({ message: `This ${n} needs exactly ${n} side${n === 1 ? "" : "s"} of the loop.`, cells: [i] }));
     },
     asp: (_s, p) => numberClues(p).map(([i, n]) => `:- ${n} != #count{B: fence(B), cb(${i},B)}.`).join("\n"),
+  },
+
+  // ---- mazes ----
+  "corner-count": {
+    describe: () => "A number on a corner says how many walls touch it. The outside edge counts.",
+    check(_s, p, b) {
+      return cornerClues(p).filter(([v, n]) => p.grid.cornerBorders[v].filter((e) => b.fence[e] === 1).length !== n)
+        .map(([v, n]) => ({ message: `This ${n} needs exactly ${n} wall${n === 1 ? "" : "s"} touching it.`, borders: p.grid.cornerBorders[v] }));
+    },
+    asp: (_s, p) => cornerClues(p).map(([v, n]) => `:- ${n} != #count{B: fence(B), vb(${v},B)}.`).join("\n"),
+  },
+  "perfect-maze": {
+    describe: () => "Draw the walls of a maze. The outside edge is walled except the way in and the way out. Walls never close into a loop, and every wall joins the edge, so every square can be reached and there's only one way between any two.",
+    check(_s, p, b) {
+      const g = p.grid;
+      const edge = g.borders.filter((e) => e.link < 0 && (b.fence[e.id] === 1) === p.doors.has(e.id)).map((e) => e.id);
+      if (edge.length) return [{ message: "The outside edge is walled, except the way in and the way out.", borders: edge }];
+      const given = [...p.walls].map((l) => g.links[l].border).filter((e) => b.fence[e] !== 1);
+      if (given.length) return [{ message: "Keep the walls that were given.", borders: given }];
+      // every square reachable: the open passages join all the cells
+      const reached = new Set([0]), stack = [0];
+      while (stack.length) {
+        const i = stack.pop()!;
+        for (const l of g.cellLinks[i]) {
+          const { cells, border } = g.links[l], j = cells[0] === i ? cells[1] : cells[0];
+          if (b.fence[border] !== 1 && !reached.has(j)) { reached.add(j); stack.push(j); }
+        }
+      }
+      if (reached.size < g.cellCount) {
+        const shut = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !reached.has(i));
+        return [{ message: "Walls close in some squares: every square must be reachable.", cells: reached.size * 2 < g.cellCount ? [...reached] : shut }];
+      }
+      // no loop of passages: every wall is joined to the edge
+      const root = Array.from({ length: g.cornerCount }, (_, v) => v);
+      const find = (v: number): number => (root[v] === v ? v : (root[v] = find(root[v])));
+      for (const e of g.borders) if (b.fence[e.id] === 1) root[find(e.corners[0])] = find(e.corners[1]);
+      const onEdge = new Set(g.borders.filter((e) => e.link < 0).flatMap((e) => e.corners.map(find)));
+      const loose = g.borders.filter((e) => b.fence[e.id] === 1 && !onEdge.has(find(e.corners[0]))).map((e) => e.id);
+      if (loose.length) return [{ message: "Every wall must join the outside edge: these stand on their own, so there's more than one way around them.", borders: loose }];
+      // a corner with no walls at all: the passages circle it
+      const bare = Array.from({ length: g.cornerCount }, (_, v) => v).filter((v) => !onEdge.has(find(v)));
+      if (bare.length) {
+        const around = (v: number) => { const [r, c] = g.cornerRC(v); return [g.cell(r - 1, c - 1), g.cell(r - 1, c), g.cell(r, c - 1), g.cell(r, c)]; };
+        return [{ message: "There's a way around this point: a wall must run from it to the edge.", cells: around(bare[0]) }];
+      }
+      return [];
+    },
+    asp(_s, p) {
+      const g = p.grid, out: string[] = [];
+      for (const e of g.borders) if (e.link < 0) out.push(p.doors.has(e.id) ? `:- fence(${e.id}).` : `:- not fence(${e.id}).`);
+      for (const l of p.walls) out.push(`:- not fence(${g.links[l].border}).`);
+      for (const l of g.links) out.push(`mlb(${l.id},${l.border}).`);
+      out.push(`
+mopen(L) :- mlb(L,B), not fence(B).
+mreach(0).
+mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
+:- cell(I), not mreach(I).
+:- #count{L: mopen(L)} != ${g.cellCount - 1}.`);
+      return out.join("\n");
+    },
   },
 
   // ---- nonograms ----

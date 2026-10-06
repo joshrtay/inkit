@@ -3,8 +3,8 @@
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, and our own Round the Bend and Picture
 Squares. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with six genres: Round the Bend (`river`), Picture Squares
-(`nonogram`), Slitherlink, Nurikabe, Panes and Sudoku.
+the `grid-engine` branch, with seven genres: Round the Bend (`river`), Picture Squares
+(`nonogram`), Number Line Maze (`maze`), Slitherlink, Nurikabe, Panes and Sudoku.
 
 ## The model
 
@@ -29,7 +29,8 @@ connected group of same-color cells not separated by a cut. For shading puzzles,
 *islands* (connected unshaded cells) are regions too, so region rules work for both.
 
 **Givens** are clues fixed to an element: a number in a cell (in a digit puzzle, a given
-digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, and a
+digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, a
+number on a corner (`count`), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs beside a row or above a column. A nonogram's runs can instead come from its
 `picture`, which solving reveals.
 
@@ -65,6 +66,8 @@ puzzle can use it.
 | `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |
 | `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
 | `boxes` | Each box (`box: [h, w]`, or sized from the grid) has each digit once. |
+| `corner-count` | A number on a corner counts the fence lines (walls) touching it; the outside edge counts. |
+| `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 
 Names are our own. Mechanics are fair game; another game's rule names, art and levels
 aren't ours to copy, so puzzles are Wyatt's (or generated).
@@ -104,6 +107,10 @@ that uses a mark gets the same behavior:
   keyboard; pencil notes; arrow keys move, Backspace erases.
 - `regions`: pick a glass color and paint cells, or drag along a border to cut. Drags that
   start on a border cut; drags that start inside a cell paint.
+- A maze (`maze`): draw walls along the lines; given walls and the doors are locked, and each
+  corner number turns green when it has its walls. Once the walls check out, drag (or use the
+  arrow keys) from the arrow in to the arrow out (`src/game-types/grid/walk.ts`); getting out
+  solves it.
 - One gesture is one undo step. Check highlights what the note is about; a solved board is
   noticed automatically.
 
@@ -142,7 +149,8 @@ mark, or a field of `GridSpec`.
 
 The editor covers:
 - the game type and grid size
-- every clue kind: in cells, on borders, and nonogram row / column numbers
+- every clue kind: in cells, on borders, on corners, doors in the outside edge, and nonogram row /
+  column numbers
 - a nonogram's picture: painted in any number of colors, with its title
 - rules beyond the genre's own, with every setting
 - the style options, and which marks the player draws
@@ -167,5 +175,6 @@ has to be added by hand: a control in the editor and a line in the reader's guid
 ## Next
 
 1. More blocks: sums and cages (Kakuro, Killer), polyomino shape clues, Masyu pearls.
-2. Port Number Line Maze and Three Coats (needs an irregular geometry).
+2. Port Three Coats (needs an irregular geometry). Number Line Maze is the `maze` genre; the
+   social site's seed converts the old instances (`app/seed/make.py`).
 3. Covers for the new genres; a feel pass on phones.

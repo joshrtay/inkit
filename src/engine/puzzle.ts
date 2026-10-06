@@ -1,9 +1,9 @@
 // Genres (presets of marks + rules + style), turning a description into a Puzzle, and
 // checking a whole board against every rule.
-import { squareGrid } from "./geometry.ts";
+import { squareGrid, type Grid } from "./geometry.ts";
 import { regionsOf, type Regions } from "./derive.ts";
 import { blockFor } from "./rules.ts";
-import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec } from "./types.ts";
+import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 
 export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle }
 
@@ -35,6 +35,13 @@ export const genres = {
     rules: [{ rule: "latin" }, { rule: "boxes" }],
     style: {},
   },
+  // Number Line Maze: numbers on the corners count the walls touching them; the walls make a
+  // perfect maze between two doors in the outside edge; then the player walks it
+  maze: {
+    marks: ["fence"],
+    rules: [{ rule: "corner-count" }, { rule: "perfect-maze" }],
+    style: { grid: "dots" },
+  },
   // our region-division puzzles in the style of The Artisan of Glimmith: each puzzle lists its rules
   panes: {
     marks: ["regions"],
@@ -52,7 +59,8 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   const genre = spec.genre ? (genres as Record<string, Genre>)[spec.genre] : undefined;
   if (spec.genre && !genre) throw new Error(`unknown genre "${spec.genre}"`);
   const grid = squareGrid(spec.size[0], spec.size[1]);
-  const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>();
+  const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>(), cornerGivens = new Map<number, Given[]>();
+  const doors = new Map<number, "in" | "out">();
   const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
   const blocked = new Set<number>(), walls = new Set<number>();
   const push = <K>(m: Map<K, Given[]>, k: K, g: Given) => m.set(k, [...(m.get(k) ?? []), g]);
@@ -66,15 +74,36 @@ export function makePuzzle(spec: GridSpec): Puzzle {
       if (e < 0) throw new Error(`a ${g.kind} mark needs two neighbouring cells`);
       push(borderGivens, e, g);
       if (g.kind === "wall") walls.add(grid.borders[e].link);
+    } else if (g.at === "corner") {
+      const [r, c] = g.corner;
+      if (r < 0 || c < 0 || r > grid.rows || c > grid.cols) throw new Error(`corner ${r},${c} is outside the grid`);
+      push(cornerGivens, grid.corner(r, c), g);
+    } else if (g.at === "edge") {
+      const e = outsideBorder(grid, g.cell, g.side);
+      if (e < 0) throw new Error(`a door goes on the outside edge (row ${g.cell[0]}, column ${g.cell[1]}, ${g.side} isn't)`);
+      doors.set(e, g.role);
     } else (g.at === "row" ? rowRuns : colRuns).set(g.index, g.value);
   }
   const rules = [...(genre?.rules ?? []), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
+  if (rules.some((s) => s.rule === "perfect-maze")) {
+    const roles = [...doors.values()];
+    if (roles.filter((r) => r === "in").length !== 1 || roles.filter((r) => r === "out").length !== 1)
+      throw new Error("a maze needs one way in and one way out on its outside edge");
+  }
   return {
-    spec, grid, cellGivens, borderGivens, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
+    spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
     marks: spec.marks ?? genre?.marks ?? [],
     style: { ...genre?.style, ...spec.style },
   };
+}
+
+/** The border on a cell's side, if it's on the outside edge of the grid (else -1). */
+export function outsideBorder(grid: Grid, [r, c]: [number, number], side: Side): number {
+  if (r < 0 || c < 0 || r >= grid.rows || c >= grid.cols) return -1;
+  const e = side === "top" ? r * grid.cols + c : side === "bottom" ? (r + 1) * grid.cols + c
+    : (grid.rows + 1) * grid.cols + r * (grid.cols + 1) + (side === "left" ? c : c + 1);
+  return grid.borders[e].cells.includes(-1) ? e : -1;
 }
 
 /** A nonogram's row and column clues, worked out from its picture (unless given). */

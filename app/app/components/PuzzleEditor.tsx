@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { genres, type GenreName } from "~site/engine/puzzle.ts";
 import { runsOf, type RuleName } from "~site/engine/rules.ts";
-import type { Given, GridSpec, GridStyle, MarkKind, RuleSpec } from "~site/engine/types.ts";
+import type { Given, GridSpec, GridStyle, MarkKind, RuleSpec, Side } from "~site/engine/types.ts";
 import { KIND_NAMES } from "~/games/kinds";
 
 type RC = [number, number];
@@ -22,8 +22,9 @@ export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   style: "Look", picture: "the picture painter (Picture Squares)", marks: "Look › what the player draws",
 };
 
-/** Every clue kind: its tool label, and whether it sits in a cell, on a border, or beside a line. */
-const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" }> = {
+/** Every clue kind: its tool label, and whether it sits in a cell, on a border, beside a line, on a
+ *  corner, or in the outside edge. */
+const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | "corner" | "edge" }> = {
   number: { label: "Number", on: "cell" },
   block: { label: "Rock", on: "cell" },
   symbol: { label: "Symbol", on: "cell" },
@@ -32,6 +33,8 @@ const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" }>
   twins: { label: "◆ Same shape", on: "border" },
   opposites: { label: "◇ Different shape", on: "border" },
   runs: { label: "Clue numbers", on: "line" },
+  count: { label: "Corner number", on: "corner" },
+  door: { label: "Door", on: "edge" },
 };
 
 /** The clue tools each genre shows first (every other clue kind is under "More clues"). */
@@ -42,6 +45,7 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   nonogram: ["runs"],
   sudoku: ["number"],
   panes: ["number", "symbol", "compass", "twins", "opposites", "block"],
+  maze: ["count", "door", "wall"],
 };
 
 type Setting =
@@ -66,6 +70,8 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   opposites: { label: "◇ joins different shapes", settings: [] },
   "all-different": { label: "All regions differ in shape", settings: [] },
   compass: { label: "Compasses count their region", settings: [] },
+  "corner-count": { label: "Corner numbers count their walls", settings: [] },
+  "perfect-maze": { label: "Walls make a maze between two doors", settings: [] },
 };
 
 /** Every style option. */
@@ -84,10 +90,12 @@ const MARKS: Record<MarkKind, string> = {
 };
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
-const S = 44, PAD = 8;
+const S = 44, PAD = 24;
 const same = (a: RC, b: RC) => a[0] === b[0] && a[1] === b[1];
 const onBorder = (g: Given, a: RC, b: RC) => g.at === "border" && ((same(g.cells[0], a) && same(g.cells[1], b)) || (same(g.cells[0], b) && same(g.cells[1], a)));
 const runsText = (v: number[] | undefined) => (v ?? [0]).join(" ");
+const onEdge = ([r, c]: RC, side: Side, rows: number, cols: number) =>
+  side === "top" ? r === 0 : side === "bottom" ? r === rows - 1 : side === "left" ? c === 0 : c === cols - 1;
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 
 export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (spec: GridSpec) => void }) {
@@ -101,6 +109,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const picture = spec.picture;
   const [tool, setTool] = useState<ClueKind | "paint" | "erase">(picture ? "paint" : shownTools[0] ?? "erase");
   const [number, setNumber] = useState(1);
+  const [role, setRole] = useState<"in" | "out">("in");
   const [symbol, setSymbol] = useState("★");
   const [compass, setCompass] = useState({ n: "", e: "", s: "", w: "" });
   const [ink, setInk] = useState(() => (picture ? Object.keys(picture.palette).find((k) => k !== ".") ?? "a" : "a"));
@@ -111,7 +120,9 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   function resize(dr: number, dc: number) {
     const r = Math.max(2, Math.min(30, rows + dr)), c = Math.max(2, Math.min(30, cols + dc));
     const inside = ([y, x]: RC) => y < r && x < c;
-    const kept = givens.filter((g) => g.at === "cell" ? inside(g.cell) : g.at === "border" ? g.cells.every(inside) : g.index < (g.at === "row" ? r : c));
+    const kept = givens.filter((g) => g.at === "cell" ? inside(g.cell) : g.at === "border" ? g.cells.every(inside)
+      : g.at === "corner" ? g.corner[0] <= r && g.corner[1] <= c
+        : g.at === "edge" ? inside(g.cell) && onEdge(g.cell, g.side, r, c) : g.index < (g.at === "row" ? r : c));
     set({
       size: [r, c], givens: kept,
       ...(picture ? { picture: { ...picture, rows: Array.from({ length: r }, (_, y) => (picture.rows[y] ?? "").padEnd(c, ".").slice(0, c)) } } : {}),
@@ -123,6 +134,27 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
     const box = e.currentTarget.getBoundingClientRect();
     const scale = (cols * S + 2 * PAD) / box.width;
     const x = (e.clientX - box.left) * scale - PAD, y = (e.clientY - box.top) * scale - PAD;
+    // corners and the outside edge (mazes) can be clicked from just outside the grid too
+    const vr = Math.round(y / S), vc = Math.round(x / S);
+    const nearCorner = vr >= 0 && vc >= 0 && vr <= rows && vc <= cols && Math.hypot(x - vc * S, y - vr * S) < S * 0.3 ? [vr, vc] as RC : null;
+    const edgeCell: RC = [Math.max(0, Math.min(rows - 1, Math.floor(y / S))), Math.max(0, Math.min(cols - 1, Math.floor(x / S)))];
+    const dist: [Side, number][] = [["top", y], ["bottom", rows * S - y], ["left", x], ["right", cols * S - x]];
+    const [side, away] = dist.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const nearEdge = away < S * 0.3 ? { cell: edgeCell, side } : null;
+    const atEdge = (g: Given) => g.at === "edge" && nearEdge && same(g.cell, nearEdge.cell) && g.side === nearEdge.side;
+    const atCorner = (g: Given) => g.at === "corner" && nearCorner && same(g.corner, nearCorner);
+    if (tool === "count") {
+      if (!nearCorner) return;
+      const had = givens.find(atCorner);
+      return setGivens([...givens.filter((g) => !atCorner(g)), ...(had && had.kind === "count" && had.value === number ? [] : [{ at: "corner", corner: nearCorner, kind: "count", value: number } as Given])]);
+    }
+    if (tool === "door") {
+      if (!nearEdge) return;
+      const had = givens.find(atEdge);
+      const rest = givens.filter((g) => !atEdge(g) && !(g.at === "edge" && g.role === role));   // one way in, one way out
+      return setGivens([...rest, ...(had && had.kind === "door" && had.role === role ? [] : [{ at: "edge", ...nearEdge, kind: "door", role } as Given])]);
+    }
+    if (tool === "erase" && (givens.some(atCorner) || givens.some(atEdge))) return setGivens(givens.filter((g) => !atCorner(g) && !atEdge(g)));
     const c = Math.floor(x / S), r = Math.floor(y / S);
     if (r < 0 || c < 0 || r >= rows || c >= cols) return;
     const fx = x / S - c, fy = y / S - r, edge = 0.22;
@@ -247,7 +279,13 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
             <button type="button" aria-pressed={tool === "erase"} onClick={() => setTool("erase")}>Erase</button>
             <button type="button" className="link" onClick={() => setMore(!more)}>{more ? "Fewer clues" : "More clues"}</button>
           </span>
-          {tool === "number" && <label>Value <input type="number" min={0} max={30} value={number} onChange={(e) => setNumber(Number(e.target.value))} /></label>}
+          {tool === "door" && (
+            <span className="ge-tools" role="group" aria-label="Door">
+              <button type="button" aria-pressed={role === "in"} onClick={() => setRole("in")}>Way in</button>
+              <button type="button" aria-pressed={role === "out"} onClick={() => setRole("out")}>Way out</button>
+            </span>
+          )}
+          {(tool === "number" || tool === "count") && <label>Value <input type="number" min={0} max={30} value={number} onChange={(e) => setNumber(Number(e.target.value))} /></label>}
           {tool === "symbol" && <label>Symbol <input value={symbol} maxLength={2} onChange={(e) => setSymbol(e.target.value)} /></label>}
           {tool === "compass" && (
             <span className="ge-compass">{(["n", "e", "s", "w"] as const).map((k) =>
@@ -256,7 +294,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
           )}
         </div>
       )}
-      <p className="hint">{tool === "paint" ? "Click cells to paint them; click again to clear." : tool === "erase" ? "Click a clue or a line mark to remove it." : !picture && CLUES[tool].on === "border" ? "Click the line between two cells." : "Click a cell; click again to remove."}</p>
+      <p className="hint">{tool === "paint" ? "Click cells to paint them; click again to clear." : tool === "erase" ? "Click a clue or a line mark to remove it." : tool === "count" ? "Click a corner where grid lines meet." : tool === "door" ? "Click the outside edge beside a cell." : !picture && CLUES[tool].on === "border" ? "Click the line between two cells." : "Click a cell; click again to remove."}</p>
 
       <div className={nonogram && !picture ? "ge-with-runs" : undefined}>
         {nonogram && !picture && (
@@ -297,6 +335,21 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
                 if (g.kind === "wall") return <line key={i} {...line} className="ge-wall" />;
                 const mx = (line.x1 + line.x2) / 2, my = (line.y1 + line.y2) / 2, d = 9;
                 return <path key={i} d={`M${mx} ${my - d}L${mx + d} ${my}L${mx} ${my + d}L${mx - d} ${my}Z`} className={g.kind === "twins" ? "ge-diamond filled" : "ge-diamond"} />;
+              }
+              if (g.at === "corner") {
+                const { x, y } = at(...g.corner);
+                return <g key={i} className="ge-corner"><circle cx={x} cy={y} r={10} /><text x={x} y={y + 5}>{g.value}</text></g>;
+              }
+              if (g.at === "edge") {
+                const { x, y } = at(...g.cell), [cx, cy] = [x + S / 2, y + S / 2];
+                const [dx, dy] = g.side === "top" ? [0, -1] : g.side === "bottom" ? [0, 1] : g.side === "left" ? [-1, 0] : [1, 0];
+                const [mx, my] = [cx + dx * S / 2, cy + dy * S / 2];
+                const [ax, ay, hx, hy] = g.role === "in" ? [mx + dx * 20, my + dy * 20, mx + dx * 3, my + dy * 3] : [mx + dx * 3, my + dy * 3, mx + dx * 20, my + dy * 20];
+                const ux = Math.sign(hx - ax), uy = Math.sign(hy - ay), bx = hx - 6 * ux, by = hy - 6 * uy;
+                return <g key={i} className="ge-door">
+                  <line x1={mx - Math.abs(dy) * S / 2} y1={my - Math.abs(dx) * S / 2} x2={mx + Math.abs(dy) * S / 2} y2={my + Math.abs(dx) * S / 2} className="ge-gap" />
+                  <path d={`M${ax} ${ay}L${hx} ${hy}M${bx - 5 * uy} ${by + 5 * ux}L${hx} ${hy}L${bx + 5 * uy} ${by - 5 * ux}`} />
+                </g>;
               }
               return null;
             })}

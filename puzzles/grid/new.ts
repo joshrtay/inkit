@@ -129,7 +129,7 @@ for (let attempt = 0; attempt < 40 && !result; attempt++) {
       spec.rules = rules.filter((r) => ["size", "all-different"].includes(r.rule) || used.has(r.rule));
       // a cell can hold only one clue: keep the first
       const seen = new Set<string>();
-      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : `${x.at}${x.index}`; if (seen.has(k)) return false; seen.add(k); return true; });
+      spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : `${x.at}${x.index}`; if (seen.has(k)) return false; seen.add(k); return true; });
       if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
     }
   } else throw new Error(`no generator for genre "${genre}"`);

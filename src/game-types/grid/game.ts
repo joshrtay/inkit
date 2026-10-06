@@ -5,6 +5,8 @@
 //   shade         tap cycles shaded / empty mark / clear; dragging paints what the first cell got
 //   color         pick a pot and paint cells (regions puzzles)
 //   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too
+// A maze (doors in its edge) is drawn with fence; once its walls check out, the player walks it
+// (walk.ts), and it's solved on the way out.
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
 import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
@@ -13,9 +15,10 @@ import { regionsOf } from "../../engine/derive.ts";
 import { blockFor, boxLines, runsOf, type Hint } from "../../engine/rules.ts";
 import { emptyBoard, type Board, type Problem } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
+import { createWalk } from "./walk";
 
 type Layer = keyof Board;
-interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[] }
+interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
 type Change = [Layer, number, number];          // layer, index, previous value
 
 const S = 48, M = 26;                           // cell size and plain margin, in board units
@@ -31,6 +34,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const saved = host.load<Saved>();
   if (saved) for (const k of Object.keys(board) as Layer[]) saved[k]?.forEach((v, i) => { if (i < board[k].length) board[k][i] = v; });
   const ticks = new Set<string>(saved?.ticks ?? []);
+  // a maze: its given walls start drawn, and neither they nor its doors can be changed
+  const maze = p.doors.size > 0;
+  const givenWalls = maze ? [...p.walls].map((l) => g.links[l].border) : [];
+  const locked = new Set([...p.doors.keys(), ...givenWalls]);
+  const lockWalls = () => { for (const e of givenWalls) board.fence[e] = 1; for (const e of p.doors.keys()) board.fence[e] = 0; };
+  lockWalls();
   const givenDigit = new Map<number, number>();
   for (const [i, gs] of p.cellGivens) for (const x of gs) if (digits && x.kind === "number") { givenDigit.set(i, x.value); board.digit[i] = x.value; }
   const prefs = (() => { try { return { autoX: false, autoTick: false, ...JSON.parse(localStorage.getItem(PREFS) || "{}") }; } catch { return { autoX: false, autoTick: false }; } })();
@@ -38,7 +47,15 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // ---- layout: nonogram clues take room on the left and top ----
   const maxRow = Math.max(0, ...[...p.rowRuns.values()].map((c) => c.length));
   const maxCol = Math.max(0, ...[...p.colRuns.values()].map((c) => c.length));
-  const ML = nonogram ? maxRow * 22 + 16 : M, MT = nonogram ? maxCol * 22 + 12 : M, MR = nonogram ? 6 : M, MB = nonogram ? 6 : M;
+  // a maze's arrows take room beside its doors
+  const doorSide = (role: "in" | "out") => {
+    const e = [...p.doors].find(([, r]) => r === role)?.[0];
+    if (e === undefined) return "";
+    const b = g.borders[e];
+    return b.horizontal ? (b.cells[0] < 0 ? "top" : "bottom") : (b.cells[0] < 0 ? "left" : "right");
+  };
+  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0);
+  const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top"), MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
   const q = <T extends Element>(sel: string) => root.querySelector(sel) as T;
   const svg = q<SVGSVGElement>("svg.board");
   svg.setAttribute("viewBox", `0 0 ${ML + g.cols * S + MR} ${MT + g.rows * S + MB}`);
@@ -59,6 +76,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const gTint = el("g", {}), gReveal = el("g", { class: "reveal wash" }), gWash = el("g", { class: "wash" }), gRocks = el("g", { class: "wash" });
   const gGrid = el("g", { class: "gridlines" }), gWater = el("g", { class: "water" }), gLines = el("g", {}), gGivens = el("g", {});
   const gMarks = el("g", { class: "marks" }), gHint = el("g", {}), gErr = el("g", { class: "errors" });
+  const gWalk = el("g", { class: "walk" }), gCorners = el("g", {});
 
   // ---- what never changes: grid, rocks, walls, clues ----
   if (marks.includes("loop")) for (let i = 0; i < g.cellCount; i++) { const [r, c] = g.rc(i); if ((r + c) % 2) cellRect(i, "alt", gTint); }
@@ -77,7 +95,25 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   }
   for (const l of p.walls) {
     const [[x1, y1], [x2, y2]] = borderXY(g.links[l].border);
-    el("line", { class: "wall", x1, y1, x2, y2 }, gGivens);
+    el("line", { class: maze ? "wall given" : "wall", x1, y1, x2, y2 }, gGivens);
+  }
+  // a maze's doors: an arrow in at the way in, an arrow out at the way out
+  for (const [e, role] of p.doors) {
+    const b = g.borders[e], [[x1, y1], [x2, y2]] = borderXY(e), mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+    const [ox, oy] = b.horizontal ? [0, b.cells[0] < 0 ? -1 : 1] : [b.cells[0] < 0 ? -1 : 1, 0];
+    const at = (d: number) => [mx + ox * d, my + oy * d];
+    const [[ax, ay], [hx, hy]] = role === "in" ? [at(40), at(10)] : [at(10), at(42)];
+    const ux = Math.sign(hx - ax), uy = Math.sign(hy - ay), bx = hx - 7 * ux, by = hy - 7 * uy;
+    el("path", { class: "arrow", d: `M${ax} ${ay}L${hx} ${hy}M${bx - 6 * uy} ${by + 6 * ux}L${hx} ${hy}L${bx + 6 * uy} ${by - 6 * ux}` }, gGivens);
+  }
+  // numbers on corners (mazes): a circle each, green when it has its walls, red when over
+  const cornerEls = new Map<number, [Element, number]>();
+  for (const [v, gs] of p.cornerGivens) for (const giv of gs) {
+    if (giv.kind !== "count") continue;
+    const [x, y] = cornerXY(v), n = el("g", { class: "num" }, gCorners);
+    el("circle", { cx: x, cy: y, r: 13 }, n);
+    el("text", { x, y: y + 1 }, n).textContent = String(giv.value);
+    cornerEls.set(v, [n, giv.value]);
   }
   const digitEls = new Map<number, SVGTextElement>();
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
@@ -172,7 +208,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     }
     for (const e of g.borders) {
       const [[x1, y1], [x2, y2]] = borderXY(e.id);
-      if (marks.includes("fence") && board.fence[e.id] === 1) el("line", { class: "mark pen", x1, y1, x2, y2 }, gLines);
+      if (marks.includes("fence") && board.fence[e.id] === 1 && !locked.has(e.id)) el("line", { class: "mark pen", x1, y1, x2, y2 }, gLines);
       if (marks.includes("fence") && board.fence[e.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
       if (regionsPuzzle && e.link >= 0) {
         const [a, b] = e.cells;
@@ -185,6 +221,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       if (board.loop[l.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
     }
     for (const [k, t] of clueEls) t.classList.toggle("done", ticks.has(k));
+    for (const [v, [n, want]] of cornerEls) {
+      const have = g.cornerBorders[v].filter((e) => board.fence[e] === 1).length;
+      n.classList.toggle("done", have === want); n.classList.toggle("over", have > want);
+    }
     root.classList.toggle("solved", solved);
   }
 
@@ -214,16 +254,28 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   function afterChange() {
     assist();
     const was = solved;
-    solved = check(p, board).length === 0;
+    if (maze) {
+      // walls right: walk it; solved once out
+      const ok = check(p, board).length === 0;
+      if (ok && !walk!.active) walk!.start(saved?.trail);
+      else if (!ok && walk!.active) walk!.stop();
+      solved = walk!.done;
+    } else solved = check(p, board).length === 0;
     if (solved && !was) win();
     else if (!solved && was) { root.classList.remove("revealed", "titled"); say(""); }
-    else if (!solved && status.classList.contains("good")) say("");
+    else if (!solved && !walk?.active && status.classList.contains("good")) say("");
     render();
     const out: Saved = {};
     for (const k of Object.keys(board) as Layer[]) if (board[k].some((v) => v)) out[k] = [...board[k]];
     if (ticks.size) out.ticks = [...ticks];
+    if (walk?.active && walk.trail.length > 1) out.trail = [...walk.trail];
     host.save(out);
   }
+  const saveWalk = () => {
+    const out = host.load<Saved>() ?? {};
+    if (walk!.trail.length > 1) out.trail = [...walk!.trail]; else delete out.trail;
+    host.save(out);
+  };
 
   // the reveal: a nonogram's picture in color, then its title on the sign
   if (p.spec.picture) {
@@ -236,10 +288,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const sign = root.querySelector<HTMLButtonElement>("[data-sign]");
   sign?.addEventListener("click", () => root.classList.add("titled"));
   function win() {
-    say(p.spec.picture ? "Solved! Here's the picture." : "Solved!", "good");
+    say(p.spec.picture ? "Solved! Here's the picture." : maze ? `You're out! ${walk!.trail.length} squares from the way in to the way out.` : "Solved!", "good");
     clearProblems();
     if (p.spec.picture) root.classList.add("revealed");
-    if (!reported) { reported = true; host.solved(p.spec.picture?.title ? { title: p.spec.picture.title } : {}); }
+    if (!reported) { reported = true; host.solved(p.spec.picture?.title ? { title: p.spec.picture.title } : maze ? { squares: walk!.trail.length } : {}); }
   }
 
   // ---- gestures ----
@@ -274,6 +326,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   };
   const sharedBorder = (v1: number, v2: number) => g.cornerBorders[v1].find((e) => g.cornerBorders[v2].includes(e)) ?? -1;
   const linkOpen = (l: number) => !p.walls.has(l) && !g.links[l].cells.some((c) => p.blocked.has(c));
+  const walk = maze ? createWalk(p, board.fence, S / 2, {
+    svg, layer: gWalk, el, center, cellAt, toBoard, say,
+    out: () => { if (!solved) { solved = true; win(); render(); } saveWalk(); },
+  }) : null;
 
   type Drag =
     | { kind: "edges"; layer: "fence" | "cut"; last: number; tapBorder: number; mode: number | null; start: [number, number]; moved: boolean }
@@ -289,7 +345,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     let cur = d.last;
     for (let k = 0; k < steps; k++) {
       const [r, c] = g.cornerRC(cur), next = g.corner(r + dr, c + dc), e = sharedBorder(cur, next);
-      if (e >= 0 && (d.layer === "fence" || g.borders[e].link >= 0)) {
+      if (e >= 0 && !locked.has(e) && (d.layer === "fence" || g.borders[e].link >= 0)) {
         d.mode ??= board[d.layer][e] === 1 ? 0 : 1;
         set(d.layer, e, d.mode);
       }
@@ -315,7 +371,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
 
   svg.addEventListener("contextmenu", (e) => e.preventDefault());
   svg.addEventListener("pointerdown", (evt) => {
-    if (solved) return;
+    if (solved || walk?.active) return;
     const pt = toBoard(evt), back = evt.button === 2;
     changes = []; clearProblems();
     const tick = (evt.target as Element).closest<SVGElement>("[data-tick]");
@@ -384,7 +440,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   });
   const end = () => {
     if (!drag) return;
-    if (drag.kind === "edges" && !drag.moved && drag.tapBorder >= 0) {
+    if (drag.kind === "edges" && !drag.moved && drag.tapBorder >= 0 && !locked.has(drag.tapBorder)) {
       const e = drag.tapBorder;
       if (drag.layer === "fence") set("fence", e, (board.fence[e] + 1) % 3);
       else if (g.borders[e].link >= 0) set("cut", e, board.cut[e] ? 0 : 1);
@@ -431,6 +487,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     root.querySelectorAll("[data-color]").forEach((x) => x.setAttribute("aria-pressed", String(x === pot)));
   }));
   q<HTMLButtonElement>("[data-undo]").addEventListener("click", () => {
+    if (walk?.back()) { saveWalk(); return; }
+    if (solved) return;
     const last = history.pop();
     if (!last) return;
     for (const [layer, i, v] of last.reverse()) board[layer][i] = v;
@@ -438,6 +496,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   });
   q<HTMLButtonElement>("[data-check]").addEventListener("click", () => {
     const ps = check(p, board);
+    if (walk?.active && !solved) { say("The walls are right. Drag from the arrow in to the arrow out.", "good"); return; }
     if (!ps.length) { say("Solved!", "good"); return; }
     say(ps[0].message, "warn");
     showProblems(ps.filter((x) => x.message === ps[0].message));   // just what the note is about
@@ -470,6 +529,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     confirming = false; delete reset.dataset.confirm;
     for (const k of Object.keys(board) as Layer[]) board[k].fill(0);
     for (const [i, d] of givenDigit) board.digit[i] = d;
+    lockWalls(); walk?.stop(); if (saved) delete saved.trail;
     ticks.clear(); history = []; solved = false; reported = false; sel = -1;
     root.classList.remove("revealed", "titled"); say(""); clearProblems(); afterChange();
   });
@@ -483,9 +543,14 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     });
   });
 
-  solved = check(p, board).length === 0;
-  reported = solved;
-  if (solved) { say(p.spec.picture ? "Solved! Here's the picture." : "Solved!", "good"); if (p.spec.picture) root.classList.add("revealed", "titled"); }
+  if (maze) {
+    if (check(p, board).length === 0) walk!.start(saved?.trail);
+    solved = reported = walk!.done;
+  } else {
+    solved = check(p, board).length === 0;
+    reported = solved;
+  }
+  if (solved) { say(p.spec.picture ? "Solved! Here's the picture." : maze ? "You're out!" : "Solved!", "good"); if (p.spec.picture) root.classList.add("revealed", "titled"); }
   render();
   return () => document.removeEventListener("keydown", onKey);
 };

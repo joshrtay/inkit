@@ -3,13 +3,14 @@
     python3 seed/make.py && npm run db:seed
 
 Wyatt (no password, so this account can't sign in), his personal collection, and every grid
-puzzle from the current site (../src/games), as sketches. A few go on the Featured shelf.
+puzzle from the current site (../src/games), as sketches. Number Line Mazes are converted to
+the engine's maze genre. A few go on the Featured shelf.
 """
 import json
 from pathlib import Path
 
 GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
-GENRES = {"round-the-bend": "river", "picture-squares": "nonogram", "slitherlink": "slitherlink",
+GENRES = {"number-line-maze": "maze", "round-the-bend": "river", "picture-squares": "nonogram", "slitherlink": "slitherlink",
           "nurikabe": "nurikabe", "panes": "panes", "sudoku": "sudoku"}
 FEATURED = ["river-5", "panes-1", "sudoku-1", "nonogram-2"]
 
@@ -21,15 +22,46 @@ out = [
     "('c-wyatt', 'wyatt', 'Wyatt''s Games', 'Puzzles Wyatt drew.', 'wyatt');",
     "INSERT OR IGNORE INTO memberships (collection_id, creator_id, role) VALUES ('c-wyatt', 'wyatt', 'owner');",
 ]
+
+def maze_spec(maze):
+    """An old Number Line Maze instance (numbers on every corner, entry / exit gaps, hint walls)
+    as a grid-engine maze."""
+    clues = maze["clues"]
+    rows, cols = len(clues) - 1, len(clues[0]) - 1
+    entry = maze.get("entry") or {"side": "top", "at": maze["entryCol"]}
+    exit_ = maze.get("exit") or {"side": "right", "at": maze["exitRow"]}
+
+    def door(o, role):
+        side, at = o["side"], o["at"]
+        cell = {"top": [0, at], "bottom": [rows - 1, at], "left": [at, 0], "right": [at, cols - 1]}[side]
+        return {"at": "edge", "cell": cell, "side": side, "kind": "door", "role": role}
+
+    def wall(pair):
+        (r1, c1), (r2, c2) = sorted(pair)
+        cells = [[r1 - 1, c1], [r1, c1]] if r1 == r2 else [[r1, c1 - 1], [r1, c1]]
+        return {"at": "border", "cells": cells, "kind": "wall"}
+
+    givens = [door(entry, "in"), door(exit_, "out")] + [wall(p) for p in maze.get("hints", [])]
+    givens += [{"at": "corner", "corner": [r, c], "kind": "count", "value": v}
+               for r, row in enumerate(clues) for c, v in enumerate(row)]
+    return {"size": [rows, cols], "givens": givens}
+
+
+def instances():
+    """(genre, number, name, puzzle body) for every grid-engine puzzle on the current site."""
+    for folder, genre in GENRES.items():
+        for f in sorted((GAMES / folder).glob("*.json"), key=lambda p: int(p.stem)):
+            d = json.loads(f.read_text())
+            body = maze_spec(d["maze"]) if genre == "maze" else {k: v for k, v in d["grid"].items() if k not in ("genre", "source")}
+            yield genre, f.stem, d["name"], body
+
+
 stamp = 0
-for folder, genre in GENRES.items():
-    for f in sorted((GAMES / folder).glob("*.json"), key=lambda p: int(p.stem)):
-        d = json.loads(f.read_text())
-        body = {k: v for k, v in d["grid"].items() if k not in ("genre", "source")}
-        sketch = f"{genre}\n" + json.dumps(body, indent=1)
-        gid, stamp = f"{genre}-{f.stem}", stamp + 1
-        out.append("INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES "
-                   f"({q(gid)}, 'c-wyatt', 'wyatt', {q(d['name'])}, {q(sketch)}, {q(genre)}, 'published', (unixepoch() * 1000) + {stamp});")
+for genre, n, name, body in instances():
+    sketch = f"{genre}\n" + json.dumps(body, indent=1)
+    gid, stamp = f"{genre}-{n}", stamp + 1
+    out.append("INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES "
+               f"({q(gid)}, 'c-wyatt', 'wyatt', {q(name)}, {q(sketch)}, {q(genre)}, 'published', (unixepoch() * 1000) + {stamp});")
 out.append("INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES "
            + ", ".join(f"({q(g)}, {i}, 'wyatt')" for i, g in enumerate(FEATURED)) + ";")
 (Path(__file__).parent / "dev.sql").write_text("\n".join(out) + "\n")

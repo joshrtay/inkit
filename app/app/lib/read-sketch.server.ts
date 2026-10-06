@@ -28,6 +28,13 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   drawn, or a dark ink color for plain shading), and check it against the numbers; note any row or column
   where they disagree. If there's no picture, give the numbers as "runs".`,
   sudoku: `sudoku: the printed digits: {kind: "number", value}. The grid is 4x4, 6x6 or 9x9.`,
+  maze: `maze (Number Line Maze): numbers sit where the grid lines cross (often drawn as numbers in little
+  circles, joined by faint or dotted lines); the squares between them are the cells, so "rows" and "cols"
+  count squares: one fewer than the numbers down and across. Each number is {kind: "count", value} with
+  "cell" giving its corner (row 0..rows, col 0..cols). Two arrows at the outside edge mark the doors: the
+  arrow pointing in is {kind: "door", role: "in"}, the one pointing out {kind: "door", role: "out"}, each
+  with the cell it's beside and that cell's side. Walls drawn already (as hints) are {kind: "wall", cell, other};
+  leave out walls that are clearly the solution.`,
   panes: `panes: split the grid into regions. The rules are written on the sketch (e.g. "panes: size 4, twins");
   list each one in "rules".`,
 };
@@ -40,6 +47,8 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
   wall: "a thick wall on the border between two cells: cell + other",
   twins: "a filled diamond ◆ on the border between two cells: cell + other",
   opposites: "an empty diamond ◇ on the border between two cells: cell + other",
+  count: "a number on a corner, where grid lines cross (mazes): value, with cell = the corner's row and column (0..rows, 0..cols)",
+  door: "an arrow at the outside edge (mazes): cell = the cell beside it, side = that cell's side, role = in or out",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
@@ -57,6 +66,8 @@ const RULE_GUIDE: Record<RuleName, string> = {
   opposites: "the two regions on either side of a ◇ have different shapes",
   "all-different": "no two regions share a shape",
   compass: "a compass clue counts its region's cells to the north, east, south and west",
+  "corner-count": "a number on a corner counts the walls touching it (comes with maze)",
+  "perfect-maze": "the walls make a maze: every square reachable, one way between any two (comes with maze)",
 };
 
 const int = z.number().int();
@@ -77,11 +88,13 @@ const Reading = z.object({
   })).describe("rules written on the sketch beyond the ones the game type always has; null for settings a rule doesn't use"),
   givens: z.array(z.object({
     kind: z.enum(clueKinds),
-    cell: Cell.describe("the cell (for marks on a border: the cell on the top / left side)"),
+    cell: Cell.describe("the cell (for marks on a border: the cell on the top / left side; for a corner number: the corner)"),
     other: Cell.nullable().describe("marks on a border: the neighbouring cell on the other side; else null"),
     value: int.nullable().describe("number: its value; else null"),
     symbol: z.string().nullable().describe("symbol: a single character; else null"),
     compass: z.object({ n: int.nullable(), e: int.nullable(), s: int.nullable(), w: int.nullable() }).nullable(),
+    side: z.enum(["top", "right", "bottom", "left"]).nullable().describe("door: which side of its cell; else null"),
+    role: z.enum(["in", "out"]).nullable().describe("door: the way in or the way out; else null"),
   })),
   runs: z.array(z.object({ line: z.enum(["row", "col"]), index: int, runs: z.array(int) }))
     .describe("nonogram clue numbers written beside rows / above columns; empty when you give a picture instead"),
@@ -215,6 +228,8 @@ export function toSketch(r: Reading): string {
         const v = Object.fromEntries(Object.entries(g.compass ?? {}).filter(([, n]) => n !== null)) as { n?: number; e?: number; s?: number; w?: number };
         return [{ at: "cell", cell: rc(g.cell), kind: "compass", value: v }];
       }
+      case "count": return g.value === null ? [] : [{ at: "corner", corner: rc(g.cell), kind: "count", value: g.value }];
+      case "door": return g.side && g.role ? [{ at: "edge", cell: rc(g.cell), side: g.side, kind: "door", role: g.role }] : [];
       default: return g.other ? [{ at: "border", cells: [rc(g.cell), rc(g.other)], kind: g.kind }] : [];
     }
   });

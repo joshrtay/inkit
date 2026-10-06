@@ -83,4 +83,20 @@
 .grid-game .pad .num { min-width: 30px; font-size: 20px; padding: 6px 4px; }
 .grid-game .pad .word[aria-pressed="true"] { background: color-mix(in srgb, var(--paper-ink) 12%, transparent); text-decoration: none; }
 
+/* mazes: numbers in circles on the corners, arrows at the doors; then a walk through it */
+.grid-game .num circle { fill: var(--paper); stroke: var(--paper-ink); stroke-width: 1.5; }
+.grid-game .num text { font: 700 17px/1 var(--hand); fill: var(--paper-ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.grid-game .num.done circle { fill: color-mix(in srgb, var(--wash-green) 40%, var(--paper)); stroke: var(--paper-good); }
+.grid-game .num.over circle { fill: color-mix(in srgb, var(--wash-red) 30%, var(--paper)); stroke: var(--paper-red); stroke-width: 2.2; }
+.grid-game .num.over text { fill: var(--paper-red); }
+.grid-game .arrow { fill: none; stroke: var(--paper-red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .wall.given { stroke: color-mix(in srgb, var(--paper-ink) 50%, var(--paper)); stroke-width: 5; }
+.grid-game svg.walking { cursor: pointer; }
+.grid-game svg.walking .wall.given { stroke: var(--paper-ink); }
+.grid-game svg.walking .num circle { r: 4px; fill: var(--paper-ink); stroke: none; }
+.grid-game svg.walking .num text { display: none; }
+.grid-game .walk .reach { fill: color-mix(in srgb, var(--wash-orange) 25%, transparent); }
+.grid-game .walk .trail { fill: none; stroke: var(--wash-orange); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; opacity: .85; filter: var(--wash); }
+.grid-game .walk .token { fill: var(--paper-red); stroke: var(--paper); stroke-width: 2.5; }
+
 @media (prefers-reduced-motion: reduce) { .grid-game.revealed .reveal .pix { transition: none; } .grid-game.revealed .sign { animation: none; } }

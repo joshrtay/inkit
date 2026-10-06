@@ -68,7 +68,7 @@ function* allBoards(p: Puzzle): Generator<Board> {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["panes", "panes", "panes", "nurikabe", "slitherlink", "river", "river", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "river", "river", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "river") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -79,6 +79,20 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "river", size: [rows, cols], givens };
+  }
+  if (kind === "maze") {
+    const [rows, cols] = pick([[2, 2], [2, 3], [3, 2]]);
+    const sides = shuffle(["top", "right", "bottom", "left"] as const).slice(0, 2);
+    const door = (side: (typeof sides)[number], role: "in" | "out") => ({
+      at: "edge" as const, kind: "door" as const, role, side,
+      cell: (side === "top" ? [0, Math.floor(rand() * cols)] : side === "bottom" ? [rows - 1, Math.floor(rand() * cols)]
+        : side === "left" ? [Math.floor(rand() * rows), 0] : [Math.floor(rand() * rows), cols - 1]) as [number, number],
+    });
+    const givens: NonNullable<GridSpec["givens"]> = [door(sides[0], "in"), door(sides[1], "out")];
+    for (let r = 0; r <= rows; r++) for (let c = 0; c <= cols; c++)
+      if (rand() < 0.3) givens.push({ at: "corner", corner: [r, c], kind: "count", value: 1 + Math.floor(rand() * 3) });
+    if (rand() < 0.3) givens.push({ at: "border", cells: [[0, 0], [0, 1]], kind: "wall" });
+    return { genre: "maze", size: [rows, cols], givens };
   }
   if (kind === "nonogram") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 5]]);

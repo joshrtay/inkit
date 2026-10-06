@@ -2,6 +2,2664 @@
 INSERT OR IGNORE INTO creators (id, name, email, handle) VALUES ('wyatt', 'Wyatt', 'wyatt@example.invalid', 'wyatt');
 INSERT OR IGNORE INTO collections (id, slug, title, description, personal_of) VALUES ('c-wyatt', 'wyatt', 'Wyatt''s Games', 'Puzzles Wyatt drew.', 'wyatt');
 INSERT OR IGNORE INTO memberships (collection_id, creator_id, role) VALUES ('c-wyatt', 'wyatt', 'owner');
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('maze-1', 'c-wyatt', 'wyatt', 'Warm-up', 'maze
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "edge",
+   "cell": [
+    0,
+    3
+   ],
+   "side": "top",
+   "kind": "door",
+   "role": "in"
+  },
+  {
+   "at": "edge",
+   "cell": [
+    2,
+    3
+   ],
+   "side": "right",
+   "kind": "door",
+   "role": "out"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    2
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    3
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    4
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    3
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    2
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    3
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    1
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    2
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  }
+ ]
+}', 'maze', 'published', (unixepoch() * 1000) + 1);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('maze-2', 'c-wyatt', 'wyatt', 'The Big Maze', 'maze
+{
+ "size": [
+  15,
+  10
+ ],
+ "givens": [
+  {
+   "at": "edge",
+   "cell": [
+    0,
+    9
+   ],
+   "side": "top",
+   "kind": "door",
+   "role": "in"
+  },
+  {
+   "at": "edge",
+   "cell": [
+    13,
+    9
+   ],
+   "side": "right",
+   "kind": "door",
+   "role": "out"
+  },
+  {
+   "at": "border",
+   "cells": [
+    [
+     12,
+     3
+    ],
+    [
+     12,
+     4
+    ]
+   ],
+   "kind": "wall"
+  },
+  {
+   "at": "border",
+   "cells": [
+    [
+     12,
+     1
+    ],
+    [
+     13,
+     1
+    ]
+   ],
+   "kind": "wall"
+  },
+  {
+   "at": "border",
+   "cells": [
+    [
+     13,
+     1
+    ],
+    [
+     13,
+     2
+    ]
+   ],
+   "kind": "wall"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    10
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    4
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    6
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    2
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    3
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    8
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    2
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    3
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    6
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    7
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    4
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    7
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    2
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    3
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    6
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    7
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    2
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    9
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    10
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    2
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    4
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    2
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    6
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    7
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    8
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    9
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    8,
+    10
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    3
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    9,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    2
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    3
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    7
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    10,
+    10
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    1
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    3
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    4
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    8
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    11,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    6
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    12,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    7
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    9
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    13,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    9
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    14,
+    10
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    5
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    6
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    15,
+    10
+   ],
+   "kind": "count",
+   "value": 2
+  }
+ ]
+}', 'maze', 'published', (unixepoch() * 1000) + 2);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('maze-3', 'c-wyatt', 'wyatt', 'Side Doors', 'maze
+{
+ "size": [
+  7,
+  9
+ ],
+ "givens": [
+  {
+   "at": "edge",
+   "cell": [
+    0,
+    0
+   ],
+   "side": "left",
+   "kind": "door",
+   "role": "in"
+  },
+  {
+   "at": "edge",
+   "cell": [
+    6,
+    0
+   ],
+   "side": "left",
+   "kind": "door",
+   "role": "out"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    0
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    6
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    0
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    2
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    6
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    0
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    1
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    3
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    4
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    2
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    4
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    7
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    1
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    2
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    5
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    6
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    7
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    0
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    2
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    3
+   ],
+   "kind": "count",
+   "value": 4
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    5
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    8
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    5,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    0
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    2
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    7
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    8
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    6,
+    9
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    0
+   ],
+   "kind": "count",
+   "value": 1
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    1
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    2
+   ],
+   "kind": "count",
+   "value": 3
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    3
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    4
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    5
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    6
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    7
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    8
+   ],
+   "kind": "count",
+   "value": 2
+  },
+  {
+   "at": "corner",
+   "corner": [
+    7,
+    9
+   ],
+   "kind": "count",
+   "value": 2
+  }
+ ]
+}', 'maze', 'published', (unixepoch() * 1000) + 3);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-1', 'c-wyatt', 'wyatt', 'Little Pond', 'river
 {
  "size": [
@@ -18,7 +2676,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "block"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 1);
+}', 'river', 'published', (unixepoch() * 1000) + 4);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-2', 'c-wyatt', 'wyatt', 'Stepping Stones', 'river
 {
  "size": [
@@ -59,7 +2717,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "block"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 2);
+}', 'river', 'published', (unixepoch() * 1000) + 5);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-3', 'c-wyatt', 'wyatt', 'Canyon Run', 'river
 {
  "size": [
@@ -210,7 +2868,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "wall"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 3);
+}', 'river', 'published', (unixepoch() * 1000) + 6);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-4', 'c-wyatt', 'wyatt', 'Long Bend', 'river
 {
  "size": [
@@ -335,7 +2993,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "wall"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 4);
+}', 'river', 'published', (unixepoch() * 1000) + 7);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-5', 'c-wyatt', 'wyatt', 'Twin Peaks', 'river
 {
  "size": [
@@ -422,7 +3080,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "wall"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 5);
+}', 'river', 'published', (unixepoch() * 1000) + 8);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-6', 'c-wyatt', 'wyatt', 'Narrow Pass', 'river
 {
  "size": [
@@ -475,7 +3133,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "wall"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 6);
+}', 'river', 'published', (unixepoch() * 1000) + 9);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-7', 'c-wyatt', 'wyatt', 'Little Loop', 'river
 {
  "size": [
@@ -516,7 +3174,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "block"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 7);
+}', 'river', 'published', (unixepoch() * 1000) + 10);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('river-8', 'c-wyatt', 'wyatt', 'Six Rows Down', 'river
 {
  "size": [
@@ -611,7 +3269,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "wall"
   }
  ]
-}', 'river', 'published', (unixepoch() * 1000) + 8);
+}', 'river', 'published', (unixepoch() * 1000) + 11);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-1', 'c-wyatt', 'wyatt', 'Something Sweet', 'nonogram
 {
  "size": [
@@ -632,7 +3290,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Heart"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 9);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 12);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-2', 'c-wyatt', 'wyatt', 'From the Tree', 'nonogram
 {
  "size": [
@@ -661,7 +3319,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Apple"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 10);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 13);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-3', 'c-wyatt', 'wyatt', 'Out on the Water', 'nonogram
 {
  "size": [
@@ -690,7 +3348,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Sailboat"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 11);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 14);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-4', 'c-wyatt', 'wyatt', 'In the Forest', 'nonogram
 {
  "size": [
@@ -718,7 +3376,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Mushroom"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 12);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 15);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-5', 'c-wyatt', 'wyatt', 'Sitting Pretty', 'nonogram
 {
  "size": [
@@ -745,7 +3403,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Cat"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 13);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 16);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-6', 'c-wyatt', 'wyatt', 'Tall Word', 'nonogram
 {
  "size": [
@@ -776,7 +3434,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Pop"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 14);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 17);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-7', 'c-wyatt', 'wyatt', 'Say My Name', 'nonogram
 {
  "size": [
@@ -797,7 +3455,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Bob"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 15);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 18);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-8', 'c-wyatt', 'wyatt', 'First Place', 'nonogram
 {
  "size": [
@@ -823,7 +3481,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Trophy"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 16);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 19);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nonogram-9', 'c-wyatt', 'wyatt', 'Standing Tall', 'nonogram
 {
  "size": [
@@ -849,7 +3507,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   },
   "title": "Human"
  }
-}', 'nonogram', 'published', (unixepoch() * 1000) + 17);
+}', 'nonogram', 'published', (unixepoch() * 1000) + 20);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('slitherlink-1', 'c-wyatt', 'wyatt', 'First Loop', 'slitherlink
 {
  "size": [
@@ -957,7 +3615,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 2
   }
  ]
-}', 'slitherlink', 'published', (unixepoch() * 1000) + 18);
+}', 'slitherlink', 'published', (unixepoch() * 1000) + 21);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('slitherlink-2', 'c-wyatt', 'wyatt', 'Long Way Round', 'slitherlink
 {
  "size": [
@@ -1083,7 +3741,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 1
   }
  ]
-}', 'slitherlink', 'published', (unixepoch() * 1000) + 19);
+}', 'slitherlink', 'published', (unixepoch() * 1000) + 22);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nurikabe-1', 'c-wyatt', 'wyatt', 'Five Islands', 'nurikabe
 {
  "size": [
@@ -1137,7 +3795,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 5
   }
  ]
-}', 'nurikabe', 'published', (unixepoch() * 1000) + 20);
+}', 'nurikabe', 'published', (unixepoch() * 1000) + 23);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('nurikabe-2', 'c-wyatt', 'wyatt', 'Archipelago', 'nurikabe
 {
  "size": [
@@ -1209,7 +3867,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 1
   }
  ]
-}', 'nurikabe', 'published', (unixepoch() * 1000) + 21);
+}', 'nurikabe', 'published', (unixepoch() * 1000) + 24);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panes-1', 'c-wyatt', 'wyatt', 'Four by Four', 'panes
 {
  "size": [
@@ -1272,7 +3930,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "opposites"
   }
  ]
-}', 'panes', 'published', (unixepoch() * 1000) + 22);
+}', 'panes', 'published', (unixepoch() * 1000) + 25);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panes-2', 'c-wyatt', 'wyatt', 'Compass Rose', 'panes
 {
  "size": [
@@ -1349,7 +4007,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    }
   }
  ]
-}', 'panes', 'published', (unixepoch() * 1000) + 23);
+}', 'panes', 'published', (unixepoch() * 1000) + 26);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sudoku-1', 'c-wyatt', 'wyatt', 'Warm-up', 'sudoku
 {
  "size": [
@@ -1394,7 +4052,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 1
   }
  ]
-}', 'sudoku', 'published', (unixepoch() * 1000) + 24);
+}', 'sudoku', 'published', (unixepoch() * 1000) + 27);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sudoku-2', 'c-wyatt', 'wyatt', 'Six by Six', 'sudoku
 {
  "size": [
@@ -1484,7 +4142,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 3
   }
  ]
-}', 'sudoku', 'published', (unixepoch() * 1000) + 25);
+}', 'sudoku', 'published', (unixepoch() * 1000) + 28);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sudoku-3', 'c-wyatt', 'wyatt', 'Classic', 'sudoku
 {
  "size": [
@@ -1718,5 +4376,5 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 7
   }
  ]
-}', 'sudoku', 'published', (unixepoch() * 1000) + 26);
+}', 'sudoku', 'published', (unixepoch() * 1000) + 29);
 INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES ('river-5', 0, 'wyatt'), ('panes-1', 1, 'wyatt'), ('sudoku-1', 2, 'wyatt'), ('nonogram-2', 3, 'wyatt');
