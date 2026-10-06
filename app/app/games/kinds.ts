@@ -5,6 +5,8 @@ import type { GenreName } from "~site/engine/puzzle.ts";
 export const KIND_NAMES: Record<GenreName, string> = {
   "simple-loop": "Simple Loop",
   "simple-path": "Simple Path",
+  "star-battle": "Star Battle",
+  "irregular-sudoku": "Irregular Sudoku",
   nonogram: "Nonogram",
   slitherlink: "Slitherlink",
   nurikabe: "Nurikabe",

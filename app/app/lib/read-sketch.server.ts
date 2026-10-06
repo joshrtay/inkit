@@ -25,6 +25,11 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   every open cell. Arrows (or gaps) at the outside edge mark the entrance and exit: {kind: "door", role: "in" / "out"}
   with the cell beside it and that side. Shaded cells are rocks {kind: "block"}; thick lines between cells are
   walls {kind: "wall", cell, other}.`,
+  "star-battle": `star-battle (Star Battle): a square grid split into outlined areas by thick lines; usually no other
+  clues. Give the areas as "areas" (one string per row, one letter per cell, same letter = same area). If it says
+  "2 stars" (or similar), set the rules shaded-per-line and shaded-per-area with n: 2.`,
+  "irregular-sudoku": `irregular-sudoku (Irregular / Jigsaw Sudoku): a sudoku whose boxes are irregular outlined areas.
+  Give the printed digits {kind: "number", value} and the areas as "areas" (one string per row, one letter per cell).`,
   slitherlink: `slitherlink: numbers in cells count how many of the cell's four sides the loop uses: {kind: "number", value}.`,
   nurikabe: `nurikabe: numbered cells are islands of that size: {kind: "number", value}.`,
   nonogram: `nonogram (also "Picture Squares"): numbers beside each row and above each column. If the drawing shows the
@@ -69,6 +74,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
   latin: "each digit once per row and column (comes with sudoku)",
   boxes: "each digit once per box (comes with sudoku); box: [rows, cols] if the boxes aren't the usual size",
+  "shaded-per-line": "n shaded cells (stars) in every row and column (comes with star-battle, n 1)",
+  "shaded-per-area": "n shaded cells (stars) in every outlined area (comes with star-battle, n 1)",
+  "no-touch": "shaded cells (stars) never touch, not even diagonally (comes with star-battle)",
   connected: "all shaded cells connect (comes with nurikabe)",
   "no-pool": "no 2×2 block of shaded cells (comes with nurikabe)",
   size: "every region has exactly N cells (is), or at least / at most (min / max)",
@@ -101,6 +109,7 @@ const Reading = z.object({
     cover: z.boolean().nullable(),
     box: z.array(int).nullable().describe("boxes: [rows, cols]; else null"),
     red: int.nullable(), yellow: int.nullable(), blue: int.nullable(),
+    n: int.nullable().describe("shaded-per-line / shaded-per-area: how many; else null"),
   })).describe("rules written on the sketch beyond the ones the game type always has; null for settings a rule doesn't use"),
   givens: z.array(z.object({
     kind: z.enum(clueKinds),
@@ -119,6 +128,8 @@ const Reading = z.object({
     rows: z.array(z.string()).describe("one string per row, one letter per cell; '.' is empty"),
     palette: z.array(z.object({ letter: z.string(), color: z.string().describe("a CSS hex color") })),
   }).nullable().describe("nonogram only, when the drawing shows the shaded picture"),
+  areas: z.array(z.string()).nullable()
+    .describe("outlined areas (star-battle, irregular-sudoku): one string per row, one letter per cell; else null"),
   figure: z.array(z.array(z.array(z.number()))).nullable()
     .describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else null"),
   sure: z.boolean().describe("true only if you could read the grid and every clue clearly"),
@@ -262,6 +273,7 @@ export function toSketch(r: Reading): string {
   const body: Omit<GridSpec, "genre"> = {
     size: figure ? [1, figure.pieces.length] : [r.rows, r.cols],
     ...(figure ? { figure } : {}),
+    ...(r.areas?.length ? { areas: r.areas } : {}),
     ...(rules.length ? { rules } : {}),
     ...(givens.length ? { givens } : {}),
     ...(r.genre === "nonogram" && r.picture && !r.runs.length

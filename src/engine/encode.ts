@@ -6,6 +6,7 @@
 //   cell(I) row(I,R) col(I,C) adj(I,J,L)  clue(I)           cells, neighbours (L = link), clue cells
 //   corner(V) border(B) cb(I,B) vb(V,B)  link(L) lc(I,L)    fence and loop geometry
 //   quad(A,B,C,D)                                          2x2 blocks
+//   inarea(I,A)                                            outlined areas (when the puzzle has them)
 //   fence(B) line(L) shaded(I) cut(L) paint(I,C)           the marks (choices)
 //   open(I) member(R,I) root(R) size(R,N)                  regions ("regions" need)
 //   same(R1,R2) for pairs listed in cmp(R1,R2)             shapes ("shapes" need)
@@ -21,6 +22,7 @@ export function program(p: Puzzle): string {
   for (const l of g.links) out.push(`adj(${l.cells[0]},${l.cells[1]},${l.id}). adj(${l.cells[1]},${l.cells[0]},${l.id}). link(${l.id}). lc(${l.cells[0]},${l.id}). lc(${l.cells[1]},${l.id}).`);
   for (const i of p.cellGivens.keys()) out.push(`clue(${i}).`);
   for (const i of p.blocked) out.push(`blocked(${i}).`);
+  if (p.areas) p.areas.of.forEach((a, i) => out.push(`inarea(${i},${a}).`));
   for (const l of p.walls) out.push(`wall(${l}).`);
   if (p.marks.includes("fence")) {
     for (let v = 0; v < g.cornerCount; v++) out.push(`corner(${v}).`);

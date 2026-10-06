@@ -5,6 +5,8 @@
 //   node puzzles/grid/new.ts --genre panes --size 4x5 --number 1 --name "First Window" --rules "size=4,twins,opposites,compass"
 //   node puzzles/grid/new.ts --genre sudoku --size 9x9 --number 1 --name "Classic"
 //   node puzzles/grid/new.ts --genre simple-path --size 6x6 --number 1 --name "First Steps"
+//   node puzzles/grid/new.ts --genre star-battle --size 6x6 --number 1 --name "First Stars"
+//   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
 //
 // 1. clingo picks a random finished board that obeys the genre's rules (a loop, a wall,
 //    a set of panes), 2. every clue that's true of that board goes in a pool, 3. clues
@@ -34,7 +36,54 @@ async function randomBoard(spec: GridSpec, extra: string): Promise<Board | null>
 }
 
 const regionKey = (spec: GridSpec, b: Board) => regionsOf(makePuzzle(spec), b).of.join(",");
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" ? [...b.loop].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+/** Grow areas from seed cells (one area each) at random until they cover the grid; `cap` stops an
+ *  area growing past that many cells. Returns letter rows, or null if it got stuck. */
+function growAreas(seeds: number[], cap = Infinity): string[] | null {
+  const n = rows * cols, of = new Array<number>(n).fill(-1), size = seeds.map(() => 1);
+  seeds.forEach((i, a) => (of[i] = a));
+  const near = (i: number) => { const r = Math.floor(i / cols), c = i % cols; return [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].filter(([y, x]) => y >= 0 && x >= 0 && y < rows && x < cols).map(([y, x]) => y * cols + x); };
+  for (let left = n - seeds.length; left > 0;) {
+    // the smallest area that can still grow takes a random free neighbour
+    const options = seeds.map((_, a) => a).filter((a) => size[a] < cap).sort((a, b) => size[a] - size[b] || rand() - 0.5);
+    let grew = false;
+    for (const a of options) {
+      const free = shuffle(Array.from({ length: n }, (_, i) => i).filter((i) => of[i] === a).flatMap(near).filter((j) => of[j] < 0));
+      if (!free.length) continue;
+      of[free[0]] = a; size[a]++; left--; grew = true;
+      if (cap === Infinity || rand() < 0.7) break;
+    }
+    if (!grew) return null;
+  }
+  return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
+}
+
+/** Equal areas for an irregular sudoku: the regular boxes, then many random swaps of two border
+ *  cells between neighbouring areas (sizes stay equal; every area stays in one piece). */
+function jigsaw(): string[] {
+  const n = rows * cols;
+  let bh = Math.floor(Math.sqrt(rows)); while (rows % bh) bh--;
+  const bw = rows / bh;
+  const of = Array.from({ length: n }, (_, i) => Math.floor(Math.floor(i / cols) / bh) * (cols / bw) + Math.floor((i % cols) / bw));
+  const near = (i: number) => { const r = Math.floor(i / cols), c = i % cols; return [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1].filter((j) => j >= 0); };
+  const whole = (a: number) => {
+    const cells = of.flatMap((x, i) => (x === a ? [i] : [])), seen = new Set([cells[0]]), stack = [cells[0]];
+    while (stack.length) for (const j of near(stack.pop()!)) if (of[j] === a && !seen.has(j)) { seen.add(j); stack.push(j); }
+    return seen.size === cells.length;
+  };
+  for (let t = 0; t < n * 40; t++) {
+    const i = Math.floor(rand() * n), others = near(i).filter((j) => of[j] !== of[i]);
+    if (!others.length) continue;
+    const A = of[i], B = of[others[Math.floor(rand() * others.length)]];
+    const back = shuffle(of.flatMap((x, j) => (x === B && j !== i && near(j).some((k) => of[k] === A) ? [j] : [])));
+    if (!back.length) continue;
+    const j = back[0];
+    of[i] = B; of[j] = A;
+    if (!whole(A) || !whole(B)) { of[i] = A; of[j] = B; }
+  }
+  return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
+}
+
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" ? [...b.loop].join("") : genre === "star-battle" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
 async function narrow(base: GridSpec, target: Board, pool: Given[]): Promise<GridSpec | null> {
@@ -65,7 +114,51 @@ const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
 let result: GridSpec | null = null;
 
 for (let attempt = 0; attempt < 40 && !result; attempt++) {
-  if (genre === "simple-path") {
+  if (genre === "star-battle") {
+    // stars first (n per row and column, never touching), then areas grown around them, one per
+    // star group, until only those stars fit
+    const k = Number(arg("stars", "1"));
+    const base: GridSpec = { genre, size: [rows, cols], rules: [{ rule: "shaded-per-line", n: k }, { rule: "shaded-per-area", n: k }] };
+    const stars = await randomBoard({ ...base, genre: undefined, marks: ["shade"], rules: [{ rule: "shaded-per-line", n: k }, { rule: "no-touch" }] }, "");
+    if (!stars) continue;
+    const starCells = shuffle(Array.from({ length: rows * cols }, (_, i) => i).filter((i) => stars.shade[i] === 1));
+    // with k stars per area, areas start from k stars each: pair them up by nearness
+    if (k > 1) throw new Error("only 1 star per area for now");
+    const grown = growAreas(starCells.slice(0, rows));
+    if (!grown) continue;
+    // hill-climb: move one cell (never a star) into a neighbouring area, keeping every area in one
+    // piece, while that doesn't add solutions, until one is left
+    let of = grown.join("").split("");
+    const count = async (o: string[]) => (await solve(makePuzzle({ genre, size: [rows, cols], areas: Array.from({ length: rows }, (_, r) => o.slice(r * cols, r * cols + cols).join("")) }), 40)).length;
+    const connected = (o: string[], letter: string) => {
+      const cells = o.flatMap((x, i) => (x === letter ? [i] : []));
+      if (!cells.length) return false;
+      const seen = new Set([cells[0]]), stack = [cells[0]];
+      while (stack.length) { const i = stack.pop()!, r = Math.floor(i / cols), c = i % cols; for (const j of [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1]) if (j >= 0 && o[j] === letter && !seen.has(j)) { seen.add(j); stack.push(j); } }
+      return seen.size === cells.length;
+    };
+    let now = await count(of);
+    for (let step = 0; step < 3000 && now > 1; step++) {
+      const i = Math.floor(rand() * rows * cols);
+      if (stars.shade[i] === 1) continue;
+      const r = Math.floor(i / cols), c = i % cols;
+      const nb = [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1].filter((j) => j >= 0 && of[j] !== of[i]);
+      if (!nb.length) continue;
+      const next = [...of]; next[i] = of[nb[Math.floor(rand() * nb.length)]];
+      if (!connected(next, of[i])) continue;
+      const n = await count(next);
+      if (n >= 1 && n <= now) { of = next; now = n; }
+    }
+    if (now === 1) result = { genre, size: [rows, cols], areas: Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).join("")) };
+  } else if (genre === "irregular-sudoku") {
+    // areas of n cells each, a random full grid, then given digits until it's the only one
+    const areas = jigsaw();
+    const base: GridSpec = { genre, size: [rows, cols], areas, givens: [] };
+    const target = await randomBoard(base, "");
+    if (!target) continue;
+    const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
+    result = await narrow(base, target, pool);
+  } else if (genre === "simple-path") {
     // doors on two different sides, a few rocks; a random path through it; then walls (which the
     // path never crosses) until it's the only one
     const sides = shuffle(["top", "right", "bottom", "left"] as const).slice(0, 2);
@@ -161,4 +254,4 @@ const path = new URL(`../../src/games/${genre}/${number}.json`, import.meta.url)
 const prev = existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {};
 const instance = { type: "grid", name: prev.name ?? name, meta: `${rows} × ${cols}`, ...prev, grid };
 writeFileSync(path, JSON.stringify(instance, null, 2) + "\n");
-console.log(`wrote src/games/${genre}/${number}.json: ${result.givens!.length} clues, rules ${(makePuzzle(result).rules.map((r) => r.rule)).join(", ")}`);
+console.log(`wrote src/games/${genre}/${number}.json: ${(result.givens ?? []).length} clues, rules ${(makePuzzle(result).rules.map((r) => r.rule)).join(", ")}`);

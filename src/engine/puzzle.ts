@@ -31,6 +31,19 @@ export const genres = {
     rules: [{ rule: "path", cover: true }],
     style: {},
   },
+  // Star Battle: n stars in every row, column and outlined area; stars never touch, not even
+  // at a corner
+  "star-battle": {
+    marks: ["shade"],
+    rules: [{ rule: "shaded-per-line", n: 1 }, { rule: "shaded-per-area", n: 1 }, { rule: "no-touch" }],
+    style: { shaded: "star", empty: "dot" },
+  },
+  // Irregular Sudoku: a sudoku whose boxes are the outlined areas
+  "irregular-sudoku": {
+    marks: ["digit"],
+    rules: [{ rule: "latin" }, { rule: "boxes" }],
+    style: {},
+  },
   // Nonogram: clues worked out from a picture (Wyatt's Picture Squares)
   nonogram: {
     marks: ["shade"],
@@ -112,7 +125,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   }
   return {
     spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
-    figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
+    areas: areasOf(spec, grid), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };
 }
@@ -123,6 +136,26 @@ export function outsideBorder(grid: Grid, [r, c]: [number, number], side: Side):
   const e = side === "top" ? r * grid.cols + c : side === "bottom" ? (r + 1) * grid.cols + c
     : (grid.rows + 1) * grid.cols + r * (grid.cols + 1) + (side === "left" ? c : c + 1);
   return grid.borders[e].cells.includes(-1) ? e : -1;
+}
+
+/** A puzzle's outlined areas: each cell's area, and each area's cells. */
+function areasOf(spec: GridSpec, grid: Grid): Puzzle["areas"] {
+  if (!spec.areas) return null;
+  const rows = spec.areas;
+  if (spec.figure || rows.length !== grid.rows || rows.some((r) => [...r].length !== grid.cols))
+    throw new Error(`the areas need ${grid.rows} rows of ${grid.cols} letters`);
+  const index = new Map<string, number>(), of: number[] = [], cells: number[][] = [];
+  rows.forEach((row) => [...row].forEach((ch) => {
+    if (!index.has(ch)) { index.set(ch, cells.length); cells.push([]); }
+    cells[index.get(ch)!].push(of.length); of.push(index.get(ch)!);
+  }));
+  // each letter must be one connected area
+  for (const cs of cells) {
+    const want = new Set(cs), seen = new Set([cs[0]]), stack = [cs[0]];
+    while (stack.length) for (const l of grid.cellLinks[stack.pop()!]) for (const j of grid.links[l].cells) if (want.has(j) && !seen.has(j)) { seen.add(j); stack.push(j); }
+    if (seen.size !== cs.length) throw new Error(`area "${rows[grid.rc(cs[0])[0]][grid.rc(cs[0])[1]]}" is in more than one piece`);
+  }
+  return { of, cells };
 }
 
 /** A nonogram's row and column clues, worked out from its picture (unless given). */

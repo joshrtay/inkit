@@ -1,0 +1,21 @@
+{
+  "type": "grid",
+  "name": "Constellation",
+  "meta": "8 × 8",
+  "grid": {
+    "size": [
+      8,
+      8
+    ],
+    "areas": [
+      "ccaccbbb",
+      "hcccgbgb",
+      "hcccgggb",
+      "ccccgggg",
+      "cccccgdg",
+      "eceeggdf",
+      "ecceeedd",
+      "eeeedddd"
+    ]
+  }
+}

@@ -87,7 +87,7 @@ const title = puzzle.spec.picture?.title;
     <p>
       {puzzle.marks.includes("fence") && "Drag along the dotted lines to draw; drag over a line again to erase. Tap a line to cycle line, X (no line) and empty. "}
       {puzzle.marks.includes("loop") && "Drag from cell to cell to draw; drag back over it to erase. "}
-      {puzzle.marks.includes("shade") && `Tap a cell to shade it, again for ${puzzle.style.empty === "x" ? "an X" : "a dot"} (known empty), again to clear; right-click goes the other way. Drag to paint many cells. `}
+      {puzzle.marks.includes("shade") && `Tap a cell to ${puzzle.style.shaded === "star" ? "place a star" : "shade it"}, again for ${puzzle.style.empty === "x" ? "an X" : "a dot"} (known empty), again to clear; right-click goes the other way. Drag to paint many cells. `}
       {nonogram && "Tap a clue number to tick it off. "}
       {digits && "Tap a cell, then a number (or type it). Pencil adds small notes; arrow keys move, Backspace erases. "}
       {paint && (puzzle.hearts > 0 ? "Pick a pot (or press R, Y or B) and tap a piece. A wrong color is turned away and costs a heart; right ones lock in. " : "Pick a pot (or press R, Y or B) and tap a piece; tap again with the same color to clear it. ")}

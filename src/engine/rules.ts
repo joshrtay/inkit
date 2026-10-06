@@ -42,6 +42,15 @@ const colorList = (p: Puzzle) => {
 /** color-count's settings: { red, yellow, blue } for Three Coats' pots, or { c1, c2, ... }. */
 const countsOf = (s: RuleSpec, p: Puzzle) => Array.from({ length: p.style.palette?.length || 3 }, (_, k) => k + 1)
   .map((c) => [c, s[colorName(p, c)] ?? s[`c${c}`]] as [number, unknown]).filter(([, n]) => typeof n === "number") as [number, number][];
+const n = (s: RuleSpec) => (typeof s.n === "number" ? s.n : 1);
+const shadedWord = (p: Puzzle, k: number) => (p.style.shaded === "star" ? (k === 1 ? "star" : "stars") : k === 1 ? "shaded cell" : "shaded cells");
+/** The cells around a cell, corners included. */
+const touching = (p: Puzzle, i: number) => {
+  const g = p.grid, [r, c] = g.rc(i), out: number[] = [];
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++)
+    if ((dr || dc) && r + dr >= 0 && c + dc >= 0 && r + dr < g.rows && c + dc < g.cols) out.push(g.cell(r + dr, c + dc));
+  return out;
+};
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
 
 export const blocks = {
@@ -241,16 +250,43 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
     asp: () => ":- digit(I,D), digit(J,D), row(I,R), row(J,R), I < J.\n:- digit(I,D), digit(J,D), col(I,C), col(J,C), I < J.",
   },
   boxes: {
-    describe: (s, p) => { const [h, w] = boxSize(s, p); return `Each ${h}×${w} box (heavy lines) has every digit once.`; },
+    describe: (s, p) => { if (p.areas) return "Each outlined area has every digit once."; const [h, w] = boxSize(s, p); return `Each ${h}×${w} box (heavy lines) has every digit once.`; },
     check(s, p, b) {
       return boxesOf(s, p).map((cells) => duplicates(cells, b)).filter((d) => d.length)
-        .map((cells) => ({ message: "A digit repeats in a box.", cells }));
+        .map((cells) => ({ message: `A digit repeats in ${p.areas ? "an area" : "a box"}.`, cells }));
     },
     asp: (s, p) => boxesOf(s, p).map((cells, k) => cells.map((i) => `box(${i},${k}).`).join(" ")).join("\n")
       + "\n:- digit(I,D), digit(J,D), box(I,B), box(J,B), I < J.",
   },
 
   // ---- shading ----
+  "shaded-per-line": {
+    describe: (s, p) => `Every row and every column has exactly ${n(s)} ${shadedWord(p, n(s))}.`,
+    check(s, p, b) {
+      const g = p.grid, out: Problem[] = [];
+      for (let r = 0; r < g.rows; r++) { const cs = Array.from({ length: g.cols }, (_, c) => g.cell(r, c)); if (cs.filter((i) => b.shade[i] === 1).length !== n(s)) out.push({ message: `Each row needs ${n(s)} ${shadedWord(p, n(s))}.`, cells: cs }); }
+      for (let c = 0; c < g.cols; c++) { const cs = Array.from({ length: g.rows }, (_, r) => g.cell(r, c)); if (cs.filter((i) => b.shade[i] === 1).length !== n(s)) out.push({ message: `Each column needs ${n(s)} ${shadedWord(p, n(s))}.`, cells: cs }); }
+      return out;
+    },
+    asp: (s, p) => `:- row(_,R), #count{I: shaded(I), row(I,R)} != ${n(s)}.\n:- col(_,C), #count{I: shaded(I), col(I,C)} != ${n(s)}.`,
+  },
+  "shaded-per-area": {
+    describe: (s, p) => `Every outlined area has exactly ${n(s)} ${shadedWord(p, n(s))}.`,
+    check(s, p, b) {
+      return (p.areas?.cells ?? []).filter((cs) => cs.filter((i) => b.shade[i] === 1).length !== n(s))
+        .map((cs) => ({ message: `Each area needs ${n(s)} ${shadedWord(p, n(s))}.`, cells: cs }));
+    },
+    asp: (s, p) => (p.areas ? `:- inarea(_,A), #count{I: shaded(I), inarea(I,A)} != ${n(s)}.` : ""),
+  },
+  "no-touch": {
+    describe: (_s, p) => `${p.style.shaded === "star" ? "Stars" : "Shaded cells"} never touch, not even at a corner.`,
+    check(_s, p, b) {
+      const g = p.grid, bad = new Set<number>();
+      for (let i = 0; i < g.cellCount; i++) if (b.shade[i] === 1) for (const j of touching(p, i)) if (b.shade[j] === 1) { bad.add(i); bad.add(j); }
+      return bad.size ? [{ message: `${p.style.shaded === "star" ? "Stars" : "Shaded cells"} can't touch, not even at a corner.`, cells: [...bad] }] : [];
+    },
+    asp: (_s, p) => Array.from({ length: p.grid.cellCount }, (_, i) => touching(p, i).filter((j) => j > i).map((j) => `:- shaded(${i}), shaded(${j}).`).join("\n")).filter(Boolean).join("\n"),
+  },
   connected: {
     describe: () => "All the shaded cells connect into one group (side to side, not at corners).",
     check(_s, p, b) {
@@ -432,6 +468,7 @@ const boxSize = (s: RuleSpec, p: Puzzle): [number, number] => {
   return [h, n / h];
 };
 function boxesOf(s: RuleSpec, p: Puzzle): number[][] {
+  if (p.areas) return p.areas.cells;   // irregular: the outlined areas are the boxes
   const [h, w] = boxSize(s, p), g = p.grid, out: number[][] = [];
   for (let br = 0; br < g.rows; br += h) for (let bc = 0; bc < g.cols; bc += w) {
     const cells: number[] = [];

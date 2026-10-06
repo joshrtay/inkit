@@ -2,8 +2,8 @@
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with nine genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Nonogram
-(`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+the `grid-engine` branch, with eleven genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Star Battle
+(`star-battle`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
 ## The model
@@ -31,6 +31,10 @@ played by painting.
 Regions come from either input: painting cells a color, or cutting borders. A region is a
 connected group of same-color cells not separated by a cut. For shading puzzles, the
 *islands* (connected unshaded cells) are regions too, so region rules work for both.
+
+**Areas** (`areas`) are outlined regions given in the puzzle, written like a picture: one
+string per row, one letter per cell. They're drawn with thick outlines; rules can count in
+them (`shaded-per-area`), and `boxes` uses them as a sudoku's boxes when they're there.
 
 **Givens** are clues fixed to an element: a number in a cell (in a digit puzzle, a given
 digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, a
@@ -60,6 +64,9 @@ puzzle can use it.
 | `loop` | The lines (fence or loop marks) form exactly one closed loop; `cover` makes it pass through every open cell. |
 | `path` | The loop marks form one path from the way-in door's cell to the way-out door's cell; `cover` makes it pass through every open cell (Simple Path). |
 | `sides` | A number in a cell counts the fence lines on its four sides. |
+| `shaded-per-line` | Every row and column has `n` shaded cells (Star Battle's stars). |
+| `shaded-per-area` | Every outlined area has `n` shaded cells. |
+| `no-touch` | Shaded cells never touch, not even diagonally. |
 | `connected` | All shaded cells form one connected group. |
 | `no-pool` | No 2×2 block of shaded cells. |
 | `size` | Every region has `is` cells (or `min` / `max`). |
@@ -71,7 +78,7 @@ puzzle can use it.
 | `compass` | A compass clue's numbers count the cells of its region that lie north, east, south and west of it. |
 | `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |
 | `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
-| `boxes` | Each box (`box: [h, w]`, or sized from the grid) has each digit once. |
+| `boxes` | Each box (`box: [h, w]`, or sized from the grid; the outlined areas if the puzzle has them) has each digit once. |
 | `corner-count` | A number on a corner counts the fence lines (walls) touching it; the outside edge counts. |
 | `painted` | Every cell (piece) gets a paint color. |
 | `neighbor-dots` | k dots of a color in a piece need at least k neighbours of that color. |
@@ -170,6 +177,7 @@ The editor covers:
 - the game type and grid size
 - every clue kind: in cells, on borders, on corners, doors in the outside edge, and nonogram row /
   column numbers
+- outlined areas (an area painter: pick an area, click cells into it)
 - a figure's pieces (Three Coats, `app/app/components/FigureEditor.tsx`): draw a piece corner by
   corner, drag corners, delete pieces, give a piece dots and hide them, and set the hearts
 - a nonogram's picture: painted in any number of colors, with its title

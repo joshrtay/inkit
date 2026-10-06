@@ -77,8 +77,22 @@ function* allBoards(p: Puzzle): Generator<Board> {
   }
 }
 
+/** Random outlined areas: k seeds that grow until every cell belongs to one. */
+function randomAreas(rows: number, cols: number, k: number): string[] {
+  const of = new Array<number>(rows * cols).fill(-1);
+  shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, k).forEach((i, a) => (of[i] = a));
+  while (of.includes(-1)) {
+    const i = Math.floor(rand() * rows * cols);
+    if (of[i] >= 0) continue;
+    const [r, c] = [Math.floor(i / cols), i % cols];
+    const near = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]].filter(([y, x]) => y >= 0 && x >= 0 && y < rows && x < cols && of[y * cols + x] >= 0);
+    if (near.length) { const [y, x] = pick(near); of[i] = of[y * cols + x]; }
+  }
+  return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghij"[a]).join(""));
+}
+
 function randomSpec(): GridSpec {
-  const kind = pick(["simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -89,6 +103,17 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "simple-loop", size: [rows, cols], givens };
+  }
+  if (kind === "star-battle") {
+    const size = pick([3, 4]);
+    return { genre: "star-battle", size: [size, size], areas: randomAreas(size, size, size) };
+  }
+  if (kind === "irregular-sudoku") {
+    const areas = randomAreas(4, 4, 4);
+    const givens = Array.from({ length: 16 }, (_, i) => i).filter(() => rand() < 0.6)
+      .map((i) => ({ at: "cell" as const, cell: cellOf(i, 4), kind: "number" as const, value: 1 + Math.floor(rand() * 4) }));
+    while (16 - givens.length > 7) { const i = Math.floor(rand() * 16); if (!givens.some((g) => g.cell[0] * 4 + g.cell[1] === i)) givens.push({ at: "cell", cell: cellOf(i, 4), kind: "number", value: 1 + Math.floor(rand() * 4) }); }
+    return { genre: "irregular-sudoku", size: [4, 4], areas, givens };
   }
   if (kind === "simple-path") {
     const [rows, cols] = pick([[2, 3], [3, 3], [3, 4], [2, 4]]);

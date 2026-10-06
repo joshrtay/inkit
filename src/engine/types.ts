@@ -26,6 +26,7 @@ export interface GridStyle {
   grid?: "lines" | "dots";
   major?: number;                // a heavier grid line every n cells (nonograms: 5)
   empty?: "dot" | "x";           // how a known-empty shade cell is marked
+  shaded?: "wash" | "star";      // how a shaded cell looks: an ink wash, or a star (Star Battle)
   palette?: string[];            // region / glass colors
   wash?: string;                 // shading and loop color
 }
@@ -45,6 +46,9 @@ export interface GridSpec {
    *  and pieces sharing part of an edge are neighbours. "size" is then [1, number of pieces]
    *  and cell [0, i] is piece i. Any units; corners closer than 1.5% of the figure's size meet. */
   figure?: { pieces: number[][][] };
+  /** Outlined areas: one string per row, one letter per cell; cells with the same letter are one
+   *  area, drawn with a thick outline (Star Battle, Irregular Sudoku). */
+  areas?: string[];
   /** Mistakes allowed: a wrong move is turned away and costs a heart, and pieces painted right
    *  lock in (paint puzzles). 0 = play freely and check at the end. */
   hearts?: number;
@@ -95,4 +99,6 @@ export interface Puzzle {
   figure: number[][][] | null;
   /** mistakes allowed (0 = free play) */
   hearts: number;
+  /** outlined areas: each cell's area index, and each area's cells (null if none) */
+  areas: { of: number[]; cells: number[][] } | null;
 }

@@ -1,0 +1,19 @@
+{
+  "type": "grid",
+  "name": "Night Sky",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "areas": [
+      "ffbbbc",
+      "ffbbbb",
+      "febeaa",
+      "feeeaa",
+      "feddda",
+      "dddaaa"
+    ]
+  }
+}

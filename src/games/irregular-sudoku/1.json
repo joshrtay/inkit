@@ -1,0 +1,75 @@
+{
+  "type": "grid",
+  "name": "Jigsaw",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "areas": [
+      "eaaaaa",
+      "ebbbba",
+      "ebbcdd",
+      "eeccdd",
+      "efcccd",
+      "fffffd"
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          2
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          2
+        ],
+        "kind": "number",
+        "value": 6
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          4
+        ],
+        "kind": "number",
+        "value": 5
+      }
+    ]
+  }
+}

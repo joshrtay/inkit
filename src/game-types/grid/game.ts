@@ -26,6 +26,12 @@ const S = 48, M = 26;                           // cell size and plain margin, i
 const NS = "http://www.w3.org/2000/svg";
 const PREFS = "wyattsgames:mosaic-prefs";       // nonogram helpers (same key as before the engine)
 
+/** A five-pointed star around (x, y). */
+const starPath = (x: number, y: number, r: number) => Array.from({ length: 10 }, (_, k) => {
+  const a = -Math.PI / 2 + (k * Math.PI) / 5, d = k % 2 ? r * 0.42 : r;
+  return `${k ? "L" : "M"}${(x + d * Math.cos(a)).toFixed(1)} ${(y + d * Math.sin(a)).toFixed(1)}`;
+}).join("") + "Z";
+
 export const createGrid = (config: GridClientConfig): MountGame => (root, host) => {
   const p = makePuzzle(config.spec), g = p.grid, marks = p.marks;
   if (marks.includes("paint")) return createFigure(p, root, host);   // painted pieces (Three Coats)
@@ -86,12 +92,18 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   if (p.style.grid === "dots") {
     for (let v = 0; v < g.cornerCount; v++) { const [x, y] = cornerXY(v); el("circle", { class: "dot", cx: x, cy: y, r: 2.6 }, gGrid); }
   } else {
-    const boxes = p.rules.find((s) => s.rule === "boxes"), [bh, bw] = boxes ? boxLines(boxes, p) : [0, 0];
+    const boxes = p.areas ? undefined : p.rules.find((s) => s.rule === "boxes"), [bh, bw] = boxes ? boxLines(boxes, p) : [0, 0];
     for (const e of g.borders) {
       if (e.link < 0) continue;
       const [[x1, y1], [x2, y2]] = borderXY(e.id), [r, c] = g.cornerRC(e.corners[0]);
       const major = e.horizontal ? (p.style.major && r % p.style.major === 0) || (bh && r % bh === 0) : (p.style.major && c % p.style.major === 0) || (bw && c % bw === 0);
       el("line", { class: major ? "gridline major" : "gridline", x1, y1, x2, y2 }, gGrid);
+    }
+    // outlined areas: a thick line wherever two areas meet
+    if (p.areas) for (const e of g.borders) {
+      if (e.link < 0 || p.areas.of[e.cells[0]] === p.areas.of[e.cells[1]]) continue;
+      const [[x1, y1], [x2, y2]] = borderXY(e.id);
+      el("line", { class: "area-line", x1, y1, x2, y2 }, gGrid);
     }
     el("rect", { class: regionsPuzzle ? "frame lead" : "frame", x: X(0), y: Y(0), width: g.cols * S, height: g.rows * S }, regionsPuzzle ? gLines : gGrid);
   }
@@ -198,7 +210,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     }
     for (let i = 0; i < g.cellCount; i++) {
       const [x, y] = center(i);
-      if (marks.includes("shade") && board.shade[i] === 1) cellRect(i, "shaded", gWash, -0.5);
+      if (marks.includes("shade") && board.shade[i] === 1) {
+        if (p.style.shaded === "star") el("path", { class: "star", d: starPath(x, y, S * 0.36) }, gMarks);
+        else cellRect(i, "shaded", gWash, -0.5);
+      }
       if (regionsPuzzle && colors[i] > 0) el("rect", { x: x - S / 2 - 0.5, y: y - S / 2 - 0.5, width: S + 1, height: S + 1, fill: palette[colors[i] - 1] ?? "#ccc" }, gWash);
       if (marks.includes("shade") && board.shade[i] === 2) {
         if (p.style.empty === "x") xMark(x, y, S * 0.18, "xmark cellx"); else el("circle", { class: "dotmark", cx: x, cy: y, r: 3.5 }, gMarks);

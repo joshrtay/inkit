@@ -21,7 +21,7 @@ type ClueKind = Given["kind"];
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the game type menu", size: "Rows / Columns", givens: "the clue tools", rules: "Rules",
   style: "Look", picture: "the picture painter (Nonogram)", marks: "Look › what the player draws",
-  figure: "the figure editor (Three Coats)", hearts: "Hearts (paint puzzles)",
+  figure: "the figure editor (Three Coats)", hearts: "Hearts (paint puzzles)", areas: "the area painter",
 };
 
 /** Every clue kind: its tool label, and whether it sits in a cell, on a border, beside a line, on a
@@ -46,6 +46,8 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   nurikabe: ["number"],
   "simple-loop": ["block", "wall"],
   "simple-path": ["door", "block", "wall"],
+  "star-battle": [],
+  "irregular-sudoku": ["number"],
   nonogram: ["runs"],
   sudoku: ["number"],
   panes: ["number", "symbol", "compass", "twins", "opposites", "block"],
@@ -67,6 +69,9 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   runs: { label: "Row and column clue numbers", settings: [] },
   latin: { label: "Each digit once per row and column", settings: [] },
   boxes: { label: "Each digit once per box", settings: [{ key: "box", label: "box rows × columns", type: "pair" }] },
+  "shaded-per-line": { label: "Shaded (stars) per row and column", settings: [{ key: "n", label: "how many", type: "number" }] },
+  "shaded-per-area": { label: "Shaded (stars) per outlined area", settings: [{ key: "n", label: "how many", type: "number" }] },
+  "no-touch": { label: "Shaded cells (stars) never touch, even diagonally", settings: [] },
   connected: { label: "Shaded cells connect", settings: [] },
   "no-pool": { label: "No 2×2 shaded block", settings: [] },
   size: { label: "Region size", settings: [{ key: "is", label: "exactly", type: "number" }, { key: "min", label: "at least", type: "number" }, { key: "max", label: "at most", type: "number" }] },
@@ -90,6 +95,7 @@ const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" |
   grid: { label: "Grid", type: "choice", choices: ["lines", "dots"] },
   major: { label: "Heavy line every", type: "number" },
   empty: { label: "Known-empty mark", type: "choice", choices: ["dot", "x"] },
+  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star"] },
   palette: { label: "Region colors", type: "colors" },
 };
 
@@ -100,6 +106,8 @@ const MARKS: Record<MarkKind, string> = {
 };
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
+/** A pale tint per area letter, so neighbouring areas are easy to tell apart. */
+const areaColor = (k: string) => `hsl(${(LETTERS.indexOf(k.toLowerCase()) * 137) % 360} 70% 90%)`;
 const S = 44, PAD = 24;
 const same = (a: RC, b: RC) => a[0] === b[0] && a[1] === b[1];
 const onBorder = (g: Given, a: RC, b: RC) => g.at === "border" && ((same(g.cells[0], a) && same(g.cells[1], b)) || (same(g.cells[0], b) && same(g.cells[1], a)));
@@ -117,7 +125,11 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const [more, setMore] = useState(false);
   const shownTools = more ? cellTools : firstTools.filter((k) => CLUES[k].on !== "line");
   const picture = spec.picture;
-  const [tool, setTool] = useState<ClueKind | "paint" | "erase">(picture ? "paint" : shownTools[0] ?? "erase");
+  const [tool, setTool] = useState<ClueKind | "paint" | "erase" | "area">(picture ? "paint" : spec.areas && !shownTools.length ? "area" : shownTools[0] ?? "erase");
+  const [areaInk, setAreaInk] = useState("a");
+  const areas = spec.areas;
+  const areaLetters = [...new Set((areas ?? []).join(""))].sort();
+  const needsAreas = genres[genre]?.rules.some((r) => r.rule === "shaded-per-area") || genre === "irregular-sudoku";
   const [number, setNumber] = useState(1);
   const [role, setRole] = useState<"in" | "out">("in");
   const [dots, setDots] = useState<number[]>([1]);
@@ -139,6 +151,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
     set({
       size: [r, c], givens: kept,
       ...(picture ? { picture: { ...picture, rows: Array.from({ length: r }, (_, y) => (picture.rows[y] ?? "").padEnd(c, ".").slice(0, c)) } } : {}),
+      ...(areas ? { areas: Array.from({ length: r }, (_, y) => { const row = areas[Math.min(y, areas.length - 1)]; return row.padEnd(c, row.at(-1)).slice(0, c); }) } : {}),
     });
   }
 
@@ -176,6 +189,10 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
         : fy > 1 - edge && r + 1 < rows ? [[r, c], [r + 1, c]] : fy < edge && r > 0 ? [[r - 1, c], [r, c]] : null;
     const cell: RC = [r, c];
 
+    if (tool === "area") {
+      if (!areas) return;
+      return set({ areas: areas.map((row, y) => y !== r ? row : row.slice(0, c) + areaInk + row.slice(c + 1)) });
+    }
     if (tool === "paint") {
       if (!picture) return;
       const rowsNow = picture.rows.map((row, y) => y !== r ? row : row.slice(0, c) + (row[c] === ink ? "." : ink) + row.slice(c + 1));
@@ -301,6 +318,26 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
         </div>
       )}
 
+      {(areas || needsAreas) && (
+        <div className="ge-bar">
+          {areas ? (
+            <span className="ge-tools" role="group" aria-label="Areas">
+              {areaLetters.map((k) => (
+                <button key={k} type="button" aria-pressed={tool === "area" && areaInk === k} onClick={() => { setTool("area"); setAreaInk(k); }}>
+                  <i className="fe-swatch" style={{ background: areaColor(k) }} /> Area {k.toUpperCase()}
+                </button>
+              ))}
+              <button type="button" onClick={() => { const k = [...LETTERS].find((l) => !areaLetters.includes(l)); if (k) { setTool("area"); setAreaInk(k); } }}>+ New area</button>
+              {!needsAreas && <button type="button" className="link" onClick={() => { const { areas: _a, ...rest } = spec; onChange(rest); setTool("erase"); }}>Remove areas</button>}
+            </span>
+          ) : (
+            <button type="button" onClick={() => { set({ areas: Array.from({ length: rows }, (_, y) => LETTERS[y % 26].repeat(cols)) }); setTool("area"); }}>Add outlined areas</button>
+          )}
+          {tool === "area" && <span className="hint">Painting area {areaInk.toUpperCase()}: click cells to move them into it. Each area must be one connected piece.</span>}
+        </div>
+      )}
+      {!needsAreas && !areas && !picture && !spec.figure && <p className="hint"><button type="button" className="link" onClick={() => { set({ areas: Array.from({ length: rows }, (_, y) => LETTERS[y % 26].repeat(cols)) }); setTool("area"); }}>Add outlined areas</button> (for puzzles whose rules use them)</p>}
+
       {!picture && (
         <div className="ge-bar">
           <span className="ge-tools" role="group" aria-label="Tool">
@@ -330,7 +367,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
           )}
         </div>
       )}
-      <p className="hint">{tool === "paint" ? "Click cells to paint them; click again to clear." : tool === "erase" ? "Click a clue or a line mark to remove it." : tool === "count" ? "Click a corner where grid lines meet." : tool === "door" ? "Click the outside edge beside a cell." : !picture && CLUES[tool].on === "border" ? "Click the line between two cells." : "Click a cell; click again to remove."}</p>
+      <p className="hint">{tool === "area" ? "Click cells to put them in the chosen area." : tool === "paint" ? "Click cells to paint them; click again to clear." : tool === "erase" ? "Click a clue or a line mark to remove it." : tool === "count" ? "Click a corner where grid lines meet." : tool === "door" ? "Click the outside edge beside a cell." : !picture && CLUES[tool].on === "border" ? "Click the line between two cells." : "Click a cell; click again to remove."}</p>
 
       <div className={nonogram && !picture ? "ge-with-runs" : undefined}>
         {nonogram && !picture && (
@@ -348,7 +385,15 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
             {Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => {
               const { x, y } = at(r, c);
               const ch = picture?.rows[r]?.[c];
-              return <rect key={`${r}-${c}`} x={x} y={y} width={S} height={S} className="ge-cell" style={ch && ch !== "." ? { fill: palette[ch] ?? "#26398f" } : undefined} />;
+              const ak = areas?.[r]?.[c];
+              return <rect key={`${r}-${c}`} x={x} y={y} width={S} height={S} className="ge-cell" style={ch && ch !== "." ? { fill: palette[ch] ?? "#26398f" } : ak ? { fill: areaColor(ak) } : undefined} />;
+            }))}
+            {areas && Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => {
+              const { x, y } = at(r, c), k = areas[r]?.[c];
+              return <g key={`a${r}-${c}`}>
+                {c + 1 < cols && areas[r][c + 1] !== k && <line x1={x + S} y1={y} x2={x + S} y2={y + S} className="ge-area" />}
+                {r + 1 < rows && areas[r + 1]?.[c] !== k && <line x1={x} y1={y + S} x2={x + S} y2={y + S} className="ge-area" />}
+              </g>;
             }))}
             {givens.map((g, i) => {
               if (g.at === "cell") {

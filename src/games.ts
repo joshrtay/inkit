@@ -88,6 +88,26 @@ export const gameTypes: GameType[] = [
   // ---- grid engine (src/engine, docs/grid-engine.md) ----
   {
     id: "grid",
+    genre: "star-battle",
+    path: "star-battle",
+    name: "Star Battle",
+    blurb: "Place one star in every row, column and outlined area. Stars never touch, not even at a corner.",
+    meta: "Play in the browser",
+    ink: "#26398f",
+    listed: true,
+  },
+  {
+    id: "grid",
+    genre: "irregular-sudoku",
+    path: "irregular-sudoku",
+    name: "Irregular Sudoku",
+    blurb: "A sudoku whose boxes are odd shapes: every row, column and outlined area has each digit once.",
+    meta: "Play in the browser",
+    ink: "#2b2b30",
+    listed: true,
+  },
+  {
+    id: "grid",
     genre: "simple-path",
     path: "simple-path",
     name: "Simple Path",
