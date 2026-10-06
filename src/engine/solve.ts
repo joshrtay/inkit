@@ -37,12 +37,19 @@ export function program(p: Puzzle): string {
 
   const needs = new Set(p.rules.flatMap((s) => blockFor(s).needs ?? []));
   if (needs.has("regions") || needs.has("shapes")) {
+    // When no region can have more than N cells, two cells of one region are at most N-1
+    // steps apart: only those pairs need reach/off atoms, which keeps grounding small.
+    const n = maxRegion(p), bound = n < g.cellCount;
+    if (bound) for (let i = 0; i < g.cellCount; i++) for (let j = 0; j < g.cellCount; j++) {
+      const [r1, c1] = g.rc(i), [r2, c2] = g.rc(j);
+      if (Math.abs(r1 - r2) + Math.abs(c1 - c2) <= n - 1) out.push(`near(${i},${j}).`);
+    }
     out.push(p.marks.includes("regions")
       ? "open(I) :- cell(I).\nconn(I,J) :- adj(I,J,L), not cut(L)."
       : "open(I) :- cell(I), not shaded(I).\nconn(I,J) :- adj(I,J,_), open(I), open(J).");
     out.push(`
 reach(I,I) :- open(I).
-reach(I,K) :- reach(I,J), conn(J,K).
+reach(I,K) :- reach(I,J), conn(J,K)${bound ? ", near(I,K)" : ""}.${bound ? "\n:- reach(I,J), conn(J,K), not near(I,K).   % no region is that big" : ""}
 smaller(I) :- reach(I,J), J < I.
 root(I) :- open(I), not smaller(I).
 member(R,I) :- root(R), reach(R,I).
@@ -66,6 +73,18 @@ same(R1,R2) :- cmp(R1,R2), size(R1,N), size(R2,N), t(T), not diff(R1,R2,T).`);
   return out.join("\n");
 }
 
+/** The most cells any region can have, from the rules (the grid size if they don't say). */
+export function maxRegion(p: Puzzle): number {
+  let n = p.grid.cellCount;
+  for (const s of p.rules) if (s.rule === "size") n = Math.min(n, (s.is ?? s.max ?? n) as number);
+  // every region holds exactly one number and is that size: no bigger than the biggest number
+  if (p.rules.some((s) => s.rule === "size-clue") && p.rules.some((s) => s.rule === "one-each" && (s.of ?? "number") === "number")) {
+    const nums = [...p.cellGivens.values()].flat().filter((g) => g.kind === "number").map((g) => g.value as number);
+    if (nums.length) n = Math.min(n, Math.max(...nums));
+  }
+  return n;
+}
+
 /** A solver answer as a board. Region puzzles come back as cuts only (no colors). */
 export function boardOf(p: Puzzle, atoms: string[]): Board {
   const b = emptyBoard(p.grid);
@@ -83,12 +102,25 @@ export function boardOf(p: Puzzle, atoms: string[]): Board {
 
 interface ClingoResult { Result: string; Call?: { Witnesses?: { Value: string[] }[] }[]; Error?: string }
 
-/** Up to `limit` solutions. Throws if clingo finds one that the rule checks reject. */
+/** Up to `limit` solutions. Throws if clingo finds one that the rule checks reject.
+ *  Answers are cached on disk (node_modules/.cache/grid-engine), keyed by the program, so the
+ *  preview server and repeat builds don't re-prove unchanged puzzles. */
 export async function solve(p: Puzzle, limit = 2): Promise<Board[]> {
-  const clingo = await import("clingo-wasm");
-  const res = (await clingo.run(program(p), limit)) as ClingoResult;
-  if (res.Result === "ERROR") throw new Error(`clingo: ${res.Error}`);
-  const boards = (res.Call?.[0]?.Witnesses ?? []).map((w) => boardOf(p, w.Value));
+  const prog = program(p);
+  const { createHash } = await import("node:crypto");
+  const fs = await import("node:fs");
+  const dir = "node_modules/.cache/grid-engine";
+  const file = `${dir}/${createHash("sha256").update(`${limit}\n${prog}`).digest("hex").slice(0, 24)}.json`;
+  let answers: string[][] | undefined;
+  try { answers = JSON.parse(fs.readFileSync(file, "utf8")); } catch { /* not cached */ }
+  if (!answers) {
+    const clingo = await import("clingo-wasm");
+    const res = (await clingo.run(prog, limit)) as ClingoResult;
+    if (res.Result === "ERROR") throw new Error(`clingo: ${res.Error}`);
+    answers = (res.Call?.[0]?.Witnesses ?? []).map((w) => w.Value);
+    try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(answers)); } catch { /* read-only: fine */ }
+  }
+  const boards = answers.map((atoms) => boardOf(p, atoms));
   for (const b of boards) {
     const problems = check(p, b);
     if (problems.length) throw new Error(`solver and checks disagree: ${problems.map((x) => x.message).join("; ")}`);
