@@ -6,6 +6,8 @@ export const KIND_NAMES: Record<GenreName, string> = {
   "simple-loop": "Simple Loop",
   "simple-path": "Simple Path",
   "star-battle": "Star Battle",
+  akari: "Akari",
+  shikaku: "Shikaku",
   "irregular-sudoku": "Irregular Sudoku",
   nonogram: "Nonogram",
   slitherlink: "Slitherlink",

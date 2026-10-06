@@ -1,0 +1,231 @@
+{
+  "type": "grid",
+  "name": "Night Shift",
+  "meta": "8 × 8",
+  "grid": {
+    "size": [
+      8,
+      8
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          7
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          7,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          7
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          5
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          6
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          6
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          7
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          5
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          7
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          7
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          7
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          7
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          6
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "number",
+        "value": 0
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          1
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          7,
+          0
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          2
+        ],
+        "kind": "number",
+        "value": 0
+      }
+    ]
+  }
+}

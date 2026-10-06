@@ -26,7 +26,7 @@ export interface GridStyle {
   grid?: "lines" | "dots";
   major?: number;                // a heavier grid line every n cells (nonograms: 5)
   empty?: "dot" | "x";           // how a known-empty shade cell is marked
-  shaded?: "wash" | "star";      // how a shaded cell looks: an ink wash, or a star (Star Battle)
+  shaded?: "wash" | "star" | "bulb";   // how a shaded cell looks: an ink wash, a star (Star Battle), a light bulb (Akari)
   palette?: string[];            // region / glass colors
   wash?: string;                 // shading and loop color
 }

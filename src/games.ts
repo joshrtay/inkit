@@ -88,6 +88,26 @@ export const gameTypes: GameType[] = [
   // ---- grid engine (src/engine, docs/grid-engine.md) ----
   {
     id: "grid",
+    genre: "akari",
+    path: "akari",
+    name: "Akari",
+    blurb: "Place light bulbs so every white cell is lit and no bulb shines on another.",
+    meta: "Play in the browser",
+    ink: "#2b2b30",
+    listed: true,
+  },
+  {
+    id: "grid",
+    genre: "shikaku",
+    path: "shikaku",
+    name: "Shikaku",
+    blurb: "Cut the grid into rectangles, each holding one number: its size.",
+    meta: "Play in the browser",
+    ink: "#a3343f",
+    listed: true,
+  },
+  {
+    id: "grid",
     genre: "star-battle",
     path: "star-battle",
     name: "Star Battle",

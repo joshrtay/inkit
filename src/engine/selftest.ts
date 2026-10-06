@@ -92,7 +92,7 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -103,6 +103,30 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "simple-loop", size: [rows, cols], givens };
+  }
+  if (kind === "akari") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
+    const givens: NonNullable<GridSpec["givens"]> = [];
+    for (let i = 0; i < rows * cols; i++) if (rand() < 0.25) {
+      givens.push({ at: "cell", cell: cellOf(i, cols), kind: "block" });
+      if (rand() < 0.5) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "number", value: Math.floor(rand() * 3) });
+    }
+    return { genre: "akari", size: [rows, cols], givens };
+  }
+  if (kind === "shikaku") {
+    const [rows, cols] = pick([[2, 3], [3, 3], [2, 4], [3, 4]]);
+    // split the grid into rectangles at random, then a number in each (sometimes a wrong one)
+    const rects: [number, number, number, number][] = [];
+    const split = (r: number, c: number, h: number, w: number) => {
+      if (h * w > 1 && rand() < 0.6) {
+        if (h > 1 && (w === 1 || rand() < 0.5)) { const k = 1 + Math.floor(rand() * (h - 1)); split(r, c, k, w); split(r + k, c, h - k, w); return; }
+        if (w > 1) { const k = 1 + Math.floor(rand() * (w - 1)); split(r, c, h, k); split(r, c + k, h, w - k); return; }
+      }
+      rects.push([r, c, h, w]);
+    };
+    split(0, 0, rows, cols);
+    const givens = rects.map(([r, c, h, w]) => ({ at: "cell" as const, cell: [r + Math.floor(rand() * h), c + Math.floor(rand() * w)] as [number, number], kind: "number" as const, value: rand() < 0.9 ? h * w : 1 + Math.floor(rand() * 4) }));
+    return rand() < 0.2 ? { genre: "panes", size: [rows, cols], rules: [{ rule: "rectangles" }] } : { genre: "shikaku", size: [rows, cols], givens };
   }
   if (kind === "star-battle") {
     const size = pick([3, 4]);

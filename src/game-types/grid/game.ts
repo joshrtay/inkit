@@ -137,7 +137,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const digitEls = new Map<number, SVGTextElement>();
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
     const [x, y] = center(i);
-    if (giv.kind === "number" && !digits) el("text", { class: "clue", x, y: y + 1 }, gGivens).textContent = String(giv.value);
+    if (giv.kind === "number" && !digits) el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens).textContent = String(giv.value);
     else if (giv.kind === "symbol") el("text", { class: "clue symbol", x, y: y + 1 }, gGivens).textContent = "✦";
     else if (giv.kind === "compass") {
       const c = el("g", { class: "compass" }, gGivens);
@@ -208,10 +208,25 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         else if (sel >= 0 && board.digit[sel] && board.digit[i] === board.digit[sel]) cellRect(i, "same", gMarks);
       }
     }
+    // light bulbs light their row and column up to a black cell
+    if (p.style.shaded === "bulb") {
+      const lit = new Set<number>();
+      for (let i = 0; i < g.cellCount; i++) if (board.shade[i] === 1) {
+        lit.add(i);
+        const [r, c] = g.rc(i);
+        for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]])
+          for (let y = r + dr, x = c + dc; y >= 0 && x >= 0 && y < g.rows && x < g.cols && !p.blocked.has(g.cell(y, x)); y += dr, x += dc) lit.add(g.cell(y, x));
+      }
+      for (const i of lit) cellRect(i, "lit", gWash, -0.5);
+    }
     for (let i = 0; i < g.cellCount; i++) {
       const [x, y] = center(i);
       if (marks.includes("shade") && board.shade[i] === 1) {
         if (p.style.shaded === "star") el("path", { class: "star", d: starPath(x, y, S * 0.36) }, gMarks);
+        else if (p.style.shaded === "bulb") {
+          el("circle", { class: "bulb", cx: x, cy: y - 2, r: S * 0.22 }, gMarks);
+          el("rect", { class: "bulb-base", x: x - S * 0.1, y: y + S * 0.16, width: S * 0.2, height: S * 0.12, rx: 2 }, gMarks);
+        }
         else cellRect(i, "shaded", gWash, -0.5);
       }
       if (regionsPuzzle && colors[i] > 0) el("rect", { x: x - S / 2 - 0.5, y: y - S / 2 - 0.5, width: S + 1, height: S + 1, fill: palette[colors[i] - 1] ?? "#ccc" }, gWash);

@@ -28,6 +28,10 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   "star-battle": `star-battle (Star Battle): a square grid split into outlined areas by thick lines; usually no other
   clues. Give the areas as "areas" (one string per row, one letter per cell, same letter = same area). If it says
   "2 stars" (or similar), set the rules shaded-per-line and shaded-per-area with n: 2.`,
+  akari: `akari (Akari / Light Up): black cells, some with a number 0-4. Each black cell is {kind: "block"}; a numbered
+  black cell is both {kind: "block"} and {kind: "number", value} on the same cell. Leave out any bulbs drawn as the answer.`,
+  shikaku: `shikaku: numbers in cells, {kind: "number", value}; the grid gets cut into rectangles each holding one number.
+  Leave out rectangles drawn as the answer.`,
   "irregular-sudoku": `irregular-sudoku (Irregular / Jigsaw Sudoku): a sudoku whose boxes are irregular outlined areas.
   Give the printed digits {kind: "number", value} and the areas as "areas" (one string per row, one letter per cell).`,
   slitherlink: `slitherlink: numbers in cells count how many of the cell's four sides the loop uses: {kind: "number", value}.`,
@@ -77,6 +81,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "shaded-per-line": "n shaded cells (stars) in every row and column (comes with star-battle, n 1)",
   "shaded-per-area": "n shaded cells (stars) in every outlined area (comes with star-battle, n 1)",
   "no-touch": "shaded cells (stars) never touch, not even diagonally (comes with star-battle)",
+  lit: "bulbs light their row and column; every white cell lit, no two bulbs see each other (comes with akari)",
+  "adjacent-count": "a number counts the shaded cells / bulbs right beside it (comes with akari)",
+  rectangles: "every region is a rectangle (comes with shikaku)",
   connected: "all shaded cells connect (comes with nurikabe)",
   "no-pool": "no 2×2 block of shaded cells (comes with nurikabe)",
   size: "every region has exactly N cells (is), or at least / at most (min / max)",

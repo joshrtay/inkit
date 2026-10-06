@@ -6,6 +6,10 @@
 .grid-game .frame { fill: none; stroke: var(--paper-ink); stroke-width: 2.5; }
 .grid-game .dot { fill: var(--paper-ink); }
 .grid-game .area-line { stroke: var(--paper-ink); stroke-width: 3.5; stroke-linecap: round; }
+.grid-game .clue.on-rock { fill: var(--paper); }
+.grid-game .lit { fill: color-mix(in srgb, var(--wash-yellow) 35%, transparent); }
+.grid-game .bulb { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: 2; }
+.grid-game .bulb-base { fill: var(--paper-ink); }
 .grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: 2; stroke-linejoin: round; filter: var(--wash); }
 
 /* clues are handwritten in the board's ink */

@@ -2,8 +2,8 @@
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with eleven genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Star Battle
-(`star-battle`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+the `grid-engine` branch, with thirteen genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Star Battle
+(`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
 ## The model
@@ -67,6 +67,8 @@ puzzle can use it.
 | `shaded-per-line` | Every row and column has `n` shaded cells (Star Battle's stars). |
 | `shaded-per-area` | Every outlined area has `n` shaded cells. |
 | `no-touch` | Shaded cells never touch, not even diagonally. |
+| `lit` | Shaded cells are light bulbs: each lights its row and column up to a rock; every open cell is lit and no two bulbs see each other (Akari). |
+| `adjacent-count` | A number counts the shaded cells (bulbs) orthogonally beside it; in Akari the numbers sit on rocks. |
 | `connected` | All shaded cells form one connected group. |
 | `no-pool` | No 2×2 block of shaded cells. |
 | `size` | Every region has `is` cells (or `min` / `max`). |
@@ -74,6 +76,7 @@ puzzle can use it.
 | `one-each` | Every region contains exactly one clue of a kind (`of`). |
 | `twins` | The two regions on either side of a ◆ are different regions with the same shape (turns and flips allowed). |
 | `opposites` | The two regions on either side of a ◇ are different regions with different shapes. |
+| `rectangles` | Every region is a rectangle (Shikaku). |
 | `all-different` | No two regions have the same shape. |
 | `compass` | A compass clue's numbers count the cells of its region that lie north, east, south and west of it. |
 | `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |

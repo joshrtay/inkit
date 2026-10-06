@@ -6,6 +6,8 @@
 //   node puzzles/grid/new.ts --genre sudoku --size 9x9 --number 1 --name "Classic"
 //   node puzzles/grid/new.ts --genre simple-path --size 6x6 --number 1 --name "First Steps"
 //   node puzzles/grid/new.ts --genre star-battle --size 6x6 --number 1 --name "First Stars"
+//   node puzzles/grid/new.ts --genre akari --size 7x7 --number 1 --name "Lights On"
+//   node puzzles/grid/new.ts --genre shikaku --size 6x6 --number 1 --name "Boxes"
 //   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
 //
 // 1. clingo picks a random finished board that obeys the genre's rules (a loop, a wall,
@@ -83,7 +85,7 @@ function jigsaw(): string[] {
   return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
 }
 
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" ? [...b.loop].join("") : genre === "star-battle" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" ? [...b.loop].join("") : genre === "star-battle" || genre === "akari" ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "shikaku" ? regionKey(spec, b) : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
 async function narrow(base: GridSpec, target: Board, pool: Given[]): Promise<GridSpec | null> {
@@ -114,7 +116,37 @@ const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
 let result: GridSpec | null = null;
 
 for (let attempt = 0; attempt < 40 && !result; attempt++) {
-  if (genre === "star-battle") {
+  if (genre === "akari") {
+    // black cells (symmetric, about a fifth), a random lighting, then numbers on black cells until
+    // it's the only one
+    const n = rows * cols, givens: Given[] = [];
+    for (let i = 0; i < n; i++) {
+      const j = n - 1 - i;
+      if (j < i) break;
+      if (rand() < 0.2) for (const k of new Set([i, j])) givens.push({ at: "cell", cell: at(k), kind: "block" });
+    }
+    const base: GridSpec = { genre, size: [rows, cols], givens };
+    const target = await randomBoard(base, "");
+    if (!target) continue;
+    const g = makePuzzle(base).grid;
+    const pool: Given[] = givens.map((x) => {
+      const i = g.cell(...(x as { cell: [number, number] }).cell);
+      return { at: "cell", cell: at(i), kind: "number", value: g.cellLinks[i].filter((l) => target.shade[g.links[l].cells.find((c) => c !== i)!] === 1).length };
+    });
+    result = await narrow(base, target, pool);
+  } else if (genre === "shikaku") {
+    // a random cut into rectangles (2 to 8 cells), then one number per rectangle, placed at random
+    // until only that cut fits
+    const cutSpec: GridSpec = { size: [rows, cols], marks: ["regions"], rules: [{ rule: "rectangles" }, { rule: "size", min: 2, max: 8 }] };
+    const target = await randomBoard(cutSpec, "");
+    if (!target) continue;
+    const rects = regionsOf(makePuzzle(cutSpec), target).cells;
+    for (let t = 0; t < 40 && !result; t++) {
+      const givens: Given[] = rects.map((cs) => ({ at: "cell", cell: at(cs[Math.floor(rand() * cs.length)]), kind: "number", value: cs.length }));
+      const spec: GridSpec = { genre, size: [rows, cols], givens };
+      if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+    }
+  } else if (genre === "star-battle") {
     // stars first (n per row and column, never touching), then areas grown around them, one per
     // star group, until only those stars fit
     const k = Number(arg("stars", "1"));

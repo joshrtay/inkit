@@ -51,6 +51,19 @@ const touching = (p: Puzzle, i: number) => {
     if ((dr || dc) && r + dr >= 0 && c + dc >= 0 && r + dr < g.rows && c + dc < g.cols) out.push(g.cell(r + dr, c + dc));
   return out;
 };
+const other = (p: Puzzle, l: number, i: number) => { const [a, c] = p.grid.links[l].cells; return a === i ? c : a; };
+/** The cells a cell sees along its row and column, up to a blocked cell or the edge. */
+const sees = (p: Puzzle, i: number) => {
+  const g = p.grid, [r, c] = g.rc(i), out: number[] = [];
+  for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    for (let y = r + dr, x = c + dc; y >= 0 && x >= 0 && y < g.rows && x < g.cols; y += dr, x += dc) {
+      const j = g.cell(y, x);
+      if (p.blocked.has(j)) break;
+      out.push(j);
+    }
+  }
+  return out;
+};
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
 
 export const blocks = {
@@ -287,6 +300,32 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
     },
     asp: (_s, p) => Array.from({ length: p.grid.cellCount }, (_, i) => touching(p, i).filter((j) => j > i).map((j) => `:- shaded(${i}), shaded(${j}).`).join("\n")).filter(Boolean).join("\n"),
   },
+  lit: {
+    describe: (_s, p) => `Put light bulbs in white cells. A bulb lights its row and column up to a ${p.blocked.size ? "black cell" : "wall"}. Every white cell is lit, and no bulb shines on another.`,
+    check(_s, p, b) {
+      const g = p.grid, lit = new Set<number>(), clash = new Set<number>();
+      for (let i = 0; i < g.cellCount; i++) if (b.shade[i] === 1) {
+        lit.add(i);
+        for (const j of sees(p, i)) { lit.add(j); if (b.shade[j] === 1) { clash.add(i); clash.add(j); } }
+      }
+      if (clash.size) return [{ message: "Two bulbs shine on each other.", cells: [...clash] }];
+      const dark = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i) && !lit.has(i));
+      return dark.length ? [{ message: "Every white cell must be lit.", cells: dark }] : [];
+    },
+    asp: (_s, p) => [
+      ...Array.from({ length: p.grid.cellCount }, (_, i) => (p.blocked.has(i) ? [] : sees(p, i).map((j) => `sees(${i},${j}).`))).flat(),
+      "lit(I) :- shaded(I).", "lit(J) :- shaded(I), sees(I,J).",
+      ":- cell(I), not blocked(I), not lit(I).", ":- shaded(I), shaded(J), sees(I,J), I < J.",
+    ].join("\n"),
+  },
+  "adjacent-count": {
+    describe: (_s, p) => `A number on a ${p.blocked.size ? "black cell" : "cell"} counts the ${p.style.shaded === "bulb" ? "bulbs" : "shaded cells"} right beside it (not diagonally).`,
+    check(_s, p, b) {
+      return numberClues(p).filter(([i, k]) => p.grid.cellLinks[i].filter((l) => b.shade[other(p, l, i)] === 1).length !== k)
+        .map(([i, k]) => ({ message: `This ${k} needs exactly ${k} ${p.style.shaded === "bulb" ? (k === 1 ? "bulb" : "bulbs") : "shaded"} beside it.`, cells: [i] }));
+    },
+    asp: (_s, p) => numberClues(p).map(([i, k]) => `:- #count{J: adj(${i},J,_), shaded(J)} != ${k}.`).join("\n"),
+  },
   connected: {
     describe: () => "All the shaded cells connect into one group (side to side, not at corners).",
     check(_s, p, b) {
@@ -370,6 +409,30 @@ cmp(R1,R2) :- op(R1,R2).
 :- op(R,R).
 :- op(R1,R2), same(R1,R2).`,
     needs: ["regions", "shapes"],
+  },
+  rectangles: {
+    describe: () => "Every region is a rectangle (or a square).",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const g = p.grid;
+      return r().cells.filter((cs) => {
+        const rs = cs.map((i) => g.rc(i)[0]), ks = cs.map((i) => g.rc(i)[1]);
+        return (Math.max(...rs) - Math.min(...rs) + 1) * (Math.max(...ks) - Math.min(...ks) + 1) !== cs.length;
+      }).map((cs) => ({ message: "Every region must be a rectangle.", cells: cs }));
+    },
+    // around each inner grid point, two cuts meeting at a right angle make a corner that points
+    // into a region: not allowed. (A lone cut is already ruled out: a cut separates two regions.)
+    asp: (_s, p) => {
+      const g = p.grid, out: string[] = [];
+      const link = (a: number, b: number) => g.links[g.borders[g.borderBetween(a, b)].link].id;
+      for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++) {
+        const A = g.cell(r, c), B = g.cell(r, c + 1), C = g.cell(r + 1, c), D = g.cell(r + 1, c + 1);
+        const top = link(A, B), bottom = link(C, D), left = link(A, C), right = link(B, D);
+        for (const [x, y, u, v] of [[top, left, bottom, right], [top, right, bottom, left], [bottom, left, top, right], [bottom, right, top, left]])
+          out.push(`:- cut(${x}), cut(${y}), not cut(${u}), not cut(${v}).`);
+      }
+      return out.join("\n");
+    },
   },
   "all-different": {
     describe: () => "No two regions have the same shape (turned or flipped counts as the same).",

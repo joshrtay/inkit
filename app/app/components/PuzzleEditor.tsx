@@ -47,6 +47,8 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   "simple-loop": ["block", "wall"],
   "simple-path": ["door", "block", "wall"],
   "star-battle": [],
+  akari: ["block", "number"],
+  shikaku: ["number"],
   "irregular-sudoku": ["number"],
   nonogram: ["runs"],
   sudoku: ["number"],
@@ -72,6 +74,8 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "shaded-per-line": { label: "Shaded (stars) per row and column", settings: [{ key: "n", label: "how many", type: "number" }] },
   "shaded-per-area": { label: "Shaded (stars) per outlined area", settings: [{ key: "n", label: "how many", type: "number" }] },
   "no-touch": { label: "Shaded cells (stars) never touch, even diagonally", settings: [] },
+  lit: { label: "Bulbs light every white cell, never each other", settings: [] },
+  "adjacent-count": { label: "Numbers count the shaded cells (bulbs) beside them", settings: [] },
   connected: { label: "Shaded cells connect", settings: [] },
   "no-pool": { label: "No 2×2 shaded block", settings: [] },
   size: { label: "Region size", settings: [{ key: "is", label: "exactly", type: "number" }, { key: "min", label: "at least", type: "number" }, { key: "max", label: "at most", type: "number" }] },
@@ -79,6 +83,7 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "one-each": { label: "One clue per region", settings: [{ key: "of", label: "of", type: "choice", choices: ["number", "symbol"] }] },
   twins: { label: "◆ joins same shapes", settings: [] },
   opposites: { label: "◇ joins different shapes", settings: [] },
+  rectangles: { label: "Every region is a rectangle", settings: [] },
   "all-different": { label: "All regions differ in shape", settings: [] },
   compass: { label: "Compasses count their region", settings: [] },
   "corner-count": { label: "Corner numbers count their walls", settings: [] },
@@ -95,7 +100,7 @@ const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" |
   grid: { label: "Grid", type: "choice", choices: ["lines", "dots"] },
   major: { label: "Heavy line every", type: "number" },
   empty: { label: "Known-empty mark", type: "choice", choices: ["dot", "x"] },
-  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star"] },
+  shaded: { label: "Shaded cells look like", type: "choice", choices: ["wash", "star", "bulb"] },
   palette: { label: "Region colors", type: "colors" },
 };
 
@@ -213,9 +218,12 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
           : tool === "symbol" ? { at: "cell", cell, kind: "symbol", value: symbol }
           : tool === "dots" ? { at: "cell", cell, kind: "dots", value: dots }
             : { at: "cell", cell, kind: "compass", value: Object.fromEntries(Object.entries(compass).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])) };
-    const here = givens.find((g) => g.at === "cell" && same(g.cell, cell));
-    const identical = here && JSON.stringify(here) === JSON.stringify(placed);
-    setGivens([...givens.filter((g) => !(g.at === "cell" && same(g.cell, cell))), ...(identical ? [] : [placed])]);
+    // a number and a black cell can share a cell (Akari); anything else replaces what's there
+    const pairs = (a: Given, b: Given) => (a.kind === "number" && b.kind === "block") || (a.kind === "block" && b.kind === "number");
+    const here = givens.filter((g) => g.at === "cell" && same(g.cell, cell));
+    const identical = here.some((g) => JSON.stringify(g) === JSON.stringify(placed));
+    const kept = here.filter((g) => !identical && pairs(g, placed));
+    setGivens([...givens.filter((g) => !(g.at === "cell" && same(g.cell, cell))), ...kept, ...(identical ? here.filter((g) => JSON.stringify(g) !== JSON.stringify(placed)) : [placed])]);
   }
 
   // ---- nonogram clue numbers (when there's no picture) ----
@@ -409,7 +417,8 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
                     <circle cx={cx} cy={cy} r={3} />
                   </g>;
                 }
-                return <text key={i} x={cx} y={cy + 7} className="ge-text">{String(g.value)}</text>;
+                const onRock = givens.some((o) => o.at === "cell" && o.kind === "block" && same(o.cell, g.cell));
+                return <text key={i} x={cx} y={cy + 7} className={onRock ? "ge-text on-rock" : "ge-text"}>{String(g.value)}</text>;
               }
               if (g.at === "border") {
                 const [[r1, c1], [r2, c2]] = g.cells;

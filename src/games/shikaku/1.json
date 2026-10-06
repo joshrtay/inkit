@@ -1,0 +1,103 @@
+{
+  "type": "grid",
+  "name": "Boxes",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          0
+        ],
+        "kind": "number",
+        "value": 8
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          5
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          5
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          1
+        ],
+        "kind": "number",
+        "value": 8
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          2
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          5
+        ],
+        "kind": "number",
+        "value": 6
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          3
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          4
+        ],
+        "kind": "number",
+        "value": 2
+      }
+    ]
+  }
+}

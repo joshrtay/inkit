@@ -145,6 +145,7 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .fe-dots { display: inline-flex; gap: 3px; align-items: center; padding: 0 4px; }
 .fe-piece-bar b { margin-right: 4px; }
 .ge-text { font: 700 22px var(--hand); fill: #26398f; text-anchor: middle; pointer-events: none; }
+.ge-text.on-rock { fill: #fff; }
 .ge-text.small { font-size: 12px; }
 .ge-text circle { fill: #26398f; }
 .ge-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }

@@ -38,6 +38,19 @@ export const genres = {
     rules: [{ rule: "shaded-per-line", n: 1 }, { rule: "shaded-per-area", n: 1 }, { rule: "no-touch" }],
     style: { shaded: "star", empty: "dot" },
   },
+  // Akari: light bulbs in white cells light their row and column up to a black cell; every white
+  // cell is lit, no bulb shines on another, and a number on a black cell counts the bulbs beside it
+  akari: {
+    marks: ["shade"],
+    rules: [{ rule: "lit" }, { rule: "adjacent-count" }],
+    style: { shaded: "bulb", empty: "dot" },
+  },
+  // Shikaku: cut the grid into rectangles, each holding one number: its size
+  shikaku: {
+    marks: ["regions"],
+    rules: [{ rule: "rectangles" }, { rule: "one-each", of: "number" }, { rule: "size-clue" }],
+    style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
+  },
   // Irregular Sudoku: a sudoku whose boxes are the outlined areas
   "irregular-sudoku": {
     marks: ["digit"],
