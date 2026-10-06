@@ -37,7 +37,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   if (saved) for (const k of Object.keys(board) as Layer[]) saved[k]?.forEach((v, i) => { if (i < board[k].length) board[k][i] = v; });
   const ticks = new Set<string>(saved?.ticks ?? []);
   // a maze: its given walls start drawn, and neither they nor its doors can be changed
-  const maze = p.doors.size > 0;
+  const maze = p.rules.some((s) => s.rule === "perfect-maze");
   const givenWalls = maze ? [...p.walls].map((l) => g.links[l].border) : [];
   const locked = new Set([...p.doors.keys(), ...givenWalls]);
   const lockWalls = () => { for (const e of givenWalls) board.fence[e] = 1; for (const e of p.doors.keys()) board.fence[e] = 0; };
@@ -99,7 +99,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const [[x1, y1], [x2, y2]] = borderXY(g.links[l].border);
     el("line", { class: maze ? "wall given" : "wall", x1, y1, x2, y2 }, gGivens);
   }
-  // a maze's doors: an arrow in at the way in, an arrow out at the way out
+  // doors (mazes, paths): an arrow in at the way in, an arrow out at the way out; a path's line
+  // starts and ends at them
   for (const [e, role] of p.doors) {
     const b = g.borders[e], [[x1, y1], [x2, y2]] = borderXY(e), mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
     const [ox, oy] = b.horizontal ? [0, b.cells[0] < 0 ? -1 : 1] : [b.cells[0] < 0 ? -1 : 1, 0];
@@ -107,6 +108,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const [[ax, ay], [hx, hy]] = role === "in" ? [at(40), at(10)] : [at(10), at(42)];
     const ux = Math.sign(hx - ax), uy = Math.sign(hy - ay), bx = hx - 7 * ux, by = hy - 7 * uy;
     el("path", { class: "arrow", d: `M${ax} ${ay}L${hx} ${hy}M${bx - 6 * uy} ${by + 6 * ux}L${hx} ${hy}L${bx + 6 * uy} ${by - 6 * ux}` }, gGivens);
+    if (marks.includes("loop")) {
+      const inside = b.cells[0] < 0 ? b.cells[1] : b.cells[0], [cx, cy] = center(inside);
+      el("line", { class: "stub", x1: cx, y1: cy, x2: mx, y2: my }, gTint);
+    }
   }
   // numbers on corners (mazes): a circle each, green when it has its walls, red when over
   const cornerEls = new Map<number, [Element, number]>();

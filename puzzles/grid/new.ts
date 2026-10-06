@@ -4,6 +4,7 @@
 //   node puzzles/grid/new.ts --genre nurikabe --size 5x5 --number 1 --name "Islands"
 //   node puzzles/grid/new.ts --genre panes --size 4x5 --number 1 --name "First Window" --rules "size=4,twins,opposites,compass"
 //   node puzzles/grid/new.ts --genre sudoku --size 9x9 --number 1 --name "Classic"
+//   node puzzles/grid/new.ts --genre simple-path --size 6x6 --number 1 --name "First Steps"
 //
 // 1. clingo picks a random finished board that obeys the genre's rules (a loop, a wall,
 //    a set of panes), 2. every clue that's true of that board goes in a pool, 3. clues
@@ -33,7 +34,7 @@ async function randomBoard(spec: GridSpec, extra: string): Promise<Board | null>
 }
 
 const regionKey = (spec: GridSpec, b: Board) => regionsOf(makePuzzle(spec), b).of.join(",");
-const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" ? [...b.loop].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
 /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
 async function narrow(base: GridSpec, target: Board, pool: Given[]): Promise<GridSpec | null> {
@@ -64,7 +65,26 @@ const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
 let result: GridSpec | null = null;
 
 for (let attempt = 0; attempt < 40 && !result; attempt++) {
-  if (genre === "slitherlink") {
+  if (genre === "simple-path") {
+    // doors on two different sides, a few rocks; a random path through it; then walls (which the
+    // path never crosses) until it's the only one
+    const sides = shuffle(["top", "right", "bottom", "left"] as const).slice(0, 2);
+    const door = (side: (typeof sides)[number], role: "in" | "out"): Given => ({
+      at: "edge", kind: "door", role, side,
+      cell: side === "top" ? [0, Math.floor(rand() * cols)] : side === "bottom" ? [rows - 1, Math.floor(rand() * cols)]
+        : side === "left" ? [Math.floor(rand() * rows), 0] : [Math.floor(rand() * rows), cols - 1],
+    });
+    const givens: Given[] = [door(sides[0], "in"), door(sides[1], "out")];
+    const rocks = Math.floor(rows * cols * 0.08);
+    for (const i of shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, rocks)) givens.push({ at: "cell", cell: at(i), kind: "block" });
+    const base: GridSpec = { genre, size: [rows, cols], givens };
+    const target = await randomBoard(base, "");
+    if (!target) continue;
+    const g = makePuzzle(base).grid;
+    const pool: Given[] = g.links.filter((l) => !target.loop[l.id] && !l.cells.some((c) => givens.some((x) => x.kind === "block" && x.at === "cell" && g.cell(...x.cell) === c)))
+      .map((l) => ({ at: "border", cells: [at(l.cells[0]), at(l.cells[1])], kind: "wall" }));
+    result = await narrow(base, target, pool);
+  } else if (genre === "slitherlink") {
     const base: GridSpec = { genre, size: [rows, cols], givens: [] };
     const target = await randomBoard(base, `:- #count{B: fence(B)} < ${Math.round(rows * cols * 0.9)}.`);
     if (!target) continue;

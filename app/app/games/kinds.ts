@@ -4,6 +4,7 @@ import type { GenreName } from "~site/engine/puzzle.ts";
  *  Typed against the engine's genres, so a new genre needs a name here before the build passes. */
 export const KIND_NAMES: Record<GenreName, string> = {
   "simple-loop": "Simple Loop",
+  "simple-path": "Simple Path",
   nonogram: "Nonogram",
   slitherlink: "Slitherlink",
   nurikabe: "Nurikabe",

@@ -45,6 +45,7 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   slitherlink: ["number"],
   nurikabe: ["number"],
   "simple-loop": ["block", "wall"],
+  "simple-path": ["door", "block", "wall"],
   nonogram: ["runs"],
   sudoku: ["number"],
   panes: ["number", "symbol", "compass", "twins", "opposites", "block"],
@@ -61,6 +62,7 @@ type Setting =
 /** Every rule block, in plain words, with every setting it takes. */
 const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   loop: { label: "One loop", settings: [{ key: "of", label: "drawn", type: "choice", choices: ["fence", "loop"] }, { key: "cover", label: "through every open cell", type: "flag" }] },
+  path: { label: "One path from the way in to the way out", settings: [{ key: "cover", label: "through every open cell", type: "flag" }] },
   sides: { label: "Numbers count the loop's sides", settings: [] },
   runs: { label: "Row and column clue numbers", settings: [] },
   latin: { label: "Each digit once per row and column", settings: [] },

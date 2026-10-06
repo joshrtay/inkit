@@ -90,6 +90,7 @@
 .grid-game .num.over circle { fill: color-mix(in srgb, var(--wash-red) 30%, var(--paper)); stroke: var(--paper-red); stroke-width: 2.2; }
 .grid-game .num.over text { fill: var(--paper-red); }
 .grid-game .arrow { fill: none; stroke: var(--paper-red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .stub { stroke: color-mix(in srgb, var(--wash-blue) 55%, var(--paper)); stroke-width: 11; stroke-linecap: round; }
 .grid-game .wall.given { stroke: color-mix(in srgb, var(--paper-ink) 50%, var(--paper)); stroke-width: 5; }
 .grid-game svg.walking { cursor: pointer; }
 .grid-game svg.walking .wall.given { stroke: var(--paper-ink); }

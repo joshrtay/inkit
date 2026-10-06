@@ -66,6 +66,21 @@ lreach(W) :- lreach(V), ${on}(E), ${inc}(V,E), ${inc}(W,E).
 ${s.cover ? ":- cell(I), not blocked(I), ldeg(I,N), N != 2." : ""}`;
     },
   },
+  path: {
+    describe: (s, p) => `Draw one path from the way in to the way out${s.cover ? ` through every ${p.blocked.size ? "white " : ""}cell` : ""}. It goes straight or turns, never branches or crosses itself${p.blocked.size || p.walls.size ? ", and can't enter the dark cells or cross the thick walls" : ""}.`,
+    check: (s, p, b) => checkPath(p, b, !!s.cover),
+    asp(s, p) {
+      const ends = pathEnds(p);
+      return `${ends.map((i) => `pend(${i}).`).join(" ")}
+pdeg(I,N) :- cell(I), N = #count{L: line(L), lc(I,L)}.
+:- pend(I), pdeg(I,N), N != 1.
+:- cell(I), not pend(I), pdeg(I,N), N != 0, N != 2.
+preach(${ends[0]}).
+preach(J) :- preach(I), line(L), lc(I,L), lc(J,L).
+:- pdeg(I,N), N > 0, not preach(I).
+${s.cover ? ":- cell(I), not blocked(I), not preach(I)." : ""}`;
+    },
+  },
   sides: {
     describe: () => "A number in a cell says how many of its four sides the loop runs along.",
     check(_s, p, b) {
@@ -451,6 +466,39 @@ function pairFacts(p: Puzzle, kind: string, pred: string) {
     out.push(`${pred}(R1,R2) :- member(R1,${a}), member(R2,${c}).`);
   }
   return out.join("\n");
+}
+
+/** The cells beside a path's two doors (way in first). */
+export const pathEnds = (p: Puzzle) => ["in", "out"].map((role) => {
+  const e = [...p.doors].find(([, r]) => r === role)![0], [a, c] = p.grid.borders[e].cells;
+  return a < 0 ? c : a;
+});
+
+function checkPath(p: Puzzle, b: Board, cover: boolean): Problem[] {
+  const { edges, deg } = lineGraph(p, b, "loop");
+  const ends = pathEnds(p);
+  const bad = edges.filter(([a, c, id]) => p.walls.has(id) || p.blocked.has(a) || p.blocked.has(c)).map(([, , id]) => id);
+  if (bad.length) return [{ message: "The path can't cross a wall or enter a dark cell.", links: bad }];
+  const branch = deg.map((d, v) => [d, v]).filter(([d, v]) => d > (ends.includes(v) ? 1 : 2)).map(([, v]) => v);
+  if (branch.length) return [{ message: "The path can't branch: it goes in one side of a cell and out another.", cells: branch }];
+  // follow the path from the way in
+  const seen = new Set([ends[0]]);
+  let at = ends[0], from = -1;
+  for (;;) {
+    const next = edges.find(([a, c]) => (a === at && c !== from) || (c === at && a !== from));
+    if (!next) break;
+    const to = next[0] === at ? next[1] : next[0];
+    if (seen.has(to)) break;
+    seen.add(to); from = at; at = to;
+  }
+  if (at !== ends[1]) return [{ message: "Draw one path from the arrow in to the arrow out.", cells: [at] }];
+  const stray = edges.filter(([a]) => !seen.has(a)).map(([, , id]) => id);
+  if (stray.length) return [{ message: "Make one path, with no extra pieces of line.", links: stray }];
+  if (cover) {
+    const missing = Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i) && !seen.has(i));
+    if (missing.length) return [{ message: "The path must pass through every open cell.", cells: missing }];
+  }
+  return [];
 }
 
 function checkLoop(p: Puzzle, b: Board, kind: "fence" | "loop", cover: boolean): Problem[] {

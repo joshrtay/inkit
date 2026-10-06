@@ -1,0 +1,113 @@
+{
+  "type": "grid",
+  "name": "Long Way Round",
+  "meta": "7 × 7",
+  "grid": {
+    "size": [
+      7,
+      7
+    ],
+    "givens": [
+      {
+        "at": "edge",
+        "kind": "door",
+        "role": "in",
+        "side": "right",
+        "cell": [
+          4,
+          6
+        ]
+      },
+      {
+        "at": "edge",
+        "kind": "door",
+        "role": "out",
+        "side": "bottom",
+        "cell": [
+          6,
+          3
+        ]
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            4,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            3,
+            1
+          ],
+          [
+            4,
+            1
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            1,
+            4
+          ],
+          [
+            2,
+            4
+          ]
+        ],
+        "kind": "wall"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            1,
+            4
+          ],
+          [
+            1,
+            5
+          ]
+        ],
+        "kind": "wall"
+      }
+    ]
+  }
+}

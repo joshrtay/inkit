@@ -2,7 +2,7 @@
 
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, Simple Loop and Nonograms. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with eight genres: Simple Loop (`simple-loop`), Nonogram
+the `grid-engine` branch, with nine genres: Simple Loop (`simple-loop`), Simple Path (`simple-path`), Nonogram
 (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku.
 
@@ -58,6 +58,7 @@ puzzle can use it.
 | Block | Meaning |
 |---|---|
 | `loop` | The lines (fence or loop marks) form exactly one closed loop; `cover` makes it pass through every open cell. |
+| `path` | The loop marks form one path from the way-in door's cell to the way-out door's cell; `cover` makes it pass through every open cell (Simple Path). |
 | `sides` | A number in a cell counts the fence lines on its four sides. |
 | `connected` | All shaded cells form one connected group. |
 | `no-pool` | No 2×2 block of shaded cells. |
@@ -112,7 +113,8 @@ that uses a mark gets the same behavior:
 
 - `fence` / region cuts: drag along the lines from corner to corner (fast drags fill in the
   skipped edges); tap a line to cycle line / X / empty (cuts toggle).
-- `loop`: drag from cell to cell; tap between two cells to cycle the link.
+- `loop`: drag from cell to cell; tap between two cells to cycle the link. A path's doors show
+  as arrows with the line's ends drawn out to them.
 - `shade`: tap cycles shaded / dot (or X, for nonograms) / empty (right-click the other way);
   dragging paints what the first cell got. Nonogram clue numbers can be tapped to tick them.
 - `digit`: tap a cell, then a number on the pad (on the paper, under the board) or the

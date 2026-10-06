@@ -21,6 +21,10 @@ type ImageType = (typeof IMAGE_TYPES)[number];
 const GENRE_GUIDE: Record<GenreName, string> = {
   "simple-loop": `simple-loop (Simple Loop, also drawn as "Round the Bend" or "river"): draw one loop through every open cell. Shaded / crossed-out cells are
   rocks: {kind: "block"}. Thick lines between two cells are walls the loop can't cross: {kind: "wall", cell, other}.`,
+  "simple-path": `simple-path (Simple Path, a Hamiltonian path): draw one path from an entrance to an exit through
+  every open cell. Arrows (or gaps) at the outside edge mark the entrance and exit: {kind: "door", role: "in" / "out"}
+  with the cell beside it and that side. Shaded cells are rocks {kind: "block"}; thick lines between cells are
+  walls {kind: "wall", cell, other}.`,
   slitherlink: `slitherlink: numbers in cells count how many of the cell's four sides the loop uses: {kind: "number", value}.`,
   nurikabe: `nurikabe: numbered cells are islands of that size: {kind: "number", value}.`,
   nonogram: `nonogram (also "Picture Squares"): numbers beside each row and above each column. If the drawing shows the
@@ -60,6 +64,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
 
 const RULE_GUIDE: Record<RuleName, string> = {
   loop: "the lines form one loop (comes with simple-loop and slitherlink)",
+  path: "one path from the way in to the way out (comes with simple-path); cover: through every open cell",
   sides: "a number counts the loop's sides around it (comes with slitherlink)",
   runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
   latin: "each digit once per row and column (comes with sudoku)",

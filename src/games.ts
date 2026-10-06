@@ -88,6 +88,16 @@ export const gameTypes: GameType[] = [
   // ---- grid engine (src/engine, docs/grid-engine.md) ----
   {
     id: "grid",
+    genre: "simple-path",
+    path: "simple-path",
+    name: "Simple Path",
+    blurb: "Draw one path from the arrow in to the arrow out that passes through every white cell.",
+    meta: "Play in the browser",
+    ink: "#2d6a45",
+    listed: true,
+  },
+  {
+    id: "grid",
     genre: "slitherlink",
     path: "slitherlink",
     name: "Slitherlink",

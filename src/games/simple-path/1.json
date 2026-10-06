@@ -1,0 +1,63 @@
+{
+  "type": "grid",
+  "name": "First Steps",
+  "meta": "5 × 5",
+  "grid": {
+    "size": [
+      5,
+      5
+    ],
+    "givens": [
+      {
+        "at": "edge",
+        "kind": "door",
+        "role": "in",
+        "side": "bottom",
+        "cell": [
+          4,
+          4
+        ]
+      },
+      {
+        "at": "edge",
+        "kind": "door",
+        "role": "out",
+        "side": "right",
+        "cell": [
+          2,
+          4
+        ]
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "border",
+        "cells": [
+          [
+            1,
+            3
+          ],
+          [
+            1,
+            4
+          ]
+        ],
+        "kind": "wall"
+      }
+    ]
+  }
+}

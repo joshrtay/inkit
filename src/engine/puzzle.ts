@@ -24,6 +24,13 @@ export const genres = {
     rules: [{ rule: "loop", of: "loop", cover: true }],
     style: {},
   },
+  // Simple Path (a Hamiltonian path): one path from the way in to the way out through every
+  // open cell, around rocks and walls
+  "simple-path": {
+    marks: ["loop"],
+    rules: [{ rule: "path", cover: true }],
+    style: {},
+  },
   // Nonogram: clues worked out from a picture (Wyatt's Picture Squares)
   nonogram: {
     marks: ["shade"],
@@ -98,10 +105,10 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   if (fig && (marks.length !== 1 || marks[0] !== "paint")) throw new Error("a figure of pieces is played by painting them");
   const rules = [...(genre?.rules ?? []), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
-  if (rules.some((s) => s.rule === "perfect-maze")) {
+  if (rules.some((s) => s.rule === "perfect-maze" || s.rule === "path")) {
     const roles = [...doors.values()];
     if (roles.filter((r) => r === "in").length !== 1 || roles.filter((r) => r === "out").length !== 1)
-      throw new Error("a maze needs one way in and one way out on its outside edge");
+      throw new Error(`a ${rules.some((s) => s.rule === "path") ? "path" : "maze"} needs one way in and one way out on its outside edge`);
   }
   return {
     spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
