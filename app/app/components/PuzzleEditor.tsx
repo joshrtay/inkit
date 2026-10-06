@@ -10,6 +10,7 @@ import { genres, type GenreName } from "~site/engine/puzzle.ts";
 import { runsOf, type RuleName } from "~site/engine/rules.ts";
 import type { Given, GridSpec, GridStyle, MarkKind, RuleSpec, Side } from "~site/engine/types.ts";
 import { KIND_NAMES } from "~/games/kinds";
+import { FigureEditor, squaresFigure } from "./FigureEditor";
 
 type RC = [number, number];
 type ClueKind = Given["kind"];
@@ -20,6 +21,7 @@ type ClueKind = Given["kind"];
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the game type menu", size: "Rows / Columns", givens: "the clue tools", rules: "Rules",
   style: "Look", picture: "the picture painter (Picture Squares)", marks: "Look › what the player draws",
+  figure: "the figure editor (Three Coats)", hearts: "Hearts (paint puzzles)",
 };
 
 /** Every clue kind: its tool label, and whether it sits in a cell, on a border, beside a line, on a
@@ -34,6 +36,7 @@ const CLUES: Record<ClueKind, { label: string; on: "cell" | "border" | "line" | 
   opposites: { label: "◇ Different shape", on: "border" },
   runs: { label: "Clue numbers", on: "line" },
   count: { label: "Corner number", on: "corner" },
+  dots: { label: "Paint dots", on: "cell" },
   door: { label: "Door", on: "edge" },
 };
 
@@ -46,6 +49,7 @@ const GENRE_CLUES: Record<GenreName, ClueKind[]> = {
   sudoku: ["number"],
   panes: ["number", "symbol", "compass", "twins", "opposites", "block"],
   maze: ["count", "door", "wall"],
+  coats: ["dots"],
 };
 
 type Setting =
@@ -72,6 +76,9 @@ const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   compass: { label: "Compasses count their region", settings: [] },
   "corner-count": { label: "Corner numbers count their walls", settings: [] },
   "perfect-maze": { label: "Walls make a maze between two doors", settings: [] },
+  painted: { label: "Paint every piece", settings: [] },
+  "neighbor-dots": { label: "Dots ask for neighbours of their color", settings: [] },
+  "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
 };
 
 /** Every style option. */
@@ -87,6 +94,7 @@ const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" |
 /** Every kind of mark a player can put down (a genre picks its own; Look can override). */
 const MARKS: Record<MarkKind, string> = {
   fence: "lines along cell edges", loop: "lines through cell centers", shade: "shading", regions: "regions", digit: "digits",
+  paint: "painting (red, yellow, blue)",
 };
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
@@ -110,6 +118,9 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
   const [tool, setTool] = useState<ClueKind | "paint" | "erase">(picture ? "paint" : shownTools[0] ?? "erase");
   const [number, setNumber] = useState(1);
   const [role, setRole] = useState<"in" | "out">("in");
+  const [dots, setDots] = useState<number[]>([1]);
+  const paintColors = spec.style?.palette?.length ? spec.style.palette : ["#ef5a6a", "#f7cf3d", "#3fb0e6"];
+  const paints = (spec.marks ?? (genres[genre]?.marks as MarkKind[] | undefined) ?? []).includes("paint");
   const [symbol, setSymbol] = useState("★");
   const [compass, setCompass] = useState({ n: "", e: "", s: "", w: "" });
   const [ink, setInk] = useState(() => (picture ? Object.keys(picture.palette).find((k) => k !== ".") ?? "a" : "a"));
@@ -181,6 +192,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
       tool === "block" ? { at: "cell", cell, kind: "block" }
         : tool === "number" ? { at: "cell", cell, kind: "number", value: number }
           : tool === "symbol" ? { at: "cell", cell, kind: "symbol", value: symbol }
+          : tool === "dots" ? { at: "cell", cell, kind: "dots", value: dots }
             : { at: "cell", cell, kind: "compass", value: Object.fromEntries(Object.entries(compass).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])) };
     const here = givens.find((g) => g.at === "cell" && same(g.cell, cell));
     const identical = here && JSON.stringify(here) === JSON.stringify(placed);
@@ -207,6 +219,20 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
     onChange({ ...rest, givens: [...givens.filter((g) => g.at !== "row" && g.at !== "col"), ...lines] });
   }
 
+  // ---- the game type: Three Coats is drawn as a figure of pieces, everything else on a grid ----
+  function changeGenre(next: GenreName) {
+    if (next === genre) return;
+    if (next === "coats" && !spec.figure) {
+      const pieces = squaresFigure(3, 3);
+      return onChange({ genre: next, size: [1, pieces.length], figure: { pieces } });
+    }
+    if (next !== "coats" && spec.figure) {
+      const { figure: _f, hearts: _h, ...rest } = spec;
+      return onChange({ ...rest, genre: next, size: [5, 5], givens: [] });
+    }
+    set({ genre: next });
+  }
+
   // ---- rules beyond the genre's own ----
   const extra = spec.rules ?? [];
   const setRules = (r: RuleSpec[]) => set({ rules: r.length ? r : undefined });
@@ -228,16 +254,17 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
     <div className="givens-editor">
       <div className="ge-bar">
         <label>Game type
-          <select value={genre} onChange={(e) => set({ genre: e.target.value })}>
+          <select value={genre} onChange={(e) => changeGenre(e.target.value as GenreName)}>
             {(Object.keys(GENRE_CLUES) as GenreName[]).map((g) => <option key={g} value={g}>{KIND_NAMES[g]}</option>)}
           </select>
         </label>
-        <span className="ge-size">
+        {!spec.figure && <span className="ge-size">
           Rows <button type="button" onClick={() => resize(-1, 0)} aria-label="Fewer rows">−</button><b>{rows}</b><button type="button" onClick={() => resize(1, 0)} aria-label="More rows">+</button>
           Columns <button type="button" onClick={() => resize(0, -1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" onClick={() => resize(0, 1)} aria-label="More columns">+</button>
-        </span>
+        </span>}
       </div>
 
+      {spec.figure ? <FigureEditor spec={spec} set={set} /> : <>
       {nonogram && (
         <div className="ge-bar">
           <span className="ge-tools" role="group" aria-label="Picture or numbers">
@@ -279,6 +306,13 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
             <button type="button" aria-pressed={tool === "erase"} onClick={() => setTool("erase")}>Erase</button>
             <button type="button" className="link" onClick={() => setMore(!more)}>{more ? "Fewer clues" : "More clues"}</button>
           </span>
+          {tool === "dots" && (
+            <span className="ge-tools" role="group" aria-label="Dots">
+              {paintColors.map((c, k) => <button key={k} type="button" onClick={() => setDots([...dots, k + 1])}>+ <i className="fe-swatch" style={{ background: c }} /></button>)}
+              <span className="fe-dots">{dots.map((c, j) => <i key={j} className="fe-swatch" style={{ background: paintColors[c - 1] }} />)}</span>
+              <button type="button" onClick={() => setDots(dots.slice(0, -1))} disabled={dots.length <= 1}>−</button>
+            </span>
+          )}
           {tool === "door" && (
             <span className="ge-tools" role="group" aria-label="Door">
               <button type="button" aria-pressed={role === "in"} onClick={() => setRole("in")}>Way in</button>
@@ -317,6 +351,8 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
             {givens.map((g, i) => {
               if (g.at === "cell") {
                 const { x, y } = at(...g.cell), cx = x + S / 2, cy = y + S / 2;
+                if (g.kind === "dots") return <g key={i} className={g.hidden ? "ge-dots hidden" : "ge-dots"}>{g.value.map((c, j) =>
+                  <circle key={j} cx={cx + (j - (g.value.length - 1) / 2) * 11} cy={cy} r={4.5} fill={paintColors[c - 1] ?? "#999"} />)}</g>;
                 if (g.kind === "block") return <rect key={i} x={x + 2} y={y + 2} width={S - 4} height={S - 4} className="ge-rock" />;
                 if (g.kind === "compass") {
                   const v = g.value;
@@ -356,6 +392,11 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
           </svg>
         </div>
       </div>
+      {paints && (
+        <div className="ge-bar"><label>Hearts <input type="number" min={0} max={9} value={spec.hearts ?? ""} onChange={(e) => set({ hearts: e.target.value === "" ? undefined : Number(e.target.value) })} /></label>
+          <span className="hint">Mistakes allowed when painting; 0 lets players paint freely.</span></div>
+      )}
+      </>}
 
       <details className="ge-section" open={genre === "panes" || extra.length > 0}>
         <summary>Rules</summary>

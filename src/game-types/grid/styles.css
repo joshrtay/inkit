@@ -99,4 +99,17 @@
 .grid-game .walk .trail { fill: none; stroke: var(--wash-orange); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; opacity: .85; filter: var(--wash); }
 .grid-game .walk .token { fill: var(--paper-red); stroke: var(--paper); stroke-width: 2.5; }
 
+/* paint puzzles (Three Coats): pale pieces painted with watercolor, pen edges, colored dots */
+.grid-game.figure svg.board { cursor: pointer; }
+.grid-game .piece { fill: color-mix(in srgb, var(--paper-ink) 22%, var(--paper)); stroke: none; }
+.grid-game .piece:not(.painted):hover { fill: color-mix(in srgb, var(--paper-ink) 36%, var(--paper)); }
+.grid-game .piece.wrong { animation: grid-shake .35s; }
+.grid-game .edge { fill: none; stroke: var(--paper-ink); stroke-width: var(--edge); stroke-linejoin: round; pointer-events: none; }
+.grid-game .paint-dot { stroke: var(--paper-ink); stroke-width: calc(var(--edge) * .6); pointer-events: none; }
+.grid-game .dots.hideable:not(.shown) { display: none; }
+.grid-game.figure .errors polygon { fill: color-mix(in srgb, var(--paper-red) 30%, transparent); pointer-events: none; }
+.grid-game .hearts { display: flex; gap: 1px; font-size: 20px; line-height: 1; color: var(--paper-red); padding-right: 4px; align-items: center; }
+.grid-game .heart.lost { color: color-mix(in srgb, var(--paper-ink) 20%, transparent); }
+@keyframes grid-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5%); } 75% { transform: translateX(1.5%); } }
+
 @media (prefers-reduced-motion: reduce) { .grid-game.revealed .reveal .pix { transition: none; } .grid-game.revealed .sign { animation: none; } }

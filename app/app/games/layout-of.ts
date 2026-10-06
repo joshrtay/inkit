@@ -6,7 +6,9 @@ import type { Layout } from "./layout";
 export function layoutOf(spec: GridSpec): Layout {
   const p = makePuzzle(spec);
   return {
-    palette: p.marks.includes("regions") ? (p.style.palette ?? []) : [],
+    palette: p.marks.includes("regions") ? (p.style.palette ?? [])
+      : p.marks.includes("paint") ? (p.style.palette?.length ? p.style.palette : ["#ef5a6a", "#f7cf3d", "#3fb0e6"]) : [],
+    hearts: p.marks.includes("paint") ? p.hearts : 0,
     digits: p.marks.includes("digit") ? p.digits : 0,
     hints: p.rules.some((s) => !!blockFor(s).hint),
     title: p.spec.picture?.title,

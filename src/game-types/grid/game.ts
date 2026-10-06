@@ -6,7 +6,7 @@
 //   color         pick a pot and paint cells (regions puzzles)
 //   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too
 // A maze (doors in its edge) is drawn with fence; once its walls check out, the player walks it
-// (walk.ts), and it's solved on the way out.
+// (walk.ts), and it's solved on the way out. Paint puzzles (figures of pieces) play in figure.ts.
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
 import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
@@ -16,6 +16,7 @@ import { blockFor, boxLines, runsOf, type Hint } from "../../engine/rules.ts";
 import { emptyBoard, type Board, type Problem } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
+import { createFigure } from "./figure";
 
 type Layer = keyof Board;
 interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
@@ -27,6 +28,7 @@ const PREFS = "wyattsgames:mosaic-prefs";       // nonogram helpers (same key as
 
 export const createGrid = (config: GridClientConfig): MountGame => (root, host) => {
   const p = makePuzzle(config.spec), g = p.grid, marks = p.marks;
+  if (marks.includes("paint")) return createFigure(p, root, host);   // painted pieces (Three Coats)
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const palette = p.style.palette ?? [];

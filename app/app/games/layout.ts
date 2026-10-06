@@ -4,11 +4,12 @@
 import type { GridSpec } from "~site/engine/types.ts";
 
 export interface Layout {
-  palette: string[];      // region (glass) colors; empty unless the puzzle has regions
+  palette: string[];      // region (glass) or paint colors; empty unless the puzzle has regions or paint
   digits: number;         // digit pad size; 0 unless the puzzle has digits
   hints: boolean;
   title?: string;         // a nonogram picture's title, revealed when solved
   nonogram: boolean;
+  hearts: number;         // mistakes allowed in a paint puzzle; 0 = free play
   ink?: string;
 }
 

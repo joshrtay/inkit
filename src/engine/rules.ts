@@ -25,6 +25,23 @@ const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) =>
   gs.filter((g) => g.kind === "number").map((g) => [i, g.value as number] as [number, number]));
 const cornerClues = (p: Puzzle) => [...p.cornerGivens].flatMap(([v, gs]) =>
   gs.filter((g) => g.kind === "count").map((g) => [v, g.value as number] as [number, number]));
+/** Each dotted cell with how many dots of each color it has. */
+export const dotClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.filter((g) => g.kind === "dots").map((g) => {
+  const need = new Map<number, number>();
+  for (const c of g.value as number[]) need.set(c, (need.get(c) ?? 0) + 1);
+  return [i, need] as [number, Map<number, number>];
+}));
+const neighbours = (p: Puzzle, i: number) => p.grid.cellLinks[i].map((l) => { const [a, c] = p.grid.links[l].cells; return a === i ? c : a; });
+const PAINT_NAMES: Record<string, string> = { "#ef5a6a": "red", "#f7cf3d": "yellow", "#3fb0e6": "blue" };
+/** A paint color's name: red / yellow / blue for Three Coats' pots, else "color n". */
+export const colorName = (p: Puzzle, c: number) => PAINT_NAMES[(p.style.palette?.[c - 1] ?? ["#ef5a6a", "#f7cf3d", "#3fb0e6"][c - 1] ?? "").toLowerCase()] ?? `color ${c}`;
+const colorList = (p: Puzzle) => {
+  const names = Array.from({ length: p.style.palette?.length || 3 }, (_, k) => colorName(p, k + 1));
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0];
+};
+/** color-count's settings: { red, yellow, blue } for Three Coats' pots, or { c1, c2, ... }. */
+const countsOf = (s: RuleSpec, p: Puzzle) => Array.from({ length: p.style.palette?.length || 3 }, (_, k) => k + 1)
+  .map((c) => [c, s[colorName(p, c)] ?? s[`c${c}`]] as [number, unknown]).filter(([, n]) => typeof n === "number") as [number, number][];
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
 
 export const blocks = {
@@ -116,6 +133,35 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
 :- #count{L: mopen(L)} != ${g.cellCount - 1}.`);
       return out.join("\n");
     },
+  },
+
+  // ---- painting (Three Coats) ----
+  painted: {
+    describe: (_s, p) => `Paint every ${p.figure ? "piece" : "cell"} ${colorList(p)}.`,
+    check(_s, p, b) {
+      const bare = Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => !b.color[i]);
+      return bare.length ? [{ message: `Paint every ${p.figure ? "piece" : "cell"}.`, cells: bare }] : [];
+    },
+    asp: () => "",   // the paint choice already gives every cell exactly one color
+  },
+  "neighbor-dots": {
+    describe: (_s, p) => `Each colored dot in a ${p.figure ? "piece" : "cell"} asks for a neighbour of that color: two ${colorName(p, 1)} dots mean at least two ${colorName(p, 1)} neighbours. Neighbours share an edge; touching at a corner doesn't count.`,
+    check(_s, p, b) {
+      return dotClues(p).flatMap(([i, need]) => {
+        const short = [...need].filter(([c, k]) => neighbours(p, i).filter((j) => b.color[j] === c).length < k);
+        return short.length ? [{ message: `This piece needs more ${short.map(([c]) => colorName(p, c)).join(" and ")} neighbours.`, cells: [i] }] : [];
+      });
+    },
+    asp: (_s, p) => dotClues(p).flatMap(([i, need]) =>
+      [...need].map(([c, k]) => `:- #count{J: adj(${i},J,_), paint(J,${c})} < ${k}.`)).join("\n"),
+  },
+  "color-count": {
+    describe: (s, p) => `Paint exactly ${countsOf(s, p).map(([c, n]) => `${n} ${colorName(p, c)}`).join(", ")}.`,
+    check(s, p, b) {
+      const off = countsOf(s, p).filter(([c, n]) => [...b.color].filter((x) => x === c).length !== n);
+      return off.length ? [{ message: `Paint exactly ${off.map(([c, n]) => `${n} ${colorName(p, c)}`).join(" and ")}.` }] : [];
+    },
+    asp: (s, p) => countsOf(s, p).map(([c, n]) => `:- #count{I: paint(I,${c})} != ${n}.`).join("\n"),
   },
 
   // ---- nonograms ----

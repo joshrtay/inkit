@@ -1,7 +1,7 @@
 // A puzzle description, the player's board, and what the rules see (docs/grid-engine.md).
 import type { Grid, RC } from "./geometry.ts";
 
-export type MarkKind = "fence" | "loop" | "shade" | "regions" | "digit";
+export type MarkKind = "fence" | "loop" | "shade" | "regions" | "digit" | "paint";
 
 /** A clue fixed to the grid. In a digit puzzle a "number" is a given digit. */
 export type Given =
@@ -9,6 +9,7 @@ export type Given =
   | { at: "cell"; cell: RC; kind: "block" }                       // a rock: no marks, not part of any loop or region
   | { at: "cell"; cell: RC; kind: "compass"; value: { n?: number; e?: number; s?: number; w?: number } }
   | { at: "cell"; cell: RC; kind: "symbol"; value: string }
+  | { at: "cell"; cell: RC; kind: "dots"; value: number[]; hidden?: boolean }   // paint dots (palette colors 1..n); hidden until painted
   | { at: "border"; cells: [RC, RC]; kind: "twins" | "opposites" | "wall" }   // a wall: loops can't cross it; in a maze, a wall given already drawn
   | { at: "corner"; corner: RC; kind: "count"; value: number }               // a number on a corner: how many walls touch it (mazes)
   | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
@@ -40,6 +41,13 @@ export interface GridSpec {
   /** A nonogram's hidden picture: one letter per cell ("." = empty), its colors and title.
    *  Its row and column clues are worked out from it; solving reveals it in color. */
   picture?: { rows: string[]; palette: Record<string, string>; title?: string };
+  /** A figure of polygon pieces instead of a square grid (Three Coats): each piece is a cell,
+   *  and pieces sharing part of an edge are neighbours. "size" is then [1, number of pieces]
+   *  and cell [0, i] is piece i. Any units; corners closer than 1.5% of the figure's size meet. */
+  figure?: { pieces: number[][][] };
+  /** Mistakes allowed: a wrong move is turned away and costs a heart, and pieces painted right
+   *  lock in (paint puzzles). 0 = play freely and check at the end. */
+  hearts?: number;
 }
 
 /** The player's board: one array per mark kind (unused kinds stay zero). */
@@ -48,7 +56,7 @@ export interface Board {
   fence: Uint8Array;   // borders: 0 empty, 1 line, 2 X
   loop: Uint8Array;    // links:   0 empty, 1 line, 2 X
   cut: Uint8Array;     // borders: 0 none, 1 cut
-  color: Uint8Array;   // cells:   0 unpainted, 1.. palette color
+  color: Uint8Array;   // cells:   0 unpainted, 1.. palette color (regions and paint)
   digit: Uint8Array;   // cells:   0 empty, 1..n
   pencil: Uint16Array; // cells:   the player's pencil notes, bit d = digit d (not part of the answer)
 }
@@ -83,4 +91,8 @@ export interface Puzzle {
   walls: Set<number>;
   /** a digit puzzle's digits run 1..digits */
   digits: number;
+  /** a figure's pieces (corners snapped together), or null for a square grid */
+  figure: number[][][] | null;
+  /** mistakes allowed (0 = free play) */
+  hearts: number;
 }

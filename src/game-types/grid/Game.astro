@@ -24,7 +24,8 @@ const rules = describe(puzzle);
 const regions = puzzle.marks.includes("regions"), digits = puzzle.marks.includes("digit");
 const nonogram = puzzle.rowRuns.size > 0;
 const hints = puzzle.rules.some((s) => blockFor(s).hint);
-const palette = puzzle.style.palette ?? [];
+const paint = puzzle.marks.includes("paint");
+const palette = paint && !puzzle.style.palette?.length ? ["#ef5a6a", "#f7cf3d", "#3fb0e6"] : puzzle.style.palette ?? [];
 const title = puzzle.spec.picture?.title;
 ---
 <GameShell ink={puzzle.style.ink ?? game.type.ink} title={game.name} eyebrow={`No. ${game.number}`}
@@ -36,7 +37,7 @@ const title = puzzle.spec.picture?.title;
     <div class="sheet" style={digits ? "--below: 46px" : undefined}>
       <div class="paper-bar">
         <div class="group">
-          {regions && (
+          {(regions || paint) && (
             <div class="pots" role="group" aria-label="Glass color">
               {palette.map((c, i) => (
                 <button class="pot" data-color={i + 1} type="button" aria-pressed={i === 0 ? "true" : "false"} aria-label={`Color ${i + 1}`} style={`--c: ${c}`}><i></i></button>
@@ -47,6 +48,7 @@ const title = puzzle.spec.picture?.title;
         </div>
         <div class="status" aria-live="polite"></div>
         <div class="group">
+          {paint && puzzle.hearts > 0 && <div class="hearts" data-hearts role="img"></div>}
           <button class="tool" data-undo type="button" aria-label="Undo" title="Undo"><Icon name="undo" /></button>
           {hints && <button class="tool" data-hint type="button" aria-label="Hint" title="Hint"><Icon name="hint" /></button>}
           <button class="tool" data-check type="button" aria-label="Check" title="Check"><Icon name="check" /></button>
@@ -88,6 +90,7 @@ const title = puzzle.spec.picture?.title;
       {puzzle.marks.includes("shade") && `Tap a cell to shade it, again for ${puzzle.style.empty === "x" ? "an X" : "a dot"} (known empty), again to clear; right-click goes the other way. Drag to paint many cells. `}
       {nonogram && "Tap a clue number to tick it off. "}
       {digits && "Tap a cell, then a number (or type it). Pencil adds small notes; arrow keys move, Backspace erases. "}
+      {paint && (puzzle.hearts > 0 ? "Pick a pot (or press R, Y or B) and tap a piece. A wrong color is turned away and costs a heart; right ones lock in. " : "Pick a pot (or press R, Y or B) and tap a piece; tap again with the same color to clear it. ")}
       {regions && "Drag along the lines between cells to cut the glass, or pick a color and paint cells to group them. A pane is a connected group of one color, not cut apart. "}
       Check marks anything that breaks a rule; the puzzle notices when it's solved.
     </p>

@@ -6,6 +6,7 @@
 import { makePuzzle, check } from "./puzzle.ts";
 import { program, boardOf } from "./solve.ts";
 import { regionsOf } from "./derive.ts";
+import { solvePaint } from "./paint.ts";
 import { emptyBoard, type Board, type GridSpec, type Puzzle } from "./types.ts";
 
 const rounds = Number(process.argv[2] ?? 40);
@@ -20,6 +21,7 @@ function key(p: Puzzle, b: Board): string {
   if (p.marks.includes("shade")) return [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("");
   if (p.marks.includes("loop")) return [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("");
   if (p.marks.includes("digit")) return [...b.digit].join("");
+  if (p.marks.includes("paint")) return [...b.color].join("");
   return [...b.fence].join("");
 }
 
@@ -46,6 +48,14 @@ function* allBoards(p: Puzzle): Generator<Board> {
       g.links.forEach((l, k) => { if (m & (1 << k)) b.loop[l.id] = 1; });
       yield b;
     }
+  } else if (p.marks.includes("paint")) {
+    const k = p.style.palette?.length || 3;
+    for (let m = 0; m < k ** g.cellCount; m++) {
+      const b = emptyBoard(g);
+      let x = m;
+      for (let i = 0; i < g.cellCount; i++) { b.color[i] = (x % k) + 1; x = Math.floor(x / k); }
+      yield b;
+    }
   } else if (p.marks.includes("digit")) {
     const fixed = new Map<number, number>();
     for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") fixed.set(i, x.value as number);
@@ -68,7 +78,7 @@ function* allBoards(p: Puzzle): Generator<Board> {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "river", "river", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = pick(["coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "river", "river", "nonogram", "nonogram", "sudoku", "sudoku"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "river") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
@@ -79,6 +89,15 @@ function randomSpec(): GridSpec {
       givens.push({ at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" });
     }
     return { genre: "river", size: [rows, cols], givens };
+  }
+  if (kind === "coats") {
+    // a figure: a row of triangles over a row of squares, so pieces have 1-3 neighbours
+    const pieces = [[[0, 0], [2, 0], [1, 1]], [[2, 0], [4, 0], [3, 1]], [[0, 0], [1, 1], [0, 2]], [[1, 1], [2, 0], [3, 1], [3, 2], [0, 2]], [[3, 1], [4, 0], [4, 2], [3, 2]], [[0, 2], [2, 2], [2, 3], [0, 3]]];
+    const givens: NonNullable<GridSpec["givens"]> = [];
+    for (let i = 0; i < pieces.length; i++) if (rand() < 0.5)
+      givens.push({ at: "cell", cell: [0, i], kind: "dots", value: Array.from({ length: 1 + Math.floor(rand() * 2) }, () => 1 + Math.floor(rand() * 3)), ...(rand() < 0.3 ? { hidden: true } : {}) });
+    const rules: GridSpec["rules"] = rand() < 0.4 ? [{ rule: "color-count", red: Math.floor(rand() * 4), blue: Math.floor(rand() * 3) }] : [];
+    return { genre: "coats", size: [1, pieces.length], figure: { pieces }, givens, rules };
   }
   if (kind === "maze") {
     const [rows, cols] = pick([[2, 2], [2, 3], [3, 2]]);
@@ -166,6 +185,8 @@ for (let n = 0; n < rounds; n++) {
   if (res.Result === "ERROR") { console.log("clingo error", res.Error, JSON.stringify(spec)); failures++; continue; }
   const asp = new Set((res.Call?.[0]?.Witnesses ?? []).map((w) => key(p, boardOf(p, w.Value))));
   const same = brute.size === asp.size && [...brute].every((k) => asp.has(k));
+  const quick = solvePaint(p, 1e6);
+  if (quick && (quick.length !== brute.size || quick.some((c) => !brute.has(c.join(""))))) { failures++; console.log(`PAINT SOLVER MISMATCH checks=${brute.size} solvePaint=${quick.length}`, JSON.stringify(spec)); continue; }
   if (!same) { failures++; console.log(`MISMATCH checks=${brute.size} solver=${asp.size}`, JSON.stringify(spec)); }
   else console.log(`ok ${spec.genre} ${spec.size.join("x")} ${(p.rules.map((r) => r.rule)).join(",")}: ${brute.size} solution(s)`);
 }

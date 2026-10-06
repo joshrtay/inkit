@@ -10,5 +10,6 @@ export const KIND_NAMES: Record<GenreName, string> = {
   panes: "Panes",
   sudoku: "Sudoku",
   maze: "Number Line Maze",
+  coats: "Three Coats",
 };
 export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;

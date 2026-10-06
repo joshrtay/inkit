@@ -6,7 +6,7 @@
 //   cell(I) row(I,R) col(I,C) adj(I,J,L)  clue(I)           cells, neighbours (L = link), clue cells
 //   corner(V) border(B) cb(I,B) vb(V,B)  link(L) lc(I,L)    fence and loop geometry
 //   quad(A,B,C,D)                                          2x2 blocks
-//   fence(B) line(L) shaded(I) cut(L)                      the marks (choices)
+//   fence(B) line(L) shaded(I) cut(L) paint(I,C)           the marks (choices)
 //   open(I) member(R,I) root(R) size(R,N)                  regions ("regions" need)
 //   same(R1,R2) for pairs listed in cmp(R1,R2)             shapes ("shapes" need)
 import { blockFor } from "./rules.ts";
@@ -34,6 +34,7 @@ export function program(p: Puzzle): string {
   if (p.marks.includes("loop")) out.push("{line(L)} :- link(L), not wall(L).\n:- line(L), lc(I,L), blocked(I).");
   if (p.marks.includes("shade")) out.push("{shaded(I)} :- cell(I), not clue(I).");
   if (p.marks.includes("regions")) out.push("{cut(L)} :- link(L).");
+  if (p.marks.includes("paint")) out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
   if (p.marks.includes("digit")) {
     out.push(`d(1..${p.digits}).\n1 { digit(I,D) : d(D) } 1 :- cell(I).`);
     for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "number") out.push(`digit(${i},${giv.value}).`);
@@ -73,9 +74,12 @@ diff(R1,R2,T) :- cmp(R1,R2), t(T), norm(R1,T,A,B), not norm(R2,0,A,B).
 same(R1,R2) :- cmp(R1,R2), size(R1,N), size(R2,N), t(T), not diff(R1,R2,T).`);
 
   for (const s of p.rules) out.push(`% ${s.rule}\n${blockFor(s).asp(s, p)}`);
-  out.push("#show fence/1. #show line/1. #show shaded/1. #show cut/1. #show digit/2.");
+  out.push("#show fence/1. #show line/1. #show shaded/1. #show cut/1. #show digit/2. #show paint/2.");
   return out.join("\n");
 }
+
+/** How many paint colors a paint puzzle has (its palette; three if it doesn't say). */
+export const paletteSize = (p: Puzzle) => p.style.palette?.length || 3;
 
 /** The most cells any region can have, from the rules (the grid size if they don't say). */
 export function maxRegion(p: Puzzle): number {
@@ -93,8 +97,8 @@ export function maxRegion(p: Puzzle): number {
 export function boardOf(p: Puzzle, atoms: string[]): Board {
   const b = emptyBoard(p.grid);
   for (const a of atoms) {
-    const dm = /^digit\((\d+),(\d+)\)$/.exec(a);
-    if (dm) { b.digit[Number(dm[1])] = Number(dm[2]); continue; }
+    const dm = /^(digit|paint)\((\d+),(\d+)\)$/.exec(a);
+    if (dm) { (dm[1] === "digit" ? b.digit : b.color)[Number(dm[2])] = Number(dm[3]); continue; }
     const m = /^(\w+)\((\d+)\)$/.exec(a);
     if (!m) continue;
     const i = Number(m[2]);

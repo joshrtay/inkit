@@ -41,7 +41,7 @@ export function parseSketch(sketch: string, version = SKETCH_VERSION): Parsed {
   const spec: GridSpec = { ...body, genre, size: body.size, ...(rules.length ? { rules } : {}) } as GridSpec;
   try {
     const puzzle = makePuzzle(spec);
-    return { ok: true, kind: genre, spec, summary: `${kindName(genre)} · ${spec.size[1]} × ${spec.size[0]}`, rules: describe(puzzle) };
+    return { ok: true, kind: genre, spec, summary: `${kindName(genre)} · ${spec.figure ? `${spec.figure.pieces.length} pieces` : `${spec.size[1]} × ${spec.size[0]}`}`, rules: describe(puzzle) };
   } catch (e) {
     return { ok: false, errors: [(e as Error).message] };
   }

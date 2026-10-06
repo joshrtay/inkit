@@ -1,11 +1,11 @@
 // Genres (presets of marks + rules + style), turning a description into a Puzzle, and
 // checking a whole board against every rule.
-import { squareGrid, type Grid } from "./geometry.ts";
+import { figureGrid, squareGrid, type Grid } from "./geometry.ts";
 import { regionsOf, type Regions } from "./derive.ts";
 import { blockFor } from "./rules.ts";
 import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 
-export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle }
+export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number }
 
 export const genres = {
   slitherlink: {
@@ -42,6 +42,14 @@ export const genres = {
     rules: [{ rule: "corner-count" }, { rule: "perfect-maze" }],
     style: { grid: "dots" },
   },
+  // Three Coats: paint every piece of a figure red, yellow or blue; a piece's dots ask for
+  // neighbours of their colors. A wrong color is turned away and costs a heart.
+  coats: {
+    marks: ["paint"],
+    rules: [{ rule: "painted" }, { rule: "neighbor-dots" }],
+    style: { palette: ["#ef5a6a", "#f7cf3d", "#3fb0e6"] },
+    hearts: 3,
+  },
   // our region-division puzzles in the style of The Artisan of Glimmith: each puzzle lists its rules
   panes: {
     marks: ["regions"],
@@ -58,7 +66,8 @@ export const GENRE_NAMES = Object.keys(genres) as GenreName[];
 export function makePuzzle(spec: GridSpec): Puzzle {
   const genre = spec.genre ? (genres as Record<string, Genre>)[spec.genre] : undefined;
   if (spec.genre && !genre) throw new Error(`unknown genre "${spec.genre}"`);
-  const grid = squareGrid(spec.size[0], spec.size[1]);
+  const fig = spec.figure ? figureGrid(spec.figure.pieces) : null;
+  const grid = fig ? fig.grid : squareGrid(spec.size[0], spec.size[1]);
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>(), cornerGivens = new Map<number, Given[]>();
   const doors = new Map<number, "in" | "out">();
   const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
@@ -67,6 +76,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   const givens = [...(spec.givens ?? []), ...pictureClues(spec)];
   for (const g of givens) {
     if (g.at === "cell") {
+      if (g.cell[0] < 0 || g.cell[1] < 0 || g.cell[0] >= grid.rows || g.cell[1] >= grid.cols) throw new Error(`cell ${g.cell[0]},${g.cell[1]} is outside the ${fig ? "figure" : "grid"}`);
       push(cellGivens, grid.cell(...g.cell), g);
       if (g.kind === "block") blocked.add(grid.cell(...g.cell));
     } else if (g.at === "border") {
@@ -84,6 +94,8 @@ export function makePuzzle(spec: GridSpec): Puzzle {
       doors.set(e, g.role);
     } else (g.at === "row" ? rowRuns : colRuns).set(g.index, g.value);
   }
+  const marks = spec.marks ?? genre?.marks ?? [];
+  if (fig && (marks.length !== 1 || marks[0] !== "paint")) throw new Error("a figure of pieces is played by painting them");
   const rules = [...(genre?.rules ?? []), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
   if (rules.some((s) => s.rule === "perfect-maze")) {
@@ -93,7 +105,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   }
   return {
     spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, blocked, walls, digits: spec.size[1],
-    marks: spec.marks ?? genre?.marks ?? [],
+    figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };
 }

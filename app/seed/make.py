@@ -3,14 +3,14 @@
     python3 seed/make.py && npm run db:seed
 
 Wyatt (no password, so this account can't sign in), his personal collection, and every grid
-puzzle from the current site (../src/games), as sketches. Number Line Mazes are converted to
-the engine's maze genre. A few go on the Featured shelf.
+puzzle from the current site (../src/games), as sketches. Number Line Mazes and Three Coats
+levels are converted to the engine's maze and coats genres. A few go on the Featured shelf.
 """
 import json
 from pathlib import Path
 
 GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
-GENRES = {"number-line-maze": "maze", "round-the-bend": "river", "picture-squares": "nonogram", "slitherlink": "slitherlink",
+GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": "river", "picture-squares": "nonogram", "slitherlink": "slitherlink",
           "nurikabe": "nurikabe", "panes": "panes", "sudoku": "sudoku"}
 FEATURED = ["river-5", "panes-1", "sudoku-1", "nonogram-2"]
 
@@ -47,12 +47,28 @@ def maze_spec(maze):
     return {"size": [rows, cols], "givens": givens}
 
 
+def coats_spec(ryb):
+    """An old Three Coats level (polygon pieces, clue strings like "113", hidden clues, totals)
+    as a grid-engine figure."""
+    pieces = ryb["pieces"]
+    givens = [dict({"at": "cell", "cell": [0, i], "kind": "dots", "value": [int(ch) for ch in p["clue"]]},
+                   **({"hidden": True} if p.get("hidden") else {}))
+              for i, p in enumerate(pieces) if p.get("clue")]
+    body = {"size": [1, len(pieces)], "figure": {"pieces": [p["points"] for p in pieces]}, "givens": givens}
+    if ryb.get("totals"):
+        names = {"1": "red", "2": "yellow", "3": "blue"}
+        body["rules"] = [dict({"rule": "color-count"}, **{names[k]: v for k, v in ryb["totals"].items()})]
+    if "hearts" in ryb:
+        body["hearts"] = ryb["hearts"]
+    return body
+
+
 def instances():
     """(genre, number, name, puzzle body) for every grid-engine puzzle on the current site."""
     for folder, genre in GENRES.items():
         for f in sorted((GAMES / folder).glob("*.json"), key=lambda p: int(p.stem)):
             d = json.loads(f.read_text())
-            body = maze_spec(d["maze"]) if genre == "maze" else {k: v for k, v in d["grid"].items() if k not in ("genre", "source")}
+            body = maze_spec(d["maze"]) if genre == "maze" else coats_spec(d["ryb"]) if genre == "coats" else {k: v for k, v in d["grid"].items() if k not in ("genre", "source")}
             yield genre, f.stem, d["name"], body
 
 

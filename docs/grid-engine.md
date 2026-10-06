@@ -3,16 +3,20 @@
 One engine for grid logic puzzles: Slitherlink, Nurikabe, Sudoku, Masyu, region-division
 puzzles in the style of The Artisan of Glimmith, and our own Round the Bend and Picture
 Squares. A puzzle is **geometry + marks + givens + rules (+ style)**. Status: prototype on
-the `grid-engine` branch, with seven genres: Round the Bend (`river`), Picture Squares
-(`nonogram`), Number Line Maze (`maze`), Slitherlink, Nurikabe, Panes and Sudoku.
+the `grid-engine` branch, with eight genres: Round the Bend (`river`), Picture Squares
+(`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+and Sudoku.
 
 ## The model
 
 **Geometry.** A grid is a graph of *cells*, *corners* and two kinds of edges:
 *borders* (between two corners, separating cells) and *links* (between two cell centers).
-Every interior border has a matching link across it. The first version is the square grid
-(`src/engine/geometry.ts`); other shapes (hex, irregular like Three Coats) are new
-geometries with the same interface.
+Every interior border has a matching link across it. There are two geometries
+(`src/engine/geometry.ts`): the square grid, and a **figure** of polygon pieces (Three Coats,
+`figure` in the puzzle). In a figure each piece is a cell (row 0, column i), pieces sharing
+part of an edge are neighbours (a border and a link between them), and corners closer than
+1.5% of the figure's size are snapped together so hand-traced pieces meet. A figure is
+played by painting.
 
 **Marks** are what the player puts down. Each kind lives on one kind of element:
 
@@ -23,6 +27,7 @@ geometries with the same interface.
 | `loop` | links | empty, line, X | Round the Bend, Masyu |
 | `regions` | borders + cell colors | cut / color | Panes (Glimmith-style), Fillomino, Shikaku |
 | `digit` | cells | 1..n, pencil notes | Sudoku (Kakuro later) |
+| `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats |
 
 Regions come from either input: painting cells a color, or cutting borders. A region is a
 connected group of same-color cells not separated by a cut. For shading puzzles, the
@@ -30,7 +35,8 @@ connected group of same-color cells not separated by a cut. For shading puzzles,
 
 **Givens** are clues fixed to an element: a number in a cell (in a digit puzzle, a given
 digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, a
-number on a corner (`count`), a `door` in the outside edge (a maze's way in or out), and a
+number on a corner (`count`), paint `dots` in a piece (colors, optionally `hidden` until
+it's painted), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs beside a row or above a column. A nonogram's runs can instead come from its
 `picture`, which solving reveals.
 
@@ -67,6 +73,9 @@ puzzle can use it.
 | `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
 | `boxes` | Each box (`box: [h, w]`, or sized from the grid) has each digit once. |
 | `corner-count` | A number on a corner counts the fence lines (walls) touching it; the outside edge counts. |
+| `painted` | Every cell (piece) gets a paint color. |
+| `neighbor-dots` | k dots of a color in a piece need at least k neighbours of that color. |
+| `color-count` | Exactly this many pieces of each color (`red`, `yellow`, `blue`, or `c1`, `c2`...). |
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 
 Names are our own. Mechanics are fair game; another game's rule names, art and levels
@@ -111,6 +120,11 @@ that uses a mark gets the same behavior:
   corner number turns green when it has its walls. Once the walls check out, drag (or use the
   arrow keys) from the arrow in to the arrow out (`src/game-types/grid/walk.ts`); getting out
   solves it.
+- Paint (`coats`, `src/game-types/grid/figure.ts`): pick a pot (or R / Y / B) and tap a piece.
+  With `hearts` (Three Coats has 3) a wrong color is turned away and costs a heart, and right
+  ones lock in; the player finds the answer with a quick paint solver (`src/engine/paint.ts`),
+  which the self-test holds to the same answers as the checks. With `hearts: 0` players paint
+  freely, undo and check.
 - One gesture is one undo step. Check highlights what the note is about; a solved board is
   noticed automatically.
 
@@ -151,6 +165,8 @@ The editor covers:
 - the game type and grid size
 - every clue kind: in cells, on borders, on corners, doors in the outside edge, and nonogram row /
   column numbers
+- a figure's pieces (Three Coats, `app/app/components/FigureEditor.tsx`): draw a piece corner by
+  corner, drag corners, delete pieces, give a piece dots and hide them, and set the hearts
 - a nonogram's picture: painted in any number of colors, with its title
 - rules beyond the genre's own, with every setting
 - the style options, and which marks the player draws
@@ -175,6 +191,6 @@ has to be added by hand: a control in the editor and a line in the reader's guid
 ## Next
 
 1. More blocks: sums and cages (Kakuro, Killer), polyomino shape clues, Masyu pearls.
-2. Port Three Coats (needs an irregular geometry). Number Line Maze is the `maze` genre; the
-   social site's seed converts the old instances (`app/seed/make.py`).
+2. Number Line Maze (`maze`) and Three Coats (`coats`) are ported; the social site's seed
+   converts their old instances (`app/seed/make.py`).
 3. Covers for the new genres; a feel pass on phones.

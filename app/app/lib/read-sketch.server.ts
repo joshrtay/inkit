@@ -35,6 +35,12 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   arrow pointing in is {kind: "door", role: "in"}, the one pointing out {kind: "door", role: "out"}, each
   with the cell it's beside and that cell's side. Walls drawn already (as hints) are {kind: "wall", cell, other};
   leave out walls that are clearly the solution.`,
+  coats: `coats (Three Coats): a figure split into pieces (triangles, squares, any polygons), with colored dots
+  in some pieces (red, yellow, blue; often written as numbers 1, 2, 3). There's no grid: give "figure", one
+  polygon per piece, its corners in order as [x, y] on a 0..100 scale across the drawing (y down). Pieces
+  that share an edge must use the same corner coordinates where they meet, and a corner sitting on another
+  piece's edge must lie exactly on that edge. Each piece's dots are {kind: "dots", dots: [colors]} with
+  cell {row: 0, col: the piece's index in "figure"}. Set rows to 1 and cols to the number of pieces.`,
   panes: `panes: split the grid into regions. The rules are written on the sketch (e.g. "panes: size 4, twins");
   list each one in "rules".`,
 };
@@ -48,6 +54,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs">, string> = {
   twins: "a filled diamond ◆ on the border between two cells: cell + other",
   opposites: "an empty diamond ◇ on the border between two cells: cell + other",
   count: "a number on a corner, where grid lines cross (mazes): value, with cell = the corner's row and column (0..rows, 0..cols)",
+  dots: "colored dots in a piece (Three Coats): dots = the colors, 1 red, 2 yellow, 3 blue, with cell {row: 0, col: piece index}",
   door: "an arrow at the outside edge (mazes): cell = the cell beside it, side = that cell's side, role = in or out",
 };
 
@@ -67,6 +74,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "all-different": "no two regions share a shape",
   compass: "a compass clue counts its region's cells to the north, east, south and west",
   "corner-count": "a number on a corner counts the walls touching it (comes with maze)",
+  painted: "every piece gets a color (comes with coats)",
+  "neighbor-dots": "k dots of a color in a piece need at least k neighbours of that color (comes with coats)",
+  "color-count": "exactly this many pieces of each color, when written on the sketch (red, yellow, blue)",
   "perfect-maze": "the walls make a maze: every square reachable, one way between any two (comes with maze)",
 };
 
@@ -85,6 +95,7 @@ const Reading = z.object({
     of: z.enum(["number", "symbol", "fence", "loop"]).nullable(),
     cover: z.boolean().nullable(),
     box: z.array(int).nullable().describe("boxes: [rows, cols]; else null"),
+    red: int.nullable(), yellow: int.nullable(), blue: int.nullable(),
   })).describe("rules written on the sketch beyond the ones the game type always has; null for settings a rule doesn't use"),
   givens: z.array(z.object({
     kind: z.enum(clueKinds),
@@ -95,6 +106,7 @@ const Reading = z.object({
     compass: z.object({ n: int.nullable(), e: int.nullable(), s: int.nullable(), w: int.nullable() }).nullable(),
     side: z.enum(["top", "right", "bottom", "left"]).nullable().describe("door: which side of its cell; else null"),
     role: z.enum(["in", "out"]).nullable().describe("door: the way in or the way out; else null"),
+    dots: z.array(int).nullable().describe("dots: the dot colors, 1 red, 2 yellow, 3 blue; else null"),
   })),
   runs: z.array(z.object({ line: z.enum(["row", "col"]), index: int, runs: z.array(int) }))
     .describe("nonogram clue numbers written beside rows / above columns; empty when you give a picture instead"),
@@ -102,6 +114,8 @@ const Reading = z.object({
     rows: z.array(z.string()).describe("one string per row, one letter per cell; '.' is empty"),
     palette: z.array(z.object({ letter: z.string(), color: z.string().describe("a CSS hex color") })),
   }).nullable().describe("nonogram only, when the drawing shows the shaded picture"),
+  figure: z.array(z.array(z.array(z.number()))).nullable()
+    .describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else null"),
   sure: z.boolean().describe("true only if you could read the grid and every clue clearly"),
   notes: z.array(z.string()).describe("anything you weren't sure of, with its row and column, for the creator to check; empty if everything was clear"),
 });
@@ -209,6 +223,7 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
   out.push(...sketchProblems(sketch));
   const rocks = reading.givens.filter((g) => g.kind === "block").length;
   if (reading.genre === "river" && (reading.rows * reading.cols - rocks) % 2) out.push("an odd number of open cells can't hold a loop");
+  if (reading.genre === "coats" && !reading.figure?.length) out.push("no pieces in the figure");
   if (reading.genre === "sudoku" && (reading.rows !== reading.cols || ![4, 6, 9].includes(reading.rows))) out.push("not a 4x4, 6x6 or 9x9 sudoku");
   if (reading.genre === "nonogram" && reading.picture && (reading.picture.rows.length !== reading.rows || reading.picture.rows.some((r) => r.length !== reading.cols))) {
     out.push("the picture doesn't fill the grid");
@@ -228,6 +243,7 @@ export function toSketch(r: Reading): string {
         const v = Object.fromEntries(Object.entries(g.compass ?? {}).filter(([, n]) => n !== null)) as { n?: number; e?: number; s?: number; w?: number };
         return [{ at: "cell", cell: rc(g.cell), kind: "compass", value: v }];
       }
+      case "dots": return g.dots?.length ? [{ at: "cell", cell: rc(g.cell), kind: "dots", value: g.dots }] : [];
       case "count": return g.value === null ? [] : [{ at: "corner", corner: rc(g.cell), kind: "count", value: g.value }];
       case "door": return g.side && g.role ? [{ at: "edge", cell: rc(g.cell), side: g.side, kind: "door", role: g.role }] : [];
       default: return g.other ? [{ at: "border", cells: [rc(g.cell), rc(g.other)], kind: g.kind }] : [];
@@ -237,8 +253,10 @@ export function toSketch(r: Reading): string {
   // every rule written on the sketch, with only the settings it uses
   const rules: RuleSpec[] = r.rules.map(({ rule, ...settings }) =>
     ({ rule, ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v !== null)) }));
+  const figure = r.genre === "coats" && r.figure?.length ? { pieces: r.figure } : undefined;
   const body: Omit<GridSpec, "genre"> = {
-    size: [r.rows, r.cols],
+    size: figure ? [1, figure.pieces.length] : [r.rows, r.cols],
+    ...(figure ? { figure } : {}),
     ...(rules.length ? { rules } : {}),
     ...(givens.length ? { givens } : {}),
     ...(r.genre === "nonogram" && r.picture && !r.runs.length

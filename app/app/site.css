@@ -132,6 +132,17 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .ge-corner text { font-size: 13px; font-weight: 700; text-anchor: middle; fill: #26398f; }
 .ge-door path { fill: none; stroke: #c0392b; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .ge-door .ge-gap { stroke: #fff; stroke-width: 4; }
+.ge-dots circle { stroke: #26398f; stroke-width: 1.2; }
+.ge-dots.hidden { opacity: .45; }
+.fe-figure { aspect-ratio: 4 / 3; }
+.fe-piece { fill: #eef0f7; stroke: #26398f; stroke-linejoin: round; }
+.fe-piece:hover { fill: #e2e6f5; }
+.fe-piece.sel { fill: #fdf0c4; }
+.fe-corner { fill: #26398f; }
+.fe-drawing { fill: none; stroke: #c0392b; stroke-linejoin: round; stroke-dasharray: 2 1; }
+.fe-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, .25); }
+.fe-dots { display: inline-flex; gap: 3px; align-items: center; padding: 0 4px; }
+.fe-piece-bar b { margin-right: 4px; }
 .ge-text { font: 700 22px var(--hand); fill: #26398f; text-anchor: middle; pointer-events: none; }
 .ge-text.small { font-size: 12px; }
 .ge-text circle { fill: #26398f; }

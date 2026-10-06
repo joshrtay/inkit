@@ -14,7 +14,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 /** The same markup as the current site's grid Game.astro. */
 function markup(l: Layout) {
   const pots = l.palette.length
-    ? `<div class="pots" role="group" aria-label="Glass color">${l.palette.map((c, i) =>
+    ? `<div class="pots" role="group" aria-label="Color">${l.palette.map((c, i) =>
         `<button class="pot" data-color="${i + 1}" type="button" aria-pressed="${i === 0}" aria-label="Color ${i + 1}" style="--c: ${esc(c)}"><i></i></button>`).join("")
       }<button class="pot erase" data-color="0" type="button" aria-pressed="false" aria-label="Clear color" title="Clear color"><i></i></button></div>`
     : "";
@@ -34,7 +34,7 @@ function markup(l: Layout) {
   return `<div class="grid-game"${l.ink ? ` style="--paper-ink: ${esc(l.ink)}"` : ""}>
     <div class="sheet"${l.digits ? ' style="--below: 46px"' : ""}>
       <div class="paper-bar"><div class="group">${pots}</div><div class="status" aria-live="polite"></div>
-        <div class="group">${tool("undo", "Undo", "undo")}${l.hints ? tool("hint", "Hint", "hint") : ""}${tool("check", "Check", "check")}${tool("reset", "Reset", "reset")}</div></div>
+        <div class="group">${l.hearts ? '<div class="hearts" data-hearts role="img"></div>' : ""}${tool("undo", "Undo", "undo")}${l.hints ? tool("hint", "Hint", "hint") : ""}${tool("check", "Check", "check")}${tool("reset", "Reset", "reset")}</div></div>
       <svg class="board" role="img" aria-label="Puzzle grid"></svg>${pad}${sign}
     </div>${prefs}</div>`;
 }
