@@ -78,8 +78,12 @@ puzzle can use it.
 | `color-count` | Exactly this many pieces of each color (`red`, `yellow`, `blue`, or `c1`, `c2`...). |
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 
-Names are our own. Mechanics are fair game; another game's rule names, art and levels
-aren't ours to copy, so puzzles are Wyatt's (or generated).
+Genre names: use the standard name when a genre has one that's used across puzzle sites
+(Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku...). Wyatt's own games keep
+their names (Round the Bend, Picture Squares, Number Line Maze, Three Coats). Only a name that
+belongs to one site's own invention (e.g. a single app's branded variant) gets a name of ours.
+Mechanics are fair game; other sites' art and levels aren't ours to copy, so puzzles are Wyatt's
+(or generated).
 
 ## Solving and the one-solution guarantee
 
