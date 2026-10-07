@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import type { Playable } from "~/games/layout";
 import { GameBoard } from "./GameBoard";
 import { GuidePane } from "./GuidePane";
+import { LikeButton } from "./LikeButton";
 
 export interface GamePageProps {
   game: { id: string; title: string; description: string; kind: string; state: string; hiddenNote: string | null; when: number };
@@ -15,6 +16,8 @@ export interface GamePageProps {
   extra: string[];
   errors: string[];
   editable: boolean;
+  likes: { count: number; liked: boolean };
+  signedIn: boolean;
   /** shown in the editor's preview: nothing is saved, and links don't leave the editor */
   preview?: boolean;
 }
@@ -24,7 +27,7 @@ const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "lo
 
 const RULES_OPEN = "inkit:rules-open";
 
-export function GamePageView({ game, collection, author, play, summary, extra, errors, editable, preview = false }: GamePageProps) {
+export function GamePageView({ game, collection, author, play, summary, extra, errors, editable, likes, signedIn, preview = false }: GamePageProps) {
   // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
   const [rulesOpen, setRulesOpen] = useState(false);
   // back: to wherever the player came from on this site, or else this creator's page
@@ -52,6 +55,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
           {!collection.personal && <> in <Link to={`/${collection.slug}`} onClick={stay}>{collection.title}</Link></>}
           {" · "}<time dateTime={new Date(game.when).toISOString()}>{date(game.when)}</time>
         </span>
+        {(game.state === "published" || preview) && <LikeButton gameId={game.id} count={likes.count} liked={likes.liked} signedIn={signedIn || preview} disabled={preview} />}
         <button className="btn rules-toggle" type="button" aria-pressed={rulesOpen} onClick={() => toggleRules(!rulesOpen)}>How to play</button>
         {editable && !preview && <Link className="btn" to={`/g/${game.id}/edit`}>Edit</Link>}
         {!preview && game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}

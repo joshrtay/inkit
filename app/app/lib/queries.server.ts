@@ -8,6 +8,7 @@ const cardColumns = {
   kind: schema.games.kind, thumbnail: schema.games.thumbnail, state: schema.games.state,
   sketch: schema.games.sketch, sketchVersion: schema.games.sketchVersion, publishedAt: schema.games.publishedAt,
   updatedAt: schema.games.updatedAt, parseNotes: schema.games.parseNotes,
+  likes: sql<number>`(select count(*) from likes where likes.game_id = ${schema.games.id})`.as("like_count"),
   collectionSlug: schema.collections.slug, collectionTitle: schema.collections.title,
   authorHandle: schema.creators.handle, authorName: schema.creators.name, authorDeleted: schema.creators.deletedAt,
 };
@@ -81,3 +82,18 @@ export const subscriberCount = async (db: Db, collectionId: string) =>
   (await db.select({ n: count() }).from(schema.subscriptions).where(eq(schema.subscriptions.collectionId, collectionId)))[0]?.n ?? 0;
 
 export type CollectionCard = Awaited<ReturnType<typeof subscriptionsOf>>[number];
+
+/** A game's likes, and whether this viewer likes it. */
+export async function likesOf(db: Db, gameId: string, viewerId: string | undefined) {
+  const [{ n }] = await db.select({ n: count() }).from(schema.likes).where(eq(schema.likes.gameId, gameId));
+  const liked = !!viewerId && !!(await db.query.likes.findFirst({ where: and(eq(schema.likes.gameId, gameId), eq(schema.likes.creatorId, viewerId)) }));
+  return { count: n, liked };
+}
+
+/** Which of these games this viewer likes. */
+export async function likedAmong(db: Db, viewerId: string | undefined, gameIds: string[]) {
+  if (!viewerId || !gameIds.length) return new Set<string>();
+  const rows = await db.select({ id: schema.likes.gameId }).from(schema.likes)
+    .where(and(eq(schema.likes.creatorId, viewerId), inArray(schema.likes.gameId, gameIds)));
+  return new Set(rows.map((r) => r.id));
+}

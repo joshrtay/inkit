@@ -19,29 +19,9 @@ export const Icon = ({ name }: { name: keyof typeof PATHS }) => (
   <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{PATHS[name].map((d) => <path key={d} d={d} />)}</svg>
 );
 
-/** "Create ▾": a puzzle from a drawing, or a studio. */
-export function CreateMenu({ className = "", up = false }: { className?: string; up?: boolean }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
-  }, [open]);
-  return (
-    <div className={`create-menu ${className}`} ref={box}>
-      <button className="btn primary create-btn" type="button" aria-expanded={open} aria-haspopup="menu" onClick={() => setOpen(!open)}>
-        Create <span aria-hidden="true">▾</span>
-      </button>
-      {open && (
-        <div className={up ? "menu up" : "menu"} role="menu">
-          <Link role="menuitem" to="/new" onClick={() => setOpen(false)}><strong>Puzzle</strong><span>From a photo of a drawing</span></Link>
-          <Link role="menuitem" to="/studios/new" onClick={() => setOpen(false)}><strong>Studio</strong><span>A shared collection with others</span></Link>
-        </div>
-      )}
-    </div>
-  );
+/** Create: a new puzzle from a drawing. (Studios, shared collections, come back later.) */
+export function CreateMenu({ className = "" }: { className?: string; up?: boolean }) {
+  return <Link className={`btn primary create-btn ${className}`} to="/new">Create</Link>;
 }
 
 function AccountMenu({ me }: { me: Me }) {

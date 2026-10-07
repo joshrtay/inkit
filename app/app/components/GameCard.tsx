@@ -4,6 +4,7 @@ import type { CollectionCard } from "~/lib/queries.server";
 import { doubtsOf } from "~/games/doubts";
 import { kindName } from "~/games/kinds";
 import { Avatar } from "./Avatar";
+import { LikeButton } from "./LikeButton";
 
 const Picture = ({ svg, className }: { svg: string | null; className: string }) =>
   svg ? <span className={`grid-game pic ${className}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <span className={`pic ${className} none`} />;
@@ -45,6 +46,7 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
             {game.collectionSlug !== game.authorHandle && <> in {game.collectionTitle}</>}
           </span>
           {game.state !== "published" && <span className={`state ${game.state}`}>{game.state}</span>}
+          {game.state === "published" && game.likes > 0 && <span className="card-likes" aria-label={`${game.likes} like${game.likes === 1 ? "" : "s"}`}>♥ {game.likes}</span>}
         </span>
       </Link>
     </li>
@@ -65,7 +67,7 @@ const when = (t: Date | number | null) => {
 };
 
 /** A game in the feed: where it's from, its title and description, and its puzzle on the right. */
-export function FeedItem({ game }: { game: Thumbed }) {
+export function FeedItem({ game, liked = false, signedIn = false }: { game: Thumbed; liked?: boolean; signedIn?: boolean }) {
   return (
     <li className="feed-item">
       <Link to={`/g/${game.id}`} className="feed-link">
@@ -77,6 +79,7 @@ export function FeedItem({ game }: { game: Thumbed }) {
         </span>
         <Picture svg={game.picture} className="feed-pic" />
       </Link>
+      <div className="feed-actions"><LikeButton gameId={game.id} count={game.likes} liked={liked} signedIn={signedIn} /></div>
     </li>
   );
 }

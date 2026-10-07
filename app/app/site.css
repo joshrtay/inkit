@@ -660,3 +660,19 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .be-pin.active { transform: translate(-50%, -50%) scale(1.35); background: #e0a100; color: #fff; opacity: 1; }
 .be-doubts { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .be-doubts rect { fill: color-mix(in srgb, #e0a100 14%, transparent); stroke: #e0a100; stroke-width: 2.5; stroke-dasharray: 6 4; }
+
+/* likes (LikeButton.tsx) */
+.like-form { display: inline-flex; }
+.like-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--muted); font: 700 14px/1 var(--body); cursor: pointer; text-decoration: none; transition: color .15s, border-color .15s; }
+.like-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.like-btn:hover:not(:disabled) { color: #e5484d; border-color: color-mix(in srgb, #e5484d 50%, transparent); }
+.like-btn.liked { color: #e5484d; }
+.like-btn.liked svg { fill: currentColor; animation: like-pop .3s ease; }
+.like-btn:disabled { cursor: default; }
+@keyframes like-pop { 50% { transform: scale(1.3); } }
+@media (prefers-reduced-motion: reduce) { .like-btn.liked svg { animation: none; } }
+/* the heart sits at the foot of the text column (outside the link: a form can't go inside one) */
+.feed-item { position: relative; }
+.feed-item .feed-text { padding-bottom: 40px; }
+.feed-actions { position: absolute; left: 4px; bottom: 20px; display: flex; gap: 8px; }
+.card-likes { font-size: 13px; color: var(--muted); }

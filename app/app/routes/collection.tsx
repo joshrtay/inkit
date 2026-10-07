@@ -10,7 +10,6 @@ import { currentCreator } from "~/lib/auth.server";
 import { roleIn } from "~/lib/permissions.server";
 import { signInFirst } from "~/lib/http.server";
 import { collectionBySlug, collectionGames, collectionMembers, isSubscribed, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
-import { publishTargets } from "~/lib/games.server";
 import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard";
 import { Avatar } from "~/components/Avatar";
@@ -39,8 +38,6 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const viewerFollows = viewer && following.length
     ? new Set((await db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, viewer.id))).map((s) => s.id))
     : new Set<string>();
-  // On your own page: the studios you belong to.
-  const studios = person && viewer?.id === person.id ? (await publishTargets(db, viewer.id)).filter((t) => !t.personal) : null;
   // Puzzles: what everyone sees. Drafts (and games taken down): only their author, the
   // collection's owners and admins, in a tab of their own.
   const published = games.filter((g) => g.state === "published");
@@ -53,7 +50,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     games: withPictures(published),
     drafts: canSeeDrafts ? withPictures(drafts) : null,
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
-    subscribers, subscribed, role, studios,
+    subscribers, subscribed, role,
     me: viewer?.handle ?? null,
     tab: ["puzzles", "subscriptions", "members", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
   };
@@ -83,7 +80,7 @@ export const meta: Route.MetaFunction = ({ loaderData: data }) => data
   : [{ title: "Not found · inkit" }];
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, members, games, drafts, following, subscribers, subscribed, role, studios, me, tab } = d;
+  const { collection, person, members, games, drafts, following, subscribers, subscribed, role, me, tab } = d;
   const mine = !!person && person.handle === me;
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
@@ -138,15 +135,6 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
         <ul className="member-list">{members.map((m) => <li key={m.handle}><Link to={`/${m.handle}`}><Avatar name={m.name} seed={m.handle} size={32} /> {m.name} <span className="muted">@{m.handle}{m.role === "owner" ? " · owner" : ""}</span></Link></li>)}</ul>
       )}
 
-      {studios && tab === "puzzles" && (
-        <section className="shelf">
-          <h2>Your studios</h2>
-          {studios.length > 0 && (
-            <ul className="studio-list">{studios.map((s) => <li key={s.id}><Link to={`/${s.slug}`}>{s.title}</Link> <span className="muted">{s.role}</span></li>)}</ul>
-          )}
-          <p><Link className="btn" to="/studios/new">Start a studio</Link></p>
-        </section>
-      )}
     </main>
   );
 }

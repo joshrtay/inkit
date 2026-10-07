@@ -9,6 +9,7 @@ import { canEdit, canHide, canView, roleIn } from "~/lib/permissions.server";
 import { parseSketch } from "~/games/sketch";
 import { kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
+import { likesOf } from "~/lib/queries.server";
 import { GamePageView } from "~/components/GamePageView";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -38,6 +39,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     extra: parsed.ok && parsed.spec.rules?.length ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
     editable: canEdit(game, viewer, role) || canHide(viewer, role),
+    likes: await likesOf(db, game.id, viewer?.id),
+    signedIn: !!viewer,
   };
 }
 

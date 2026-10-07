@@ -145,6 +145,13 @@ export const subscriptions = sqliteTable("subscriptions", {
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.subscriberId, t.collectionId] }), index("subscriptions_collection").on(t.collectionId)]);
 
+// ---- likes: a creator liking a game (one each) ----
+export const likes = sqliteTable("likes", {
+  creatorId: text("creator_id").notNull().references(() => creators.id),
+  gameId: text("game_id").notNull().references(() => games.id),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("likes_game").on(t.gameId)]);
+
 // ---- the Featured shelf ----
 export const featured = sqliteTable("featured", {
   gameId: text("game_id").primaryKey().references(() => games.id),
