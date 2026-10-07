@@ -518,14 +518,27 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 
 /* a game's How to play: the pane beside the board (wide screens) or over it (narrower) */
 .game-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
-.game-layout.rules-open { grid-template-columns: minmax(0, 1fr) 400px; }
-.guide-pane.side[hidden] { display: none; }
 .guide-pane.side .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
 .puzzle-extra { padding: 14px 16px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
 .puzzle-extra h3 { margin: 0 0 6px; font-size: 15px; }
 .puzzle-extra ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
 .rules-toggle[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
 @media (max-width: 1250px) {
-  .game-layout.rules-open { grid-template-columns: minmax(0, 1fr); }
-  .guide-pane.side { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); z-index: 40; box-shadow: -10px 0 30px var(--shadow); }
 }
+
+/* the How to play pane slides in over the page from the right edge; the board stays put */
+.guide-pane.side {
+  position: fixed; inset: 0 0 0 auto; height: 100dvh; width: min(420px, 100vw); z-index: 40;
+  transform: translateX(100%); visibility: hidden; box-shadow: none;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .28s, box-shadow .28s;
+}
+.guide-pane.side.open { transform: none; visibility: visible; box-shadow: -14px 0 36px var(--shadow); transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s, box-shadow .28s; }
+@media (prefers-reduced-motion: reduce) { .guide-pane.side, .guide-pane.side.open { transition: none; } }
+
+/* a game's back button */
+.game-head .back-btn {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; margin-right: 2px; border-radius: 50%; flex: none; align-self: center;
+  color: var(--ink); background: transparent; border: 1px solid var(--line-strong); cursor: pointer; text-decoration: none;
+}
+.game-head .back-btn:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.game-head .back-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }

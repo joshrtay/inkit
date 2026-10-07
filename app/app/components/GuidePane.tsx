@@ -37,7 +37,7 @@ export function GuidePane({ start, drawer = false, side = false, open: shown, on
   return (
     <>
       {!side && <button className={`btn pane-toggle${drawer ? " drawer" : ""}`} type="button" aria-expanded={open} onClick={() => setOpen(!open)}>Puzzle types</button>}
-      <aside className={`guide-pane${open ? " open" : ""}${drawer ? " drawer" : ""}${side ? " side" : ""}`} aria-label="Puzzle types" hidden={side && !open}>
+      <aside className={`guide-pane${open ? " open" : ""}${drawer ? " drawer" : ""}${side ? " side" : ""}`} aria-label="Puzzle types" inert={side && !open ? true : undefined}>
         <div className="pane-head">
           {kind ? <button className="link pane-back" type="button" onClick={() => setKind(null)}>← All puzzle types</button> : <h2>Puzzle types</h2>}
           <button className="pane-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>

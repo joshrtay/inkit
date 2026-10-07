@@ -1,6 +1,6 @@
 // A game's permanent page: wyattsgames.com/g/<id>.
 import { useEffect, useState } from "react";
-import { data, Link } from "react-router";
+import { data, Link, useLocation, useNavigate } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game";
 import { cloudflareContext } from "~/lib/context";
@@ -54,12 +54,20 @@ const RULES_OPEN = "inkit:rules-open";
 export default function Game({ loaderData: { game, collection, author, play, summary, extra, errors, editable } }: Route.ComponentProps) {
   // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
   const [rulesOpen, setRulesOpen] = useState(false);
+  // back: to wherever the player came from on this site, or else this creator's page
+  const navigate = useNavigate(), location = useLocation();
+  const cameFromSite = location.key !== "default";
+  const home = `/${collection.slug}`;
   useEffect(() => { try { setRulesOpen(localStorage.getItem(RULES_OPEN) === "1"); } catch { /* closed */ } }, []);
   const toggleRules = (v: boolean) => { setRulesOpen(v); try { localStorage.setItem(RULES_OPEN, v ? "1" : "0"); } catch { /* this page only */ } };
   return (
     <div className={`game-layout${rulesOpen ? " rules-open" : ""}`}>
     <main className="wrap game-page">
       <header className="game-head">
+        <Link className="back-btn" to={home} aria-label="Back" title="Back"
+          onClick={(e) => { if (cameFromSite) { e.preventDefault(); navigate(-1); } }}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+        </Link>
         <h1>{game.title}</h1>
         <span className="muted">
           {summary} · by{" "}
