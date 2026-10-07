@@ -1,6 +1,6 @@
 BETTER_AUTH_SECRET=make-one-with: openssl rand -hex 32
-# GOOGLE_CLIENT_ID=
-# GOOGLE_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 # reads uploaded sketches (app/lib/read-sketch.server.ts)
 ANTHROPIC_API_KEY=
 # local development (production uses https://inkit.games from wrangler.jsonc)
