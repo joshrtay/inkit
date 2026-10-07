@@ -80,22 +80,23 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   list each one in "rules".`,
 };
 
+// how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
-  number: "a number (or a printed digit) in a cell: value",
-  block: "a rock: a shaded or crossed-out cell",
-  symbol: "a symbol (★, ●, a letter...) in a cell: symbol",
-  compass: "a compass in a cell: numbers to its north, east, south and west (any can be missing): compass",
-  wall: "a thick wall on the border between two cells: cell + other",
-  twins: "a filled diamond ◆ on the border between two cells: cell + other",
-  opposites: "an empty diamond ◇ on the border between two cells: cell + other",
-  count: "a number on a corner, where grid lines cross (mazes): value, with cell = the corner's row and column (0..rows, 0..cols)",
-  dots: "colored dots in a piece (Three Coats): dots = the colors, 1 red, 2 yellow, 3 blue, with cell {row: 0, col: piece index}",
-  pearl: "a white or black circle in a cell (masyu): pearl",
-  first: "a letter outside the grid (easy-as-abc): value 1 = A..., cell + side",
-  skyscraper: "a number outside the grid (skyscrapers): value, cell + side",
-  thermo: "a thermometer (thermo-sudoku): path, bulb first",
-  galaxy: "a galaxy circle (spiral-galaxies): point, in half-cell steps",
-  door: "an arrow at the outside edge (mazes): cell = the cell beside it, side = that cell's side, role = in or out",
+  number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"",
+  block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
+  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol",
+  compass: "a compass in a cell: row, col; value its numbers by direction, any missing, e.g. \"n2 e1 w0\"",
+  wall: "a thick wall on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\" (where the other cell is)",
+  twins: "a filled diamond ◆ on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\"",
+  opposites: "an empty diamond ◇ on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\"",
+  count: "a number on a corner, where grid lines cross (mazes): row, col = the corner (0..rows, 0..cols); value the number",
+  dots: "colored dots in a piece (Three Coats): row 0, col = the piece's index in figure; value the dot colors as digits, 1 red, 2 yellow, 3 blue, e.g. \"113\"",
+  pearl: "a circle in a cell (masyu): row, col; value \"white\" or \"black\"",
+  first: "a letter outside the grid (easy-as-abc): row, col of the cell next to it; value its side of that cell and the letter's number (A = 1), e.g. \"left 2\"",
+  skyscraper: "a number outside the grid (skyscrapers): row, col of the cell next to it; value its side of that cell and the number, e.g. \"top 3\"",
+  thermo: "a thermometer (thermo-sudoku): row, col of its bulb; value every cell from the bulb to the tip as row,col pairs, e.g. \"2,0 2,1 1,1\"",
+  galaxy: "a galaxy circle (spiral-galaxies): row, col = its centre in half-cell steps (a cell's centre is 2r+1, 2c+1; even numbers are on lines); value \"\"",
+  door: "an arrow at the outside edge (mazes, simple-path): row, col of the cell beside it; value that cell's side and in or out, e.g. \"top in\"",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
@@ -146,52 +147,33 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "perfect-maze": "the walls make a maze: every square reachable, one way between any two (comes with maze)",
 };
 
+// Every field is required (empty when unused): the API caps how many fields may be nullable or
+// optional, so per-kind details are short text the server reads (see CLUE_GUIDE and ruleSettings).
 const int = z.number().int();
-const Cell = z.object({ row: int, col: int });
 const clueKinds = Object.keys(CLUE_GUIDE) as [Exclude<ClueKind, "runs" | "total">, ...Exclude<ClueKind, "runs" | "total">[]];
 const Reading = z.object({
   readable: z.boolean().describe("false only if the image isn't a puzzle drawing at all; a messy or blurry puzzle is still readable"),
-  problem: z.string().nullable().describe("when not readable: what's wrong, in one sentence for the creator"),
+  problem: z.string().describe("when not readable: what's wrong, in one sentence for the creator; else \"\""),
   genre: z.enum(GENRE_NAMES as [GenreName, ...GenreName[]]),
   candidates: z.array(z.enum(GENRE_NAMES as [GenreName, ...GenreName[]])).describe(
     "every game type this same reading could be, most likely first (genre first): 1 if the type is written or certain, else up to 4"),
-  title: z.string().nullable().describe("a title written on the sketch, if any"),
+  title: z.string().describe("a title written on the sketch; else \"\""),
   rows: int, cols: int,
   rules: z.array(z.object({
     rule: z.enum(RULE_NAMES as [RuleName, ...RuleName[]]),
-    is: int.nullable(), min: int.nullable(), max: int.nullable(),
-    of: z.enum(["number", "symbol", "fence", "loop"]).nullable(),
-    cover: z.boolean().nullable(),
-    box: z.array(int).nullable().describe("boxes: [rows, cols]; else null"),
-    red: int.nullable(), yellow: int.nullable(), blue: int.nullable(),
-    n: int.nullable().describe("shaded-per-line / shaded-per-area: how many; else null"),
-    count: int.nullable().describe("letters: how many letters; else null"),
-    length: int.nullable().describe("bars: block length; else null"),
-  })).describe("rules written on the sketch beyond the ones the game type always has; null for settings a rule doesn't use"),
+    settings: z.string().describe("its settings as words and numbers, e.g. \"is 4\", \"min 2 max 3\", \"of symbol\", \"box 2 3\", \"n 2\", \"count 4\", \"length 3\", \"red 2 blue 1\", \"cover\"; \"\" if none"),
+  })).describe("rules written on the sketch beyond the ones the game type always has"),
   givens: z.array(z.object({
     kind: z.enum(clueKinds),
-    cell: Cell.describe("the cell (for marks on a border: the cell on the top / left side; for a corner number: the corner)"),
-    other: Cell.nullable().describe("marks on a border: the neighbouring cell on the other side; else null"),
-    value: int.nullable().describe("number: its value; else null"),
-    symbol: z.string().nullable().describe("symbol: a single character; else null"),
-    compass: z.object({ n: int.nullable(), e: int.nullable(), s: int.nullable(), w: int.nullable() }).nullable(),
-    side: z.enum(["top", "right", "bottom", "left"]).nullable().describe("door: which side of its cell; else null"),
-    role: z.enum(["in", "out"]).nullable().describe("door: the way in or the way out; else null"),
-    dots: z.array(int).nullable().describe("dots: the dot colors, 1 red, 2 yellow, 3 blue; else null"),
-    pearl: z.enum(["white", "black"]).nullable().describe("pearl: its color; else null"),
-    path: z.array(Cell).nullable().describe("thermo: its cells from bulb to tip; else null"),
-    point: Cell.nullable().describe("galaxy: its centre in half-cell steps; else null"),
+    row: int, col: int,
+    value: z.string().describe("the clue's details, written as its kind says; \"\" if it has none"),
   })),
   runs: z.array(z.object({ line: z.enum(["row", "col"]), index: int, runs: z.array(int) }))
-    .describe("nonogram clue numbers written beside rows / above columns; empty when you give a picture instead"),
-  picture: z.object({
-    rows: z.array(z.string()).describe("one string per row, one letter per cell; '.' is empty"),
-    palette: z.array(z.object({ letter: z.string(), color: z.string().describe("a CSS hex color") })),
-  }).nullable().describe("nonogram only, when the drawing shows the shaded picture"),
-  areas: z.array(z.string()).nullable()
-    .describe("outlined areas (star-battle, irregular-sudoku): one string per row, one letter per cell; else null"),
-  figure: z.array(z.array(z.array(z.number()))).nullable()
-    .describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else null"),
+    .describe("nonogram (or aquarium) numbers written beside rows / above columns; empty when you give a picture instead"),
+  pictureRows: z.array(z.string()).describe("nonogram, when the drawing shows the shaded picture: one string per row, one letter per cell, '.' empty; else []"),
+  palette: z.array(z.object({ letter: z.string(), color: z.string().describe("a CSS hex color") })).describe("the picture's colors by letter; else []"),
+  areas: z.array(z.string()).describe("outlined areas (star-battle, irregular-sudoku, aquarium): one string per row, one letter per cell; else []"),
+  figure: z.array(z.array(z.array(z.number()))).describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else []"),
   sure: z.boolean().describe("true only if you could read the grid and every clue clearly"),
   notes: z.array(z.string()).describe("anything you weren't sure of, with its row and column, for the creator to check; empty if everything was clear"),
 });
@@ -252,7 +234,7 @@ export async function readSketch(env: Env, image: { data: string; type: ImageTyp
     console.log(`sketch reader: quick read had trouble (${trouble.join("; ")}${quick.reading.problem ? `: ${quick.reading.problem}` : ""}); reading carefully`);
   }
   const careful = await readWith(client, "careful", image, options.previous);
-  if (!careful.reading.readable) throw new Invalid(careful.reading.problem ?? "That doesn't look like a puzzle Claude can read.");
+  if (!careful.reading.readable) throw new Invalid(careful.reading.problem || "That doesn't look like a puzzle Claude can read.");
   return { ...careful, reader: "careful" as Reader };
 }
 
@@ -306,7 +288,7 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
   if (reading.genre === "simple-loop" && (reading.rows * reading.cols - rocks) % 2) out.push("an odd number of open cells can't hold a loop");
   if (reading.genre === "coats" && !reading.figure?.length) out.push("no pieces in the figure");
   if (reading.genre === "sudoku" && (reading.rows !== reading.cols || ![4, 6, 9].includes(reading.rows))) out.push("not a 4x4, 6x6 or 9x9 sudoku");
-  if (reading.genre === "nonogram" && reading.picture && (reading.picture.rows.length !== reading.rows || reading.picture.rows.some((r) => r.length !== reading.cols))) {
+  if (reading.genre === "nonogram" && reading.pictureRows.length && (reading.pictureRows.length !== reading.rows || reading.pictureRows.some((r) => r.length !== reading.cols))) {
     out.push("the picture doesn't fill the grid");
   }
   return out;
@@ -314,44 +296,69 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
 
 /** A reading as sketch text: the genre line, then the puzzle as JSON. */
 export function toSketch(r: Reading): string {
-  const rc = (c: { row: number; col: number }): [number, number] => [c.row, c.col];
-  const givens: Given[] = r.givens.flatMap((g): Given[] => {
-    switch (g.kind) {
-      case "number": return g.value === null ? [] : [{ at: "cell", cell: rc(g.cell), kind: "number", value: g.value }];
-      case "block": return [{ at: "cell", cell: rc(g.cell), kind: "block" }];
-      case "symbol": return g.symbol ? [{ at: "cell", cell: rc(g.cell), kind: "symbol", value: g.symbol }] : [];
-      case "compass": {
-        const v = Object.fromEntries(Object.entries(g.compass ?? {}).filter(([, n]) => n !== null)) as { n?: number; e?: number; s?: number; w?: number };
-        return [{ at: "cell", cell: rc(g.cell), kind: "compass", value: v }];
-      }
-      case "first": case "skyscraper": return g.side && g.value !== null ? [{ at: "edge", cell: rc(g.cell), side: g.side, kind: g.kind, value: g.value }] : [];
-      case "thermo": return g.path && g.path.length > 1 ? [{ at: "cells", cells: g.path.map(rc), kind: "thermo" }] : [];
-      case "galaxy": return g.point ? [{ at: "point", point: rc(g.point), kind: "galaxy" }] : [];
-      case "pearl": return g.pearl ? [{ at: "cell", cell: rc(g.cell), kind: "pearl", value: g.pearl }] : [];
-      case "dots": return g.dots?.length ? [{ at: "cell", cell: rc(g.cell), kind: "dots", value: g.dots }] : [];
-      case "count": return g.value === null ? [] : [{ at: "corner", corner: rc(g.cell), kind: "count", value: g.value }];
-      case "door": return g.side && g.role ? [{ at: "edge", cell: rc(g.cell), side: g.side, kind: "door", role: g.role }] : [];
-      default: return g.other ? [{ at: "border", cells: [rc(g.cell), rc(g.other)], kind: g.kind }] : [];
-    }
-  });
+  const givens: Given[] = r.givens.flatMap((g) => givenOf(g) ?? []);
   for (const run of r.runs) givens.push(r.genre === "aquarium"
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
     : { at: run.line, index: run.index, kind: "runs", value: run.runs });
-  // every rule written on the sketch, with only the settings it uses
-  const rules: RuleSpec[] = r.rules.map(({ rule, ...settings }) =>
-    ({ rule, ...Object.fromEntries(Object.entries(settings).filter(([, v]) => v !== null)) }));
-  const figure = r.genre === "coats" && r.figure?.length ? { pieces: r.figure } : undefined;
+  const rules: RuleSpec[] = r.rules.map(({ rule, settings }) => ({ rule, ...ruleSettings(settings) }));
+  const figure = r.genre === "coats" && r.figure.length ? { pieces: r.figure } : undefined;
   const body: Omit<GridSpec, "genre"> = {
     size: figure ? [1, figure.pieces.length] : [r.rows, r.cols],
     ...(figure ? { figure } : {}),
-    ...(r.areas?.length ? { areas: r.areas } : {}),
+    ...(r.areas.length ? { areas: r.areas } : {}),
     ...(rules.length ? { rules } : {}),
     ...(givens.length ? { givens } : {}),
-    ...(r.genre === "nonogram" && r.picture && !r.runs.length
-      ? { picture: { rows: r.picture.rows, palette: Object.fromEntries([[".", "#ffffff"], ...r.picture.palette.map((p) => [p.letter, p.color])]), ...(r.title ? { title: r.title } : {}) } }
+    ...(r.genre === "nonogram" && r.pictureRows.length && !r.runs.length
+      ? { picture: { rows: r.pictureRows, palette: Object.fromEntries([[".", "#ffffff"], ...r.palette.map((p) => [p.letter, p.color])]), ...(r.title ? { title: r.title } : {}) } }
       : {}),
   };
   return `${r.genre}\n${JSON.stringify(body, null, 1)}`;
+}
+
+const SIDES = ["top", "right", "bottom", "left"] as const;
+const num = (t: string) => { const m = t.match(/-?\d+/); return m ? Number(m[0]) : null; };
+
+/** One given from the reader's row, col and value text (null if the value can't be read). */
+function givenOf({ kind, row, col, value }: Reading["givens"][number]): Given | null {
+  const cell: [number, number] = [row, col], v = value.trim().toLowerCase();
+  const side = SIDES.find((s) => v.includes(s));
+  switch (kind) {
+    case "number": { const n = num(v); return n === null ? null : { at: "cell", cell, kind, value: n }; }
+    case "count": { const n = num(v); return n === null ? null : { at: "corner", corner: cell, kind, value: n }; }
+    case "block": return { at: "cell", cell, kind };
+    case "symbol": return value.trim() ? { at: "cell", cell, kind, value: value.trim() } : null;
+    case "compass": {
+      const out: { n?: number; e?: number; s?: number; w?: number } = {};
+      for (const m of v.matchAll(/([nesw])\s*=?\s*(\d+)/g)) out[m[1] as "n" | "e" | "s" | "w"] = Number(m[2]);
+      return { at: "cell", cell, kind, value: out };
+    }
+    case "wall": case "twins": case "opposites": {
+      const other: [number, number] = v.includes("below") || v.includes("down") ? [row + 1, col] : [row, col + 1];
+      return { at: "border", cells: [cell, other], kind };
+    }
+    case "dots": { const d = [...v].filter((c) => "123".includes(c)).map(Number); return d.length ? { at: "cell", cell, kind, value: d } : null; }
+    case "pearl": return { at: "cell", cell, kind, value: v.includes("black") ? "black" : "white" };
+    case "first": case "skyscraper": { const n = num(v); return side && n !== null ? { at: "edge", cell, side, kind, value: n } : null; }
+    case "door": return side ? { at: "edge", cell, side, kind, role: v.includes("out") ? "out" : "in" } : null;
+    case "thermo": {
+      const cells = [...v.matchAll(/(\d+)\s*,\s*(\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
+      return cells.length > 1 ? { at: "cells", cells, kind } : null;
+    }
+    case "galaxy": return { at: "point", point: cell, kind };
+  }
+}
+
+/** A rule's settings from text like "is 4", "min 2 max 3", "box 2 3", "of symbol", "cover". */
+export function ruleSettings(text: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {}, words = text.toLowerCase().replace(/[=:,x×]/g, " ").split(/\s+/).filter(Boolean);
+  for (let k = 0; k < words.length; k++) {
+    const w = words[k], next = words[k + 1];
+    if (w === "box") { const a = Number(words[k + 1]), b = Number(words[k + 2]); if (a > 0 && b > 0) out.box = [a, b]; k += 2; }
+    else if (w === "cover") out.cover = true;
+    else if (w === "of" && next) { out.of = next; k++; }
+    else if (next !== undefined && !Number.isNaN(Number(next))) { out[w] = Number(next); k++; }
+  }
+  return out;
 }
 
 /** Bytes to base64 without blowing the stack on big images. */
