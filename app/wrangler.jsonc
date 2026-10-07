@@ -5,7 +5,7 @@
  */
 {
 	"$schema": "../node_modules/wrangler/config-schema.json",
-	"name": "wyattsgames",
+	"name": "inkit",
 	"compatibility_date": "2026-10-01",
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "./workers/app.ts",
@@ -14,12 +14,12 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "wyattsgames-db",
-			"database_id": "0e9cb4d5-3d33-4fa7-8bbd-f5d8a157508d",
+			"database_name": "inkit-db",
+			"database_id": "9bf3bfcb-0e34-40b2-8eb1-67b0c18358db",
 			"migrations_dir": "drizzle"
 		}
 	],
-	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "wyattsgames-media" }],
+	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "inkit-media" }],
 	/** Cloudflare Email Service: password reset emails from no-reply@inkit.games (simulated locally). */
 	"send_email": [{ "name": "EMAIL" }],
 	/** Cloudflare creates the DNS records for these domains on deploy. wyattsgames.com (Wyatt's old

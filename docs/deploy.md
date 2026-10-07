@@ -1,7 +1,7 @@
 # Deploying inkit
 
-inkit.games is one Cloudflare Worker (named `wyattsgames`, from before the rename) with a D1
-database (`wyattsgames-db`), an R2 bucket for photos (`wyattsgames-media`) and Cloudflare Email.
+inkit.games is one Cloudflare Worker (`inkit`) with a D1 database (`inkit-db`), an R2 bucket for
+photos (`inkit-media`) and Cloudflare Email.
 The Worker also answers for wyattsgames.com and www.wyattsgames.com, redirecting both to
 inkit.games/wyatt.
 
@@ -38,10 +38,10 @@ Set with `npx wrangler secret put <NAME>` in `app/` (never committed):
 - **Code:** `npx wrangler deployments list` shows recent versions; `npx wrangler rollback
   [<version-id>]` puts an earlier one back (in `app/`). Then revert the commit on `main`, or the
   next push deploys it again.
-- **Data:** D1 keeps 30 days of history. `npx wrangler d1 time-travel info wyattsgames-db`
-  shows a point to go back to; `npx wrangler d1 time-travel restore wyattsgames-db --timestamp=<when>`
+- **Data:** D1 keeps 30 days of history. `npx wrangler d1 time-travel info inkit-db`
+  shows a point to go back to; `npx wrangler d1 time-travel restore inkit-db --timestamp=<when>`
   restores the whole database to it (everything after is lost, so export first:
-  `npx wrangler d1 export wyattsgames-db --remote --output=backup.sql`).
+  `npx wrangler d1 export inkit-db --remote --output=backup.sql`).
 - **Photos** in R2 are never deleted by the site, so they survive a rollback.
 
 ## Deploying by hand

@@ -65,7 +65,7 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Apply database migrations
-        run: npx wrangler d1 migrations apply wyattsgames-db --remote
+        run: npx wrangler d1 migrations apply inkit-db --remote
         working-directory: app
       - name: Build and deploy
         run: npm run deploy
