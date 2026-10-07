@@ -22,8 +22,7 @@ const EDITORS = { nonogram: true } as const;
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in EDITORS;
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
-/** New paint colors, in the order they're offered. */
-const NEW_COLORS = ["#26398f", "#d8443a", "#f0a020", "#2e8b57", "#7b4bb7", "#222222", "#8b5a2b", "#f28cb1", "#3fb0e6", "#9aa0a6"];
+const same = (a: string | undefined, b: string) => !!a && a.toLowerCase() === b.toLowerCase();
 const runsText = (v: number[] | undefined) => (v ?? [0]).join(" ");
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 
@@ -57,18 +56,12 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   flash?: number;
   pins?: Pin[];
 }) {
-  const [ink, setInk] = useState(() => Object.keys(spec.picture?.palette ?? {}).find((k) => k !== ".") ?? "a");
+  // the fill color (a picture's colors are kept by letter; a letter is found or added as it's used)
+  const [ink, setInk] = useState(() => Object.entries(spec.picture?.palette ?? {}).find(([k]) => k !== ".")?.[1] ?? "#26398f");
   const [clueEdit, setClueEdit] = useState<{ at: "row" | "col"; index: number; x: number; y: number } | null>(null);
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
-  const paint = useRef<{ value: string } | null>(null);
-  const picker = useRef<HTMLInputElement>(null);
-  const [pickNew, setPickNew] = useState(false);   // a color was just added: open its picker
-  useEffect(() => {
-    if (!pickNew) return;
-    setPickNew(false);
-    try { picker.current?.showPicker(); } catch { picker.current?.click(); }
-  }, [pickNew]);
+  const paint = useRef<{ value: string; palette: Record<string, string> } | null>(null);
 
   let puzzle: Puzzle | null = null, problem = "";
   try { puzzle = makePuzzle(spec); } catch (e) { problem = (e as Error).message; }
@@ -88,7 +81,6 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   // ---- nonogram: the picture (paint) or the numbers (type) ----
   const [rows, cols] = spec.size, picture = spec.picture;
   const palette = picture?.palette ?? {};
-  const setPicture = (rowsNow: string[], pal = palette) => change({ ...spec, picture: { ...picture!, rows: rowsNow, palette: pal } });
   const cellAt = (evt: React.PointerEvent) => {
     const el = box.current?.querySelector("svg");
     if (!el || !lay) return null;
@@ -96,9 +88,14 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const { x, y } = pt.matrixTransform(el.getScreenCTM()!.inverse());
     return { x, y, c: Math.floor((x - lay.ML) / lay.S), r: Math.floor((y - lay.MT) / lay.S), lay };
   };
-  const paintCell = (r: number, c: number, value: string, continuing: boolean) => {
-    if (!picture || r < 0 || c < 0 || r >= rows || c >= cols || picture.rows[r]?.[c] === value) return;
-    onChange({ ...spec, picture: { ...picture, rows: picture.rows.map((row, y) => (y !== r ? row : row.slice(0, c) + value + row.slice(c + 1))) } }, continuing);
+  const paintCell = (r: number, c: number, continuing: boolean) => {
+    const stroke = paint.current;
+    if (!picture || !stroke || r < 0 || c < 0 || r >= rows || c >= cols || picture.rows[r]?.[c] === stroke.value) return;
+    const next = picture.rows.map((row, y) => (y !== r ? row : row.slice(0, c) + stroke.value + row.slice(c + 1)));
+    // keep only the colors still in use
+    const used = new Set(next.join(""));
+    const pal = Object.fromEntries(Object.entries(stroke.palette).filter(([k]) => k === "." || used.has(k)));
+    onChange({ ...spec, picture: { ...picture, rows: next, palette: pal } }, continuing);
   };
   const down = (evt: React.PointerEvent) => {
     if ((evt.target as Element).closest(".be-clue")) return;
@@ -108,10 +105,12 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const { r, c, x, y, lay } = hit;
     if (r >= 0 && c >= 0 && r < rows && c < cols) {
       if (!picture) return;
-      // the eraser clears; a color paints (or, on a square already that color, clears it)
-      const value = ink === "." || picture.rows[r]?.[c] === ink ? "." : ink;
-      paint.current = { value };
-      paintCell(r, c, value, false);
+      // a fill tool: a square fills with the color, or clears if it's that color already
+      const here = picture.rows[r]?.[c] ?? ".";
+      let pal = palette, letter = Object.keys(pal).find((k) => k !== "." && same(pal[k], ink));
+      if (!letter) { letter = [...LETTERS].find((l) => !(l in pal))!; pal = { ...pal, [letter]: ink }; }
+      paint.current = { value: here === letter ? "." : letter, palette: pal };
+      paintCell(r, c, false);
       (evt.target as Element).setPointerCapture?.(evt.pointerId);
       return;
     }
@@ -125,7 +124,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const move = (evt: React.PointerEvent) => {
     if (!paint.current) return;
     const hit = cellAt(evt);
-    if (hit) paintCell(hit.r, hit.c, paint.current.value, true);
+    if (hit) paintCell(hit.r, hit.c, true);
   };
   const up = () => { paint.current = null; };
 
@@ -145,8 +144,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     });
   }
   function toPicture() {
-    change({ ...spec, givens: (spec.givens ?? []).filter((g) => g.at !== "row" && g.at !== "col"), picture: { rows: Array.from({ length: rows }, () => ".".repeat(cols)), palette: { ".": "#ffffff", a: "#26398f" } } });
-    setInk("a");
+    change({ ...spec, givens: (spec.givens ?? []).filter((g) => g.at !== "row" && g.at !== "col"), picture: { rows: Array.from({ length: rows }, () => ".".repeat(cols)), palette: { ".": "#ffffff" } } });
   }
   function toNumbers() {
     const on = (picture?.rows ?? []).map((row) => [...row].map((ch) => ch !== "."));
@@ -167,8 +165,15 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     return { left: `${(x / lay.W) * 100}%`, top: `${(y / lay.H) * 100}%` };
   };
 
+  // general to specific: what the player gets, the size, then the color
   const toolbar = (
     <div className="be-tools">
+      <span className="be-group be-seg" role="group" aria-label="What the player gets">
+        <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && toPicture()}
+          title="Paint the picture; the numbers follow it">Picture</button>
+        <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && toNumbers()}
+          title="Type each row's and column's numbers yourself">Numbers only</button>
+      </span>
       <span className="be-group be-size">
         Rows <button type="button" className="be-btn" onClick={() => resize(-1, 0)} aria-label="Fewer rows">−</button><b>{rows}</b><button type="button" className="be-btn" onClick={() => resize(1, 0)} aria-label="More rows">+</button>
       </span>
@@ -176,31 +181,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         Columns <button type="button" className="be-btn" onClick={() => resize(0, -1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" className="be-btn" onClick={() => resize(0, 1)} aria-label="More columns">+</button>
       </span>
       {picture && (
-        <span className="be-group be-colors" role="group" aria-label="Paint color">
-          {Object.keys(palette).filter((k) => k !== ".").map((k) => (
-            <button key={k} type="button" className="be-pot" aria-pressed={ink === k} style={{ "--c": palette[k] } as React.CSSProperties} onClick={() => setInk(k)}
-              aria-label={ink === k ? "Change this color (every square painted with it)" : "Paint with this color"}
-              title={ink === k ? "Click to change this color everywhere it's used" : "Paint with this color"}>
-              {ink === k && <input ref={picker} type="color" value={palette[k]} tabIndex={-1} aria-hidden="true" onChange={(e) => setPicture(picture.rows, { ...palette, [k]: e.target.value })} />}
-            </button>
-          ))}
-          <button type="button" className="be-pot add" title="Add a color, then paint squares with it" aria-label="Add a color" onClick={() => {
-            const k = [...LETTERS].find((l) => !(l in palette));
-            if (!k) return;
-            const used = new Set(Object.values(palette).map((c) => c.toLowerCase()));
-            change({ ...spec, picture: { ...picture, palette: { ...palette, [k]: NEW_COLORS.find((c) => !used.has(c)) ?? "#d8443a" } } });
-            setInk(k);
-            setPickNew(true);
-          }}>+</button>
-          <button type="button" className="be-pot erase" aria-pressed={ink === "."} title="Eraser: clear squares" aria-label="Eraser" onClick={() => setInk(".")} />
-        </span>
+        <label className="be-group be-color" title="The color squares fill with (click a square again to clear it)">
+          Color <span className="be-pot" style={{ "--c": ink } as React.CSSProperties}><input type="color" value={ink} onChange={(e) => setInk(e.target.value)} /></span>
+        </label>
       )}
-      <span className="be-group be-seg" role="group" aria-label="What the player gets">
-        <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && toPicture()}
-          title="Paint the picture; the numbers follow it">Picture</button>
-        <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && toNumbers()}
-          title="Type each row's and column's numbers yourself">Numbers only</button>
-      </span>
     </div>
   );
 

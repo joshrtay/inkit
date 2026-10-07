@@ -529,7 +529,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .be-btn { font: inherit; padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--line, #8884); background: var(--panel); color: inherit; cursor: pointer; }
 .be-btn:disabled { opacity: .45; cursor: default; }
 .be-pot { position: relative; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--line, #8886); background: var(--c); cursor: pointer; padding: 0; }
-.be-pot[aria-pressed="true"] { outline: 3px solid #e0a100; outline-offset: 2px; }
 .be-pot input[type="color"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .be-board { position: relative; touch-action: none; user-select: none; }
 .board-editor.editing .be-board { cursor: crosshair; }
@@ -614,6 +613,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .studio-title textarea { font: 400 18px/1.4 var(--body); color: var(--muted); field-sizing: content; min-height: 1.4em; }
 .studio-title input::placeholder, .studio-title textarea::placeholder { color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .publish-what { display: grid; gap: 2px; margin: 0; }
-.be-pot.add { background: none; border-style: dashed; color: var(--muted); font: 700 16px/1 var(--body); display: grid; place-items: center; }
-.be-pot.erase { background: linear-gradient(135deg, transparent 45%, var(--red) 45% 55%, transparent 55%), #fff; }
-.be-colors { gap: 6px; }
+
+.be-color { cursor: pointer; }
+.be-color .be-pot { display: inline-block; }
