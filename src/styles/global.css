@@ -77,38 +77,16 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 /* The #pen filter lives in an invisible SVG at the top of <body>. */
 .ink-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 
-.topnav {
-  position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; justify-content: space-between; gap: 16px;
-  height: calc(var(--nav-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 16px 0;
-  background: var(--page), var(--bg);
-  border-bottom: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent);
-}
-.topnav .brand {
-  flex: none; font-family: var(--brand); font-size: 28px; line-height: 1.1; color: var(--ink); text-decoration: none;
-}
-.topnav .brand:hover { color: var(--muted); }
-
 /* The path to this page, after the logo */
-.crumbs { display: flex; align-items: center; gap: 10px; min-width: 0; white-space: nowrap; }
-.crumbs .sep { color: var(--line-strong); font-size: 18px; flex: none; }
-.crumbs .crumb { color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.crumbs .crumb:hover { color: var(--ink); text-decoration: underline; }
-.crumbs .here { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.crumbs h1 { font: 800 16px/1.2 var(--display); margin: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
-.crumbs .eyebrow { flex: none; font-size: 11px; }
+
 @media (max-width: 600px) {
   :root { --frame: 10px; }
-  .topnav { gap: 10px; padding-inline: 12px; }
-  .topnav .brand { font-size: 22px; }
-  .crumbs { gap: 7px; }
+
   /* no room for the middle step on a phone: the logo leads home, the page's name stays */
-  .crumbs .crumb, .crumbs .crumb + .sep { display: none; }
-  .crumbs .eyebrow { display: none; }
+
 }
 .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 28px; }
 
-.eyebrow { font-family: var(--mono); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 .back { font-family: var(--mono); font-size: 15px; color: var(--muted); text-decoration: none; justify-self: start; }
 .back:hover { color: var(--ink); text-decoration: underline; }
 

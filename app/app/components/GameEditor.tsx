@@ -5,8 +5,9 @@
 // Reset sit in the bottom-left corner.
 //
 // Drafts save themselves as you go; a published game changes only when you press Update (and only
-// to a puzzle with one solution). Types with their own on-puzzle tools use BoardEditor; the rest
-// use the generic PuzzleEditor until they get theirs.
+// to a puzzle with one solution). Grid types are edited on the board (BoardEditor); Three Coats,
+// drawn as pieces, in FigureEditor. Panes (and admins, for any puzzle) also get the Rules panel;
+// admins the Look panel.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form, Link, useFetcher } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
@@ -14,7 +15,9 @@ import { layoutOf } from "~/games/layout-of";
 import { doubtPlace, type Doubt } from "~/games/doubts";
 import { KIND_NAMES, kindName } from "~/games/kinds";
 import type { GridSpec } from "~site/engine/types.ts";
-import { PuzzleEditor } from "./PuzzleEditor";
+import { FigureEditor } from "./FigureEditor";
+import { RulesPanel } from "./RulesPanel";
+import { LookPanel } from "./LookPanel";
 import { BoardEditor, hasBoardEditor } from "./BoardEditor";
 import { useLiveCheck } from "./useOneSolutionCheck";
 import { Select } from "./Select";
@@ -210,12 +213,13 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
               <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
                 onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}
                 pins={doubts.flatMap(({ text: _t, done: _d, ...at }, i) => (ticked[i] ? [] : [{ ...at, n: i + 1, active: hover === i }]))} />
-              {/* Panes puzzles mix rules: they're set below the board */}
-              {genre === "panes" && <PuzzleEditor spec={loose} only="rules" onChange={(s) => setSketch(specToSketch(s))} />}
+              {/* Panes puzzles mix rules: they're set below the board; admins can change any puzzle's rules and look */}
+              {(genre === "panes" || may.feature) && <RulesPanel spec={loose} open={genre === "panes"} onChange={(s) => setSketch(specToSketch(s))} />}
+              {may.feature && <LookPanel spec={loose} onChange={(s) => setSketch(specToSketch(s))} />}
             </>
           ) : (
             // Three Coats: drawn as pieces, with its own figure editor
-            <PuzzleEditor spec={loose} embedded onChange={(s) => setSketch(specToSketch(s))} />
+            <FigureEditor spec={loose} set={(patch) => setSketch(specToSketch({ ...loose, ...patch }))} />
           )}
         </div>
 

@@ -1,8 +1,6 @@
 /* Styles for the social site's own pages. The look (colors, fonts, paper, boards) comes from the
    current site's ../src/styles/global.css, imported first in root.tsx. */
-.nav-actions { display: flex; align-items: center; gap: 14px; }
-.nav-link { font: 600 15px/1 var(--body); color: var(--muted); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
-.nav-link:hover { color: var(--ink); text-decoration: underline; }
+
 .wrap.narrow { max-width: 460px; }
 h1 { font: 800 30px/1.15 var(--display); margin: 0; }
 h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
@@ -34,8 +32,7 @@ h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
 .problems { color: var(--red); }
 
 /* collections */
-.collection-head { display: grid; gap: 6px; }
-.collection-head p { margin: 0; }
+
 .members { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; color: var(--muted); }
 
 /* forms */
@@ -50,10 +47,6 @@ h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
 .error { color: var(--red); margin: 0; }
 .or { text-align: center; color: var(--muted); margin: 4px 0; }
 .btn.google { width: 100%; padding: 11px; }
-.nav-actions > * { white-space: nowrap; }
-.nav-link .short { display: none; }
-@media (max-width: 600px) { .nav-actions .hide-sm { display: none; } .nav-actions { gap: 10px; } }
-@media (max-width: 420px) { .nav-link .long { display: none; } .nav-link .short { display: inline; } }
 
 /* buttons that look like links, danger buttons, notes */
 .btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 60%, transparent); }
@@ -66,8 +59,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .inline-form input { flex: 1 1 180px; font: 400 15px/1.2 var(--body); color: var(--ink); background: var(--panel);
   border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 9px 10px; }
-.head-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
-.nav-actions .btn { padding: 8px 12px; }
 
 /* the game editor */
 .editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -79,7 +70,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .member-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .member-actions { display: flex; align-items: center; gap: 12px; }
 .member-actions select { padding: 5px 8px; font-size: 14px; }
-.studio-list { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 6px; }
 
 /* making a game from a drawing */
 .drop { display: grid; place-items: center; gap: 8px; min-height: 180px; padding: 14px; cursor: pointer; text-align: center;
@@ -88,33 +78,18 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .drop img { max-width: 100%; max-height: 360px; border-radius: 4px; }
 .drop input[type=file] { font-size: 14px; color: var(--muted); }
 
-/* the visual puzzle editor (PuzzleEditor.tsx) */
-.givens-editor { display: grid; gap: 8px; }
+/* the editor's panels and figure editor (RulesPanel, LookPanel, FigureEditor) */
+
 .ge-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 14px; }
 .ge-bar button { font: 600 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong);
   border-radius: var(--radius); padding: 6px 9px; cursor: pointer; }
 .ge-bar button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
-.ge-size { display: inline-flex; align-items: center; gap: 5px; }
-.ge-size b { min-width: 1.6em; text-align: center; }
+
 .ge-tools { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .ge-bar input { width: 4.2em; font: 400 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 6px; }
-.ge-compass { display: inline-flex; gap: 6px; }
+
 .ge-grid { width: 100%; max-height: 70vh; background: #fff; border-radius: 4px; cursor: pointer; touch-action: manipulation; }
-.ge-cell { fill: #fff; stroke: #b9bfd6; stroke-width: 1; }
-.ge-cell.painted { fill: #26398f; }
-.ge-cell:hover { fill: #eef1fb; }
-.ge-cell.painted:hover { fill: #3a4da3; }
-.ge-rock { fill: #8b97c4; }
-.ge-wall { stroke: #26398f; stroke-width: 6; stroke-linecap: round; }
-.ge-diamond { fill: #fff; stroke: #26398f; stroke-width: 2.5; }
-.ge-diamond.filled { fill: #26398f; }
-.ge-corner circle { fill: #fff; stroke: #26398f; stroke-width: 1.5; }
-.ge-corner text { font-size: 13px; font-weight: 700; text-anchor: middle; fill: #26398f; }
-.ge-door path { fill: none; stroke: #c0392b; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.ge-door .ge-gap { stroke: #fff; stroke-width: 4; }
-.ge-area { stroke: #26398f; stroke-width: 4; stroke-linecap: round; pointer-events: none; }
-.ge-dots circle { stroke: #26398f; stroke-width: 1.2; }
-.ge-dots.hidden { opacity: .45; }
+
 .fe-figure { aspect-ratio: 4 / 3; }
 .fe-piece { fill: #eef0f7; stroke: #26398f; stroke-linejoin: round; }
 .fe-piece:hover { fill: #e2e6f5; }
@@ -122,27 +97,15 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .fe-corner { fill: #26398f; }
 .fe-drawing { fill: none; stroke: #c0392b; stroke-linejoin: round; stroke-dasharray: 2 1; }
 .fe-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, .25); }
-.fe-dots { display: inline-flex; gap: 3px; align-items: center; padding: 0 4px; }
+
 .fe-piece-bar b { margin-right: 4px; }
-.ge-text { font: 700 22px var(--hand); fill: #26398f; text-anchor: middle; pointer-events: none; }
-.ge-text.on-rock { fill: #fff; }
-.ge-text.outside { font-size: 18px; }
-.ge-thermo { fill: none; stroke: #c9cde0; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.ge-thermo.draft { stroke: #f2c23a; }
-.ge-galaxy { fill: #fff; stroke: #26398f; stroke-width: 2.4; pointer-events: none; }
-.ge-pearl { stroke: #26398f; stroke-width: 2.4; }
-.ge-pearl.white { fill: #fff; }
-.ge-pearl.black { fill: #26398f; }
-.ge-text.small { font-size: 12px; }
-.ge-text circle { fill: #26398f; }
+
 .ge-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); }
 .chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
 .ge-rules select { font-size: 14px; padding: 5px 8px; }
 .ge-rules input { width: 4em; padding: 5px 6px; }
-.solo { display: grid; max-width: 640px; }
-.solo figure { margin: 0; display: grid; gap: 8px; }
-.solo figcaption { font-weight: 700; font-size: 14px; color: var(--muted); }
+
 .ge-bar label { display: inline-flex; align-items: center; gap: 6px; }
 .ge-bar select { font-size: 14px; padding: 5px 8px; }
 .ge-bar input.wide { width: 12em; }
@@ -153,12 +116,7 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .swatch-edit input[type=color] { width: 28px; height: 26px; padding: 0; border: 0; background: none; }
 .swatch-edit .x { border: 0; background: none; color: var(--muted); padding: 0 3px; font-size: 16px; }
 /* nonogram clue numbers, lined up with the grid */
-.ge-col-runs { display: grid; gap: 2px; margin-left: 76px; padding: 0 2.2%; }
-.ge-row-wrap { display: flex; gap: 4px; align-items: stretch; }
-.ge-row-runs { display: grid; gap: 2px; width: 72px; padding: 2.2% 0; }
-.ge-row-wrap .ge-grid { flex: 1; min-width: 0; }
-.ge-col-runs input, .ge-row-runs input { width: 100%; min-width: 0; font: 600 13px/1 var(--body); text-align: center; padding: 4px 2px;
-  color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+
 .ge-section { border-top: 1px solid var(--line); padding-top: 8px; }
 .ge-section summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); }
 .ge-section .hint { margin: 6px 0; }
@@ -275,7 +233,7 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .nav-item.active .nav-icon { stroke-width: 2.3; }
 .nav-icon { width: 26px; height: 26px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .avatar { display: inline-grid; place-items: center; flex: none; border-radius: 50%; color: #fff; font-weight: 800; font-family: var(--body); line-height: 1; text-shadow: 0 1px 2px rgba(0, 0, 0, .25); }
-.create-menu { position: relative; }
+
 .create-btn { width: 100%; padding: 13px 16px; font-size: 17px; justify-content: center; }
 .menu {
   position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; display: grid; gap: 2px; padding: 6px; min-width: 220px;
@@ -292,7 +250,7 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .nav-guest { display: grid; gap: 8px; }
 .nav-guest .btn { justify-content: center; padding: 11px; }
 .nav-foot { margin-top: auto; position: relative; display: grid; gap: 10px; }
-.nav-foot .create-menu { margin: 4px 0; }
+
 .nav-legal { margin: 0; padding: 0 12px; font-size: 13px; color: var(--muted); }
 .wrap .nav-legal a, .nav-legal a { color: var(--muted); }
 @media (max-width: 1100px) { .nav-legal { display: none; } .nav-foot { justify-items: center; } }
@@ -488,8 +446,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .puzzle-extra h3 { margin: 0 0 6px; font-size: 15px; }
 .puzzle-extra ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
 .rules-toggle[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
-@media (max-width: 1250px) {
-}
 
 /* the How to play pane slides in over the page from the right edge; the board stays put */
 .guide-pane.side {
@@ -531,7 +487,7 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .be-pot { position: relative; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--line, #8886); background: var(--c); cursor: pointer; padding: 0; }
 .be-pot input[type="color"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 .be-board { position: relative; touch-action: none; user-select: none; }
-.board-editor.editing .be-board { cursor: crosshair; }
+
 .be-board .grid-game.pic svg { width: 100%; height: auto; max-height: 70vh; display: block; }
 .be-clue { position: absolute; transform: translate(-50%, -110%); background: var(--panel); border: 1px solid var(--line, #8886); border-radius: 8px; padding: .4rem .5rem; box-shadow: 0 6px 20px #0004; z-index: 2; }
 .be-clue label { display: grid; gap: .2rem; font-size: .8rem; }

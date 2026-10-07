@@ -202,15 +202,7 @@ on the puzzle itself. So the editors must be able to express everything each gam
 the reader must know how to read it.
 
 The editor is a page of its own (`app/app/components/GameEditor.tsx`, no site nav), after
-Substack's post editor: the puzzle type at the top centre, the type's tools in a toolbar below it,
-the puzzle in the middle, the drawing as a thumbnail in the left margin, and Claude's doubts in the
-right margin as a checklist with numbered pins on their cells (the reader returns each note with its
-row and column). The one-solution check runs live and shows as a chip beside Preview and Publish;
-undo and Reset (back to Claude's reading, kept in `games.reading`) sit bottom left. Drafts save
-themselves; a published game changes only on Update. Changing the type reads the drawing again,
-telling Claude the type along with its guide.
-
-Inside it there are two kinds of puzzle editor:
+Substack's post editor (see ARCHITECTURE.md). The puzzle itself is edited by:
 - **The on-puzzle editor** (`app/app/components/BoardEditor.tsx`), for every grid type: the puzzle
   drawn as the player sees it, edited in place with the few tools its type needs (`TOOLS`, typed
   against the engine's genres, so a new genre fails the build until it has tools). The tools: a
@@ -222,30 +214,23 @@ Inside it there are two kinds of puzzle editor:
   puzzle with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a
   maze's second door, an area painted in two pieces) stays on screen to be fixed, and a draft can
   be saved that way (publishing still needs a complete puzzle with one solution).
-- **The generic editor** (`app/app/components/PuzzleEditor.tsx`): Three Coats' figure editor
-  (pieces rather than a grid), and the Rules section beside Panes. Its Look section and the rest
-  show only with `advanced`.
+- **The figure editor** (`FigureEditor.tsx`) for Three Coats: draw a piece corner by corner, drag
+  corners, delete pieces, give a piece dots and hide them, and set the hearts.
+- **The Rules panel** (`RulesPanel.tsx`): rules beyond the type's own, with every setting. Shown for
+  Panes, and to admins on any puzzle.
+- **The Look panel** (`LookPanel.tsx`): style options and which marks the player draws. Admins only.
 
-The generic editor covers:
-- the game type and grid size
-- every clue kind: in cells, on borders, on corners, doors in the outside edge, and nonogram row /
-  column numbers
-- outlined areas (an area painter: pick an area, click cells into it)
-- a figure's pieces (Three Coats, `app/app/components/FigureEditor.tsx`): draw a piece corner by
-  corner, drag corners, delete pieces, give a piece dots and hide them, and set the hearts
-- a nonogram's picture: painted in any number of colors, with its title
-- rules beyond the genre's own, with every setting
-- the style options, and which marks the player draws
+**Coverage tables** (`app/app/editor/coverage.ts` for the editors, `read-sketch.server.ts` for the
+reader) are typed against the engine's own lists, so a new name fails the type check until it has
+an entry saying where it's edited and how it's read:
 
-Both files keep **coverage tables typed against the engine's own lists**:
-
-| Engine list | Editor | Reader |
+| Engine list | Editors | Reader |
 |---|---|---|
-| `GenreName` (`puzzle.ts`) | `GENRE_CLUES` | `GENRE_GUIDE` |
-| `Given["kind"]` (`types.ts`) | `CLUES` | `CLUE_GUIDE` |
-| `RuleName` (`rules.ts`) | `RULES`, with each setting | `RULE_GUIDE` |
-| `keyof GridStyle` | `STYLE` | |
-| `MarkKind` | `MARKS` | |
+| `GenreName` (`puzzle.ts`) | `TOOLS` (BoardEditor; Three Coats excepted) | `GENRE_GUIDE` |
+| `Given["kind"]` (`types.ts`) | `CLUE_TOOLS`: the tool that places it | `CLUE_GUIDE` |
+| `RuleName` (`rules.ts`) | `RULES`, with each setting (Rules panel) | `RULE_GUIDE` |
+| `keyof GridStyle` | `STYLE` (Look panel) | |
+| `MarkKind` | `MARKS` (Look panel) | |
 | `keyof GridSpec` | `SPEC_PARTS` | |
 
 Game type names live in `app/app/games/kinds.ts` (`KIND_NAMES`).

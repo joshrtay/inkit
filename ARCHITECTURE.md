@@ -54,7 +54,7 @@ description, the puzzle edited in place (`components/BoardEditor.tsx`, tools per
 in the left margin, Claude's doubts in the right margin as a checklist pinned to the board. Undo
 and Reset sit bottom left. Drafts save themselves; publishing needs exactly one solution. Preview
 shows the real page (`/g/<id>/preview`) at desktop or phone width. Three Coats keeps its figure
-editor (`components/PuzzleEditor.tsx`).
+editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; admins a Look panel.
 
 **Deploying**: pushes to `main` that touch `app/` or `src/` run `.github/workflows/deploy-inkit.yml`:
 type-check, apply D1 migrations, deploy. The Worker serves inkit.games, and redirects

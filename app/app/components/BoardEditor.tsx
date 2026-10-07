@@ -4,7 +4,8 @@
 // on each doubt's spot, and puts its tools in the page's toolbar.
 //
 // Every grid type has its tools here (TOOLS); Three Coats, drawn as pieces rather than a grid,
-// uses its own figure editor (PuzzleEditor). Each tool is one way of touching the board: a number
+// uses its own figure editor (FigureEditor). Which tool places each kind of clue is checked
+// against the engine in editor/coverage.ts. Each tool is one way of touching the board: a number
 // typed into a square, a rock toggled, a wall clicked between two squares, a thermometer dragged
 // from its bulb, an area painted, a number or letter typed outside the grid...
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +16,7 @@ import type { Given, GridSpec, Puzzle, Side } from "~site/engine/types.ts";
 import { pictureLayout, pictureSvg, type Room } from "~site/game-types/grid/picture.ts";
 import "~site/game-types/grid/styles.css";
 import type { Doubt } from "~/games/doubts";
+import type { ToolId } from "~/editor/coverage";
 
 type Spec = GridSpec;
 type RC = [number, number];
@@ -24,8 +26,6 @@ export interface Pin extends Omit<Doubt, "text" | "done"> { n: number; active?: 
 
 // ---- the tools ----
 
-type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo" | "door" | "outside-number" | "outside-letter"
-  | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "erase";
 
 const TOOL_LABELS: Record<ToolId, string> = {
   number: "Number", block: "Rock", wall: "Wall", pearl: "Pearl", galaxy: "Circle", thermo: "Thermometer", door: "Door",
