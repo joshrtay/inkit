@@ -70,21 +70,19 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   const genre = loose?.genre;
   const onBoard = hasBoardEditor(genre);
 
-  // title and description (set in the publish panel)
+  // the title and description, written above the puzzle
   const [title, setTitle] = useState(game.title);
   const [description, setDescription] = useState(game.description);
 
   // drafts save themselves a moment after each change
-  const [savedSketch, setSavedSketch] = useState(game.sketch);
-  useEffect(() => { setSavedSketch(game.sketch); }, [game.sketch]);
-  const unsaved = sketch !== savedSketch;
+  const unsaved = sketch !== game.sketch || title !== game.title || description !== game.description;
   useEffect(() => {
     if (!isDraft || !unsaved || !may.edit || !parsed.ok) return;
     const t = setTimeout(() => {
-      saver.submit({ intent: "save", stay: "1", sketch, title, description }, { method: "post" });
+      saver.submit({ intent: "save", stay: "1", sketch, title: title.trim() || "Untitled", description }, { method: "post" });
     }, 1200);
     return () => clearTimeout(t);
-  }, [sketch, isDraft]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sketch, title, description, isDraft]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveStatus = !isDraft ? (unsaved ? "Not updated yet" : game.state === "hidden" ? "Taken down" : "Published")
     : saver.state !== "idle" ? "Saving…" : saver.data?.error ? "Couldn't save" : unsaved ? (parsed.ok ? "Unsaved" : "Can't save yet") : "Saved";
 
@@ -112,6 +110,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   const [flash, setFlash] = useState(0);
   const [panel, setPanel] = useState<"preview" | "publish" | "drawing" | null>(null);
   const [menu, setMenu] = useState(false);
+  const hasMore = game.state === "published" ? may.edit || may.takeDown || may.feature : game.state === "hidden" && may.hide;
   const rereading = reader.state !== "idle";
   const rereadKind = rereading ? String(reader.formData?.get("kind") ?? "") : "";
   const problem = saver.data?.error || reader.data?.error || error;
@@ -145,11 +144,10 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           {may.edit && (isDraft
             ? <button type="button" className="btn primary" onClick={() => setPanel("publish")}>Publish</button>
             : game.state === "published" && <button type="button" className="btn primary" disabled={!unsaved} onClick={() => setPanel("publish")}>Update</button>)}
-          <div className="studio-more">
+          {hasMore && <div className="studio-more">
             <button type="button" className="btn icon" aria-label="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>⋯</button>
             {menu && (
               <div className="menu" role="menu">
-                <Link role="menuitem" to={`/g/${game.id}`}>View the game</Link>
                 {may.edit && game.state === "published" && (
                   <Form method="post"><button role="menuitem" name="intent" value="unpublish">Back to draft</button></Form>
                 )}
@@ -168,7 +166,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
                 )}
               </div>
             )}
-          </div>
+          </div>}
         </div>
       </header>
       <div className="studio-tools" ref={setTools} />
@@ -186,6 +184,13 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
         )}
 
         <div className={`studio-board${rereading ? " busy" : ""}`}>
+          <div className="studio-title">
+            <input aria-label="Title" placeholder="Title" maxLength={120} value={title} readOnly={!may.edit}
+              onChange={(e) => setTitle(e.target.value)} onFocus={(e) => title === "Untitled" && e.currentTarget.select()} />
+            <textarea aria-label="Description" placeholder="Add a description…" rows={1} maxLength={2000} value={description} readOnly={!may.edit}
+              onChange={(e) => setDescription(e.target.value)}
+              onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = `${t.scrollHeight}px`; }} />
+          </div>
           {onBoard && loose ? (
             <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
               onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}
@@ -243,12 +248,14 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
                 <h2>{isDraft ? "Publish" : "Update"}</h2>
                 <input type="hidden" name="sketch" value={sketch} />
                 <input type="hidden" name="checked" value={check.hash} />
-                <label>Title<input name="title" required maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
-                <label>Description<textarea name="description" rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} /></label>
+                <input type="hidden" name="title" value={title.trim()} />
+                <input type="hidden" name="description" value={description} />
+                <p className="publish-what"><strong>{title.trim() || "Untitled"}</strong>{description && <span className="muted">{description}</span>}</p>
+                {!title.trim() && <p className="error">Give it a title first (at the top of the page).</p>}
                 {check.state !== "one" && <p className="error">{check.state === "checking" ? "Still checking for one solution…" : `It needs exactly one solution first (${check.state === "broken" ? check.text : check.text.toLowerCase()}).`}</p>}
                 {open > 0 && <p className="muted">{open === 1 ? "One of Claude's doubts isn't" : `${open} of Claude's doubts aren't`} checked yet.</p>}
                 <div className="editor-actions">
-                  <button className="btn primary" name="intent" value="publish" disabled={check.state !== "one"}>{isDraft ? "Publish" : "Update"}</button>
+                  <button className="btn primary" name="intent" value="publish" disabled={check.state !== "one" || !title.trim()}>{isDraft ? "Publish" : "Update"}</button>
                   {isDraft && <><input type="hidden" name="stay" value="1" /><button className="btn" name="intent" value="save">Save draft</button></>}
                 </div>
               </Form>

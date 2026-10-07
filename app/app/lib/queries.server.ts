@@ -7,6 +7,7 @@ const cardColumns = {
   id: schema.games.id, title: schema.games.title, description: schema.games.description,
   kind: schema.games.kind, thumbnail: schema.games.thumbnail, state: schema.games.state,
   sketch: schema.games.sketch, sketchVersion: schema.games.sketchVersion, publishedAt: schema.games.publishedAt,
+  updatedAt: schema.games.updatedAt, parseNotes: schema.games.parseNotes,
   collectionSlug: schema.collections.slug, collectionTitle: schema.collections.title,
   authorHandle: schema.creators.handle, authorName: schema.creators.name, authorDeleted: schema.creators.deletedAt,
 };

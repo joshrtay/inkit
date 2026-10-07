@@ -41,17 +41,21 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     : new Set<string>();
   // On your own page: the studios you belong to.
   const studios = person && viewer?.id === person.id ? (await publishTargets(db, viewer.id)).filter((t) => !t.personal) : null;
-  // Members see their own drafts; owners see every draft and hidden game.
-  const visible = games.filter((g) => g.state === "published" || owner || viewer?.isAdmin || g.authorHandle === viewer?.handle);
+  // Puzzles: what everyone sees. Drafts (and games taken down): only their author, the
+  // collection's owners and admins, in a tab of their own.
+  const published = games.filter((g) => g.state === "published");
+  const drafts = games.filter((g) => g.state !== "published" && (owner || viewer?.isAdmin || g.authorHandle === viewer?.handle));
+  const canSeeDrafts = !!role || !!viewer?.isAdmin;
   return {
     collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt },
     person: person && { handle: person.handle, name: person.name },
     members,
-    games: withPictures(visible),
+    games: withPictures(published),
+    drafts: canSeeDrafts ? withPictures(drafts) : null,
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
     subscribers, subscribed, role, studios,
     me: viewer?.handle ?? null,
-    tab: ["puzzles", "subscriptions", "members"].includes(tab) ? tab : "puzzles",
+    tab: ["puzzles", "subscriptions", "members", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
   };
 }
 
@@ -79,10 +83,12 @@ export const meta: Route.MetaFunction = ({ loaderData: data }) => data
   : [{ title: "Not found · inkit" }];
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, members, games, following, subscribers, subscribed, role, studios, me, tab } = d;
+  const { collection, person, members, games, drafts, following, subscribers, subscribed, role, studios, me, tab } = d;
   const mine = !!person && person.handle === me;
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
+    // only you (and the owners) see this tab
+    ...(drafts ? [{ id: "drafts", label: "Drafts", n: drafts.length }] : []),
     ...(person ? [{ id: "subscriptions", label: "Subscriptions", n: following.length }] : [{ id: "members", label: "Members", n: members.length }]),
   ];
   return (
@@ -116,6 +122,13 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           <p>{mine ? "You haven't made any puzzles yet." : "No puzzles here yet."}</p>
           {mine && <p className="muted">Draw one on paper, take a photo, and upload it.</p>}
           {mine && <Link className="btn primary" to="/new">Make a puzzle</Link>}
+        </div>
+      ))}
+      {tab === "drafts" && drafts && (drafts.length ? <ul className="cards">{drafts.map((g) => <GameCard key={g.id} game={g} draft />)}</ul> : (
+        <div className="empty-tab">
+          <p>No drafts.</p>
+          <p className="muted">Puzzles you&rsquo;re still working on wait here until you publish them.</p>
+          <Link className="btn primary" to={role && !mine ? `/new?in=${collection.slug}` : "/new"}>Make a puzzle</Link>
         </div>
       ))}
       {tab === "subscriptions" && (following.length

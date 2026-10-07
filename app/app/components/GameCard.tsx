@@ -1,6 +1,7 @@
 import { Form, Link } from "react-router";
 import type { Thumbed } from "~/lib/thumbs.server";
 import type { CollectionCard } from "~/lib/queries.server";
+import { doubtsOf } from "~/games/doubts";
 import { kindName } from "~/games/kinds";
 import { Avatar } from "./Avatar";
 
@@ -8,7 +9,29 @@ const Picture = ({ svg, className }: { svg: string | null; className: string }) 
   svg ? <span className={`grid-game pic ${className}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <span className={`pic ${className} none`} />;
 
 /** A game in a grid: its puzzle, title, type, who made it, and its state if it isn't public. */
-export function GameCard({ game }: { game: Thumbed }) {
+/** `draft`: a card in your Drafts: it opens the editor, and says when you last edited it and how
+ *  many of Claude's doubts are left to check. */
+export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boolean }) {
+  if (draft) {
+    const left = doubtsOf(game.parseNotes).filter((d) => !d.done).length;
+    return (
+      <li>
+        <Link className="game-card" to={`/g/${game.id}/edit`}>
+          <Picture svg={game.picture} className="thumb" />
+          <span className="game-card-text">
+            <span className="kind">{kindName(game.kind)}</span>
+            <strong>{game.title || "Untitled"}</strong>
+            <span className="by">
+              Edited {edited(game.updatedAt)}
+              {game.authorHandle && game.collectionSlug !== game.authorHandle && <> · by @{game.authorHandle}</>}
+            </span>
+            {game.state === "hidden" ? <span className="state hidden">taken down</span>
+              : left > 0 && <span className="state to-check">{left} doubt{left === 1 ? "" : "s"} to check</span>}
+          </span>
+        </Link>
+      </li>
+    );
+  }
   return (
     <li>
       <Link className="game-card" to={`/g/${game.id}`}>
@@ -27,6 +50,13 @@ export function GameCard({ game }: { game: Thumbed }) {
     </li>
   );
 }
+
+const edited = (t: Date | number | null) => {
+  if (!t) return "";
+  const d = new Date(t), now = new Date();
+  if (now.getTime() - d.getTime() < 86400e3 && d.getDate() === now.getDate()) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
+};
 
 const when = (t: Date | number | null) => {
   if (!t) return "";

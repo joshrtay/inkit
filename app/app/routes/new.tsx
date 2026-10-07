@@ -67,9 +67,6 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
         }}>
         <Select name="collection" label="Goes in" defaultValue={collection}
           options={targets.map((t) => ({ value: t.id, label: t.title, hint: t.personal ? "your profile" : "studio" }))} />
-        <label>Title <span className="hint">optional; a title written on the sketch is used otherwise</span>
-          <input name="title" maxLength={120} />
-        </label>
         <label className="drop">
           {preview ? <img src={preview} alt="Your sketch" /> : <span>Choose or take a photo of the sketch</span>}
           <input type="file" accept="image/*" required

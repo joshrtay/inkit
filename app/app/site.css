@@ -608,3 +608,10 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
   .check-chip { padding: 7px 8px; font-size: 12px; }
 }
 .studio-sheet.preview .sheet > svg, .studio-sheet.preview svg.board { max-height: calc(100dvh - 240px); }
+.state.to-check { background: color-mix(in srgb, #e0a100 22%, transparent); }
+.studio-title { display: grid; gap: 4px; margin-bottom: 18px; }
+.studio-title input, .studio-title textarea { width: 100%; border: 0; padding: 0; background: none; color: var(--ink); outline: none; resize: none; }
+.studio-title input { font: 800 34px/1.15 var(--display); }
+.studio-title textarea { font: 400 18px/1.4 var(--body); color: var(--muted); field-sizing: content; min-height: 1.4em; }
+.studio-title input::placeholder, .studio-title textarea::placeholder { color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.publish-what { display: grid; gap: 2px; margin: 0; }

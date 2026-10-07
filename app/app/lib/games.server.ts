@@ -150,7 +150,7 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   await env.MEDIA.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
   await db.insert(schema.games).values({
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
-    title: String(form.get("title") ?? "").trim().slice(0, 120) || reading.title || "Untitled",
+    title: reading.title || "Untitled",   // a title written on the sketch; set in the editor otherwise
     sketchImage: key, reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading),
   });
   return id;
