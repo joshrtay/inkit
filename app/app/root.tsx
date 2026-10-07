@@ -51,10 +51,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { me } = useLoaderData<typeof loader>();
   // a page of its own, without the site's nav (the game editor): its route's handle says `bare`
-  const bare = useMatches().some((m) => (m.handle as { bare?: boolean } | undefined)?.bare);
-  if (bare) return <Outlet />;
+  const matches = useMatches();
+  const bare = matches.some((m) => (m.handle as { bare?: boolean } | undefined)?.bare);
   // the editor's preview of a game page: the site's frame, but its nav goes nowhere
-  const preview = useMatches().some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
+  const preview = matches.some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
+  if (bare) return <Outlet />;
   return (
     <div className="shell">
       <div className="nav-wrap" inert={preview || undefined}><SideNav me={me} /></div>

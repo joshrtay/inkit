@@ -27,7 +27,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     reading: game.reading,
     doubts: doubtsOf(game.parseNotes),
     choices: game.kindChoices ?? [],
-    backTo: game.state === "published" || !collection ? `/g/${game.id}` : `/${collection.slug}`,
+    backTo: game.state === "published" || !collection ? `/g/${game.id}` : `/${collection.slug}?tab=drafts`,
   };
 }
 
