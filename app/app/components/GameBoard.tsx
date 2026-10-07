@@ -1,7 +1,7 @@
 // Plays a game in the page with the shared grid game (../src/game-types/grid). The game
-// builds its board inside a container of plain HTML (its paper, controls and SVG), exactly as
-// on the current site, so the engine is reused as-is. React only provides the spot; the game
-// owns everything inside it.
+// builds its board inside a container of plain HTML (its paper, controls and SVG), so the player
+// is plain TypeScript, independent of React. React only provides the spot; the game owns
+// everything inside it.
 import { useEffect, useRef } from "react";
 import { createGrid } from "~site/game-types/grid/game";
 import "~site/game-types/grid/styles.css";
@@ -11,7 +11,7 @@ import type { Layout, Playable } from "~/games/layout";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** The same markup as the current site's grid Game.astro. */
+/** The markup the grid player builds its board in. */
 function markup(l: Layout) {
   const pots = l.palette.length
     ? `<div class="pots" role="group" aria-label="Color">${l.palette.map((c, i) =>

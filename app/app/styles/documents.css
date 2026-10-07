@@ -1,0 +1,9 @@
+/* Documents: privacy policy, terms. Part of site.css (imported in order). */
+
+/* ---- documents: privacy policy, terms ---- */
+.doc { max-width: 720px; gap: 14px; }
+.doc h2 { margin: 18px 0 0; font-size: 20px; }
+.doc p, .doc li { font-size: 16px; line-height: 1.6; }
+.doc p { margin: 0; }
+.doc ul { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.legal-note { font-size: 13px; color: var(--muted); }

@@ -1,0 +1,118 @@
+/* A game's page, the puzzle-types pane, dropdowns, How to play, the back button. Part of site.css (imported in order). */
+
+/* a game page: the board fits under the title row (and above the tab bar on phones) */
+.game-page { --nav-h: calc(84px + var(--tabbar, 0px)); padding-top: 18px; }
+@media (max-width: 640px) { :root { --tabbar: 64px; } }
+
+/* ---- the puzzle-types pane beside the new-game page ---- */
+.with-pane { display: grid; grid-template-columns: minmax(0, 1fr) 400px; align-items: start; }
+.guide-pane {
+  position: sticky; top: 0; height: 100dvh; overflow-y: auto; padding: 22px 20px 40px; display: grid; align-content: start; gap: 14px;
+  border-left: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent); background: var(--page), var(--bg);
+}
+.pane-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pane-head h2 { margin: 0; font-size: 20px; }
+.pane-close, .pane-toggle { display: none; }
+.pane-back { font-weight: 700; }
+.pane-search { font: 400 15px/1.2 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 999px; padding: 10px 14px; }
+.pane-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pane-list button {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; padding: 8px; text-align: left;
+  background: none; border: 1px solid transparent; border-radius: 10px; color: var(--ink); cursor: pointer; font: inherit;
+}
+.pane-list button:hover { background: var(--panel); border-color: var(--line); }
+.pane-list .pic { width: 64px; height: 52px; display: grid; place-items: center; padding: 4px; }
+.pane-list .pic svg { width: auto; height: 100%; max-width: 100%; }
+.pane-list strong { display: block; font: 800 15px/1.2 var(--display); }
+.pane-list .muted { display: block; font-size: 13px; line-height: 1.35; }
+.pane-guide { display: grid; gap: 14px; }
+.pane-guide h2 { margin: 0; }
+.pane-guide .lead { font-size: 15px; }
+.pane-guide .aka { margin: 0; color: var(--muted); font-size: 13px; }
+.pane-guide .guide-rules .rule { grid-template-columns: 1fr; padding: 14px; gap: 12px; }
+.pane-guide .rule-text { font-size: 15px; }
+.pane-guide .rule-pics { justify-content: flex-start; }
+.pane-guide .mini { width: calc(50% - 6px); }
+.pane-guide .mini.wide { width: 100%; }
+.pane-guide .example-pair { grid-template-columns: 1fr 1fr; gap: 10px; }
+.pane-guide .guide-example h2, .pane-guide .guide-rules h2 { font-size: 17px; }
+@media (max-width: 1250px) {
+  .with-pane { grid-template-columns: minmax(0, 1fr); }
+  .pane-toggle { display: inline-flex; position: fixed; right: 16px; top: 16px; z-index: 25; }
+  .guide-pane { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); z-index: 40; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px var(--shadow); }
+  .guide-pane.open { transform: none; }
+  .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
+}
+/* as a drawer on pages that need their width (the edit page) */
+.pane-toggle.drawer { display: inline-flex; position: fixed; right: 16px; top: 16px; z-index: 25; }
+.guide-pane.drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); z-index: 40; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px var(--shadow); }
+.guide-pane.drawer.open { transform: none; }
+.guide-pane.drawer .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
+@media (max-width: 640px) { .pane-toggle { top: auto; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+
+.origin { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; font-style: italic; max-width: 64ch; }
+
+/* rule pictures, after Thinky Dailies: a square tile, a thick green or red outline, and a round
+   ✓ / ✕ badge on its top-right corner */
+.mini { --tone: var(--good); }
+.mini.no { --tone: var(--red); }
+.mini-frame { position: relative; margin: 12px 12px 0 0; }
+.mini-frame .pic { aspect-ratio: 1; display: grid; place-items: center; padding: 8px; border: 4px solid var(--tone); border-radius: 14px; box-shadow: none; }
+.mini.wide .mini-frame .pic { aspect-ratio: auto; }
+.mini-frame .pic svg { width: 100%; height: 100%; }
+.mini .badge {
+  position: absolute; top: -13px; right: -13px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--tone); color: #fff; font: 800 16px/1 var(--body); box-shadow: 0 0 0 3px var(--panel);
+}
+.mini figcaption { font-size: 14px; line-height: 1.35; color: var(--ink); padding-right: 12px; }
+
+/* ---- dropdowns (components/Select.tsx) ---- */
+.select { position: relative; display: grid; gap: 6px; }
+.select-label { font-weight: 700; font-size: 14px; }
+.select-button, .select.single .select-value {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
+  font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 11px 12px;
+}
+.select.single .select-value { background: transparent; }
+.select-button { cursor: pointer; }
+.select-button:focus-visible { outline: 2px solid color-mix(in srgb, var(--ink) 40%, transparent); outline-offset: 2px; }
+.select-button svg, .select-list svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.select-button[aria-expanded="true"] svg { rotate: 180deg; }
+.select-list {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px var(--shadow); max-height: 280px; overflow-y: auto;
+}
+.select-list li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+.select-list li > span:first-child { flex: 1; font-weight: 600; }
+.select-list li .muted { font-size: 13px; }
+.select-list li.active { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+
+/* a game's How to play: the pane beside the board (wide screens) or over it (narrower) */
+.game-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.guide-pane.side .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.puzzle-extra { padding: 14px 16px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
+.puzzle-extra h3 { margin: 0 0 6px; font-size: 15px; }
+.puzzle-extra ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
+.rules-toggle[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+
+/* the How to play pane slides in over the page from the right edge; the board stays put */
+.guide-pane.side {
+  position: fixed; inset: 0 0 0 auto; height: 100dvh; width: min(420px, 100vw); z-index: 40;
+  transform: translateX(100%); visibility: hidden; box-shadow: none;
+  transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s linear .28s, box-shadow .28s;
+}
+.guide-pane.side.open { transform: none; visibility: visible; box-shadow: -14px 0 36px var(--shadow); transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s, box-shadow .28s; }
+@media (prefers-reduced-motion: reduce) { .guide-pane.side, .guide-pane.side.open { transition: none; } }
+
+/* a game's back button: at the left edge of the puzzle's area (above the title on phones) */
+.game-layout { position: relative; container-type: inline-size; }
+.back-btn {
+  position: absolute; left: 20px; top: 20px; z-index: 5; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); cursor: pointer; text-decoration: none;
+}
+.back-btn:hover { background: color-mix(in srgb, var(--ink) 10%, var(--panel)); }
+.back-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* when the page is too narrow for a margin beside the title, make room for the button */
+@container (max-width: 1200px) { .game-page .game-head { padding-left: 52px; } }
+@media (max-width: 640px) { .back-btn { position: static; margin: 14px 0 0 16px; width: 36px; height: 36px; } .game-page .game-head { padding-left: 0; } }

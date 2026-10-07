@@ -45,3 +45,12 @@ evaluation (`npm run eval`): [../docs/reader.md](../docs/reader.md).
   browsers support it. Build after the on-puzzle editor, whose actions these mirror.
 - **Style in the editor**: choose a puzzle's look (ink, paper, colors) on the edit page, seen live
   in Preview, which already shows the puzzle as its page will.
+- **Prompt caching for the sketch reader**: the system prompt (every puzzle type, clue and rule) is
+  the same for every read, about 11,000 input tokens per look. Mark it with `cache_control` so
+  reads after the first pay a fraction for it; measure the saving with `npm run eval` and the
+  token counts in `/admin/reads/stats` (see docs/reader.md).
+- **Studios** (shared collections with several creators) are built but set aside: their pages
+  (`/studios/new`, `/<slug>/settings`), memberships and roles still work, but nothing links to
+  them. Decide what they should be, then link them again (Create menu, profile).
+- **A contact address**: the privacy policy and terms name hello@inkit.games (`app/lib/legal.ts`),
+  which doesn't exist yet. Set it up with Cloudflare Email Routing, forwarding to a real inbox.

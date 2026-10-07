@@ -1,0 +1,131 @@
+/* Base: page layout, headings, forms, buttons, notes, and the editor's panels. Part of site.css (imported in order). */
+
+.wrap.narrow { max-width: 460px; }
+h1 { font: 800 30px/1.15 var(--display); margin: 0; }
+h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.wrap a { color: var(--ink); }
+
+/* game lists */
+.shelf { display: grid; gap: 4px; }
+.cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
+.game-card {
+  display: grid; gap: 4px; height: 100%; padding: 16px 18px; color: inherit; text-decoration: none;
+  background: var(--panel); border: var(--card-border); border-radius: var(--radius); transition: transform .15s, border-color .15s;
+}
+.wrap .game-card { color: inherit; }
+.game-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.game-card .kind { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.game-card strong { font: 800 18px/1.25 var(--display); }
+.game-card .desc { font-size: 14px; color: var(--muted); }
+.game-card .by { font-size: 13px; color: var(--muted); }
+.state { justify-self: start; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 20%, transparent); }
+.state.hidden { background: color-mix(in srgb, var(--red) 22%, transparent); color: var(--red); }
+
+/* a game's page */
+.game-page { gap: 12px; }
+.game-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.game-head h1 { font-size: 22px; }
+.game-spot { display: grid; }
+.game-desc { max-width: 64ch; color: var(--muted); margin: 0; }
+.problems { color: var(--red); }
+
+/* collections */
+
+.members { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; color: var(--muted); }
+
+/* forms */
+.form { display: grid; gap: 16px; }
+.form label { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+.form input {
+  font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 11px 12px;
+}
+.form .hint { font-weight: 400; font-size: 13px; color: var(--muted); }
+.form .btn { justify-self: start; padding: 11px 18px; }
+.error { color: var(--red); margin: 0; }
+.or { text-align: center; color: var(--muted); margin: 4px 0; }
+.btn.google { width: 100%; padding: 11px; }
+
+/* buttons that look like links, danger buttons, notes */
+.btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 60%, transparent); }
+button.link { background: none; border: 0; padding: 0; color: var(--muted); font: inherit; text-decoration: underline; cursor: pointer; }
+button.link:disabled { opacity: .4; cursor: default; }
+.good { color: var(--good); margin: 0; }
+select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 9px 10px; }
+.form select, .form textarea { font-size: 16px; }
+.inline-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.inline-form input { flex: 1 1 180px; font: 400 15px/1.2 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 9px 10px; }
+
+/* the game editor */
+.editor-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* collection settings */
+.settings section { display: grid; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+.settings h2 { margin: 0; }
+.member-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.member-list li { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.member-actions { display: flex; align-items: center; gap: 12px; }
+.member-actions select { padding: 5px 8px; font-size: 14px; }
+
+/* making a game from a drawing */
+.drop { display: grid; place-items: center; gap: 8px; min-height: 180px; padding: 14px; cursor: pointer; text-align: center;
+  border: 2px dashed var(--line-strong); border-radius: var(--radius); color: var(--muted); font-weight: 600; }
+.drop:hover { border-color: var(--ink); }
+.drop img { max-width: 100%; max-height: 360px; border-radius: 4px; }
+.drop input[type=file] { font-size: 14px; color: var(--muted); }
+
+/* the editor's panels and figure editor (RulesPanel, LookPanel, FigureEditor) */
+
+.ge-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: 14px; }
+.ge-bar button { font: 600 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong);
+  border-radius: var(--radius); padding: 6px 9px; cursor: pointer; }
+.ge-bar button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+
+.ge-tools { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.ge-bar input { width: 4.2em; font: 400 14px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 5px 6px; }
+
+.ge-grid { width: 100%; max-height: 70vh; background: #fff; border-radius: 4px; cursor: pointer; touch-action: manipulation; }
+
+.fe-figure { aspect-ratio: 4 / 3; }
+.fe-piece { fill: #eef0f7; stroke: #26398f; stroke-linejoin: round; }
+.fe-piece:hover { fill: #e2e6f5; }
+.fe-piece.sel { fill: #fdf0c4; }
+.fe-corner { fill: #26398f; }
+.fe-drawing { fill: none; stroke: #c0392b; stroke-linejoin: round; stroke-dasharray: 2 1; }
+.fe-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 50%; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, .25); }
+
+.fe-piece-bar b { margin-right: 4px; }
+
+.ge-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); }
+.chip button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.ge-rules select { font-size: 14px; padding: 5px 8px; }
+.ge-rules input { width: 4em; padding: 5px 6px; }
+
+.ge-bar label { display: inline-flex; align-items: center; gap: 6px; }
+.ge-bar select { font-size: 14px; padding: 5px 8px; }
+.ge-bar input.wide { width: 12em; }
+.ge-tools .link { border: 0; background: none; text-decoration: underline; color: var(--muted); }
+.swatch-edit { display: inline-flex; align-items: center; gap: 2px; }
+.swatch-edit > button:first-child { width: 26px; height: 26px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.swatch-edit > button[aria-pressed="true"] { border-color: var(--ink); outline: 2px solid var(--panel); outline-offset: -4px; }
+.swatch-edit input[type=color] { width: 28px; height: 26px; padding: 0; border: 0; background: none; }
+.swatch-edit .x { border: 0; background: none; color: var(--muted); padding: 0 3px; font-size: 16px; }
+/* nonogram clue numbers, lined up with the grid */
+
+.ge-section { border-top: 1px solid var(--line); padding-top: 8px; }
+.ge-section summary { cursor: pointer; font-weight: 700; font-size: 14px; color: var(--muted); }
+.ge-section .hint { margin: 6px 0; }
+.ge-rules .setting { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--muted); }
+.ge-rules .setting input[type=number] { width: 3.6em; padding: 3px 4px; }
+.ge-rules .setting input:not([type]) { width: 4.5em; padding: 3px 4px; }
+.ge-rules .setting select { font-size: 13px; padding: 3px 4px; }
+.ge-look { display: grid; gap: 10px; margin-top: 8px; font-size: 14px; }
+.ge-look > label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 600; }
+.ge-look input[type=number] { width: 4em; }
+.ge-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 400; }
+.ge-marks { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
+.ge-marks legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
