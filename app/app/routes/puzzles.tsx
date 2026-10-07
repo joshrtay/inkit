@@ -6,8 +6,8 @@ import { CATEGORIES, guideCard, ORDER } from "~/lib/guides.server";
 import "~site/game-types/grid/styles.css";
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Puzzle types · Wyatt's Games" },
-  { name: "description", content: "The rules of every puzzle type on Wyatt's Games, with pictures and a worked example." },
+  { title: "Puzzle types · inkit" },
+  { name: "description", content: "The rules of every puzzle type on inkit, with pictures and a worked example." },
 ];
 
 export function loader({ request }: Route.LoaderArgs) {

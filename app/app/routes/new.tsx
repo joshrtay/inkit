@@ -10,7 +10,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 
-export const meta: Route.MetaFunction = () => [{ title: "New game · Wyatt's Games" }];
+export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

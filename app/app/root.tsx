@@ -4,7 +4,7 @@ import "~site/styles/global.css";
 import "./site.css";
 import { cloudflareContext } from "./lib/context";
 import { currentCreator } from "./lib/auth.server";
-import { authClient } from "./lib/auth-client";
+import { SideNav, TabBar } from "./components/Shell";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -48,40 +48,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TopNav({ crumbs }: { crumbs?: React.ReactNode }) {
+export default function App() {
   const { me } = useLoaderData<typeof loader>();
   return (
-    <header className="topnav">
-      <nav className="crumbs" aria-label="Where you are">
-        <Link className="brand" to="/">Wyatt&rsquo;s Games</Link>
-        {crumbs}
-      </nav>
-      <div className="nav-actions">
-        <Link className="nav-link" to="/puzzles"><span className="long">Puzzle types</span><span className="short">Puzzles</span></Link>
-        {me ? (
-          <>
-            <Link className="btn primary" to="/new">New game</Link>
-            <Link className="nav-link hide-sm" to={`/${me.handle}`}>@{me.handle}</Link>
-            <button className="nav-link" type="button"
-              onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>
-          </>
-        ) : (
-          <>
-            <Link className="nav-link hide-sm" to="/signin">Sign in</Link>
-            <Link className="btn primary" to="/signup">Start creating</Link>
-          </>
-        )}
-      </div>
-    </header>
-  );
-}
-
-export default function App() {
-  return (
-    <>
-      <TopNav />
-      <Outlet />
-    </>
+    <div className="shell">
+      <SideNav me={me} />
+      <div className="page"><Outlet /></div>
+      <TabBar me={me} />
+    </div>
   );
 }
 

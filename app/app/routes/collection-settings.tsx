@@ -41,7 +41,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   });
 }
 
-export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Settings: ${loaderData?.collection.title ?? ""} · Wyatt's Games` }];
+export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Settings: ${loaderData?.collection.title ?? ""} · inkit` }];
 
 export default function Settings({ loaderData: { collection, members, owners, me, role }, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";

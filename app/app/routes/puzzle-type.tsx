@@ -20,8 +20,8 @@ export async function loader({ params, context }: Route.LoaderArgs) {
 }
 
 export const meta: Route.MetaFunction = ({ loaderData: d }) => d
-  ? [{ title: `${d.name}: how to play · Wyatt's Games` }, { name: "description", content: d.summary }]
-  : [{ title: "Not found · Wyatt's Games" }];
+  ? [{ title: `${d.name}: how to play · inkit` }, { name: "description", content: d.summary }]
+  : [{ title: "Not found · inkit" }];
 
 const ink = (c: string) => ({ "--paper-ink": c }) as React.CSSProperties;
 

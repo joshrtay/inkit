@@ -48,7 +48,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   });
 }
 
-export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · Wyatt's Games` }];
+export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · inkit` }];
 
 export default function EditGame({ loaderData: { game, may, featured, drawing, notes }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;

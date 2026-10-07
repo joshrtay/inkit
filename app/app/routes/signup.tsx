@@ -7,7 +7,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { authClient } from "~/lib/auth-client";
 import { GoogleButton } from "~/components/GoogleButton";
 
-export const meta: Route.MetaFunction = () => [{ title: "Start creating · Wyatt's Games" }];
+export const meta: Route.MetaFunction = () => [{ title: "Start creating · inkit" }];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

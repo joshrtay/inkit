@@ -40,8 +40,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 }
 
 export const meta: Route.MetaFunction = ({ loaderData: data }) => data
-  ? [{ title: `${data.game.title} · Wyatt's Games` }, { name: "description", content: data.game.description || `A ${kindName(data.game.kind)} puzzle.` }]
-  : [{ title: "Not found · Wyatt's Games" }];
+  ? [{ title: `${data.game.title} · inkit` }, { name: "description", content: data.game.description || `A ${kindName(data.game.kind)} puzzle.` }]
+  : [{ title: "Not found · inkit" }];
 
 export default function Game({ loaderData: { game, collection, author, play, summary, rules, errors, editable } }: Route.ComponentProps) {
   return (

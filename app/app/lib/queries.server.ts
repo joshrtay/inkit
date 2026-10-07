@@ -1,11 +1,12 @@
 // Reading games and collections for pages (permission checks are in permissions.server.ts).
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { schema, type Db } from "../db";
 
 /** A game card: the game plus its collection and author, for lists. */
 const cardColumns = {
   id: schema.games.id, title: schema.games.title, description: schema.games.description,
   kind: schema.games.kind, thumbnail: schema.games.thumbnail, state: schema.games.state,
+  sketch: schema.games.sketch, sketchVersion: schema.games.sketchVersion, publishedAt: schema.games.publishedAt,
   collectionSlug: schema.collections.slug, collectionTitle: schema.collections.title,
   authorHandle: schema.creators.handle, authorName: schema.creators.name, authorDeleted: schema.creators.deletedAt,
 };
@@ -39,3 +40,43 @@ export const collectionMembers = (db: Db, collectionId: string) => db.select({
   .where(and(eq(schema.memberships.collectionId, collectionId), isNull(schema.creators.deletedAt)));
 
 export type GameCard = Awaited<ReturnType<typeof newestGames>>[number];
+
+// ---- subscriptions ----
+
+/** The newest games from the collections someone subscribes to. */
+export const feedGames = (db: Db, subscriberId: string, limit = 40) => cards(db)
+  .where(and(live, inArray(schema.games.collectionId,
+    db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, subscriberId)))))
+  .orderBy(desc(schema.games.publishedAt)).limit(limit);
+
+export const isSubscribed = async (db: Db, subscriberId: string | undefined, collectionId: string) => !!subscriberId && !!(await db.query.subscriptions.findFirst({
+  where: and(eq(schema.subscriptions.subscriberId, subscriberId), eq(schema.subscriptions.collectionId, collectionId)),
+}));
+
+/** Collections for lists (Explore, someone's subscriptions): who they are, how many games and subscribers. */
+const collectionCards = (db: Db) => db.select({
+  id: schema.collections.id, slug: schema.collections.slug, title: schema.collections.title, description: schema.collections.description,
+  personal: sql<boolean>`${schema.collections.personalOf} is not null`,
+  // (table names written out: inside a subquery drizzle's bare "id" would mean the subquery's table)
+  games: sql<number>`(select count(*) from games g where g.collection_id = collections.id and g.state = 'published')`.as("game_count"),
+  subscribers: sql<number>`(select count(*) from subscriptions s where s.collection_id = collections.id)`.as("subscriber_count"),
+}).from(schema.collections);
+
+/** Creators and studios to find: the most followed and busiest first; `q` searches names and handles. */
+export const exploreCollections = (db: Db, q: string, limit = 60) => {
+  const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
+  const match = words.map((w) => or(like(sql`lower(${schema.collections.title})`, `%${w}%`), like(schema.collections.slug, `%${w}%`), like(sql`lower(${schema.collections.description})`, `%${w}%`)));
+  return collectionCards(db).where(and(isNull(schema.collections.deletedAt), ...match))
+    .orderBy(sql`subscriber_count desc`, sql`game_count desc`, schema.collections.title).limit(limit);
+};
+
+/** The collections someone subscribes to. */
+export const subscriptionsOf = (db: Db, subscriberId: string) => collectionCards(db)
+  .where(and(isNull(schema.collections.deletedAt), inArray(schema.collections.id,
+    db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, subscriberId)))))
+  .orderBy(schema.collections.title);
+
+export const subscriberCount = async (db: Db, collectionId: string) =>
+  (await db.select({ n: count() }).from(schema.subscriptions).where(eq(schema.subscriptions.collectionId, collectionId)))[0]?.n ?? 0;
+
+export type CollectionCard = Awaited<ReturnType<typeof subscriptionsOf>>[number];

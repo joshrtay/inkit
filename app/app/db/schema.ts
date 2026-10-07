@@ -120,6 +120,8 @@ export const games = sqliteTable("games", {
   sketchImage: text("sketch_image"),
   /** What Claude wasn't sure of when it read the drawing (JSON list of notes), for the creator to confirm. */
   parseNotes: text("parse_notes", { mode: "json" }).$type<string[]>(),
+  /** The game types Claude thought the drawing could be, best first (the creator picks one). */
+  kindChoices: text("kind_choices", { mode: "json" }).$type<string[]>(),
   state: text("state", { enum: GAME_STATES }).notNull().default("draft"),
   /** Why it was hidden, and by whom (an admin or a collection owner). */
   hiddenNote: text("hidden_note"),
@@ -132,6 +134,13 @@ export const games = sqliteTable("games", {
   index("games_author").on(t.authorId),
   index("games_published").on(t.state, t.publishedAt),
 ]);
+
+// ---- subscriptions: creators following collections (a person's own, or a studio) ----
+export const subscriptions = sqliteTable("subscriptions", {
+  subscriberId: text("subscriber_id").notNull().references(() => creators.id),
+  collectionId: text("collection_id").notNull().references(() => collections.id),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.subscriberId, t.collectionId] }), index("subscriptions_collection").on(t.collectionId)]);
 
 // ---- the Featured shelf ----
 export const featured = sqliteTable("featured", {
