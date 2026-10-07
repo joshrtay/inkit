@@ -1,4 +1,4 @@
-import { isRouteErrorResponse, Link, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useRouteLoaderData } from "react-router";
+import { isRouteErrorResponse, Link, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useMatches, useRouteLoaderData } from "react-router";
 import type { Route } from "./+types/root";
 import "~site/styles/global.css";
 import "./site.css";
@@ -50,6 +50,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { me } = useLoaderData<typeof loader>();
+  // a page of its own, without the site's nav (the game editor): its route's handle says `bare`
+  const bare = useMatches().some((m) => (m.handle as { bare?: boolean } | undefined)?.bare);
+  if (bare) return <Outlet />;
   return (
     <div className="shell">
       <SideNav me={me} />

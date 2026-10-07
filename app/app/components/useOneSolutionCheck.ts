@@ -1,7 +1,7 @@
-// The one-solution check for a sketch, run in this browser with clingo (count-solutions.client.ts).
-// `checked` is the sketch's hash once it passed: the form sends it so the server lets the game be
-// published. It clears as soon as the sketch changes.
-import { useState } from "react";
+// The one-solution check for a sketch, run in this browser with clingo (count-solutions.client.ts),
+// a moment after each change. `hash` is the sketch's hash once it passed: the form sends it so the
+// server lets the game be published.
+import { useEffect, useState } from "react";
 import type { GridSpec } from "~site/engine/types.ts";
 
 async function hash(text: string) {
@@ -9,20 +9,34 @@ async function hash(text: string) {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function useOneSolutionCheck(sketch: string, spec: GridSpec | null) {
-  const [check, setCheck] = useState<{ sketch: string; text: string; ok: boolean; hash?: string } | null>(null);
-  const [checking, setChecking] = useState(false);
-  const current = check && check.sketch === sketch ? check : null;
-  async function run() {
+export type CheckState = "checking" | "one" | "none" | "many" | "broken";
+export interface Check { state: CheckState; text: string; hash: string }
+
+const TEXT: Record<Exclude<CheckState, "broken">, string> = {
+  checking: "Checking…",
+  one: "One solution",
+  none: "No solution",
+  many: "More than one solution",
+};
+
+/** `problem`: why the sketch can't be played at all (then there's nothing to check). */
+export function useLiveCheck(sketch: string, spec: GridSpec | null, problem = ""): Check {
+  const [check, setCheck] = useState<Check & { sketch: string }>({ sketch: "", state: "checking", text: TEXT.checking, hash: "" });
+  useEffect(() => {
     if (!spec) return;
-    setChecking(true);
-    try {
+    let live = true;
+    const t = setTimeout(async () => {
       const { countSolutions } = await import("~/games/count-solutions.client");
-      const r = await countSolutions(spec);
-      if ("error" in r) setCheck({ sketch, text: r.error, ok: false });
-      else if (r.solutions === 1) setCheck({ sketch, text: "Exactly one solution.", ok: true, hash: await hash(sketch) });
-      else setCheck({ sketch, text: r.solutions === 0 ? "No solution: the clues contradict each other." : "More than one solution: add clues until only one fits.", ok: false });
-    } finally { setChecking(false); }
-  }
-  return { run, checking, result: current, stale: !!check && !current, checked: current?.ok ? current.hash! : "" };
+      const r = await countSolutions(spec).catch((e: Error) => ({ error: e.message }));
+      if (!live) return;
+      if ("error" in r) setCheck({ sketch, state: "broken", text: r.error, hash: "" });
+      else {
+        const state = r.solutions === 1 ? "one" : r.solutions === 0 ? "none" : "many";
+        setCheck({ sketch, state, text: TEXT[state], hash: state === "one" ? await hash(sketch) : "" });
+      }
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [sketch]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!spec) return { state: "broken", text: problem || "This puzzle can't be played yet.", hash: "" };
+  return check.sketch === sketch ? check : { state: "checking", text: TEXT.checking, hash: "" };
 }

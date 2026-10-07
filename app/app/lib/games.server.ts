@@ -18,6 +18,7 @@ type Creator = typeof schema.creators.$inferSelect;
 type Game = typeof schema.games.$inferSelect;
 
 import { Invalid } from "./errors.server";
+import { doubtsOf, type Doubt } from "../games/doubts";
 import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
 export { Invalid };
 
@@ -75,6 +76,16 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
         title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
         ...(intent === "publish" && game.state !== "published" ? { state: "published", publishedAt: game.publishedAt ?? new Date() } : {}),
       });
+      return;
+    }
+    case "doubt": {
+      // tick off (or untick) one of Claude's doubts
+      if (!canEdit(game, me, role)) throw new Forbidden("You can't edit this game.");
+      const doubts = doubtsOf(game.parseNotes);
+      const i = Number(form.get("index"));
+      if (!doubts[i]) return;
+      doubts[i] = { ...doubts[i], done: form.get("done") === "1" };
+      await set({ parseNotes: doubts });
       return;
     }
     case "unpublish":
@@ -140,7 +151,7 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   await db.insert(schema.games).values({
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
     title: String(form.get("title") ?? "").trim().slice(0, 120) || reading.title || "Untitled",
-    sketchImage: key, parseNotes: [...reading.notes, ...sketchProblems(sketch)], kindChoices: choicesOf(reading),
+    sketchImage: key, reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading),
   });
   return id;
 }
@@ -161,7 +172,13 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
     { previous: { sketch: game.sketch, feedback, genre } });
   await db.update(schema.games).set({
     sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
-    parseNotes: [...reading.notes, ...sketchProblems(sketch)], kindChoices: choicesOf(reading), updatedAt: new Date(),
+    reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading), updatedAt: new Date(),
   }).where(eq(schema.games.id, game.id));
 }
 
+
+/** A reading's doubts: Claude's notes (tied to their cells) and anything that stops it playing. */
+const doubtsFrom = (reading: Reading, sketch: string): Doubt[] => [
+  ...reading.notes.map((n) => ({ text: n.text, ...(n.row >= 0 ? { row: n.row } : {}), ...(n.col >= 0 ? { col: n.col } : {}) })),
+  ...sketchProblems(sketch).map((text) => ({ text })),
+];

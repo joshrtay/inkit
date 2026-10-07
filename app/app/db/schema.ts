@@ -119,7 +119,10 @@ export const games = sqliteTable("games", {
   /** The hand-drawn sketch it was made from: an image key in R2. */
   sketchImage: text("sketch_image"),
   /** What Claude wasn't sure of when it read the drawing (JSON list of notes), for the creator to confirm. */
-  parseNotes: text("parse_notes", { mode: "json" }).$type<string[]>(),
+  /** what Claude wasn't sure of (Doubt[], or strings in older drafts) */
+  parseNotes: text("parse_notes", { mode: "json" }).$type<unknown[]>(),
+  /** Claude's latest reading of the drawing, as it came back (what Reset goes back to) */
+  reading: text("reading"),
   /** The game types Claude thought the drawing could be, best first (the creator picks one). */
   kindChoices: text("kind_choices", { mode: "json" }).$type<string[]>(),
   state: text("state", { enum: GAME_STATES }).notNull().default("draft"),

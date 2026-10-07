@@ -202,7 +202,16 @@ On the social site (`app/`), creators never see or type a sketch: Claude reads t
 on the puzzle itself. So the editors must be able to express everything each game type needs, and
 the reader must know how to read it.
 
-There are two editors:
+The editor is a page of its own (`app/app/components/GameEditor.tsx`, no site nav), after
+Substack's post editor: the puzzle type at the top centre, the type's tools in a toolbar below it,
+the puzzle in the middle, the drawing as a thumbnail in the left margin, and Claude's doubts in the
+right margin as a checklist with numbered pins on their cells (the reader returns each note with its
+row and column). The one-solution check runs live and shows as a chip beside Preview and Publish;
+undo and Reset (back to Claude's reading, kept in `games.reading`) sit bottom left. Drafts save
+themselves; a published game changes only on Update. Changing the type reads the drawing again,
+telling Claude the type along with its guide.
+
+Inside it there are two kinds of puzzle editor:
 - **On-puzzle editors** (`app/app/components/BoardEditor.tsx`): the puzzle drawn as the player sees
   it, edited in place with only the tools its type needs, with a live one-solution check. So far:
   Nonogram (paint the picture, or tap a row's or column's numbers to retype them; rows / columns;

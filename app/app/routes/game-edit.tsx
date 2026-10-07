@@ -1,7 +1,8 @@
-// Edit a game, and change its state: wyattsgames.com/g/<id>/edit.
+// Edit a game, and change its state: inkit.games/g/<id>/edit. A page of its own (no site nav),
+// like Substack's post editor: see GameEditor.
 // Its author (while a member) and the collection's owners can edit; owners and admins can
 // take it down; admins can feature it.
-import { data, Form, Link, redirect } from "react-router";
+import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game-edit";
 import { cloudflareContext } from "~/lib/context";
@@ -10,7 +11,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { canEdit, canHide, roleIn } from "~/lib/permissions.server";
 import { changeGame, isFeatured, rereadDrawing } from "~/lib/games.server";
 import { GameEditor } from "~/components/GameEditor";
-import { GuidePane } from "~/components/GuidePane";
+import { doubtsOf } from "~/games/doubts";
 import { attempt, signInFirst } from "~/lib/http.server";
 
 async function load(request: Request, env: Env, id: string) {
@@ -27,15 +28,20 @@ async function load(request: Request, env: Env, id: string) {
   return { db, env, me, game, may };
 }
 
+/** The site's nav stays off this page (root.tsx). */
+export const handle = { bare: true };
+
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
+  const collection = await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
   return {
-    game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote, kind: game.kind },
+    game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },
     may, featured: await isFeatured(db, game.id),
-    // a draft made from a drawing is confirmed against it first
     drawing: !!game.sketchImage,
-    notes: game.parseNotes ?? [],
+    reading: game.reading,
+    doubts: doubtsOf(game.parseNotes),
     choices: game.kindChoices ?? [],
+    backTo: game.state === "published" || !collection ? `/g/${game.id}` : `/${collection.slug}`,
   };
 }
 
@@ -46,56 +52,18 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   return attempt(async () => {
     if (intent === "reread") { await rereadDrawing(db, env, me, game, form); return { error: undefined, done: intent }; }
     await changeGame(db, me, game, form);
-    // saving a drawing's corrected reading keeps the creator on the confirm screen
-    const confirming = game.sketchImage && game.state === "draft" && intent === "save" && form.get("stay") === "1";
-    return (intent === "save" || intent === "publish") && !confirming ? redirect(`/g/${game.id}`) : { error: undefined, done: intent };
+    // saving a draft (it saves itself as you go) keeps you in the editor; publishing shows the game
+    const stay = intent === "save" && form.get("stay") === "1";
+    return (intent === "save" || intent === "publish") && !stay ? redirect(`/g/${game.id}`) : { error: undefined, done: intent };
   });
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · inkit` }];
 
-export default function EditGame({ loaderData: { game, may, featured, drawing, notes, choices }, actionData }: Route.ComponentProps) {
+export default function EditGame({ loaderData: { game, may, featured, drawing, reading, doubts, choices, backTo }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;
-  const published = game.state === "published";
   return (
-    <>
-    <GuidePane start={game.kind} drawer />
-    <main className="wrap">
-      <header className="edit-head">
-        <h1>Edit {game.title}</h1>
-        <span className={`state ${game.state}`}>{game.state}</span>
-        <Link to={`/g/${game.id}`}>View the game</Link>
-      </header>
-      {game.state === "hidden" && <p className="state hidden">Taken down: {game.hiddenNote}</p>}
-
-      {may.edit ? (
-        <GameEditor key={game.sketch} gameId={game.id} title={game.title} description={game.description} sketch={game.sketch}
-          state={game.state} drawing={drawing} notes={notes} choices={choices} error={error} />
-      ) : (
-        error && <p className="error" role="alert">{error}</p>
-      )}
-
-      <section className="moderation">
-        {may.edit && published && (
-          <Form method="post"><button className="btn" name="intent" value="unpublish">Back to draft</button>
-            <span className="muted">Only you and the collection's owners will see it.</span></Form>
-        )}
-        {may.takeDown && published && (
-          <Form method="post" className="inline-form">
-            <input name="note" placeholder="Why is it being taken down?" maxLength={500} required />
-            <button className="btn danger" name="intent" value="hide">Take down</button>
-          </Form>
-        )}
-        {may.hide && game.state === "hidden" && (
-          <Form method="post"><button className="btn" name="intent" value="unhide">Restore</button></Form>
-        )}
-        {may.feature && published && (
-          <Form method="post">
-            <button className="btn" name="intent" value={featured ? "unfeature" : "feature"}>{featured ? "Remove from Featured" : "Add to Featured"}</button>
-          </Form>
-        )}
-      </section>
-    </main>
-    </>
+    <GameEditor key={game.id} game={game} reading={reading} drawing={drawing} doubts={doubts} choices={choices}
+      may={may} featured={featured} backTo={backTo} error={error} />
   );
 }

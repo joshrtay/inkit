@@ -176,7 +176,11 @@ const Reading = z.object({
   areas: z.array(z.string()).describe("outlined areas (star-battle, irregular-sudoku, aquarium): one string per row, one letter per cell; else []"),
   figure: z.array(z.array(z.array(z.number()))).describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else []"),
   sure: z.boolean().describe("true only if you could read the grid and every clue clearly"),
-  notes: z.array(z.string()).describe("anything you weren't sure of, with its row and column, for the creator to check; empty if everything was clear"),
+  notes: z.array(z.object({
+    text: z.string().describe("what you weren't sure of and how you read it, e.g. \"smudged; read as filled\""),
+    row: int.describe("the row it's about, or -1 if it isn't about one row"),
+    col: int.describe("the column it's about, or -1 if it isn't about one column"),
+  })).describe("anything you weren't sure of, one note per spot, for the creator to check; empty if everything was clear"),
 });
 export type Reading = z.infer<typeof Reading>;
 
@@ -205,7 +209,7 @@ ${Object.entries(RULE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
 Only transcribe what the player starts with. If the drawing also shows the solution (a loop drawn
 through the cells, filled-in digits, shaded answer cells in a nurikabe), use it to help you read the
 grid, but leave it out. Never invent clues to make the puzzle work: transcribe what's drawn, and put
-anything smudged, ambiguous or seemingly wrong in "notes" (say which row and column) so the creator can
+anything smudged, ambiguous or seemingly wrong in "notes" (with its row and column) so the creator can
 confirm it.
 
 These are kids' drawings: wobbly lines, uneven cells, scribbled shading, slightly blurry photos

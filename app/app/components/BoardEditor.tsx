@@ -1,17 +1,21 @@
 // The on-puzzle editor: the puzzle drawn as the player will see it, edited in place with the few
-// tools its type needs, and checked as you go (one solution? which cells can't be pinned down?).
-// Read-only it shows a reading to compare with the drawing.
+// tools its type needs. The page around it (GameEditor) owns undo, the one-solution check and
+// Claude's doubts; this draws the board, the cells the clues can't pin down, and a pin on each
+// doubt's cell, and puts its tools in the page's toolbar.
 //
 // Each game type plugs in its own tools (EDITORS below). Types without their own tools yet use the
 // older generic editor (PuzzleEditor) instead; see hasBoardEditor.
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { makePuzzle } from "~site/engine/puzzle.ts";
 import { runsOf, solveLine } from "~site/engine/rules.ts";
 import type { GridSpec, Puzzle } from "~site/engine/types.ts";
 import { pictureLayout, pictureSvg } from "~site/game-types/grid/picture.ts";
 
 type Spec = GridSpec;
-type Check = { state: "checking" } | { state: "one" } | { state: "none" } | { state: "many" } | { state: "error"; text: string };
+
+/** A doubt's pin on the board: `n` is its number in the list. */
+export interface Pin { n: number; row?: number; col?: number; active?: boolean }
 
 /** Types with on-puzzle tools. */
 const EDITORS = { nonogram: true } as const;
@@ -39,56 +43,56 @@ function undecidedCells(p: Puzzle): number[] | null {
   return known.flatMap((v, i) => (v === -1 ? [i] : []));
 }
 
-/** `actions`: buttons shown beside the one-solution status (like Done). */
-export function BoardEditor({ spec, onChange, editing, actions }: { spec: Spec; onChange?: (s: Spec) => void; editing: boolean; actions?: React.ReactNode }) {
-  const [history, setHistory] = useState<Spec[]>([]);
-  const [check, setCheck] = useState<Check>({ state: "checking" });
+export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins = [] }: {
+  spec: Spec;
+  /** `continuing`: part of the same stroke as the last change (one undo step for a whole drag) */
+  onChange: (s: Spec, continuing?: boolean) => void;
+  /** where the tools go (the page's toolbar) */
+  tools: HTMLElement | null;
+  /** the check found more than one solution: mark the cells the clues can't pin down */
+  ambiguous: boolean;
+  /** bumped to make the marked cells flash */
+  flash?: number;
+  pins?: Pin[];
+}) {
   const [ink, setInk] = useState(() => Object.keys(spec.picture?.palette ?? {}).find((k) => k !== ".") ?? "a");
   const [clueEdit, setClueEdit] = useState<{ at: "row" | "col"; index: number; x: number; y: number } | null>(null);
+  const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const paint = useRef<{ value: string } | null>(null);
 
   let puzzle: Puzzle | null = null, problem = "";
   try { puzzle = makePuzzle(spec); } catch (e) { problem = (e as Error).message; }
-  const undecided = useMemo(() => (puzzle && puzzle.rowRuns.size ? undecidedCells(puzzle) : []), [spec]); // eslint-disable-line react-hooks/exhaustive-deps
-  const svg = useMemo(() => (puzzle ? pictureSvg(puzzle, null, "The puzzle", {
-    picture: true, undecided: check.state === "many" || check.state === "one" ? undecided ?? [] : [],
-  }) : ""), [spec, check.state, undecided]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // the one-solution check, a moment after each change
+  const undecided = useMemo(() => (puzzle && puzzle.rowRuns.size ? undecidedCells(puzzle) ?? [] : []), [spec]); // eslint-disable-line react-hooks/exhaustive-deps
+  const svg = useMemo(() => (puzzle ? pictureSvg(puzzle, null, "The puzzle", { picture: true, undecided: ambiguous ? undecided : [] }) : ""),
+    [spec, ambiguous, undecided]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lay = puzzle && pictureLayout(puzzle);
   useEffect(() => {
-    if (!puzzle) return;
-    let live = true;
-    setCheck({ state: "checking" });
-    const t = setTimeout(async () => {
-      const { countSolutions } = await import("~/games/count-solutions.client");
-      const r = await countSolutions(spec).catch((e: Error) => ({ error: e.message }));
-      if (!live) return;
-      setCheck("error" in r ? { state: "error", text: r.error } : { state: r.solutions === 1 ? "one" : r.solutions === 0 ? "none" : "many" });
-    }, 450);
-    return () => { live = false; clearTimeout(t); };
-  }, [JSON.stringify(spec)]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!flash) return;
+    setFlashing(true);
+    const t = setTimeout(() => setFlashing(false), 1300);
+    return () => clearTimeout(t);
+  }, [flash]);
 
-  const change = (next: Spec) => { setHistory((h) => [...h.slice(-49), spec]); onChange?.(next); };
-  const undo = () => { const last = history.at(-1); if (!last) return; setHistory((h) => h.slice(0, -1)); onChange?.(last); };
+  const change = (next: Spec) => onChange(next);
 
   // ---- nonogram: the picture (paint) or the numbers (type) ----
   const [rows, cols] = spec.size, picture = spec.picture;
   const palette = picture?.palette ?? {};
   const setPicture = (rowsNow: string[], pal = palette) => change({ ...spec, picture: { ...picture!, rows: rowsNow, palette: pal } });
   const cellAt = (evt: React.PointerEvent) => {
-    const el = box.current?.querySelector("svg"), lay = puzzle && pictureLayout(puzzle);
+    const el = box.current?.querySelector("svg");
     if (!el || !lay) return null;
     const pt = el.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
     const { x, y } = pt.matrixTransform(el.getScreenCTM()!.inverse());
     return { x, y, c: Math.floor((x - lay.ML) / lay.S), r: Math.floor((y - lay.MT) / lay.S), lay };
   };
-  const paintCell = (r: number, c: number, value: string) => {
+  const paintCell = (r: number, c: number, value: string, continuing: boolean) => {
     if (!picture || r < 0 || c < 0 || r >= rows || c >= cols || picture.rows[r]?.[c] === value) return;
-    onChange?.({ ...spec, picture: { ...picture, rows: picture.rows.map((row, y) => (y !== r ? row : row.slice(0, c) + value + row.slice(c + 1))) } });
+    onChange({ ...spec, picture: { ...picture, rows: picture.rows.map((row, y) => (y !== r ? row : row.slice(0, c) + value + row.slice(c + 1))) } }, continuing);
   };
   const down = (evt: React.PointerEvent) => {
-    if (!editing || (evt.target as Element).closest(".be-clue")) return;
+    if ((evt.target as Element).closest(".be-clue")) return;
     evt.preventDefault();   // keeps focus where it is (a clue's box opened below would lose it)
     const hit = cellAt(evt);
     if (!hit) return;
@@ -96,9 +100,8 @@ export function BoardEditor({ spec, onChange, editing, actions }: { spec: Spec; 
     if (r >= 0 && c >= 0 && r < rows && c < cols) {
       if (!picture) return;
       const value = picture.rows[r]?.[c] === ink ? "." : ink;
-      setHistory((h) => [...h.slice(-49), spec]);
       paint.current = { value };
-      paintCell(r, c, value);
+      paintCell(r, c, value, false);
       (evt.target as Element).setPointerCapture?.(evt.pointerId);
       return;
     }
@@ -112,7 +115,7 @@ export function BoardEditor({ spec, onChange, editing, actions }: { spec: Spec; 
   const move = (evt: React.PointerEvent) => {
     if (!paint.current) return;
     const hit = cellAt(evt);
-    if (hit) paintCell(hit.r, hit.c, paint.current.value);
+    if (hit) paintCell(hit.r, hit.c, paint.current.value, true);
   };
   const up = () => { paint.current = null; };
 
@@ -145,47 +148,54 @@ export function BoardEditor({ spec, onChange, editing, actions }: { spec: Spec; 
     ] });
   }
 
-  const status = problem ? { cls: "bad", text: problem }
-    : check.state === "checking" ? { cls: "", text: "Checking…" }
-      : check.state === "one" ? { cls: "good", text: undecided?.length ? "✓ Exactly one solution (the marked cells need more than one line at a time to work out)." : "✓ Exactly one solution." }
-        : check.state === "none" ? { cls: "bad", text: "No solution: the numbers contradict each other." }
-          : check.state === "many" ? { cls: "bad", text: undecided?.length ? "More than one solution: the numbers can't pin down the marked cells." : "More than one solution." }
-            : { cls: "bad", text: check.text };
+  // a pin's spot, as fractions of the board: a cell's centre, or just past the end of a row (right
+  // of the grid) or a column (below it), clear of the clues
+  const pinAt = (p: Pin) => {
+    if (!lay || (p.row === undefined && p.col === undefined)) return null;
+    const x = p.col !== undefined ? lay.ML + (p.col + 0.5) * lay.S : lay.ML + cols * lay.S + 0.35 * lay.S;
+    const y = p.row !== undefined ? lay.MT + (p.row + 0.5) * lay.S : lay.MT + rows * lay.S + 0.35 * lay.S;
+    return { left: `${(x / lay.W) * 100}%`, top: `${(y / lay.H) * 100}%` };
+  };
+
+  const toolbar = (
+    <div className="be-tools">
+      <span className="be-group be-size">
+        Rows <button type="button" className="be-btn" onClick={() => resize(-1, 0)} aria-label="Fewer rows">−</button><b>{rows}</b><button type="button" className="be-btn" onClick={() => resize(1, 0)} aria-label="More rows">+</button>
+      </span>
+      <span className="be-group be-size">
+        Columns <button type="button" className="be-btn" onClick={() => resize(0, -1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" className="be-btn" onClick={() => resize(0, 1)} aria-label="More columns">+</button>
+      </span>
+      {picture && (
+        <span className="be-group" role="group" aria-label="Paint color">
+          {Object.keys(palette).filter((k) => k !== ".").map((k) => (
+            <button key={k} type="button" className="be-pot" aria-pressed={ink === k} aria-label={`Paint with color ${k}`} style={{ "--c": palette[k] } as React.CSSProperties} onClick={() => setInk(k)}>
+              {ink === k && <input type="color" value={palette[k]} aria-label="Change this color" onChange={(e) => setPicture(picture.rows, { ...palette, [k]: e.target.value })} />}
+            </button>
+          ))}
+          <button type="button" className="be-btn" onClick={() => {
+            const k = [...LETTERS].find((l) => !(l in palette));
+            if (k) { setPicture(picture.rows, { ...palette, [k]: "#d8443a" }); setInk(k); }
+          }}>+ Color</button>
+        </span>
+      )}
+      <span className="be-group be-seg" role="group" aria-label="What the player gets">
+        <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && toPicture()}
+          title="Paint the picture; the numbers follow it">Picture</button>
+        <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && toNumbers()}
+          title="Type each row's and column's numbers yourself">Numbers only</button>
+      </span>
+    </div>
+  );
 
   return (
-    <div className={`board-editor${editing ? " editing" : ""}`}>
-      {editing && (
-        <div className="be-tools">
-          <span className="be-group">
-            <button type="button" className="be-btn" onClick={undo} disabled={!history.length} title="Undo">↶ Undo</button>
-          </span>
-          <span className="be-group be-size">
-            Rows <button type="button" className="be-btn" onClick={() => resize(-1, 0)} aria-label="Fewer rows">−</button><b>{rows}</b><button type="button" className="be-btn" onClick={() => resize(1, 0)} aria-label="More rows">+</button>
-            Columns <button type="button" className="be-btn" onClick={() => resize(0, -1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" className="be-btn" onClick={() => resize(0, 1)} aria-label="More columns">+</button>
-          </span>
-          {picture && (
-            <span className="be-group" role="group" aria-label="Paint color">
-              {Object.keys(palette).filter((k) => k !== ".").map((k) => (
-                <button key={k} type="button" className="be-pot" aria-pressed={ink === k} aria-label={`Paint with color ${k}`} style={{ "--c": palette[k] } as React.CSSProperties} onClick={() => setInk(k)}>
-                  {ink === k && <input type="color" value={palette[k]} aria-label="Change this color" onChange={(e) => setPicture(picture.rows, { ...palette, [k]: e.target.value })} />}
-                </button>
-              ))}
-              <button type="button" className="be-btn" onClick={() => {
-                const k = [...LETTERS].find((l) => !(l in palette));
-                if (k) { setPicture(picture.rows, { ...palette, [k]: "#d8443a" }); setInk(k); }
-              }}>+ Color</button>
-            </span>
-          )}
-          <span className="be-group" role="group" aria-label="What the player gets">
-            <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && toPicture()}
-              title="Paint the picture; the numbers follow it">Picture</button>
-            <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && toNumbers()}
-              title="Type each row's and column's numbers yourself">Numbers only</button>
-          </span>
-        </div>
-      )}
+    <div className={`board-editor${flashing ? " flashing" : ""}`}>
+      {tools && createPortal(toolbar, tools)}
       <div className="be-board" ref={box} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         {svg ? <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: svg }} /> : <p className="error">{problem}</p>}
+        {pins.map((p) => {
+          const at = pinAt(p);
+          return at && <span key={p.n} className={`be-pin${p.active ? " active" : ""}`} style={at} aria-hidden="true">{p.n}</span>;
+        })}
         {clueEdit && (
           <form className="be-clue" style={{ left: clueEdit.x, top: clueEdit.y }} onSubmit={(e) => {
             e.preventDefault();
@@ -198,10 +208,6 @@ export function BoardEditor({ spec, onChange, editing, actions }: { spec: Spec; 
             </label>
           </form>
         )}
-      </div>
-      <div className="be-foot">
-        {actions}
-        <p className={`be-status ${status.cls}`} aria-live="polite">{status.text}</p>
       </div>
     </div>
   );
