@@ -53,11 +53,13 @@ export default function App() {
   // a page of its own, without the site's nav (the game editor): its route's handle says `bare`
   const bare = useMatches().some((m) => (m.handle as { bare?: boolean } | undefined)?.bare);
   if (bare) return <Outlet />;
+  // the editor's preview of a game page: the site's frame, but its nav goes nowhere
+  const preview = useMatches().some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
   return (
     <div className="shell">
-      <SideNav me={me} />
+      <div className="nav-wrap" inert={preview || undefined}><SideNav me={me} /></div>
       <div className="page"><Outlet /></div>
-      <TabBar me={me} />
+      <div className="nav-wrap" inert={preview || undefined}><TabBar me={me} /></div>
     </div>
   );
 }

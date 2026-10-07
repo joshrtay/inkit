@@ -19,7 +19,8 @@ export interface GamePageProps {
   preview?: boolean;
 }
 
-const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+// in UTC, so the server and the browser write the same date
+const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 
 const RULES_OPEN = "inkit:rules-open";
 
@@ -36,10 +37,12 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
 
   return (
     <div className={`game-layout${rulesOpen ? " rules-open" : ""}`}>
-      <Link className="back-btn" to={home} aria-label="Back" title="Back"
-        onClick={(e) => { if (preview) e.preventDefault(); else if (cameFromSite) { e.preventDefault(); navigate(-1); } }}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
-      </Link>
+      {!preview && (
+        <Link className="back-btn" to={home} aria-label="Back" title="Back"
+          onClick={(e) => { if (cameFromSite) { e.preventDefault(); navigate(-1); } }}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+        </Link>
+      )}
     <main className="wrap game-page">
       <header className="game-head">
         <h1>{game.title}</h1>

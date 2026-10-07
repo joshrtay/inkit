@@ -11,6 +11,7 @@ import { makePuzzle } from "~site/engine/puzzle.ts";
 import { runsOf, solveLine } from "~site/engine/rules.ts";
 import type { GridSpec, Puzzle } from "~site/engine/types.ts";
 import { pictureLayout, pictureSvg } from "~site/game-types/grid/picture.ts";
+import "~site/game-types/grid/styles.css";
 
 type Spec = GridSpec;
 
