@@ -8,13 +8,15 @@
 // to a puzzle with one solution). Types with their own on-puzzle tools use BoardEditor; the rest
 // use the generic PuzzleEditor until they get theirs.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Form, Link, useFetcher } from "react-router";
+import { Form, Link, useFetcher, useRouteLoaderData } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { doubtPlace, type Doubt } from "~/games/doubts";
 import { KIND_NAMES, kindName } from "~/games/kinds";
 import type { GridSpec } from "~site/engine/types.ts";
-import { GameBoard } from "./GameBoard";
+import { GamePageView } from "./GamePageView";
+import { SideNav } from "./Shell";
+import type { loader as rootLoader } from "~/root";
 import { PuzzleEditor } from "./PuzzleEditor";
 import { BoardEditor, hasBoardEditor } from "./BoardEditor";
 import { useLiveCheck } from "./useOneSolutionCheck";
@@ -26,7 +28,7 @@ export interface EditorGame {
 }
 export interface EditorRights { edit: boolean; hide: boolean; takeDown: boolean; feature: boolean }
 
-export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error }: {
+export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error, page }: {
   game: EditorGame;
   /** Claude's latest reading of the drawing (what Reset goes back to) */
   reading: string | null;
@@ -39,6 +41,8 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   featured: boolean;
   backTo: string;
   error?: string;
+  /** what the game's page shows besides the puzzle (for Preview) */
+  page: { collection: { slug: string; title: string; personal: boolean }; author: { handle: string; name: string; deleted: boolean }; when: number; kind: string };
 }) {
   const saver = useFetcher<{ error?: string; done?: string }>();
   const reader = useFetcher<{ error?: string; done?: string }>();
@@ -69,6 +73,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   const loose = useMemo(() => looseSpec(sketch), [sketch]);
   const check = useLiveCheck(sketch, play?.spec ?? null, parsed.ok ? "" : parsed.errors[0]);
   const genre = loose?.genre;
+  const me = useRouteLoaderData<typeof rootLoader>("root")?.me ?? null;
   const onBoard = hasBoardEditor(genre);
 
   // the title and description, written above the puzzle
@@ -247,16 +252,16 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
             <button type="button" className="pane-close" aria-label="Close" onClick={() => setPanel(null)}>×</button>
             {panel === "drawing" && <img className="drawing-full" src={`/g/${game.id}/sketch`} alt="Your hand-drawn sketch" />}
             {panel === "preview" && play && (
-              // as the game's page will show it (playable; nothing you do here is saved)
-              <main className="wrap game-page preview-page">
-                <span className="preview-tag">Preview</span>
-                <header className="game-head">
-                  <h1>{title.trim() || "Untitled"}</h1>
-                  <span className="muted">{kindName(play.spec.genre ?? "")} · {play.spec.figure ? `${play.spec.figure.pieces.length} pieces` : `${play.spec.size[1]} × ${play.spec.size[0]}`}</span>
-                </header>
-                <GameBoard play={play} />
-                {description.trim() && <p className="game-desc">{description}</p>}
-              </main>
+              // the game's page as players will see it, in the site's frame (playable; nothing is saved)
+              <div className="shell preview-frame">
+                <span className="preview-badge">Preview</span>
+                <div inert><SideNav me={me} /></div>
+                <div className="page">
+                  <GamePageView preview play={play} summary={parsed.ok ? parsed.summary : ""} extra={parsed.ok && parsed.spec.rules?.length ? parsed.rules : []} errors={[]} editable={false}
+                    game={{ id: game.id, title: title.trim() || "Untitled", description, kind: genre ?? page.kind, state: "published", hiddenNote: null, when: page.when }}
+                    collection={page.collection} author={page.author} />
+                </div>
+              </div>
             )}
             {panel === "publish" && (
               <Form method="post" className="form">

@@ -646,5 +646,11 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 /* the editor's preview: nearly the whole window, laid out like the game's page */
 .studio-sheet.preview { position: fixed; inset: 12px; width: auto; max-height: none; padding: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line-strong); }
 .studio-sheet.preview .pane-close { z-index: 2; }
-.preview-page { --nav-h: 150px; padding-top: 24px; }
-.preview-tag { justify-self: start; font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; }
+/* Preview: the game's page in the site's frame, nearly full screen. The transform makes the
+   frame the reference for fixed things inside it (the guide pane), as the window is on the page. */
+.studio-sheet.preview { transform: translateZ(0); }
+.preview-frame { min-height: 100%; }
+.preview-frame .game-page { --nav-h: calc(84px + 24px + var(--tabbar, 0px)); }
+.preview-frame .sidenav { height: calc(100dvh - 24px); }
+.preview-badge { position: fixed; bottom: 12px; right: 16px; z-index: 2; font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; background: var(--bg); }
+.studio-sheet.preview { overflow-x: hidden; }

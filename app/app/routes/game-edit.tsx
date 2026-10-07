@@ -33,7 +33,10 @@ export const handle = { bare: true };
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
-  const collection = await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
+  const [collection, author] = await Promise.all([
+    db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) }),
+    db.query.creators.findFirst({ where: eq(schema.creators.id, game.authorId) }),
+  ]);
   return {
     game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },
     may, featured: await isFeatured(db, game.id),
@@ -41,6 +44,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     reading: game.reading,
     doubts: doubtsOf(game.parseNotes),
     choices: game.kindChoices ?? [],
+    // for Preview: the game's page shows who made it, where, and when
+    page: {
+      collection: { slug: collection?.slug ?? "", title: collection?.title ?? "", personal: !!collection?.personalOf },
+      author: { handle: author?.handle ?? "", name: author?.name ?? "", deleted: !!author?.deletedAt },
+      when: (game.publishedAt ?? new Date()).getTime(), kind: game.kind,
+    },
     backTo: game.state === "published" || !collection ? `/g/${game.id}` : `/${collection.slug}`,
   };
 }
@@ -60,10 +69,10 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · inkit` }];
 
-export default function EditGame({ loaderData: { game, may, featured, drawing, reading, doubts, choices, backTo }, actionData }: Route.ComponentProps) {
+export default function EditGame({ loaderData: { game, may, featured, drawing, reading, doubts, choices, page, backTo }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;
   return (
     <GameEditor key={game.id} game={game} reading={reading} drawing={drawing} doubts={doubts} choices={choices}
-      may={may} featured={featured} backTo={backTo} error={error} />
+      may={may} featured={featured} backTo={backTo} error={error} page={page} />
   );
 }

@@ -27,16 +27,12 @@ function markup(l: Layout) {
   const sign = l.title
     ? `<button class="sign" data-sign type="button" aria-label="Show what the picture is"><span class="q">?</span><span class="title">It&rsquo;s ${/^[aeiou]/i.test(l.title) ? "an" : "a"} ${esc(l.title)}!</span></button>`
     : "";
-  const prefs = l.nonogram
-    ? `<div class="prefs"><label><input type="checkbox" data-pref="autoTick" /> Tick off clues when a line is finished</label>
-       <label><input type="checkbox" data-pref="autoX" /> X out the rest of a line once all its clues are ticked</label></div>`
-    : "";
   return `<div class="grid-game"${l.ink ? ` style="--paper-ink: ${esc(l.ink)}"` : ""}>
     <div class="sheet"${l.digits ? ' style="--below: 46px"' : ""}>
       <div class="paper-bar"><div class="group">${pots}</div><div class="status" aria-live="polite"></div>
         <div class="group">${l.hearts ? '<div class="hearts" data-hearts role="img"></div>' : ""}${tool("undo", "Undo", "undo")}${l.hints ? tool("hint", "Hint", "hint") : ""}${tool("check", "Check", "check")}${tool("reset", "Reset", "reset")}</div></div>
       <svg class="board" role="img" aria-label="Puzzle grid"></svg>${pad}${sign}
-    </div>${prefs}</div>`;
+    </div></div>`;
 }
 
 /** `saveId` keeps the player's progress in this browser; without it (the editor's preview), nothing is saved. */

@@ -54,7 +54,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   lockWalls();
   const givenDigit = new Map<number, number>();
   for (const [i, gs] of p.cellGivens) for (const x of gs) if (digits && x.kind === "number") { givenDigit.set(i, x.value); board.digit[i] = x.value; }
-  const prefs = (() => { try { return { autoX: false, autoTick: false, ...JSON.parse(localStorage.getItem(PREFS) || "{}") }; } catch { return { autoX: false, autoTick: false }; } })();
+  // nonogram helpers, only where the page offers them (it doesn't, for now: a saved choice stays off)
+  const offered = !!root.querySelector("[data-pref]");
+  const prefs = (() => { try { return { autoX: false, autoTick: false, ...(offered ? JSON.parse(localStorage.getItem(PREFS) || "{}") : {}) }; } catch { return { autoX: false, autoTick: false }; } })();
 
   // ---- layout: nonogram clues take room on the left and top ----
   const maxRow = Math.max(0, ...[...p.rowRuns.values()].map((c) => c.length));
