@@ -38,3 +38,28 @@ export function doubtPlace(d: Doubt) {
     default: return "";
   }
 }
+
+/** A note as the sketch reader gives it: what it's about, rows and columns from 0 (-1 for none). */
+export interface Note { text: string; place: DoubtPlace; fromRow: number; toRow: number; fromCol: number; toCol: number }
+
+/** A reader's note as a doubt, kept on a rows × cols grid (a place missing what it needs, or off
+ *  the grid, is about the puzzle as a whole). */
+export function doubtFromNote(n: Note, rows: number, cols: number): Doubt {
+  const fix = (v: number, max: number) => (v >= 0 && v < max ? v : undefined);
+  const row = fix(n.fromRow, rows), col = fix(n.fromCol, cols);
+  const row2 = fix(n.toRow, rows) ?? row, col2 = fix(n.toCol, cols) ?? col;
+  const needs = { cell: [row, col], "row-clue": [row], "column-clue": [col], rows: [row], columns: [col], area: [row, col], whole: [] }[n.place];
+  // a place missing what it needs is about the puzzle as a whole
+  if (needs.some((v) => v === undefined)) return { text: n.text, place: "whole" };
+  const lo = (a?: number, b?: number) => (a === undefined || b === undefined ? a : Math.min(a, b));
+  const hi = (a?: number, b?: number) => (a === undefined || b === undefined ? b : Math.max(a, b));
+  switch (n.place) {
+    case "cell": return { text: n.text, place: "cell", row, col };
+    case "row-clue": return { text: n.text, place: "row-clue", row };
+    case "column-clue": return { text: n.text, place: "column-clue", col };
+    case "rows": return { text: n.text, place: "rows", row: lo(row, row2), row2: hi(row, row2) };
+    case "columns": return { text: n.text, place: "columns", col: lo(col, col2), col2: hi(col, col2) };
+    case "area": return { text: n.text, place: "area", row: lo(row, row2), row2: hi(row, row2), col: lo(col, col2), col2: hi(col, col2) };
+    default: return { text: n.text, place: "whole" };
+  }
+}

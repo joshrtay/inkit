@@ -11,15 +11,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { genres, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
-import { runsOf, solveLine } from "~site/engine/rules.ts";
+import { solveLine } from "~site/engine/rules.ts";
 import type { Given, GridSpec, Puzzle, Side } from "~site/engine/types.ts";
 import { pictureLayout, pictureSvg, type Room } from "~site/game-types/grid/picture.ts";
 import "~site/game-types/grid/styles.css";
 import type { Doubt } from "~/games/doubts";
 import type { ToolId } from "~/editor/coverage";
+import * as ops from "~/editor/ops";
+import { onBorder, same, type RC } from "~/editor/ops";
 
 type Spec = GridSpec;
-type RC = [number, number];
 
 /** A doubt's pin on the board: `n` is its number in the list; `active` while it's hovered there. */
 export interface Pin extends Omit<Doubt, "text" | "done"> { n: number; active?: boolean }
@@ -91,8 +92,6 @@ const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 const AREA_HUES = (k: string) => (LETTERS.indexOf(k.toLowerCase()) * 137) % 360;
 const runsText = (v: number[] | undefined) => (v ?? [0]).join(" ");
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
-const same = (a: RC, b: RC) => a[0] === b[0] && a[1] === b[1];
-const onBorder = (g: Given, a: RC, b: RC) => g.at === "border" && ((same(g.cells[0], a) && same(g.cells[1], b)) || (same(g.cells[0], b) && same(g.cells[1], a)));
 const sameColor = (s: string | undefined, t: string) => !!s && s.toLowerCase() === t.toLowerCase();
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
@@ -149,7 +148,6 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const stroke = useRef<Stroke | null>(null);
   const [drawing, setDrawing] = useState<RC[] | null>(null);   // a thermometer being dragged
 
-  const givens = spec.givens ?? [];
   const [rows, cols] = spec.size, picture = spec.picture, areas = spec.areas;
   const palette = picture?.palette ?? {};
   const nonogram = genre === "nonogram";
@@ -179,7 +177,6 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const latest = useRef(spec);
   latest.current = spec;
   const change = (next: Spec, continuing = false) => { latest.current = next; onChange(next, continuing); };
-  const setGivens = (g: Given[], continuing = false) => change({ ...latest.current, givens: g }, continuing);
 
   // ---- where a pointer is, in the board's units ----
   const boardSvg = () => box.current?.querySelector(".grid-game svg") as SVGSVGElement | null;
@@ -262,42 +259,33 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const startTyping = (t: Typing) => setTyping({ ...t, value: valueOf(t) });
   /** the value typed, applied; then (a square's number) on to the next square */
   function applyTyping(t: Typing, text: string, advance: boolean) {
-    const gs = latest.current.givens ?? [];
+    const cur = latest.current;
     const v = text.trim(), n = parseInt(v, 10), num = Number.isInteger(n) && n >= 0 ? n : null;
-    let next = gs;
+    let next = cur;
     switch (t.kind) {
-      case "number": {
-        // a number replaces what's in the square, except the black square it sits on (Akari, Panes)
-        const keepsBlock = genre === "akari" || genre === "panes";
-        const rest = gs.filter((g) => !(g.at === "cell" && same(g.cell, t.cell) && (g.kind !== "block" || !keepsBlock)));
-        next = num === null ? rest : [...rest, { at: "cell", cell: t.cell, kind: "number", value: num }];
-        if (genre === "akari" && num !== null && !rest.some((g) => g.at === "cell" && same(g.cell, t.cell) && g.kind === "block")) next = [...next, { at: "cell", cell: t.cell, kind: "block" }];
-        break;
-      }
-      case "runs": next = [...gs.filter((g) => !(g.at === t.at && g.index === t.index)), { at: t.at, index: t.index, kind: "runs", value: parseRuns(v) }]; break;
-      case "total": { const rest = gs.filter((g) => !(g.at === t.at && g.index === t.index)); next = num === null ? rest : [...rest, { at: t.at, index: t.index, kind: "total", value: num }]; break; }
+      case "number": next = ops.setNumber(cur, t.cell, num); break;
+      case "runs": next = ops.setLine(cur, t.at, t.index, { kind: "runs", value: parseRuns(v) }); break;
+      case "total": next = ops.setLine(cur, t.at, t.index, num === null ? null : { kind: "total", value: num }); break;
       case "outside": {
-        const rest = gs.filter((g) => !(g.at === "edge" && same(g.cell, t.cell) && g.side === t.side && g.kind !== "door"));
         const k = letters.toLowerCase().indexOf(v.toLowerCase());
-        const value = t.letter ? (v.length === 1 && k >= 0 ? k + 1 : num) : num;
-        next = value === null || !v ? rest : [...rest, { at: "edge", cell: t.cell, side: t.side, kind: t.letter ? "first" : "skyscraper", value }];
+        const value = !v ? null : t.letter ? (v.length === 1 && k >= 0 ? k + 1 : num) : num;
+        next = ops.setOutside(cur, t.cell, t.side, t.letter ? "first" : "skyscraper", value);
         break;
       }
-      case "corner": { const rest = gs.filter((g) => !(g.at === "corner" && same(g.corner, t.corner))); next = num === null ? rest : [...rest, { at: "corner", corner: t.corner, kind: "count", value: num }]; break; }
+      case "corner": next = ops.setCorner(cur, t.corner, num); break;
       case "compass": {
         const parts = v.split(/[\s,]+/).filter(Boolean), value: Record<string, number> = {};
         (["n", "e", "s", "w"] as const).forEach((d, k) => { const x = parseInt(parts[k] ?? "", 10); if (Number.isInteger(x) && x >= 0) value[d] = x; });
-        const rest = gs.filter((g) => !(g.at === "cell" && same(g.cell, t.cell) && g.kind === "compass"));
-        next = Object.keys(value).length ? [...rest, { at: "cell", cell: t.cell, kind: "compass", value }] : rest;
+        next = ops.setCompass(cur, t.cell, value);
         break;
       }
     }
-    if (JSON.stringify(next) !== JSON.stringify(gs)) setGivens(next);
+    if (next !== cur) change(next);
     if (advance && t.kind === "number") {
       const k = t.cell[0] * cols + t.cell[1] + 1;
       if (k < rows * cols) {
         const nt: Typing = { kind: "number", cell: [Math.floor(k / cols), k % cols] };
-        setTyping({ ...nt, value: valueOf(nt, next) });
+        setTyping({ ...nt, value: valueOf(nt, next.givens ?? []) });
         return;
       }
     }
@@ -306,10 +294,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
 
   // ---- touching the board ----
   /** the clue nearest the pointer, removed (null: nothing there) */
-  const erasedAt = (h: Hit): Given[] | null => {
-    const gs = latest.current.givens ?? [];
+  const erasedAt = (h: Hit): Spec | null => {
+    const cur = latest.current;
     const o = outsideAt(h), cn = cornerAt(h), b = borderAt(h), pt = pointAt(h);
-    const keep = (pred: (g: Given) => boolean) => { const kept = gs.filter((g) => !pred(g)); return kept.length < gs.length ? kept : null; };
+    const keep = (pred: (g: Given) => boolean) => { const next = ops.removeGivens(cur, pred); return next !== cur ? next : null; };
     const nearLine = Math.min(Math.abs(h.gx - Math.round(h.gx)), Math.abs(h.gy - Math.round(h.gy))) < 0.2;
     return (cn && keep((g) => g.at === "corner" && same(g.corner, cn)))
       ?? (o && keep((g) => g.at === "edge" && same(g.cell, o.cell) && g.side === o.side))
@@ -349,52 +337,17 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "compass": if (inGrid(h)) startTyping({ kind: "compass", cell }); return;
       case "block": {
         if (!inGrid(h)) return;
-        const on = !gs.some((g) => g.at === "cell" && same(g.cell, cell) && g.kind === "block");
-        stroke.current = { kind: "block", on }; blockAt(h, false); capture(); return;
+        stroke.current = { kind: "block", on: !ops.hasBlock(latest.current, cell) }; blockAt(h, false); capture(); return;
       }
-      case "symbol": {
-        if (!inGrid(h)) return;
-        const has = gs.some((g) => g.at === "cell" && same(g.cell, cell) && g.kind === "symbol");
-        setGivens([...gs.filter((g) => !(g.at === "cell" && same(g.cell, cell) && g.kind === "symbol")), ...(has ? [] : [{ at: "cell", cell, kind: "symbol", value: "★" } as Given])]);
-        return;
-      }
-      case "pearl": {
-        if (!inGrid(h)) return;
-        const had = gs.find((g) => g.at === "cell" && same(g.cell, cell) && g.kind === "pearl");
-        const color = !had ? "white" : had.kind === "pearl" && had.value === "white" ? "black" : null;
-        setGivens([...gs.filter((g) => !(g.at === "cell" && same(g.cell, cell))), ...(color ? [{ at: "cell", cell, kind: "pearl", value: color } as Given] : [])]);
-        return;
-      }
-      case "wall": case "diamond": {
-        const b = borderAt(h);
-        if (!b) return;
-        const had = gs.find((g) => onBorder(g, ...b));
-        const rest = gs.filter((g) => !onBorder(g, ...b));
-        const kind = tool === "wall" ? (had ? null : "wall") : !had ? "twins" : had.kind === "twins" ? "opposites" : null;
-        setGivens(kind ? [...rest, { at: "border", cells: b, kind } as Given] : rest);
-        return;
-      }
-      case "galaxy": {
-        if (h.gx < 0 || h.gy < 0 || h.gx > cols || h.gy > rows) return;
-        const pt = pointAt(h), has = gs.some((g) => g.at === "point" && same(g.point, pt));
-        setGivens(has ? gs.filter((g) => !(g.at === "point" && same(g.point, pt))) : [...gs, { at: "point", point: pt, kind: "galaxy" }]);
-        return;
-      }
+      case "symbol": if (inGrid(h)) change(ops.toggleSymbol(latest.current, cell)); return;
+      case "pearl": if (inGrid(h)) change(ops.cyclePearl(latest.current, cell)); return;
+      case "wall": case "diamond": { const b = borderAt(h); if (b) change(ops.toggleBorder(latest.current, ...b, tool)); return; }
+      case "galaxy": if (h.gx >= 0 && h.gy >= 0 && h.gx <= cols && h.gy <= rows) change(ops.toggleGalaxy(latest.current, pointAt(h))); return;
       case "thermo": {
         if (!inGrid(h)) return;
         stroke.current = { kind: "thermo", cells: [cell] }; setDrawing([cell]); capture(); return;
       }
-      case "door": {
-        const o = outsideAt(h);
-        if (!o) return;
-        const at = (g: Given) => g.at === "edge" && same(g.cell, o.cell) && g.side === o.side;
-        const had = gs.find(at);
-        const role = !had ? "in" : had.kind === "door" && had.role === "in" ? "out" : null;
-        // one way in and one way out
-        const rest = gs.filter((g) => !at(g) && !(role && g.kind === "door" && g.role === role));
-        setGivens(role ? [...rest, { at: "edge", ...o, kind: "door", role }] : rest);
-        return;
-      }
+      case "door": { const o = outsideAt(h); if (o) change(ops.cycleDoor(latest.current, o.cell, o.side)); return; }
       case "outside-number": case "outside-letter": { const o = outsideAt(h); if (o) startTyping({ kind: "outside", ...o, letter: tool === "outside-letter" }); return; }
       case "corner": { const cn = cornerAt(h); if (cn) startTyping({ kind: "corner", corner: cn }); return; }
       case "total": {
@@ -403,7 +356,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         return;
       }
       case "area": if (inGrid(h) && areas) { stroke.current = { kind: "area" }; areaAt(h, false); capture(); } return;
-      case "erase": { const next = erasedAt(h); if (next) setGivens(next); return; }
+      case "erase": { const next = erasedAt(h); if (next) change(next); return; }
     }
   }
   function move(evt: React.PointerEvent) {
@@ -427,81 +380,32 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     stroke.current = null;
     if (s?.kind === "thermo") {
       setDrawing(null);
-      const gs = latest.current.givens ?? [];
-      if (s.cells.length >= 2) setGivens([...gs, { at: "cells", cells: s.cells, kind: "thermo" }]);
-      else setGivens(gs.filter((g) => !(g.at === "cells" && g.cells.some((x) => same(x, s.cells[0])))));   // a click removes a thermometer
+      // a drag draws a thermometer; a click removes the one there
+      change(s.cells.length >= 2 ? ops.addThermo(latest.current, s.cells) : ops.removeThermoAt(latest.current, s.cells[0]));
     }
   }
   function paintAt(h: Hit, continuing: boolean) {
-    const s = stroke.current, cur = latest.current, pic = cur.picture;
-    if (!pic || !s || s.kind !== "paint" || !inGrid(h) || pic.rows[h.r]?.[h.c] === s.value) return;
-    const next = pic.rows.map((row, y) => (y !== h.r ? row : row.slice(0, h.c) + s.value + row.slice(h.c + 1)));
-    const used = new Set(next.join(""));
-    const pal = Object.fromEntries(Object.entries(s.palette).filter(([k]) => k === "." || used.has(k)));
-    change({ ...cur, picture: { ...pic, rows: next, palette: pal } }, continuing);
+    const s = stroke.current;
+    if (!s || s.kind !== "paint" || !inGrid(h)) return;
+    const next = ops.paintSquare(latest.current, [h.r, h.c], s.value, s.palette);
+    if (next !== latest.current) change(next, continuing);
   }
   function blockAt(h: Hit, continuing: boolean) {
-    const s = stroke.current, gs = latest.current.givens ?? [];
+    const s = stroke.current;
     if (!s || s.kind !== "block" || !inGrid(h)) return;
-    const cell: RC = [h.r, h.c], has = gs.some((g) => g.at === "cell" && same(g.cell, cell) && g.kind === "block");
-    if (has === s.on) return;
-    // a rock replaces what was in the square, except a number on a black square (Akari, Panes)
-    const keepsNumber = (genre === "akari" || genre === "panes") && s.on;
-    const rest = gs.filter((g) => !(g.at === "cell" && same(g.cell, cell) && (g.kind === "block" || !(keepsNumber && g.kind === "number"))));
-    setGivens(s.on ? [...rest, { at: "cell", cell, kind: "block" }] : rest, continuing);
+    const next = ops.setBlock(latest.current, [h.r, h.c], s.on);
+    if (next !== latest.current) change(next, continuing);
   }
   function areaAt(h: Hit, continuing: boolean) {
-    const cur = latest.current, ar = cur.areas;
-    if (!ar || !inGrid(h) || ar[h.r]?.[h.c] === area) return;
-    change({ ...cur, areas: ar.map((row, y) => (y !== h.r ? row : row.slice(0, h.c) + area + row.slice(h.c + 1))) }, continuing);
+    if (!inGrid(h)) return;
+    const next = ops.paintArea(latest.current, [h.r, h.c], area);
+    if (next !== latest.current) change(next, continuing);
   }
-
-  // ---- size: grow or shrink at the bottom / right; clues that fall off go ----
-  function resizeTo(r: number, c: number) {
-    r = Math.max(2, Math.min(30, r)); c = Math.max(2, Math.min(30, c));
-    const inside = ([y, x]: RC) => y < r && x < c;
-    const kept: Given[] = givens.flatMap((g): Given[] => {
-      if (g.at === "edge" && (g.side === "bottom" || g.side === "right")) {
-        // outside clues on the bottom / right edge move with it
-        const cell: RC = g.side === "bottom" ? [r - 1, g.cell[1]] : [g.cell[0], c - 1];
-        return inside(cell) ? [{ ...g, cell }] : [];
-      }
-      const ok = g.at === "cell" ? inside(g.cell) : g.at === "border" ? g.cells.every(inside)
-        : g.at === "corner" ? g.corner[0] <= r && g.corner[1] <= c
-          : g.at === "edge" ? inside(g.cell)
-            : g.at === "cells" ? g.cells.every(inside) : g.at === "point" ? g.point[0] < 2 * r && g.point[1] < 2 * c
-              : g.index < (g.at === "row" ? r : c);
-      return ok ? [g] : [];
-    });
-    change({
-      ...spec, size: [r, c], givens: kept,
-      ...(picture ? { picture: { ...picture, rows: Array.from({ length: r }, (_, y) => (picture.rows[y] ?? "").padEnd(c, ".").slice(0, c)) } } : {}),
-      ...(areas ? { areas: Array.from({ length: r }, (_, y) => { const row = areas[Math.min(y, areas.length - 1)]; return row.padEnd(c, row.at(-1)).slice(0, c); }) } : {}),
-    });
-  }
-  function toPicture() {
-    change({ ...spec, givens: givens.filter((g) => g.at !== "row" && g.at !== "col"), picture: { rows: Array.from({ length: rows }, () => ".".repeat(cols)), palette: { ".": "#ffffff" } } });
-  }
-  function toNumbers() {
-    const on = (picture?.rows ?? []).map((row) => [...row].map((ch) => ch !== "."));
-    const { picture: _gone, ...rest } = spec;
-    change({ ...rest, givens: [
-      ...givens.filter((g) => g.at !== "row" && g.at !== "col"),
-      ...on.map((row, r) => ({ at: "row" as const, index: r, kind: "runs" as const, value: runsOf(row) })),
-      ...Array.from({ length: cols }, (_, c) => ({ at: "col" as const, index: c, kind: "runs" as const, value: runsOf(on.map((row) => row[c] ?? false)) })),
-    ] });
-  }
+  const resizeTo = (r: number, c: number) => change(ops.resize(spec, r, c));
   const areaLetters = [...new Set((areas ?? []).join(""))].sort();
   const newArea = () => { const k = [...LETTERS].find((l) => !areaLetters.includes(l)); if (k) { setArea(k); setTool("area"); } };
-  const addAreas = () => { change({ ...spec, areas: Array.from({ length: rows }, () => "a".repeat(cols)) }); setArea("b"); setTool("area"); };
-  // Star Battle: how many stars in each row, column and area
-  const stars = ((spec.rules ?? []).find((x) => x.rule === "shaded-per-line")?.n as number | undefined) ?? 1;
-  const setStars = (n: number) => {
-    const others = (spec.rules ?? []).filter((x) => x.rule !== "shaded-per-line" && x.rule !== "shaded-per-area");
-    const rules = n === 1 ? others : [...others, { rule: "shaded-per-line", n }, { rule: "shaded-per-area", n }];
-    const { rules: _r, ...rest } = spec;
-    change(rules.length ? { ...rest, rules } : rest);
-  };
+  const addAreas = () => { change(ops.addAreas(spec)); setArea("b"); setTool("area"); };
+  const stars = ops.starsOf(spec);
 
   // ---- doubts: where each is (the box it's about) and its pin just off that box ----
   const target = (p: Pin) => {
@@ -536,9 +440,9 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     <div className="be-tools">
       {nonogram && (
         <span className="be-group be-seg" role="group" aria-label="What the player gets">
-          <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && toPicture()}
+          <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && change(ops.toPicture(spec))}
             title="Paint the picture; the numbers follow it">Picture</button>
-          <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && toNumbers()}
+          <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && change(ops.toNumbers(spec))}
             title="Type each row's and column's numbers yourself">Numbers only</button>
         </span>
       )}
@@ -556,7 +460,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       )}
       {genre === "star-battle" && (
         <span className="be-group be-seg" role="group" aria-label="Stars in each row, column and area">
-          {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={stars === n} onClick={() => setStars(n)}>{n} star{n > 1 ? "s" : ""}</button>)}
+          {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={stars === n} onClick={() => change(ops.setStars(spec, n))}>{n} star{n > 1 ? "s" : ""}</button>)}
         </span>
       )}
       {nonogram && picture && (

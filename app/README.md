@@ -17,6 +17,19 @@ uses them. After changing `app/db/schema.ts`, run `npm run db:generate` and `npm
 (pushes to `main` apply new migrations to production before deploying). `npm run typecheck`
 checks everything.
 
+## Tests
+
+```sh
+npm test            # unit tests (tests/unit): the editor's actions, read diffs, sketches, doubts
+npm run test:e2e    # browser tests (tests/e2e): the editor for every puzzle type, on the local site
+```
+
+The browser tests need the local database migrated and seeded (see above). They sign up a
+throwaway account on the local site, copy one example of each puzzle type in as its drafts,
+drive the editor with a real mouse and keyboard, check what was saved in the local database,
+and delete it all afterwards. They reuse a running `npm run dev`. GitHub runs both (and the
+engine self-test) on every push and pull request, and deploys `main` only when they pass.
+
 ## Later
 
 - **An inkit MCP connector**, so creators can bring their own AI (Claude, ChatGPT...) to edit a

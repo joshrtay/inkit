@@ -1,25 +1,23 @@
-# Deploy the social site (app/) to inkit.games on Cloudflare Workers on every push to main that
-# touches it or the shared game engine (src/). Applies new database migrations first.
-# Needs, in the repo's settings: the secret CLOUDFLARE_API_TOKEN (a token allowed to edit Workers
-# and D1) and the variable CLOUDFLARE_ACCOUNT_ID.
-name: Deploy inkit.games
+# Test inkit on every push and pull request; deploy it to inkit.games (Cloudflare Workers) on
+# pushes to main that touch the site or the shared engine, once the tests pass. Deploying applies
+# new database migrations first.
+# Needs, in the repo's settings: the secret CLOUDFLARE_API_TOKEN (allowed to edit Workers and D1)
+# and the variable CLOUDFLARE_ACCOUNT_ID.
+name: Test and deploy inkit.games
 
 on:
   push:
-    branches: [main]
-    paths: ["app/**", "src/**", "package.json", "package-lock.json", ".github/workflows/deploy-inkit.yml"]
+    branches: [main, social]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: inkit
+  group: inkit-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -33,9 +31,46 @@ jobs:
       - run: npm ci
       - run: npm ci
         working-directory: app
+      - name: Shared code (type check, engine self-test)
+        run: npm run build && npm run selftest
       # the type check reads the secrets' names from .dev.vars (never committed): the example
-      # lists the same names with placeholders
-      - run: cp .dev.vars.example .dev.vars && npm run typecheck
+      # lists the same names with placeholders, which also serve the local site in the browser tests
+      - name: Site (type check, unit tests)
+        run: cp .dev.vars.example .dev.vars && npm run typecheck && npm test
+        working-directory: app
+      - name: Local database for the browser tests
+        run: npm run db:migrate && python3 seed/make.py && npm run db:seed
+        working-directory: app
+      - run: npx playwright install --with-deps chromium
+        working-directory: app
+      - name: Browser tests (the editor, every puzzle type)
+        run: npm run test:e2e
+        working-directory: app
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-results
+          path: app/test-results/
+          retention-days: 7
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            app/package-lock.json
+      - run: npm ci
+      - run: npm ci
         working-directory: app
       - name: Apply database migrations
         run: npx wrangler d1 migrations apply wyattsgames-db --remote

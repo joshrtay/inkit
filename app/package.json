@@ -13,7 +13,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply wyattsgames-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply wyattsgames-db --remote",
-    "db:seed": "wrangler d1 execute wyattsgames-db --local --file seed/dev.sql"
+    "db:seed": "wrangler d1 execute wyattsgames-db --local --file seed/dev.sql",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.62.5",
+    "@playwright/test": "^1.63.0",
     "@react-router/dev": "^8.4.0",
     "@types/node": "^22.20.5",
     "@types/react": "^19.2.18",
@@ -35,6 +38,7 @@
     "drizzle-kit": "^0.31.11",
     "typescript": "^5.9.3",
     "vite": "^8.0.3",
+    "vitest": "^3.2.7",
     "wrangler": "^4.147.0"
   }
 }

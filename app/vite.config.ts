@@ -10,7 +10,7 @@ export default defineConfig({
   ],
   resolve: {
     tsconfigPaths: true,
-    // The game engines are shared with the current site in ../src (no copies).
+    // The game engine, player and guides are shared code in ../src.
     alias: { "~site": fileURLToPath(new URL("../src", import.meta.url)) },
   },
   server: { fs: { allow: [".."] } },
