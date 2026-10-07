@@ -255,13 +255,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .rule-pics { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
 .mini { margin: 0; display: grid; gap: 6px; width: clamp(110px, 30%, 170px); }
 .mini.wide { width: clamp(150px, 46%, 250px); }
-.mini .pic { border: 2px solid transparent; }
-.mini.ok .pic { border-color: color-mix(in srgb, var(--good) 75%, transparent); }
-.mini.no .pic { border-color: color-mix(in srgb, var(--red) 75%, transparent); }
-.mini figcaption { font-size: 13px; line-height: 1.3; color: var(--muted); display: flex; gap: 6px; align-items: baseline; }
-.mini .mark { font-weight: 800; font-size: 15px; }
-.mini.ok .mark { color: var(--good); }
-.mini.no .mark { color: var(--red); }
 .guide-example { display: grid; gap: 14px; }
 .guide-example h2 { margin: 0; }
 .example-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
@@ -484,3 +477,41 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .kind-option.one .kind-status { color: var(--good); font-weight: 700; }
 .kind-option.none .kind-status, .kind-option.unfit .kind-status { color: var(--red); }
 .kind-tip { font-weight: 600; }
+
+.origin { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; font-style: italic; max-width: 64ch; }
+
+/* rule pictures, after Thinky Dailies: a square tile, a thick green or red outline, and a round
+   ✓ / ✕ badge on its top-right corner */
+.mini { --tone: var(--good); }
+.mini.no { --tone: var(--red); }
+.mini-frame { position: relative; margin: 12px 12px 0 0; }
+.mini-frame .pic { aspect-ratio: 1; display: grid; place-items: center; padding: 8px; border: 4px solid var(--tone); border-radius: 14px; box-shadow: none; }
+.mini.wide .mini-frame .pic { aspect-ratio: auto; }
+.mini-frame .pic svg { width: 100%; height: 100%; }
+.mini .badge {
+  position: absolute; top: -13px; right: -13px; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--tone); color: #fff; font: 800 16px/1 var(--body); box-shadow: 0 0 0 3px var(--panel);
+}
+.mini figcaption { font-size: 14px; line-height: 1.35; color: var(--ink); padding-right: 12px; }
+
+/* ---- dropdowns (components/Select.tsx) ---- */
+.select { position: relative; display: grid; gap: 6px; }
+.select-label { font-weight: 700; font-size: 14px; }
+.select-button, .select.single .select-value {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left;
+  font: 400 16px/1.2 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 11px 12px;
+}
+.select.single .select-value { background: transparent; }
+.select-button { cursor: pointer; }
+.select-button:focus-visible { outline: 2px solid color-mix(in srgb, var(--ink) 40%, transparent); outline-offset: 2px; }
+.select-button svg, .select-list svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.select-button[aria-expanded="true"] svg { rotate: 180deg; }
+.select-list {
+  position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; margin: 0; padding: 6px; list-style: none;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px var(--shadow); max-height: 280px; overflow-y: auto;
+}
+.select-list li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+.select-list li > span:first-child { flex: 1; font-weight: 600; }
+.select-list li .muted { font-size: 13px; }
+.select-list li.active { background: color-mix(in srgb, var(--ink) 8%, transparent); }

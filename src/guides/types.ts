@@ -46,6 +46,8 @@ export interface Guide {
   category: Category;
   /** one sentence: the whole idea */
   summary: string;
+  /** where the puzzle type comes from: who made it and when, as far as is known */
+  origin: string;
   rules: RuleGuide[];
   /** how to play it here, in a sentence or two */
   controls: string;

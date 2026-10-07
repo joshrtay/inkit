@@ -35,6 +35,7 @@ export default function PuzzleType({ loaderData: g }: Route.ComponentProps) {
       <header className="guide-hero">
         <h1>{g.name}</h1>
         {g.aka.length > 0 && <p className="aka">Also called {g.aka.join(", ")}</p>}
+        <p className="origin">{g.origin}</p>
         <p className="lead">{g.summary}</p>
       </header>
 

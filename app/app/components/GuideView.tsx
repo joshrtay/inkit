@@ -17,8 +17,11 @@ export function GuideBody({ g }: { g: GuideData }) {
                   <div className="rule-pics">
                     {r.pictures.map((p, k) => (
                       <figure key={k} className={`mini ${p.ok ? "ok" : "no"}${p.wide ? " wide" : ""}`}>
-                        <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: p.svg }} />
-                        <figcaption><span className="mark" aria-label={p.ok ? "Right" : "Wrong"}>{p.ok ? "✓" : "✗"}</span> {p.note}</figcaption>
+                        <div className="mini-frame">
+                          <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: p.svg }} />
+                          <span className="badge" aria-label={p.ok ? "Right" : "Wrong"}>{p.ok ? "✓" : "✕"}</span>
+                        </div>
+                        <figcaption>{p.note}</figcaption>
                       </figure>
                     ))}
                   </div>

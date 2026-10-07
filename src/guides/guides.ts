@@ -31,6 +31,7 @@ export const guides: Record<GenreName, Guide> = {
   "simple-loop": {
     name: "Simple Loop", aka: ["Round the Bend"], category: "Lines", ink: "#2d6a45",
     summary: "Draw one loop that winds through every white cell.",
+    origin: "A classic loop-drawing puzzle. Wyatt's version was called Round the Bend.",
     rules: [
       { text: "Draw one closed loop through the centre of every white cell.", checks: ["loop"], pictures: [
         { ok: true, note: "Every cell, one loop", size: [2, 3], lines: [[[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [1, 0], [0, 0]]] },
@@ -50,6 +51,7 @@ export const guides: Record<GenreName, Guide> = {
   "simple-path": {
     name: "Simple Path", aka: ["Hamiltonian Path"], category: "Lines", ink: "#2d6a45",
     summary: "Draw one path from the arrow in to the arrow out that visits every white cell.",
+    origin: "A Hamiltonian path puzzle: the idea of visiting every spot exactly once goes back to William Rowan Hamilton's Icosian game of 1857.",
     rules: [
       { text: "Draw one path from the arrow in to the arrow out, through every white cell.", checks: ["path"], pictures: [
         { ok: true, note: "Every cell", size: [2, 3], givens: [door(0, 0, "left", "in"), door(1, 0, "left", "out")], lines: [[[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [1, 0]]] },
@@ -69,6 +71,7 @@ export const guides: Record<GenreName, Guide> = {
   slitherlink: {
     name: "Slitherlink", aka: ["Fences", "Loop the Loop"], category: "Lines", ink: "#26398f",
     summary: "Draw one loop along the dotted lines; each number counts the sides of its cell the loop uses.",
+    origin: "A Nikoli puzzle, first published in 1989.",
     rules: [
       { text: "Draw one loop along the grid lines. It never branches or crosses itself.", checks: ["loop"], pictures: [
         { ok: true, note: "One loop", size: [2, 2], fence: [[[0, 0], [0, 2], [2, 2], [2, 0], [0, 0]]] },
@@ -85,6 +88,7 @@ export const guides: Record<GenreName, Guide> = {
   masyu: {
     name: "Masyu", aka: ["Pearl"], category: "Lines", ink: "#2b2b30",
     summary: "Draw one loop through cell centres that goes straight through white pearls and turns on black ones.",
+    origin: "A Nikoli puzzle from 2000.",
     rules: [
       { text: "Draw one loop through the centres of cells. It doesn't have to visit every cell.", checks: ["loop"], pictures: [
         { ok: true, note: "One loop", size: [3, 3], lines: [[[0, 0], [0, 1], [0, 2], [1, 2], [2, 2], [2, 1], [2, 0], [1, 0], [0, 0]]] },
@@ -104,6 +108,7 @@ export const guides: Record<GenreName, Guide> = {
   numberlink: {
     name: "Numberlink", aka: ["Connectlink", "Flow", "Arukone"], category: "Lines", ink: "#26398f",
     summary: "Join each pair of matching numbers with a line; lines never cross.",
+    origin: "Sam Loyd printed an early form of it in 1897; Nikoli made it popular in Japan. Connectlink adds the rule that every cell is used.",
     rules: [
       { text: "Join each pair of matching numbers with one line.", checks: ["links"], pictures: [
         { ok: true, note: "Pairs joined", size: [2, 3], givens: [num(0, 0, 1), num(0, 2, 1), num(1, 0, 2), num(1, 2, 2)], lines: [[[0, 0], [0, 1], [0, 2]], [[1, 0], [1, 1], [1, 2]]] },
@@ -122,6 +127,7 @@ export const guides: Record<GenreName, Guide> = {
   maze: {
     name: "Number Line Maze", category: "Lines", ink: "#26398f",
     summary: "Draw the walls each number asks for, then find your way from the arrow in to the arrow out.",
+    origin: "A maze puzzle from Wyatt's Games.",
     rules: [
       { text: "A number counts the walls touching it. The outside edge counts too.", checks: ["corner-count"], pictures: [
         { ok: true, note: "3 walls", size: [2, 2], givens: [door(0, 0, "top", "in"), door(1, 1, "bottom", "out"), corner(1, 2, 3)], fence: [[[0, 1], [0, 2], [1, 2], [2, 2]], [[2, 1], [2, 0], [1, 0], [0, 0]], [[1, 1], [1, 2]]] },
@@ -141,6 +147,7 @@ export const guides: Record<GenreName, Guide> = {
   nonogram: {
     name: "Nonogram", aka: ["Picture Squares", "Griddlers", "Paint by Numbers", "Picross"], category: "Shading", ink: "#a3343f",
     summary: "Shade the cells the numbers ask for to uncover a hidden picture.",
+    origin: "Invented in 1987 by two puzzle makers, Non Ishida and Tetsuya Nishio, each on their own.",
     rules: [
       { text: "Numbers beside a row (or above a column) are the lengths of its runs of shaded cells, in order, with at least one gap between runs.", checks: ["runs"], pictures: [
         { ok: true, note: "2 then 1", size: [1, 5], givens: [runs("row", 0, [2, 1])], shade: ["##.#."] },
@@ -154,6 +161,7 @@ export const guides: Record<GenreName, Guide> = {
   nurikabe: {
     name: "Nurikabe", aka: ["Islands in the Stream"], category: "Shading", ink: "#2d6a45",
     summary: "Shade a winding wall so every number sits in a white island of exactly that size.",
+    origin: "A Nikoli puzzle from 1991.",
     rules: [
       { text: "Each number sits in a white island of exactly that many cells, and each island has one number.", checks: ["size-clue", "one-each"], pictures: [
         { ok: true, note: "Island of 3", size: [2, 3], givens: [num(0, 1, 3)], shade: ["#..", "##."] },
@@ -173,6 +181,7 @@ export const guides: Record<GenreName, Guide> = {
   "star-battle": {
     name: "Star Battle", aka: ["Two Not Touch"], category: "Shading", ink: "#26398f",
     summary: "Place one star in every row, column and outlined area; stars never touch.",
+    origin: "Invented by Hans Eendebak for the 2003 World Puzzle Championship in the Netherlands.",
     rules: [
       { text: "Every row and every column has exactly one star.", checks: ["shaded-per-line"], pictures: [
         { ok: true, note: "One each", size: [4, 4], areas: ["aabb", "aabb", "ccdd", "ccdd"], shade: [".#..", "...#", "#...", "..#."] },
@@ -191,6 +200,7 @@ export const guides: Record<GenreName, Guide> = {
   akari: {
     name: "Akari", aka: ["Light Up"], category: "Shading", ink: "#2b2b30",
     summary: "Place light bulbs so every white cell is lit and no bulb shines on another.",
+    origin: "A Nikoli puzzle from 2001.",
     rules: [
       { text: "A bulb lights its row and column, up to a black cell. Every white cell must be lit.", checks: ["lit"], pictures: [
         { ok: true, note: "All lit", size: [3, 3], givens: [rock(1, 1)], shade: ["#..", "...", "..#"] },
@@ -210,6 +220,7 @@ export const guides: Record<GenreName, Guide> = {
   cave: {
     name: "Cave", aka: ["Corral", "Bag"], category: "Shading", ink: "#2b2b30",
     summary: "Shade the rock around one connected cave; each number counts the cave cells it can see.",
+    origin: "Nikoli introduced it in 1996 as a loop puzzle called Bag; it became Corral in the West, and later the shading puzzle Cave.",
     rules: [
       { text: "The white cells form one connected cave.", checks: ["unshaded-connected"], pictures: [
         { ok: true, note: "One cave", size: [3, 3], shade: ["#..", "...", "..#"] },
@@ -229,6 +240,7 @@ export const guides: Record<GenreName, Guide> = {
   aquarium: {
     name: "Aquarium", category: "Shading", ink: "#26398f",
     summary: "Fill the outlined tanks with water that settles level; the numbers count the water in each row and column.",
+    origin: "Invented by the Japanese puzzle author Naoki Inaba.",
     rules: [
       { text: "Water settles: each tank fills from the bottom up, level all the way across.", checks: ["water"], pictures: [
         { ok: true, note: "Settled", size: [3, 3], areas: ["aab", "aab", "ccb"], shade: ["...", "##.", "###"] },
@@ -246,6 +258,7 @@ export const guides: Record<GenreName, Guide> = {
   hitori: {
     name: "Hitori", category: "Shading", ink: "#2b2b30",
     summary: "Shade cells so no number repeats in a row or column; shaded cells never touch, and the rest stay connected.",
+    origin: "A Nikoli puzzle from 1990. Its full name, Hitori ni shitekure, means \"leave me alone\".",
     rules: [
       { text: "Shade cells so no number repeats in any row or column.", checks: ["unique-unshaded"], pictures: [
         { ok: true, note: "No repeats", size: [2, 2], givens: [num(0, 0, 1), num(0, 1, 1), num(1, 0, 2), num(1, 1, 1)], shade: [".#", ".."] },
@@ -265,6 +278,7 @@ export const guides: Record<GenreName, Guide> = {
   minesweeper: {
     name: "Minesweeper", category: "Shading", ink: "#2b2b30",
     summary: "Every number counts the mines in the eight cells around it.",
+    origin: "The computer game turned into a logic puzzle: every number is shown from the start, and nothing explodes.",
     rules: [
       { text: "A number counts the mines in the eight cells around it, diagonals included. Numbered cells are never mines.", checks: ["mine-count"], pictures: [
         { ok: true, note: "2 around it", size: [3, 3], givens: [num(1, 1, 2)], shade: ["#..", "...", "..#"] },
@@ -277,6 +291,7 @@ export const guides: Record<GenreName, Guide> = {
   "wittgenstein-briquet": {
     name: "Wittgenstein Briquet", aka: ["Desk Place"], category: "Shading", ink: "#2b2b30",
     summary: "Place straight blocks of three; numbers count block cells beside them, and the rest stays connected.",
+    origin: "Invented by Yosuke Imai in 2007 as \"Desk Place\"; Serkan Yürekli gave it its English name.",
     rules: [
       { text: "Blocks are straight lines of 3 cells, across or down. Blocks may touch.", checks: ["bars"], pictures: [
         { ok: true, note: "A block of 3", size: [3, 3], shade: ["###", "...", "..."] },
@@ -298,6 +313,7 @@ export const guides: Record<GenreName, Guide> = {
   shikaku: {
     name: "Shikaku", aka: ["Rectangles", "Divide by Box"], category: "Regions", ink: "#a3343f",
     summary: "Cut the grid into rectangles, each holding one number: its size.",
+    origin: "A Nikoli puzzle, first published in 1989.",
     rules: [
       { text: "Cut the grid into rectangles (squares count).", checks: ["rectangles"], pictures: [
         { ok: true, note: "Rectangles", size: [2, 3], regions: ["aab", "aab"] },
@@ -314,6 +330,7 @@ export const guides: Record<GenreName, Guide> = {
   "square-jam": {
     name: "Square Jam", category: "Regions", ink: "#a3343f",
     summary: "Split the grid into squares; four never meet at a point, and a number is its square's side.",
+    origin: "Invented by the American puzzle designer Eric Fox in 2022.",
     rules: [
       { text: "Split the grid into squares.", checks: ["squares"], pictures: [
         { ok: true, note: "All squares", size: [2, 3], regions: ["aab", "aac"] },
@@ -333,6 +350,7 @@ export const guides: Record<GenreName, Guide> = {
   "spiral-galaxies": {
     name: "Spiral Galaxies", aka: ["Tentai Show"], category: "Regions", ink: "#26398f",
     summary: "Split the grid into regions that look the same turned halfway round their circle.",
+    origin: "Nikoli introduced it in 2001 as Tentai Show, a pun meaning both \"astronomy show\" and \"symmetric dots\".",
     rules: [
       { text: "Every region holds exactly one circle.", checks: ["galaxies"], pictures: [
         { ok: false, note: "Two circles", size: [2, 3], givens: [galaxy(2, 1), galaxy(2, 4)], regions: ["aaa", "aaa"] },
@@ -348,6 +366,7 @@ export const guides: Record<GenreName, Guide> = {
   panes: {
     name: "Panes", category: "Regions", ink: "#2b2b30",
     summary: "Cut the window into panes of stained glass that follow every rule listed with the puzzle.",
+    origin: "Our own puzzle, after the region-dividing puzzles of The Artisan of Glimmith.",
     rules: [
       { text: "Each puzzle lists its own rules. Size N: every pane has N cells.", checks: ["size"], pictures: [
         { ok: true, note: "Size 3", size: [2, 3], rules: [{ rule: "size", is: 3 }], regions: ["aab", "abb"] },
@@ -374,6 +393,7 @@ export const guides: Record<GenreName, Guide> = {
   sudoku: {
     name: "Sudoku", category: "Numbers", ink: "#2b2b30",
     summary: "Fill the grid so every row, column and box has each digit once.",
+    origin: "Howard Garns created it for Dell in 1979 as Number Place; Nikoli named it Sudoku in 1984.",
     rules: [
       { text: "Every row and every column has each digit once.", checks: ["latin"], pictures: [
         { ok: true, note: "No repeats", size: [4, 4], digits: ["1234", "3412", "2143", "4321"] },
@@ -389,6 +409,7 @@ export const guides: Record<GenreName, Guide> = {
   "irregular-sudoku": {
     name: "Irregular Sudoku", aka: ["Jigsaw Sudoku"], category: "Numbers", ink: "#2b2b30",
     summary: "A sudoku whose boxes are odd shapes: every row, column and outlined area has each digit once.",
+    origin: "A Sudoku variant whose boxes are irregular shapes.",
     rules: [
       { text: "Every row and every column has each digit once.", checks: ["latin"], pictures: [
         { ok: true, note: "No repeats", size: [4, 4], areas: ["aabb", "aabb", "ccdd", "ccdd"], digits: ["1234", "3412", "2143", "4321"] },
@@ -404,6 +425,7 @@ export const guides: Record<GenreName, Guide> = {
   "thermo-sudoku": {
     name: "Thermo Sudoku", category: "Numbers", ink: "#a3343f",
     summary: "A sudoku whose digits rise along each thermometer, from the bulb to the tip.",
+    origin: "A Sudoku variant with thermometers.",
     rules: [
       { text: "It's a sudoku: every row, column and box has each digit once.", checks: ["latin", "boxes"], pictures: [
         { ok: true, note: "A sudoku", size: [4, 4], digits: ["1234", "3412", "2143", "4321"] },
@@ -419,6 +441,7 @@ export const guides: Record<GenreName, Guide> = {
   skyscrapers: {
     name: "Skyscrapers", aka: ["Towers"], category: "Numbers", ink: "#26398f",
     summary: "Fill in building heights; the numbers outside count the buildings you can see.",
+    origin: "Invented by Masanori Natsuhara in 1992.",
     rules: [
       { text: "Every row and every column has each height once.", checks: ["latin"], pictures: [
         { ok: true, note: "No repeats", size: [3, 3], digits: ["123", "312", "231"] },
@@ -435,6 +458,7 @@ export const guides: Record<GenreName, Guide> = {
   "easy-as-abc": {
     name: "Easy as ABC", aka: ["Letterraam", "End View"], category: "Numbers", ink: "#2d6a45",
     summary: "Put each letter once in every row and column; letters outside are the first one seen.",
+    origin: "Known in Dutch as Letterraam, \"letter frame\".",
     rules: [
       { text: "Every row and column has A, B and C exactly once; the other cells stay empty.", checks: ["letters"], pictures: [
         { ok: true, note: "One of each", size: [4, 4], digits: ["ABC.", "C.AB", "BA.C", ".CBA"] },
@@ -453,6 +477,7 @@ export const guides: Record<GenreName, Guide> = {
   coats: {
     name: "Three Coats", category: "Paint", ink: "#2b2b30",
     summary: "Paint every shape red, yellow or blue so each dot sees its color next door.",
+    origin: "Our version of RYB, a 2016 logic game by FLEB.",
     rules: [
       { text: "Paint every piece red, yellow or blue.", checks: ["painted"], pictures: [] },
       { text: "A dot asks for a neighbour of its color: two red dots need at least two red neighbours. Neighbours share an edge, not just a corner.", checks: ["neighbor-dots"], pictures: [

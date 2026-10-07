@@ -57,6 +57,7 @@ export function GuidePane({ start, drawer = false }: { start?: string; drawer?: 
           <div className="pane-guide" style={{ "--paper-ink": g.ink } as React.CSSProperties}>
             <h2>{g.name}</h2>
             {g.aka.length > 0 && <p className="aka">Also called {g.aka.join(", ")}</p>}
+            <p className="origin">{g.origin}</p>
             <p className="lead">{g.summary}</p>
             <GuideBody g={g} />
           </div>

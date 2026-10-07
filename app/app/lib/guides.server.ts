@@ -40,7 +40,7 @@ export function guidePage(kind: GenreName) {
   const g = guides[kind], at = ORDER.indexOf(kind);
   const near = (k: GenreName | undefined) => (k ? { kind: k, name: guides[k].name } : null);
   return {
-    kind, name: g.name, aka: g.aka ?? [], category: g.category as Category, summary: g.summary, controls: g.controls, ink: g.ink,
+    kind, name: g.name, aka: g.aka ?? [], category: g.category as Category, summary: g.summary, origin: g.origin, controls: g.controls, ink: g.ink,
     rules: g.rules.map((r) => ({
       text: r.text,
       pictures: r.pictures.map((m) => {

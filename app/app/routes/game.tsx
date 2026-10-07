@@ -10,6 +10,7 @@ import { parseSketch } from "~/games/sketch";
 import { kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "~/components/GameBoard";
+import { guides } from "~site/guides/guides.ts";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -28,7 +29,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
 
   const parsed = parseSketch(game.sketch, game.sketchVersion);
   return {
-    game: { id: game.id, title: game.title, description: game.description, kind: game.kind, state: game.state, hiddenNote: game.hiddenNote },
+    game: { id: game.id, title: game.title, description: game.description, kind: game.kind, state: game.state, hiddenNote: game.hiddenNote,
+      when: (game.publishedAt ?? game.createdAt).getTime() },
+    origin: (guides as Record<string, { origin: string }>)[game.kind]?.origin ?? null,
     collection: { slug: collection.slug, title: collection.title, personal: !!collection.personalOf },
     author: { handle: author.handle, name: author.name, deleted: !!author.deletedAt },
     play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
@@ -43,7 +46,9 @@ export const meta: Route.MetaFunction = ({ loaderData: data }) => data
   ? [{ title: `${data.game.title} · inkit` }, { name: "description", content: data.game.description || `A ${kindName(data.game.kind)} puzzle.` }]
   : [{ title: "Not found · inkit" }];
 
-export default function Game({ loaderData: { game, collection, author, play, summary, rules, errors, editable } }: Route.ComponentProps) {
+const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+export default function Game({ loaderData: { game, collection, author, play, summary, rules, errors, editable, origin } }: Route.ComponentProps) {
   return (
     <main className="wrap game-page">
       <header className="game-head">
@@ -52,6 +57,7 @@ export default function Game({ loaderData: { game, collection, author, play, sum
           {summary} · by{" "}
           {author.deleted ? author.name : <Link to={`/${author.handle}`}>@{author.handle}</Link>}
           {!collection.personal && <> in <Link to={`/${collection.slug}`}>{collection.title}</Link></>}
+          {" · "}<time dateTime={new Date(game.when).toISOString()}>{date(game.when)}</time>
         </span>
         {editable && <Link className="btn" to={`/g/${game.id}/edit`}>Edit</Link>}
         {game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}
@@ -65,6 +71,7 @@ export default function Game({ loaderData: { game, collection, author, play, sum
       {rules.length > 0 && (
         <section className="rules current">
           <h2>How to play</h2>
+          {origin && <p className="origin">This is {/^[AEIOU]/.test(kindName(game.kind)) ? "an" : "a"} {kindName(game.kind)}. {origin}</p>}
           <ol>{rules.map((r) => <li key={r}>{r}</li>)}</ol>
           <p><Link to={`/puzzles/${game.kind}`}>{kindName(game.kind)} rules, with pictures and an example →</Link></p>
         </section>

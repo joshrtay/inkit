@@ -10,6 +10,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { GuidePane } from "~/components/GuidePane";
+import { Select } from "~/components/Select";
 
 export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
 
@@ -64,11 +65,8 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
           data.set("image", photo, "sketch.jpg");
           submit(data, { method: "post", encType: "multipart/form-data" });
         }}>
-        <label>Collection
-          <select name="collection" defaultValue={collection}>
-            {targets.map((t) => <option key={t.id} value={t.id}>{t.personal ? `${t.title} (yours)` : t.title}</option>)}
-          </select>
-        </label>
+        <Select name="collection" label="Goes in" defaultValue={collection}
+          options={targets.map((t) => ({ value: t.id, label: t.title, hint: t.personal ? "your profile" : "studio" }))} />
         <label>Title <span className="hint">optional; a title written on the sketch is used otherwise</span>
           <input name="title" maxLength={120} />
         </label>
