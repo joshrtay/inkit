@@ -129,12 +129,6 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           <Link className="studio-back" to={backTo} aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
           <span className={`save-pill${saveStatus === "Saved" || saveStatus === "Published" ? " ok" : ""}`} aria-live="polite">{saveStatus}</span>
         </div>
-        <div className="studio-type">
-          {genre && drawing && isDraft && may.edit ? (
-            <Select key={genre} name="kind" label="Puzzle type" defaultValue={genre} disabled={rereading}
-              options={typeOptions(choices, genre)} onChange={changeType} />
-          ) : <strong>{genre ? kindName(genre) : "Puzzle"}</strong>}
-        </div>
         <div className="studio-actions">
           <button type="button" className={`check-chip ${check.state}`} title={check.state === "broken" ? check.text : check.state === "many" ? "Show the cells the clues can't pin down" : undefined}
             onClick={() => check.state === "many" && setFlash((n) => n + 1)}>
@@ -169,7 +163,16 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           </div>}
         </div>
       </header>
-      <div className="studio-tools" ref={setTools} />
+      <div className="studio-tools">
+        <div className="studio-type">
+          {genre && drawing && isDraft && may.edit ? (
+            <Select key={genre} name="kind" label="Puzzle type" defaultValue={genre} disabled={rereading}
+              options={typeOptions(choices, genre)} onChange={changeType} />
+          ) : <strong>{genre ? kindName(genre) : "Puzzle"}</strong>}
+        </div>
+        <span className="tool-sep" aria-hidden="true" />
+        <div className="studio-tools-slot" ref={setTools} />
+      </div>
 
       {game.state === "hidden" && <p className="studio-banner">Taken down: {game.hiddenNote}</p>}
       {problem && <p className="studio-banner error" role="alert">{problem}</p>}
@@ -183,14 +186,15 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           </button>
         )}
 
+        <div className="studio-title">
+          <input aria-label="Title" placeholder="Title" maxLength={120} value={title} readOnly={!may.edit}
+            onChange={(e) => setTitle(e.target.value)} onFocus={(e) => title === "Untitled" && e.currentTarget.select()} />
+          <textarea aria-label="Description" placeholder="Add a description…" rows={1} maxLength={2000} value={description} readOnly={!may.edit}
+            onChange={(e) => setDescription(e.target.value)}
+            onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = `${t.scrollHeight}px`; }} />
+        </div>
+
         <div className={`studio-board${rereading ? " busy" : ""}`}>
-          <div className="studio-title">
-            <input aria-label="Title" placeholder="Title" maxLength={120} value={title} readOnly={!may.edit}
-              onChange={(e) => setTitle(e.target.value)} onFocus={(e) => title === "Untitled" && e.currentTarget.select()} />
-            <textarea aria-label="Description" placeholder="Add a description…" rows={1} maxLength={2000} value={description} readOnly={!may.edit}
-              onChange={(e) => setDescription(e.target.value)}
-              onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = `${t.scrollHeight}px`; }} />
-          </div>
           {onBoard && loose ? (
             <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
               onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}

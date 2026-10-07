@@ -22,6 +22,8 @@ const EDITORS = { nonogram: true } as const;
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in EDITORS;
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
+/** New paint colors, in the order they're offered. */
+const NEW_COLORS = ["#26398f", "#d8443a", "#f0a020", "#2e8b57", "#7b4bb7", "#222222", "#8b5a2b", "#f28cb1", "#3fb0e6", "#9aa0a6"];
 const runsText = (v: number[] | undefined) => (v ?? [0]).join(" ");
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 
@@ -60,6 +62,13 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const paint = useRef<{ value: string } | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const [pickNew, setPickNew] = useState(false);   // a color was just added: open its picker
+  useEffect(() => {
+    if (!pickNew) return;
+    setPickNew(false);
+    try { picker.current?.showPicker(); } catch { picker.current?.click(); }
+  }, [pickNew]);
 
   let puzzle: Puzzle | null = null, problem = "";
   try { puzzle = makePuzzle(spec); } catch (e) { problem = (e as Error).message; }
@@ -99,7 +108,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const { r, c, x, y, lay } = hit;
     if (r >= 0 && c >= 0 && r < rows && c < cols) {
       if (!picture) return;
-      const value = picture.rows[r]?.[c] === ink ? "." : ink;
+      // the eraser clears; a color paints (or, on a square already that color, clears it)
+      const value = ink === "." || picture.rows[r]?.[c] === ink ? "." : ink;
       paint.current = { value };
       paintCell(r, c, value, false);
       (evt.target as Element).setPointerCapture?.(evt.pointerId);
@@ -166,16 +176,23 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         Columns <button type="button" className="be-btn" onClick={() => resize(0, -1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" className="be-btn" onClick={() => resize(0, 1)} aria-label="More columns">+</button>
       </span>
       {picture && (
-        <span className="be-group" role="group" aria-label="Paint color">
+        <span className="be-group be-colors" role="group" aria-label="Paint color">
           {Object.keys(palette).filter((k) => k !== ".").map((k) => (
-            <button key={k} type="button" className="be-pot" aria-pressed={ink === k} aria-label={`Paint with color ${k}`} style={{ "--c": palette[k] } as React.CSSProperties} onClick={() => setInk(k)}>
-              {ink === k && <input type="color" value={palette[k]} aria-label="Change this color" onChange={(e) => setPicture(picture.rows, { ...palette, [k]: e.target.value })} />}
+            <button key={k} type="button" className="be-pot" aria-pressed={ink === k} style={{ "--c": palette[k] } as React.CSSProperties} onClick={() => setInk(k)}
+              aria-label={ink === k ? "Change this color (every square painted with it)" : "Paint with this color"}
+              title={ink === k ? "Click to change this color everywhere it's used" : "Paint with this color"}>
+              {ink === k && <input ref={picker} type="color" value={palette[k]} tabIndex={-1} aria-hidden="true" onChange={(e) => setPicture(picture.rows, { ...palette, [k]: e.target.value })} />}
             </button>
           ))}
-          <button type="button" className="be-btn" onClick={() => {
+          <button type="button" className="be-pot add" title="Add a color, then paint squares with it" aria-label="Add a color" onClick={() => {
             const k = [...LETTERS].find((l) => !(l in palette));
-            if (k) { setPicture(picture.rows, { ...palette, [k]: "#d8443a" }); setInk(k); }
-          }}>+ Color</button>
+            if (!k) return;
+            const used = new Set(Object.values(palette).map((c) => c.toLowerCase()));
+            change({ ...spec, picture: { ...picture, palette: { ...palette, [k]: NEW_COLORS.find((c) => !used.has(c)) ?? "#d8443a" } } });
+            setInk(k);
+            setPickNew(true);
+          }}>+</button>
+          <button type="button" className="be-pot erase" aria-pressed={ink === "."} title="Eraser: clear squares" aria-label="Eraser" onClick={() => setInk(".")} />
         </span>
       )}
       <span className="be-group be-seg" role="group" aria-label="What the player gets">
