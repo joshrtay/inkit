@@ -314,7 +314,11 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .theme-pick button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
 .nav-guest { display: grid; gap: 8px; }
 .nav-guest .btn { justify-content: center; padding: 11px; }
-.nav-foot { margin-top: auto; position: relative; }
+.nav-foot { margin-top: auto; position: relative; display: grid; gap: 10px; }
+.nav-foot .create-menu { margin: 4px 0; }
+.nav-legal { margin: 0; padding: 0 12px; font-size: 13px; color: var(--muted); }
+.wrap .nav-legal a, .nav-legal a { color: var(--muted); }
+@media (max-width: 1100px) { .nav-legal { display: none; } .nav-foot { justify-items: center; } }
 .tabbar { display: none; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -546,3 +550,11 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 /* when the page is too narrow for a margin beside the title, make room for the button */
 @container (max-width: 1200px) { .game-page .game-head { padding-left: 52px; } }
 @media (max-width: 640px) { .back-btn { position: static; margin: 14px 0 0 16px; width: 36px; height: 36px; } .game-page .game-head { padding-left: 0; } }
+
+/* ---- documents: privacy policy, terms ---- */
+.doc { max-width: 720px; gap: 14px; }
+.doc h2 { margin: 18px 0 0; font-size: 20px; }
+.doc p, .doc li { font-size: 16px; line-height: 1.6; }
+.doc p { margin: 0; }
+.doc ul { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.legal-note { font-size: 13px; color: var(--muted); }

@@ -10,6 +10,8 @@ export default [
   route("new", "routes/new.tsx"),
   route("studios/new", "routes/studio-new.tsx"),
   route("explore", "routes/explore.tsx"),
+  route("privacy", "routes/privacy.tsx"),
+  route("terms", "routes/terms.tsx"),
   route("puzzles", "routes/puzzles.tsx"),
   route("puzzles/:kind", "routes/puzzle-type.tsx"),
   route("g/:id", "routes/game.tsx"),

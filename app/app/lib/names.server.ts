@@ -7,7 +7,7 @@ import { schema, type Db } from "../db";
 const RESERVED = new Set([
   "g", "api", "app", "admin", "new", "edit", "settings", "signin", "signup", "signout", "login", "logout",
   "account", "about", "help", "featured", "explore", "search", "studios", "studio", "collections", "games",
-  "assets", "static", "public", "www", "wyattsgames", "puzzles", "rules", "guide", "guides",
+  "assets", "static", "public", "www", "wyattsgames", "puzzles", "rules", "guide", "guides", "privacy", "terms", "legal",
 ]);
 
 export const HANDLE_HINT = "Handles are 3 to 30 lowercase letters, numbers or dashes, starting with a letter.";

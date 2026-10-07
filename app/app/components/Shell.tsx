@@ -20,7 +20,7 @@ export const Icon = ({ name }: { name: keyof typeof PATHS }) => (
 );
 
 /** "Create ▾": a puzzle from a drawing, or a studio. */
-export function CreateMenu({ className = "" }: { className?: string }) {
+export function CreateMenu({ className = "", up = false }: { className?: string; up?: boolean }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -35,7 +35,7 @@ export function CreateMenu({ className = "" }: { className?: string }) {
         Create <span aria-hidden="true">▾</span>
       </button>
       {open && (
-        <div className="menu" role="menu">
+        <div className={up ? "menu up" : "menu"} role="menu">
           <Link role="menuitem" to="/new" onClick={() => setOpen(false)}><strong>Puzzle</strong><span>From a photo of a drawing</span></Link>
           <Link role="menuitem" to="/studios/new" onClick={() => setOpen(false)}><strong>Studio</strong><span>A shared collection with others</span></Link>
         </div>
@@ -62,6 +62,8 @@ function AccountMenu({ me }: { me: Me }) {
           <div className="theme-pick" role="group" aria-label="Theme">
             {["light", "dark", "auto"].map((t) => <button key={t} type="button" aria-pressed={theme === t} onClick={() => pick(t)}>{t}</button>)}
           </div>
+          <Link role="menuitem" to="/privacy" onClick={() => setOpen(false)}>Privacy policy</Link>
+          <Link role="menuitem" to="/terms" onClick={() => setOpen(false)}>Terms of service</Link>
           <button role="menuitem" type="button" onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>
         </div>
       )}
@@ -78,16 +80,26 @@ export function SideNav({ me }: { me: Me | null }) {
       <div className="nav-items">
         {me && <NavLink className="nav-item" to="/" end><Icon name="feed" /><span>Subscriptions</span></NavLink>}
         <NavLink className="nav-item" to="/explore"><Icon name="explore" /><span>Explore</span></NavLink>
-        {me && <Link className={`nav-item${onProfile ? " active" : ""}`} to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={26} /><span>Profile</span></Link>}
         <NavLink className="nav-item" to="/puzzles"><Icon name="guide" /><span>Puzzle types</span></NavLink>
       </div>
-      {me ? <CreateMenu /> : (
-        <div className="nav-guest">
-          <Link className="btn primary" to="/signup">Start creating</Link>
-          <Link className="btn" to="/signin">Sign in</Link>
-        </div>
-      )}
-      {me && <div className="nav-foot"><AccountMenu me={me} /></div>}
+      {/* at the bottom: you (profile, create, more), or sign in */}
+      <div className="nav-foot">
+        {me ? (
+          <>
+            <Link className={`nav-item${onProfile ? " active" : ""}`} to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={26} /><span>Profile</span></Link>
+            <CreateMenu up />
+            <AccountMenu me={me} />
+          </>
+        ) : (
+          <>
+            <div className="nav-guest">
+              <Link className="btn primary" to="/signup">Start creating</Link>
+              <Link className="btn" to="/signin">Sign in</Link>
+            </div>
+            <p className="nav-legal"><Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link></p>
+          </>
+        )}
+      </div>
     </nav>
   );
 }

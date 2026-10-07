@@ -52,6 +52,7 @@ export default function SignUp({ loaderData: { google } }: Route.ComponentProps)
           <span className="hint">At least 8 characters.</span></label>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy}>{busy ? "Making your account…" : "Make my account"}</button>
+        <p className="legal-note">By making an account you agree to the <Link to="/terms">terms</Link> and <Link to="/privacy">privacy policy</Link>.</p>
       </form>
       <p className="muted">Already have an account? <Link to="/signin">Sign in</Link></p>
     </main>
