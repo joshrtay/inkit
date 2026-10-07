@@ -6,6 +6,7 @@ import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { HANDLE_HINT, isReserved, isValidHandle, newId, slugTaken } from "./names.server";
+import { resetEmail, sendEmail } from "./email.server";
 
 export function createAuth(env: Env) {
   const db = getDb(env);
@@ -33,8 +34,15 @@ export function createAuth(env: Env) {
       // Workers have a tight CPU budget; the platform's native PBKDF2 is fast where a
       // pure-JS hash is not.
       password: { hash: hashPassword, verify: ({ hash, password }) => verifyPassword(hash, password) },
+      // "Forgot your password?": a one-hour link by email; using it signs out everywhere else
+      sendResetPassword: async ({ user, url }) => { await sendEmail(env, { to: user.email, ...resetEmail(user.name, url) }); },
+      resetPasswordTokenExpiresIn: 60 * 60,
+      revokeSessionsOnPasswordReset: true,
     },
     socialProviders: google,
+    // Signing in with Google joins an existing account with the same (Google-verified) email,
+    // so a creator set up ahead of time (like Wyatt) gets their account, not a new one.
+    account: { accountLinking: { enabled: true, trustedProviders: ["google"] } },
     databaseHooks: {
       user: {
         create: {

@@ -20,6 +20,8 @@
 		}
 	],
 	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "wyattsgames-media" }],
+	/** Cloudflare Email Service: password reset emails from no-reply@inkit.games (simulated locally). */
+	"send_email": [{ "name": "EMAIL" }],
 	/** Cloudflare creates the DNS record for the domain on deploy. */
 	"routes": [{ "pattern": "inkit.games", "zone_name": "inkit.games", "custom_domain": true }],
 	"vars": {

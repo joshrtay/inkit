@@ -38,6 +38,7 @@ export default function SignIn({ loaderData: { google } }: Route.ComponentProps)
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
       </form>
+      <p className="muted"><Link to="/forgot-password">Forgot your password?</Link></p>
       <p className="muted">New here? <Link to="/signup">Start creating</Link></p>
     </main>
   );
