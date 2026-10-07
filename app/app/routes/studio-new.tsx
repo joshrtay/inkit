@@ -1,4 +1,4 @@
-// Start a shared studio: wyattsgames.com/studios/new.
+// Start a shared studio: inkit.games/studios/new.
 import { Form, redirect, useNavigation } from "react-router";
 import { useState } from "react";
 import type { Route } from "./+types/studio-new";
@@ -35,7 +35,7 @@ export default function NewStudio({ actionData }: Route.ComponentProps) {
         <label>Web address
           <input name="slug" required maxLength={30} autoCapitalize="none" spellCheck={false} value={slug}
             onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} />
-          <span className="hint">wyattsgames.com/{slug || "your-studio"}</span>
+          <span className="hint">inkit.games/{slug || "your-studio"}</span>
         </label>
         <label>Description<textarea name="description" rows={3} maxLength={1000} /></label>
         {actionData && "error" in actionData && <p className="error" role="alert">{actionData.error}</p>}

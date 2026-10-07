@@ -74,7 +74,7 @@ export const verifications = sqliteTable("verifications", {
 // ---- collections ----
 export const collections = sqliteTable("collections", {
   id: text("id").primaryKey(),
-  /** Web address: wyattsgames.com/<slug>. Shares one namespace with creator handles. */
+  /** Web address: inkit.games/<slug>. Shares one namespace with creator handles. */
   slug: text("slug").notNull().unique(),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
@@ -102,7 +102,7 @@ export const GAME_STATES = ["draft", "published", "hidden"] as const;
 export type GameState = (typeof GAME_STATES)[number];
 
 export const games = sqliteTable("games", {
-  /** Permanent: the game's web address is wyattsgames.com/g/<id> and never changes. */
+  /** Permanent: the game's web address is inkit.games/g/<id> and never changes. */
   id: text("id").primaryKey(),
   collectionId: text("collection_id").notNull().references(() => collections.id),
   authorId: text("author_id").notNull().references(() => creators.id),

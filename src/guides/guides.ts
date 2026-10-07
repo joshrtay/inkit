@@ -127,7 +127,7 @@ export const guides: Record<GenreName, Guide> = {
   maze: {
     name: "Number Line Maze", category: "Lines", ink: "#26398f",
     summary: "Draw the walls each number asks for, then find your way from the arrow in to the arrow out.",
-    origin: "A maze puzzle from Wyatt's Games.",
+    origin: "Invented by Wyatt, a young puzzle maker, who drew the first ones by hand.",
     rules: [
       { text: "A number counts the walls touching it. The outside edge counts too.", checks: ["corner-count"], pictures: [
         { ok: true, note: "3 walls", size: [2, 2], givens: [door(0, 0, "top", "in"), door(1, 1, "bottom", "out"), corner(1, 2, 3)], fence: [[[0, 1], [0, 2], [1, 2], [2, 2]], [[2, 1], [2, 0], [1, 0], [0, 0]], [[1, 1], [1, 2]]] },

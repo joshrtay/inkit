@@ -1,4 +1,4 @@
-// Make a new game: wyattsgames.com/new (optionally ?in=<collection slug>).
+// Make a new game: inkit.games/new (optionally ?in=<collection slug>).
 // Upload a photo of a hand-drawn sketch; Claude reads it into a draft, which the creator then
 // confirms (or fixes) and checks on its edit page.
 import { useState } from "react";

@@ -1,4 +1,4 @@
-// Handles and collection web addresses share one namespace (wyattsgames.com/<slug>), so a
+// Handles and collection web addresses share one namespace (inkit.games/<slug>), so a
 // creator's personal collection can always live at their handle.
 import { eq } from "drizzle-orm";
 import { schema, type Db } from "../db";

@@ -24,7 +24,7 @@ type Change = [Layer, number, number];          // layer, index, previous value
 
 const S = 48, M = 26;                           // cell size and plain margin, in board units
 const NS = "http://www.w3.org/2000/svg";
-const PREFS = "wyattsgames:mosaic-prefs";       // nonogram helpers (same key as before the engine)
+const PREFS = "inkit:nonogram-prefs";            // nonogram helpers
 
 /** Line colors for Numberlink pairs, by number. */
 const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];

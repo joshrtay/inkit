@@ -27,10 +27,10 @@ export function CreateMenu({ className = "" }: { className?: string; up?: boolea
 function AccountMenu({ me }: { me: Me }) {
   const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<string>("dark");
-  useEffect(() => { try { setTheme(localStorage.getItem("wyattsgames:theme") || "dark"); } catch { /* default */ } }, []);
+  useEffect(() => { try { setTheme(localStorage.getItem("inkit:theme") || "dark"); } catch { /* default */ } }, []);
   const pick = (t: string) => {
     setTheme(t);
-    try { localStorage.setItem("wyattsgames:theme", t); } catch { /* this visit only */ }
+    try { localStorage.setItem("inkit:theme", t); } catch { /* this visit only */ }
     if (t === "auto") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
   };
   return (

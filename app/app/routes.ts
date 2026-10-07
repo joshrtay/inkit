@@ -20,6 +20,6 @@ export default [
   route("g/:id/like", "routes/game-like.ts"),
   route("g/:id/sketch", "routes/game-sketch.ts"),
   route(":slug/settings", "routes/collection-settings.tsx"),
-  // Collections live at the top level (wyattsgames.com/<slug>), so this route comes last.
+  // Collections live at the top level (inkit.games/<slug>), so this route comes last.
   route(":slug", "routes/collection.tsx"),
 ] satisfies RouteConfig;

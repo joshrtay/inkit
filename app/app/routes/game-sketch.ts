@@ -1,4 +1,4 @@
-// The hand-drawn sketch a game was made from: wyattsgames.com/g/<id>/sketch (an image).
+// The hand-drawn sketch a game was made from: inkit.games/g/<id>/sketch (an image).
 // Visible to whoever can see the game.
 import { data } from "react-router";
 import { eq } from "drizzle-orm";

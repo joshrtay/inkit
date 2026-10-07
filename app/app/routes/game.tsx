@@ -1,4 +1,4 @@
-// A game's permanent page: wyattsgames.com/g/<id>.
+// A game's permanent page: inkit.games/g/<id>.
 import { data } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game";

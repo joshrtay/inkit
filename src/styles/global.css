@@ -89,7 +89,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid 
 }
 .topnav .brand:hover { color: var(--muted); }
 
-/* The path to this page, after the logo: Wyatt's Games / Number Line Maze / Side Doors No. 3 */
+/* The path to this page, after the logo */
 .crumbs { display: flex; align-items: center; gap: 10px; min-width: 0; white-space: nowrap; }
 .crumbs .sep { color: var(--line-strong); font-size: 18px; flex: none; }
 .crumbs .crumb { color: var(--muted); text-decoration: none; font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

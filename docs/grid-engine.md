@@ -129,8 +129,7 @@ make one answer look like several.
 
 At build time, `src/engine/solve.ts` turns a puzzle into an answer set program: a choice for
 every mark, the shared region and shape predicates the rules need, and each rule's
-encoding. clingo (`clingo-wasm`, WebAssembly, so it runs in the Astro build like our other
-solvers) is asked for up to two solutions. Each one is confirmed with the same TypeScript
+encoding. clingo (`clingo-wasm`, WebAssembly, so it runs in Node and in the browser alike) is asked for up to two solutions. Each one is confirmed with the same TypeScript
 `check` the browser uses, so an encoding that disagrees with its check fails the build. The
 build fails unless there is exactly one solution; the browser then knows the board is
 solved when every rule's check passes.

@@ -20,7 +20,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 export const useMe = () => useRouteLoaderData<typeof loader>("root")?.me ?? null;
 
 // The saved light/dark choice, applied before the page draws (dark is the default).
-const THEME = `(()=>{let t="dark";try{t=localStorage.getItem("wyattsgames:theme")||"dark"}catch{}if(t!=="auto")document.documentElement.dataset.theme=t==="light"?"light":"dark"})()`;
+const THEME = `(()=>{let t="dark";try{t=localStorage.getItem("inkit:theme")||"dark"}catch{}if(t!=="auto")document.documentElement.dataset.theme=t==="light"?"light":"dark"})()`;
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

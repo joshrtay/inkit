@@ -2,7 +2,6 @@
 # touches it or the shared game engine (src/). Applies new database migrations first.
 # Needs, in the repo's settings: the secret CLOUDFLARE_API_TOKEN (a token allowed to edit Workers
 # and D1) and the variable CLOUDFLARE_ACCOUNT_ID.
-# (wyattsgames.com, the Astro site, has its own workflow: deploy.yml.)
 name: Deploy inkit.games
 
 on:

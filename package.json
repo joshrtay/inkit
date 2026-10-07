@@ -3,19 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro check && astro build",
-    "preview": "astro preview",
-    "puzzles": "python3 puzzles/build.py",
-    "guides": "node puzzles/grid/guides.ts"
-  },
-  "dependencies": {
-    "@astrojs/check": "^0.9.10",
-    "astro": "^7.3.5",
-    "typescript": "^6.0.3"
+    "build": "tsc -p .",
+    "selftest": "node src/engine/selftest.ts",
+    "guides": "node puzzles/grid/guides.ts",
+    "new": "node puzzles/grid/new.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
-    "clingo-wasm": "^0.6.0"
+    "clingo-wasm": "^0.6.0",
+    "typescript": "^6.0.3"
   }
 }

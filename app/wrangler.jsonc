@@ -22,8 +22,13 @@
 	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "wyattsgames-media" }],
 	/** Cloudflare Email Service: password reset emails from no-reply@inkit.games (simulated locally). */
 	"send_email": [{ "name": "EMAIL" }],
-	/** Cloudflare creates the DNS record for the domain on deploy. */
-	"routes": [{ "pattern": "inkit.games", "zone_name": "inkit.games", "custom_domain": true }],
+	/** Cloudflare creates the DNS records for these domains on deploy. wyattsgames.com (Wyatt's old
+	 *  site) only redirects to his profile here (workers/app.ts). */
+	"routes": [
+		{ "pattern": "inkit.games", "zone_name": "inkit.games", "custom_domain": true },
+		{ "pattern": "wyattsgames.com", "zone_name": "wyattsgames.com", "custom_domain": true },
+		{ "pattern": "www.wyattsgames.com", "zone_name": "wyattsgames.com", "custom_domain": true }
+	],
 	"vars": {
 		/** Where the site is served; Better Auth builds links and checks request origins with it. */
 		"BETTER_AUTH_URL": "https://inkit.games"

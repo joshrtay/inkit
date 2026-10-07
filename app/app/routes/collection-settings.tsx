@@ -1,4 +1,4 @@
-// A collection's settings: wyattsgames.com/<slug>/settings.
+// A collection's settings: inkit.games/<slug>/settings.
 // Owners change its details and members; any member can leave; owners can delete a studio.
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/collection-settings";
@@ -53,7 +53,7 @@ export default function Settings({ loaderData: { collection, members, owners, me
     <main className="wrap narrow settings">
       <header>
         <h1>{collection.title}</h1>
-        <span className="muted"><Link to={`/${collection.slug}`}>wyattsgames.com/{collection.slug}</Link>
+        <span className="muted"><Link to={`/${collection.slug}`}>inkit.games/{collection.slug}</Link>
           {" · "}{collection.personal ? "your personal collection" : owner ? "you're an owner" : "you're a contributor"}</span>
       </header>
       {(note || error) && <p className={error ? "error" : "good"} role="status">{error ?? note}</p>}

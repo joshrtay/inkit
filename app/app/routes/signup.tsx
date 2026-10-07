@@ -45,7 +45,7 @@ export default function SignUp({ loaderData: { google } }: Route.ComponentProps)
         <label>Handle
           <input name="handle" required pattern="[a-z][a-z0-9\-]{2,29}" maxLength={30} autoCapitalize="none" spellCheck={false}
             value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase())} />
-          <span className="hint">Your web address: wyattsgames.com/{handle || "your-handle"}</span>
+          <span className="hint">Your web address: inkit.games/{handle || "your-handle"}</span>
         </label>
         <label>Email<input name="email" type="email" required autoComplete="email" /></label>
         <label>Password<input name="password" type="password" required minLength={8} autoComplete="new-password" />
