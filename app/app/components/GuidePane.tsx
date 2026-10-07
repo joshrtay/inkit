@@ -10,13 +10,20 @@ import "~site/game-types/grid/styles.css";
 
 const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-/** `drawer`: always a drawer behind its button (for pages that need the width). */
-export function GuidePane({ start, drawer = false }: { start?: string; drawer?: boolean }) {
+/** `drawer`: always a drawer behind its button (for pages that need the width).
+ *  `side`: opened and closed by the page (`open` / `onClose`): a column beside the page on wide
+ *  screens and a drawer on narrower ones (a game's How to play). `extra`: rules of this particular
+ *  puzzle beyond its type's, shown first. */
+export function GuidePane({ start, drawer = false, side = false, open: shown, onClose, extra = [] }: {
+  start?: string; drawer?: boolean; side?: boolean; open?: boolean; onClose?: () => void; extra?: string[];
+}) {
   const list = useFetcher<typeof listLoader>();
   const detail = useFetcher<typeof typeLoader>();
   const [q, setQ] = useState("");
   const [kind, setKind] = useState<string | null>(start ?? null);
-  const [open, setOpen] = useState(false);   // the drawer, on narrower screens
+  const [own, setOwn] = useState(false);   // the drawer, on narrower screens
+  const open = side ? !!shown : own;
+  const setOpen = (v: boolean) => (side ? !v && onClose?.() : setOwn(v));
 
   useEffect(() => { if (list.state === "idle" && !list.data) list.load("/puzzles"); }, [list]);
   useEffect(() => { if (kind) detail.load(`/puzzles/${kind}`); }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -29,8 +36,8 @@ export function GuidePane({ start, drawer = false }: { start?: string; drawer?: 
 
   return (
     <>
-      <button className={`btn pane-toggle${drawer ? " drawer" : ""}`} type="button" aria-expanded={open} onClick={() => setOpen(!open)}>Puzzle types</button>
-      <aside className={`guide-pane${open ? " open" : ""}${drawer ? " drawer" : ""}`} aria-label="Puzzle types">
+      {!side && <button className={`btn pane-toggle${drawer ? " drawer" : ""}`} type="button" aria-expanded={open} onClick={() => setOpen(!open)}>Puzzle types</button>}
+      <aside className={`guide-pane${open ? " open" : ""}${drawer ? " drawer" : ""}${side ? " side" : ""}`} aria-label="Puzzle types" hidden={side && !open}>
         <div className="pane-head">
           {kind ? <button className="link pane-back" type="button" onClick={() => setKind(null)}>← All puzzle types</button> : <h2>Puzzle types</h2>}
           <button className="pane-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>
@@ -59,7 +66,13 @@ export function GuidePane({ start, drawer = false }: { start?: string; drawer?: 
             {g.aka.length > 0 && <p className="aka">Also called {g.aka.join(", ")}</p>}
             <p className="origin">{g.origin}</p>
             <p className="lead">{g.summary}</p>
-            <GuideBody g={g} />
+            {extra.length > 0 && (
+              <section className="puzzle-extra">
+                <h3>This puzzle&rsquo;s rules</h3>
+                <ol>{extra.map((r) => <li key={r}>{r}</li>)}</ol>
+              </section>
+            )}
+            <GuideBody g={g} inPane />
           </div>
         ) : <p className="muted">Loading…</p>)}
       </aside>

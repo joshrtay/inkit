@@ -1,4 +1,5 @@
 // A game's permanent page: wyattsgames.com/g/<id>.
+import { useEffect, useState } from "react";
 import { data, Link } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game";
@@ -10,7 +11,7 @@ import { parseSketch } from "~/games/sketch";
 import { kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "~/components/GameBoard";
-import { guides } from "~site/guides/guides.ts";
+import { GuidePane } from "~/components/GuidePane";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -31,12 +32,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   return {
     game: { id: game.id, title: game.title, description: game.description, kind: game.kind, state: game.state, hiddenNote: game.hiddenNote,
       when: (game.publishedAt ?? game.createdAt).getTime() },
-    origin: (guides as Record<string, { origin: string }>)[game.kind]?.origin ?? null,
     collection: { slug: collection.slug, title: collection.title, personal: !!collection.personalOf },
     author: { handle: author.handle, name: author.name, deleted: !!author.deletedAt },
     play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
     summary: parsed.ok ? parsed.summary : kindName(game.kind),
-    rules: parsed.ok ? parsed.rules : [],
+    // a puzzle that lists its own rules (Panes; a 2-star Star Battle) shows them above its type's guide
+    extra: parsed.ok && parsed.spec.rules?.length ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
     editable: canEdit(game, viewer, role) || canHide(viewer, role),
   };
@@ -48,8 +49,15 @@ export const meta: Route.MetaFunction = ({ loaderData: data }) => data
 
 const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-export default function Game({ loaderData: { game, collection, author, play, summary, rules, errors, editable, origin } }: Route.ComponentProps) {
+const RULES_OPEN = "inkit:rules-open";
+
+export default function Game({ loaderData: { game, collection, author, play, summary, extra, errors, editable } }: Route.ComponentProps) {
+  // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
+  const [rulesOpen, setRulesOpen] = useState(false);
+  useEffect(() => { try { setRulesOpen(localStorage.getItem(RULES_OPEN) === "1"); } catch { /* closed */ } }, []);
+  const toggleRules = (v: boolean) => { setRulesOpen(v); try { localStorage.setItem(RULES_OPEN, v ? "1" : "0"); } catch { /* this page only */ } };
   return (
+    <div className={`game-layout${rulesOpen ? " rules-open" : ""}`}>
     <main className="wrap game-page">
       <header className="game-head">
         <h1>{game.title}</h1>
@@ -59,6 +67,7 @@ export default function Game({ loaderData: { game, collection, author, play, sum
           {!collection.personal && <> in <Link to={`/${collection.slug}`}>{collection.title}</Link></>}
           {" · "}<time dateTime={new Date(game.when).toISOString()}>{date(game.when)}</time>
         </span>
+        <button className="btn rules-toggle" type="button" aria-pressed={rulesOpen} onClick={() => toggleRules(!rulesOpen)}>How to play</button>
         {editable && <Link className="btn" to={`/g/${game.id}/edit`}>Edit</Link>}
         {game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}
         {game.state === "hidden" && <span className="state hidden">Taken down{game.hiddenNote ? `: ${game.hiddenNote}` : "."}</span>}
@@ -68,14 +77,8 @@ export default function Game({ loaderData: { game, collection, author, play, sum
         : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
 
       {game.description && <p className="game-desc">{game.description}</p>}
-      {rules.length > 0 && (
-        <section className="rules current">
-          <h2>How to play</h2>
-          {origin && <p className="origin">This is {/^[AEIOU]/.test(kindName(game.kind)) ? "an" : "a"} {kindName(game.kind)}. {origin}</p>}
-          <ol>{rules.map((r) => <li key={r}>{r}</li>)}</ol>
-          <p><Link to={`/puzzles/${game.kind}`}>{kindName(game.kind)} rules, with pictures and an example →</Link></p>
-        </section>
-      )}
     </main>
+    <GuidePane key={game.kind} start={game.kind} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra} />
+    </div>
   );
 }

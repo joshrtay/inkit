@@ -4,7 +4,8 @@ import type { guidePage } from "~/lib/guides.server";
 
 export type GuideData = ReturnType<typeof guidePage>;
 
-export function GuideBody({ g }: { g: GuideData }) {
+/** `inPane`: in the side pane, without the page-only "Playing here" line. */
+export function GuideBody({ g, inPane = false }: { g: GuideData; inPane?: boolean }) {
   return (
     <>
         <section className="guide-rules" aria-labelledby="rules">
@@ -43,7 +44,7 @@ export function GuideBody({ g }: { g: GuideData }) {
               <figcaption>Solved</figcaption>
             </figure>
           </div>
-          <p className="controls"><strong>Playing here:</strong> {g.controls}</p>
+          {!inPane && <p className="controls"><strong>Playing here:</strong> {g.controls}</p>}
         </section>
     </>
   );
