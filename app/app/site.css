@@ -535,10 +535,14 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .guide-pane.side.open { transform: none; visibility: visible; box-shadow: -14px 0 36px var(--shadow); transition: transform .28s cubic-bezier(.2, .8, .2, 1), visibility 0s, box-shadow .28s; }
 @media (prefers-reduced-motion: reduce) { .guide-pane.side, .guide-pane.side.open { transition: none; } }
 
-/* a game's back button */
-.game-head .back-btn {
-  display: inline-grid; place-items: center; width: 36px; height: 36px; margin-right: 2px; border-radius: 50%; flex: none; align-self: center;
-  color: var(--ink); background: transparent; border: 1px solid var(--line-strong); cursor: pointer; text-decoration: none;
+/* a game's back button: at the left edge of the puzzle's area (above the title on phones) */
+.game-layout { position: relative; container-type: inline-size; }
+.back-btn {
+  position: absolute; left: 20px; top: 20px; z-index: 5; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); cursor: pointer; text-decoration: none;
 }
-.game-head .back-btn:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.game-head .back-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.back-btn:hover { background: color-mix(in srgb, var(--ink) 10%, var(--panel)); }
+.back-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* when the page is too narrow for a margin beside the title, make room for the button */
+@container (max-width: 1200px) { .game-page .game-head { padding-left: 52px; } }
+@media (max-width: 640px) { .back-btn { position: static; margin: 14px 0 0 16px; width: 36px; height: 36px; } .game-page .game-head { padding-left: 0; } }

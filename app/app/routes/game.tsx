@@ -62,12 +62,12 @@ export default function Game({ loaderData: { game, collection, author, play, sum
   const toggleRules = (v: boolean) => { setRulesOpen(v); try { localStorage.setItem(RULES_OPEN, v ? "1" : "0"); } catch { /* this page only */ } };
   return (
     <div className={`game-layout${rulesOpen ? " rules-open" : ""}`}>
+      <Link className="back-btn" to={home} aria-label="Back" title="Back"
+        onClick={(e) => { if (cameFromSite) { e.preventDefault(); navigate(-1); } }}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
+      </Link>
     <main className="wrap game-page">
       <header className="game-head">
-        <Link className="back-btn" to={home} aria-label="Back" title="Back"
-          onClick={(e) => { if (cameFromSite) { e.preventDefault(); navigate(-1); } }}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
-        </Link>
         <h1>{game.title}</h1>
         <span className="muted">
           {summary} · by{" "}
