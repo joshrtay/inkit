@@ -159,7 +159,9 @@ const onEdge = ([r, c]: RC, side: Side, rows: number, cols: number) =>
   side === "top" ? r === 0 : side === "bottom" ? r === rows - 1 : side === "left" ? c === 0 : c === cols - 1;
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 
-export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (spec: GridSpec) => void }) {
+/** `advanced`: also the Rules and Look sections (otherwise Rules only for Panes, or a puzzle that
+ *  already has rules of its own; a creator fixing a reading shouldn't need either). */
+export function PuzzleEditor({ spec, onChange, advanced = false }: { spec: GridSpec; onChange: (spec: GridSpec) => void; advanced?: boolean }) {
   const genre = (spec.genre ?? "simple-loop") as GenreName;
   const [rows, cols] = spec.size;
   const givens = spec.givens ?? [];
@@ -551,7 +553,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
       )}
       </>}
 
-      <details className="ge-section" open={genre === "panes" || extra.length > 0}>
+      {(advanced || genre === "panes" || extra.length > 0) && <details className="ge-section" open={genre === "panes" || extra.length > 0}>
         <summary>Rules</summary>
         {presets.length > 0 && <p className="hint">{KIND_NAMES[genre]} always has: {presets.map((r) => RULES[r.rule as RuleName]?.label ?? r.rule).join("; ")}.</p>}
         <div className="ge-rules">
@@ -594,9 +596,9 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
             {(Object.keys(RULES) as RuleName[]).map((r) => <option key={r} value={r}>{RULES[r].label}</option>)}
           </select>
         </div>
-      </details>
+      </details>}
 
-      <details className="ge-section">
+      {advanced && <details className="ge-section">
         <summary>Look</summary>
         <div className="ge-look">
           {(Object.keys(STYLE) as (keyof GridStyle)[]).map((k) => {
@@ -646,7 +648,7 @@ export function PuzzleEditor({ spec, onChange }: { spec: GridSpec; onChange: (sp
             })}
           </fieldset>
         </div>
-      </details>
+      </details>}
     </div>
   );
 }

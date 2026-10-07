@@ -133,3 +133,5 @@
 @keyframes grid-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5%); } 75% { transform: translateX(1.5%); } }
 
 @media (prefers-reduced-motion: reduce) { .grid-game.revealed .reveal .pix { transition: none; } .grid-game.revealed .sign { animation: none; } }
+/* the on-puzzle editor: cells the clues can't pin down */
+.grid-game .undecided { fill: #e0a100; fill-opacity: .28; stroke: #e0a100; stroke-width: 1.5; stroke-dasharray: 3 2; pointer-events: none; }

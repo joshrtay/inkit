@@ -1,15 +1,19 @@
 // The one editor for a game, on its edit page.
 //
-// A draft made from a drawing starts by confirming Claude's reading against the photo: confirm it,
-// fix the clues in the visual editor, or tell Claude what's wrong (it reads the drawing again).
-// Then, and for every other game: title and description, fixing clues, the one-solution check,
+// A draft made from a drawing starts by checking Claude's reading against the photo: confirm it,
+// edit it on the puzzle itself, or tell Claude what's wrong (it reads the drawing again).
+// Then, and for every other game: title and description, editing, the one-solution check,
 // and save / publish. The puzzle is only ever shown as the puzzle, never as text.
+//
+// Types with their own on-puzzle tools (BoardEditor) are edited and checked on the board; the
+// rest use the generic editor (PuzzleEditor) until they get theirs.
 import { useEffect, useMemo, useState } from "react";
 import { Form, useNavigation } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "./GameBoard";
 import { PuzzleEditor } from "./PuzzleEditor";
+import { BoardEditor, hasBoardEditor } from "./BoardEditor";
 import { useOneSolutionCheck } from "./useOneSolutionCheck";
 import { KindChooser } from "./KindChooser";
 
@@ -43,7 +47,10 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
   // a published game keeps being published only if a changed puzzle passes the check
   const needsCheck = state === "draft" ? false : edited;
 
-  const puzzle = mode === "edit" && loose
+  const onBoard = hasBoardEditor(loose?.genre);
+  const puzzle = onBoard && loose && (mode === "edit" || !confirmed)
+    ? <BoardEditor spec={loose} editing={mode === "edit"} onChange={(s) => setSketch(specToSketch(s))} />
+    : mode === "edit" && loose
     ? <PuzzleEditor spec={loose} onChange={(s) => setSketch(specToSketch(s))} />
     : play ? <GameBoard play={play} />
       : <div className="problems"><p>This puzzle can&rsquo;t be played yet:</p><ul>{problems.map((p) => <li key={p}>{p}</li>)}</ul></div>;
@@ -53,7 +60,7 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
       {reviewing && (
         <ol className="steps">
           <li className="done">Upload</li>
-          <li className={confirmed ? "done" : "now"}>Confirm the reading</li>
+          <li className={confirmed ? "done" : "now"}>Check the reading</li>
           <li className={confirmed ? (check.checked ? "done" : "now") : ""}>One solution</li>
           <li className={check.checked ? "now" : ""}>Publish</li>
         </ol>
@@ -67,18 +74,18 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
           </figure>
         )}
         <figure>
-          <figcaption>{mode === "edit" ? "Fix the clues" : !reviewing ? "The puzzle" : edited ? "Your corrected version" : "How Claude read it"}</figcaption>
+          <figcaption>{mode === "edit" ? "Editing" : !reviewing ? "The puzzle" : !confirmed ? (edited ? "Check the reading (your corrected version)" : "Check the reading") : "The puzzle"}</figcaption>
           {puzzle}
           {mode === "edit" ? (
             <>
               {problems.length > 0 && <p className="error">{problems[0]}</p>}
               <p className="editor-actions">
-                <button className="btn primary" type="button" onClick={() => setMode("view")}>Done fixing</button>
+                <button className="btn primary" type="button" onClick={() => setMode("view")}>Done</button>
                 <button className="link" type="button" onClick={() => { setSketch(saved); setMode("view"); }}>Undo my changes</button>
               </p>
             </>
           ) : confirmed && (
-            <p className="editor-actions"><button className="btn" type="button" disabled={!loose} onClick={() => setMode("edit")}>Fix the clues</button></p>
+            <p className="editor-actions"><button className="btn" type="button" disabled={!loose} onClick={() => setMode("edit")}>Edit</button></p>
           )}
         </figure>
       </section>
@@ -99,7 +106,7 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
           <p className="muted">Check the grid size and every clue: rocks, numbers, walls, symbols.</p>
           <div className="editor-actions">
             <button className="btn primary" type="button" disabled={!play || busy} onClick={() => setConfirmed(true)}>Yes, it matches</button>
-            <button className="btn" type="button" disabled={busy || !loose} onClick={() => setMode("edit")}>Fix it myself</button>
+            <button className="btn" type="button" disabled={busy || !loose} onClick={() => setMode("edit")}>Edit it</button>
             <button className="btn" type="button" disabled={busy} onClick={() => setMode("tell")}>Tell Claude what&rsquo;s wrong</button>
           </div>
           {edited && (
@@ -138,7 +145,7 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
             {check.result && <span className={check.result.ok ? "good" : "error"}>{check.result.text}</span>}
           </div>
           {check.result && !check.result.ok && (
-            <p className="muted">Use <button className="link" type="button" onClick={() => setMode("edit")}>Fix the clues</button> to add or change clues until only one solution fits.</p>
+            <p className="muted">Use <button className="link" type="button" onClick={() => setMode("edit")}>Edit</button> to add or change clues until only one solution fits.</p>
           )}
           <div className="editor-actions">
             {state === "draft" ? (

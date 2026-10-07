@@ -198,15 +198,25 @@ what it gives away. `runs` does; others can add one.
 ## The visual editor
 
 On the social site (`app/`), creators never see or type a sketch: Claude reads their drawing
-(`app/app/lib/read-sketch.server.ts`) and they change it only in the visual puzzle editor
-(`app/app/components/PuzzleEditor.tsx`). So the editor must be able to express everything this
-engine can, and the reader must know how to read it.
+(`app/app/lib/read-sketch.server.ts`), they check the reading beside the photo, and they correct it
+on the puzzle itself. So the editors must be able to express everything each game type needs, and
+the reader must know how to read it.
+
+There are two editors:
+- **On-puzzle editors** (`app/app/components/BoardEditor.tsx`): the puzzle drawn as the player sees
+  it, edited in place with only the tools its type needs, with a live one-solution check. So far:
+  Nonogram (paint the picture, or tap a row's or column's numbers to retype them; rows / columns;
+  colors only once there's more than one; cells a line-at-a-time solver can't decide are marked).
+  A type gets one by adding it to `EDITORS` there.
+- **The generic editor** (`app/app/components/PuzzleEditor.tsx`): every other type, until it gets
+  its own. Its Rules section shows only for Panes (or a puzzle that already has rules of its own)
+  and its Look section not at all, unless it's given `advanced`.
 
 **Rule: whenever the engine gains something, add it to the editor and the reader in the same
 change.** That means a genre, a clue kind, a rule block or a new setting on one, a style option, a
 mark, or a field of `GridSpec`.
 
-The editor covers:
+The generic editor covers:
 - the game type and grid size
 - every clue kind: in cells, on borders, on corners, doors in the outside edge, and nonogram row /
   column numbers

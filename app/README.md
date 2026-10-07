@@ -58,3 +58,12 @@ npm run dev                         # http://localhost:5173
 After changing `app/db/schema.ts`, run `npm run db:generate` and `npm run db:migrate`.
 `npm run typecheck` checks everything. Nothing is deployed yet: that needs the D1 database
 and R2 bucket created in Cloudflare, and the real `database_id` in `wrangler.jsonc`.
+
+## Later
+
+- **An inkit MCP connector**, so creators can bring their own AI (Claude, ChatGPT...) to edit a
+  draft: actions to read a puzzle, change it, and check it has one solution (the solver is the
+  big win), scoped to one draft, never able to publish. An "Open in Claude" button on the edit
+  page opens their AI with the draft's address in the prompt; the page updates as it edits.
+  Then **WebMCP** (the same actions offered by the page itself to in-browser agents) once
+  browsers support it. Build after the on-puzzle editor, whose actions these mirror.

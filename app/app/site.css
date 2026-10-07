@@ -558,3 +558,24 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .doc p { margin: 0; }
 .doc ul { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
 .legal-note { font-size: 13px; color: var(--muted); }
+
+/* the on-puzzle editor (BoardEditor.tsx) */
+.board-editor { display: grid; gap: .6rem; }
+.be-tools { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; font-size: .9rem; }
+.be-group { display: inline-flex; align-items: center; gap: .35rem; }
+.be-size b { min-width: 1.5em; text-align: center; }
+.be-size b + .be-btn + * { margin-left: .5rem; }
+.be-btn { font: inherit; padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--line, #8884); background: var(--panel); color: inherit; cursor: pointer; }
+.be-btn:disabled { opacity: .45; cursor: default; }
+.be-pot { position: relative; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--line, #8886); background: var(--c); cursor: pointer; padding: 0; }
+.be-pot[aria-pressed="true"] { outline: 3px solid #e0a100; outline-offset: 2px; }
+.be-pot input[type="color"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.be-board { position: relative; touch-action: none; user-select: none; }
+.board-editor.editing .be-board { cursor: crosshair; }
+.be-board .grid-game.pic svg { width: 100%; height: auto; max-height: 70vh; display: block; }
+.be-clue { position: absolute; transform: translate(-50%, -110%); background: var(--panel); border: 1px solid var(--line, #8886); border-radius: 8px; padding: .4rem .5rem; box-shadow: 0 6px 20px #0004; z-index: 2; }
+.be-clue label { display: grid; gap: .2rem; font-size: .8rem; }
+.be-clue input { width: 8rem; font: inherit; font-size: 1rem; }
+.be-status { margin: 0; font-size: .9rem; }
+.be-status.good { color: var(--good); }
+.be-status.bad { color: var(--red); }

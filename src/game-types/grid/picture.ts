@@ -16,11 +16,10 @@ const tag = (name: string, a: A, body = "") => `<${name}${Object.entries(a).map(
 const text = (a: A, s: string) => tag("text", a, s.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`));
 const n1 = (v: number) => Math.round(v * 10) / 10;
 
-/** The puzzle as an SVG string. `b` adds the player's marks (a solution, or a mistake). */
-export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle"): string {
-  if (p.marks.includes("paint")) return figureSvg(p, b, label);
-  const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
-  const links = p.rules.some((s) => s.rule === "links"), maze = p.rules.some((s) => s.rule === "perfect-maze");
+/** Where a square-grid picture puts things, in its own units: the cell size and the margins
+ *  around the grid (clues outside it sit in the margins). The editor uses it to tell what was tapped. */
+export function pictureLayout(p: Puzzle) {
+  const g = p.grid;
   const maxRow = Math.max(0, ...[...p.rowRuns.values()].map((c) => c.length)), maxCol = Math.max(0, ...[...p.colRuns.values()].map((c) => c.length));
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const doorSide = (role: string) => {
@@ -33,6 +32,22 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle"): strin
     (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0, p.edgeClues.some((c) => c.side === side) ? 38 : 0);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top");
   const MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
+  return { S, ML, MT, MR, MB, W: ML + g.cols * S + MR, H: MT + g.rows * S + MB };
+}
+
+export interface PictureOptions {
+  /** a nonogram's hidden picture, in its colors (an editor shows what's being drawn) */
+  picture?: boolean;
+  /** cells to mark as not yet decided (the editor's "the numbers can't pin these down") */
+  undecided?: number[];
+}
+
+/** The puzzle as an SVG string. `b` adds the player's marks (a solution, or a mistake). */
+export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: PictureOptions = {}): string {
+  if (p.marks.includes("paint")) return figureSvg(p, b, label);
+  const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
+  const links = p.rules.some((s) => s.rule === "links"), maze = p.rules.some((s) => s.rule === "perfect-maze");
+  const { ML, MT, MR, MB } = pictureLayout(p);
   const X = (c: number) => ML + c * S, Y = (r: number) => MT + r * S;
   const center = (i: number): [number, number] => { const [r, c] = g.rc(i); return [X(c) + S / 2, Y(r) + S / 2]; };
   const cornerXY = (v: number): [number, number] => { const [r, c] = g.cornerRC(v); return [X(c), Y(r)]; };
@@ -113,6 +128,15 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle"): strin
   const done = (cs: number[], k: number) => (b && cs.filter((i) => b.shade[i] === 1).length === k ? " done" : "");
   for (const [r, k] of p.rowTotals) out.runs += text({ class: `clue run total${done(Array.from({ length: g.cols }, (_, c) => g.cell(r, c)), k)}`, x: ML - 20, y: Y(r) + S / 2 + 1 }, String(k));
   for (const [c, k] of p.colTotals) out.runs += text({ class: `clue run total${done(Array.from({ length: g.rows }, (_, r) => g.cell(r, c)), k)}`, x: X(c) + S / 2, y: MT - 18 }, String(k));
+
+  // an editor's view: a nonogram's picture in its colors, and cells the clues can't pin down
+  if (opts.picture && p.spec.picture) {
+    const { rows, palette } = p.spec.picture;
+    rows.forEach((row, r) => [...row].forEach((ch, c) => {
+      if (ch !== "." && r < g.rows && c < g.cols) out.wash += rect(g.cell(r, c), "pix", -0.5, { fill: palette[ch] ?? "#26398f" });
+    }));
+  }
+  for (const i of opts.undecided ?? []) out.corners += rect(i, "undecided", 3);
 
   // the player's marks
   if (b) {
