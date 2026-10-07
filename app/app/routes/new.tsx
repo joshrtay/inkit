@@ -9,6 +9,7 @@ import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
+import { GuidePane } from "~/components/GuidePane";
 
 export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
 
@@ -51,8 +52,9 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
   const error = actionData && "error" in actionData ? actionData.error : undefined;
 
   return (
+    <div className="with-pane">
     <main className="wrap narrow">
-      <h1>New game</h1>
+      <h1>New puzzle</h1>
       <p className="muted">Take a photo of your hand-drawn puzzle. Claude reads it, then you check it matches your drawing and that it has exactly one solution.</p>
       <Form method="post" encType="multipart/form-data" className="form"
         onSubmit={(e) => {
@@ -81,12 +83,14 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
               setPreview(URL.createObjectURL(small));
             }} />
         </label>
-        <p className="hint">Tip: write the game type at the top of the sketch (river, slitherlink, nurikabe, nonogram, sudoku, or panes with its rules).</p>
+        <p className="hint">Claude works out what kind of puzzle it is. If it could be more than one kind, you&rsquo;ll get to choose. Writing the type at the top of the sketch helps.</p>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy || !photo}>
           {busy ? "Reading your sketch… (up to a minute)" : "Read my sketch"}
         </button>
       </Form>
     </main>
+    <GuidePane />
+    </div>
   );
 }

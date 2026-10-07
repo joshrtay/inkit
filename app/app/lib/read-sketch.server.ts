@@ -153,6 +153,8 @@ const Reading = z.object({
   readable: z.boolean().describe("false only if the image isn't a puzzle drawing at all; a messy or blurry puzzle is still readable"),
   problem: z.string().nullable().describe("when not readable: what's wrong, in one sentence for the creator"),
   genre: z.enum(GENRE_NAMES as [GenreName, ...GenreName[]]),
+  candidates: z.array(z.enum(GENRE_NAMES as [GenreName, ...GenreName[]])).describe(
+    "every game type this same reading could be, most likely first (genre first): 1 if the type is written or certain, else up to 4"),
   title: z.string().nullable().describe("a title written on the sketch, if any"),
   rows: int, cols: int,
   rules: z.array(z.object({
@@ -202,7 +204,12 @@ Coordinates: rows count from 0 at the top, columns from 0 at the left. "rows" an
 number of cells. Count grid cells, not lines.
 
 The game type may be written at the top of the sketch (e.g. "simple loop", "Round the Bend",
-"slitherlink", "panes: size 4, twins"). Otherwise work it out from what's drawn:
+"slitherlink", "panes: size 4, twins"). Often it isn't: then work it out from what's drawn. Some
+drawings fit several types with exactly the same clues (numbers in cells could be slitherlink,
+nurikabe, shikaku, square-jam, cave, minesweeper or akari...): pick the most likely as "genre", and
+list in "candidates" every type the same reading could be, most likely first (the creator chooses,
+and the site checks which of them have exactly one solution). Only list types that use this exact
+reading; if the type is written on the sketch, list just that one. The types:
 
 ${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
 

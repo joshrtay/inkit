@@ -422,3 +422,65 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 /* a game page: the board fits under the title row (and above the tab bar on phones) */
 .game-page { --nav-h: calc(84px + var(--tabbar, 0px)); padding-top: 18px; }
 @media (max-width: 640px) { :root { --tabbar: 64px; } }
+
+/* ---- the puzzle-types pane beside the new-game page ---- */
+.with-pane { display: grid; grid-template-columns: minmax(0, 1fr) 400px; align-items: start; }
+.guide-pane {
+  position: sticky; top: 0; height: 100dvh; overflow-y: auto; padding: 22px 20px 40px; display: grid; align-content: start; gap: 14px;
+  border-left: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent); background: var(--page), var(--bg);
+}
+.pane-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.pane-head h2 { margin: 0; font-size: 20px; }
+.pane-close, .pane-toggle { display: none; }
+.pane-back { font-weight: 700; }
+.pane-search { font: 400 15px/1.2 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 999px; padding: 10px 14px; }
+.pane-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.pane-list button {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; align-items: center; width: 100%; padding: 8px; text-align: left;
+  background: none; border: 1px solid transparent; border-radius: 10px; color: var(--ink); cursor: pointer; font: inherit;
+}
+.pane-list button:hover { background: var(--panel); border-color: var(--line); }
+.pane-list .pic { width: 64px; height: 52px; display: grid; place-items: center; padding: 4px; }
+.pane-list .pic svg { width: auto; height: 100%; max-width: 100%; }
+.pane-list strong { display: block; font: 800 15px/1.2 var(--display); }
+.pane-list .muted { display: block; font-size: 13px; line-height: 1.35; }
+.pane-guide { display: grid; gap: 14px; }
+.pane-guide h2 { margin: 0; }
+.pane-guide .lead { font-size: 15px; }
+.pane-guide .aka { margin: 0; color: var(--muted); font-size: 13px; }
+.pane-guide .guide-rules .rule { grid-template-columns: 1fr; padding: 14px; gap: 12px; }
+.pane-guide .rule-text { font-size: 15px; }
+.pane-guide .rule-pics { justify-content: flex-start; }
+.pane-guide .mini { width: calc(50% - 6px); }
+.pane-guide .mini.wide { width: 100%; }
+.pane-guide .example-pair { grid-template-columns: 1fr 1fr; gap: 10px; }
+.pane-guide .guide-example h2, .pane-guide .guide-rules h2 { font-size: 17px; }
+@media (max-width: 1250px) {
+  .with-pane { grid-template-columns: minmax(0, 1fr); }
+  .pane-toggle { display: inline-flex; position: fixed; right: 16px; top: 16px; z-index: 25; }
+  .guide-pane { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); z-index: 40; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px var(--shadow); }
+  .guide-pane.open { transform: none; }
+  .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
+}
+/* as a drawer on pages that need their width (the edit page) */
+.pane-toggle.drawer { display: inline-flex; position: fixed; right: 16px; top: 16px; z-index: 25; }
+.guide-pane.drawer { position: fixed; inset: 0 0 0 auto; width: min(420px, 100vw); z-index: 40; transform: translateX(100%); transition: transform .2s; box-shadow: -10px 0 30px var(--shadow); }
+.guide-pane.drawer.open { transform: none; }
+.guide-pane.drawer .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
+@media (max-width: 640px) { .pane-toggle { top: auto; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+
+/* ---- "What kind of puzzle is it?" ---- */
+.kind-chooser { display: grid; gap: 10px; padding: 18px 20px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
+.kind-chooser h2 { margin: 0; font-size: 18px; }
+.kind-chooser p { margin: 0; }
+.kind-options { display: flex; flex-wrap: wrap; gap: 10px; }
+.kind-option {
+  display: grid; gap: 3px; padding: 10px 14px; min-width: 150px; text-align: left; cursor: pointer; font: inherit; color: var(--ink);
+  background: transparent; border: 1.5px solid var(--line-strong); border-radius: 12px;
+}
+.kind-option[aria-checked="true"] { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.kind-option strong { font: 800 15px/1.2 var(--display); }
+.kind-status { font-size: 13px; color: var(--muted); }
+.kind-option.one .kind-status { color: var(--good); font-weight: 700; }
+.kind-option.none .kind-status, .kind-option.unfit .kind-status { color: var(--red); }
+.kind-tip { font-weight: 600; }

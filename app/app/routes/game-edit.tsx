@@ -10,6 +10,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { canEdit, canHide, roleIn } from "~/lib/permissions.server";
 import { changeGame, isFeatured, rereadDrawing } from "~/lib/games.server";
 import { GameEditor } from "~/components/GameEditor";
+import { GuidePane } from "~/components/GuidePane";
 import { attempt, signInFirst } from "~/lib/http.server";
 
 async function load(request: Request, env: Env, id: string) {
@@ -27,11 +28,12 @@ async function load(request: Request, env: Env, id: string) {
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
   return {
-    game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },
+    game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote, kind: game.kind },
     may, featured: await isFeatured(db, game.id),
     // a draft made from a drawing is confirmed against it first
     drawing: !!game.sketchImage,
     notes: game.parseNotes ?? [],
+    choices: game.kindChoices ?? [],
   };
 }
 
@@ -50,10 +52,12 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · inkit` }];
 
-export default function EditGame({ loaderData: { game, may, featured, drawing, notes }, actionData }: Route.ComponentProps) {
+export default function EditGame({ loaderData: { game, may, featured, drawing, notes, choices }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;
   const published = game.state === "published";
   return (
+    <>
+    <GuidePane start={game.kind} drawer />
     <main className="wrap">
       <header className="edit-head">
         <h1>Edit {game.title}</h1>
@@ -64,7 +68,7 @@ export default function EditGame({ loaderData: { game, may, featured, drawing, n
 
       {may.edit ? (
         <GameEditor key={game.sketch} gameId={game.id} title={game.title} description={game.description} sketch={game.sketch}
-          state={game.state} drawing={drawing} notes={notes} error={error} />
+          state={game.state} drawing={drawing} notes={notes} choices={choices} error={error} />
       ) : (
         error && <p className="error" role="alert">{error}</p>
       )}
@@ -90,5 +94,6 @@ export default function EditGame({ loaderData: { game, may, featured, drawing, n
         )}
       </section>
     </main>
+    </>
   );
 }

@@ -9,7 +9,10 @@ import { schema, type Db } from "../db";
 import { parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
 import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
-import { IMAGE_TYPES, readSketch, sketchProblems, toBase64 } from "./read-sketch.server";
+import { IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Reading } from "./read-sketch.server";
+
+/** The game types a reading could be, its own first (at most 4). */
+const choicesOf = (r: Reading) => [...new Set([r.genre, ...(r.candidates ?? [])])].slice(0, 4);
 
 type Creator = typeof schema.creators.$inferSelect;
 type Game = typeof schema.games.$inferSelect;
@@ -136,7 +139,7 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   await db.insert(schema.games).values({
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
     title: String(form.get("title") ?? "").trim().slice(0, 120) || reading.title || "Untitled",
-    sketchImage: key, parseNotes: [...reading.notes, ...sketchProblems(sketch)],
+    sketchImage: key, parseNotes: [...reading.notes, ...sketchProblems(sketch)], kindChoices: choicesOf(reading),
   });
   return id;
 }
@@ -154,7 +157,7 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
     { previous: { sketch: game.sketch, feedback } });
   await db.update(schema.games).set({
     sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
-    parseNotes: [...reading.notes, ...sketchProblems(sketch)], updatedAt: new Date(),
+    parseNotes: [...reading.notes, ...sketchProblems(sketch)], kindChoices: choicesOf(reading), updatedAt: new Date(),
   }).where(eq(schema.games.id, game.id));
 }
 

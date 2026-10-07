@@ -11,14 +11,17 @@ import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "./GameBoard";
 import { PuzzleEditor } from "./PuzzleEditor";
 import { useOneSolutionCheck } from "./useOneSolutionCheck";
+import { KindChooser } from "./KindChooser";
 
-export function GameEditor({ gameId, title, description, sketch: saved, state, drawing, notes, error }: {
+export function GameEditor({ gameId, title, description, sketch: saved, state, drawing, notes, choices = [], error }: {
   gameId: string; title: string; description: string; sketch: string;
   state: "draft" | "published" | "hidden";
   /** the game was made from an uploaded drawing (shown beside the puzzle) */
   drawing: boolean;
   /** what Claude wasn't sure of when it read the drawing */
   notes: string[];
+  /** the game types Claude thought the drawing could be, best first */
+  choices?: string[];
   error?: string;
 }) {
   const nav = useNavigation();
@@ -79,6 +82,8 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
           )}
         </figure>
       </section>
+
+      {reviewing && mode !== "edit" && <KindChooser sketch={sketch} choices={choices} onPick={setSketch} />}
 
       {reviewing && notes.length > 0 && (
         <section className="notes">

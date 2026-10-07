@@ -6,6 +6,7 @@ import type { Route } from "./+types/puzzle-type";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { exampleGameId, guidePage, isKind } from "~/lib/guides.server";
+import { GuideBody } from "~/components/GuideView";
 import "~site/game-types/grid/styles.css";
 
 export async function loader({ params, context }: Route.LoaderArgs) {
@@ -37,42 +38,8 @@ export default function PuzzleType({ loaderData: g }: Route.ComponentProps) {
         <p className="lead">{g.summary}</p>
       </header>
 
-      <section className="guide-rules" aria-labelledby="rules">
-        <h2 id="rules">Rules</h2>
-        <ol>
-          {g.rules.map((r, i) => (
-            <li key={i} className={r.pictures.length ? "rule" : "rule plain"}>
-              <p className="rule-text">{r.text}</p>
-              {r.pictures.length > 0 && (
-                <div className="rule-pics">
-                  {r.pictures.map((p, k) => (
-                    <figure key={k} className={`mini ${p.ok ? "ok" : "no"}${p.wide ? " wide" : ""}`}>
-                      <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: p.svg }} />
-                      <figcaption><span className="mark" aria-label={p.ok ? "Right" : "Wrong"}>{p.ok ? "✓" : "✗"}</span> {p.note}</figcaption>
-                    </figure>
-                  ))}
-                </div>
-              )}
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="guide-example" aria-labelledby="example">
-        <h2 id="example">Example: {g.example.name}</h2>
-        <div className="example-pair">
-          <figure>
-            <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: g.example.puzzle }} />
-            <figcaption>The puzzle</figcaption>
-          </figure>
-          <figure>
-            <div className="grid-game pic solved" dangerouslySetInnerHTML={{ __html: g.example.solution }} />
-            <figcaption>Solved</figcaption>
-          </figure>
-        </div>
-        <p className="controls"><strong>Playing here:</strong> {g.controls}</p>
-        {g.playId && <p><Link className="btn primary" to={`/g/${g.playId}`}>Play {g.example.name}</Link></p>}
-      </section>
+      <GuideBody g={g} />
+      {g.playId && <p><Link className="btn primary" to={`/g/${g.playId}`}>Play {g.example.name}</Link></p>}
 
       <nav className="guide-pager" aria-label="More puzzle types">
         {g.prev ? <Link to={`/puzzles/${g.prev.kind}`} rel="prev">← {g.prev.name}</Link> : <span />}
