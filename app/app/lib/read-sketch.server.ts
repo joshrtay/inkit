@@ -238,19 +238,31 @@ type ClueKind = Given["kind"];
  *  game type they say it is (if they chose one). */
 export interface Previous { sketch: string; feedback: string; genre?: GenreName }
 
+/** One reader's look at a drawing, for the record of reads (app/lib/reads.server.ts). */
+export interface Attempt {
+  reader: Reader; model: string; effort: string;
+  ms: number; inputTokens?: number; outputTokens?: number; stopReason?: string | null;
+  /** why the quick reader handed over to the careful one */
+  trouble?: string[];
+  error?: string;
+}
+
 /** Read a sketch photo. The quick reader goes first unless `careful`; if its reading looks shaky,
- *  the careful reader reads it again. `previous` asks for a corrected re-read. */
+ *  the careful reader reads it again. `previous` asks for a corrected re-read. Each look is added
+ *  to `log` as it happens (so a failed read is still recorded). */
 export async function readSketch(env: Env, image: { data: string; type: ImageType },
-  options: { previous?: Previous; careful?: boolean } = {}) {
+  options: { previous?: Previous; careful?: boolean; log?: Attempt[] } = {}) {
+  const log = options.log ?? [];
   if (!env.ANTHROPIC_API_KEY) throw new Invalid("Reading sketches needs an Anthropic API key (ANTHROPIC_API_KEY) on the server.");
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   if (!options.careful && !options.previous) {
-    const quick = await readWith(client, "quick", image, options.previous);
+    const quick = await readWith(client, "quick", image, options.previous, log);
     const trouble = troubleWith(quick);
     if (!trouble.length) return { ...quick, reader: "quick" as Reader };
+    log[log.length - 1].trouble = trouble;
     console.log(`sketch reader: quick read had trouble (${trouble.join("; ")}${quick.reading.problem ? `: ${quick.reading.problem}` : ""}); reading carefully`);
   }
-  const careful = await readWith(client, "careful", image, options.previous);
+  const careful = await readWith(client, "careful", image, options.previous, log);
   if (!careful.reading.readable) throw new Invalid(careful.reading.problem || "That doesn't look like a puzzle Claude can read.");
   const genre = options.previous?.genre;
   if (genre && careful.reading.genre !== genre) {   // the creator said which type it is
@@ -271,8 +283,10 @@ function typeBrief(genre: GenreName) {
   ].join("\n\n");
 }
 
-async function readWith(client: Anthropic, reader: Reader, image: { data: string; type: ImageType }, previous?: Previous) {
+async function readWith(client: Anthropic, reader: Reader, image: { data: string; type: ImageType }, previous: Previous | undefined, log: Attempt[]) {
   const { model, effort } = READERS[reader];
+  const attempt: Attempt = { reader, model, effort, ms: 0 };
+  log.push(attempt);
   const ask = previous
     ? [
       `You transcribed this sketch before as:\n\n${previous.sketch}`,
@@ -302,11 +316,14 @@ async function readWith(client: Anthropic, reader: Reader, image: { data: string
       }],
     });
   } catch (e) {
+    attempt.ms = Date.now() - started;
+    attempt.error = e instanceof Error ? e.message.slice(0, 500) : String(e);
     if (e instanceof Anthropic.RateLimitError) throw new Invalid("The sketch reader is busy right now. Try again in a minute.");
     if (e instanceof Anthropic.BadRequestError) throw new Invalid(`Claude couldn't take that image: ${e.message}`);
     if (e instanceof Anthropic.APIError) throw new Invalid(`Couldn't reach the sketch reader (${e.status ?? "network"}). Try again.`);
     throw e;
   }
+  Object.assign(attempt, { ms: Date.now() - started, inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens, stopReason: response.stop_reason });
   console.log(`sketch reader: ${reader} (${model}, ${effort}) took ${((Date.now() - started) / 1000).toFixed(1)}s, ${response.usage.output_tokens} output tokens`);
   if (response.stop_reason === "refusal") throw new Invalid("Claude declined to read this image.");
   if (response.stop_reason === "max_tokens") throw new Invalid("The sketch was too much to read in one go. Try a closer photo of just the puzzle.");

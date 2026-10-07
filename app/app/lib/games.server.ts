@@ -9,7 +9,8 @@ import { schema, type Db } from "../db";
 import { looseSpec, parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
 import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
-import { IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Reading } from "./read-sketch.server";
+import { IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
+import { notePublished, recordRead } from "./reads.server";
 
 /** The game types a reading could be, its own first (at most 4). */
 const choicesOf = (r: Reading) => [...new Set([r.genre, ...(r.candidates ?? [])])].slice(0, 4);
@@ -78,10 +79,13 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
       // A published game stays published only if its new sketch passes the check too.
       const publishing = intent === "publish" || (game.state === "published" && f.sketch !== game.sketch);
       const parsed = await validated(f, publishing, game.state === "draft");
+      const firstPublish = intent === "publish" && game.state !== "published" && !game.publishedAt;
       await set({
         title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
         ...(intent === "publish" && game.state !== "published" ? { state: "published", publishedAt: game.publishedAt ?? new Date() } : {}),
       });
+      // how far the published puzzle is from what Claude read (app/lib/reads.server.ts)
+      if (firstPublish && game.sketchImage) await notePublished(db, game.id, f.sketch);
       return;
     }
     case "doubt": {
@@ -149,16 +153,26 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   const collectionId = String(form.get("collection") ?? "");
   if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
   const image = await imageFrom(form);
-  const { reading, sketch } = await readSketch(env, { data: toBase64(image.bytes), type: image.type });
-
+  // the photo is kept first, so a read that fails is still on record with it
   const id = newId();
   const key = `sketches/${id}/${crypto.randomUUID()}.${image.type.split("/")[1]}`;
   await env.MEDIA.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
+  const log: Attempt[] = [];
+  const record = { creatorId: me.id, kind: "upload" as const, imageKey: key, attempts: log };
+  let read;
+  try {
+    read = await readSketch(env, { data: toBase64(image.bytes), type: image.type }, { log });
+  } catch (e) {
+    await recordRead(db, { ...record, gameId: null, error: (e as Error).message });
+    throw e;
+  }
+  const { reading, sketch } = read;
   await db.insert(schema.games).values({
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
     title: reading.title || "Untitled",   // a title written on the sketch; set in the editor otherwise
     sketchImage: key, reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading),
   });
+  await recordRead(db, { ...record, gameId: id, result: { reading, sketch, puzzleKind: reading.genre, model: log.at(-1)!.model } });
   return id;
 }
 
@@ -174,8 +188,18 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
   const stored = game.sketchImage ? await env.MEDIA.get(game.sketchImage) : null;
   if (!stored) throw new Invalid("This game has no uploaded sketch to re-read.");
   const type = (stored.httpMetadata?.contentType ?? "image/jpeg") as (typeof IMAGE_TYPES)[number];
-  const { reading, sketch } = await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
-    { previous: { sketch: game.sketch, feedback, genre } });
+  const log: Attempt[] = [];
+  const record = { gameId: game.id, creatorId: me.id, kind: "reread" as const, imageKey: game.sketchImage, feedback, chosenKind: genre, attempts: log };
+  let read;
+  try {
+    read = await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
+      { previous: { sketch: game.sketch, feedback, genre }, log });
+  } catch (e) {
+    await recordRead(db, { ...record, error: (e as Error).message });
+    throw e;
+  }
+  const { reading, sketch } = read;
+  await recordRead(db, { ...record, result: { reading, sketch, puzzleKind: reading.genre, model: log.at(-1)!.model } });
   await db.update(schema.games).set({
     sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
     reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading), updatedAt: new Date(),

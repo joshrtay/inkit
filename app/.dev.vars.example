@@ -5,3 +5,5 @@ GOOGLE_CLIENT_SECRET=
 ANTHROPIC_API_KEY=
 # local development (production uses https://inkit.games from wrangler.jsonc)
 BETTER_AUTH_URL=http://localhost:5173
+# lets scripts call /admin/... locally: Authorization: Bearer <this> (32+ characters)
+ADMIN_API_TOKEN=make-one-with: openssl rand -hex 32

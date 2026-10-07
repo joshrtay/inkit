@@ -26,6 +26,7 @@ export default function Privacy() {
       <ul>
         <li>To run your account, show your puzzles and profile, and build your Subscriptions feed.</li>
         <li>To read uploaded drawings into puzzles (see Anthropic below).</li>
+        <li>To make reading drawings better: we keep a record of each reading (the photo, what Claude read, how long it took) and compare it with the puzzle you publish. We use these records to measure how well drawings are read and to improve it, which may include training or testing the software that reads drawings.</li>
         <li>To send emails you ask for, like a password reset link. We don&rsquo;t send marketing email.</li>
         <li>To keep the site working and safe.</li>
       </ul>

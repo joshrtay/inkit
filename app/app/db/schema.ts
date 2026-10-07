@@ -145,6 +145,39 @@ export const subscriptions = sqliteTable("subscriptions", {
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.subscriberId, t.collectionId] }), index("subscriptions_collection").on(t.collectionId)]);
 
+// ---- reads: every time Claude read a drawing, and how the published puzzle differed ----
+// The measure of how well drawings are read, and (photo + reading + what the creator published)
+// the makings of a training set. See app/lib/reads.server.ts.
+export const reads = sqliteTable("reads", {
+  id: text("id").primaryKey(),
+  /** the draft it made or re-read (null when an upload's read failed before a draft existed) */
+  gameId: text("game_id").references(() => games.id),
+  creatorId: text("creator_id").notNull().references(() => creators.id),
+  createdAt: created(),
+  /** "upload" (a new drawing) or "reread" (corrections, or a type the creator chose) */
+  kind: text("kind", { enum: ["upload", "reread"] }).notNull(),
+  /** the photo in R2 */
+  imageKey: text("image_key"),
+  /** a re-read's corrections and chosen type */
+  feedback: text("feedback"),
+  chosenKind: text("chosen_kind"),
+  /** each reader that looked: model, effort, time, tokens, why it handed over */
+  attempts: text("attempts", { mode: "json" }).$type<unknown[]>().notNull(),
+  /** the model whose reading was used */
+  model: text("model"),
+  /** Claude's structured answer, as it came back, and the sketch made from it */
+  reading: text("reading", { mode: "json" }).$type<unknown>(),
+  sketch: text("sketch"),
+  /** the puzzle type it was read as */
+  puzzleKind: text("puzzle_kind"),
+  /** why it failed, if it did */
+  error: text("error"),
+  /** the puzzle as first published, and how it differs from `sketch` (see app/games/diff.ts) */
+  publishedSketch: text("published_sketch"),
+  publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  diff: text("diff", { mode: "json" }).$type<unknown>(),
+}, (t) => [index("reads_game").on(t.gameId), index("reads_created").on(t.createdAt)]);
+
 // ---- likes: a creator liking a game (one each) ----
 export const likes = sqliteTable("likes", {
   creatorId: text("creator_id").notNull().references(() => creators.id),
