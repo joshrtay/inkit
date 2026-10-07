@@ -179,6 +179,27 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
 
 /** A reading's doubts: Claude's notes (tied to their cells) and anything that stops it playing. */
 const doubtsFrom = (reading: Reading, sketch: string): Doubt[] => [
-  ...reading.notes.map((n) => ({ text: n.text, ...(n.row >= 0 ? { row: n.row } : {}), ...(n.col >= 0 ? { col: n.col } : {}) })),
-  ...sketchProblems(sketch).map((text) => ({ text })),
+  ...reading.notes.map((n) => doubtFrom(n, reading)),
+  ...sketchProblems(sketch).map((text) => ({ text, place: "whole" as const })),
 ];
+
+/** A note as Claude gave it as a doubt, kept on the grid (rows and columns from 0; -1 for none). */
+function doubtFrom(n: Reading["notes"][number], r: Reading): Doubt {
+  const fix = (v: number, max: number) => (v >= 0 && v < max ? v : undefined);
+  const row = fix(n.fromRow, r.rows), col = fix(n.fromCol, r.cols);
+  const row2 = fix(n.toRow, r.rows) ?? row, col2 = fix(n.toCol, r.cols) ?? col;
+  const needs = { cell: [row, col], "row-clue": [row], "column-clue": [col], rows: [row], columns: [col], area: [row, col], whole: [] }[n.place];
+  // a place missing what it needs is about the puzzle as a whole
+  if (needs.some((v) => v === undefined)) return { text: n.text, place: "whole" };
+  const lo = (a?: number, b?: number) => (a === undefined || b === undefined ? a : Math.min(a, b));
+  const hi = (a?: number, b?: number) => (a === undefined || b === undefined ? b : Math.max(a, b));
+  switch (n.place) {
+    case "cell": return { text: n.text, place: "cell", row, col };
+    case "row-clue": return { text: n.text, place: "row-clue", row };
+    case "column-clue": return { text: n.text, place: "column-clue", col };
+    case "rows": return { text: n.text, place: "rows", row: lo(row, row2), row2: hi(row, row2) };
+    case "columns": return { text: n.text, place: "columns", col: lo(col, col2), col2: hi(col, col2) };
+    case "area": return { text: n.text, place: "area", row: lo(row, row2), row2: hi(row, row2), col: lo(col, col2), col2: hi(col, col2) };
+    default: return { text: n.text, place: "whole" };
+  }
+}

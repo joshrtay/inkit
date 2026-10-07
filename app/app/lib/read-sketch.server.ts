@@ -10,6 +10,7 @@ import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
 import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
+import { DOUBT_PLACES, type DoubtPlace } from "../games/doubts";
 import { Invalid } from "./errors.server";
 
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
@@ -177,10 +178,17 @@ const Reading = z.object({
   figure: z.array(z.array(z.array(z.number()))).describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else []"),
   sure: z.boolean().describe("true only if you could read the grid and every clue clearly"),
   notes: z.array(z.object({
-    text: z.string().describe("what you weren't sure of and how you read it, e.g. \"smudged; read as filled\""),
-    row: int.describe("the row it's about, or -1 if it isn't about one row"),
-    col: int.describe("the column it's about, or -1 if it isn't about one column"),
-  })).describe("anything you weren't sure of, one note per spot, for the creator to check; empty if everything was clear"),
+    text: z.string().describe("what you weren't sure of and how you read it, e.g. \"looks like a 7 or a 2; read as 2\". Don't name rows or columns here: the place fields say where, and the creator sees it pinned there"),
+    place: z.enum(DOUBT_PLACES as [DoubtPlace, ...DoubtPlace[]]).describe(
+      "what the note is about: cell (one square), row-clue (the numbers beside one row), column-clue (the numbers above one column), " +
+      "rows (whole rows), columns (whole columns), area (a block of squares), whole (the puzzle as a whole, or nowhere in particular)"),
+    fromRow: int.describe("the row it's about (cell, row-clue), or the first row (rows, area), from 0 at the top like every row here; -1 if none"),
+    toRow: int.describe("the last row (rows, area), from 0; else the same as fromRow"),
+    fromCol: int.describe("the column it's about (cell, column-clue), or the first column (columns, area), from 0 at the left; -1 if none"),
+    toCol: int.describe("the last column (columns, area), from 0; else the same as fromCol"),
+  })).describe("anything you weren't sure of, one note per spot, for the creator to check; empty if everything was clear. " +
+    "Each note is pinned on the puzzle where it says, so say exactly where: a smudged clue number is row-clue or column-clue (not the square next to it); " +
+    "a doubt about part of the picture is cell or area; a doubt about everything is whole."),
 });
 export type Reading = z.infer<typeof Reading>;
 

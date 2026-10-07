@@ -1,21 +1,40 @@
-// What Claude wasn't sure of when it read a drawing: each doubt is about one cell, a whole row or
-// column, or the puzzle as a whole, and the creator ticks it off once they've checked it.
-// Safe to use anywhere.
+// What Claude wasn't sure of when it read a drawing. Each doubt says what it's about (a square, a
+// row's or column's numbers, some rows or columns, an area, or the whole puzzle) so the editor can
+// pin it there; the creator ticks it off once they've checked it. Safe to use anywhere.
+
+export type DoubtPlace = "cell" | "row-clue" | "column-clue" | "rows" | "columns" | "area" | "whole";
+export const DOUBT_PLACES: DoubtPlace[] = ["cell", "row-clue", "column-clue", "rows", "columns", "area", "whole"];
 
 export interface Doubt {
   text: string;
-  /** the cell (or row / column) it's about; absent for the puzzle as a whole */
-  row?: number;
-  col?: number;
+  place?: DoubtPlace;
+  /** rows and columns from 0 (row..row2, col..col2 for a range or an area) */
+  row?: number; col?: number; row2?: number; col2?: number;
   /** the creator has checked it */
   done?: boolean;
 }
 
-/** Stored doubts, including the plain strings older drafts kept. */
+/** Stored doubts, including older ones (plain strings, or a row and column without a place). */
 export const doubtsOf = (stored: unknown): Doubt[] =>
-  Array.isArray(stored) ? stored.flatMap((d): Doubt[] => (typeof d === "string" ? [{ text: d }] : d && typeof d.text === "string" ? [d as Doubt] : [])) : [];
+  Array.isArray(stored) ? stored.flatMap((d): Doubt[] => {
+    if (typeof d === "string") return [{ text: d, place: "whole" }];
+    if (!d || typeof d.text !== "string") return [];
+    const x = d as Doubt;
+    const place = x.place ?? (x.row !== undefined && x.col !== undefined ? "cell" : x.row !== undefined ? "rows" : x.col !== undefined ? "columns" : "whole");
+    return [{ ...x, place }];
+  }) : [];
 
-/** "Row 3, column 2", "Row 3", "Column 2", or "" (rows and columns count from 1 for people). */
-export const doubtPlace = (d: Doubt) =>
-  d.row !== undefined && d.col !== undefined ? `Row ${d.row + 1}, column ${d.col + 1}`
-    : d.row !== undefined ? `Row ${d.row + 1}` : d.col !== undefined ? `Column ${d.col + 1}` : "";
+const span = (a?: number, b?: number) => (a === undefined ? "" : b === undefined || b === a ? `${a + 1}` : `${a + 1}–${b + 1}`);
+
+/** Where it is, for people (rows and columns from 1): "Row 4, column 1", "Row 4's numbers"... */
+export function doubtPlace(d: Doubt) {
+  switch (d.place) {
+    case "cell": return `Row ${span(d.row)}, column ${span(d.col)}`;
+    case "row-clue": return `Row ${span(d.row)}'s numbers`;
+    case "column-clue": return `Column ${span(d.col)}'s numbers`;
+    case "rows": return `${d.row2 !== undefined && d.row2 !== d.row ? "Rows" : "Row"} ${span(d.row, d.row2)}`;
+    case "columns": return `${d.col2 !== undefined && d.col2 !== d.col ? "Columns" : "Column"} ${span(d.col, d.col2)}`;
+    case "area": return `Rows ${span(d.row, d.row2)}, columns ${span(d.col, d.col2)}`;
+    default: return "";
+  }
+}

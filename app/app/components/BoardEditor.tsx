@@ -10,13 +10,14 @@ import { createPortal } from "react-dom";
 import { makePuzzle } from "~site/engine/puzzle.ts";
 import { runsOf, solveLine } from "~site/engine/rules.ts";
 import type { GridSpec, Puzzle } from "~site/engine/types.ts";
+import type { Doubt } from "~/games/doubts";
 import { pictureLayout, pictureSvg } from "~site/game-types/grid/picture.ts";
 import "~site/game-types/grid/styles.css";
 
 type Spec = GridSpec;
 
-/** A doubt's pin on the board: `n` is its number in the list. */
-export interface Pin { n: number; row?: number; col?: number; active?: boolean }
+/** A doubt's pin on the board: `n` is its number in the list; `active` while it's hovered there. */
+export interface Pin extends Omit<Doubt, "text" | "done"> { n: number; active?: boolean }
 
 /** Types with on-puzzle tools. */
 const EDITORS = { nonogram: true } as const;
@@ -157,14 +158,32 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     ] });
   }
 
-  // a pin's spot, as fractions of the board: a cell's centre, or just past the end of a row (right
-  // of the grid) or a column (below it), clear of the clues
-  const pinAt = (p: Pin) => {
-    if (!lay || (p.row === undefined && p.col === undefined)) return null;
-    const x = p.col !== undefined ? lay.ML + (p.col + 0.5) * lay.S : lay.ML + cols * lay.S + 0.35 * lay.S;
-    const y = p.row !== undefined ? lay.MT + (p.row + 0.5) * lay.S : lay.MT + rows * lay.S + 0.35 * lay.S;
-    return { left: `${(x / lay.W) * 100}%`, top: `${(y / lay.H) * 100}%` };
+  // where a doubt is on the board (in the board's own units): the box it's about, and a spot for
+  // its pin just off that box (so the pin never covers what it points at)
+  const target = (p: Pin) => {
+    if (!lay) return null;
+    const { S, ML, MT } = lay;
+    const r0 = p.row ?? 0, r1 = p.row2 ?? r0, c0 = p.col ?? 0, c1 = p.col2 ?? c0;
+    const gx = (c: number) => ML + c * S, gy = (r: number) => MT + r * S;
+    switch (p.place) {
+      case "cell": return { box: [gx(c0), gy(r0), S, S], pin: [gx(c0) + S, gy(r0)] };
+      // a line's numbers are 22 apart, the last 14 before the grid (picture.ts): the pin goes just
+      // before the first of them
+      case "row-clue": {
+        const left = ML - 14 - ((puzzle!.rowRuns.get(r0)?.length ?? 1) - 1) * 22 - 11;
+        return { box: [left, gy(r0) + S * 0.12, ML - 4 - left, S * 0.76], pin: [left - 9, gy(r0) + S / 2] };
+      }
+      case "column-clue": {
+        const top = MT - 14 - ((puzzle!.colRuns.get(c0)?.length ?? 1) - 1) * 22 - 13;
+        return { box: [gx(c0) + S * 0.12, top, S * 0.76, MT - 4 - top], pin: [gx(c0) + S / 2, top - 9] };
+      }
+      case "rows": return { box: [ML, gy(r0), cols * S, (r1 - r0 + 1) * S], pin: [ML + cols * S, gy(r0) + ((r1 - r0 + 1) * S) / 2] };
+      case "columns": return { box: [gx(c0), MT, (c1 - c0 + 1) * S, rows * S], pin: [gx(c0) + ((c1 - c0 + 1) * S) / 2, MT + rows * S] };
+      case "area": return { box: [gx(c0), gy(r0), (c1 - c0 + 1) * S, (r1 - r0 + 1) * S], pin: [gx(c1 + 1), gy(r0)] };
+      default: return null;
+    }
   };
+  const placed = pins.flatMap((p) => { const t = target(p); return t ? [{ p, ...t }] : []; });
 
   // general to specific: what the player gets, the size, then the color
   const toolbar = (
@@ -194,10 +213,15 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       {tools && createPortal(toolbar, tools)}
       <div className="be-board" ref={box} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         {svg ? <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: svg }} /> : <p className="error">{problem}</p>}
-        {pins.map((p) => {
-          const at = pinAt(p);
-          return at && <span key={p.n} className={`be-pin${p.active ? " active" : ""}`} style={at} aria-hidden="true">{p.n}</span>;
-        })}
+        {lay && placed.length > 0 && (
+          <svg className="be-doubts" viewBox={`0 0 ${lay.W} ${lay.H}`} aria-hidden="true">
+            {placed.filter(({ p }) => p.active).map(({ p, box: [x, y, w, h] }) => <rect key={p.n} x={x} y={y} width={w} height={h} rx={lay.S * 0.08} />)}
+          </svg>
+        )}
+        {lay && placed.map(({ p, pin: [x, y] }) => (
+          <span key={p.n} className={`be-pin${p.active ? " active" : ""}`} aria-hidden="true"
+            style={{ left: `${(x / lay.W) * 100}%`, top: `${(y / lay.H) * 100}%` }}>{p.n}</span>
+        ))}
         {clueEdit && (
           <form className="be-clue" style={{ left: clueEdit.x, top: clueEdit.y }} onSubmit={(e) => {
             e.preventDefault();

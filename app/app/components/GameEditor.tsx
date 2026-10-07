@@ -203,7 +203,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           {onBoard && loose ? (
             <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
               onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}
-              pins={doubts.flatMap((d, i) => (ticked[i] ? [] : [{ n: i + 1, row: d.row, col: d.col, active: hover === i }]))} />
+              pins={doubts.flatMap(({ text: _t, done: _d, ...at }, i) => (ticked[i] ? [] : [{ ...at, n: i + 1, active: hover === i }]))} />
           ) : loose ? (
             <PuzzleEditor spec={loose} onChange={(s) => setSketch(specToSketch(s))} />
           ) : (

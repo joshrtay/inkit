@@ -588,8 +588,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .studio-sheet.drawing { width: auto; padding: 10px; background: #fff; }
 .studio-sheet .pane-close { position: absolute; top: 8px; right: 10px; display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
 .drawing-full { display: block; max-width: calc(100vw - 52px); max-height: calc(100dvh - 52px); }
-.be-pin { position: absolute; transform: translate(-50%, -50%); width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 800 11px/1 var(--body); color: #4a3200; background: #f6c445; border: 2px solid #fff; box-shadow: 0 1px 4px #0005; pointer-events: none; transition: transform .15s; }
-.be-pin.active { transform: translate(-50%, -50%) scale(1.45); }
 .board-editor.flashing .grid-game .undecided { animation: undecided-flash .4s ease-in-out 3 alternate; }
 @keyframes undecided-flash { to { fill-opacity: .75; } }
 .be-seg { gap: 0; }
@@ -655,3 +653,10 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .preview-stage.mobile { padding: 20px; }
 .preview-stage.mobile iframe { width: 390px; height: min(844px, 100%); border-radius: 28px; border: 8px solid #111; box-shadow: 0 20px 60px #0008; }
 @media (max-width: 640px) { .preview-label { display: none; } .preview-bar { grid-template-columns: 1fr auto; } }
+
+/* Claude's doubts on the board: a small numbered pin just off what it's about, and (while the
+   doubt is hovered in the list) a dashed outline of exactly that */
+.be-pin { position: absolute; transform: translate(-50%, -50%); min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px; display: grid; place-items: center; font: 800 9.5px/1 var(--body); color: #8a5a00; background: #fff8e6; border: 1.5px solid #e0a100; opacity: .9; pointer-events: none; transition: transform .15s, background .15s, color .15s; }
+.be-pin.active { transform: translate(-50%, -50%) scale(1.35); background: #e0a100; color: #fff; opacity: 1; }
+.be-doubts { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.be-doubts rect { fill: color-mix(in srgb, #e0a100 14%, transparent); stroke: #e0a100; stroke-width: 2.5; stroke-dasharray: 6 4; }
