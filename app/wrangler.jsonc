@@ -1,8 +1,7 @@
 /**
- * The Wyatt's Games social site: React Router on Cloudflare Workers, with D1 (database)
- * and R2 (thumbnails). `npm run dev` runs it all locally; nothing here touches the real
- * Cloudflare account until `npm run deploy` (create the D1 database and R2 bucket first,
- * and put the real database_id below).
+ * The social site, served at https://inkit.games: React Router on Cloudflare Workers, with D1
+ * (database) and R2 (sketch photos). `npm run dev` runs it all locally (.dev.vars points
+ * BETTER_AUTH_URL at localhost); `npm run deploy` publishes it.
  */
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
@@ -16,18 +15,20 @@
 		{
 			"binding": "DB",
 			"database_name": "wyattsgames-db",
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "0e9cb4d5-3d33-4fa7-8bbd-f5d8a157508d",
 			"migrations_dir": "drizzle"
 		}
 	],
 	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "wyattsgames-media" }],
+	/** Cloudflare creates the DNS record for the domain on deploy. */
+	"routes": [{ "pattern": "inkit.games", "zone_name": "inkit.games", "custom_domain": true }],
 	"vars": {
 		/** Where the site is served; Better Auth builds links and checks request origins with it. */
-		"BETTER_AUTH_URL": "http://localhost:5173"
+		"BETTER_AUTH_URL": "https://inkit.games"
 	}
 	/**
-	 * Secrets (never committed): BETTER_AUTH_SECRET, and optionally GOOGLE_CLIENT_ID and
-	 * GOOGLE_CLIENT_SECRET. Locally they come from .dev.vars; in production set them with
-	 * `npx wrangler secret put <NAME>`.
+	 * Secrets (never committed): BETTER_AUTH_SECRET, ANTHROPIC_API_KEY, and optionally
+	 * GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Locally they come from .dev.vars; in production
+	 * set them with `npx wrangler secret put <NAME>`.
 	 */
 }
