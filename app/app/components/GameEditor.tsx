@@ -19,13 +19,14 @@ import { PuzzleEditor } from "./PuzzleEditor";
 import { BoardEditor, hasBoardEditor } from "./BoardEditor";
 import { useLiveCheck } from "./useOneSolutionCheck";
 import { Select } from "./Select";
+import { ReadingScreen } from "./ReadingScreen";
 
 export interface EditorGame {
   id: string; title: string; description: string; sketch: string; state: "draft" | "published" | "hidden"; hiddenNote: string | null;
 }
 export interface EditorRights { edit: boolean; hide: boolean; takeDown: boolean; feature: boolean }
 
-export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error }: {
+export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error, lines }: {
   game: EditorGame;
   /** Claude's latest reading of the drawing (what Reset goes back to) */
   reading: string | null;
@@ -38,6 +39,8 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   featured: boolean;
   backTo: string;
   error?: string;
+  /** what the reading screen says while Claude reads the drawing again */
+  lines?: { facts: string[]; ideas: string[] } | null;
 }) {
   const saver = useFetcher<{ error?: string; done?: string }>();
   const reader = useFetcher<{ error?: string; done?: string }>();
@@ -130,10 +133,14 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           <span className={`save-pill${saveStatus === "Saved" || saveStatus === "Published" ? " ok" : ""}`} aria-live="polite">{saveStatus}</span>
         </div>
         <div className="studio-actions">
-          <button type="button" className={`check-chip ${check.state}`} title={check.state === "broken" ? check.text : check.state === "many" ? "Show the cells the clues can't pin down" : undefined}
-            onClick={() => check.state === "many" && setFlash((n) => n + 1)}>
-            {check.state === "one" ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
-          </button>
+          {/* a status, not a button (except that "more than one" can point out where) */}
+          {check.state === "many" ? (
+            <button type="button" className="check-chip many" title="Show the cells the clues can't pin down" onClick={() => setFlash((n) => n + 1)}>✕ {check.text}</button>
+          ) : (
+            <span className={`check-chip ${check.state}`} role="status" title={check.state === "broken" ? check.text : undefined}>
+              {check.state === "one" ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
+            </span>
+          )}
           <button type="button" className="btn" disabled={!play} onClick={() => setPanel("preview")}>Preview</button>
           {may.edit && (isDraft
             ? <button type="button" className="btn primary" onClick={() => setPanel("publish")}>Publish</button>
@@ -176,7 +183,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
 
       {game.state === "hidden" && <p className="studio-banner">Taken down: {game.hiddenNote}</p>}
       {problem && <p className="studio-banner error" role="alert">{problem}</p>}
-      {rereading && <p className="studio-banner" role="status">Reading your drawing again{rereadKind ? ` as ${kindName(rereadKind)}` : ""}… (up to a minute)</p>}
+      {rereading && <ReadingScreen image={`/g/${game.id}/sketch`} facts={lines?.facts} ideas={lines?.ideas} as={rereadKind ? kindName(rereadKind) : undefined} />}
 
       <main className={`studio-canvas${drawing ? " with-drawing" : ""}${doubts.length || (drawing && isDraft) ? " with-doubts" : ""}`}>
         {drawing && (

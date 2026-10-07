@@ -11,6 +11,8 @@ import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { GuidePane } from "~/components/GuidePane";
 import { Select } from "~/components/Select";
+import { ReadingScreen } from "~/components/ReadingScreen";
+import { readingLines } from "~/lib/guides.server";
 
 export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
 
@@ -20,7 +22,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (!me) signInFirst(request);
   const targets = await publishTargets(getDb(env), me.id);
   const want = new URL(request.url).searchParams.get("in");
-  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id };
+  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id, lines: readingLines() };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -45,9 +47,11 @@ async function shrink(file: File): Promise<Blob> {
   }
 }
 
-export default function NewGame({ loaderData: { targets, collection }, actionData }: Route.ComponentProps) {
+export default function NewGame({ loaderData: { targets, collection, lines }, actionData }: Route.ComponentProps) {
   const submit = useSubmit();
-  const busy = useNavigation().state !== "idle";
+  const nav = useNavigation();
+  const busy = nav.state !== "idle";
+  const reading = nav.state === "submitting" || (nav.state === "loading" && !!nav.formData);
   const [preview, setPreview] = useState<string>();
   const [photo, setPhoto] = useState<Blob>();
   const error = actionData && "error" in actionData ? actionData.error : undefined;
@@ -78,12 +82,13 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
               setPreview(URL.createObjectURL(small));
             }} />
         </label>
-        <p className="hint">Claude works out what kind of puzzle it is. If it could be more than one kind, you&rsquo;ll get to choose. Writing the type at the top of the sketch helps.</p>
+        <p className="hint">Claude works out what kind of puzzle it is; you can change it in the editor. Writing the type at the top of the sketch helps.</p>
         {error && <p className="error" role="alert">{error}</p>}
         <button className="btn primary" type="submit" disabled={busy || !photo}>
-          {busy ? "Reading your sketch… (up to a minute)" : "Read my sketch"}
+          Read my sketch
         </button>
       </Form>
+      {reading && <ReadingScreen image={preview} facts={lines.facts} ideas={lines.ideas} />}
     </main>
     <GuidePane />
     </div>

@@ -55,3 +55,16 @@ export function guidePage(kind: GenreName) {
 }
 
 export { CATEGORIES };
+
+/** For the reading screen (ReadingScreen.tsx): where puzzle types come from, and ideas for one to
+ *  draw next, from the guides (so they're as accurate as the guides are). */
+export function readingLines() {
+  const facts = ORDER.filter((k) => /\d/.test(guides[k].origin) && !/Wyatt/.test(guides[k].origin))
+    .map((k) => {
+      const { name, origin } = guides[k];
+      // "A Nikoli puzzle from 1991." reads as "Nurikabe is a Nikoli puzzle from 1991."
+      return /^An? /.test(origin) ? `${name} is ${origin[0].toLowerCase()}${origin.slice(1)}` : `${name}: ${origin}`;
+    });
+  const ideas = ORDER.map((k) => `Next time, try drawing a ${guides[k].name}. ${guides[k].summary}`);
+  return { facts, ideas };
+}
