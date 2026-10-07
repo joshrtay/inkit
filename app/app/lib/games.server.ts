@@ -18,6 +18,7 @@ type Creator = typeof schema.creators.$inferSelect;
 type Game = typeof schema.games.$inferSelect;
 
 import { Invalid } from "./errors.server";
+import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
 export { Invalid };
 
 export async function sketchHash(sketch: string) {
@@ -149,12 +150,15 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
   if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
   if (game.state !== "draft") throw new Invalid("Move the game back to draft before re-reading its sketch.");
   const feedback = String(form.get("feedback") ?? "").trim().slice(0, 2000);
-  if (!feedback) throw new Invalid("Say what's wrong, e.g. \"row 3 has a rock in column 2, not 3\".");
+  // the creator can also say which game type it is (then it's read again as that type)
+  const kind = String(form.get("kind") ?? "");
+  const genre = (GENRE_NAMES as string[]).includes(kind) ? kind as GenreName : undefined;
+  if (!feedback && !genre) throw new Invalid("Say what's wrong, e.g. \"row 3 has a rock in column 2, not 3\".");
   const stored = game.sketchImage ? await env.MEDIA.get(game.sketchImage) : null;
   if (!stored) throw new Invalid("This game has no uploaded sketch to re-read.");
   const type = (stored.httpMetadata?.contentType ?? "image/jpeg") as (typeof IMAGE_TYPES)[number];
   const { reading, sketch } = await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
-    { previous: { sketch: game.sketch, feedback } });
+    { previous: { sketch: game.sketch, feedback, genre } });
   await db.update(schema.games).set({
     sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
     parseNotes: [...reading.notes, ...sketchProblems(sketch)], kindChoices: choicesOf(reading), updatedAt: new Date(),

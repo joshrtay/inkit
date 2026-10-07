@@ -8,14 +8,15 @@
 // Types with their own on-puzzle tools (BoardEditor) are edited and checked on the board; the
 // rest use the generic editor (PuzzleEditor) until they get theirs.
 import { useEffect, useMemo, useState } from "react";
-import { Form, useNavigation } from "react-router";
+import { Form, useNavigation, useSubmit } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { GameBoard } from "./GameBoard";
 import { PuzzleEditor } from "./PuzzleEditor";
 import { BoardEditor, hasBoardEditor } from "./BoardEditor";
 import { useOneSolutionCheck } from "./useOneSolutionCheck";
-import { KindChooser } from "./KindChooser";
+import { Select } from "./Select";
+import { KIND_NAMES, kindName } from "~/games/kinds";
 
 export function GameEditor({ gameId, title, description, sketch: saved, state, drawing, notes, choices = [], error }: {
   gameId: string; title: string; description: string; sketch: string;
@@ -24,13 +25,15 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
   drawing: boolean;
   /** what Claude wasn't sure of when it read the drawing */
   notes: string[];
-  /** the game types Claude thought the drawing could be, best first */
+  /** the game types Claude thought the drawing could be, best first (listed first in the type menu) */
   choices?: string[];
   error?: string;
 }) {
   const nav = useNavigation();
   const busy = nav.state !== "idle";
   const rereading = busy && nav.formData?.get("intent") === "reread";
+  const rereadKind = rereading ? String(nav.formData?.get("kind") ?? "") : "";
+  const submit = useSubmit();
   const reviewing = drawing && state === "draft";          // a fresh reading to confirm first
   const [confirmed, setConfirmed] = useState(!reviewing);
   const [mode, setMode] = useState<"view" | "edit" | "tell">("view");
@@ -48,8 +51,9 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
   const needsCheck = state === "draft" ? false : edited;
 
   const onBoard = hasBoardEditor(loose?.genre);
+  const done = <button className="btn primary" type="button" onClick={() => setMode("view")}>Done</button>;
   const puzzle = onBoard && loose && (mode === "edit" || !confirmed)
-    ? <BoardEditor spec={loose} editing={mode === "edit"} onChange={(s) => setSketch(specToSketch(s))} />
+    ? <BoardEditor spec={loose} editing={mode === "edit"} onChange={(s) => setSketch(specToSketch(s))} actions={mode === "edit" && done} />
     : mode === "edit" && loose
     ? <PuzzleEditor spec={loose} onChange={(s) => setSketch(specToSketch(s))} />
     : play ? <GameBoard play={play} />
@@ -71,18 +75,35 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
           <figure>
             <figcaption>Your drawing</figcaption>
             <img src={`/g/${gameId}/sketch`} alt="The hand-drawn sketch" />
+            {reviewing && notes.length > 0 && (
+              <section className="notes">
+                <h2>Claude wasn&rsquo;t sure about</h2>
+                <ul>{notes.map((n) => <li key={n}>{n}</li>)}</ul>
+              </section>
+            )}
           </figure>
         )}
         <figure>
           <figcaption>{mode === "edit" ? "Editing" : !reviewing ? "The puzzle" : !confirmed ? (edited ? "Check the reading (your corrected version)" : "Check the reading") : "The puzzle"}</figcaption>
+          {(reviewing || edited) && (
+            <div className="editor-top">
+              {reviewing && loose?.genre ? (
+                <Select key={loose.genre} name="kind" label="Puzzle type" defaultValue={loose.genre} disabled={busy}
+                  options={typeOptions(choices, loose.genre)} onChange={(kind) => {
+                    const ok = confirm(`Read your drawing again as ${kindName(kind)}?\n\nClaude looks at it again, told which type it is. This takes up to a minute${edited ? " and replaces your edits" : ""}.`);
+                    if (ok) submit({ intent: "reread", kind }, { method: "post" });
+                    return ok;
+                  }} />
+              ) : <span />}
+              {edited && <button className="btn" type="button" disabled={busy} onClick={() => setSketch(saved)}>Reset</button>}
+            </div>
+          )}
+          {rereading && <p className="muted" role="status">Reading your drawing again{rereadKind ? ` as ${kindName(rereadKind)}` : ""}… (up to a minute)</p>}
           {puzzle}
-          {mode === "edit" ? (
+          {mode === "edit" ? (!onBoard &&
             <>
               {problems.length > 0 && <p className="error">{problems[0]}</p>}
-              <p className="editor-actions">
-                <button className="btn primary" type="button" onClick={() => setMode("view")}>Done</button>
-                <button className="link" type="button" onClick={() => { setSketch(saved); setMode("view"); }}>Undo my changes</button>
-              </p>
+              <p className="editor-actions">{done}</p>
             </>
           ) : confirmed && (
             <p className="editor-actions"><button className="btn" type="button" disabled={!loose} onClick={() => setMode("edit")}>Edit</button></p>
@@ -90,14 +111,7 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
         </figure>
       </section>
 
-      {reviewing && mode !== "edit" && <KindChooser sketch={sketch} choices={choices} onPick={setSketch} />}
 
-      {reviewing && notes.length > 0 && (
-        <section className="notes">
-          <h2>Claude wasn&rsquo;t sure about</h2>
-          <ul>{notes.map((n) => <li key={n}>{n}</li>)}</ul>
-        </section>
-      )}
       {error && <p className="error" role="alert">{error}</p>}
 
       {!confirmed && mode !== "edit" && (
@@ -164,4 +178,11 @@ export function GameEditor({ gameId, title, description, sketch: saved, state, d
       )}
     </div>
   );
+}
+
+/** The type menu: the types Claude thought it could be first, then the rest by name. */
+function typeOptions(choices: string[], current: string) {
+  const likely = [...new Set([current, ...choices])];
+  const rest = Object.keys(KIND_NAMES).filter((k) => !likely.includes(k)).sort((a, b) => kindName(a).localeCompare(kindName(b)));
+  return [...likely.map((k) => ({ value: k, label: kindName(k), hint: k === current ? undefined : "could be" })), ...rest.map((k) => ({ value: k, label: kindName(k) }))];
 }

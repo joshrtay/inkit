@@ -39,7 +39,8 @@ function undecidedCells(p: Puzzle): number[] | null {
   return known.flatMap((v, i) => (v === -1 ? [i] : []));
 }
 
-export function BoardEditor({ spec, onChange, editing }: { spec: Spec; onChange?: (s: Spec) => void; editing: boolean }) {
+/** `actions`: buttons shown beside the one-solution status (like Done). */
+export function BoardEditor({ spec, onChange, editing, actions }: { spec: Spec; onChange?: (s: Spec) => void; editing: boolean; actions?: React.ReactNode }) {
   const [history, setHistory] = useState<Spec[]>([]);
   const [check, setCheck] = useState<Check>({ state: "checking" });
   const [ink, setInk] = useState(() => Object.keys(spec.picture?.palette ?? {}).find((k) => k !== ".") ?? "a");
@@ -175,6 +176,12 @@ export function BoardEditor({ spec, onChange, editing }: { spec: Spec; onChange?
               }}>+ Color</button>
             </span>
           )}
+          <span className="be-group" role="group" aria-label="What the player gets">
+            <button type="button" className="be-btn" aria-pressed={!!picture} onClick={() => !picture && toPicture()}
+              title="Paint the picture; the numbers follow it">Picture</button>
+            <button type="button" className="be-btn" aria-pressed={!picture} onClick={() => picture && toNumbers()}
+              title="Type each row's and column's numbers yourself">Numbers only</button>
+          </span>
         </div>
       )}
       <div className="be-board" ref={box} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
@@ -192,13 +199,10 @@ export function BoardEditor({ spec, onChange, editing }: { spec: Spec; onChange?
           </form>
         )}
       </div>
-      <p className={`be-status ${status.cls}`} aria-live="polite">{status.text}</p>
-      {editing && (
-        <p className="hint">
-          {picture ? "Tap or drag across cells to paint them; tap a painted cell to clear it. The numbers follow the picture." : "Tap a row's or column's numbers to change them (type them with spaces, like 2 1)."}
-          {" "}{picture ? <button className="link" type="button" onClick={toNumbers}>Keep only the numbers</button> : <button className="link" type="button" onClick={toPicture}>Draw a picture instead</button>}
-        </p>
-      )}
+      <div className="be-foot">
+        {actions}
+        <p className={`be-status ${status.cls}`} aria-live="polite">{status.text}</p>
+      </div>
     </div>
   );
 }

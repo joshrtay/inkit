@@ -20,7 +20,9 @@ async function load(request: Request, env: Env, id: string) {
   const game = await db.query.games.findFirst({ where: eq(schema.games.id, id) });
   if (!game) throw data(null, { status: 404 });
   const role = await roleIn(db, game.collectionId, me.id);
-  const may = { edit: canEdit(game, me, role), hide: canHide(me, role), feature: me.isAdmin };
+  // taking down is moderation: a collection owner or admin hiding someone else's published game,
+  // with a note its author sees (your own game you'd just move back to draft)
+  const may = { edit: canEdit(game, me, role), hide: canHide(me, role), takeDown: canHide(me, role) && game.authorId !== me.id, feature: me.isAdmin };
   if (!may.edit && !may.hide) throw data(null, { status: 404 });
   return { db, env, me, game, may };
 }
@@ -78,7 +80,7 @@ export default function EditGame({ loaderData: { game, may, featured, drawing, n
           <Form method="post"><button className="btn" name="intent" value="unpublish">Back to draft</button>
             <span className="muted">Only you and the collection's owners will see it.</span></Form>
         )}
-        {may.hide && game.state !== "hidden" && (
+        {may.takeDown && published && (
           <Form method="post" className="inline-form">
             <input name="note" placeholder="Why is it being taken down?" maxLength={500} required />
             <button className="btn danger" name="intent" value="hide">Take down</button>

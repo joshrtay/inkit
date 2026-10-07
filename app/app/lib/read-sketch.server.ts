@@ -8,6 +8,7 @@ import { z } from "zod";
 import type { Given, GridSpec, RuleSpec } from "~site/engine/types.ts";
 import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
 import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
+import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
 import { Invalid } from "./errors.server";
 
@@ -221,10 +222,14 @@ const READERS = {
 export type Reader = keyof typeof READERS;
 type ClueKind = Given["kind"];
 
+/** What a re-read is told: the earlier transcription, what the creator says is wrong, and the
+ *  game type they say it is (if they chose one). */
+export interface Previous { sketch: string; feedback: string; genre?: GenreName }
+
 /** Read a sketch photo. The quick reader goes first unless `careful`; if its reading looks shaky,
- *  the careful reader reads it again. `previous` + `feedback` ask for a corrected re-read. */
+ *  the careful reader reads it again. `previous` asks for a corrected re-read. */
 export async function readSketch(env: Env, image: { data: string; type: ImageType },
-  options: { previous?: { sketch: string; feedback: string }; careful?: boolean } = {}) {
+  options: { previous?: Previous; careful?: boolean } = {}) {
   if (!env.ANTHROPIC_API_KEY) throw new Invalid("Reading sketches needs an Anthropic API key (ANTHROPIC_API_KEY) on the server.");
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   if (!options.careful && !options.previous) {
@@ -235,13 +240,34 @@ export async function readSketch(env: Env, image: { data: string; type: ImageTyp
   }
   const careful = await readWith(client, "careful", image, options.previous);
   if (!careful.reading.readable) throw new Invalid(careful.reading.problem || "That doesn't look like a puzzle Claude can read.");
+  const genre = options.previous?.genre;
+  if (genre && careful.reading.genre !== genre) {   // the creator said which type it is
+    const reading = { ...careful.reading, genre, candidates: [genre] };
+    return { reading, sketch: toSketch(reading), reader: "careful" as Reader };
+  }
   return { ...careful, reader: "careful" as Reader };
 }
 
-async function readWith(client: Anthropic, reader: Reader, image: { data: string; type: ImageType }, previous?: { sketch: string; feedback: string }) {
+/** Everything about one game type, for a reader told which type the drawing is. */
+function typeBrief(genre: GenreName) {
+  const g = guides[genre];
+  return [
+    `The creator says this drawing is a ${g.name} puzzle. Read it as one: set "genre" to "${genre}" and "candidates" to ["${genre}"].`,
+    `${g.name}: ${g.summary}`,
+    `Its rules:\n${g.rules.map((r) => `- ${r.text}`).join("\n")}`,
+    `How to transcribe it: ${GENRE_GUIDE[genre]}`,
+  ].join("\n\n");
+}
+
+async function readWith(client: Anthropic, reader: Reader, image: { data: string; type: ImageType }, previous?: Previous) {
   const { model, effort } = READERS[reader];
   const ask = previous
-    ? `You transcribed this sketch before as:\n\n${previous.sketch}\n\nThe creator compared it with their drawing and says:\n\n${previous.feedback}\n\nLook at the drawing again and give the corrected transcription.`
+    ? [
+      `You transcribed this sketch before as:\n\n${previous.sketch}`,
+      ...(previous.genre ? [typeBrief(previous.genre)] : []),
+      ...(previous.feedback ? [`The creator compared it with their drawing and says:\n\n${previous.feedback}`] : []),
+      previous.genre && !previous.feedback ? "Look at the drawing again and transcribe it as that type." : "Look at the drawing again and give the corrected transcription.",
+    ].join("\n\n")
     : "Transcribe this puzzle sketch.";
   const started = Date.now();
   let response;

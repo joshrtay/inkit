@@ -5,7 +5,10 @@ import { useEffect, useId, useRef, useState } from "react";
 
 export interface Option { value: string; label: string; hint?: string }
 
-export function Select({ name, options, defaultValue, label }: { name: string; options: Option[]; defaultValue?: string; label: string }) {
+/** `onChange` runs before a new choice takes; returning false keeps the old one. */
+export function Select({ name, options, defaultValue, label, onChange, disabled = false }: {
+  name: string; options: Option[]; defaultValue?: string; label: string; onChange?: (value: string) => boolean | void; disabled?: boolean;
+}) {
   const [value, setValue] = useState(defaultValue ?? options[0]?.value ?? "");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -28,7 +31,7 @@ export function Select({ name, options, defaultValue, label }: { name: string; o
     </div>
   );
 
-  const pick = (v: string) => { setValue(v); setOpen(false); };
+  const pick = (v: string) => { setOpen(false); if (v !== value && onChange?.(v) !== false) setValue(v); };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") { setOpen(false); return; }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -42,7 +45,7 @@ export function Select({ name, options, defaultValue, label }: { name: string; o
   return (
     <div className="select" ref={box}>
       <span className="select-label" id={`${id}-label`}>{label}</span>
-      <button type="button" className="select-button" aria-haspopup="listbox" aria-expanded={open} aria-labelledby={`${id}-label`}
+      <button type="button" className="select-button" aria-haspopup="listbox" aria-expanded={open} aria-labelledby={`${id}-label`} disabled={disabled}
         onClick={() => setOpen(!open)} onKeyDown={onKey}>
         <span>{current?.label}{current?.hint && <span className="muted"> · {current.hint}</span>}</span>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>

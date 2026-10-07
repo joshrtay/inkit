@@ -466,22 +466,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .guide-pane.drawer .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
 @media (max-width: 640px) { .pane-toggle { top: auto; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
 
-/* ---- "What kind of puzzle is it?" ---- */
-.kind-chooser { display: grid; gap: 10px; padding: 18px 20px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
-.kind-chooser h2 { margin: 0; font-size: 18px; }
-.kind-chooser p { margin: 0; }
-.kind-options { display: flex; flex-wrap: wrap; gap: 10px; }
-.kind-option {
-  display: grid; gap: 3px; padding: 10px 14px; min-width: 150px; text-align: left; cursor: pointer; font: inherit; color: var(--ink);
-  background: transparent; border: 1.5px solid var(--line-strong); border-radius: 12px;
-}
-.kind-option[aria-checked="true"] { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
-.kind-option strong { font: 800 15px/1.2 var(--display); }
-.kind-status { font-size: 13px; color: var(--muted); }
-.kind-option.one .kind-status { color: var(--good); font-weight: 700; }
-.kind-option.none .kind-status, .kind-option.unfit .kind-status { color: var(--red); }
-.kind-tip { font-weight: 600; }
-
 .origin { margin: 0; color: var(--muted); font-size: 15px; line-height: 1.5; font-style: italic; max-width: 64ch; }
 
 /* rule pictures, after Thinky Dailies: a square tile, a thick green or red outline, and a round
@@ -579,3 +563,9 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .be-status { margin: 0; font-size: .9rem; }
 .be-status.good { color: var(--good); }
 .be-status.bad { color: var(--red); }
+.be-btn[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.be-foot { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
+.be-foot .be-status { flex: 1 1 14rem; }
+.editor-top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: .5rem 1rem; margin-bottom: .6rem; }
+.editor-top .select { min-width: 14rem; }
+.compare .notes { margin-top: .8rem; }
