@@ -16,7 +16,9 @@
     "../src/engine/encode.ts",
     "../src/engine/paint.ts",
     "../src/lib/ink.ts",
-    "../src/lib/game-api.ts"
+    "../src/lib/game-api.ts",
+    "../src/guides/*.ts",
+    "../src/guides/examples.json"
   ],
   "compilerOptions": {
     "composite": true,

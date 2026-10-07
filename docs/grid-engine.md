@@ -234,6 +234,21 @@ A name missing from a table fails `npm --prefix app run typecheck`. The tables c
 rule's settings or a clue's fields, so a new setting on an existing rule, or a new field on a clue,
 has to be added by hand: a control in the editor and a line in the reader's guide.
 
+## Puzzle guides
+
+The social site's /puzzles pages explain every genre: one page each, with the rules stated as
+briefly as possible, small ✓ / ✗ pictures of what works and what doesn't (in the style of Thinky
+Dailies), and a worked example shown unsolved and solved, plus a searchable list of them all.
+
+- `src/guides/guides.ts`: each genre's guide, typed against `GenreName` (a new genre fails the
+  build until it has one). Pictures are written compactly (`src/guides/types.ts`): shading as rows
+  of `#` / `.`, lines as paths of cells, fences as paths of corners, regions as rows of letters.
+- `npm run guides` (`puzzles/grid/guides.ts`) checks every picture against the engine's own rules
+  (a ✓ must pass the rules it names, a ✗ must break one) and solves each example into
+  `src/guides/examples.json`.
+- `src/game-types/grid/picture.ts` draws any puzzle, with or without marks, as an SVG string with
+  the player's own look; the pages draw them on the server (`app/app/lib/guides.server.ts`).
+
 ## Next
 
 1. More blocks: sums and cages (Kakuro, Killer), polyomino shape clues, Masyu pearls.

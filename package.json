@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro check && astro build",
     "preview": "astro preview",
-    "puzzles": "python3 puzzles/build.py"
+    "puzzles": "python3 puzzles/build.py",
+    "guides": "node puzzles/grid/guides.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.10",

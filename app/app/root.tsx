@@ -57,16 +57,17 @@ function TopNav({ crumbs }: { crumbs?: React.ReactNode }) {
         {crumbs}
       </nav>
       <div className="nav-actions">
+        <Link className="nav-link" to="/puzzles"><span className="long">Puzzle types</span><span className="short">Puzzles</span></Link>
         {me ? (
           <>
             <Link className="btn primary" to="/new">New game</Link>
-            <Link className="nav-link" to={`/${me.handle}`}>@{me.handle}</Link>
+            <Link className="nav-link hide-sm" to={`/${me.handle}`}>@{me.handle}</Link>
             <button className="nav-link" type="button"
               onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>
           </>
         ) : (
           <>
-            <Link className="nav-link" to="/signin">Sign in</Link>
+            <Link className="nav-link hide-sm" to="/signin">Sign in</Link>
             <Link className="btn primary" to="/signup">Start creating</Link>
           </>
         )}

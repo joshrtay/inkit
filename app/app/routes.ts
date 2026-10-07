@@ -7,6 +7,8 @@ export default [
   route("api/auth/*", "routes/api.auth.ts"),
   route("new", "routes/new.tsx"),
   route("studios/new", "routes/studio-new.tsx"),
+  route("puzzles", "routes/puzzles.tsx"),
+  route("puzzles/:kind", "routes/puzzle-type.tsx"),
   route("g/:id", "routes/game.tsx"),
   route("g/:id/edit", "routes/game-edit.tsx"),
   route("g/:id/sketch", "routes/game-sketch.ts"),

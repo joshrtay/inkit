@@ -50,7 +50,10 @@ h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
 .error { color: var(--red); margin: 0; }
 .or { text-align: center; color: var(--muted); margin: 4px 0; }
 .btn.google { width: 100%; padding: 11px; }
-@media (max-width: 600px) { .nav-actions .nav-link:first-child { display: none; } }
+.nav-actions > * { white-space: nowrap; }
+.nav-link .short { display: none; }
+@media (max-width: 600px) { .nav-actions .hide-sm { display: none; } .nav-actions { gap: 10px; } }
+@media (max-width: 420px) { .nav-link .long { display: none; } .nav-link .short { display: inline; } }
 
 /* buttons that look like links, danger buttons, notes */
 .btn.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 60%, transparent); }
@@ -192,3 +195,93 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .ge-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 400; }
 .ge-marks { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
 .ge-marks legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
+
+/* ---- puzzle guides: /puzzles and /puzzles/<type> ---- */
+.pic { display: block; background: var(--paper); border-radius: calc(var(--radius) - 2px); padding: 6px; box-shadow: 0 1px 0 var(--line); }
+.pic svg { display: block; width: 100%; height: auto; max-height: 100%; }
+.guides, .guide { gap: 28px; }
+.lead { font-size: 18px; line-height: 1.5; color: var(--muted); margin: 0; max-width: 60ch; }
+.guides-head { display: grid; gap: 14px; }
+.guide-search { position: relative; max-width: 560px; }
+.guide-search svg { position: absolute; left: 14px; top: 50%; width: 20px; height: 20px; translate: 0 -50%; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; pointer-events: none; }
+.guide-search input {
+  width: 100%; font: 400 17px/1.2 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 13px 18px 13px 44px;
+}
+.guide-search input:focus { outline: 2px solid color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button {
+  font: 700 14px/1 var(--body); color: var(--ink); background: transparent; cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 8px 14px;
+}
+.chips button span { font-weight: 600; color: var(--muted); margin-left: 4px; }
+.chips button[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.chips button[aria-pressed="true"] span { color: inherit; opacity: .7; }
+.guide-group { display: grid; gap: 12px; }
+.guide-group h2 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.guide-cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+.guide-card {
+  display: grid; grid-template-rows: auto 1fr; height: 100%; color: inherit; text-decoration: none; overflow: hidden;
+  background: var(--panel); border: var(--card-border); border-radius: var(--radius); transition: transform .15s, border-color .15s;
+}
+.wrap .guide-card { color: inherit; }
+.guide-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.guide-card .thumb { aspect-ratio: 4 / 3; display: grid; place-items: center; border-radius: 0; padding: 14px; box-shadow: none; }
+.guide-card .thumb svg { width: auto; height: 100%; max-width: 100%; }
+.guide-card-text { display: grid; gap: 4px; align-content: start; padding: 14px 16px 16px; }
+.guide-card strong { font: 800 18px/1.2 var(--display); }
+.guide-card .aka { font-size: 13px; color: var(--muted); }
+.guide-card .desc { font-size: 14px; line-height: 1.45; color: var(--muted); }
+.empty { font-size: 16px; }
+
+.guide { max-width: 960px; }
+.guide-crumbs { font-size: 14px; color: var(--muted); display: flex; gap: 8px; }
+.wrap .guide-crumbs a { color: var(--muted); }
+.guide-hero { display: grid; gap: 8px; }
+.guide-hero h1 { font-size: 40px; }
+.guide-hero .aka { margin: 0; color: var(--muted); font-size: 15px; }
+.guide h2 { font-size: 22px; margin: 0 0 14px; }
+.guide-rules ol { list-style: none; counter-reset: rule; margin: 0; padding: 0; display: grid; gap: 14px; }
+.guide-rules .rule {
+  counter-increment: rule; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 18px 28px; align-items: center;
+  padding: 18px 20px; background: var(--panel); border: var(--card-border); border-radius: var(--radius);
+}
+.guide-rules .rule.plain { grid-template-columns: 1fr; }
+.rule-text { margin: 0; font-size: 17px; line-height: 1.5; display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+.rule-text::before {
+  content: counter(rule); display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+  font: 800 14px/1 var(--body); background: color-mix(in srgb, var(--ink) 12%, transparent); color: var(--ink);
+}
+.rule-pics { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; }
+.mini { margin: 0; display: grid; gap: 6px; width: clamp(110px, 30%, 170px); }
+.mini.wide { width: clamp(150px, 46%, 250px); }
+.mini .pic { border: 2px solid transparent; }
+.mini.ok .pic { border-color: color-mix(in srgb, var(--good) 75%, transparent); }
+.mini.no .pic { border-color: color-mix(in srgb, var(--red) 75%, transparent); }
+.mini figcaption { font-size: 13px; line-height: 1.3; color: var(--muted); display: flex; gap: 6px; align-items: baseline; }
+.mini .mark { font-weight: 800; font-size: 15px; }
+.mini.ok .mark { color: var(--good); }
+.mini.no .mark { color: var(--red); }
+.guide-example { display: grid; gap: 14px; }
+.guide-example h2 { margin: 0; }
+.example-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.example-pair figure { margin: 0; display: grid; gap: 8px; }
+.example-pair .pic { padding: 12px; }
+.example-pair .pic svg { max-height: 420px; margin: 0 auto; }
+.example-pair figcaption { font-weight: 700; font-size: 14px; color: var(--muted); text-align: center; }
+.guide-example p { margin: 0; }
+.controls { color: var(--muted); }
+.guide-pager { display: flex; justify-content: space-between; gap: 12px; padding-top: 18px; border-top: 1px solid var(--line); font-weight: 700; }
+.wrap .guide-pager a { text-decoration: none; }
+.wrap .guide-pager a:hover { text-decoration: underline; }
+@media (max-width: 760px) {
+  .guide-rules .rule { grid-template-columns: 1fr; }
+  .rule-pics { justify-content: flex-start; }
+  .guide-hero h1 { font-size: 32px; }
+}
+@media (max-width: 520px) {
+  .example-pair { grid-template-columns: 1fr; } .mini { width: calc(50% - 6px); } .mini.wide { width: 100%; }
+  .guide-card { grid-template-columns: 112px minmax(0, 1fr); grid-template-rows: none; }
+  .guide-card .thumb { aspect-ratio: 1; padding: 8px; }
+  .guide-card-text { padding: 12px 14px; }
+}

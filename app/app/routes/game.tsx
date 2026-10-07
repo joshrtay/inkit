@@ -66,6 +66,7 @@ export default function Game({ loaderData: { game, collection, author, play, sum
         <section className="rules current">
           <h2>How to play</h2>
           <ol>{rules.map((r) => <li key={r}>{r}</li>)}</ol>
+          <p><Link to={`/puzzles/${game.kind}`}>{kindName(game.kind)} rules, with pictures and an example →</Link></p>
         </section>
       )}
     </main>
