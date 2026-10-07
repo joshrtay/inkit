@@ -26,7 +26,7 @@ export interface EditorGame {
 }
 export interface EditorRights { edit: boolean; hide: boolean; takeDown: boolean; feature: boolean }
 
-export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error, lines }: {
+export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error }: {
   game: EditorGame;
   /** Claude's latest reading of the drawing (what Reset goes back to) */
   reading: string | null;
@@ -39,8 +39,6 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   featured: boolean;
   backTo: string;
   error?: string;
-  /** what the reading screen says while Claude reads the drawing again */
-  lines?: { facts: string[]; ideas: string[] } | null;
 }) {
   const saver = useFetcher<{ error?: string; done?: string }>();
   const reader = useFetcher<{ error?: string; done?: string }>();
@@ -183,7 +181,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
 
       {game.state === "hidden" && <p className="studio-banner">Taken down: {game.hiddenNote}</p>}
       {problem && <p className="studio-banner error" role="alert">{problem}</p>}
-      {rereading && <ReadingScreen image={`/g/${game.id}/sketch`} facts={lines?.facts} ideas={lines?.ideas} as={rereadKind ? kindName(rereadKind) : undefined} />}
+      {rereading && <ReadingScreen image={`/g/${game.id}/sketch`} as={rereadKind ? kindName(rereadKind) : undefined} />}
 
       <main className={`studio-canvas${drawing ? " with-drawing" : ""}${doubts.length || (drawing && isDraft) ? " with-doubts" : ""}`}>
         {drawing && (

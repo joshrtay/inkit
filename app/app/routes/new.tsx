@@ -12,7 +12,6 @@ import { attempt, signInFirst } from "~/lib/http.server";
 import { GuidePane } from "~/components/GuidePane";
 import { Select } from "~/components/Select";
 import { ReadingScreen } from "~/components/ReadingScreen";
-import { readingLines } from "~/lib/guides.server";
 
 export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
 
@@ -22,7 +21,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (!me) signInFirst(request);
   const targets = await publishTargets(getDb(env), me.id);
   const want = new URL(request.url).searchParams.get("in");
-  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id, lines: readingLines() };
+  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -47,7 +46,7 @@ async function shrink(file: File): Promise<Blob> {
   }
 }
 
-export default function NewGame({ loaderData: { targets, collection, lines }, actionData }: Route.ComponentProps) {
+export default function NewGame({ loaderData: { targets, collection }, actionData }: Route.ComponentProps) {
   const submit = useSubmit();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
@@ -88,7 +87,7 @@ export default function NewGame({ loaderData: { targets, collection, lines }, ac
           Read my sketch
         </button>
       </Form>
-      {reading && <ReadingScreen image={preview} facts={lines.facts} ideas={lines.ideas} />}
+      {reading && <ReadingScreen image={preview} />}
     </main>
     <GuidePane />
     </div>

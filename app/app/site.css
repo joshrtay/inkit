@@ -631,22 +631,17 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .reading-corners i:nth-child(3) { bottom: 10px; left: 10px; border-right: 0; border-top: 0; }
 .reading-corners i:nth-child(4) { bottom: 10px; right: 10px; border-left: 0; border-top: 0; }
 .reading-corners { position: absolute; inset: 0; animation: reading-breathe 2.8s ease-in-out infinite; }
-.reading-phase { margin: 6px 0 0; font: 800 20px/1.2 var(--display); display: inline-flex; align-items: baseline; gap: 2px; }
-.reading-dots { display: inline-flex; gap: 3px; margin-left: 4px; }
-.reading-dots i { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: reading-dot 1.2s ease-in-out infinite; }
-.reading-dots i:nth-child(2) { animation-delay: .15s; }
-.reading-dots i:nth-child(3) { animation-delay: .3s; }
-.reading-line { min-height: 4.6em; margin: 0; max-width: 40ch; font: 400 18px/1.45 "Kalam", var(--body); color: var(--ink); animation: reading-line .6s ease both; }
-.reading-line.musing { color: var(--muted); }
+.reading-word { margin: 8px 0 0; font: 800 26px/1.2 var(--display); animation: reading-word 3.6s ease both; }
+.reading-as { margin: -6px 0 0; font-size: 14px; color: var(--muted); }
+.reading-fact { width: 100%; margin-top: 6px; padding: 14px 18px 16px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.reading-fact p { margin: 0; font: 400 17px/1.45 "Kalam", var(--body); color: var(--ink); }
+@keyframes reading-word { 0% { opacity: 0; transform: translateY(6px); } 14%, 86% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-4px); } }
 .reading-tag { display: block; font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .reading-note { margin: 0; font-size: 13px; color: var(--muted); }
 @keyframes reading-in { from { opacity: 0; } }
 @keyframes reading-scan { to { top: 100%; } }
 @keyframes reading-breathe { 50% { transform: scale(.97); } }
-@keyframes reading-dot { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
-@keyframes reading-line { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) {
-  .reading-scan, .reading-corners, .reading-dots i { animation: none; }
+  .reading-scan, .reading-corners, .reading-word { animation: none; }
   .reading-scan { top: 40%; opacity: .5; }
-  .reading-line { animation: none; }
 }

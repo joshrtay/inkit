@@ -12,7 +12,6 @@ import { canEdit, canHide, roleIn } from "~/lib/permissions.server";
 import { changeGame, isFeatured, rereadDrawing } from "~/lib/games.server";
 import { GameEditor } from "~/components/GameEditor";
 import { doubtsOf } from "~/games/doubts";
-import { readingLines } from "~/lib/guides.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 
 async function load(request: Request, env: Env, id: string) {
@@ -42,7 +41,6 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     reading: game.reading,
     doubts: doubtsOf(game.parseNotes),
     choices: game.kindChoices ?? [],
-    lines: game.sketchImage && game.state === "draft" ? readingLines() : null,
     backTo: game.state === "published" || !collection ? `/g/${game.id}` : `/${collection.slug}`,
   };
 }
@@ -62,10 +60,10 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Edit ${loaderData?.game.title ?? "game"} · inkit` }];
 
-export default function EditGame({ loaderData: { game, may, featured, drawing, reading, doubts, choices, lines, backTo }, actionData }: Route.ComponentProps) {
+export default function EditGame({ loaderData: { game, may, featured, drawing, reading, doubts, choices, backTo }, actionData }: Route.ComponentProps) {
   const error = actionData && "error" in actionData ? actionData.error : undefined;
   return (
     <GameEditor key={game.id} game={game} reading={reading} drawing={drawing} doubts={doubts} choices={choices}
-      may={may} featured={featured} backTo={backTo} error={error} lines={lines} />
+      may={may} featured={featured} backTo={backTo} error={error} />
   );
 }
