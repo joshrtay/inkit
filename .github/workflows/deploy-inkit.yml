@@ -24,13 +24,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            app/package-lock.json
-      # the app builds the shared engine in src/, whose packages are installed at the root
+          cache-dependency-path: package-lock.json
+      # one install for the shared code and the site (npm workspaces)
       - run: npm ci
-      - run: npm ci
-        working-directory: app
       - name: Shared code (type check, engine self-test)
         run: npm run build && npm run selftest
       # the type check reads the secrets' names from .dev.vars (never committed): the example
@@ -66,12 +62,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            app/package-lock.json
+          cache-dependency-path: package-lock.json
       - run: npm ci
-      - run: npm ci
-        working-directory: app
       - name: Apply database migrations
         run: npx wrangler d1 migrations apply wyattsgames-db --remote
         working-directory: app

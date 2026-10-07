@@ -19,9 +19,9 @@ browser, subscribe to creators, and like puzzles.
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique), `guides.ts` checks every guide picture and solves the examples |
 | `docs/` | The grid engine in depth, including how the editor must keep up with it |
 
-The root `package.json` covers the shared code: `npm run build` (type-check), `npm run selftest`
-(the engine against brute force), `npm run guides`, `npm run new`. The site has its own
-`app/package.json`.
+The root `package.json` covers the shared code (`npm run build` type-checks it, `npm run
+selftest` checks the engine against brute force, `npm run guides`, `npm run new`) and makes the
+site an npm workspace, so one `npm install` in the root installs both.
 
 ## The site (`app/`)
 

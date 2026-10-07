@@ -2,6 +2,9 @@
   "name": "inkit",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "app"
+  ],
   "scripts": {
     "build": "tsc -p .",
     "selftest": "node src/engine/selftest.ts",

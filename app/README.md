@@ -6,14 +6,14 @@ the editor and the sketch reader must keep up with it) in [../docs/grid-engine.m
 ## Running it locally
 
 ```sh
-npm install
+npm install                         # in the repo root: installs the shared code and the site (npm workspaces)
+cd app
 cp .dev.vars.example .dev.vars      # then put a random BETTER_AUTH_SECRET in it
 npm run db:migrate && python3 seed/make.py && npm run db:seed
 npm run dev                         # http://localhost:5173
 ```
 
-Install the root packages too (`npm install` in the repo root): the shared engine in `../src`
-uses them. After changing `app/db/schema.ts`, run `npm run db:generate` and `npm run db:migrate`
+After changing `app/db/schema.ts`, run `npm run db:generate` and `npm run db:migrate`
 (pushes to `main` apply new migrations to production before deploying). `npm run typecheck`
 checks everything.
 
