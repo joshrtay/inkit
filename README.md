@@ -1,7 +1,11 @@
-# Wyatt's Games
+# inkit
 
-Printable and in-browser escape room puzzles, published at
-https://wyattsgames.com/.
+Hand-drawn logic puzzles, made playable: draw a puzzle on paper, take a photo, and Claude reads it
+into a game you can check, edit and publish at https://inkit.games/ (the social site, in `app/`).
+
+This repo also holds **Wyatt's Games** (the Astro site at the top level), printable and in-browser
+escape room puzzles published at https://wyattsgames.com/. Both share the grid game engine in
+`src/engine`.
 
 ## Quick start
 

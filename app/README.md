@@ -1,4 +1,4 @@
-# Wyatt's Games: the social site (work in progress)
+# inkit: the social site (inkit.games)
 
 A React Router app on Cloudflare Workers, with D1 (database) and R2 (thumbnails). It reuses
 the current site's game engine and styles from `../src`, so games play the same.
