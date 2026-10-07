@@ -16,9 +16,12 @@ const tag = (name: string, a: A, body = "") => `<${name}${Object.entries(a).map(
 const text = (a: A, s: string) => tag("text", a, s.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`));
 const n1 = (v: number) => Math.round(v * 10) / 10;
 
+export type Room = Partial<Record<"top" | "left" | "right" | "bottom", number>>;
+
 /** Where a square-grid picture puts things, in its own units: the cell size and the margins
- *  around the grid (clues outside it sit in the margins). The editor uses it to tell what was tapped. */
-export function pictureLayout(p: Puzzle) {
+ *  around the grid (clues outside it sit in the margins). The editor uses it to tell what was tapped,
+ *  and asks for `room` (at least this much margin) where clues can be added outside. */
+export function pictureLayout(p: Puzzle, room0: Room = {}) {
   const g = p.grid;
   const maxRow = Math.max(0, ...[...p.rowRuns.values()].map((c) => c.length)), maxCol = Math.max(0, ...[...p.colRuns.values()].map((c) => c.length));
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
@@ -28,7 +31,7 @@ export function pictureLayout(p: Puzzle) {
     const bd = g.borders[e];
     return bd.horizontal ? (bd.cells[0] < 0 ? "top" : "bottom") : (bd.cells[0] < 0 ? "left" : "right");
   };
-  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0,
+  const room = (side: "top" | "left" | "right" | "bottom") => Math.max(M, room0[side] ?? 0, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0,
     (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0, p.edgeClues.some((c) => c.side === side) ? 38 : 0);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top");
   const MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
@@ -40,6 +43,8 @@ export interface PictureOptions {
   picture?: boolean;
   /** cells to mark as not yet decided (the editor's "the numbers can't pin these down") */
   undecided?: number[];
+  /** at least this much margin (an editor leaves room for clues outside the grid) */
+  room?: Room;
 }
 
 /** The puzzle as an SVG string. `b` adds the player's marks (a solution, or a mistake). */
@@ -47,7 +52,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   if (p.marks.includes("paint")) return figureSvg(p, b, label);
   const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const links = p.rules.some((s) => s.rule === "links"), maze = p.rules.some((s) => s.rule === "perfect-maze");
-  const { ML, MT, MR, MB } = pictureLayout(p);
+  const { ML, MT, MR, MB } = pictureLayout(p, opts.room);
   const X = (c: number) => ML + c * S, Y = (r: number) => MT + r * S;
   const center = (i: number): [number, number] => { const [r, c] = g.rc(i); return [X(c) + S / 2, Y(r) + S / 2]; };
   const cornerXY = (v: number): [number, number] => { const [r, c] = g.cornerRC(v); return [X(c), Y(r)]; };

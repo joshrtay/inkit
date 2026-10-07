@@ -6,7 +6,7 @@
 // re-proving on the server is for later.)
 import { eq } from "drizzle-orm";
 import { schema, type Db } from "../db";
-import { parseSketch, SKETCH_VERSION } from "../games/sketch";
+import { looseSpec, parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
 import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
 import { IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Reading } from "./read-sketch.server";
@@ -19,7 +19,7 @@ type Game = typeof schema.games.$inferSelect;
 
 import { Invalid } from "./errors.server";
 import { doubtsOf, type Doubt } from "../games/doubts";
-import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
+import { GENRE_NAMES, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
 export { Invalid };
 
 export async function sketchHash(sketch: string) {
@@ -46,10 +46,16 @@ function fieldsFrom(form: FormData): Fields {
   return { title: s("title").trim().slice(0, 120), description: s("description").trim().slice(0, 2000), sketch: s("sketch").replace(/\r\n/g, "\n"), checked: s("checked") };
 }
 
-/** Parse a sketch or explain what's wrong; for publishing, also require its one-solution check. */
-async function validated(f: Fields, publishing: boolean) {
+/** Parse a sketch or explain what's wrong; for publishing, also require its one-solution check.
+ *  A draft may be saved unfinished (a maze missing a door, an area in two pieces) as long as the
+ *  editor can still draw it. */
+async function validated(f: Fields, publishing: boolean, draft = false): Promise<{ kind: string }> {
   if (!f.title) throw new Invalid("Give the game a title.");
   const parsed = parseSketch(f.sketch);
+  if (!parsed.ok && draft && !publishing) {
+    const loose = looseSpec(f.sketch);
+    try { if (loose) { makePuzzle(loose, { unfinished: true }); return { kind: loose.genre! }; } } catch { /* not even drawable */ }
+  }
   if (!parsed.ok) throw new Invalid(parsed.errors.join(" "));
   if (publishing && f.checked !== (await sketchHash(f.sketch))) {
     throw new Invalid("Check the puzzle first: it needs exactly one solution to be published.");
@@ -71,7 +77,7 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
       const f = fieldsFrom(form);
       // A published game stays published only if its new sketch passes the check too.
       const publishing = intent === "publish" || (game.state === "published" && f.sketch !== game.sketch);
-      const parsed = await validated(f, publishing);
+      const parsed = await validated(f, publishing, game.state === "draft");
       await set({
         title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
         ...(intent === "publish" && game.state !== "published" ? { state: "published", publishedAt: game.publishedAt ?? new Date() } : {}),

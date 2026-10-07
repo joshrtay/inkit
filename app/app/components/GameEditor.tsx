@@ -54,7 +54,10 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
     setSketchNow(next);
   };
   const undo = () => { const last = history.at(-1); if (last === undefined) return; setHistory((h) => h.slice(0, -1)); setSketchNow(last); };
-  const resetTo = reading ?? game.sketch;
+  // Reset goes back to Claude's reading, or (a puzzle not read from a drawing) to how it was when
+  // the editor opened (drafts save as you go, so the saved version is always the current one)
+  const [opened] = useState(game.sketch);
+  const resetTo = reading ?? opened;
 
   // a new reading replaces the working copy
   const wasReading = useRef(false);
@@ -78,14 +81,14 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   // drafts save themselves a moment after each change
   const unsaved = sketch !== game.sketch || title !== game.title || description !== game.description;
   useEffect(() => {
-    if (!isDraft || !unsaved || !may.edit || !parsed.ok) return;
+    if (!isDraft || !unsaved || !may.edit || !loose) return;   // a draft saves even unfinished
     const t = setTimeout(() => {
       saver.submit({ intent: "save", stay: "1", sketch, title: title.trim() || "Untitled", description }, { method: "post" });
     }, 1200);
     return () => clearTimeout(t);
   }, [sketch, title, description, isDraft]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveStatus = !isDraft ? (unsaved ? "Not updated yet" : game.state === "hidden" ? "Taken down" : "Published")
-    : saver.state !== "idle" ? "Saving…" : saver.data?.error ? "Couldn't save" : unsaved ? (parsed.ok ? "Unsaved" : "Can't save yet") : "Saved";
+    : saver.state !== "idle" ? "Saving…" : saver.data?.error ? "Couldn't save" : unsaved ? (loose ? "Unsaved" : "Can't save yet") : "Saved";
 
   // cmd/ctrl-Z undoes
   useEffect(() => {
@@ -200,14 +203,19 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
         </div>
 
         <div className={`studio-board${rereading ? " busy" : ""}`}>
-          {onBoard && loose ? (
-            <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
-              onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}
-              pins={doubts.flatMap(({ text: _t, done: _d, ...at }, i) => (ticked[i] ? [] : [{ ...at, n: i + 1, active: hover === i }]))} />
-          ) : loose ? (
-            <PuzzleEditor spec={loose} onChange={(s) => setSketch(specToSketch(s))} />
-          ) : (
+          {!loose ? (
             <div className="problems"><p>This puzzle can&rsquo;t be played yet:</p><ul>{(parsed.ok ? [] : parsed.errors).map((p) => <li key={p}>{p}</li>)}</ul></div>
+          ) : onBoard ? (
+            <>
+              <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
+                onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}
+                pins={doubts.flatMap(({ text: _t, done: _d, ...at }, i) => (ticked[i] ? [] : [{ ...at, n: i + 1, active: hover === i }]))} />
+              {/* Panes puzzles mix rules: they're set below the board */}
+              {genre === "panes" && <PuzzleEditor spec={loose} only="rules" onChange={(s) => setSketch(specToSketch(s))} />}
+            </>
+          ) : (
+            // Three Coats: drawn as pieces, with its own figure editor
+            <PuzzleEditor spec={loose} embedded onChange={(s) => setSketch(specToSketch(s))} />
           )}
         </div>
 
@@ -236,7 +244,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
       <div className="studio-corner">
         <button type="button" className="btn" disabled={!history.length} onClick={undo} title="Undo (⌘Z)">↶ Undo</button>
         <button type="button" className="btn" disabled={sketch === resetTo} onClick={() => {
-          if (confirm(reading ? "Go back to Claude's reading? You can undo this." : "Go back to the saved puzzle? You can undo this.")) setSketch(resetTo);
+          if (confirm(reading ? "Go back to Claude's reading? You can undo this." : "Go back to how the puzzle was when you opened it? You can undo this.")) setSketch(resetTo);
         }}>Reset</button>
       </div>
 

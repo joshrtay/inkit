@@ -212,18 +212,20 @@ themselves; a published game changes only on Update. Changing the type reads the
 telling Claude the type along with its guide.
 
 Inside it there are two kinds of puzzle editor:
-- **On-puzzle editors** (`app/app/components/BoardEditor.tsx`): the puzzle drawn as the player sees
-  it, edited in place with only the tools its type needs, with a live one-solution check. So far:
-  Nonogram (paint the picture, or tap a row's or column's numbers to retype them; rows / columns;
-  colors only once there's more than one; cells a line-at-a-time solver can't decide are marked).
-  A type gets one by adding it to `EDITORS` there.
-- **The generic editor** (`app/app/components/PuzzleEditor.tsx`): every other type, until it gets
-  its own. Its Rules section shows only for Panes (or a puzzle that already has rules of its own)
-  and its Look section not at all, unless it's given `advanced`.
-
-**Rule: whenever the engine gains something, add it to the editor and the reader in the same
-change.** That means a genre, a clue kind, a rule block or a new setting on one, a style option, a
-mark, or a field of `GridSpec`.
+- **The on-puzzle editor** (`app/app/components/BoardEditor.tsx`), for every grid type: the puzzle
+  drawn as the player sees it, edited in place with the few tools its type needs (`TOOLS`, typed
+  against the engine's genres, so a new genre fails the build until it has tools). The tools: a
+  number typed into a square (Enter or the arrow keys move on), rocks, walls between squares,
+  pearls, galaxy circles, thermometers dragged from the bulb, doors, numbers and letters outside the
+  grid, corner numbers, line totals, outlined areas painted, symbols, compasses, ◆/◇ marks, and
+  erase; nonograms paint their picture or type their numbers. Sudokus come in 4×4, 6×6 and 9×9;
+  square types keep one size; Star Battle sets its stars per row, column and area. It draws the
+  puzzle with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a
+  maze's second door, an area painted in two pieces) stays on screen to be fixed, and a draft can
+  be saved that way (publishing still needs a complete puzzle with one solution).
+- **The generic editor** (`app/app/components/PuzzleEditor.tsx`): Three Coats' figure editor
+  (pieces rather than a grid), and the Rules section beside Panes. Its Look section and the rest
+  show only with `advanced`.
 
 The generic editor covers:
 - the game type and grid size

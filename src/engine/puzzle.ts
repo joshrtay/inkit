@@ -174,7 +174,9 @@ export const genres = {
 export type GenreName = keyof typeof genres;
 export const GENRE_NAMES = Object.keys(genres) as GenreName[];
 
-export function makePuzzle(spec: GridSpec): Puzzle {
+/** `unfinished`: a puzzle being edited may be missing what makes it playable (a maze's second door,
+ *  an area painted in two pieces) and still be drawn; checking and playing it still fail. */
+export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?: boolean } = {}): Puzzle {
   const genre = spec.genre ? (genres as Record<string, Genre>)[spec.genre] : undefined;
   if (spec.genre && !genre) throw new Error(`unknown genre "${spec.genre}"`);
   const fig = spec.figure ? figureGrid(spec.figure.pieces) : null;
@@ -227,7 +229,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
   const own = new Set((spec.rules ?? []).map((s) => s.rule));
   const rules = [...(genre?.rules ?? []).filter((s) => !own.has(s.rule)), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
-  if (rules.some((s) => s.rule === "perfect-maze" || s.rule === "path")) {
+  if (!unfinished && rules.some((s) => s.rule === "perfect-maze" || s.rule === "path")) {
     const roles = [...doors.values()];
     if (roles.filter((r) => r === "in").length !== 1 || roles.filter((r) => r === "out").length !== 1)
       throw new Error(`a ${rules.some((s) => s.rule === "path") ? "path" : "maze"} needs one way in and one way out on its outside edge`);
@@ -236,7 +238,7 @@ export function makePuzzle(spec: GridSpec): Puzzle {
     spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
     digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? spec.size[1],
     blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
-    areas: areasOf(spec, grid), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
+    areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };
 }
@@ -250,7 +252,7 @@ export function outsideBorder(grid: Grid, [r, c]: [number, number], side: Side):
 }
 
 /** A puzzle's outlined areas: each cell's area, and each area's cells. */
-function areasOf(spec: GridSpec, grid: Grid): Puzzle["areas"] {
+function areasOf(spec: GridSpec, grid: Grid, unfinished = false): Puzzle["areas"] {
   if (!spec.areas) return null;
   const rows = spec.areas;
   if (spec.figure || rows.length !== grid.rows || rows.some((r) => [...r].length !== grid.cols))
@@ -261,7 +263,7 @@ function areasOf(spec: GridSpec, grid: Grid): Puzzle["areas"] {
     cells[index.get(ch)!].push(of.length); of.push(index.get(ch)!);
   }));
   // each letter must be one connected area
-  for (const cs of cells) {
+  if (!unfinished) for (const cs of cells) {
     const want = new Set(cs), seen = new Set([cs[0]]), stack = [cs[0]];
     while (stack.length) for (const l of grid.cellLinks[stack.pop()!]) for (const j of grid.links[l].cells) if (want.has(j) && !seen.has(j)) { seen.add(j); stack.push(j); }
     if (seen.size !== cs.length) throw new Error(`area "${rows[grid.rc(cs[0])[0]][grid.rc(cs[0])[1]]}" is in more than one piece`);

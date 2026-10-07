@@ -160,8 +160,12 @@ const onEdge = ([r, c]: RC, side: Side, rows: number, cols: number) =>
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 
 /** `advanced`: also the Rules and Look sections (otherwise Rules only for Panes, or a puzzle that
- *  already has rules of its own; a creator fixing a reading shouldn't need either). */
-export function PuzzleEditor({ spec, onChange, advanced = false }: { spec: GridSpec; onChange: (spec: GridSpec) => void; advanced?: boolean }) {
+ *  already has rules of its own; a creator fixing a reading shouldn't need either).
+ *  `only: "rules"`: just the Rules section (beside the on-puzzle editor, for Panes).
+ *  `embedded`: in the editor page, which has the type menu already (Three Coats' figure editor). */
+export function PuzzleEditor({ spec, onChange, advanced = false, only, embedded = false }: {
+  spec: GridSpec; onChange: (spec: GridSpec) => void; advanced?: boolean; only?: "rules"; embedded?: boolean;
+}) {
   const genre = (spec.genre ?? "simple-loop") as GenreName;
   const [rows, cols] = spec.size;
   const givens = spec.givens ?? [];
@@ -355,7 +359,7 @@ export function PuzzleEditor({ spec, onChange, advanced = false }: { spec: GridS
 
   return (
     <div className="givens-editor">
-      <div className="ge-bar">
+      {!only && !embedded && <div className="ge-bar">
         <label>Game type
           <select value={genre} onChange={(e) => changeGenre(e.target.value as GenreName)}>
             {(Object.keys(GENRE_CLUES) as GenreName[]).map((g) => <option key={g} value={g}>{KIND_NAMES[g]}</option>)}
@@ -365,9 +369,9 @@ export function PuzzleEditor({ spec, onChange, advanced = false }: { spec: GridS
           Rows <button type="button" onClick={() => resize(-1, 0)} aria-label="Fewer rows">−</button><b>{rows}</b><button type="button" onClick={() => resize(1, 0)} aria-label="More rows">+</button>
           Columns <button type="button" onClick={() => resize(0, -1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" onClick={() => resize(0, 1)} aria-label="More columns">+</button>
         </span>}
-      </div>
+      </div>}
 
-      {spec.figure ? <FigureEditor spec={spec} set={set} /> : <>
+      {only ? null : spec.figure ? <FigureEditor spec={spec} set={set} /> : <>
       {nonogram && (
         <div className="ge-bar">
           <span className="ge-tools" role="group" aria-label="Picture or numbers">
