@@ -56,9 +56,11 @@ and Reset sit bottom left. Drafts save themselves; publishing needs exactly one 
 shows the real page (`/g/<id>/preview`) at desktop or phone width. Three Coats keeps its figure
 editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; admins a Look panel.
 
-**Deploying**: pushes to `main` that touch `app/` or `src/` run `.github/workflows/deploy-inkit.yml`:
-type-check, apply D1 migrations, deploy. The Worker serves inkit.games, and redirects
-wyattsgames.com (Wyatt's old site) to his profile. Running it locally: see `app/README.md`.
+**Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser
+tests, the engine self-test); see [docs/deploy.md](docs/deploy.md), which also covers rolling back.
+The Worker serves inkit.games, and redirects wyattsgames.com (Wyatt's old site) to his profile.
+Running it locally: see `app/README.md`. The sketch reader, its record of every read and its
+evaluation: [docs/reader.md](docs/reader.md).
 
 ## The game interface
 

@@ -21,3 +21,4 @@ tests/e2e/.auth.json
 tests/e2e/.run.json
 test-results/
 playwright-report/
+eval/data/

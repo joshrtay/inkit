@@ -30,6 +30,11 @@ drive the editor with a real mouse and keyboard, check what was saved in the loc
 and delete it all afterwards. They reuse a running `npm run dev`. GitHub runs both (and the
 engine self-test) on every push and pull request, and deploys `main` only when they pass.
 
+## The sketch reader
+
+How it works, what it costs, the record of every read on the live site, and the offline
+evaluation (`npm run eval`): [../docs/reader.md](../docs/reader.md).
+
 ## Later
 
 - **An inkit MCP connector**, so creators can bring their own AI (Claude, ChatGPT...) to edit a

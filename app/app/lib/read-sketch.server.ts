@@ -1,7 +1,7 @@
 // Reading a hand-drawn sketch with Claude: the photo goes in, a structured reading comes out
 // (game type, grid size, the clues the player starts with, rules, notes about anything
-// uncertain), which becomes the game's sketch text. The creator then confirms it against
-// their drawing (and can ask for a re-read with corrections) before the one-solution check.
+// uncertain), which becomes the game's sketch text. The creator then checks it against
+// their drawing in the editor (and can ask for a re-read). See docs/reader.md.
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";

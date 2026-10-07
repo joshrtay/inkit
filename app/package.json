@@ -15,7 +15,9 @@
     "db:migrate:remote": "wrangler d1 migrations apply wyattsgames-db --remote",
     "db:seed": "wrangler d1 execute wyattsgames-db --local --file seed/dev.sql",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "eval": "vite-node --config vitest.config.ts eval/run.ts --",
+    "eval:pull": "vite-node --config vitest.config.ts eval/pull.ts --"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
