@@ -247,10 +247,16 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
             <button type="button" className="pane-close" aria-label="Close" onClick={() => setPanel(null)}>×</button>
             {panel === "drawing" && <img className="drawing-full" src={`/g/${game.id}/sketch`} alt="Your hand-drawn sketch" />}
             {panel === "preview" && play && (
-              <>
-                <h2>{title || "Untitled"}</h2>
+              // as the game's page will show it (playable; nothing you do here is saved)
+              <main className="wrap game-page preview-page">
+                <span className="preview-tag">Preview</span>
+                <header className="game-head">
+                  <h1>{title.trim() || "Untitled"}</h1>
+                  <span className="muted">{kindName(play.spec.genre ?? "")} · {play.spec.figure ? `${play.spec.figure.pieces.length} pieces` : `${play.spec.size[1]} × ${play.spec.size[0]}`}</span>
+                </header>
                 <GameBoard play={play} />
-              </>
+                {description.trim() && <p className="game-desc">{description}</p>}
+              </main>
             )}
             {panel === "publish" && (
               <Form method="post" className="form">

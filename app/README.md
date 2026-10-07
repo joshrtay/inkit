@@ -67,3 +67,5 @@ and R2 bucket created in Cloudflare, and the real `database_id` in `wrangler.jso
   page opens their AI with the draft's address in the prompt; the page updates as it edits.
   Then **WebMCP** (the same actions offered by the page itself to in-browser agents) once
   browsers support it. Build after the on-puzzle editor, whose actions these mirror.
+- **Style in the editor**: choose a puzzle's look (ink, paper, colors) on the edit page, seen live
+  in Preview, which already shows the puzzle as its page will.

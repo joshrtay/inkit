@@ -585,7 +585,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .studio-corner .btn { background: var(--panel); }
 .studio-dialog { position: fixed; inset: 0; z-index: 30; background: color-mix(in srgb, #000 55%, transparent); display: grid; place-items: center; padding: 16px; }
 .studio-sheet { position: relative; background: var(--panel); border-radius: 12px; padding: 22px; width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; }
-.studio-sheet.preview { width: min(760px, 100%); }
 .studio-sheet.drawing { width: auto; padding: 10px; background: #fff; }
 .studio-sheet .pane-close { position: absolute; top: 8px; right: 10px; display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
 .drawing-full { display: block; max-width: calc(100vw - 52px); max-height: calc(100dvh - 52px); }
@@ -606,7 +605,6 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 @media (max-width: 640px) {
   .check-chip { font-size: 12px; }
 }
-.studio-sheet.preview .sheet > svg, .studio-sheet.preview svg.board { max-height: calc(100dvh - 240px); }
 .state.to-check { background: color-mix(in srgb, #e0a100 22%, transparent); }
 .studio-title { grid-column: 2; grid-row: 1; max-width: 640px; width: 100%; justify-self: center; display: grid; gap: 4px; margin-bottom: 18px; }
 .studio-title input, .studio-title textarea { width: 100%; border: 0; padding: 0; background: none; color: var(--ink); outline: none; resize: none; }
@@ -645,3 +643,8 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
   .reading-scan, .reading-corners, .reading-word { animation: none; }
   .reading-scan { top: 40%; opacity: .5; }
 }
+/* the editor's preview: nearly the whole window, laid out like the game's page */
+.studio-sheet.preview { position: fixed; inset: 12px; width: auto; max-height: none; padding: 0; overflow: auto; background: var(--bg); border: 1px solid var(--line-strong); }
+.studio-sheet.preview .pane-close { z-index: 2; }
+.preview-page { --nav-h: 150px; padding-top: 24px; }
+.preview-tag { justify-self: start; font: 700 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 4px 9px; }
