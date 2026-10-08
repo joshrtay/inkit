@@ -1,4 +1,4 @@
-// The moment a puzzle is solved: the board rumbles, squashes and pops; its ink bursts out of it in
+// The moment a puzzle is solved: the board is squeezed and let go, and its ink bursts out of it in
 // drops (from its own clues, shading and lines, in its own colors), leaving the puzzle gray; the
 // drops gather into a hand-drawn check over the puzzle, which flies to the board's corner and
 // stays there as a small stamp while the puzzle's color comes back. With reduced
@@ -81,7 +81,7 @@ export function celebrate(root: HTMLElement, inks: string[]) {
   if (!sheet || !board || matchMedia("(prefers-reduced-motion: reduce)").matches) { stamp(root); return; }
   unstamp(root);
 
-  // 1. rumble, squash, pop (CSS: .sheet.solving)
+  // 1. squeezed, then let go (CSS: .sheet.solving)
   sheet.classList.add("solving");
 
   // the stage: an overlay over the board, in its pixels
@@ -128,7 +128,7 @@ export function celebrate(root: HTMLElement, inks: string[]) {
     return { e, r, x, y, fx: x, fy: y, vx: Math.cos(away) * speed, vy: Math.sin(away) * speed - M * 0.25, tx: p.x, ty: p.y, s: 0 };
   });
 
-  const START = 300, BURST = 560, GATHER = 620, HOLD = 450, FLY = 650;
+  const START = 275, BURST = 560, GATHER = 620, HOLD = 450, FLY = 650;
   const start = performance.now() + START;
   const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
   let frame = 0, last = start;
