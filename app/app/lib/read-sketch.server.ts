@@ -160,6 +160,10 @@ const Reading = z.object({
   candidates: z.array(z.enum(GENRE_NAMES as [GenreName, ...GenreName[]])).describe(
     "every game type this same reading could be, most likely first (genre first): 1 if the type is written or certain, else up to 4"),
   title: z.string().describe("a title written on the sketch; else \"\""),
+  bounds: z.object({ left: z.number(), top: z.number(), right: z.number(), bottom: z.number() }).describe(
+    "where the puzzle is in the photo, so only the puzzle is kept: its edges as fractions of the photo's width and height (0 at the left and top, 1 at the right and bottom). " +
+    "Take in everything that belongs to the puzzle (the grid, clues and numbers outside it, its title and written rules) and nothing else: no hands, faces, desk or room. " +
+    "0, 0, 1, 1 if the puzzle fills the photo"),
   rows: int, cols: int,
   rules: z.array(z.object({
     rule: z.enum(RULE_NAMES as [RuleName, ...RuleName[]]),

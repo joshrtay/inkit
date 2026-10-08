@@ -12,7 +12,7 @@ import { kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { GamePageView } from "~/components/GamePageView";
 import { editAccess as load } from "~/lib/edit-access.server";
-import { likesOf } from "~/lib/queries.server";
+import { likesOf, solvesOf } from "~/lib/queries.server";
 
 /** root.tsx makes the site's nav inactive on this page. */
 export const handle = { preview: true };
@@ -31,12 +31,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     collection: { slug: collection?.slug ?? "", title: collection?.title ?? "", personal: !!collection?.personalOf },
     author: { handle: author?.handle ?? "", name: author?.name ?? "", deleted: !!author?.deletedAt },
     likes: await likesOf(db, game.id, undefined),
+    solves: await solvesOf(db, game.id, undefined),
   };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `${loaderData?.game.title ?? "Preview"} · inkit` }, { name: "robots", content: "noindex" }];
 
-export default function GamePreview({ loaderData: { game, collection, author, likes } }: Route.ComponentProps) {
+export default function GamePreview({ loaderData: { game, collection, author, likes, solves } }: Route.ComponentProps) {
   const [live, setLive] = useState({ sketch: game.sketch, title: game.title, description: game.description });
   useEffect(() => {
     const take = (e: MessageEvent<PreviewState>) => {
@@ -49,7 +50,7 @@ export default function GamePreview({ loaderData: { game, collection, author, li
   const parsed = useMemo(() => parseSketch(live.sketch), [live.sketch]);
   const play = useMemo(() => (parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null), [parsed]);
   return (
-    <GamePageView key={live.sketch} preview play={play} editable={false} likes={likes} signedIn
+    <GamePageView key={live.sketch} preview play={play} editable={false} likes={likes} solves={solves} signedIn
       summary={parsed.ok ? parsed.summary : kindName(game.kind)}
       extra={parsed.ok && parsed.spec.rules?.length ? parsed.rules : []} errors={parsed.ok ? [] : parsed.errors}
       game={{ id: game.id, title: live.title.trim() || "Untitled", description: live.description, kind: parsed.ok ? parsed.kind : game.kind, state: "published", hiddenNote: null, when: game.when }}

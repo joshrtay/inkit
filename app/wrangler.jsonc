@@ -20,6 +20,9 @@
 		}
 	],
 	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "inkit-media" }],
+	/** Cloudflare Images: uploads are turned upright and stripped of their metadata, and only the
+	 *  puzzle is kept (cropped to what Claude says is the puzzle; app/lib/photos.server.ts). */
+	"images": { "binding": "IMAGES" },
 	/** Cloudflare Email Service: password reset emails from no-reply@inkit.games (simulated locally). */
 	"send_email": [{ "name": "EMAIL" }],
 	/** Cloudflare creates the DNS records for these domains on deploy. wyattsgames.com (Wyatt's old

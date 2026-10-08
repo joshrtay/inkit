@@ -37,6 +37,7 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
     <li>
       <Link className="game-card" to={`/g/${game.id}`}>
         <Picture svg={game.picture} className="thumb" />
+        {game.solved && <Solved />}
         <span className="game-card-text">
           <span className="kind">{kindName(game.kind)}</span>
           <strong>{game.title}</strong>
@@ -46,12 +47,24 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
             {game.collectionSlug !== game.authorHandle && <> in {game.collectionTitle}</>}
           </span>
           {game.state !== "published" && <span className={`state ${game.state}`}>{game.state}</span>}
-          {game.state === "published" && game.likes > 0 && <span className="card-likes" aria-label={`${game.likes} like${game.likes === 1 ? "" : "s"}`}>♥ {game.likes}</span>}
+          {game.state === "published" && (game.likes > 0 || game.solves > 0) && (
+            <span className="card-counts">
+              {game.likes > 0 && <span aria-label={`${game.likes} like${game.likes === 1 ? "" : "s"}`}>♥ {game.likes}</span>}
+              {game.solves > 0 && <span>{game.solves} solve{game.solves === 1 ? "" : "s"}</span>}
+            </span>
+          )}
         </span>
       </Link>
     </li>
   );
 }
+
+/** The viewer has solved this puzzle: a pen check, like the one stamped on a solved board. */
+const Solved = () => (
+  <span className="solved-badge" role="img" aria-label="Solved" title="Solved">
+    <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M14 54 C24 61 32 69 39 80 C52 57 68 36 88 16" /></svg>
+  </span>
+);
 
 const edited = (t: Date | number | null) => {
   if (!t) return "";
@@ -75,9 +88,9 @@ export function FeedItem({ game, liked = false, signedIn = false }: { game: Thum
           <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} /> {game.collectionTitle}<span className="feed-when">{when(game.publishedAt)}</span></span>
           <strong>{game.title}</strong>
           {game.description && <span className="desc">{game.description}</span>}
-          <span className="feed-meta">{kindName(game.kind)}{game.collectionSlug !== game.authorHandle && !game.authorDeleted && <> · @{game.authorHandle}</>}</span>
+          <span className="feed-meta">{kindName(game.kind)}{game.collectionSlug !== game.authorHandle && !game.authorDeleted && <> · @{game.authorHandle}</>}{game.solves > 0 && <> · {game.solves} solve{game.solves === 1 ? "" : "s"}</>}</span>
         </span>
-        <Picture svg={game.picture} className="feed-pic" />
+        <span className="feed-pic-wrap"><Picture svg={game.picture} className="feed-pic" />{game.solved && <Solved />}</span>
       </Link>
       <div className="feed-actions"><LikeButton gameId={game.id} count={game.likes} liked={liked} signedIn={signedIn} /></div>
     </li>

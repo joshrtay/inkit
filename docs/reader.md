@@ -5,7 +5,8 @@ better. The code is `app/app/lib/read-sketch.server.ts`.
 
 ## How a read works
 
-1. **The photo** (shrunk in the browser to at most 2000px across, then stored in R2) goes to
+1. **The photo** (shrunk in the browser to at most 2000px across, then turned upright and stripped
+   of its metadata, location included, by Cloudflare Images: `app/lib/photos.server.ts`) goes to
    Claude with a long system prompt: how to transcribe, every puzzle type (`GENRE_GUIDE`), every
    kind of clue (`CLUE_GUIDE`) and rule (`RULE_GUIDE`). Those three tables are typed against the
    engine's lists, so a new type, clue or rule fails the type check until it's described.
@@ -25,6 +26,14 @@ better. The code is `app/app/lib/read-sketch.server.ts`.
 5. The reading becomes the draft's sketch (`toSketch`), its doubts, and the type menu's "could be"
    list. The editor takes it from there.
 
+**Only the puzzle is kept.** A photo can show a desk, a room or a face, so it isn't stored until
+it's been read: Claude's reading includes `bounds`, where the puzzle is in the photo (fractions of
+its width and height, taking in clues outside the grid and the title), and the photo is cropped
+to that, with a 3% margin, before it goes to R2. A read that fails keeps no photo. Re-reads read
+the cropped photo. Locally, `wrangler dev`'s stand-in for Cloudflare Images ignores the crop, so
+local uploads keep the whole (upright) photo; to try the real crop, set `"remote": true` on the
+`images` binding in `wrangler.jsonc` (needs `wrangler login`).
+
 ## Cost and time
 
 Each look sends the photo and the system prompt, about 11,000 input tokens, and gets back 500 to
@@ -37,7 +46,7 @@ the careful reader, 15 to 40. Every look's model, time and tokens are recorded (
 ## Measuring it
 
 **On the live site**, every read is recorded (`reads` table, `app/lib/reads.server.ts`): the
-photo, the creator's corrections, each look, Claude's answer and the sketch made from it, or the
+photo (only the puzzle's part of it, see below), the creator's corrections, each look, Claude's answer and the sketch made from it, or the
 error. When the puzzle is first published, the published puzzle is saved with it, and the two are
 compared (`app/games/diff.ts`): both are broken into facts (type, size, each clue, each area and
 picture square, each rule), and the score is the share of facts they have in common (1 =

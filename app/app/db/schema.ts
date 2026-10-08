@@ -185,6 +185,13 @@ export const likes = sqliteTable("likes", {
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("likes_game").on(t.gameId)]);
 
+// ---- solves: a signed-in creator solving a game (one each; not its author's own) ----
+export const solves = sqliteTable("solves", {
+  creatorId: text("creator_id").notNull().references(() => creators.id),
+  gameId: text("game_id").notNull().references(() => games.id),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("solves_game").on(t.gameId)]);
+
 // ---- the Featured shelf ----
 export const featured = sqliteTable("featured", {
   gameId: text("game_id").primaryKey().references(() => games.id),

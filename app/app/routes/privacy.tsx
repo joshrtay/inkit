@@ -16,7 +16,7 @@ export default function Privacy() {
       <h2>What we collect</h2>
       <ul>
         <li><strong>Your account:</strong> your name, email address, handle, and a scrambled (hashed) version of your password. If you sign in with Google, we get your name, email address and profile picture from Google, plus the sign-in tokens Google returns.</li>
-        <li><strong>What you make:</strong> your puzzles, their titles and descriptions, the photos of drawings you upload, the studios you belong to, and who you subscribe to. Published puzzles, your profile, your subscriptions and your subscriber count are public.</li>
+        <li><strong>What you make:</strong> your puzzles, their titles and descriptions, the photos of drawings you upload (we keep only the part of each photo that shows the puzzle, without its location or other camera details), the studios you belong to, and who you subscribe to. Published puzzles, your profile, your subscriptions and your subscriber count are public.</li>
         <li><strong>Signing in:</strong> while you&rsquo;re signed in we keep a session, with the IP address and browser it came from, so we can keep you signed in and spot misuse.</li>
         <li><strong>In your browser:</strong> your progress on puzzles and settings like the light or dark theme are saved in your own browser (local storage). They stay on your device; we don&rsquo;t receive them.</li>
         <li><strong>Server logs:</strong> our host keeps short-lived technical logs of requests (such as IP address, page and time) to run and protect the site.</li>
@@ -26,7 +26,7 @@ export default function Privacy() {
       <ul>
         <li>To run your account, show your puzzles and profile, and build your Subscriptions feed.</li>
         <li>To read uploaded drawings into puzzles (see Anthropic below).</li>
-        <li>To make reading drawings better: we keep a record of each reading (the photo, what Claude read, how long it took) and compare it with the puzzle you publish. We use these records to measure how well drawings are read and to improve it, which may include training or testing the software that reads drawings.</li>
+        <li>To make reading drawings better: we keep a record of each reading (the puzzle's part of the photo, what Claude read, how long it took) and compare it with the puzzle you publish. We use these records to measure how well drawings are read and to improve it, which may include training or testing the software that reads drawings.</li>
         <li>To send emails you ask for, like a password reset link. We don&rsquo;t send marketing email.</li>
         <li>To keep the site working and safe.</li>
       </ul>

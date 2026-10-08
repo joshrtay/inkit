@@ -28,7 +28,9 @@ site an npm workspace, so one `npm install` in the root installs both.
 **The model** (`app/db/schema.ts`, Drizzle on D1): *creators* (handle, name, admin), *collections*
 (every creator has a personal one at their handle; studios exist but are set aside for now),
 *memberships*, *games* (a permanent `/g/<id>`, the sketch that is their "code", draft / published /
-hidden, Claude's latest reading and doubts), *subscriptions*, *likes*, and the *Featured* shelf.
+hidden, Claude's latest reading and doubts), *subscriptions*, *likes*, *solves* (a signed-in
+player's, not the author's own: a check on the puzzle's card, counts on puzzles and profiles), and
+the *Featured* shelf.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 
 **Sketches** (`app/games/sketch.ts`): a genre on the first line, then the puzzle as JSON (size,
@@ -42,7 +44,8 @@ The left nav (`components/Shell.tsx`) frames every page except the editor.
 **Reading a drawing** (`app/lib/read-sketch.server.ts`): Claude reads the photo into a structured
 reading (type, size, clues, rules, and doubts, each tied to a square, a line's clues, rows,
 columns, an area or the whole puzzle). A quick reader (Claude Sonnet) goes first and a careful one
-(Claude Opus) takes over when the reading looks shaky, and for every re-read. A re-read can carry
+(Claude Opus) takes over when the reading looks shaky, and for every re-read. Only the puzzle's part of the photo is kept (Claude says where it is; `lib/photos.server.ts`
+crops it). A re-read can carry
 the creator's corrections, or a type they chose (with that type's guide). While it reads, the
 reading screen (`components/ReadingScreen.tsx`) shows the photo being scanned, cycling words, and
 one puzzle fact.
@@ -64,7 +67,8 @@ evaluation: [docs/reader.md](docs/reader.md).
 
 ## The game interface
 
-The player is plain TypeScript and SVG. It plugs into a page through `src/lib/game-api.ts`:
+The player is plain TypeScript and SVG. Solving plays `celebrate.ts`: the ink bursts out of the
+board, which goes gray, and gathers into a check that settles on the board's corner. It plugs into a page through `src/lib/game-api.ts`:
 
 ```ts
 export type MountGame = (root: HTMLElement, host: GameHost) => void | (() => void);

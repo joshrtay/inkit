@@ -9,6 +9,7 @@ import { schema, type Db } from "../db";
 import { looseSpec, parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
 import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
+import { cropTo, prepare } from "./photos.server";
 import { IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
 import { notePublished, recordRead } from "./reads.server";
 
@@ -153,26 +154,30 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   const collectionId = String(form.get("collection") ?? "");
   if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
   const image = await imageFrom(form);
-  // the photo is kept first, so a read that fails is still on record with it
+  // upright and without its metadata; it's only kept once read, and only the puzzle's part of it
+  // (photos.server.ts), so a read that fails keeps no photo
+  let photo;
+  try { photo = await prepare(env, image.bytes); } catch { throw new Invalid("That photo couldn't be opened. Try a JPEG or PNG."); }
   const id = newId();
-  const key = `sketches/${id}/${crypto.randomUUID()}.${image.type.split("/")[1]}`;
-  await env.MEDIA.put(key, image.bytes, { httpMetadata: { contentType: image.type } });
   const log: Attempt[] = [];
-  const record = { creatorId: me.id, kind: "upload" as const, imageKey: key, attempts: log };
+  const record = { creatorId: me.id, kind: "upload" as const, attempts: log };
   let read;
   try {
-    read = await readSketch(env, { data: toBase64(image.bytes), type: image.type }, { log });
+    read = await readSketch(env, { data: toBase64(photo.bytes), type: photo.type }, { log });
   } catch (e) {
-    await recordRead(db, { ...record, gameId: null, error: (e as Error).message });
+    await recordRead(db, { ...record, imageKey: null, gameId: null, error: (e as Error).message });
     throw e;
   }
   const { reading, sketch } = read;
+  const kept = await cropTo(env, photo, reading.bounds);
+  const key = `sketches/${id}/${crypto.randomUUID()}.jpeg`;
+  await env.MEDIA.put(key, kept.bytes, { httpMetadata: { contentType: kept.type } });
   await db.insert(schema.games).values({
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
     title: reading.title || "Untitled",   // a title written on the sketch; set in the editor otherwise
     sketchImage: key, reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading),
   });
-  await recordRead(db, { ...record, gameId: id, result: { reading, sketch, puzzleKind: reading.genre, model: log.at(-1)!.model } });
+  await recordRead(db, { ...record, imageKey: key, gameId: id, result: { reading, sketch, puzzleKind: reading.genre, model: log.at(-1)!.model } });
   return id;
 }
 

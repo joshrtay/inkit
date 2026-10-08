@@ -9,7 +9,7 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { roleIn } from "~/lib/permissions.server";
 import { signInFirst } from "~/lib/http.server";
-import { collectionBySlug, collectionGames, collectionMembers, isSubscribed, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
+import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, markSolved, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
 import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard";
 import { Avatar } from "~/components/Avatar";
@@ -27,12 +27,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   if (collection.deletedAt && role !== "owner" && !viewer?.isAdmin) throw data(null, { status: 404 });
   const owner = role === "owner";
   const tab = new URL(request.url).searchParams.get("tab") ?? "puzzles";
-  const [games, members, person, subscribers, subscribed] = await Promise.all([
+  const [games, members, person, subscribers, subscribed, solves] = await Promise.all([
     collectionGames(db, collection.id, !!role || !!viewer?.isAdmin),
     collectionMembers(db, collection.id),
     collection.personalOf ? db.query.creators.findFirst({ where: eq(schema.creators.id, collection.personalOf) }) : null,
     subscriberCount(db, collection.id),
     isSubscribed(db, viewer?.id, collection.id),
+    collectionSolves(db, collection.id),
   ]);
   const following = person ? await subscriptionsOf(db, person.id) : [];
   const viewerFollows = viewer && following.length
@@ -47,10 +48,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt },
     person: person && { handle: person.handle, name: person.name },
     members,
-    games: withPictures(published),
+    games: await markSolved(db, viewer?.id, withPictures(published)),
     drafts: canSeeDrafts ? withPictures(drafts) : null,
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
-    subscribers, subscribed, role,
+    subscribers, subscribed, solves, role,
     me: viewer?.handle ?? null,
     tab: ["puzzles", "subscriptions", "members", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
   };
@@ -80,7 +81,7 @@ export const meta: Route.MetaFunction = ({ loaderData: data }) => data
   : [{ title: "Not found · inkit" }];
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, members, games, drafts, following, subscribers, subscribed, role, me, tab } = d;
+  const { collection, person, members, games, drafts, following, subscribers, subscribed, solves, role, me, tab } = d;
   const mine = !!person && person.handle === me;
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
@@ -95,7 +96,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           <h1>{collection.title}</h1>
           <span className="muted">{person ? `@${person.handle}` : `@${collection.slug} · studio`}</span>
           {collection.description && <p className="profile-bio">{collection.description}</p>}
-          <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
+          <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
         </div>
         <Avatar name={collection.title} seed={collection.slug} size={96} />
         {collection.deleted && <p className="state hidden">This studio was deleted; its games are offline.</p>}

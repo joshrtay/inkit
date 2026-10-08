@@ -18,6 +18,7 @@ export default [
   route("g/:id/edit", "routes/game-edit.tsx"),
   route("g/:id/preview", "routes/game-preview.tsx"),
   route("g/:id/like", "routes/game-like.ts"),
+  route("g/:id/solve", "routes/game-solve.ts"),
   route("g/:id/sketch", "routes/game-sketch.ts"),
   // admin endpoints (JSON): app/lib/admin.server.ts
   route("admin/reads/stats", "routes/admin-reads-stats.ts"),

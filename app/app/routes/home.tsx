@@ -5,7 +5,7 @@ import type { Route } from "./+types/home";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { exploreCollections, featuredGames, feedGames, likedAmong, subscriptionsOf } from "~/lib/queries.server";
+import { exploreCollections, featuredGames, feedGames, likedAmong, solvedAmong, subscriptionsOf } from "~/lib/queries.server";
 import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, FeedItem, GameCard } from "~/components/GameCard";
 import "~site/game-types/grid/styles.css";
@@ -22,8 +22,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (me) {
     const [feed, subs] = await Promise.all([feedGames(db, me.id), subscriptionsOf(db, me.id)]);
     const suggestions = feed.length ? [] : (await exploreCollections(db, "", 8)).filter((c) => c.slug !== me.handle && !subs.some((s) => s.id === c.id)).slice(0, 5);
-    const liked = await likedAmong(db, me.id, feed.map((g) => g.id));
-    return { signedIn: true as const, feed: withPictures(feed).map((g) => ({ ...g, liked: liked.has(g.id) })), subscribedTo: subs.length, suggestions, featured: [], creators: [] };
+    const [liked, solved] = await Promise.all([likedAmong(db, me.id, feed.map((g) => g.id)), solvedAmong(db, me.id, feed.map((g) => g.id))]);
+    return { signedIn: true as const, feed: withPictures(feed).map((g) => ({ ...g, liked: liked.has(g.id), solved: solved.has(g.id) })), subscribedTo: subs.length, suggestions, featured: [], creators: [] };
   }
   const [featured, creators] = await Promise.all([featuredGames(db), exploreCollections(db, "", 6)]);
   return { signedIn: false as const, feed: [], subscribedTo: 0, suggestions: [], featured: withPictures(featured), creators };

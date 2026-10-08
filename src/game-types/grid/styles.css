@@ -135,3 +135,35 @@
 @media (prefers-reduced-motion: reduce) { .grid-game.revealed .reveal .pix { transition: none; } .grid-game.revealed .sign { animation: none; } }
 /* the on-puzzle editor: cells the clues can't pin down */
 .grid-game .undecided { fill: #e0a100; fill-opacity: .28; stroke: #e0a100; stroke-width: 1.5; stroke-dasharray: 3 2; pointer-events: none; }
+
+/* ---- solving a puzzle (celebrate.ts): rumble, squash and pop; the ink bursts out in drops and
+   the puzzle goes gray; the drops gather into a check, which flies to the corner as a stamp ---- */
+.sheet.solving > svg:not(.celebration):not(.solved-stamp) { animation: solve-rumble .38s linear, solve-pop .45s .34s cubic-bezier(.3, 1.6, .5, 1); transform-origin: 50% 50%; }
+@keyframes solve-rumble {
+  0%, 100% { transform: translate(0, 0) rotate(0); } 20% { transform: translate(-2px, 1px) rotate(-.6deg); }
+  40% { transform: translate(2px, -1px) rotate(.6deg); } 60% { transform: translate(-1.5px, -1px) rotate(-.4deg); } 80% { transform: translate(1px, 1px) rotate(.3deg); }
+}
+@keyframes solve-pop { 0% { transform: scale(1); } 35% { transform: scale(.95); } 70% { transform: scale(1.035); } 100% { transform: scale(1); } }
+/* gray while the ink is out of it: --gray is registered so the filter fades rather than jumps */
+@property --gray { syntax: "<number>"; inherits: false; initial-value: 0; }
+.sheet > svg:not(.celebration):not(.solved-stamp) { filter: url(#pen) grayscale(var(--gray)) opacity(calc(1 - var(--gray) * .45)); transition: --gray .6s ease; }
+.sheet.drained > svg:not(.celebration):not(.solved-stamp) { --gray: 1; transition-duration: .35s; }
+.sheet > svg.celebration { position: absolute; display: block; filter: none; cursor: default; pointer-events: none; overflow: visible; z-index: 3; }
+.celebration .drop { fill: var(--c); }
+.celebration .flier { transition: transform .65s cubic-bezier(.5, 0, .2, 1); }
+.check-ink { fill: none; stroke: var(--paper-ink, #26398f); stroke-linecap: round; stroke-linejoin: round; }
+/* the transition only once it draws, so hiding it at the start doesn't animate */
+.celebration .check-ink.big.drawn { stroke-dashoffset: 0 !important; transition: stroke-dashoffset .5s ease-out, stroke-width .65s ease; }
+.sheet > svg.solved-stamp { position: absolute; top: -14px; right: -14px; width: 54px; height: 54px; translate: -50% -50%; filter: none; cursor: default; padding: 8px; border-radius: 50%;
+  background: var(--paper, #fbfaf6); box-shadow: 0 2px 8px #0003; z-index: 2; animation: stamp-in .35s cubic-bezier(.3, 1.6, .5, 1); }
+.solved-stamp .check-ink { stroke-width: 11; }
+@keyframes stamp-in { from { transform: scale(.4) rotate(-12deg); opacity: 0; } }
+/* the check that flew there: only its paper comes in under it */
+.sheet > svg.solved-stamp.landed { animation: stamp-paper .3s ease; }
+@keyframes stamp-paper { from { background: transparent; box-shadow: none; } }
+/* placed on the puzzle's corner by celebrate.ts (left / top); without that, the paper's corner */
+.sheet > svg.solved-stamp[style*="left"] { right: auto; }
+.sheet > svg.solved-stamp:not([style*="left"]) { translate: none; }
+@media (prefers-reduced-motion: reduce) { .solved-stamp { animation: none; } }
+/* "Solved!" is still said (for screen readers), but the check says it on screen */
+.paper-bar .status.said { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

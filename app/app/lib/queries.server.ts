@@ -9,6 +9,7 @@ const cardColumns = {
   sketch: schema.games.sketch, sketchVersion: schema.games.sketchVersion, publishedAt: schema.games.publishedAt,
   updatedAt: schema.games.updatedAt, parseNotes: schema.games.parseNotes,
   likes: sql<number>`(select count(*) from likes where likes.game_id = ${schema.games.id})`.as("like_count"),
+  solves: sql<number>`(select count(*) from solves where solves.game_id = ${schema.games.id})`.as("solve_count"),
   collectionSlug: schema.collections.slug, collectionTitle: schema.collections.title,
   authorHandle: schema.creators.handle, authorName: schema.creators.name, authorDeleted: schema.creators.deletedAt,
 };
@@ -97,3 +98,30 @@ export async function likedAmong(db: Db, viewerId: string | undefined, gameIds: 
     .where(and(eq(schema.likes.creatorId, viewerId), inArray(schema.likes.gameId, gameIds)));
   return new Set(rows.map((r) => r.id));
 }
+
+/** A game's solves, and whether this viewer has solved it. */
+export async function solvesOf(db: Db, gameId: string, viewerId: string | undefined) {
+  const [{ n }] = await db.select({ n: count() }).from(schema.solves).where(eq(schema.solves.gameId, gameId));
+  const solved = !!viewerId && !!(await db.query.solves.findFirst({ where: and(eq(schema.solves.gameId, gameId), eq(schema.solves.creatorId, viewerId)) }));
+  return { count: n, solved };
+}
+
+/** Which of these games this viewer has solved. */
+export async function solvedAmong(db: Db, viewerId: string | undefined, gameIds: string[]) {
+  if (!viewerId || !gameIds.length) return new Set<string>();
+  const rows = await db.select({ id: schema.solves.gameId }).from(schema.solves)
+    .where(and(eq(schema.solves.creatorId, viewerId), inArray(schema.solves.gameId, gameIds)));
+  return new Set(rows.map((r) => r.id));
+}
+
+/** These games, each marked with whether this viewer has solved it. */
+export async function markSolved<G extends { id: string }>(db: Db, viewerId: string | undefined, games: G[]) {
+  const solved = await solvedAmong(db, viewerId, games.map((g) => g.id));
+  return games.map((g) => ({ ...g, solved: solved.has(g.id) }));
+}
+
+/** How many times a collection's published puzzles have been solved, all together. */
+export const collectionSolves = async (db: Db, collectionId: string) =>
+  (await db.select({ n: count() }).from(schema.solves)
+    .innerJoin(schema.games, eq(schema.solves.gameId, schema.games.id))
+    .where(and(eq(schema.games.collectionId, collectionId), eq(schema.games.state, "published"))))[0]?.n ?? 0;

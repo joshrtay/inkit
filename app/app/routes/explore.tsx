@@ -5,7 +5,7 @@ import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { eq } from "drizzle-orm";
 import { currentCreator } from "~/lib/auth.server";
-import { exploreCollections, featuredGames } from "~/lib/queries.server";
+import { exploreCollections, featuredGames, markSolved } from "~/lib/queries.server";
 import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, GameCard } from "~/components/GameCard";
 import "~site/game-types/grid/styles.css";
@@ -18,7 +18,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const q = (new URL(request.url).searchParams.get("q") ?? "").slice(0, 80);
   const [me, collections, featured] = await Promise.all([currentCreator(env, request), exploreCollections(db, q), q ? [] : featuredGames(db)]);
   const mine = me ? new Set((await db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, me.id))).map((s) => s.id)) : new Set<string>();
-  return { q, me: me?.handle, collections: collections.map((c) => ({ ...c, subscribed: mine.has(c.id) })), featured: withPictures(featured) };
+  return { q, me: me?.handle, collections: collections.map((c) => ({ ...c, subscribed: mine.has(c.id) })), featured: await markSolved(db, me?.id, withPictures(featured)) };
 }
 
 export default function Explore({ loaderData: { q, me, collections, featured } }: Route.ComponentProps) {

@@ -11,6 +11,7 @@ import { solvePaint } from "../../engine/paint.ts";
 import { paletteSize } from "../../engine/encode.ts";
 import { emptyBoard, type Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
+import { celebrate, stamp, unstamp } from "./celebrate";
 
 interface Saved { color?: number[]; hearts?: number }
 const NS = "http://www.w3.org/2000/svg";
@@ -65,7 +66,7 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
 
   // ---- the paper: pots, hearts, status ----
   const status = q<HTMLElement>(".status")!;
-  const say = (text: string, tone: "" | "good" | "warn" = "") => { status.className = `status ${tone}`.trim(); status.textContent = text; };
+  const say = (text: string, tone: "" | "good" | "warn" | "good said" = "") => { status.className = `status ${tone}`.trim(); status.textContent = text; };
   const pots = [...root.querySelectorAll<HTMLButtonElement>("[data-color]")];
   if (maxHearts) pots.filter((b) => b.dataset.color === "0").forEach((b) => b.remove());   // locked pieces can't be cleared
   pots.forEach((b) => { const c = Number(b.dataset.color); if (c) { b.title = `${colorName(p, c)} (${colorName(p, c)[0].toUpperCase()})`; b.setAttribute("aria-label", b.title); } });
@@ -96,9 +97,10 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
     const was = solved;
     solved = answer ? color.every((c, i) => c === answer[i]) : check(p, paintBoard()).length === 0;
     if (solved && !was) {
-      say("Every piece is painted. Solved!", "good");
+      say("Every piece is painted. Solved!", "good said");
+      celebrate(root, [getComputedStyle(root).getPropertyValue("--paper-ink").trim() || "#222", ...palette]);
       if (!reported) { reported = true; host.solved(maxHearts ? { mistakes: maxHearts - hearts } : {}); }
-    } else if (!solved && was) say("");
+    } else if (!solved && was) { say(""); unstamp(root); }
     save(); render();
   }
   const paintBoard = () => { const b = emptyBoard(p.grid); b.color.set(color); return b; };
@@ -153,13 +155,13 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
     }
     confirming = false; delete reset.dataset.confirm;
     color = new Array<number>(n).fill(0); hearts = maxHearts; history = []; solved = false; reported = false;
-    gErr.replaceChildren(); say(""); settle();
+    gErr.replaceChildren(); say(""); unstamp(root); settle();
   });
 
   pick(1);
   solved = answer ? color.every((c, i) => c === answer[i]) : check(p, paintBoard()).length === 0;
   reported = solved;
-  if (solved) say("Every piece is painted. Solved!", "good");
+  if (solved) { say("Every piece is painted. Solved!", "good said"); stamp(root); }
   else if (maxHearts && hearts <= 0) say("Out of hearts. Reset to try again.", "warn");
   render();
   return () => document.removeEventListener("keydown", onKey);

@@ -5,7 +5,7 @@ import { pictureSvg } from "~site/game-types/grid/picture.ts";
 import { parseSketch } from "~/games/sketch";
 import type { GameCard } from "./queries.server";
 
-export interface Thumbed extends Omit<GameCard, "sketch" | "sketchVersion"> { picture: string | null }
+export interface Thumbed extends Omit<GameCard, "sketch" | "sketchVersion"> { picture: string | null; /** the viewer has solved it */ solved?: boolean }
 
 /** Game cards with a picture of each puzzle (and without their sketches, which stay on the server). */
 export function withPictures(games: GameCard[]): Thumbed[] {

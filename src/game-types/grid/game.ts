@@ -10,6 +10,7 @@
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
 import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
+import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
 import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/rules.ts";
@@ -211,7 +212,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // ---- drawing the board ----
   const status = q<HTMLElement>(".status");
   let solved = false, reported = false, sel = -1, pencilMode = false;
-  const say = (text: string, tone: "" | "good" | "warn" = "") => { status.className = `status ${tone}`.trim(); status.textContent = text; };
+  const say = (text: string, tone: "" | "good" | "warn" | "good said" = "") => { status.className = `status ${tone}`.trim(); status.textContent = text; };
 
   /** colors to show: the player's paint, or (once solved) a coloring of the panes they cut */
   function glassColors(): number[] {
@@ -357,7 +358,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       solved = walk!.done;
     } else solved = check(p, board).length === 0;
     if (solved && !was) win();
-    else if (!solved && was) { root.classList.remove("revealed", "titled"); say(""); }
+    else if (!solved && was) { root.classList.remove("revealed", "titled"); say(""); unstamp(root); }
     else if (!solved && !walk?.active && status.classList.contains("good")) say("");
     render();
     const out: Saved = {};
@@ -382,9 +383,18 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   }
   const sign = root.querySelector<HTMLButtonElement>("[data-sign]");
   sign?.addEventListener("click", () => root.classList.add("titled"));
+  /** The ink that bursts out: the board's pen, and a nonogram's or the regions' own colors (the
+   *  celebration adds whatever else is painted on the board). */
+  const inksOf = () => {
+    const pen = getComputedStyle(root).getPropertyValue("--paper-ink").trim() || "#26398f";
+    const extra = p.spec.picture ? Object.entries(p.spec.picture.palette).filter(([k]) => k !== ".").map(([, c]) => c) : p.style.palette ?? [];
+    return [pen, ...extra];
+  };
   function win() {
-    say(p.spec.picture ? "Solved! Here's the picture." : maze ? `You're out! ${walk!.trail.length} squares from the way in to the way out.` : "Solved!", "good");
+    // the check says "Solved!" on screen; a maze's walk and a nonogram's picture get a word too
+    say(p.spec.picture ? "Solved! Here's the picture." : maze ? `You're out! ${walk!.trail.length} squares from the way in to the way out.` : "Solved!", p.spec.picture || maze ? "good" : "good said");
     clearProblems();
+    celebrate(root, inksOf());
     if (p.spec.picture) root.classList.add("revealed");
     if (!reported) { reported = true; host.solved(p.spec.picture?.title ? { title: p.spec.picture.title } : maze ? { squares: walk!.trail.length } : {}); }
   }
@@ -627,7 +637,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     for (const [i, d] of givenDigit) board.digit[i] = d;
     lockWalls(); walk?.stop(); if (saved) delete saved.trail;
     ticks.clear(); history = []; solved = false; reported = false; sel = -1;
-    root.classList.remove("revealed", "titled"); say(""); clearProblems(); afterChange();
+    root.classList.remove("revealed", "titled"); say(""); unstamp(root); clearProblems(); afterChange();
   });
   root.querySelectorAll<HTMLInputElement>("[data-pref]").forEach((box) => {
     const k = box.dataset.pref as "autoX" | "autoTick";
@@ -646,7 +656,11 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     solved = check(p, board).length === 0;
     reported = solved;
   }
-  if (solved) { say(p.spec.picture ? "Solved! Here's the picture." : maze ? "You're out!" : "Solved!", "good"); if (p.spec.picture) root.classList.add("revealed", "titled"); }
+  if (solved) {
+    say(p.spec.picture ? "Solved! Here's the picture." : maze ? "You're out!" : "Solved!", p.spec.picture || maze ? "good" : "good said");
+    if (p.spec.picture) root.classList.add("revealed", "titled");
+    stamp(root);
+  }
   render();
   return () => document.removeEventListener("keydown", onKey);
 };
