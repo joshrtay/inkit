@@ -1,8 +1,9 @@
 // Make a new game: inkit.games/new (optionally ?in=<collection slug>).
 // Upload a photo of a hand-drawn sketch; Claude reads it into a draft, which the creator then
-// confirms (or fixes) and checks on its edit page.
+// confirms (or fixes) and checks on its edit page. Or draw it here instead (/new/draw: the
+// sketchpad), which sends its picture the same way.
 import { useState } from "react";
-import { Form, redirect, useNavigation, useSubmit } from "react-router";
+import { Form, Link, redirect, useNavigation, useSubmit } from "react-router";
 import type { Route } from "./+types/new";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
@@ -21,7 +22,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (!me) signInFirst(request);
   const targets = await publishTargets(getDb(env), me.id);
   const want = new URL(request.url).searchParams.get("in");
-  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id };
+  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id, slug: want };
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -46,7 +47,7 @@ async function shrink(file: File): Promise<Blob> {
   }
 }
 
-export default function NewGame({ loaderData: { targets, collection }, actionData }: Route.ComponentProps) {
+export default function NewGame({ loaderData: { targets, collection, slug }, actionData }: Route.ComponentProps) {
   const submit = useSubmit();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
@@ -59,6 +60,10 @@ export default function NewGame({ loaderData: { targets, collection }, actionDat
     <div className="with-pane">
     <main className="wrap narrow">
       <h1>New puzzle</h1>
+      <nav className="new-ways" aria-label="How to make it">
+        <Link to={slug ? `/new?in=${encodeURIComponent(slug)}` : "/new"} aria-current="page">Upload a photo</Link>
+        <Link to={slug ? `/new/draw?in=${encodeURIComponent(slug)}` : "/new/draw"}>Draw it here</Link>
+      </nav>
       <p className="muted">Take a photo of your hand-drawn puzzle. Claude reads it, then you check it matches your drawing and that it has exactly one solution.</p>
       <Form method="post" encType="multipart/form-data" className="form"
         onSubmit={(e) => {
