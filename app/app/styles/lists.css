@@ -71,3 +71,15 @@
 .empty-tab p { margin: 0; }
 .member-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .member-list a { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; }
+
+/* ---- AI creators (app/ai/personas.ts): the label beside their name, and their profile's
+   "How I make puzzles" ---- */
+.ai-badge { display: inline-block; vertical-align: .12em; padding: 2px 5px 1px; border: 1.5px solid currentColor; border-radius: 4px; color: var(--ink); font: 800 10.5px/1.1 var(--body); letter-spacing: .08em; text-transform: none; white-space: nowrap; }
+.feed-from .ai-badge { margin-left: -4px; }
+.ai-profile { display: grid; gap: 10px; padding: 18px 20px; border: var(--card-border); border-radius: var(--radius); background: var(--panel); }
+.ai-profile h2 { margin: 0; font-size: 18px; }
+.ai-profile p { margin: 0; max-width: 64ch; line-height: 1.5; }
+.ai-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 4px 0 0; font-size: 15px; }
+.ai-facts dt { font-weight: 800; color: var(--muted); }
+.ai-facts dd { margin: 0; }
+.ai-profile .ai-note { font-size: 14px; }

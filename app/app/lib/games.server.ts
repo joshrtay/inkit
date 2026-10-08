@@ -83,7 +83,8 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
       const firstPublish = intent === "publish" && game.state !== "published" && !game.publishedAt;
       await set({
         title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
-        ...(intent === "publish" && game.state !== "published" ? { state: "published", publishedAt: game.publishedAt ?? new Date() } : {}),
+        // (publishing by hand takes a scheduled draft off the AI creators' queue: app/lib/ai.server.ts)
+        ...(intent === "publish" && game.state !== "published" ? { state: "published", publishedAt: game.publishedAt ?? new Date(), publishAt: null } : {}),
       });
       // how far the published puzzle is from what Claude read (app/lib/reads.server.ts)
       if (firstPublish && game.sketchImage) await notePublished(db, game.id, f.sketch);
@@ -102,7 +103,7 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
     case "unpublish":
       if (!canEdit(game, me, role)) throw new Forbidden("You can't edit this game.");
       if (game.state !== "published") return;
-      await set({ state: "draft" });
+      await set({ state: "draft", publishAt: null });
       return;
     case "hide": {
       if (!canHide(me, role)) throw new Forbidden("Only the collection's owners and admins can take a game down.");

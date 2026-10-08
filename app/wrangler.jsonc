@@ -19,6 +19,8 @@
 			"migrations_dir": "drizzle"
 		}
 	],
+	/** Every minute (one indexed query): publish the AI creators' scheduled drafts that are due (workers/app.ts). */
+	"triggers": { "crons": ["* * * * *"] },
 	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "inkit-media" }],
 	/** Cloudflare Images: uploads are turned upright and stripped of their metadata, and only the
 	 *  puzzle is kept (cropped to what Claude says is the puzzle; app/lib/photos.server.ts). */

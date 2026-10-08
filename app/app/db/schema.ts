@@ -29,6 +29,8 @@ export const creators = sqliteTable("creators", {
   /** Unique username; also the web address of their personal collection. */
   handle: text("handle").notNull().unique(),
   isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
+  /** An AI creator (app/ai/personas.ts): no password, can't sign in, labelled AI wherever it's named. */
+  isAi: integer("is_ai", { mode: "boolean" }).notNull().default(false),
   /** Deleted accounts are hidden but keep their name, so their games stay credited. */
   deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
 });
@@ -130,9 +132,12 @@ export const games = sqliteTable("games", {
   hiddenNote: text("hidden_note"),
   hiddenBy: text("hidden_by").references(() => creators.id),
   publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  /** A scheduled draft: the cron publishes it at this time (app/lib/ai.server.ts), then clears it. */
+  publishAt: integer("publish_at", { mode: "timestamp_ms" }),
   createdAt: created(),
   updatedAt: updated(),
 }, (t) => [
+  index("games_scheduled").on(t.state, t.publishAt),
   index("games_collection").on(t.collectionId, t.state),
   index("games_author").on(t.authorId),
   index("games_published").on(t.state, t.publishedAt),

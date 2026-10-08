@@ -27,6 +27,7 @@ export default [
   route("admin/reads.jsonl", "routes/admin-reads-export.ts"),
   route("admin/reads/:id", "routes/admin-read.ts"),
   route("admin/reads/:id/photo", "routes/admin-read-photo.ts"),
+  route("admin/ai/schedule", "routes/admin-ai-schedule.ts"),
   route(":slug/settings", "routes/collection-settings.tsx"),
   // Collections live at the top level (inkit.games/<slug>), so this route comes last.
   route(":slug", "routes/collection.tsx"),

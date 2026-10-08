@@ -5,8 +5,11 @@
 Wyatt (no password, so this account can't sign in), his personal collection, and every grid
 puzzle from the current site (../src/games), as sketches. Number Line Mazes and Three Coats
 levels are converted to the engine's maze and coats genres. A few go on the Featured shelf.
+Also the AI creators (app/ai/personas.ts, read with Node): their accounts and collections,
+the same rows the site's ensurePersona makes (app/lib/ai.server.ts).
 """
 import json
+import subprocess
 from pathlib import Path
 
 GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
@@ -23,6 +26,21 @@ out = [
     "('c-wyatt', 'wyatt', 'Wyatt''s Games', 'Puzzles Wyatt drew.', 'wyatt');",
     "INSERT OR IGNORE INTO memberships (collection_id, creator_id, role) VALUES ('c-wyatt', 'wyatt', 'owner');",
 ]
+
+# the AI creators: accounts with no password (they can't sign in), labelled AI
+APP = Path(__file__).resolve().parents[1]
+personas = json.loads(subprocess.check_output(
+    ["node", "--input-type=module", "-e",
+     "const m = await import('./app/ai/personas.ts'); console.log(JSON.stringify(m.PERSONAS.map(({ handle, name, bio }) => ({ handle, name, bio }))))"],
+    cwd=APP))
+for p in personas:
+    h = p["handle"]
+    out += [
+        f"INSERT OR IGNORE INTO creators (id, name, email, handle, is_ai) VALUES ({q('ai-' + h)}, {q(p['name'])}, {q(h + '@ai.inkit.invalid')}, {q(h)}, 1);",
+        f"INSERT OR IGNORE INTO collections (id, slug, title, description, personal_of) VALUES ({q('c-ai-' + h)}, {q(h)}, {q(p['name'])}, {q(p['bio'])}, {q('ai-' + h)});",
+        f"INSERT OR IGNORE INTO memberships (collection_id, creator_id, role) VALUES ({q('c-ai-' + h)}, {q('ai-' + h)}, 'owner');",
+    ]
+
 
 def maze_spec(maze):
     """An old Number Line Maze instance (numbers on every corner, entry / exit gaps, hint walls)

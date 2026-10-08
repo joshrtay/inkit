@@ -6,11 +6,12 @@ import type { Playable } from "~/games/layout";
 import { GameBoard } from "./GameBoard";
 import { GuidePane } from "./GuidePane";
 import { LikeButton } from "./LikeButton";
+import { AiBadge } from "./AiBadge";
 
 export interface GamePageProps {
   game: { id: string; title: string; description: string; kind: string; state: string; hiddenNote: string | null; when: number };
   collection: { slug: string; title: string; personal: boolean };
-  author: { handle: string; name: string; deleted: boolean };
+  author: { handle: string; name: string; deleted: boolean; ai?: boolean };
   play: Playable | null;
   summary: string;
   extra: string[];
@@ -61,6 +62,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
         <span className="muted">
           {summary} · by{" "}
           {author.deleted ? author.name : <Link to={`/${author.handle}`} onClick={stay}>@{author.handle}</Link>}
+          {author.ai && <> <AiBadge /></>}
           {!collection.personal && <> in <Link to={`/${collection.slug}`} onClick={stay}>{collection.title}</Link></>}
           {" · "}<time dateTime={new Date(game.when).toISOString()}>{date(game.when)}</time>
           {solved.count > 0 && <> · {solved.count} solve{solved.count === 1 ? "" : "s"}</>}

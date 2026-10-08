@@ -12,6 +12,7 @@ const cardColumns = {
   solves: sql<number>`(select count(*) from solves where solves.game_id = ${schema.games.id})`.as("solve_count"),
   collectionSlug: schema.collections.slug, collectionTitle: schema.collections.title,
   authorHandle: schema.creators.handle, authorName: schema.creators.name, authorDeleted: schema.creators.deletedAt,
+  authorAi: schema.creators.isAi, publishAt: schema.games.publishAt,
 };
 
 const cards = (db: Db) => db.select(cardColumns).from(schema.games)
@@ -60,6 +61,8 @@ export const isSubscribed = async (db: Db, subscriberId: string | undefined, col
 const collectionCards = (db: Db) => db.select({
   id: schema.collections.id, slug: schema.collections.slug, title: schema.collections.title, description: schema.collections.description,
   personal: sql<boolean>`${schema.collections.personalOf} is not null`,
+  /** an AI creator's personal collection */
+  ai: sql<boolean>`coalesce((select c.is_ai from creators c where c.id = collections.personal_of), 0)`.as("is_ai_collection"),
   // (table names written out: inside a subquery drizzle's bare "id" would mean the subquery's table)
   games: sql<number>`(select count(*) from games g where g.collection_id = collections.id and g.state = 'published')`.as("game_count"),
   subscribers: sql<number>`(select count(*) from subscriptions s where s.collection_id = collections.id)`.as("subscriber_count"),

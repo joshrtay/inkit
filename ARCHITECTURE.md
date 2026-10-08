@@ -16,7 +16,8 @@ browser, subscribe to creators, and like puzzles.
 | `src/games/` | Example puzzles per type (JSON): the guides' worked examples and the site's seed data |
 | `src/lib/` | The game interface (`game-api.ts`) and the watercolor wash filter (`ink.ts`) |
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
-| `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique), `guides.ts` checks every guide picture and solves the examples |
+| `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
+| `puzzles/ai/` | The AI creators' weekly batch: `week.ts` makes, scores (`score.ts`), titles and queues each persona's posts ([docs/ai-creators.md](docs/ai-creators.md)) |
 | `docs/` | The grid engine in depth, including how the editor must keep up with it |
 
 The root `package.json` covers the shared code (`npm run build` type-checks it, `npm run
@@ -32,6 +33,9 @@ hidden, Claude's latest reading and doubts), *subscriptions*, *likes*, *solves* 
 player's, not the author's own: a check on the puzzle's card, counts on puzzles and profiles), and
 the *Featured* shelf.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
+**AI creators** (`app/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
+with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as
+drafts with `publish_at`, and the Worker's cron publishes each at its time.
 
 **Sketches** (`app/games/sketch.ts`): a genre on the first line, then the puzzle as JSON (size,
 givens, areas, picture, rules). The engine checks and plays it. Creators never see this text.

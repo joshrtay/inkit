@@ -29,7 +29,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   return {
     game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, kind: game.kind, when: (game.publishedAt ?? new Date()).getTime() },
     collection: { slug: collection?.slug ?? "", title: collection?.title ?? "", personal: !!collection?.personalOf },
-    author: { handle: author?.handle ?? "", name: author?.name ?? "", deleted: !!author?.deletedAt },
+    author: { handle: author?.handle ?? "", name: author?.name ?? "", deleted: !!author?.deletedAt, ai: !!author?.isAi },
     likes: await likesOf(db, game.id, undefined),
     solves: await solvesOf(db, game.id, undefined),
   };

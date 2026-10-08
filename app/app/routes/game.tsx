@@ -32,7 +32,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     game: { id: game.id, title: game.title, description: game.description, kind: game.kind, state: game.state, hiddenNote: game.hiddenNote,
       when: (game.publishedAt ?? game.createdAt).getTime() },
     collection: { slug: collection.slug, title: collection.title, personal: !!collection.personalOf },
-    author: { handle: author.handle, name: author.name, deleted: !!author.deletedAt },
+    author: { handle: author.handle, name: author.name, deleted: !!author.deletedAt, ai: author.isAi },
     play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
     summary: parsed.ok ? parsed.summary : kindName(game.kind),
     // a puzzle that lists its own rules (Panes; a 2-star Star Battle) shows them above its type's guide

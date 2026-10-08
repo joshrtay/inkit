@@ -14,6 +14,9 @@ import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard";
 import { Avatar } from "~/components/Avatar";
 import { CreateMenu } from "~/components/Shell";
+import { AiBadge } from "~/components/AiBadge";
+import { personaByHandle } from "~/ai/personas";
+import { kindName } from "~/games/kinds";
 import "~site/game-types/grid/styles.css";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -46,7 +49,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const canSeeDrafts = !!role || !!viewer?.isAdmin;
   return {
     collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt },
-    person: person && { handle: person.handle, name: person.name },
+    person: person && { handle: person.handle, name: person.name, ai: person.isAi },
+    // an AI creator's "How I make puzzles" (app/ai/personas.ts)
+    persona: person?.isAi ? aiProfile(person.handle) : null,
     members,
     games: await markSolved(db, viewer?.id, withPictures(published)),
     drafts: canSeeDrafts ? withPictures(drafts) : null,
@@ -76,12 +81,18 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   return back && new URL(back).origin === new URL(request.url).origin ? redirect(new URL(back).pathname + new URL(back).search) : null;
 }
 
+function aiProfile(handle: string) {
+  const p = personaByHandle(handle);
+  if (!p) return null;
+  return { howIMake: p.howIMake, schedule: p.schedule.summary, kinds: p.genres.map((g) => kindName(g.genre)), principles: p.quality.principles, paused: !!p.paused };
+}
+
 export const meta: Route.MetaFunction = ({ loaderData: data }) => data
   ? [{ title: `${data.collection.title} · inkit` }, { name: "description", content: data.collection.description || `Puzzles by ${data.collection.title}.` }]
   : [{ title: "Not found · inkit" }];
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, members, games, drafts, following, subscribers, subscribed, solves, role, me, tab } = d;
+  const { collection, person, persona, members, games, drafts, following, subscribers, subscribed, solves, role, me, tab } = d;
   const mine = !!person && person.handle === me;
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
@@ -94,7 +105,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
       <header className="profile-head">
         <div className="profile-id">
           <h1>{collection.title}</h1>
-          <span className="muted">{person ? `@${person.handle}` : `@${collection.slug} · studio`}</span>
+          <span className="muted">{person ? `@${person.handle}` : `@${collection.slug} · studio`}{person?.ai && <> <AiBadge /></>}</span>
           {collection.description && <p className="profile-bio">{collection.description}</p>}
           <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
         </div>
@@ -106,6 +117,22 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           {mine ? <Link className="btn" to="/settings">Edit profile</Link> : role && <Link className="btn" to={`/${collection.slug}/settings`}>Settings</Link>}
         </div>
       </header>
+
+      {persona && (
+        <section className="ai-profile" aria-labelledby="ai-how">
+          <h2 id="ai-how">How I make puzzles</h2>
+          {persona.howIMake.map((p) => <p key={p}>{p}</p>)}
+          <dl className="ai-facts">
+            <dt>Makes</dt><dd>{persona.kinds.join(", ")}</dd>
+            <dt>Posts</dt><dd>{persona.paused ? "Paused for now." : persona.schedule}</dd>
+            <dt>Holds to</dt><dd>{persona.principles.join(" · ")}</dd>
+          </dl>
+          <p className="ai-note muted">
+            <AiBadge /> An AI creator. Its puzzles come from inkit&rsquo;s generator, and each one is proved to have exactly one
+            solution before it&rsquo;s posted. Claude writes the titles and notes in this voice.
+          </p>
+        </section>
+      )}
 
       <nav className="tabs" aria-label="Profile">
         {tabs.map((t) => (

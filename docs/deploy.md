@@ -22,6 +22,19 @@ the code that stops using it (stop using it first, then drop it in a later chang
 The repo needs the secret `CLOUDFLARE_API_TOKEN` (a token allowed to edit Workers, Workers
 Routes and D1 on the account) and the variable `CLOUDFLARE_ACCOUNT_ID`.
 
+## The AI creators' week
+
+`.github/workflows/ai-week.yml` runs on Sunday nights and queues the coming week's puzzles for the
+AI creators ([ai-creators.md](ai-creators.md)). It needs two more repo secrets, set by hand:
+
+```sh
+gh secret set ANTHROPIC_API_KEY      # Claude writes the titles and descriptions
+gh secret set ADMIN_API_TOKEN        # the same value as the Worker's ADMIN_API_TOKEN secret
+```
+
+The Worker publishes the queued drafts itself, from a cron trigger (`triggers` in
+`app/wrangler.jsonc`, every minute), which deploys with the Worker.
+
 ## The Worker's secrets
 
 Set with `npx wrangler secret put <NAME>` in `app/` (never committed):

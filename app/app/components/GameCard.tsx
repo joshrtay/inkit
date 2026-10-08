@@ -5,6 +5,7 @@ import { doubtsOf } from "~/games/doubts";
 import { kindName } from "~/games/kinds";
 import { Avatar } from "./Avatar";
 import { LikeButton } from "./LikeButton";
+import { AiBadge } from "./AiBadge";
 
 const Picture = ({ svg, className }: { svg: string | null; className: string }) =>
   svg ? <span className={`grid-game pic ${className}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <span className={`pic ${className} none`} />;
@@ -23,7 +24,7 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
             <span className="kind">{kindName(game.kind)}</span>
             <strong>{game.title || "Untitled"}</strong>
             <span className="by">
-              Edited {edited(game.updatedAt)}
+              {game.publishAt ? <>Goes up {scheduled(game.publishAt)}</> : <>Edited {edited(game.updatedAt)}</>}
               {game.authorHandle && game.collectionSlug !== game.authorHandle && <> · by @{game.authorHandle}</>}
             </span>
             {game.state === "hidden" ? <span className="state hidden">taken down</span>
@@ -43,7 +44,7 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
           <strong>{game.title}</strong>
           {game.description && <span className="desc">{game.description}</span>}
           <span className="by">
-            by {game.authorDeleted ? game.authorName : `@${game.authorHandle}`}
+            by {game.authorDeleted ? game.authorName : `@${game.authorHandle}`}{game.authorAi && <> <AiBadge /></>}
             {game.collectionSlug !== game.authorHandle && <> in {game.collectionTitle}</>}
           </span>
           {game.state !== "published" && <span className={`state ${game.state}`}>{game.state}</span>}
@@ -73,6 +74,9 @@ const edited = (t: Date | number | null) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
 };
 
+/** when a scheduled draft goes up (an AI creator's queue) */
+const scheduled = (t: Date | number) => new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
+
 const when = (t: Date | number | null) => {
   if (!t) return "";
   const d = new Date(t), now = new Date();
@@ -85,10 +89,10 @@ export function FeedItem({ game, liked = false, signedIn = false }: { game: Thum
     <li className="feed-item">
       <Link to={`/g/${game.id}`} className="feed-link">
         <span className="feed-text">
-          <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} /> {game.collectionTitle}<span className="feed-when">{when(game.publishedAt)}</span></span>
+          <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when">{when(game.publishedAt)}</span></span>
           <strong>{game.title}</strong>
           {game.description && <span className="desc">{game.description}</span>}
-          <span className="feed-meta">{kindName(game.kind)}{game.collectionSlug !== game.authorHandle && !game.authorDeleted && <> · @{game.authorHandle}</>}{game.solves > 0 && <> · {game.solves} solve{game.solves === 1 ? "" : "s"}</>}</span>
+          <span className="feed-meta">{kindName(game.kind)}{game.collectionSlug !== game.authorHandle && !game.authorDeleted && <> · @{game.authorHandle}{game.authorAi && <> <AiBadge /></>}</>}{game.solves > 0 && <> · {game.solves} solve{game.solves === 1 ? "" : "s"}</>}</span>
         </span>
         <span className="feed-pic-wrap"><Picture svg={game.picture} className="feed-pic" />{game.solved && <Solved />}</span>
       </Link>
@@ -115,7 +119,7 @@ export function CollectionRow({ c, subscribed, signedIn, me }: { c: CollectionCa
       <Link to={`/${c.slug}`} className="collection-link">
         <Avatar name={c.title} seed={c.slug} size={48} />
         <span className="collection-text">
-          <strong>{c.title}</strong>
+          <strong>{c.title}{c.ai && <> <AiBadge /></>}</strong>
           <span className="muted">@{c.slug}{!c.personal && " · studio"} · {c.games} puzzle{c.games === 1 ? "" : "s"} · {c.subscribers} subscriber{c.subscribers === 1 ? "" : "s"}</span>
           {c.description && <span className="desc">{c.description}</span>}
         </span>
