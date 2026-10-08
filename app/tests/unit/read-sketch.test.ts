@@ -119,6 +119,35 @@ describe("reading Panes (Glimmith) clues and rules", () => {
       expect(parsed.errors.join(" ")).toMatch(/"size" has no setting "ma"/);
     }
   });
+  it("reads the signs, numbers and shapes of Inequality, Difference, Watchtower, Polyomino and Shape Bank", () => {
+    expect(givenOf(g("inequality", 1, 1, "right <"))).toEqual({ at: "border", cells: [[1, 1], [1, 2]], kind: "inequality" });
+    expect(givenOf(g("inequality", 1, 1, "right >"))).toEqual({ at: "border", cells: [[1, 2], [1, 1]], kind: "inequality" });
+    expect(givenOf(g("inequality", 1, 1, "below v"))).toEqual({ at: "border", cells: [[2, 1], [1, 1]], kind: "inequality" });
+    expect(givenOf(g("inequality", 1, 1, "below"))).toBeNull();
+    expect(givenOf(g("difference", 0, 2, "below 3"))).toEqual({ at: "border", cells: [[0, 2], [1, 2]], kind: "difference", value: 3 });
+    expect(givenOf(g("watchtower", 2, 3, "2"))).toEqual({ at: "corner", corner: [2, 3], kind: "watchtower", value: 2 });
+    expect(givenOf(g("watchtower", 2, 3, "7"))).toBeNull();
+    expect(givenOf(g("bank", -1, -1, "1,1 1,2 2,1"))).toEqual({ at: "aside", kind: "bank", value: [[0, 0], [0, 1], [1, 0]] });
+    expect(givenOf(g("shape", 0, 0, "0,0 1,0"))).toEqual({ at: "cell", cell: [0, 0], kind: "shape", value: [[0, 0], [1, 0]] });
+  });
+  it("reads Solitude as one clue of any kind, and Bricky as counting the outline", () => {
+    const sketch = toSketch(reading({
+      genre: "panes", candidates: ["panes"], rows: 3, cols: 3,
+      rules: [{ rule: "one-each", settings: "of any" }, { rule: "no-four-corners", settings: "outline" }],
+      givens: [g("compass", 0, 0, "e1"), g("number", 2, 2, "3")],
+    }));
+    const parsed = parseSketch(sketch);
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok) expect(parsed.spec.rules).toEqual([{ rule: "one-each", of: "any" }, { rule: "no-four-corners", outline: true }]);
+  });
+  it("makes a playable puzzle with every new Glimmith rule", () => {
+    const sketch = toSketch(reading({
+      genre: "panes", candidates: ["panes"], rows: 3, cols: 4,
+      rules: ["no-t-junctions", "no-rectangles", "all-same", "neighbors-differ-size", "shape-bank", "region-shape", "size-compare", "size-difference", "regions-at-corner"].map((rule) => ({ rule: rule as Reading["rules"][number]["rule"], settings: "" })),
+      givens: [g("inequality", 0, 0, "right <"), g("difference", 1, 1, "below 1"), g("watchtower", 1, 1, "2"), g("bank", -1, -1, "0,0 0,1 1,0"), g("shape", 2, 3, "0,0 1,0 1,1")],
+    }));
+    expect(parseSketch(sketch).ok).toBe(true);
+  });
   it("makes a playable Glimmith puzzle with holes, walls and the new rules", () => {
     const sketch = toSketch(reading({
       genre: "panes", candidates: ["panes"], rows: 3, cols: 3,

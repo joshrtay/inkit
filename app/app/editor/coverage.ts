@@ -11,6 +11,8 @@ import type { Given, GridSpec, GridStyle, MarkKind, RuleSpec } from "~site/engin
 /** The on-puzzle editor's tools (components/BoardEditor.tsx). */
 export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo" | "door" | "outside-number" | "outside-letter"
   | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "palisade" | "erase"
+  // Panes: a sign or a number on a border, a watchtower on a corner, the shape bank
+  | "inequality" | "difference" | "watchtower" | "bank"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
   | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser";
 
@@ -25,6 +27,7 @@ export const SPEC_PARTS: Record<keyof GridSpec, string> = {
  *  Three Coats' figure editor. */
 export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> = {
   number: "number", block: "block", symbol: "symbol", compass: "compass", palisade: "palisade", wall: "wall", twins: "diamond", opposites: "diamond",
+  inequality: "inequality", difference: "difference", watchtower: "watchtower", bank: "bank",
   runs: "nonogram", total: "total", count: "corner", dots: "figure", pearl: "pearl", first: "outside-letter",
   skyscraper: "outside-number", thermo: "thermo", galaxy: "galaxy", door: "door",
   start: "start", end: "end", gap: "gap", hexagon: "dot", square: "square", star: "star", triangle: "triangle", shape: "shape", eraser: "eraser",
@@ -68,12 +71,12 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "no-pool": { label: "No 2×2 shaded block", settings: [] },
   size: { label: "Region size", settings: [{ key: "is", label: "exactly", type: "number" }, { key: "min", label: "at least", type: "number" }, { key: "max", label: "at most", type: "number" }] },
   "size-clue": { label: "A number is its region's size", settings: [] },
-  "one-each": { label: "One clue per region", settings: [{ key: "of", label: "of", type: "choice", choices: ["number", "symbol"] }] },
+  "one-each": { label: "One clue per region (Solitude)", settings: [{ key: "of", label: "of", type: "choice", choices: ["number", "symbol", "any"] }] },
   twins: { label: "◆ joins same shapes", settings: [] },
   opposites: { label: "◇ joins different shapes", settings: [] },
   rectangles: { label: "Every region is a rectangle", settings: [] },
   squares: { label: "Every region is a square", settings: [] },
-  "no-four-corners": { label: "Four regions never meet at a point", settings: [] },
+  "no-four-corners": { label: "Four regions never meet at a point", settings: [{ key: "outline", label: "the outline and holes count (Bricky)", type: "flag" }] },
   "side-clue": { label: "A number is its square's side", settings: [] },
   galaxies: { label: "Regions symmetric about their circles", settings: [] },
   "all-different": { label: "All regions differ in shape", settings: [] },
@@ -81,6 +84,15 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "neighbors-differ": { label: "Neighbouring regions differ in shape (Mingle Shape)", settings: [] },
   "one-of-each": { label: "One symbol of each color per region (Rose Windows)", settings: [] },
   "cell-borders": { label: "Palisade marks show their square's borders", settings: [] },
+  "no-t-junctions": { label: "Borders never meet in a T; the outline counts (Loopy)", settings: [] },
+  "no-rectangles": { label: "No region is a rectangle (Non-Boxy)", settings: [] },
+  "all-same": { label: "Every region has the same shape (Match)", settings: [] },
+  "neighbors-differ-size": { label: "Neighbouring regions differ in size (Size Separation)", settings: [] },
+  "shape-bank": { label: "Every region is a shape from the bank (Shape Bank)", settings: [] },
+  "region-shape": { label: "A shape in a square is its region's shape (Polyomino)", settings: [] },
+  "size-compare": { label: "A < sign points to the smaller region (Inequality)", settings: [] },
+  "size-difference": { label: "A number on a border is the regions' size difference (Difference)", settings: [] },
+  "regions-at-corner": { label: "A watchtower counts the regions at its corner", settings: [] },
   "corner-count": { label: "Corner numbers count their walls", settings: [] },
   "perfect-maze": { label: "Walls make a maze between two doors", settings: [] },
   painted: { label: "Paint every piece", settings: [] },

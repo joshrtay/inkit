@@ -198,6 +198,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const rowTotals = new Map<number, number>(), colTotals = new Map<number, number>();
   const blocked = new Set<number>(), walls = new Set<number>(), gaps = new Set<number>();
   const lineGivens = new Map<number, Given[]>();
+  const bank: [number, number][][] = [];
   const push = <K>(m: Map<K, Given[]>, k: K, g: Given) => m.set(k, [...(m.get(k) ?? []), g]);
   const givens = [...(spec.givens ?? []), ...pictureClues(spec)];
   for (const g of givens) {
@@ -211,11 +212,16 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
       if (e < 0) throw new Error(`a ${g.kind} mark needs two neighbouring cells`);
       push(borderGivens, e, g);
       if (g.kind === "wall") walls.add(grid.borders[e].link);
+      if (g.kind === "difference" && (!Number.isInteger(g.value) || g.value < 0)) throw new Error(`a difference is a whole number, 0 or more (it's ${g.value})`);
     } else if (g.at === "corner") {
       const [r, c] = g.corner;
       if (r < 0 || c < 0 || r > grid.rows || c > grid.cols) throw new Error(`corner ${r},${c} is outside the grid`);
       if (g.kind === "end" && r > 0 && c > 0 && r < grid.rows && c < grid.cols) throw new Error(`an end goes on the outside edge (corner ${r},${c} isn't)`);
+      if (g.kind === "watchtower" && (!Number.isInteger(g.value) || g.value < 1 || g.value > 4)) throw new Error(`a watchtower counts 1 to 4 regions (corner ${r},${c} has ${g.value})`);
       push(cornerGivens, grid.corner(r, c), g);
+    } else if (g.at === "aside") {
+      if (!Array.isArray(g.value) || !g.value.length || !connectedShape(g.value)) throw new Error("a shape in the shape bank is one or more squares joined side to side");
+      bank.push(normalShape(g.value));
     } else if (g.at === "line") {
       const e = lineBetween(grid, g.corners);
       if (e < 0) throw new Error(`a ${g.kind} goes on a stretch of grid line between two neighbouring corners`);
@@ -261,9 +267,26 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
     spec, grid, cellGivens, borderGivens, cornerGivens, lineGivens, gaps, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
     digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? spec.size[1],
     blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
-    areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
+    bank, areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };
+}
+
+/** A shape's cells moved so its top-left is at 0,0 (duplicates dropped), in reading order. */
+export function normalShape(cells: [number, number][]): [number, number][] {
+  const r0 = Math.min(...cells.map((x) => x[0])), c0 = Math.min(...cells.map((x) => x[1]));
+  const keys = [...new Set(cells.map(([r, c]) => `${r - r0},${c - c0}`))];
+  return keys.map((k) => k.split(",").map(Number) as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+/** Are a shape's cells joined side to side? */
+export function connectedShape(cells: [number, number][]): boolean {
+  const left = new Set(cells.map((x) => `${x[0]},${x[1]}`)), stack = [cells[0]];
+  left.delete(`${cells[0][0]},${cells[0][1]}`);
+  while (stack.length) {
+    const [r, c] = stack.pop()!;
+    for (const [y, x] of [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]) if (left.delete(`${y},${x}`)) stack.push([y, x]);
+  }
+  return left.size === 0;
 }
 
 /** The stretch of grid line (border) between two neighbouring corners, or -1. */

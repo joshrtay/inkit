@@ -199,3 +199,8 @@
 }
 /* the board fills its box exactly, so what's drawn over it (pins, tints, slots) lines up */
 .be-board .grid-game.pic { padding: 0; }
+/* Panes' shape pad: draw a Polyomino clue or a shape for the bank */
+.be-pad { display: inline-grid; grid-template-columns: repeat(5, 9px); gap: 1px; padding: 2px; border-radius: 6px; background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.be-pad-cell { width: 9px; height: 9px; padding: 0; border: 0; border-radius: 1px; background: var(--paper, #fbfaf6); cursor: pointer; }
+.be-pad-cell[aria-pressed="true"] { background: var(--ink); }
+.be-note { font-size: .8rem; opacity: .7; align-self: center; }

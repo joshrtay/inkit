@@ -7,7 +7,7 @@ import { regionsOf } from "../../engine/derive.ts";
 import { boxLines, symbolOf } from "../../engine/rules.ts";
 import type { Board, Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
-import { palisadeSvg, symbolClueSvg } from "./region-clues.ts";
+import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { washDefs } from "../../lib/ink.ts";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 
@@ -35,7 +35,8 @@ export function pictureLayout(p: Puzzle, room0: Room = {}) {
     return bd.horizontal ? (bd.cells[0] < 0 ? "top" : "bottom") : (bd.cells[0] < 0 ? "left" : "right");
   };
   const room = (side: "top" | "left" | "right" | "bottom") => Math.max(M, room0[side] ?? 0, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0,
-    (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0, p.edgeClues.some((c) => c.side === side) ? 38 : 0);
+    (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0, p.edgeClues.some((c) => c.side === side) ? 38 : 0,
+    side === "bottom" ? bankLayout(p, S).height : 0);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top");
   const MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
   return { S, ML, MT, MR, MB, W: ML + g.cols * S + MR, H: MT + g.rows * S + MB };
@@ -133,10 +134,11 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     }
   }
   for (const [e, gs] of p.borderGivens) for (const giv of gs) {
-    if (giv.kind === "wall") continue;
+    if (giv.kind !== "twins" && giv.kind !== "opposites") continue;
     const [[x1, y1], [x2, y2]] = borderXY(e), x = (x1 + x2) / 2, y = (y1 + y2) / 2, d = 8;
     out.givens += tag("path", { class: `diamond ${giv.kind}`, d: `M${x} ${y - d}L${x + d} ${y}L${x} ${y + d}L${x - d} ${y}Z` });
   }
+  out.givens += paneCluesSvg(p, frame);
   for (const [i, clue] of p.rowRuns) clue.forEach((v, k) => { out.runs += text({ class: "clue run", x: ML - 14 - (clue.length - 1 - k) * 22, y: Y(i) + S / 2 + 1 }, String(v)); });
   for (const [i, clue] of p.colRuns) clue.forEach((v, k) => { out.runs += text({ class: "clue run", x: X(i) + S / 2, y: MT - 14 - (clue.length - 1 - k) * 22 }, String(v)); });
   const done = (cs: number[], k: number) => (b && cs.filter((i) => b.shade[i] === 1).length === k ? " done" : "");

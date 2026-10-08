@@ -201,6 +201,27 @@ test("Panes: palisade marks, colored symbols, holes and walls", async ({ page })
     && has(s.givens, { kind: "block", cell: [3, 0] }) && has(s.givens, { kind: "wall", cells: [[1, 1], [2, 1]] }));
 });
 
+test("Panes: Glimmith's signs, differences, watchtowers, shapes and the shape bank", async ({ page }) => {
+  await open(page, "panes");
+  await tool(page, "< sign");
+  await tap(page, 0.5, 1.0);   // the line between (0,0) and (0,1): points to (0,0)
+  await tool(page, "Difference");
+  await tap(page, 1.0, 2.5);   // the line between (0,2) and (1,2)
+  await type(page, "2");
+  await tool(page, "Watchtower");
+  await tap(page, 2, 2);
+  await type(page, "3");
+  await tool(page, "Shape");
+  await page.locator(".studio-tools").getByRole("button", { name: "Two in a row", exact: true }).click();
+  await tap(page, 3.5, 3.5);
+  await tool(page, "Shape bank");
+  await page.locator(".studio-tools").getByRole("button", { name: "Square of four", exact: true }).click();
+  await tool(page, "Add to the bank");
+  await eventually("panes", (s) => has(s.givens, { kind: "inequality", cells: [[0, 0], [0, 1]] })
+    && has(s.givens, { kind: "difference", cells: [[0, 2], [1, 2]], value: 2 }) && has(s.givens, { kind: "watchtower", corner: [2, 2], value: 3 })
+    && has(s.givens, { kind: "shape", cell: [3, 3], value: [[0, 0], [0, 1]] }) && has(s.givens, { at: "aside", kind: "bank", value: [[0, 0], [0, 1], [1, 0], [1, 1]] }));
+});
+
 test("Nonogram: paint the picture, or type the numbers", async ({ page }) => {
   await open(page, "nonogram");
   const before = saved("nonogram").picture!.rows[4];

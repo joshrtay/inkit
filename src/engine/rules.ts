@@ -3,7 +3,7 @@
 // predicates it can use), describe itself in plain words, and say which derived
 // structures it needs. A puzzle's rules are blocks with settings, e.g. { rule: "size", is: 4 }.
 import type { Board, Problem, Puzzle, RuleSpec } from "./types.ts";
-import { lineGraph, regionsOf, shadedGroups, shapeKey, type Regions } from "./derive.ts";
+import { lineGraph, orientations, regionsOf, shadedGroups, shapeKey, shapeKeyOf, type Regions } from "./derive.ts";
 import { panelLine, panelSymbols } from "./panel.ts";
 
 /** A nudge for the player: what to look at, and what it gives away. */
@@ -676,16 +676,18 @@ sreach(J) :- sreach(I), adj(I,J,_), shaded(J).
     needs: ["regions"],
   },
   "one-each": {
-    describe: (s) => `Every ${s.of === "symbol" ? "region holds exactly one symbol" : "group holds exactly one number"}.`,
+    describe: (s) => `Every ${s.of === "any" ? "region holds exactly one clue (numbers, symbols, compasses, palisade marks and shapes all count)" : s.of === "symbol" ? "region holds exactly one symbol" : "group holds exactly one number"}.`,
     check(s, p, _b, r) {
-      const kind = (s.of as string) ?? "number";
-      return r().cells.filter((cs) => cs.filter((i) => p.cellGivens.get(i)?.some((g) => g.kind === kind)).length !== 1)
-        .map((cs) => ({ message: kind === "number" ? "Each group needs exactly one number." : "Each region needs exactly one symbol.", cells: cs }));
+      const kind = (s.of as string) ?? "number", counts = (i: number) => p.cellGivens.get(i)?.some(oneEachCounts(kind));
+      return r().cells.filter((cs) => cs.filter(counts).length !== 1)
+        .map((cs) => ({ message: kind === "number" ? "Each group needs exactly one number." : kind === "any" ? "Each region needs exactly one clue." : "Each region needs exactly one symbol.", cells: cs }));
     },
     asp: (s, p) => {
       const kind = (s.of as string) ?? "number";
-      const facts = [...p.cellGivens].filter(([, gs]) => gs.some((g) => g.kind === kind)).map(([i]) => `kclue(${i}).`).join(" ");
-      return `${facts}\n:- root(R), #count{I: member(R,I), kclue(I)} != 1.`;
+      const facts = [...p.cellGivens].filter(([, gs]) => gs.some(oneEachCounts(kind))).map(([i]) => `kclue(${i}).`).join(" ");
+      // implied: as many regions as clues in open cells (it helps the solver prune)
+      const open = [...p.cellGivens].filter(([i, gs]) => !p.blocked.has(i) && gs.some(oneEachCounts(kind))).length;
+      return `${facts}\n:- root(R), #count{I: member(R,I), kclue(I)} != 1.\n:- #count{R: root(R)} != ${open}.`;
     },
     needs: ["regions"],
   },
@@ -722,17 +724,23 @@ sqc1(R,X) :- root(R), X = #max{Y: member(R,I), col(I,Y)}.
 :- sqr0(R,A), sqr1(R,B), sqc0(R,C), sqc1(R,D), B-A != D-C.`,
   },
   "no-four-corners": {
-    describe: () => "Four regions never meet at a point.",
+    describe: (s) => s.outline ? "No point where four border lines meet. The board's outline and the edges of holes count as border lines." : "Four regions never meet at a point.",
     needs: ["regions"],
-    check(_s, p, _b, r) {
+    check(s, p, _b, r) {
       const g = p.grid, of = r().of, bad: number[] = [];
+      if (s.outline) {
+        for (const pt of pointSegments(p)) if (pt.vars.length && linesAt(pt, of) === 4) bad.push(...pt.cells.filter((i) => i >= 0));
+        return bad.length ? [{ message: "Four border lines can't meet at one point (the outline and holes count).", cells: bad }] : [];
+      }
       for (let y = 0; y + 1 < g.rows; y++) for (let x = 0; x + 1 < g.cols; x++) {
         const [A, B, C, D] = [g.cell(y, x), g.cell(y, x + 1), g.cell(y + 1, x), g.cell(y + 1, x + 1)];
         if (of[A] !== of[B] && of[C] !== of[D] && of[A] !== of[C] && of[B] !== of[D]) bad.push(A, B, C, D);
       }
       return bad.length ? [{ message: "Four regions can't meet at one point.", cells: bad }] : [];
     },
-    asp: (_s, p) => quads(p).map(([t, b, l, r]) => `:- cut(${t}), cut(${b}), cut(${l}), cut(${r}).`).join("\n"),
+    asp: (s, p) => s.outline
+      ? pointSegments(p).filter((pt) => pt.vars.length && pt.fixed + pt.vars.length === 4).map((pt) => `:- ${pt.vars.map((l) => `cut(${l})`).join(", ")}.`).join("\n")
+      : quads(p).map(([t, b, l, r]) => `:- cut(${t}), cut(${b}), cut(${l}), cut(${r}).`).join("\n"),
   },
   "side-clue": {
     describe: () => "A number gives the side length of the square it's in.",
@@ -887,6 +895,129 @@ cmp(R1,R2) :- nbr(R1,R2).
     },
     needs: ["regions"],
   },
+  "no-t-junctions": {
+    describe: () => "No point where exactly three border lines meet (no T-junctions). The board's outline and the edges of holes count as border lines, so a border can't stop at the edge: borders run in closed loops.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const of = r().of, bad = pointSegments(p).filter((pt) => pt.vars.length && linesAt(pt, of) === 3).flatMap((pt) => pt.cells.filter((i) => i >= 0));
+      return bad.length ? [{ message: "Three border lines can't meet at one point (the outline and holes count).", cells: bad }] : [];
+    },
+    asp: (_s, p) => pointSegments(p).filter((pt) => pt.vars.length).flatMap((pt) =>
+      subsets(pt.vars, 3 - pt.fixed).map((on) => `:- ${pt.vars.map((l) => (on.includes(l) ? `cut(${l})` : `not cut(${l})`)).join(", ")}.`)).join("\n"),
+  },
+  "no-rectangles": {
+    describe: () => "No region is a rectangle (squares, lines and single cells are rectangles too).",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      return r().cells.filter((cs) => { const [h, w] = boxOf(p, cs); return h * w === cs.length; })
+        .map((cs) => ({ message: "No region can be a rectangle.", cells: cs }));
+    },
+    asp: () => `
+nrr0(R,X) :- root(R), X = #min{Y: member(R,I), row(I,Y)}.
+nrr1(R,X) :- root(R), X = #max{Y: member(R,I), row(I,Y)}.
+nrc0(R,X) :- root(R), X = #min{Y: member(R,I), col(I,Y)}.
+nrc1(R,X) :- root(R), X = #max{Y: member(R,I), col(I,Y)}.
+:- nrr0(R,A), nrr1(R,B), nrc0(R,C), nrc1(R,D), size(R,(B-A+1)*(D-C+1)).`,
+  },
+  "all-same": {
+    describe: () => "Every region has the same shape (turned or flipped is fine).",
+    needs: ["regions", "shapes"],
+    check(_s, p, _b, r) {
+      const cells = r().cells, k0 = cells.length ? shapeKey(p.grid, cells[0]) : "";
+      const odd = cells.filter((cs) => shapeKey(p.grid, cs) !== k0);
+      return odd.length ? [{ message: "Every region must have the same shape.", cells: [...cells[0], ...odd.flat()] }] : [];
+    },
+    asp: () => `
+:- size(R1,N), size(R2,M), N != M.
+asnf(R) :- root(R), root(S), S < R.
+asf(R) :- root(R), not asnf(R).
+cmp(R0,R) :- asf(R0), root(R), R != R0.
+:- asf(R0), root(R), R != R0, not same(R0,R).`,
+  },
+  "neighbors-differ-size": {
+    describe: () => "Regions that share a border have different sizes.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const reg = r(), out: Problem[] = [], seen = new Set<string>();
+      for (const l of p.grid.links) {
+        const [x, y] = l.cells.map((i) => reg.of[i]);
+        if (x < 0 || y < 0 || x === y || seen.has(`${Math.min(x, y)} ${Math.max(x, y)}`)) continue;
+        seen.add(`${Math.min(x, y)} ${Math.max(x, y)}`);
+        if (reg.cells[x].length === reg.cells[y].length) out.push({ message: "Two regions side by side have the same size.", cells: [...reg.cells[x], ...reg.cells[y]] });
+      }
+      return out;
+    },
+    asp: () => `
+nds(I,N) :- member(R,I), size(R,N).
+:- adj(I,J,L), I < J, cut(L), nds(I,N), nds(J,N).`,
+  },
+  "shape-bank": {
+    describe: (_s, p) => `Every region is one of the shapes in the bank${p.bank.length ? ` (${p.bank.length === 1 ? "one shape" : `${p.bank.length} shapes`}, drawn beside the board)` : ""}, turned or flipped any way. A shape can be used any number of times.`,
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const keys = new Set(p.bank.map(shapeKeyOf));
+      return r().cells.filter((cs) => !keys.has(shapeKey(p.grid, cs))).map((cs) => ({ message: "Every region must be one of the shapes in the bank.", cells: cs }));
+    },
+    asp(_s, p) {
+      const out: string[] = [];
+      let k = 0;
+      for (const shape of p.bank) for (const pl of placements(p, shape)) out.push(placementAsp("sb", k++, pl));
+      out.push("sbcov(I) :- sbpl(K), sbc(K,I).\n:- open(I), not sbcov(I).");
+      return out.join("\n");
+    },
+  },
+  "region-shape": {
+    describe: () => "A shape in a cell is the exact shape of its region (turned or flipped is fine).",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const reg = r();
+      return shapeClues(p).filter(({ cell, shape }) => reg.of[cell] < 0 || shapeKey(p.grid, reg.cells[reg.of[cell]]) !== shapeKeyOf(shape))
+        .map(({ cell }) => ({ message: "This region doesn't have the shape drawn in it.", cells: reg.of[cell] < 0 ? [cell] : reg.cells[reg.of[cell]] }));
+    },
+    asp(_s, p) {
+      const out: string[] = [];
+      let k = 0;
+      shapeClues(p).forEach(({ cell, shape }, n) => {
+        for (const pl of placements(p, shape)) if (pl.cells.includes(cell)) { out.push(placementAsp("rs", k, pl), `rsok(${n}) :- rspl(${k}).`); k++; }
+        out.push(`:- not rsok(${n}).`);
+      });
+      return out.join("\n");
+    },
+  },
+  "size-compare": {
+    describe: () => "A < sign on a border points to the smaller of the two regions on either side.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const reg = r(), size = (i: number) => (reg.of[i] < 0 ? -1 : reg.cells[reg.of[i]].length);
+      return borderClues(p, "inequality").filter(({ a, b }) => size(a) < 0 || size(b) < 0 || size(a) >= size(b))
+        .map(({ e, a, b }) => ({ message: "The sign points to the smaller region.", borders: [e], cells: [...(reg.cells[reg.of[a]] ?? [a]), ...(reg.cells[reg.of[b]] ?? [b])] }));
+    },
+    asp: (_s, p) => borderClues(p, "inequality").map(({ a, b }) =>
+      `:- blocked(${a}).\n:- blocked(${b}).\n:- member(R1,${a}), member(R2,${b}), size(R1,N), size(R2,M), N >= M.`).join("\n"),
+  },
+  "size-difference": {
+    describe: () => "A number on a border separates two regions whose sizes differ by that number.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const reg = r();
+      return borderClues(p, "difference").filter(({ a, b, value }) => reg.of[a] < 0 || reg.of[b] < 0 || reg.of[a] === reg.of[b]
+        || Math.abs(reg.cells[reg.of[a]].length - reg.cells[reg.of[b]].length) !== value)
+        .map(({ e, a, b, value }) => ({ message: `The regions on either side of this ${value} are different regions whose sizes differ by ${value}.`, borders: [e], cells: [...(reg.cells[reg.of[a]] ?? [a]), ...(reg.of[a] === reg.of[b] ? [] : reg.cells[reg.of[b]] ?? [b])] }));
+    },
+    asp: (_s, p) => borderClues(p, "difference").map(({ a, b, value }) =>
+      `:- blocked(${a}).\n:- blocked(${b}).\n:- member(R,${a}), member(R,${b}).\n:- member(R1,${a}), member(R2,${b}), size(R1,N), size(R2,M), |N-M| != ${value}.`).join("\n"),
+  },
+  "regions-at-corner": {
+    describe: () => "A number on a corner (a watchtower) counts the different regions the cells around that point belong to. Holes and the outside don't count.",
+    needs: ["regions"],
+    check(_s, p, _b, r) {
+      const of = r().of;
+      return watchtowers(p).filter(({ cells, value }) => new Set(cells.filter((i) => of[i] >= 0).map((i) => of[i])).size !== value)
+        .map(({ cells, value }) => ({ message: `The cells around this ${value} must be in exactly ${value} region${value === 1 ? "" : "s"}.`, cells }));
+    },
+    asp: (_s, p) => watchtowers(p).map(({ cells, value }, k) =>
+      `${cells.map((i) => `wt(${k},R) :- member(R,${i}).`).join(" ")}\n:- #count{R: wt(${k},R)} != ${value}.`).join("\n"),
+  },
 
   // ---- panels (line puzzles in the style of The Witness: panel.ts) ----
   "panel-line": panelLine,
@@ -978,6 +1109,76 @@ export const palisadeFits = (on: boolean[], value: number, opposite: boolean) =>
   if (value !== 2) return true;
   return opposite === ((on[0] && on[2]) || (on[1] && on[3]));
 };
+
+/** Which clues one-each counts: one kind, or every clue in a cell (holes aside). */
+const oneEachCounts = (kind: string) => (g: { kind: string }) => (kind === "any" ? g.kind !== "block" : g.kind === kind);
+
+/** Every grid point (corners, the outline's included) with its four stretches of line: how many are
+ *  always border lines (between a cell and a hole or the outside), and the links that are border
+ *  lines when cut (between two cells). A stretch between two holes (or outside) is no line. */
+const pointSegments = (p: Puzzle) => {
+  const g = p.grid, out: { fixed: number; vars: number[]; pairs: [number, number][]; cells: number[] }[] = [];
+  const cellAt = (r: number, c: number) => (r >= 0 && c >= 0 && r < g.rows && c < g.cols ? g.cell(r, c) : -1);
+  const open = (i: number) => i >= 0 && !p.blocked.has(i);
+  for (let r = 0; r <= g.rows; r++) for (let c = 0; c <= g.cols; c++) {
+    const around = [cellAt(r - 1, c - 1), cellAt(r - 1, c), cellAt(r, c), cellAt(r, c - 1)];   // clockwise from the top left
+    let fixed = 0;
+    const vars: number[] = [], pairs: [number, number][] = [];
+    for (let k = 0; k < 4; k++) {
+      const a = around[k], b = around[(k + 1) % 4];
+      if (open(a) && open(b)) { vars.push(g.borders[g.borderBetween(a, b)].link); pairs.push([a, b]); }
+      else if (open(a) !== open(b)) fixed++;
+    }
+    out.push({ fixed, vars, pairs, cells: around });
+  }
+  return out;
+};
+/** How many border lines meet at a point on this board (regions by cell). */
+const linesAt = (pt: ReturnType<typeof pointSegments>[number], of: number[]) => pt.fixed + pt.pairs.filter(([a, b]) => of[a] !== of[b]).length;
+/** Every way to choose k of these. */
+function subsets<T>(xs: T[], k: number): T[][] {
+  if (k < 0 || k > xs.length) return [];
+  if (k === 0) return [[]];
+  return [...subsets(xs.slice(1), k - 1).map((s) => [xs[0], ...s]), ...subsets(xs.slice(1), k)];
+}
+
+/** Every way to put a shape (turned or flipped) on the board's open cells: its cells, the links
+ *  inside it, and the links from it to open cells outside it. */
+export function placements(p: Puzzle, shape: [number, number][]) {
+  const g = p.grid, out: { cells: number[]; inner: number[]; outer: number[] }[] = [];
+  for (const o of orientations(shape)) {
+    const h = Math.max(...o.map((x) => x[0])) + 1, w = Math.max(...o.map((x) => x[1])) + 1;
+    for (let r = 0; r + h <= g.rows; r++) for (let c = 0; c + w <= g.cols; c++) {
+      const cells = o.map(([y, x]) => g.cell(r + y, c + x));
+      if (cells.some((i) => p.blocked.has(i))) continue;
+      const set = new Set(cells), inner: number[] = [], outer: number[] = [];
+      for (const i of cells) for (const l of g.cellLinks[i]) {
+        const j = other(p, l, i);
+        if (set.has(j)) { if (i < j) inner.push(l); } else if (!p.blocked.has(j)) outer.push(l);
+      }
+      out.push({ cells, inner, outer });
+    }
+  }
+  return out;
+}
+/** A placement as clingo: `<pre>pl(K)` holds when the region there is exactly that placement. */
+const placementAsp = (pre: string, k: number, pl: ReturnType<typeof placements>[number]) =>
+  `${pl.cells.map((i) => `${pre}c(${k},${i}).`).join(" ")} ${pl.inner.map((l) => `${pre}n(${k}) :- cut(${l}).`).join(" ")} ${pl.outer.map((l) => `${pre}n(${k}) :- not cut(${l}).`).join(" ")} ${pre}pl(${k}) :- not ${pre}n(${k}).`;
+/** The shape clues in cells: the cell and the shape. */
+const shapeClues = (p: Puzzle) => [...p.cellGivens].flatMap(([cell, gs]) => gs.flatMap((g) => (g.kind === "shape" ? [{ cell, shape: g.value as [number, number][] }] : [])));
+/** Clues on borders of one kind: the border, its two cells (in the clue's order) and its number. */
+const borderClues = (p: Puzzle, kind: "inequality" | "difference") => [...p.borderGivens].flatMap(([e, gs]) => gs.flatMap((g) => {
+  if (g.kind !== kind || g.at !== "border") return [];
+  const [a, b] = g.cells.map(([r, c]) => p.grid.cell(r, c));
+  return [{ e, a, b, value: g.kind === "difference" ? g.value : 0 }];
+}));
+/** Watchtowers: the open cells around each, and how many regions they're in. */
+const watchtowers = (p: Puzzle) => [...p.cornerGivens].flatMap(([v, gs]) => gs.flatMap((g) => {
+  if (g.kind !== "watchtower") return [];
+  const [r, c] = p.grid.cornerRC(v), cells: number[] = [];
+  for (const [y, x] of [[r - 1, c - 1], [r - 1, c], [r, c - 1], [r, c]]) if (y >= 0 && x >= 0 && y < p.grid.rows && x < p.grid.cols && !p.blocked.has(p.grid.cell(y, x))) cells.push(p.grid.cell(y, x));
+  return [{ cells, value: g.value }];
+}));
 
 /** twins / opposites: the regions on the two sides of each marked border */
 function pairCheck(p: Puzzle, reg: Regions, kind: "twins" | "opposites", same: boolean): Problem[] {

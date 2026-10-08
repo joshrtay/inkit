@@ -41,8 +41,10 @@ them (`shaded-per-area`), and `boxes` uses them as a sudoku's boxes when they're
 
 **Givens** are clues fixed to an element: a number in a cell (in a digit puzzle, a given
 digit), a rock (`block`: no marks; in a region puzzle a hole, in no region, its edges borders), a
-symbol (a color name for a colored one), a compass, a `palisade` mark, a ◆ / ◇ / `wall` on a border (in a region puzzle a wall is a border drawn already: different regions on either side), a
-number on a corner (`count`), paint `dots` in a piece (colors, optionally `hidden` until
+symbol (a color name for a colored one), a compass, a `palisade` mark, a `shape` (a panel's symbol, or a
+region's shape in a region puzzle), a ◆ / ◇ / `wall` on a border (in a region puzzle a wall is a border drawn already: different regions on either side), an
+`inequality` sign or a `difference` number on a border, a number on a corner (`count`, or a `watchtower`
+counting regions), a shape bank's shapes (`{at: "aside", kind: "bank"}`, drawn under the board), paint `dots` in a piece (colors, optionally `hidden` until
 it's painted), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs or a `total` beside a row or above a column, a clue outside the grid looking in
 (`first` letter seen, `skyscraper` count), a `thermo` through a run of cells (bulb first), and a
@@ -84,7 +86,7 @@ puzzle can use it.
 | `water` | Shaded cells are water in the outlined tanks: water in a cell means water in every cell of its tank it could flow to at that level or below (Aquarium). |
 | `line-totals` | A `total` beside a row / above a column counts its shaded cells (Aquarium). |
 | `squares` | Every region is a square (Square Jam). |
-| `no-four-corners` | Four regions never meet at a point (Square Jam). |
+| `no-four-corners` | Four regions never meet at a point (Square Jam); with `outline`, no point where four border lines meet, the board's outline and holes counting as lines (Glimmith's Bricky). |
 | `side-clue` | A number gives the side of its square (Square Jam). |
 | `bars` | Shaded cells split into straight blocks of `length` (3: Wittgenstein Briquet). |
 | `no-adjacent` | Shaded cells never share a side (Hitori). |
@@ -99,7 +101,7 @@ puzzle can use it.
 | `no-pool` | No 2×2 block of shaded cells. |
 | `size` | Every region has `is` cells (or `min` / `max`). |
 | `size-clue` | A numbered cell's region has that many cells. |
-| `one-each` | Every region contains exactly one clue of a kind (`of`). |
+| `one-each` | Every region contains exactly one clue of a kind (`of`: `number`, `symbol`, or `any` clue in a cell: Glimmith's Solitude). |
 | `twins` | The two regions on either side of a ◆ are different regions with the same shape (turns and flips allowed). |
 | `opposites` | The two regions on either side of a ◇ are different regions with different shapes. |
 | `rectangles` | Every region is a rectangle (Shikaku). |
@@ -107,6 +109,15 @@ puzzle can use it.
 | `compass` | A compass clue's numbers count the cells of its region that lie north, east, south and west of it. |
 | `neighbors-differ` | Regions that share a border have different shapes (Glimmith's Mingle Shape). |
 | `one-of-each` | Every region holds exactly one symbol of each kind: one of every color (Glimmith's Rose Windows with several colors of rose; a symbol's value is its color). |
+| `no-t-junctions` | No point where exactly three border lines meet, the outline and holes counting (Glimmith's Loopy). |
+| `no-rectangles` | No region is a rectangle (Glimmith's Non-Boxy). |
+| `all-same` | Every region has the same shape, turned or flipped (Glimmith's Match). |
+| `neighbors-differ-size` | Regions that share a border have different sizes (Glimmith's Size Separation). |
+| `shape-bank` | Every region is one of the `bank` shapes, turned or flipped (Glimmith's Shape Bank). |
+| `region-shape` | A `shape` clue in a cell is its region's shape, turned or flipped (Glimmith's Polyomino). |
+| `size-compare` | An `inequality` sign on a border points to the smaller of the two regions (its first cell's; Glimmith's Inequality). |
+| `size-difference` | A `difference` number on a border: two different regions whose sizes differ by it (Glimmith's Difference). |
+| `regions-at-corner` | A `watchtower` number on a corner counts the regions among the cells around it (Glimmith's Watchtower). |
 | `cell-borders` | A `palisade` clue shows how many of its cell's four sides are region borders (0-4), and with two whether they're `opposite` or at a corner, turned any way; the grid's edge and holes count (Glimmith's Palisade). |
 | `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |
 | `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
@@ -255,8 +266,8 @@ Substack's post editor (see ARCHITECTURE.md). The puzzle itself is edited by:
   against the engine's genres, so a new genre fails the build until it has tools). The tools: a
   number typed into a square (Enter or the arrow keys move on), rocks, walls between squares,
   pearls, galaxy circles, thermometers dragged from the bulb, doors, numbers and letters outside the
-  grid, corner numbers, line totals, outlined areas painted, symbols, compasses, ◆/◇ marks, and
-  erase; nonograms paint their picture or type their numbers. Sudokus come in 4×4, 6×6 and 9×9;
+  grid, corner numbers, line totals, outlined areas painted, symbols, compasses, ◆/◇ marks, Panes'
+  < signs, differences, watchtowers, shapes drawn on a small pad and the shape bank, and erase; nonograms paint their picture or type their numbers. Sudokus come in 4×4, 6×6 and 9×9;
   square types keep one size; Star Battle sets its stars per row, column and area. It draws the
   puzzle with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a
   maze's second door, an area painted in two pieces) stays on screen to be fixed, and a draft can

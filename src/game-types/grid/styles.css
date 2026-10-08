@@ -185,5 +185,9 @@
 
 /* stones: panel squares and Masyu's pearls, a watercolour disc with a bold pen outline */
 .grid-game .stone-line { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
+/* Panes: a < sign or a number on a border (Inequality, Difference), a watchtower on a corner, the shape bank */
+.grid-game .border-clue circle { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-fine); }
+.grid-game .border-clue path { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .border-clue, .grid-game .bank { pointer-events: none; }
 /* still pictures (picture.ts: guides, the editor, lists) get the board's pen wobble too */
 .grid-game svg.picture { filter: url(#pen); }

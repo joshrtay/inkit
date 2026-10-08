@@ -7,7 +7,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { SYMBOL_COLORS, type Given, type GridSpec, type RuleSpec, type SymbolColor } from "~site/engine/types.ts";
 import { SYMMETRIES } from "~site/engine/panel.ts";
-import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
+import { GENRE_NAMES, normalShape, type GenreName } from "~site/engine/puzzle.ts";
 import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
@@ -86,14 +86,17 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   that aren't part of it: shaded, crossed out, or the table showing through) are {kind: "block"}; border lines drawn in
   from the start are {kind: "wall"} (both sides are different regions). Glimmith's rules: Boxy = rectangles;
   Precision N = size "is N"; Minimum / Maximum / Range = size "min N" / "max N"; Area Number = size-clue (on its own:
-  regions without a number are fine; add one-each "of number" only if Solitude is there too); Solitude = one-each
-  ("of number" or "of symbol", whichever clues the puzzle has); Rose Windows = one-each "of symbol" with one kind of rose,
-  one-of-each with roses of several colors (each rose a symbol whose value is its color); Mismatch = all-different;
-  Mingle Shape = neighbors-differ; Gemini = twins (◆); Delta = opposites (◇); Compass = compass; Palisade =
-  cell-borders, with a palisade clue in each marked cell. Glimmith rules with no rule here (Non-Boxy, Match, Size
-  Separation, Polyomino, Shape Bank, Loopy, Bricky, Watchtower, Difference, Inequality, or anything else): never stand
-  in another rule for them; leave them out of "rules" and add a note (place "whole") naming the rule, e.g.
-  "rule not supported: Loopy (no T-junctions)".`,
+  regions without a number are fine; add one-each "of any" only if Solitude is there too); Solitude = one-each "of any"
+  (every clue in a cell counts, whatever its kind: numbers, compasses, roses, palisade marks, shapes); Rose Windows =
+  one-each "of symbol" with one kind of rose, one-of-each with roses of several colors (each rose a symbol whose value
+  is its color); Mismatch = all-different; Match = all-same; Mingle Shape = neighbors-differ; Size Separation =
+  neighbors-differ-size; Non-Boxy = no-rectangles; Gemini = twins (◆); Delta = opposites (◇); Compass = compass;
+  Palisade = cell-borders, with a palisade clue in each marked cell; Polyomino = region-shape, with a shape clue in each
+  cell that shows one; Shape Bank = shape-bank, with each shape of the bank (drawn on the scroll or beside the board) a
+  bank clue; Bricky = no-four-corners "outline"; Loopy = no-t-junctions; Inequality = size-compare, with an inequality
+  clue on each marked border; Difference = size-difference, with a difference clue on each numbered border; Watchtower
+  = regions-at-corner, with a watchtower clue on each numbered corner. A Glimmith rule not listed here: never stand in
+  another rule for it; leave it out of "rules" and add a note (place "whole") naming the rule.`,
   panel: `panel (Panel, line puzzles in the style of The Witness): a grid of squares; a line is drawn along the grid
   lines from a start circle (a big fat dot on a corner) to an end (a short stub sticking out of the outside edge at a
   corner). "rows" and "cols" count the squares (cells), not the lines: corners run from 0 to rows and 0 to cols.
@@ -117,6 +120,11 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   wall: "a thick wall on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\" (where the other cell is)",
   twins: "a filled diamond ◆ on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\"",
   opposites: "an empty diamond ◇ on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\"",
+  inequality: "a < or > sign on the border between two cells (panes, Glimmith's Inequality; its point is at the smaller region): row, col of the top / left cell; " +
+    "value \"right\" or \"below\" (where the other cell is), then \"<\" if it points to the top / left cell or \">\" if it points to the other one, e.g. \"right <\", \"below >\" (a ^ is <, a v is >)",
+  difference: "a number on the border between two cells (panes, Glimmith's Difference): row, col of the top / left cell; value \"right\" or \"below\" and the number, e.g. \"right 2\"",
+  watchtower: "a number on a corner, where grid lines cross (panes, Glimmith's Watchtower: how many regions meet there): row, col = the corner (0..rows, 0..cols); value the number, 1 to 4",
+  bank: "one shape of a shape bank (panes, Glimmith's Shape Bank: shapes drawn on the rule scroll or beside the board, not in a cell): row -1, col -1; value its blocks as row,col pairs with the top-left block at 0,0, e.g. \"0,0 0,1 1,0\"",
   count: "a number on a corner, where grid lines cross (mazes): row, col = the corner (0..rows, 0..cols); value the number",
   dots: "colored dots in a piece (Three Coats): row 0, col = the piece's index in figure; value the dot colors as digits, 1 red, 2 yellow, 3 blue, e.g. \"113\"",
   pearl: "a circle in a cell (masyu): row, col; value \"white\" or \"black\"",
@@ -134,7 +142,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   square: `a colored square in a cell (panels): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (an empty outline is white, plain ink black)`,
   star: `a star (sun) in a cell (panels; it pairs with exactly one other symbol of its color in its region, of any kind): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (plain ink is black)`,
   triangle: "little triangles in a cell (panels): row, col; value how many, 1, 2 or 3, e.g. \"2\"; add a color only if they're clearly not orange (plain ink counts as orange), e.g. \"2 purple\"",
-  shape: "a block shape in a cell (panels: a polyomino drawn small, e.g. an L or a tetris piece): row, col of the cell it's in; value its blocks as row,col pairs " +
+  shape: "a block shape in a cell (a polyomino drawn small, e.g. an L or a tetris piece; in panes, Glimmith's Polyomino, give only its blocks): row, col of the cell it's in; value its blocks as row,col pairs " +
     "with the top-left block at 0,0, then \"rotate\" if it's drawn tilted (it may be turned), and \"negative\" if it's drawn hollow / outlined (it takes away), " +
     "then a color only if it's clearly not the usual one (yellow, or blue for a hollow shape; plain ink counts as usual), " +
     "e.g. \"0,0 1,0 1,1\", \"0,0 0,1 rotate\", \"0,0 negative\" or \"0,0 1,0 red\"",
@@ -157,7 +165,7 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "adjacent-count": "a number counts the shaded cells / bulbs right beside it (comes with akari)",
   rectangles: "every region is a rectangle (comes with shikaku; Glimmith's Boxy)",
   squares: "every region is a square (comes with square-jam)",
-  "no-four-corners": "four regions never meet at a point (comes with square-jam)",
+  "no-four-corners": "four regions never meet at a point (comes with square-jam); outline: no point where four border lines meet, counting the board's outline and holes (Glimmith's Bricky)",
   "side-clue": "a number is the side of its square (comes with square-jam)",
   galaxies: "regions are symmetric about their circles (comes with spiral-galaxies)",
   bars: "shaded cells are straight blocks of length (comes with wittgenstein-briquet, length 3)",
@@ -177,7 +185,16 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "no-pool": "no 2×2 block of shaded cells (comes with nurikabe)",
   size: "every region has exactly N cells (is), or at least / at most (min / max)",
   "size-clue": "a numbered cell's region has that many cells; regions without a number are fine (Glimmith's Area Number). Rectangles + size-clue is not shikaku unless every region must also hold exactly one number (one-each)",
-  "one-each": "every region holds exactly one number (\"of number\") or one symbol (\"of symbol\") (Glimmith's Solitude)",
+  "one-each": "every region holds exactly one number (\"of number\"), one symbol (\"of symbol\"), or one clue of any kind (\"of any\": Glimmith's Solitude)",
+  "no-t-junctions": "no point where exactly three border lines meet, counting the board's outline and holes (Glimmith's Loopy)",
+  "no-rectangles": "no region is a rectangle (Glimmith's Non-Boxy)",
+  "all-same": "every region has the same shape (Glimmith's Match)",
+  "neighbors-differ-size": "regions that share a border have different sizes (Glimmith's Size Separation)",
+  "shape-bank": "every region is one of the bank's shapes, turned or flipped (Glimmith's Shape Bank; each shape a bank clue)",
+  "region-shape": "a shape clue in a cell is its region's shape, turned or flipped (Glimmith's Polyomino)",
+  "size-compare": "an inequality sign on a border points to the smaller of the two regions (Glimmith's Inequality)",
+  "size-difference": "a difference number on a border: the two regions are different and their sizes differ by it (Glimmith's Difference)",
+  "regions-at-corner": "a watchtower number on a corner counts the regions meeting there (Glimmith's Watchtower)",
   "one-of-each": "every region holds exactly one symbol of each kind: one of every color (Glimmith's Rose Windows with roses of several colors)",
   "neighbors-differ": "regions that share a border have different shapes (Glimmith's Mingle Shape)",
   "cell-borders": "a palisade mark shows how many of its cell's sides are region borders, at a corner or opposite (Glimmith's Palisade)",
@@ -471,6 +488,22 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
       const other: [number, number] = v.includes("below") || v.includes("down") ? [row + 1, col] : [row, col + 1];
       return { at: "border", cells: [cell, other], kind };
     }
+    case "inequality": {
+      const below = /\b(below|down)\b/.test(v), other: [number, number] = below ? [row + 1, col] : [row, col + 1];
+      // the sign points to the smaller region: "<" (or "^") the top / left cell, ">" (or "v") the other
+      const sign = v.replace(/\b(right|below|down|across)\b/g, "").match(/[<>^v]/)?.[0];
+      if (!sign) return null;
+      return { at: "border", cells: sign === "<" || sign === "^" ? [cell, other] : [other, cell], kind };
+    }
+    case "difference": {
+      const n = num(v), other: [number, number] = /\b(below|down)\b/.test(v) ? [row + 1, col] : [row, col + 1];
+      return n === null || n < 0 ? null : { at: "border", cells: [cell, other], kind, value: n };
+    }
+    case "watchtower": { const n = num(v); return n === null || n < 1 || n > 4 ? null : { at: "corner", corner: cell, kind, value: n }; }
+    case "bank": {
+      const blocks = [...v.matchAll(/(-?\d+)\s*,\s*(-?\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
+      return blocks.length ? { at: "aside", kind, value: normalShape(blocks) } : null;
+    }
     case "dots": { const d = [...v].filter((c) => "123".includes(c)).map(Number); return d.length ? { at: "cell", cell, kind, value: d } : null; }
     case "pearl": return { at: "cell", cell, kind, value: v.includes("black") ? "black" : "white" };
     case "first": case "skyscraper": { const n = num(v); return side && n !== null ? { at: "edge", cell, side, kind, value: n } : null; }
@@ -516,6 +549,7 @@ export function ruleSettings(text: string): Record<string, unknown> {
     const w = words[k], next = words[k + 1];
     if (w === "box") { const a = Number(words[k + 1]), b = Number(words[k + 2]); if (a > 0 && b > 0) out.box = [a, b]; k += 2; }
     else if (w === "cover") out.cover = true;
+    else if (w === "outline") out.outline = true;
     else if (w === "symmetry" && next && (SYMMETRIES as string[]).includes(next)) { out.symmetry = next; k++; }
     else if ((SYMMETRIES as string[]).includes(w)) out.symmetry = w;
     else if (w === "of" && next) { out.of = next; k++; }

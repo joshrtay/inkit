@@ -465,7 +465,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         spec.rules = rules.filter((r) => ["size", "all-different"].includes(r.rule) || used.has(r.rule));
         // a cell can hold only one clue: keep the first
         const seen = new Set<string>();
-        spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : x.at === "line" ? `l${x.corners}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
+        spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : x.at === "line" ? `l${x.corners}` : x.at === "aside" ? `a${x.value}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
         if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
       }
     } else if (genre === "panel") {

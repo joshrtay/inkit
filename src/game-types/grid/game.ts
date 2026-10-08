@@ -19,7 +19,7 @@ import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/ru
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
-import { palisadeSvg, symbolClueSvg } from "./region-clues.ts";
+import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { mirrorBorder, type Symmetry } from "../../engine/panel.ts";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 import { createFigure } from "./figure";
@@ -81,7 +81,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const totalsRoom = (side: string) => (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0;
   // clues outside the grid (Skyscrapers, Easy as ABC) sit beside the row or column they look along
   const edgeRoom = (side: string) => (p.edgeClues.some((c) => c.side === side) ? 38 : 0);
-  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side), edgeRoom(side));
+  // a shape bank (Panes) sits under the grid
+  const bankRoom = (side: string) => (side === "bottom" ? bankLayout(p, S).height : 0);
+  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side), edgeRoom(side), bankRoom(side));
   const shadeClues = p.rules.some((s) => blockFor(s).shadeClues);   // Hitori shades the numbers
   const label = (d: number) => symbolOf(p, d);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top"), MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
@@ -197,10 +199,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     }
   }
   for (const [e, gs] of p.borderGivens) for (const giv of gs) {
-    if (giv.kind === "wall") continue;
+    if (giv.kind !== "twins" && giv.kind !== "opposites") continue;
     const [[x1, y1], [x2, y2]] = borderXY(e), x = (x1 + x2) / 2, y = (y1 + y2) / 2, d = 8;
     el("path", { class: `diamond ${giv.kind}`, d: `M${x} ${y - d}L${x + d} ${y}L${x} ${y + d}L${x - d} ${y}Z` }, gGivens);
   }
+  // Panes' shapes, signs and numbers on borders, watchtowers, the shape bank
+  gGivens.insertAdjacentHTML("beforeend", paneCluesSvg(p, { S, X, Y }));
   // a panel: the line's ink at its start and end, then the dots and symbols over the line
   const gPanelInk = el("g", {});
   if (panel) {

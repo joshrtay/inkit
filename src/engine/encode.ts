@@ -104,6 +104,8 @@ export const paletteSize = (p: Puzzle) => p.style.palette?.length || 3;
 export function maxRegion(p: Puzzle): number {
   let n = p.grid.cellCount;
   for (const s of p.rules) if (s.rule === "size") n = Math.min(n, (s.is ?? s.max ?? n) as number);
+  // every region is a shape from the bank: no bigger than its biggest
+  if (p.rules.some((s) => s.rule === "shape-bank") && p.bank.length) n = Math.min(n, Math.max(...p.bank.map((x) => x.length)));
   // every region holds exactly one number and is that size: no bigger than the biggest number
   if (p.rules.some((s) => s.rule === "size-clue") && p.rules.some((s) => s.rule === "one-each" && (s.of ?? "number") === "number")) {
     const nums = [...p.cellGivens.values()].flat().filter((g) => g.kind === "number").map((g) => g.value as number);

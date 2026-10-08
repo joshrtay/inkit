@@ -36,6 +36,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   "outside-number": "Number outside", "outside-letter": "Letter outside", corner: "Corner number", total: "Line total",
   area: "Areas", symbol: "Symbol", compass: "Compass", diamond: "◆ / ◇", palisade: "Palisade", erase: "Erase",
   start: "Start", end: "End", gap: "Gap", dot: "Dot", square: "Square", star: "Star", triangle: "Triangle", shape: "Shape", eraser: "Eraser",
+  inequality: "< sign", difference: "Difference", watchtower: "Watchtower", bank: "Shape bank",
 };
 
 const TOOL_HINTS: Record<ToolId, string> = {
@@ -65,6 +66,10 @@ const TOOL_HINTS: Record<ToolId, string> = {
   triangle: "Click a square: one triangle, two, three, none",
   shape: "Pick a shape, then click a square to add or remove it",
   eraser: "Click a square to add or remove an eraser",
+  inequality: "Click the line between two squares: < pointing to one side (the smaller region), then the other, then none",
+  difference: "Click the line between two squares and type how much the regions' sizes differ",
+  watchtower: "Click where grid lines meet and type how many regions meet there (1 to 4)",
+  bank: "Draw or pick a shape, then add it to the bank under the board; click a shape in the bank to take it out",
 };
 
 
@@ -94,7 +99,7 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   "irregular-sudoku": ["area", "number", "erase"],
   nonogram: [],
   sudoku: ["number", "erase"],
-  panes: ["number", "symbol", "compass", "diamond", "palisade", "block", "wall", "erase"],
+  panes: ["number", "symbol", "compass", "diamond", "palisade", "shape", "inequality", "difference", "watchtower", "bank", "block", "wall", "erase"],
   maze: ["corner", "wall", "door", "erase"],
   // the line's start, ends, gaps and dots, then the symbols in the cells
   panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
@@ -117,6 +122,19 @@ const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
 const SymbolIcon = ({ x }: { x: Parameters<typeof symbolSvg>[0] }) => (
   <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: symbolSvg(x, 16, 16, 40) }} /></span>
 );
+/** A small grid to draw a shape on (Panes' Polyomino clues and shape bank): click squares in or out. */
+function ShapePad({ cells, onChange }: { cells: RC[]; onChange: (cells: RC[]) => void }) {
+  const N = 5, on = (r: number, c: number) => cells.some((x) => x[0] === r && x[1] === c);
+  return (
+    <span className="be-pad" role="group" aria-label="Draw a shape">
+      {Array.from({ length: N * N }, (_, k) => {
+        const r = Math.floor(k / N), c = k % N;
+        return <button key={k} type="button" className="be-pad-cell" aria-pressed={on(r, c)} aria-label={`Shape square ${r + 1}, ${c + 1}`}
+          onClick={() => onChange(on(r, c) ? cells.filter((x) => !(x[0] === r && x[1] === c)) : [...cells, [r, c]])} />;
+      })}
+    </span>
+  );
+}
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
 /** A nonogram's cells that solving one line at a time can't decide (null: the clues contradict). */
@@ -144,6 +162,8 @@ type Typing =
   | { kind: "total"; at: "row" | "col"; index: number }
   | { kind: "outside"; cell: RC; side: Side; letter: boolean }
   | { kind: "corner"; corner: RC }
+  | { kind: "watchtower"; corner: RC }
+  | { kind: "difference"; cells: [RC, RC] }
   | { kind: "compass"; cell: RC };
 
 export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins = [] }: {
@@ -173,6 +193,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const [turns, setTurns] = useState(0);
   const [canTurn, setCanTurn] = useState(false);
   const [hollow, setHollow] = useState(false);
+  // Panes: the shape on the shape pad (a Polyomino clue, or one for the bank)
+  const [pad, setPad] = useState<RC[]>([[0, 0], [1, 0], [1, 1]]);
   const [typing, setTyping] = useState<(Typing & { value: string }) | null>(null);
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -186,7 +208,9 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const nonogram = genre === "nonogram";
   const panel = genre === "panel", symmetry = panel ? ops.symmetryOf(spec) : null;
   const shapeCells = Array.from({ length: turns }).reduce<RC[]>((cs) => ops.turnShape(cs), ops.SHAPES[shapeAt].cells);
-  const shapeSymbol: ops.PanelSymbol = { kind: "shape", value: shapeCells, ...(canTurn ? { rotate: true } : {}), ...(hollow ? { negative: true } : {}) };
+  const panes = genre === "panes";
+  const shapeSymbol: ops.PanelSymbol = panes ? { kind: "shape", value: ops.normalShape(pad) }
+    : { kind: "shape", value: shapeCells, ...(canTurn ? { rotate: true } : {}), ...(hollow ? { negative: true } : {}) };
   const letters = spec.style?.symbols ?? (genres[genre]?.style as { symbols?: string } | undefined)?.symbols ?? "ABCDEFGHI";
 
   // leave room outside the grid where clues can be added there
@@ -273,7 +297,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         const { x, y } = cellCenter(t.cell), d = S * 0.9;
         return t.side === "top" ? { x, y: y - d } : t.side === "bottom" ? { x, y: y + d } : t.side === "left" ? { x: x - d, y } : { x: x + d, y };
       }
-      case "corner": return { x: ML + t.corner[1] * S, y: MT + t.corner[0] * S };
+      case "corner": case "watchtower": return { x: ML + t.corner[1] * S, y: MT + t.corner[0] * S };
+      case "difference": { const [[r0, c0], [r1, c1]] = t.cells; return { x: ML + ((c0 + c1 + 1) / 2) * S, y: MT + ((r0 + r1 + 1) / 2) * S }; }
     }
   };
   const valueOf = (t: Typing, gs: Given[] = latest.current.givens ?? []): string => {
@@ -286,6 +311,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         return g && g.at === "edge" && g.kind !== "door" ? (t.letter ? letters[g.value - 1] ?? "" : String(g.value)) : "";
       }
       case "corner": { const g = gs.find((x) => x.at === "corner" && same(x.corner, t.corner)); return g && g.kind === "count" ? String(g.value) : ""; }
+      case "watchtower": { const g = gs.find((x) => x.at === "corner" && same(x.corner, t.corner)); return g && g.kind === "watchtower" ? String(g.value) : ""; }
+      case "difference": { const g = gs.find((x) => onBorder(x, ...t.cells) && x.kind === "difference"); return g && g.kind === "difference" ? String(g.value) : ""; }
       case "compass": {
         const g = gs.find((x) => x.at === "cell" && same(x.cell, t.cell) && x.kind === "compass");
         return g && g.kind === "compass" ? (["n", "e", "s", "w"] as const).map((d) => g.value[d] ?? "-").join(" ") : "";
@@ -309,6 +336,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         break;
       }
       case "corner": next = ops.setCorner(cur, t.corner, num); break;
+      case "watchtower": next = ops.setWatchtower(cur, t.corner, num); break;
+      case "difference": next = ops.setDifference(cur, ...t.cells, num); break;
       case "compass": {
         const parts = v.split(/[\s,]+/).filter(Boolean), value: Record<string, number> = {};
         (["n", "e", "s", "w"] as const).forEach((d, k) => { const x = parseInt(parts[k] ?? "", 10); if (Number.isInteger(x) && x >= 0) value[d] = x; });
@@ -390,6 +419,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "door": { const o = outsideAt(h); if (o) change(ops.cycleDoor(latest.current, o.cell, o.side)); return; }
       case "outside-number": case "outside-letter": { const o = outsideAt(h); if (o) startTyping({ kind: "outside", ...o, letter: tool === "outside-letter" }); return; }
       case "corner": { const cn = cornerAt(h); if (cn) startTyping({ kind: "corner", corner: cn }); return; }
+      case "watchtower": { const cn = cornerAt(h); if (cn) startTyping({ kind: "watchtower", corner: cn }); return; }
+      case "difference": { const b = borderAt(h); if (b) startTyping({ kind: "difference", cells: b }); return; }
+      case "inequality": { const b = borderAt(h); if (b) change(ops.cycleInequality(latest.current, ...b)); return; }
+      case "bank": return;
       case "total": {
         if (h.gx < 0 && h.r >= 0 && h.r < rows) startTyping({ kind: "total", at: "row", index: h.r });
         else if (h.gy < 0 && h.c >= 0 && h.c < cols) startTyping({ kind: "total", at: "col", index: h.c });
@@ -407,7 +440,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "dot": { const at = ops.dotSpotNear(spec.size, h.gx, h.gy); if (at) change(ops.toggleDot(latest.current, at, symmetry ? dotColor : undefined)); return; }
       case "square": case "star": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, { kind: tool, color: symColor[tool] })); return;
       case "triangle": if (inGrid(h)) change(ops.cycleTriangle(latest.current, cell)); return;
-      case "shape": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, shapeSymbol)); return;
+      case "shape": if (inGrid(h) && (!panes || pad.length)) change(ops.toggleCellSymbol(latest.current, cell, shapeSymbol)); return;
       case "eraser": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, { kind: "eraser" })); return;
     }
   }
@@ -551,7 +584,22 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
             title={c ? `Passed by the ${c} line` : "Passed by either line"} onClick={() => setDotColor(c)}>{c ? capital(c) : "Plain"}</button>)}
         </span>
       )}
-      {tool === "shape" && (
+      {panes && (tool === "shape" || tool === "bank") && (
+        <span className="be-group be-shapes" role="group" aria-label="Shape">
+          <ShapePad cells={pad} onChange={setPad} />
+          {ops.SHAPES.map((x) => <button key={x.name} type="button" className="be-swatch" aria-label={x.name} title={x.name}
+            onClick={() => setPad(x.cells)}><SymbolIcon x={{ kind: "shape", value: x.cells }} /></button>)}
+          <button type="button" className="be-btn be-turn" onClick={() => setPad(ops.turnShape(pad))} title="Turn the shape a quarter turn">Turn</button>
+          {tool === "bank" && <button type="button" className="be-btn" onClick={() => change(ops.addToBank(spec, ops.normalShape(pad)))} disabled={!pad.length}>Add to the bank</button>}
+        </span>
+      )}
+      {panes && tool === "bank" && (
+        <span className="be-group be-shapes" role="group" aria-label="The shape bank">
+          {ops.bankOf(spec).length ? ops.bankOf(spec).map((x, k) => <button key={k} type="button" className="be-swatch" aria-label={`Take shape ${k + 1} out of the bank`}
+            title="Take this shape out of the bank" onClick={() => change(ops.removeFromBank(spec, k))}><SymbolIcon x={{ kind: "shape", value: x }} /></button>) : <span className="be-note">The bank is empty</span>}
+        </span>
+      )}
+      {!panes && tool === "shape" && (
         <span className="be-group be-shapes" role="group" aria-label="Shape">
           {ops.SHAPES.map((x, k) => <button key={x.name} type="button" className="be-swatch" aria-pressed={shapeAt === k} aria-label={x.name} title={x.name}
             onClick={() => { setShapeAt(k); setTurns(0); }}><SymbolIcon x={{ kind: "shape", value: x.cells }} /></button>)}
@@ -590,7 +638,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         ...Array.from({ length: cols }, (_, k) => [[k + 0.5, -0.75], [k + 0.5, rows + 0.75]]).flat(),
         ...Array.from({ length: rows }, (_, k) => [[-0.75, k + 0.5], [cols + 0.75, k + 0.5]]).flat(),
       ].map(([cx, cy], i) => <circle key={i} className="be-slot" cx={ML + cx * S} cy={MT + cy * S} r={S * 0.2} />)}
-      {tool === "corner" && Array.from({ length: (rows + 1) * (cols + 1) }, (_, i) => (
+      {(tool === "corner" || tool === "watchtower") && Array.from({ length: (rows + 1) * (cols + 1) }, (_, i) => (
         <circle key={i} className="be-slot small" cx={ML + (i % (cols + 1)) * S} cy={MT + Math.floor(i / (cols + 1)) * S} r={4} />
       ))}
       {panel && (tool === "start" || tool === "end" || tool === "dot") && Array.from({ length: (rows + 1) * (cols + 1) }, (_, i) => [Math.floor(i / (cols + 1)), i % (cols + 1)] as RC)
@@ -615,7 +663,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const typingLabel = !typing ? "" : typing.kind === "number" ? `Row ${typing.cell[0] + 1}, column ${typing.cell[1] + 1}`
     : typing.kind === "runs" || typing.kind === "total" ? (typing.at === "row" ? `Row ${typing.index + 1}` : `Column ${typing.index + 1}`)
       : typing.kind === "outside" ? `${typing.letter ? "Letter" : "Number"} outside`
-        : typing.kind === "corner" ? "Corner number" : "North east south west (- for none)";
+        : typing.kind === "corner" ? "Corner number" : typing.kind === "watchtower" ? "Regions meeting here (1-4)"
+          : typing.kind === "difference" ? "Size difference" : "North east south west (- for none)";
 
   return (
     <div className={`board-editor${flashing ? " flashing" : ""}`}>
@@ -629,14 +678,14 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
             style={{ left: `${(x / lay.W) * 100}%`, top: `${(y / lay.H) * 100}%` }}>{p.n}</span>
         ))}
         {typing && at && (
-          <form key={JSON.stringify([typing.kind, "cell" in typing ? typing.cell : "", "index" in typing ? typing.index : "", "corner" in typing ? typing.corner : "", "side" in typing ? typing.side : ""])}
+          <form key={JSON.stringify([typing.kind, "cell" in typing ? typing.cell : "", "cells" in typing ? typing.cells : "", "index" in typing ? typing.index : "", "corner" in typing ? typing.corner : "", "side" in typing ? typing.side : ""])}
             className="be-clue" style={{ left: at.left, top: at.top }} onSubmit={(e) => {
               e.preventDefault();
               applyTyping(typing, String(new FormData(e.currentTarget).get("v")), true);
             }}>
             <label>{typingLabel}
               <input ref={typed} name="v" autoFocus autoComplete="off" defaultValue={typing.value} onFocus={(e) => e.currentTarget.select()}
-                inputMode={typing.kind === "number" || typing.kind === "total" || typing.kind === "corner" || (typing.kind === "outside" && !typing.letter) ? "numeric" : "text"}
+                inputMode={typing.kind === "number" || typing.kind === "total" || typing.kind === "corner" || typing.kind === "watchtower" || typing.kind === "difference" || (typing.kind === "outside" && !typing.letter) ? "numeric" : "text"}
                 onBlur={(e) => applyTyping(typing, e.currentTarget.value, false)}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") { e.currentTarget.value = typing.value; setTyping(null); return; }

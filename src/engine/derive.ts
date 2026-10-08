@@ -45,19 +45,36 @@ export const linesCut = (p: Puzzle) => p.marks.length === 1 && p.marks[0] === "f
 
 /** A shape's canonical form: the same for any turn or flip of it. */
 export function shapeKey(g: Grid, cells: number[]): string {
-  const pts = cells.map((i) => g.rc(i));
-  const forms = [
-    ([r, c]: number[]) => [r, c], ([r, c]: number[]) => [r, -c], ([r, c]: number[]) => [-r, c], ([r, c]: number[]) => [-r, -c],
-    ([r, c]: number[]) => [c, r], ([r, c]: number[]) => [c, -r], ([r, c]: number[]) => [-c, r], ([r, c]: number[]) => [-c, -r],
-  ];
+  return shapeKeyOf(cells.map((i) => g.rc(i)));
+}
+
+/** The eight ways to turn or flip a shape (rows and columns). */
+export const SYMMETRIES8 = [
+  ([r, c]: number[]) => [r, c], ([r, c]: number[]) => [r, -c], ([r, c]: number[]) => [-r, c], ([r, c]: number[]) => [-r, -c],
+  ([r, c]: number[]) => [c, r], ([r, c]: number[]) => [c, -r], ([r, c]: number[]) => [-c, r], ([r, c]: number[]) => [-c, -r],
+];
+
+/** The canonical form of a shape given as [row, column] points. */
+export function shapeKeyOf(pts: number[][]): string {
   let best = "";
-  for (const f of forms) {
+  for (const f of SYMMETRIES8) {
     const q = pts.map(f);
     const r0 = Math.min(...q.map((x) => x[0])), c0 = Math.min(...q.map((x) => x[1]));
     const key = q.map(([r, c]) => [r - r0, c - c0]).sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x.join(".")).join(" ");
     if (!best || key < best) best = key;
   }
   return best;
+}
+
+/** A shape's distinct orientations (turned and flipped), each with its top-left at 0,0. */
+export function orientations(pts: number[][]): [number, number][][] {
+  const seen = new Map<string, [number, number][]>();
+  for (const f of SYMMETRIES8) {
+    const q = pts.map(f), r0 = Math.min(...q.map((x) => x[0])), c0 = Math.min(...q.map((x) => x[1]));
+    const cells = q.map(([r, c]) => [r - r0, c - c0] as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    seen.set(cells.map((x) => x.join(".")).join(" "), cells);
+  }
+  return [...seen.values()];
 }
 
 /** Shaded cells as groups, for connectivity rules. */

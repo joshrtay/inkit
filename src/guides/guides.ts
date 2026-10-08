@@ -24,6 +24,11 @@ const runs = (at: "row" | "col", index: number, value: number[]): Given => ({ at
 const palisade = (r: number, c: number, value: number, opposite = false): Given => ({ at: "cell", cell: [r, c], kind: "palisade", value, ...(opposite ? { opposite } : {}) });
 const rose = (r: number, c: number, color: string): Given => ({ at: "cell", cell: [r, c], kind: "symbol", value: color });
 const compass = (r: number, c: number, value: { n?: number; e?: number; s?: number; w?: number }): Given => ({ at: "cell", cell: [r, c], kind: "compass", value });
+const less = (smaller: RC, bigger: RC): Given => ({ at: "border", cells: [smaller, bigger], kind: "inequality" });
+const differ = (a: RC, b: RC, value: number): Given => ({ at: "border", cells: [a, b], kind: "difference", value });
+const tower = (r: number, c: number, value: number): Given => ({ at: "corner", corner: [r, c], kind: "watchtower", value });
+const bank = (...value: RC[]): Given => ({ at: "aside", kind: "bank", value });
+const ELL: RC[] = [[0, 0], [0, 1], [1, 0]];
 // panels: corners are [row, col] from 0,0 at the top left; a stretch of line is its two corners
 const start = (r: number, c: number, color?: LineColor): Given => ({ at: "corner", corner: [r, c], kind: "start", ...(color ? { color } : {}) });
 const end = (r: number, c: number): Given => ({ at: "corner", corner: [r, c], kind: "end" });
@@ -478,6 +483,50 @@ export const guides: Record<GenreName, Guide> = {
       { text: "Rose Windows: every pane holds exactly one rose of each color.", checks: ["one-of-each"], pictures: [
         { ok: true, note: "One of each", size: [2, 3], rules: [{ rule: "one-of-each" }], givens: [rose(0, 0, "red"), rose(1, 1, "blue"), rose(0, 2, "red"), rose(1, 2, "blue")], regions: ["aab", "aab"] },
         { ok: false, note: "No blue", size: [2, 3], rules: [{ rule: "one-of-each" }], givens: [rose(0, 0, "red"), rose(1, 1, "blue"), rose(0, 2, "red"), rose(1, 2, "blue")], regions: ["abb", "abb"] },
+      ] },
+      { text: "Solitude: every pane holds exactly one clue, of any kind.", checks: ["one-each"], pictures: [
+        { ok: true, note: "One each", size: [2, 3], rules: [{ rule: "one-each", of: "any" }], givens: [num(0, 0, 3), rose(1, 2, "★")], regions: ["aab", "abb"] },
+        { ok: false, note: "Two in one", size: [2, 3], rules: [{ rule: "one-each", of: "any" }], givens: [num(0, 0, 3), rose(0, 2, "★")], regions: ["aaa", "bbb"] },
+      ] },
+      { text: "Bricky: no point where four border lines meet. The outline and holes count.", checks: ["no-four-corners"], pictures: [
+        { ok: true, note: "Three lines", size: [2, 3], rules: [{ rule: "no-four-corners", outline: true }], givens: [rock(0, 0)], regions: ["#aa", "baa"] },
+        { ok: false, note: "Four at the notch", size: [2, 3], rules: [{ rule: "no-four-corners", outline: true }], givens: [rock(0, 0)], regions: ["#ab", "cbb"] },
+      ] },
+      { text: "Loopy: no point where exactly three border lines meet. The outline counts, so a border never ends at the edge.", checks: ["no-t-junctions"], pictures: [
+        { ok: true, note: "A closed loop", size: [3, 3], rules: [{ rule: "no-t-junctions" }], regions: ["aaa", "aba", "aaa"] },
+        { ok: false, note: "Ends at the edge", size: [2, 3], rules: [{ rule: "no-t-junctions" }], regions: ["aab", "aab"] },
+      ] },
+      { text: "Non-Boxy: no pane is a rectangle (squares and straight lines are rectangles too).", checks: ["no-rectangles"], pictures: [
+        { ok: true, note: "Two Ls", size: [2, 3], rules: [{ rule: "no-rectangles" }], regions: ["aab", "abb"] },
+        { ok: false, note: "A square", size: [2, 3], rules: [{ rule: "no-rectangles" }], regions: ["aab", "aab"] },
+      ] },
+      { text: "Match: every pane has the same shape (turned or flipped is fine).", checks: ["all-same"], pictures: [
+        { ok: true, note: "Two Ls", size: [2, 3], rules: [{ rule: "all-same" }], regions: ["aab", "abb"] },
+        { ok: false, note: "Different", size: [2, 3], rules: [{ rule: "all-same" }], regions: ["aab", "acb"] },
+      ] },
+      { text: "Size Separation: panes side by side have different sizes.", checks: ["neighbors-differ-size"], pictures: [
+        { ok: true, note: "3, 1 and 2", size: [2, 3], rules: [{ rule: "neighbors-differ-size" }], regions: ["aab", "acc"] },
+        { ok: false, note: "Two 2s side by side", size: [2, 3], rules: [{ rule: "neighbors-differ-size" }], regions: ["aab", "ccb"] },
+      ] },
+      { text: "Shape Bank: every pane is one of the shapes under the board, turned or flipped any way.", checks: ["shape-bank"], pictures: [
+        { ok: true, note: "Two Ls", size: [2, 3], rules: [{ rule: "shape-bank" }], givens: [bank(...ELL)], regions: ["aab", "abb"] },
+        { ok: false, note: "Not in the bank", size: [2, 3], rules: [{ rule: "shape-bank" }], givens: [bank(...ELL)], regions: ["aab", "aab"] },
+      ] },
+      { text: "Polyomino: a shape in a square is the shape of its pane (turned or flipped is fine).", checks: ["region-shape"], pictures: [
+        { ok: true, note: "An L", size: [2, 3], rules: [{ rule: "region-shape" }], givens: [shape(0, 0, ELL)], regions: ["aab", "abb"] },
+        { ok: false, note: "A square", size: [2, 3], rules: [{ rule: "region-shape" }], givens: [shape(0, 0, ELL)], regions: ["aab", "aab"] },
+      ] },
+      { text: "Inequality: the sign on a border points to the smaller pane.", checks: ["size-compare"], pictures: [
+        { ok: true, note: "Points to the 2", size: [2, 3], rules: [{ rule: "size-compare" }], givens: [less([0, 2], [0, 1])], regions: ["aab", "aab"] },
+        { ok: false, note: "Points to the 4", size: [2, 3], rules: [{ rule: "size-compare" }], givens: [less([0, 2], [0, 1])], regions: ["abb", "abb"] },
+      ] },
+      { text: "Difference: a number on a border is how much bigger one pane is than the other.", checks: ["size-difference"], pictures: [
+        { ok: true, note: "4 and 2", size: [2, 3], rules: [{ rule: "size-difference" }], givens: [differ([0, 1], [0, 2], 2)], regions: ["aab", "aab"] },
+        { ok: false, note: "3 and 3", size: [2, 3], rules: [{ rule: "size-difference" }], givens: [differ([0, 1], [0, 2], 2)], regions: ["aab", "abb"] },
+      ] },
+      { text: "Watchtower: a number on a corner counts the panes that meet there.", checks: ["regions-at-corner"], pictures: [
+        { ok: true, note: "3 meet", size: [2, 3], rules: [{ rule: "regions-at-corner" }], givens: [tower(1, 1, 3)], regions: ["abb", "acc"] },
+        { ok: false, note: "Only 2", size: [2, 3], rules: [{ rule: "regions-at-corner" }], givens: [tower(1, 1, 3)], regions: ["abb", "aab"] },
       ] },
     ],
     controls: "Drag along the lines between cells to cut the glass, or pick a color and paint cells into a pane.",

@@ -160,3 +160,30 @@ describe("Star Battle stars", () => {
     expect(ops.setStars(two, 1).rules).toBeUndefined();
   });
 });
+
+describe("Panes' Glimmith clues", () => {
+  it("cycle a < sign on a border: pointing to one side, the other, none", () => {
+    let s = ops.cycleInequality(grid("panes"), [0, 0], [0, 1]);
+    expect(s.givens).toEqual([{ at: "border", cells: [[0, 0], [0, 1]], kind: "inequality" }]);
+    s = ops.cycleInequality(s, [0, 0], [0, 1]);
+    expect(s.givens).toEqual([{ at: "border", cells: [[0, 1], [0, 0]], kind: "inequality" }]);
+    expect(ops.cycleInequality(s, [0, 0], [0, 1]).givens).toEqual([]);
+  });
+  it("set a difference on a border and a watchtower on a corner, and clear them", () => {
+    const s = ops.setWatchtower(ops.setDifference(grid("panes"), [1, 1], [2, 1], 2), [2, 2], 3);
+    expect(s.givens).toEqual([{ at: "border", cells: [[1, 1], [2, 1]], kind: "difference", value: 2 }, { at: "corner", corner: [2, 2], kind: "watchtower", value: 3 }]);
+    expect(ops.setWatchtower(s, [2, 2], 5).givens).toHaveLength(1);   // a watchtower counts 1 to 4
+    expect(ops.setDifference(s, [2, 1], [1, 1], null).givens).toHaveLength(1);
+  });
+  it("add shapes to the bank (once each) and take them out; resizing keeps them", () => {
+    let s = ops.addToBank(grid("panes"), [[0, 0], [0, 1]]);
+    expect(ops.addToBank(s, [[0, 1], [0, 0]])).toBe(s);
+    s = ops.addToBank(s, [[0, 0], [1, 0], [1, 1]]);
+    expect(ops.bankOf(s)).toEqual([[[0, 0], [0, 1]], [[0, 0], [1, 0], [1, 1]]]);
+    expect(ops.bankOf(ops.resize(s, 3, 3))).toHaveLength(2);
+    expect(ops.bankOf(ops.removeFromBank(s, 0))).toEqual([[[0, 0], [1, 0], [1, 1]]]);
+  });
+  it("move a drawn shape to the top-left", () => {
+    expect(ops.normalShape([[2, 3], [1, 3], [2, 4]])).toEqual([[0, 0], [1, 0], [1, 1]]);
+  });
+});

@@ -13,7 +13,11 @@ export type Given =
   | { at: "cell"; cell: RC; kind: "pearl"; value: "white" | "black" }        // Masyu
   | { at: "cell"; cell: RC; kind: "dots"; value: number[]; hidden?: boolean }   // paint dots (palette colors 1..n); hidden until painted
   | { at: "border"; cells: [RC, RC]; kind: "twins" | "opposites" | "wall" }   // a wall: loops can't cross it; in a maze, a wall given already drawn
+  | { at: "border"; cells: [RC, RC]; kind: "inequality" }                    // a < sign across a border: the region of cells[0] (where it points) is smaller than the region of cells[1]
+  | { at: "border"; cells: [RC, RC]; kind: "difference"; value: number }     // a number on a border: the regions on either side are different and their sizes differ by it
   | { at: "corner"; corner: RC; kind: "count"; value: number }               // a number on a corner: how many walls touch it (mazes)
+  | { at: "corner"; corner: RC; kind: "watchtower"; value: number }          // a number on a corner: how many different regions the cells around it are in (holes and the outside don't count)
+  | { at: "aside"; kind: "bank"; value: RC[] }                               // a shape in the shape bank, drawn beside the board (its cells, top-left at 0,0)
   | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
   | { at: "edge"; cell: RC; side: Side; kind: "first" | "skyscraper"; value: number }   // outside the grid, looking in: the first letter seen (Easy as ABC) / how many buildings are seen (Skyscrapers)
   | { at: "cells"; cells: RC[]; kind: "thermo" }                              // a thermometer from its bulb (first cell) to its tip
@@ -28,7 +32,7 @@ export type Given =
   | { at: "line"; corners: [RC, RC]; kind: "gap" }                           // a break in a grid line: the line can't run along it
   | { at: "cell"; cell: RC; kind: "square" | "star"; color: SymbolColor }    // squares: one color per region; stars: two of a color per region
   | { at: "cell"; cell: RC; kind: "triangle"; value: number; color?: SymbolColor }   // 1-3 triangles: how many of the cell's sides the line runs along (orange)
-  | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean; color?: SymbolColor }   // a polyomino (its cells, top-left at 0,0); the region is made of its region's shapes (yellow; hollow ones blue)
+  | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean; color?: SymbolColor }   // a polyomino (its cells, top-left at 0,0); in a panel the region is made of its region's shapes (yellow; hollow ones blue); in a region puzzle (region-shape) its region is that shape
   | { at: "cell"; cell: RC; kind: "eraser"; color?: SymbolColor };           // cancels itself and a wrong symbol in its region, or another eraser (white)
 
 /** The two lines of a symmetry panel. */
@@ -139,4 +143,6 @@ export interface Puzzle {
   lineGivens: Map<number, Given[]>;
   /** the borders a panel's line can't run along */
   gaps: Set<number>;
+  /** the shape bank's shapes (cells from 0,0), in the order given */
+  bank: [number, number][][];
 }

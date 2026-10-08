@@ -302,6 +302,12 @@ function randomSpec(): GridSpec {
     const r = Math.floor(rand() * rows), c = Math.floor(rand() * cols);
     return rand() < 0.5 && c + 1 < cols ? [[r, c], [r, c + 1]] : r + 1 < rows ? [[r, c], [r + 1, c]] : [[r, c - 1 < 0 ? 0 : c - 1], [r, c - 1 < 0 ? 1 : c]];
   };
+  // half the time, one or two of Glimmith's later rules on their own (with a size, perhaps)
+  if (rand() < 0.5) {
+    glimmithRules(rows, cols, rules, givens, randomBorder);
+    givens.push(...holesAndWalls(rows, cols));
+    return { genre: "panes", size: [rows, cols], rules, givens };
+  }
   if (rand() < 0.5) { rules.push({ rule: "twins" }); givens.push({ at: "border", cells: randomBorder(), kind: "twins" }); }
   if (rand() < 0.4) { rules.push({ rule: "opposites" }); givens.push({ at: "border", cells: randomBorder(), kind: "opposites" }); }
   if (rand() < 0.3) rules.push({ rule: "all-different" });
@@ -332,11 +338,48 @@ function randomSpec(): GridSpec {
       givens.push({ at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "palisade", value, ...(value === 2 && rand() < 0.5 ? { opposite: true } : {}) });
     }
   }
+  if (rand() < 0.15) glimmithRules(rows, cols, rules, givens, randomBorder);
   // holes (rocks) and walls drawn in
   givens.push(...holesAndWalls(rows, cols));
   if (!rules.length) rules.push({ rule: "size", is: 2 });
   return { genre: "panes", size: [rows, cols], rules, givens };
 }
+
+/** Glimmith's later rules (each with its clues), a few at a time so some puzzles still have solutions. */
+function glimmithRules(rows: number, cols: number, rules: NonNullable<GridSpec["rules"]>, givens: NonNullable<GridSpec["givens"]>, randomBorder: () => [[number, number], [number, number]]) {
+  const cellAt = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
+  const options: (() => void)[] = [
+    () => {
+      rules.push({ rule: "one-each", of: "any" });
+      for (let k = 0; k < 1 + Math.floor(rand() * 3); k++) givens.push(pick<NonNullable<GridSpec["givens"]>[number]>([
+        { at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "symbol", value: "star" },
+        { at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "number", value: 1 + Math.floor(rand() * 4) },
+        { at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "compass", value: { e: Math.floor(rand() * 2) } },
+      ]));
+    },
+    () => rules.push({ rule: "no-four-corners", outline: true }),
+    () => rules.push({ rule: "no-t-junctions" }),
+    () => rules.push({ rule: "no-rectangles" }),
+    () => rules.push({ rule: "all-same" }),
+    () => rules.push({ rule: "neighbors-differ-size" }),
+    () => {
+      rules.push({ rule: "shape-bank" });
+      for (let k = 0; k < 1 + Math.floor(rand() * 2); k++) givens.push({ at: "aside", kind: "bank", value: pick(SMALL_SHAPES) });
+    },
+    () => {
+      rules.push({ rule: "region-shape" });
+      for (let k = 0; k < 1 + Math.floor(rand() * 2); k++) givens.push({ at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "shape", value: pick(SMALL_SHAPES) });
+    },
+    () => { rules.push({ rule: "size-compare" }); givens.push({ at: "border", cells: randomBorder(), kind: "inequality" }); },
+    () => { rules.push({ rule: "size-difference" }); givens.push({ at: "border", cells: randomBorder(), kind: "difference", value: Math.floor(rand() * 3) }); },
+    () => {
+      rules.push({ rule: "regions-at-corner" });
+      for (let k = 0; k < 1 + Math.floor(rand() * 2); k++) givens.push({ at: "corner", corner: [Math.floor(rand() * (rows + 1)), Math.floor(rand() * (cols + 1))], kind: "watchtower", value: 1 + Math.floor(rand() * 4) });
+    },
+  ];
+  for (const add of shuffle(options).slice(0, 1 + Math.floor(rand() * 2))) add();
+}
+const SMALL_SHAPES: [number, number][][] = [[[0, 0]], [[0, 0], [0, 1]], [[0, 0], [0, 1], [0, 2]], [[0, 0], [1, 0], [1, 1]], [[0, 0], [0, 1], [1, 0], [1, 1]], [[0, 0], [1, 0], [2, 0], [2, 1]]];
 
 /** Sometimes a rock or two (holes in a region puzzle) and a wall drawn in. */
 function holesAndWalls(rows: number, cols: number): NonNullable<GridSpec["givens"]> {

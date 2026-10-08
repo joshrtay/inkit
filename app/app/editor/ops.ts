@@ -1,12 +1,13 @@
 // What the on-puzzle editor does to a puzzle, as plain functions: each takes a puzzle description
 // and returns the changed one (the same object when nothing changes). BoardEditor works out what
 // was touched and calls these; tests call them directly (tests/unit/ops.test.ts).
-import { genres, type GenreName } from "~site/engine/puzzle.ts";
+import { genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
 import type { Symmetry } from "~site/engine/panel.ts";
 import { runsOf } from "~site/engine/rules.ts";
 import type { Given, GridSpec, LineColor, RuleSpec, Side, SymbolColor } from "~site/engine/types.ts";
 
 export type RC = [number, number];
+export { normalShape };
 type Spec = GridSpec;
 
 export const same = (a: RC, b: RC) => a[0] === b[0] && a[1] === b[1];
@@ -76,6 +77,40 @@ export function toggleBorder(s: Spec, a: RC, b: RC, tool: "wall" | "diamond"): S
   const gs = givensOf(s), had = gs.find((g) => onBorder(g, a, b)), rest = gs.filter((g) => !onBorder(g, a, b));
   const kind = tool === "wall" ? (had ? null : "wall") : !had ? "twins" : had.kind === "twins" ? "opposites" : null;
   return withGivens(s, kind ? [...rest, { at: "border", cells: [a, b], kind } as Given] : rest);
+}
+
+/** The line between two squares (Panes): a < sign pointing to the first, then pointing to the
+ *  second, then none. The sign points to the smaller region: its cells run smaller first. */
+export function cycleInequality(s: Spec, a: RC, b: RC): Spec {
+  const gs = givensOf(s), had = gs.find((g) => onBorder(g, a, b) && g.kind === "inequality"), rest = gs.filter((g) => !onBorder(g, a, b));
+  const cells: [RC, RC] | null = !had ? [a, b] : had.at === "border" && same(had.cells[0], a) ? [b, a] : null;
+  return withGivens(s, cells ? [...rest, { at: "border", cells, kind: "inequality" }] : rest);
+}
+
+/** A number on the line between two squares (Panes: the regions' sizes differ by it), or none. */
+export function setDifference(s: Spec, a: RC, b: RC, value: number | null): Spec {
+  const rest = givensOf(s).filter((g) => !onBorder(g, a, b));
+  return withGivens(s, value === null ? rest : [...rest, { at: "border", cells: [a, b], kind: "difference", value }]);
+}
+
+/** A watchtower's number on a corner (Panes: how many regions meet there, 1 to 4), or none. */
+export function setWatchtower(s: Spec, corner: RC, value: number | null): Spec {
+  const rest = givensOf(s).filter((g) => !(g.at === "corner" && same(g.corner, corner)));
+  return withGivens(s, value === null || value < 1 || value > 4 ? rest : [...rest, { at: "corner", corner, kind: "watchtower", value }]);
+}
+
+/** The shape bank's shapes (Panes), in order. */
+export const bankOf = (s: Spec): RC[][] => givensOf(s).flatMap((g) => (g.at === "aside" && g.kind === "bank" ? [g.value] : []));
+const shapeText = (cells: RC[]) => JSON.stringify([...cells].sort((a, b) => a[0] - b[0] || a[1] - b[1]));
+/** A shape added to the bank (not if it's there already, the same way round). */
+export function addToBank(s: Spec, cells: RC[]): Spec {
+  if (!cells.length || bankOf(s).some((x) => shapeText(x) === shapeText(cells))) return s;
+  return withGivens(s, [...givensOf(s), { at: "aside", kind: "bank", value: cells }]);
+}
+/** The bank's k-th shape, taken out. */
+export function removeFromBank(s: Spec, k: number): Spec {
+  let n = -1;
+  return withGivens(s, givensOf(s).filter((g) => !(g.at === "aside" && ++n === k)));
 }
 
 /** A galaxy circle at a point (half-square steps: [2r+1, 2c+1] is a square's centre), on or off. */
@@ -154,7 +189,7 @@ export function resize(s: Spec, rows: number, cols: number): Spec {
         : g.at === "line" ? g.corners.every(([y, x]) => y <= r && x <= c)
         : g.at === "edge" ? inside(g.cell)
           : g.at === "cells" ? g.cells.every(inside) : g.at === "point" ? g.point[0] < 2 * r && g.point[1] < 2 * c
-            : g.index < (g.at === "row" ? r : c);
+            : g.at === "aside" ? true : g.index < (g.at === "row" ? r : c);
     return ok ? [g] : [];
   });
   const pic = s.picture, ar = s.areas;
