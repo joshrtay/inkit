@@ -2,6 +2,7 @@
 // it against the rules and for drawing it.
 import { makePuzzle } from "../engine/puzzle.ts";
 import { emptyBoard, type Board, type GridSpec, type Puzzle } from "../engine/types.ts";
+import { linkBetween } from "../engine/geometry.ts";
 import type { Mini } from "./types.ts";
 
 export const miniSpec = (genre: string, m: Mini): GridSpec => ({
@@ -16,9 +17,9 @@ export function miniBoard(p: Puzzle, m: Mini): Board {
   const g = p.grid, b = emptyBoard(g);
   m.shade?.forEach((row, r) => [...row].forEach((ch, c) => { b.shade[g.cell(r, c)] = ch === "#" ? 1 : ch === "x" ? 2 : 0; }));
   for (const path of m.lines ?? []) for (let k = 1; k < path.length; k++) {
-    const e = g.borderBetween(g.cell(...path[k - 1]), g.cell(...path[k]));
-    if (e < 0) throw new Error(`line step ${path[k - 1]} → ${path[k]} isn't between neighbours`);
-    b.loop[g.borders[e].link] = 1;
+    const l = linkBetween(g, g.cell(...path[k - 1]), g.cell(...path[k]));
+    if (l < 0) throw new Error(`line step ${path[k - 1]} → ${path[k]} isn't between neighbours`);
+    b.loop[l] = 1;
   }
   for (const path of m.fence ?? []) for (let k = 1; k < path.length; k++) {
     let [r, c] = path[k - 1];
@@ -34,7 +35,8 @@ export function miniBoard(p: Puzzle, m: Mini): Board {
     const [[r1, c1], [r2, c2]] = e.cells.map((i) => g.rc(i));
     if (m.regions[r1][c1] !== m.regions[r2][c2]) b.cut[e.id] = 1;
   }
-  m.digits?.forEach((row, r) => [...row].forEach((ch, c) => {
+  // one character a cell, or numbers apart ("12 13 14") for numbers past 9
+  m.digits?.forEach((row, r) => (row.includes(" ") ? row.trim().split(/\s+/) : [...row]).forEach((ch, c) => {
     const sym = p.style.symbols?.indexOf(ch) ?? -1;
     b.digit[g.cell(r, c)] = ch === "." ? 0 : sym >= 0 ? sym + 1 : Number(ch);
   }));

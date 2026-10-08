@@ -18,9 +18,12 @@ function markup(l: Layout) {
         `<button class="pot" data-color="${i + 1}" type="button" aria-pressed="${i === 0}" aria-label="Color ${i + 1}" style="--c: ${esc(c)}"><i></i></button>`).join("")
       }<button class="pot erase" data-color="0" type="button" aria-pressed="false" aria-label="Clear color" title="Clear color"><i></i></button></div>`
     : "";
+  // numbers past 9 (a number path) are typed a digit at a time: 1 then 2 is 12
+  const keys = l.digits > 9
+    ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((k) => `<button class="word num" data-key="${k}" type="button">${k}</button>`).join("")
+    : Array.from({ length: l.digits }, (_, i) => `<button class="word num" data-digit="${i + 1}" type="button">${esc(l.symbols?.[i] ?? String(i + 1))}</button>`).join("");
   const pad = l.digits
-    ? `<div class="paper-bar pad" role="group" aria-label="Digits"><div class="group">${Array.from({ length: l.digits }, (_, i) =>
-        `<button class="word num" data-digit="${i + 1}" type="button">${esc(l.symbols?.[i] ?? String(i + 1))}</button>`).join("")}</div>
+    ? `<div class="paper-bar pad" role="group" aria-label="Digits"><div class="group">${keys}</div>
        <div class="group"><button class="word" data-pencil type="button" aria-pressed="false" title="Pencil notes (P)">pencil</button>
        <button class="word" data-digit="0" type="button" title="Erase (Backspace)">erase</button></div></div>`
     : "";

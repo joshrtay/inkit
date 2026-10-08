@@ -2,13 +2,13 @@
 // the sign-up page does), and a draft of each puzzle type, copied from the seeded examples.
 import { request } from "@playwright/test";
 import { writeFileSync } from "node:fs";
-import { AUTH_FILE, q, RUN_FILE, sql, type Run } from "./db";
+import { AUTH_FILE, BASE_URL, q, RUN_FILE, sql, type Run } from "./db";
 
 export default async function setup() {
   const stamp = Date.now().toString(36);
   const handle = `e2e${stamp}`, email = `${handle}@example.test`;
-  const api = await request.newContext({ baseURL: "http://localhost:5173" });
-  const res = await api.post("/api/auth/sign-up/email", { data: { email, password: `pw-${stamp}-e2e-only`, name: "Editor tests", handle }, headers: { origin: "http://localhost:5173" } });
+  const api = await request.newContext({ baseURL: BASE_URL });
+  const res = await api.post("/api/auth/sign-up/email", { data: { email, password: `pw-${stamp}-e2e-only`, name: "Editor tests", handle }, headers: { origin: BASE_URL } });
   if (!res.ok()) throw new Error(`sign-up failed: ${res.status()} ${await res.text()}`);
   await api.storageState({ path: AUTH_FILE });
   await api.dispose();

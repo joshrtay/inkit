@@ -20,6 +20,8 @@ export type Given =
   | { at: "corner"; corner: RC; kind: "count"; value: number }               // a number on a corner: how many walls touch it (mazes)
   | { at: "corner"; corner: RC; kind: "watchtower"; value: number }          // a number on a corner: how many different regions the cells around it are in (holes and the outside don't count)
   | { at: "aside"; kind: "bank"; value: RC[] }                               // a shape in the shape bank, drawn beside the board (its cells, top-left at 0,0)
+  | { at: "cell"; cell: RC; kind: "peg" }                                    // a dot on a point of a lattice (Distance Path): the path joins them all
+  | { at: "aside"; kind: "lengths"; value: number[] }                        // the lengths a lattice path's segments have, each used once, as squares (5 is √5), drawn under the board
   | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
   | { at: "edge"; cell: RC; side: Side; kind: "first" | "skyscraper"; value: number }   // outside the grid, looking in: the first letter seen (Easy as ABC) / how many buildings are seen (Skyscrapers)
   | { at: "cells"; cells: RC[]; kind: "thermo" }                              // a thermometer from its bulb (first cell) to its tip
@@ -66,6 +68,9 @@ export interface GridStyle {
 export interface GridSpec {
   genre?: string;
   size: [number, number];        // rows, cols
+  /** the board's shape when it isn't squares: hexagons in rows (every other row shifted half a
+   *  hexagon), or a lattice of points with dots on some of them. Usually set by the genre. */
+  geometry?: "square" | "hex" | "lattice";
   marks?: MarkKind[];
   rules?: RuleSpec[];
   givens?: Given[];
@@ -154,4 +159,8 @@ export interface Puzzle {
   bank: [number, number][][];
   /** a fill-in's list: each entry as digits (symbol numbers 1..digits), in the order given */
   entries: number[][];
+  /** a lattice's dots (cells), in the order given, and the lengths of its path's segments, as
+   *  squares (Distance Path), or null */
+  pegs: number[];
+  lengths: number[] | null;
 }

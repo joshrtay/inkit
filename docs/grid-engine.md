@@ -7,7 +7,9 @@ the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), 
 Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
-and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below).
+and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below), Hidoku
+(`hidoku`), and on the shapes below Hex Hidoku (`hex-hidoku`), Missing Number (`missing-number`) and
+Distance Path (`distance-path`).
 Later: Binairo (`binairo`), Colour Balance (`colour-balance`, our name: each row and column holds its
 share of each of 2 or 3 colors) and Number Fill-In (`fill-in`), and Akari ciphers (letters for numbers).
 
@@ -21,6 +23,22 @@ Every interior border has a matching link across it. There are two geometries
 part of an edge are neighbours (a border and a link between them), and corners closer than
 1.5% of the figure's size are snapped together so hand-traced pieces meet. A figure is
 played by painting.
+
+Two more shapes, set by a genre's (or a puzzle's) `geometry`:
+- **Hexagons** (`"hex"`, `hexGrid`): hexagons in rows, pointy side up, every other row (1, 3...)
+  shifted half a hexagon right. Cells are still `r * cols + c`; each touches six others (two in its
+  row, two in each row beside it) across a link. Corners are the hexagons' corners, shared where
+  they meet and numbered as found (`cornerXY` places them; `corner(r, c)` isn't used), and borders
+  their sides, so line and region rules can run on hexagons later. Rocks work as on squares.
+- **A lattice** (`"lattice"`, `latticeGrid`): rows × cols points, each a cell, with `peg` dots on
+  some; every two dots are joined by a link (a straight segment) unless it would run through
+  another dot. No corners or borders. Played with `loop` marks: a segment is a link.
+
+Every grid says where its cells and corners are (`cellXY`, `cornerXY`, `width`, `height`, in cell
+widths), and its `kind`. Rules that walk rows and columns (`latin`, `touching`) assume squares;
+rules that follow links (`number-path`, `smallest-missing`, `distance-path`) work on any shape.
+Drawing and playing hexagons, lattices and number paths is `src/game-types/grid/shaped.ts`
+(`picture.ts` and `game.ts` hand them over), so the square boards are untouched.
 
 **Marks** are what the player puts down. Each kind lives on one kind of element:
 
@@ -50,7 +68,7 @@ counting regions), a shape bank's shapes (`{at: "aside", kind: "bank"}`, drawn u
 it's painted), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs or a `total` beside a row or above a column, a clue outside the grid looking in
 (`first` letter seen, `skyscraper` count), a `thermo` through a run of cells (bulb first), and a
-`galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners). A nonogram's runs can instead come from its
+`galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners), a `peg` (a dot on a lattice point) and a lattice path's `lengths` (`{at: "aside"}`, as squares, drawn under the board). A nonogram's runs can instead come from its
 `picture`, which solving reveals. A number in a cell can carry a `letter` instead (an Akari cipher: each
 letter stands for a different number 0-4, found while solving; its `value` isn't used); a `color` in a
 cell is a printed paint color that stays (Binairo, Colour Balance). A fill-in's list of numbers is the
@@ -140,6 +158,9 @@ puzzle can use it.
 | `no-three-in-a-row` | No three cells in a row, across or down, have the same paint color (Binairo). |
 | `unique-lines` | No two rows are painted the same, and no two columns (Binairo). |
 | `fill-in` | Every entry on the list goes into one slot (a run of 2+ open cells across or down, between rocks or the edge), every slot takes one, every open cell gets a digit (Number Fill-In). |
+| `number-path` | Every open cell holds 1..N once (N: the open cells), and each number touches the next across a link; `diagonals` (squares): touching at a corner counts too (Hidoku has it; without it, sides only). |
+| `smallest-missing` | Every open cell holds the smallest positive number none of its neighbours has (its neighbours' "mex"; Missing Number). |
+| `distance-path` | The segments (loop marks on a lattice) make one path through every dot that never crosses itself, and their lengths are the `lengths` given (as squares: 5 is √5), each used once, in any order; `moves`: `queen` (straight or diagonal) or `knight` (one 1-and-2 jump). |
 
 `adjacent-count` also reads an Akari cipher's letters: cells with the same letter have the same count,
 different letters different counts (0-4).

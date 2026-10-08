@@ -67,8 +67,7 @@ function* allBoards(p: Puzzle): Generator<Board> {
     const base = p.blanks ? p.digits + 1 : p.digits, low = p.blanks ? 0 : 1;
     const fixed = new Map<number, number>();
     for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") fixed.set(i, x.value as number);
-    // black cells (a fill-in's) stay empty
-    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i) && !p.blocked.has(i));
+    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i) && !p.blocked.has(i));   // rocks hold no digit
     const total = base ** free.length;
     for (let m = 0; m < total; m++) {
       const b = emptyBoard(g);
@@ -102,9 +101,34 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 
 function randomSpec(): GridSpec {
   const kind = process.argv[4] ?? pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
-    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binairo", "binairo", "colour-balance", "colour-balance", "colour-balance", "fill-in", "fill-in", "fill-in"]);
+    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binairo", "binairo", "colour-balance", "colour-balance", "colour-balance", "fill-in", "fill-in", "fill-in",
+    "hidoku", "hidoku", "hex-hidoku", "hex-hidoku", "missing-number", "missing-number", "distance-path", "distance-path", "distance-path"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "panel") return randomPanel();
+  if (kind === "hidoku" || kind === "hex-hidoku") {
+    // a few numbers (sometimes wrong ones), sometimes a rock; squares with or without corners
+    const [rows, cols] = pick([[2, 3], [2, 3], [3, 2], [1, 4]]), n = rows * cols;
+    const givens: NonNullable<GridSpec["givens"]> = [];
+    const cells = shuffle(Array.from({ length: n }, (_, i) => i));
+    const rocks = kind === "hidoku" && rand() < 0.3 ? 1 : 0;
+    for (const i of cells.slice(0, rocks)) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "block" });
+    for (const i of cells.slice(rocks, rocks + 1 + Math.floor(rand() * 2))) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "number", value: 1 + Math.floor(rand() * (n - rocks)) });
+    return { genre: kind, size: [rows, cols], givens, ...(kind === "hidoku" && rand() < 0.5 ? { rules: [{ rule: "number-path" }] } : {}) };
+  }
+  if (kind === "missing-number") {
+    const [rows, cols] = pick([[2, 3], [3, 2], [2, 2], [1, 4]]), n = rows * cols;
+    const cells = shuffle(Array.from({ length: n }, (_, i) => i)).slice(0, Math.max(0, n - 4) + Math.floor(rand() * 2));
+    return { genre: kind, size: [rows, cols], givens: cells.map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "number" as const, value: 1 + Math.floor(rand() * 3) })) };
+  }
+  if (kind === "distance-path") {
+    // 3 to 5 dots on a small lattice, lengths picked at random (some lists fit, some don't)
+    const [rows, cols] = pick([[3, 3], [2, 3], [3, 4]]);
+    const dots = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, 3 + Math.floor(rand() * 3));
+    const lengths = Array.from({ length: dots.length - 1 }, () => pick([1, 1, 2, 4, 5, 8]));
+    const rules: GridSpec["rules"] = rand() < 0.4 ? [{ rule: "distance-path", moves: pick(["queen", "knight"]) }] : [];
+    return { genre: kind, size: [rows, cols], rules, givens: [...dots.map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "peg" as const })),
+      ...(rand() < 0.8 ? [{ at: "aside" as const, kind: "lengths" as const, value: lengths }] : [])] };
+  }
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
     const givens: NonNullable<GridSpec["givens"]> = [];

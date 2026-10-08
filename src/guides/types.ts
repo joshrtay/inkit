@@ -27,7 +27,7 @@ export interface Mini {
   fence?: RC[][];
   /** regions, one letter per cell (cuts go where letters change) */
   regions?: string[];
-  /** digits, one string per row ("." empty; letters for a lettered puzzle) */
+  /** digits, one string per row ("." empty; letters for a lettered puzzle; numbers past 9 apart: "12 13 .") */
   digits?: string[];
   /** paint colors, one per piece */
   paint?: number[];

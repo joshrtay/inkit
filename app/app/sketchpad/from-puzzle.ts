@@ -128,7 +128,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
   const mL = Math.max(sides.has("left") || p.rowTotals.size ? 1 : 0, runsLen(p.rowRuns) * 0.6 + (p.rowRuns.size ? 0.3 : 0));
   const mT = Math.max(sides.has("top") || p.colTotals.size ? 1 : 0, runsLen(p.colRuns) * 0.6 + (p.colRuns.size ? 0.3 : 0));
   const mR = sides.has("right") ? 1 : 0, mB = sides.has("bottom") ? 1 : 0;
-  const bankRows = p.bank.length ? 4 : 0;            // the shape bank, beside the board
+  const bankRows = (p.bank.length ? 4 : 0) + (p.lengths ? 1 : 0);   // the shape bank, or a lattice's lengths, under the board
   const header = 1;                                   // the type's name and its rules, written above
   // a fill-in's list, written under the board: a line per length, wrapping at the board's width
   // (a number takes about 0.3 squares a digit, with 0.5 between numbers)
@@ -152,6 +152,8 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
   d = m.setGrid(d, m.moveGrid(grid, (m.PAGE - wide * grid.S) / 2 + mL * grid.S, (m.PAGE - tall * grid.S) / 2 + (mT + header) * grid.S));
   // a panel's grid as its tracks (the grid tool's Tracks look), as a creator draws one
   if (genre === "panel") d = m.setGrid(d, { ...d.grid!, tracks: true });
+  // hexagons and lattices: the grid tool's Hexagons and Dots looks
+  if (p.grid.kind === "hex" || p.grid.kind === "lattice") d = m.setGrid(d, m.setLook(d.grid!, p.grid.kind === "hex" ? "hex" : "dots"));
   const g = d.grid!;
   if (g.rows !== rows || g.cols !== cols) gaps.add(`the grid can't be ${rows} × ${cols}`);
   // written above the grid: kept in its squares (as the sketchpad keeps anything placed near a grid), so it moves with it
@@ -330,6 +332,13 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
         const name = colorName(p, gv.value);
         if ((m.WASHES as readonly string[]).includes(name)) d = m.washCell(d, { at: "cell", r: gv.cell[0], c: gv.cell[1] }, name as m.WashColor, true);
         else gaps.add(`a printed ${name} (no wash of that colour)`);
+        break;
+      }
+      // a lattice: its dots are black stones on the points; the lengths written under it, roots as √n
+      case "peg": stamp({ kind: "stamp", stamp: "stone", color: "black", at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "dot"); break;
+      case "lengths": {
+        const words = [...gv.value].sort((a, b) => a - b).map((v) => { const r = Math.round(Math.sqrt(v)); return r * r === v ? String(r) : `√${v}`; });
+        text(G(rows + 0.7, cols / 2), words.join("  "));
         break;
       }
       default: gaps.add(`unknown clue kind ${(gv as Given).kind}`);

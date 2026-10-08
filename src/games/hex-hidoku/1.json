@@ -1,0 +1,49 @@
+{
+  "type": "grid",
+  "name": "First Honeycomb",
+  "meta": "3 × 4",
+  "grid": {
+    "size": [
+      3,
+      4
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 12
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          3
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          3
+        ],
+        "kind": "number",
+        "value": 3
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "number",
+        "value": 9
+      }
+    ]
+  }
+}

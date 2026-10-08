@@ -16,14 +16,16 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
   | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser"
   // Binairo and Colour Balance: a printed color in a square
-  | "paint";
+  | "paint"
+  // lattices (Distance Path): dots on the points, and the path's lengths
+  | "peg" | "lengths";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
   rules: "Star Battle's stars; a panel's symmetry; Colour Balance's shares and extra rules; the Rules panel (Panes, and admins)",
   style: "the Look panel (admins); Colour Balance's colors (its shares)", picture: "Picture, and painting (Nonogram)",
-  marks: "the Look panel (admins)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
+  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Hex Hidoku, Missing Number; a lattice: Distance Path)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
   entries: "the Numbers box in the toolbar (Number Fill-In)",
 };
 
@@ -36,6 +38,7 @@ export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> =
   skyscraper: "outside-number", thermo: "thermo", galaxy: "galaxy", door: "door",
   start: "start", end: "end", gap: "gap", hexagon: "dot", square: "square", star: "star", triangle: "triangle", shape: "shape", eraser: "eraser",
   color: "paint",
+  peg: "peg", lengths: "lengths",
 };
 
 export type Setting =
@@ -106,6 +109,9 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "neighbor-dots": { label: "Dots ask for neighbours of their color", settings: [] },
   "panel-line": { label: "A line from a start circle to an end on the edge", settings: [{ key: "symmetry", label: "two lines, mirrored", type: "choice", choices: ["left-right", "up-down", "turn"], none: "no (one line)" }] },
   "panel-symbols": { label: "The symbols in the cells say where the line goes", settings: [] },
+  "number-path": { label: "Numbers 1 to the last, each touching the next (Hidoku)", settings: [{ key: "diagonals", label: "touching at a corner counts (squares)", type: "flag" }] },
+  "smallest-missing": { label: "Each number is the smallest its neighbours lack (Missing Number)", settings: [] },
+  "distance-path": { label: "One path through the dots, with the listed lengths (Distance Path)", settings: [{ key: "moves", label: "segments run", type: "choice", choices: ["queen", "knight"], none: "any way" }] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
   "line-shares": { label: "Each row and column has its share of each color", settings: [{ key: "parts", label: "shares, one per color (1 1 = half and half)", type: "list" }] },
   "no-three-in-a-row": { label: "No three in a row the same color", settings: [] },

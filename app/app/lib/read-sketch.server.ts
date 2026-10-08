@@ -13,6 +13,7 @@ import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
 import { DOUBT_PLACES, type DoubtPlace } from "../games/doubts";
 import { Invalid } from "./errors.server";
+import { parseLengths } from "../editor/ops";
 
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
@@ -123,6 +124,24 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   across and down (like a crossword of numbers). Each black square is {kind: "block"}; a digit printed in a white square
   is {kind: "number", value: the digit, 0 to 9}. Give the list in "entries", every number as written, in any order.
   Leave out digits filled in as the answer.`,
+  hidoku: `hidoku (Hidoku / Number Snake; the trademarked Hidato is the same puzzle): a grid of squares with some numbers
+  given, {kind: "number", value}; the player fills in 1 to the last so each number touches the next (sides or corners).
+  Shaded / crossed-out squares are rocks {kind: "block"}. If it says "sides only" (or "no diagonals"; Numbrix is this
+  kind), add the rule number-path with settings "" (no diagonals). Leave out numbers drawn as the answer.`,
+  "hex-hidoku": `hex-hidoku (Hex Hidoku, a number snake on a honeycomb): hexagons in rows, pointy side up, every other row
+  shifted half a hexagon right (rows 1, 3... sit further right). "rows" counts the rows of hexagons and "cols" the
+  hexagons in each row; row r, col c is the c-th hexagon from the left in row r. Given numbers are {kind: "number",
+  value}; shaded hexagons are rocks {kind: "block"}. If a row has one fewer hexagon, or a hexagon is missing, give the
+  full rows and make the missing ones rocks. Leave out numbers drawn as the answer.`,
+  "missing-number": `missing-number (Missing Number): a honeycomb, laid out as for hex-hidoku (rows of hexagons, every other row
+  shifted half right; row r, col c), with some numbers given, {kind: "number", value}; each hexagon's number is the
+  smallest one none of its neighbours has. Shaded hexagons are rocks {kind: "block"}. Leave out numbers drawn as the answer.`,
+  "distance-path": `distance-path (Distance Path, a geoboard path): dots on some points of a square lattice of points (often
+  drawn faint, or as squared paper with the dots on its crossings or in its squares), and a list of lengths like
+  "1, √2, √5, 2". "rows" and "cols" count the lattice's points down and across, and each dot is {kind: "peg"} at its
+  point's row and col (0 at the top / left). The list is one {kind: "lengths"}, row -1, col -1. If it says segments go
+  like a queen (straight or diagonal) or a knight, add the rule distance-path with "moves queen" / "moves knight".
+  Leave out a path drawn as the answer.`,
 };
 
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
@@ -164,6 +183,8 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
     "then a color only if it's clearly not the usual one (yellow, or blue for a hollow shape; plain ink counts as usual), " +
     "e.g. \"0,0 1,0 1,1\", \"0,0 0,1 rotate\", \"0,0 negative\" or \"0,0 1,0 red\"",
   eraser: "an eraser in a cell (panels: a Y-shaped mark, three short strokes from a centre): row, col; value \"\", or a color if it's clearly not white (plain ink counts as white)",
+  peg: "a dot on a point of a lattice (distance-path): row, col of the point; value \"\"",
+  lengths: "the list of a lattice path's lengths (distance-path): row -1, col -1; value the lengths as written, roots as √n (or rn), e.g. \"1 √2 √5 2\"",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
@@ -231,6 +252,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "no-three-in-a-row": "no three cells in a row, across or down, have the same color (comes with binairo)",
   "unique-lines": "no two rows are colored the same, and no two columns (comes with binairo)",
   "fill-in": "every number on the list fits once, across or down (comes with fill-in)",
+  "number-path": "the numbers 1 to the last, each touching the next (comes with hidoku and hex-hidoku); diagonals: touching at a corner counts (hidoku has it; list number-path without it for \"sides only\")",
+  "smallest-missing": "each number is the smallest its neighbours don't have (comes with missing-number)",
+  "distance-path": "one path through every dot with the listed lengths, never crossing (comes with distance-path); moves queen / knight: segments run straight or diagonal / one knight's jump",
 };
 
 // Every field is required (empty when unused): the API caps how many fields may be nullable or
@@ -390,7 +414,9 @@ export function drawingBrief(drawing: string) {
     "Stamps are the boards' own symbols: stone (a Masyu pearl, or a panel's coloured square), star, rock (a shaded square), galaxy (a small circle), x, dot, hoshi (a panel's dot on the line), "
     + "start and end (a panel's line), crest (a panel's star), triangle (count 1-3), shape (a polyomino: its cells from 0,0; hollow = a negative shape; rotate = it may turn), eraser, "
     + "diamond (filled, on a line: the squares either side are twins) and open-diamond (on a line: opposites). A start or hoshi coloured blue or yellow belongs to one of a symmetry panel's two lines; "
-    + "a hidden stone is a dot that stays hidden until its piece is painted. A grid with tracks: true is drawn as a panel's wide tracks (so it is a panel). A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
+    + "a hidden stone is a dot that stays hidden until its piece is painted. A grid with tracks: true is drawn as a panel's wide tracks (so it is a panel). "
+    + "A grid with shape: \"hex\" is hexagons in rows, every other row (1, 3...) shifted half a hexagon right: {at: \"cell\", r, c} is hexagon c of row r (a honeycomb puzzle). "
+    + "A grid with shape: \"dots\" is a lattice of faint points, one at each square's centre and no lines: a cell anchor is a point, and a black stone on one is a dot to join (distance-path). A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
     `The drawing:\n${drawing}`,
   ].join("\n\n");
 }
@@ -602,6 +628,8 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
       };
     }
     case "eraser": return { at: "cell", cell, kind, ...unusual(v, "white") };
+    case "peg": return { at: "cell", cell, kind };
+    case "lengths": { const value = parseLengths(v); return value?.length ? { at: "aside", kind, value } : null; }
   }
 }
 
@@ -613,6 +641,8 @@ export function ruleSettings(text: string): Record<string, unknown> {
     if (w === "box") { const a = Number(words[k + 1]), b = Number(words[k + 2]); if (a > 0 && b > 0) out.box = [a, b]; k += 2; }
     else if (w === "cover") out.cover = true;
     else if (w === "outline") out.outline = true;
+    else if (w === "diagonals") out.diagonals = true;
+    else if (w === "moves" && (next === "queen" || next === "knight")) { out.moves = next; k++; }
     else if (w === "symmetry" && next && (SYMMETRIES as string[]).includes(next)) { out.symmetry = next; k++; }
     else if ((SYMMETRIES as string[]).includes(w)) out.symmetry = w;
     else if (w === "of" && next) { out.of = next; k++; }

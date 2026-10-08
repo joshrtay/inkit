@@ -1125,6 +1125,109 @@ cdiff(A,B) :- col(I,A), col(J,B), A < B, row(I,Y), row(J,Y), paint(I,C), not pai
       return out.join("\n");
     },
   },
+
+  // ---- number paths (Hidoku) ----
+  "number-path": {
+    describe: (s, p) => `Fill every ${p.blocked.size ? "white " : ""}${p.grid.kind === "hex" ? "hexagon" : "cell"} with the numbers 1 to ${p.digits}, each once. `
+      + `Each number touches the next one${p.grid.kind === "hex" ? "" : s.diagonals ? " at a side or a corner" : " at a side (a corner isn't enough)"}, so the numbers make one path from 1 to ${p.digits}.`,
+    check(s, p, b) {
+      const out: Problem[] = [], n = p.digits, at = new Map<number, number[]>();
+      const open = Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i));
+      const empty = open.filter((i) => !b.digit[i]);
+      if (empty.length) out.push({ message: "Fill every cell.", cells: empty });
+      for (const i of open) if (b.digit[i]) at.set(b.digit[i], [...(at.get(b.digit[i]) ?? []), i]);
+      const twice = [...at].filter(([d, cs]) => cs.length > 1 || d > n).flatMap(([, cs]) => cs);
+      if (twice.length) out.push({ message: `Use each number from 1 to ${n} once.`, cells: twice });
+      for (let d = 1; d < n; d++) {
+        const a = at.get(d), c = at.get(d + 1);
+        if (a?.length === 1 && c?.length === 1 && !pathNeighbours(s, p, a[0]).includes(c[0])) out.push({ message: `${d} and ${d + 1} must touch${p.grid.kind !== "hex" && s.diagonals ? " (a side or a corner)" : ""}.`, cells: [a[0], c[0]] });
+      }
+      return out;
+    },
+    asp(s, p) {
+      const facts: string[] = [];
+      for (let i = 0; i < p.grid.cellCount; i++) for (const j of pathNeighbours(s, p, i)) facts.push(`pn(${i},${j}).`);
+      return `${facts.join(" ")}
+:- d(D), #count{I: digit(I,D)} != 1.
+:- digit(I,D), D < ${p.digits}, #count{J: pn(I,J), digit(J,D+1)} = 0.`;
+    },
+  },
+
+  // ---- the smallest missing number (Missing Number) ----
+  "smallest-missing": {
+    describe: (_s, p) => `Fill every ${p.blocked.size ? "white " : ""}${p.grid.kind === "hex" ? "hexagon" : "cell"} with a number: the smallest number (1, 2, 3...) that none of its neighbours has. `
+      + "So neighbours never match, and one whose neighbours hold 1, 2 and 3 (and no 4) must be 4.",
+    check(_s, p, b) {
+      const out: Problem[] = [], open = Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i));
+      const empty = open.filter((i) => !b.digit[i]);
+      if (empty.length) out.push({ message: "Fill every cell.", cells: empty });
+      const same = open.filter((i) => b.digit[i] && mexNeighbours(p, i).some((j) => b.digit[j] === b.digit[i]));
+      if (same.length) out.push({ message: "Neighbours never hold the same number.", cells: same });
+      const wrong = open.filter((i) => {
+        const near = mexNeighbours(p, i);
+        if (!b.digit[i] || near.some((j) => !b.digit[j])) return false;
+        const has = new Set(near.map((j) => b.digit[j]));
+        let m = 1; while (has.has(m)) m++;
+        return b.digit[i] !== m;
+      });
+      if (wrong.length) out.push({ message: "Each number is the smallest one its neighbours don't have.", cells: wrong });
+      return out;
+    },
+    asp(_s, p) {
+      const facts: string[] = [];
+      for (let i = 0; i < p.grid.cellCount; i++) for (const j of mexNeighbours(p, i)) facts.push(`mn(${i},${j}).`);
+      return `${facts.join(" ")}
+mhas(I,D) :- mn(I,J), digit(J,D).
+:- digit(I,D), mhas(I,D).
+:- digit(I,D), d(E), E < D, not mhas(I,E).`;
+    },
+  },
+
+  // ---- a path on a lattice (Distance Path) ----
+  "distance-path": {
+    describe: (s, p) => `Join all the dots into one path of straight segments, each from a dot to a dot. ${p.lengths ? `The segments' lengths are the ones listed (${p.lengths.map(rootText).join(", ")}), each used once, in any order. ` : ""}`
+      + `The path never crosses itself${s.moves === "queen" ? "; every segment runs straight across, up and down, or diagonally" : s.moves === "knight" ? "; every segment is one knight's jump (one square one way, two the other)" : ""}.`,
+    check(s, p, b) {
+      const g = p.grid, drawn = g.links.filter((l) => b.loop[l.id] === 1);
+      if (!drawn.length) return [{ message: "Join the dots with a path." }];
+      const bad = drawn.filter((l) => !moveOk(s, p, l.id)).map((l) => l.id);
+      if (bad.length) return [{ message: s.moves === "knight" ? "Every segment is one knight's jump." : "Every segment runs straight across, up and down, or diagonally.", links: bad }];
+      const deg = new Map<number, number>();
+      for (const l of drawn) for (const i of l.cells) deg.set(i, (deg.get(i) ?? 0) + 1);
+      const branch = [...deg].filter(([, k]) => k > 2).map(([i]) => i);
+      if (branch.length) return [{ message: "The path can't branch: a dot joins at most two segments.", cells: branch }];
+      const crossing = crossings(p).filter(([x, y]) => b.loop[x] === 1 && b.loop[y] === 1).flat();
+      if (crossing.length) return [{ message: "The path can't cross itself.", links: [...new Set(crossing)] }];
+      // one path through every dot: connected, and one segment fewer than dots
+      const seen = new Set([drawn[0].cells[0]]), stack = [drawn[0].cells[0]];
+      while (stack.length) for (const l of g.cellLinks[stack.pop()!]) if (b.loop[l] === 1) for (const j of g.links[l].cells) if (!seen.has(j)) { seen.add(j); stack.push(j); }
+      const missed = p.pegs.filter((i) => !seen.has(i));
+      if (missed.length || drawn.length !== p.pegs.length - 1) return [{ message: "Make one path through every dot, with no loop and no loose pieces.", cells: missed.length ? missed : undefined }];
+      if (p.lengths) {
+        const want = [...p.lengths].sort((x, y) => x - y).join(","), have = drawn.map((l) => sqLength(p, l.id)).sort((x, y) => x - y).join(",");
+        if (want !== have) return [{ message: `Use each length once: ${p.lengths.map(rootText).join(", ")}.`, links: drawn.map((l) => l.id) }];
+      }
+      return [];
+    },
+    asp(s, p) {
+      const g = p.grid, out: string[] = [];
+      for (const i of p.pegs) out.push(`peg(${i}).`);
+      for (const l of g.links) out.push(moveOk(s, p, l.id) ? `seg(${l.id},${sqLength(p, l.id)}).` : `:- line(${l.id}).`);
+      for (const [x, y] of crossings(p)) out.push(`:- line(${x}), line(${y}).`);
+      out.push(`:- peg(I), #count{L: line(L), lc(I,L)} > 2.
+:- #count{L: line(L)} != ${Math.max(0, p.pegs.length - 1)}.`);
+      if (p.pegs.length) out.push(`dreach(${p.pegs[0]}).
+dreach(J) :- dreach(I), line(L), lc(I,L), lc(J,L).
+:- peg(I), not dreach(I).`);
+      if (p.lengths) {
+        const count = new Map<number, number>();
+        for (const v of p.lengths) count.set(v, (count.get(v) ?? 0) + 1);
+        for (const [v, k] of count) out.push(`want(${v}). :- #count{L: line(L), seg(L,${v})} != ${k}.`);
+        out.push(":- line(L), seg(L,D), not want(D).");
+      }
+      return out.join("\n");
+    },
+  },
 } satisfies Record<string, Block>;
 
 /** line-shares' parts: one per palette color (all equal if the rule doesn't say). */
@@ -1167,6 +1270,41 @@ export const fillSlots = (p: Puzzle) => {
   for (let c = 0; c < g.cols; c++) runs(Array.from({ length: g.rows }, (_, r) => g.cell(r, c)));
   return out;
 };
+
+/** The cells a number path may step to from cell i: its neighbours (on squares with diagonals, the
+ *  eight around it), never rocks. */
+export function pathNeighbours(s: RuleSpec, p: Puzzle, i: number): number[] {
+  const near = p.grid.kind === "square" && s.diagonals ? touching(p, i) : p.grid.cellLinks[i].map((l) => other(p, l, i));
+  return near.filter((j) => !p.blocked.has(j));
+}
+/** A cell's neighbours across its links (six on hexagons), never rocks. */
+const mexNeighbours = (p: Puzzle, i: number) => p.grid.cellLinks[i].map((l) => other(p, l, i)).filter((j) => !p.blocked.has(j));
+/** A lattice link's length, squared (a segment 1 across and 2 down is 5: √5). */
+export const sqLength = (p: Puzzle, l: number) => {
+  const [a, c] = p.grid.links[l].cells.map((i) => p.grid.rc(i));
+  return (a[0] - c[0]) ** 2 + (a[1] - c[1]) ** 2;
+};
+/** A length written as people write it: 2 for 4, √5 for 5. */
+export const rootText = (sq: number) => { const r = Math.round(Math.sqrt(sq)); return r * r === sq ? String(r) : `√${sq}`; };
+/** Can a segment go this way? (Distance Path's moves: any, a queen's lines, or a knight's jump.) */
+function moveOk(s: RuleSpec, p: Puzzle, l: number) {
+  const [a, c] = p.grid.links[l].cells.map((i) => p.grid.rc(i)), dr = Math.abs(a[0] - c[0]), dc = Math.abs(a[1] - c[1]);
+  return s.moves === "queen" ? dr === 0 || dc === 0 || dr === dc : s.moves === "knight" ? (dr === 1 && dc === 2) || (dr === 2 && dc === 1) : true;
+}
+/** Pairs of a lattice's links that cross (each pair once). Links that share a dot never cross, and
+ *  none runs through a dot, so crossing is the only way two can meet. */
+export function crossings(p: Puzzle): [number, number][] {
+  const g = p.grid, out: [number, number][] = [];
+  const pt = (i: number) => g.rc(i);
+  const side = (a: number[], b: number[], c: number[]) => Math.sign((b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]));
+  for (let x = 0; x < g.links.length; x++) for (let y = x + 1; y < g.links.length; y++) {
+    const [a, b] = g.links[x].cells, [c, d] = g.links[y].cells;
+    if (a === c || a === d || b === c || b === d) continue;
+    const [A, B, C, D] = [a, b, c, d].map(pt);
+    if (side(A, B, C) * side(A, B, D) < 0 && side(C, D, A) * side(C, D, B) < 0) out.push([x, y]);
+  }
+  return out;
+}
 
 /** Every rule block's name. The visual editor (app/app/components/BoardEditor.tsx) and the sketch
  *  reader list them all, so the build fails if a new block isn't added there too. */

@@ -450,3 +450,58 @@ export function listFromGrid(s: Spec): Spec {
   out.sort((a, b) => a.length - b.length || Number(a) - Number(b));
   return withGivens({ ...s, entries: out }, gs.filter((g) => g.kind !== "number"));
 }
+
+// ---- number paths (Hidoku) and lattices (Distance Path) ----
+
+/** A Hidoku that says "sides only": its own number-path rule without diagonals. */
+export const sidesOnly = (s: Spec) => (s.rules ?? []).some((x) => x.rule === "number-path" && !x.diagonals);
+export function setSidesOnly(s: Spec, on: boolean): Spec {
+  if (sidesOnly(s) === on) return s;
+  const others = (s.rules ?? []).filter((x) => x.rule !== "number-path");
+  const rules: RuleSpec[] = on ? [...others, { rule: "number-path" }] : others;
+  const { rules: _r, ...rest } = s;
+  return rules.length ? { ...rest, rules } : rest;
+}
+
+/** A dot on a lattice point, on or off. */
+export function togglePeg(s: Spec, cell: RC): Spec {
+  const gs = givensOf(s), has = gs.some((g) => at(cell)(g) && g.kind === "peg");
+  return withGivens(s, has ? gs.filter((g) => !(at(cell)(g) && g.kind === "peg")) : [...gs, { at: "cell", cell, kind: "peg" }]);
+}
+export const hasPeg = (s: Spec, cell: RC) => givensOf(s).some((g) => at(cell)(g) && g.kind === "peg");
+
+/** A lattice path's lengths (as squares: 5 is √5), or null. */
+export const lengthsOf = (s: Spec): number[] | null => {
+  const g = givensOf(s).find((x) => x.at === "aside" && x.kind === "lengths");
+  return g && g.kind === "lengths" ? g.value : null;
+};
+export function setLengths(s: Spec, value: number[] | null): Spec {
+  const rest = givensOf(s).filter((g) => !(g.at === "aside" && g.kind === "lengths"));
+  return withGivens(s, value && value.length ? [...rest, { at: "aside", kind: "lengths", value }] : rest);
+}
+/** Lengths as written: "1 √2 2 √5" (a whole number is that length; √n, "r5" or "sqrt 5" a root),
+ *  as squares. Null if something can't be read. */
+export function parseLengths(text: string): number[] | null {
+  const words = text.toLowerCase().replace(/sqrt\s*/g, "√").replace(/\br(?=\d)/g, "√").replace(/√\s+/g, "√").split(/[\s,;]+/).filter(Boolean);
+  const out: number[] = [];
+  for (const w of words) {
+    const m = /^(√)?(\d+)$/.exec(w);
+    if (!m || Number(m[2]) < 1) return null;
+    out.push(m[1] ? Number(m[2]) : Number(m[2]) ** 2);
+  }
+  return out;
+}
+/** Lengths written out, shortest first: "1 √2 2 √5". */
+export const lengthsText = (v: number[] | null) => [...(v ?? [])].sort((a, b) => a - b)
+  .map((d) => { const r = Math.round(Math.sqrt(d)); return r * r === d ? String(r) : `√${d}`; }).join(" ");
+
+/** How a lattice path's segments may run: any way (null), like a queen, or a knight's jump. */
+export type Moves = "queen" | "knight";
+export const movesOf = (s: Spec): Moves | null => ((s.rules ?? []).find((x) => x.rule === "distance-path")?.moves as Moves | undefined) ?? null;
+export function setMoves(s: Spec, moves: Moves | null): Spec {
+  if (movesOf(s) === moves) return s;
+  const others = (s.rules ?? []).filter((x) => x.rule !== "distance-path");
+  const rules: RuleSpec[] = moves ? [...others, { rule: "distance-path", moves }] : others;
+  const { rules: _r, ...rest } = s;
+  return rules.length ? { ...rest, rules } : rest;
+}

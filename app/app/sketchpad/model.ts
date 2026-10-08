@@ -6,6 +6,7 @@
 // stone in row 2, column 3" off it directly. What's off the grid is kept in page units.
 //
 // Pure: no DOM. draw.ts turns it into SVG; export.ts turns that into the picture the reader gets.
+import { HEX_SIDE } from "~site/engine/geometry.ts";
 
 /** The page is PAGE × PAGE units: about a board's own scale, so the pen weights look the same. */
 export const PAGE = 560;
@@ -17,8 +18,18 @@ const MAX_LINES = 30;
 
 export interface XY { x: number; y: number }
 /** The grid: its top-left corner on the page, its rows and columns, and the size of a square. */
-/** `tracks`: drawn as a panel's tracks (wide pale strokes with round ends) instead of pen lines. */
-export interface Grid { x: number; y: number; rows: number; cols: number; S: number; tracks?: boolean }
+/** `tracks`: drawn as a panel's tracks (wide pale strokes with round ends) instead of pen lines.
+ *  `shape`: hexagons in rows, every other row shifted half a hexagon right, as the engine's hex
+ *  boards are (a cell anchor is a hexagon's centre); or a lattice of points, one at each square's
+ *  centre, with no lines (a cell anchor is a point). */
+export interface Grid { x: number; y: number; rows: number; cols: number; S: number; tracks?: boolean; shape?: "hex" | "dots" }
+export type GridShape = NonNullable<Grid["shape"]>;
+
+/** Where hexagon (r, c)'s centre is, in squares from the grid's top-left (rows outside the grid too). */
+const hexCentre = (r: number, c: number) => ({ r: HEX_SIDE + r * 1.5 * HEX_SIDE, c: c + 0.5 + 0.5 * (((r % 2) + 2) % 2) });
+/** The grid's width and height in squares. */
+export const gridSpan = (g: Pick<Grid, "rows" | "cols" | "shape">) => g.shape === "hex"
+  ? { w: g.cols + (g.rows > 1 ? 0.5 : 0), h: 2 * HEX_SIDE + (g.rows - 1) * 1.5 * HEX_SIDE } : { w: g.cols, h: g.rows };
 
 /** Where something is. On the grid (rows and columns from its top-left corner): a square's
  *  centre; a corner where lines meet (0..rows, 0..cols); the middle of a square's top or left
@@ -98,11 +109,12 @@ export function pointOf(g: Grid | null, a: Anchor): XY {
   if (a.at === "page") return { x: a.x, y: a.y };
   const { x, y, S } = g ?? { x: 0, y: 0, S: CELL };
   const at = (r: number, c: number) => ({ x: x + c * S, y: y + r * S });
+  const hex = g?.shape === "hex", mid = (r: number, c: number) => (hex ? hexCentre(r, c) : { r: r + 0.5, c: c + 0.5 });
   switch (a.at) {
-    case "cell": return at(a.r + 0.5, a.c + 0.5);
+    case "cell": { const m = mid(a.r, a.c); return at(m.r, m.c); }
     case "inset": {
-      const [dr, dc] = SPOTS[a.spot], k = dr && dc ? INSET_CORNER : INSET_SIDE;
-      return at(a.r + 0.5 + dr * k, a.c + 0.5 + dc * k);
+      const [dr, dc] = SPOTS[a.spot], k = dr && dc ? INSET_CORNER : INSET_SIDE, m = mid(a.r, a.c);
+      return at(m.r + dr * k, m.c + dc * k);
     }
     case "corner": case "grid": return at(a.r, a.c);
     case "edge": return a.side === "top" ? at(a.r, a.c + 0.5) : at(a.r + 0.5, a.c);
@@ -122,10 +134,16 @@ export function snap(g: Grid | null, p: XY, to: readonly Snap[], reach = 0.5): A
   const r = (p.y - g.y) / g.S, c = (p.x - g.x) / g.S;
   const found: { a: Anchor; d: number }[] = [];
   const consider = (a: Anchor) => found.push({ a, d: dist(pointOf(g, a), p) / g.S });
-  if (to.includes("cell")) {
+  if (to.includes("cell") && g.shape === "hex") {
+    // the nearest hexagon, in the grid or the ring just outside it
+    const { h } = gridSpan(g);
+    if (r >= -1.5 && r <= h + 1.5 && c >= -1.5 && c <= g.cols + 1.5)
+      for (let hr = -1; hr <= g.rows; hr++) for (let hc = -1; hc <= g.cols; hc++) consider({ at: "cell", r: hr, c: hc });
+  } else if (to.includes("cell")) {
     const cr = Math.floor(r), cc = Math.floor(c);
     if (cr >= -1 && cr <= g.rows && cc >= -1 && cc <= g.cols) consider({ at: "cell", r: cr, c: cc });
   }
+  if (g.shape === "hex") to = to.filter((t) => t === "cell" || t === "inset");   // a honeycomb has only its hexagons
   if (to.includes("corner")) {
     const vr = Math.round(r), vc = Math.round(c);
     if (vr >= 0 && vr <= g.rows && vc >= 0 && vc <= g.cols) consider({ at: "corner", r: vr, c: vc });
@@ -136,7 +154,8 @@ export function snap(g: Grid | null, p: XY, to: readonly Snap[], reach = 0.5): A
     if (lr >= 0 && lr < g.rows && lc >= 0 && lc <= g.cols) consider({ at: "edge", r: lr, c: lc, side: "left" });
   }
   if (to.includes("inset")) {
-    const cr = Math.floor(r), cc = Math.floor(c);
+    const near = g.shape === "hex" ? cellAt(g, p) : null;
+    const cr = near ? near.r : Math.floor(r), cc = near ? near.c : Math.floor(c);
     if (cr >= 0 && cr < g.rows && cc >= 0 && cc < g.cols) for (const spot of Object.keys(SPOTS) as Spot[]) consider({ at: "inset", r: cr, c: cc, spot });
   }
   const best = found.sort((a, b) => a.d - b.d)[0];
@@ -166,7 +185,7 @@ export function textAnchor(g: Grid | null, p: XY, small: boolean, snapping: bool
 /** The grid line under `p` (within `reach` page units of it): the stretch between two corners.
  *  `side`: only level lines ("top") or only upright ones ("left"). */
 export function edgeAt(g: Grid | null, p: XY, reach: number, side?: EdgeAt["side"]): EdgeAt | null {
-  if (!g) return null;
+  if (!g || g.shape === "hex") return null;
   const r = (p.y - g.y) / g.S, c = (p.x - g.x) / g.S, rr = Math.round(r), rc = Math.round(c);
   const found: { a: EdgeAt; d: number }[] = [];
   if (side !== "left" && rr >= 0 && rr <= g.rows && c >= 0 && c < g.cols) found.push({ a: { at: "edge", r: rr, c: Math.floor(c), side: "top" }, d: Math.abs(r - rr) * g.S });
@@ -295,9 +314,15 @@ export function gridFromDrag(a: XY, b: XY, rows?: number, cols?: number): Grid |
 
 /** The grid kept on the page: squares made smaller if it can't fit, then moved onto it. */
 function fit(g: Grid): Grid {
-  const S = Math.min(g.S, PAGE / g.cols, PAGE / g.rows);
-  return { ...g, S, x: clamp(g.x, 0, PAGE - g.cols * S), y: clamp(g.y, 0, PAGE - g.rows * S) };
+  const { w, h } = gridSpan(g), S = Math.min(g.S, PAGE / w, PAGE / h);
+  return { ...g, S, x: clamp(g.x, 0, PAGE - w * S), y: clamp(g.y, 0, PAGE - h * S) };
 }
+/** The grid drawn another way: lines, a panel's tracks, hexagons or a lattice of points. */
+export const setLook = (g: Grid, look: "lines" | "tracks" | GridShape): Grid => {
+  const { tracks: _t, shape: _s, ...rest } = g;
+  return fit({ ...rest, ...(look === "tracks" ? { tracks: true } : look === "hex" || look === "dots" ? { shape: look } : {}) });
+};
+export const lookOf = (g: Grid): "lines" | "tracks" | GridShape => g.shape ?? (g.tracks ? "tracks" : "lines");
 
 /** More or fewer rows and columns, squares the same size (smaller if it would leave the page). */
 export const resizeGrid = (g: Grid, rows: number, cols: number): Grid =>
@@ -305,13 +330,23 @@ export const resizeGrid = (g: Grid, rows: number, cols: number): Grid =>
 export const moveGrid = (g: Grid, dx: number, dy: number): Grid => fit({ ...g, x: g.x + dx, y: g.y + dy });
 /** The grid stretched by its bottom-right corner to `p` (its squares stay square). */
 export const stretchGrid = (g: Grid, p: XY): Grid =>
-  fit({ ...g, S: Math.max(MIN_SQUARE, Math.min((p.x - g.x) / g.cols, (p.y - g.y) / g.rows)) });
-/** Whether `p` is on the grid's bottom-right corner (its handle for stretching). */
-export const onHandle = (g: Grid, p: XY, reach = 12) => dist(p, { x: g.x + g.cols * g.S, y: g.y + g.rows * g.S }) <= reach;
-export const inGrid = (g: Grid | null, p: XY) => !!g && p.x >= g.x && p.y >= g.y && p.x <= g.x + g.cols * g.S && p.y <= g.y + g.rows * g.S;
-/** The square at `p`, if it's in the grid itself. */
+  fit({ ...g, S: Math.max(MIN_SQUARE, Math.min((p.x - g.x) / gridSpan(g).w, (p.y - g.y) / gridSpan(g).h)) });
+/** The grid's bottom-right corner (its handle for stretching). */
+export const handleOf = (g: Grid): XY => ({ x: g.x + gridSpan(g).w * g.S, y: g.y + gridSpan(g).h * g.S });
+/** Whether `p` is on the grid's handle. */
+export const onHandle = (g: Grid, p: XY, reach = 12) => dist(p, handleOf(g)) <= reach;
+export const inGrid = (g: Grid | null, p: XY) => !!g && p.x >= g.x && p.y >= g.y && p.x <= g.x + gridSpan(g).w * g.S && p.y <= g.y + gridSpan(g).h * g.S;
+/** The square (or hexagon) at `p`, if it's in the grid itself. */
 export function cellAt(g: Grid | null, p: XY): CellAt | null {
   if (!g || !inGrid(g, p)) return null;
+  if (g.shape === "hex") {
+    let best: CellAt | null = null, d = Infinity;
+    for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) {
+      const e = dist(pointOf(g, { at: "cell", r, c }), p);
+      if (e < d) { d = e; best = { at: "cell", r, c }; }
+    }
+    return d <= HEX_SIDE * g.S ? best : null;
+  }
   return { at: "cell", r: clamp(Math.floor((p.y - g.y) / g.S), 0, g.rows - 1), c: clamp(Math.floor((p.x - g.x) / g.S), 0, g.cols - 1) };
 }
 
@@ -454,7 +489,7 @@ export function redo(h: History): History {
 export function objects(d: Drawing) {
   return {
     page: PAGE,
-    grid: d.grid && { rows: d.grid.rows, cols: d.grid.cols, x: d.grid.x, y: d.grid.y, square: d.grid.S, ...(d.grid.tracks ? { tracks: true } : {}) },
+    grid: d.grid && { rows: d.grid.rows, cols: d.grid.cols, x: d.grid.x, y: d.grid.y, square: d.grid.S, ...(d.grid.tracks ? { tracks: true } : {}), ...(d.grid.shape ? { shape: d.grid.shape } : {}) },
     items: d.items.map(({ id: _id, ...rest }) => rest),
   };
 }

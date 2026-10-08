@@ -29,7 +29,7 @@ export function program(p: Puzzle): string {
     for (let v = 0; v < g.cornerCount; v++) out.push(`corner(${v}).`);
     for (const e of g.borders) out.push(`border(${e.id}). vb(${e.corners[0]},${e.id}). vb(${e.corners[1]},${e.id}).` + e.cells.filter((x) => x >= 0).map((x) => ` cb(${x},${e.id}).`).join(""));
   }
-  for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++)
+  if (g.kind === "square") for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++)
     out.push(`quad(${g.cell(r, c)},${g.cell(r, c + 1)},${g.cell(r + 1, c)},${g.cell(r + 1, c + 1)}).`);
 
   // the marks the player can make
