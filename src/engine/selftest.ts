@@ -342,17 +342,19 @@ function randomPanel(): GridSpec {
   if (rand() < 0.4) givens.push(rand() < 0.5 ? { at: "corner", corner: corner(), kind: "hexagon", ...(sym && rand() < 0.5 ? { color: pick(["blue", "yellow"] as const) } : {}) } : { at: "line", corners: line(), kind: "hexagon" });
   const used = new Set<string>();
   const put = (x: NonNullable<GridSpec["givens"]>[number] & { at: "cell" }) => { if (used.has(String(x.cell))) return; used.add(String(x.cell)); givens.push(x); };
-  const mix = pick(["squares", "stars", "triangles", "shapes", "erasers", "mixed"]);
+  // stars pair with any symbol of their color: orange with triangles, yellow with shapes, white with erasers
+  const mix = pick(["squares", "stars", "triangles", "shapes", "shape-stars", "erasers", "erasers", "mixed"]);
   const n = 1 + Math.floor(rand() * 3);
   for (let k = 0; k < n; k++) {
-    const what = mix === "mixed" ? pick(["square", "star", "triangle"]) : mix === "squares" ? "square" : mix === "stars" ? pick(["star", "star", "square"]) : mix === "triangles" ? "triangle" : mix === "shapes" ? "shape" : pick(["square", "star", "triangle"]);
-    if (what === "square") put({ at: "cell", cell: cell(), kind: "square", color: pick(["black", "white"] as const) });
-    if (what === "star") put({ at: "cell", cell: cell(), kind: "star", color: pick(["orange", "black"] as const) });
+    const what = mix === "mixed" ? pick(["square", "star", "triangle"]) : mix === "squares" ? "square" : mix === "stars" ? pick(["star", "star", "square", "triangle"]) : mix === "triangles" ? "triangle"
+      : mix === "shapes" ? "shape" : mix === "shape-stars" ? pick(["shape", "star"]) : pick(["square", "star", "triangle"]);
+    if (what === "square") put({ at: "cell", cell: cell(), kind: "square", color: pick(["black", "white", "orange"] as const) });
+    if (what === "star") put({ at: "cell", cell: cell(), kind: "star", color: mix === "shape-stars" ? "yellow" : pick(["orange", "black", "white"] as const) });
     if (what === "triangle") put({ at: "cell", cell: cell(), kind: "triangle", value: 1 + Math.floor(rand() * 3) });
     if (what === "shape") put({ at: "cell", cell: cell(), kind: "shape", value: pick([[[0, 0]], [[0, 0], [0, 1]], [[0, 0], [1, 0]], [[0, 0], [0, 1], [1, 0]]] as [number, number][][]), rotate: rand() < 0.4, negative: rand() < 0.25 });
   }
-  if (mix === "erasers") for (let k = 0; k < (rand() < 0.3 ? 2 : 1); k++) put({ at: "cell", cell: cell(), kind: "eraser" });
-  return { genre: sym ? "panel-symmetry" : "panel-squares", size: [rows, cols], givens, ...(sym ? { rules: [{ rule: "panel-line", symmetry: sym }] } : {}) };
+  if (mix === "erasers") for (let k = 0; k < pick([1, 1, 2, 3]); k++) put({ at: "cell", cell: cell(), kind: "eraser", ...(rand() < 0.2 ? { color: "orange" as const } : {}) });
+  return { genre: "panel", size: [rows, cols], givens, ...(sym ? { rules: [{ rule: "panel-line", symmetry: sym }] } : {}) };
 }
 
 const clingo = await import("clingo-wasm");

@@ -80,7 +80,7 @@ export function symbolSvg(x: { kind: string; color?: string; value?: unknown; ro
     const n = Number(x.value) || 1, w = S * 0.2, h = w * 0.88, gap = S * 0.06, total = n * w + (n - 1) * gap;
     return Array.from({ length: n }, (_, k) => {
       const x0 = cx - total / 2 + k * (w + gap);
-      return tag("path", { class: "panel-triangle", d: `M${f1(x0)} ${f1(cy + h / 2)}L${f1(x0 + w / 2)} ${f1(cy - h / 2)}L${f1(x0 + w)} ${f1(cy + h / 2)}Z` });
+      return tag("path", { class: "panel-triangle", ...(x.color ? { style: `fill:${PANEL_COLORS[x.color]}` } : {}), d: `M${f1(x0)} ${f1(cy + h / 2)}L${f1(x0 + w / 2)} ${f1(cy - h / 2)}L${f1(x0 + w)} ${f1(cy + h / 2)}Z` });
     }).join("");
   }
   if (x.kind === "shape") {
@@ -88,11 +88,12 @@ export function symbolSvg(x: { kind: string; color?: string; value?: unknown; ro
     const h = Math.max(...cells.map((c) => c[0])) + 1, w = Math.max(...cells.map((c) => c[1])) + 1;
     const u = Math.min(S * 0.2, (S * 0.7) / Math.max(h, w)), pad = u * 0.1;
     const blocks = cells.map(([r, c]) => tag("rect", { x: f1(cx - (w * u) / 2 + c * u + pad), y: f1(cy - (h * u) / 2 + r * u + pad), width: f1(u - 2 * pad), height: f1(u - 2 * pad), rx: f1(u * 0.12) })).join("");
-    return tag("g", { class: `panel-shape${x.negative ? " negative" : ""}`, ...(x.rotate ? { transform: `rotate(16 ${f1(cx)} ${f1(cy)})` } : {}) }, blocks);
+    const tint: A = x.color ? { style: `--shape:${PANEL_COLORS[x.color]}` } : {};
+    return tag("g", { class: `panel-shape${x.negative ? " negative" : ""}`, ...tint, ...(x.rotate ? { transform: `rotate(16 ${f1(cx)} ${f1(cy)})` } : {}) }, blocks);
   }
   if (x.kind === "eraser") {
     const r = S * 0.2, arm = (deg: number) => { const a = (deg * Math.PI) / 180; return `M${f1(cx)} ${f1(cy)}L${f1(cx + r * Math.cos(a))} ${f1(cy + r * Math.sin(a))}`; };
-    return tag("path", { class: "panel-eraser", d: arm(-90) + arm(30) + arm(150) });
+    return tag("path", { class: "panel-eraser", ...(x.color && x.color !== "white" ? { style: `stroke:${PANEL_COLORS[x.color]}` } : {}), d: arm(-90) + arm(30) + arm(150) });
   }
   return "";
 }

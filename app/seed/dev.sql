@@ -9686,7 +9686,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   }
  ]
 }', 'sudoku', 'published', (unixepoch() * 1000) + 71);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-dots-1', 'c-wyatt', 'wyatt', 'Dot to Dot', 'panel-dots
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-1', 'c-wyatt', 'wyatt', 'Dot to Dot', 'panel
 {
  "size": [
   4,
@@ -9846,8 +9846,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "gap"
   }
  ]
-}', 'panel-dots', 'published', (unixepoch() * 1000) + 72);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-squares-1', 'c-wyatt', 'wyatt', 'Two Tones', 'panel-squares
+}', 'panel', 'published', (unixepoch() * 1000) + 72);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-2', 'c-wyatt', 'wyatt', 'Two Tones', 'panel
 {
  "size": [
   4,
@@ -9995,8 +9995,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "gap"
   }
  ]
-}', 'panel-squares', 'published', (unixepoch() * 1000) + 73);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-stars-1', 'c-wyatt', 'wyatt', 'Star Pairs', 'panel-stars
+}', 'panel', 'published', (unixepoch() * 1000) + 73);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-3', 'c-wyatt', 'wyatt', 'Star Pairs', 'panel
 {
  "size": [
   4,
@@ -10184,8 +10184,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "gap"
   }
  ]
-}', 'panel-stars', 'published', (unixepoch() * 1000) + 74);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-triangles-1', 'c-wyatt', 'wyatt', 'Triangle Count', 'panel-triangles
+}', 'panel', 'published', (unixepoch() * 1000) + 74);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-4', 'c-wyatt', 'wyatt', 'Triangle Count', 'panel
 {
  "size": [
   4,
@@ -10263,8 +10263,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 3
   }
  ]
-}', 'panel-triangles', 'published', (unixepoch() * 1000) + 75);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-shapes-1', 'c-wyatt', 'wyatt', 'Fitting In', 'panel-shapes
+}', 'panel', 'published', (unixepoch() * 1000) + 75);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-5', 'c-wyatt', 'wyatt', 'Fitting In', 'panel
 {
  "size": [
   4,
@@ -10472,8 +10472,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "gap"
   }
  ]
-}', 'panel-shapes', 'published', (unixepoch() * 1000) + 76);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-erasers-1', 'c-wyatt', 'wyatt', 'Clean Slate', 'panel-erasers
+}', 'panel', 'published', (unixepoch() * 1000) + 76);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-6', 'c-wyatt', 'wyatt', 'Clean Slate', 'panel
 {
  "size": [
   4,
@@ -10666,8 +10666,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "kind": "gap"
   }
  ]
-}', 'panel-erasers', 'published', (unixepoch() * 1000) + 77);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-symmetry-1', 'c-wyatt', 'wyatt', 'Mirror Walk', 'panel-symmetry
+}', 'panel', 'published', (unixepoch() * 1000) + 77);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-7', 'c-wyatt', 'wyatt', 'Mirror Walk', 'panel
 {
  "size": [
   4,
@@ -10767,6 +10767,12 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    ],
    "kind": "gap"
   }
+ ],
+ "rules": [
+  {
+   "rule": "panel-line",
+   "symmetry": "left-right"
+  }
  ]
-}', 'panel-symmetry', 'published', (unixepoch() * 1000) + 78);
+}', 'panel', 'published', (unixepoch() * 1000) + 78);
 INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES ('simple-loop-5', 0, 'wyatt'), ('panes-1', 1, 'wyatt'), ('sudoku-1', 2, 'wyatt'), ('nonogram-2', 3, 'wyatt');

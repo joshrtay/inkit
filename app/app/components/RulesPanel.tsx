@@ -49,7 +49,7 @@ export function RulesPanel({ spec, onChange, open = false }: { spec: GridSpec; o
         })}
         <select value="" aria-label="Add a rule" onChange={(e) => {
           const rule = e.target.value as RuleName;
-          // a rule the type has already starts from the type's settings (Panel Symmetry's mirror, say)
+          // a rule the type has already starts from the type's settings (Star Battle's stars, say)
           if (rule) setRules([...extra, presets.find((r) => r.rule === rule) ?? (rule === "size" ? { rule, is: 4 } : { rule })]);
         }}>
           <option value="">Add a rule…</option>

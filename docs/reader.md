@@ -9,9 +9,9 @@ better. The code is `app/app/lib/read-sketch.server.ts`.
    of its metadata, location included, by Cloudflare Images: `app/lib/photos.server.ts`) goes to
    Claude with a long system prompt: how to transcribe, every puzzle type (`GENRE_GUIDE`), every
    kind of clue (`CLUE_GUIDE`) and rule (`RULE_GUIDE`). Those three tables are typed against the
-   engine's lists, so a new type, clue or rule fails the type check until it's described. What
-   the seven panel types share (corners, stretches of grid line, telling them apart by their main
-   symbol) is said once, in `PANEL_HOW`.
+   engine's lists, so a new type, clue or rule fails the type check until it's described. A
+   panel's corners and stretches of grid line are a corner's row and column (0..rows, 0..cols),
+   plus "right" or "below" for a stretch of line.
 2. **The answer** is structured output (a Zod schema, `Reading`): the type and the other types the
    same clues could be, size, clues, rules, a nonogram's picture, areas, Three Coats' pieces,
    whether it's sure, and its doubts (each tied to a square, a line's clues, rows, columns, an

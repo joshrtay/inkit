@@ -197,7 +197,7 @@ test("Nonogram: paint the picture, or type the numbers", async ({ page }) => {
 });
 
 test("panels: starts, ends, gaps, dots and symbols", async ({ page }) => {
-  await open(page, "panel-dots");
+  await open(page, "panel");
   await tool(page, "Start");
   await tap(page, 2.05, 1.95);
   await tool(page, "End");
@@ -216,25 +216,29 @@ test("panels: starts, ends, gaps, dots and symbols", async ({ page }) => {
   await tool(page, "T of four");
   await tool(page, "Hollow");
   await tap(page, 1.5, 2.5);
-  await eventually("panel-dots", (s) => has(s.givens, { kind: "start", corner: [2, 2] }) && has(s.givens, { kind: "end", corner: [4, 4] })
+  await eventually("panel", (s) => has(s.givens, { kind: "start", corner: [2, 2] }) && has(s.givens, { kind: "end", corner: [4, 4] })
     && has(s.givens, { kind: "gap", corners: [[1, 2], [1, 3]] }) && has(s.givens, { kind: "hexagon", corners: [[3, 1], [3, 2]] })
     && has(s.givens, { kind: "square", cell: [0, 0], color: "red" }) && has(s.givens, { kind: "triangle", cell: [2, 0], value: 2 })
     && has(s.givens, { kind: "shape", cell: [1, 2], value: [[0, 0], [0, 1], [0, 2], [1, 1]], negative: true }));
   await tool(page, "Erase");
   await tap(page, 2.0, 2.0);
-  await eventually("panel-dots", (s) => !has(s.givens, { kind: "start", corner: [2, 2] }));
+  await eventually("panel", (s) => !has(s.givens, { kind: "start", corner: [2, 2] }));
 });
 
-test("Panel Symmetry: mirrored starts, colored dots, and the mirror", async ({ page }) => {
-  await open(page, "panel-symmetry");
+test("panel symmetry: turned on, mirrored starts, colored dots, and off again", async ({ page }) => {
+  await open(page, "panel");
+  await tool(page, "Left–right");
   await tool(page, "Start");
   await tap(page, 2, 1);
   await tool(page, "Dot");
   await tool(page, "Blue");
   await tap(page, 1, 2);
+  await eventually("panel", (s) => has(s.givens, { kind: "start", corner: [2, 1], color: "blue" }) && has(s.givens, { kind: "start", corner: [2, s.size[1] - 1], color: "yellow" })
+    && has(s.givens, { kind: "hexagon", corner: [1, 2], color: "blue" }) && has(s.rules as Given[], { rule: "panel-line", symmetry: "left-right" }));
   await tool(page, "Up–down");
-  await eventually("panel-symmetry", (s) => has(s.givens, { kind: "start", corner: [2, 1], color: "blue" }) && has(s.givens, { kind: "start", corner: [2, 4], color: "yellow" })
-    && has(s.givens, { kind: "hexagon", corner: [1, 2], color: "blue" }) && has(s.rules as Given[], { rule: "panel-line", symmetry: "up-down" }));
+  await eventually("panel", (s) => has(s.rules as Given[], { rule: "panel-line", symmetry: "up-down" }));
+  await tool(page, "None");
+  await eventually("panel", (s) => !(s.rules ?? []).some((r) => r.rule === "panel-line"));
 });
 
 test("undo", async ({ page }) => {

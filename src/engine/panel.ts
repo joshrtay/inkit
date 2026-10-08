@@ -3,11 +3,13 @@
 // touching itself or crossing a gap; the cells it cuts apart are regions, and the symbols in them
 // say where it can go. With symmetry there are two lines, mirror images of each other.
 //
-// The rules follow Demaine et al., "Who witnesses The Witness?" (2018), sections 2-8, including
-// its reading of erasers (antibodies): an eraser cancels itself and one other symbol (not an
-// eraser) in its region, and must be needed: the region must not work with fewer erasers used.
-// Two limits keep the one-solution proof exact: at most two erasers in a puzzle, and erasers don't
-// share a puzzle with shapes (proving no packing exists is a harder problem than the solver's).
+// The rules follow the game as the open-source Witness puzzle validator (jbzdarkid's
+// witness-puzzles, engine/validate.js and polyominos.js, default settings) has it, and Demaine et
+// al., "Who witnesses The Witness?" (2018), where they agree: stars count every symbol of their
+// color; an eraser cancels a symbol in its region that's wrong before any erasing, or pairs off
+// with another eraser; a shape can't straddle the line. One limit keeps the one-solution proof
+// exact: erasers don't share a puzzle with shapes (proving a region can't be packed is a harder
+// problem than the solver's).
 import type { Grid, RC } from "./geometry.ts";
 import type { Board, Given, Problem, Puzzle, RuleSpec } from "./types.ts";
 import type { Regions } from "./derive.ts";
@@ -83,7 +85,7 @@ export function placements(g: Grid, cells: RC[], rotate: boolean): number[][] {
 /** Can these shapes (positive and hollow) be laid on the grid so that every cell of the region
  *  is covered the same number of times more by positive shapes than hollow ones, 0 or 1 (the same
  *  for all of them), and every cell outside it evenly? */
-export function packs(g: Grid, region: number[], shapes: { cells: RC[]; rotate: boolean; negative: boolean }[]): boolean {
+export function packs(g: Grid, region: number[], shapes: { cells: RC[]; rotate: boolean; negative: boolean }[], split: (a: number, b: number) => boolean = () => false): boolean {
   const pos = shapes.filter((s) => !s.negative), neg = shapes.filter((s) => s.negative);
   const area = (ss: typeof shapes) => ss.reduce((n, s) => n + s.cells.length, 0);
   const inRegion = new Set(region);
@@ -93,7 +95,9 @@ export function packs(g: Grid, region: number[], shapes: { cells: RC[]; rotate: 
     const need = new Array<number>(g.cellCount).fill(0);
     for (const c of inRegion) need[c] = i;
     const negPl = neg.map((s) => placements(g, s.cells, s.rotate));
-    const posPl = pos.map((s) => placements(g, s.cells, s.rotate));
+    // a positive shape can't straddle the line
+    const whole = (pl: number[]) => !pl.some((a) => pl.some((c) => c > a && g.borderBetween(a, c) >= 0 && split(a, c)));
+    const posPl = pos.map((s) => placements(g, s.cells, s.rotate).filter(whole));
     const cover = (left: number[]): boolean => {
       const cell = need.findIndex((n) => n > 0);
       if (cell < 0) return left.length === 0;
@@ -238,44 +242,51 @@ function symbolsOf(p: Puzzle): Sym[] {
   return [...cells, ...hexagonsOf(p).map((hex, k) => ({ id: cells.length + k, kind: "hexagon" as const, cell: -1, hex }))];
 }
 
-const colorOf = (x: Sym) => (x.x && (x.x.kind === "square" || x.x.kind === "star") ? x.x.color : null);
-
-/** What's wrong in a region with these symbols left (erasers and erased ones taken out). */
-function regionProblems(p: Puzzle, b: Board, region: number[], live: Sym[]): Problem[] {
-  const g = p.grid, out: Problem[] = [];
-  const squares = live.filter((x) => x.kind === "square");
-  if (new Set(squares.map(colorOf)).size > 1) out.push({ message: "Squares of different colors must be kept apart.", cells: squares.map((x) => x.cell) });
-  for (const st of live.filter((x) => x.kind === "star")) {
-    const n = live.filter((x) => (x.kind === "square" || x.kind === "star") && colorOf(x) === colorOf(st)).length;
-    if (n !== 2) out.push({ message: `A star needs exactly one partner of its color in its region (a star or a square): ${n === 1 ? "this one has none" : "this one has too many"}.`, cells: [st.cell] });
-  }
-  for (const t of live.filter((x) => x.kind === "triangle")) {
-    const want = t.x!.kind === "triangle" ? t.x!.value : 0, have = g.cellBorders[t.cell].filter((e) => b.fence[e] === 1).length;
-    if (have !== want) out.push({ message: `The line runs along exactly ${want} of this square's sides.`, cells: [t.cell] });
-  }
-  const dots = live.filter((x) => x.kind === "hexagon");
-  if (dots.length) out.push({ message: "The line passes through every dot.", borders: dots.flatMap((x) => (x.hex!.at === "line" ? [x.hex!.e] : g.cornerBorders[x.hex!.v])) });
-  const shapes = live.filter((x) => x.kind === "shape").map((x) => x.x as Extract<CellSymbol, { kind: "shape" }>);
-  if (shapes.length && !packs(g, region, shapes.map((x) => ({ cells: x.value, rotate: !!x.rotate, negative: !!x.negative }))))
-    out.push({ message: "A region with shapes is exactly those shapes fitted together.", cells: region });
-  return out;
+/** A symbol's color, which stars count: every cell symbol has one (triangles are orange, shapes
+ *  yellow, hollow shapes blue and erasers white unless the puzzle says otherwise); dots don't. */
+export function colorOf(x: Pick<Sym, "x">): string | null {
+  const y = x.x;
+  if (!y) return null;
+  if (y.kind === "square" || y.kind === "star") return y.color;
+  return y.color ?? (y.kind === "triangle" ? "orange" : y.kind === "shape" ? (y.negative ? "blue" : "yellow") : "white");
 }
 
-const combinations = <T,>(xs: T[], k: number): T[][] =>
-  k === 0 ? [[]] : xs.flatMap((x, i) => combinations(xs.slice(i + 1), k - 1).map((rest) => [x, ...rest]));
+/** The symbols in a region that are wrong, with these symbols present. Erasers sitting there
+ *  (not used) count toward stars like any symbol but are never wrong themselves. */
+function assess(p: Puzzle, b: Board, region: number[], present: Sym[]): { bad: Sym[]; problems: Problem[] } {
+  const g = p.grid, bad: Sym[] = [], problems: Problem[] = [];
+  const squares = present.filter((x) => x.kind === "square");
+  if (new Set(squares.map(colorOf)).size > 1) { bad.push(...squares); problems.push({ message: "Squares of different colors must be kept apart.", cells: squares.map((x) => x.cell) }); }
+  for (const st of present.filter((x) => x.kind === "star")) {
+    const n = present.filter((x) => colorOf(x) === colorOf(st)).length;
+    if (n !== 2) { bad.push(st); problems.push({ message: `A star needs exactly one other symbol of its color in its region: ${n === 1 ? "this one has none" : "this one has too many"}.`, cells: [st.cell] }); }
+  }
+  for (const t of present.filter((x) => x.kind === "triangle")) {
+    const want = t.x!.kind === "triangle" ? t.x!.value : 0, have = g.cellBorders[t.cell].filter((e) => b.fence[e] === 1).length;
+    if (have !== want) { bad.push(t); problems.push({ message: `The line runs along exactly ${want} of this square's sides.`, cells: [t.cell] }); }
+  }
+  const dots = present.filter((x) => x.kind === "hexagon");
+  if (dots.length) { bad.push(...dots); problems.push({ message: "The line passes through every dot.", borders: dots.flatMap((x) => (x.hex!.at === "line" ? [x.hex!.e] : g.cornerBorders[x.hex!.v])) }); }
+  const shapes = present.filter((x) => x.kind === "shape");
+  const split = (a: number, c: number) => b.fence[g.borderBetween(a, c)] === 1;
+  if (shapes.length && !packs(g, region, shapes.map((x) => x.x as Extract<CellSymbol, { kind: "shape" }>).map((x) => ({ cells: x.value, rotate: !!x.rotate, negative: !!x.negative })), split)) {
+    bad.push(...shapes); problems.push({ message: "A region with shapes is exactly those shapes fitted together, and the line never cuts through a shape.", cells: region });
+  }
+  return { bad, problems };
+}
 
 export const panelSymbols = {
   describe(_s: RuleSpec, p: Puzzle) {
     const kinds = new Set(symbolsOf(p).map((x) => x.kind)), out: string[] = [];
     if (kinds.has("hexagon")) out.push("The line passes through every dot.");
     if (kinds.has("square")) out.push("The line keeps squares of different colors apart: no region holds two colors.");
-    if (kinds.has("star")) out.push("Each star shares its region with exactly one other star or square of its color.");
+    if (kinds.has("star")) out.push("Each star shares its region with exactly one other symbol of its color (triangles are orange, shapes yellow).");
     if (kinds.has("triangle")) out.push("The line runs along as many sides of a square as it has triangles.");
     if (kinds.has("shape")) {
       const sh = cellSymbolsOf(p).map(({ x }) => x).filter((x) => x.kind === "shape") as Extract<CellSymbol, { kind: "shape" }>[];
-      out.push(`A region holding shapes is exactly its shapes fitted together, as drawn${sh.some((x) => x.rotate) ? " (tilted shapes can be turned)" : ""}.${sh.some((x) => x.negative) ? " Hollow shapes take away: each cancels cells of the others." : ""}`);
+      out.push(`A region holding shapes is exactly its shapes fitted together, as drawn${sh.some((x) => x.rotate) ? " (tilted shapes can be turned)" : ""}, and the line never cuts through one.${sh.some((x) => x.negative) ? " Hollow shapes take away: each cancels cells of the others." : ""}`);
     }
-    if (kinds.has("eraser")) out.push("An eraser cancels itself and one other symbol in its region, and only when it's needed: the region mustn't work without it.");
+    if (kinds.has("eraser")) out.push("An eraser cancels itself and one symbol in its region that's wrong, or another eraser.");
     return out.join(" ");
   },
   check(_s: RuleSpec, p: Puzzle, b: Board, r: () => Regions): Problem[] {
@@ -292,33 +303,34 @@ export const panelSymbols = {
     const byRegion = new Map<number, Sym[]>();
     for (const x of syms) { const k = regionOf(x); if (k >= 0) byRegion.set(k, [...(byRegion.get(k) ?? []), x]); }
     for (const [k, inside] of byRegion) {
-      const erasers = inside.filter((x) => x.kind === "eraser"), others = inside.filter((x) => x.kind !== "eraser");
-      const region = reg.cells[k];
-      const works = (gone: Sym[]) => !regionProblems(p, b, region, others.filter((x) => !gone.includes(x))).length;
-      if (!erasers.length) { out.push(...regionProblems(p, b, region, others)); continue; }
-      if (others.length < erasers.length) { out.push({ message: "An eraser needs another symbol in its region to cancel.", cells: erasers.map((x) => x.cell) }); continue; }
-      const unneeded = { message: "An eraser only cancels a symbol that would otherwise be wrong: this region works without it.", cells: erasers.map((x) => x.cell) };
-      if (!combinations(others, erasers.length).some(works)) {
-        const left = regionProblems(p, b, region, others);
-        out.push(...(left.length ? left : [unneeded]));
-        continue;
-      }
-      for (let j = 0; j < erasers.length; j++) if (combinations(others, j).some(works)) { out.push(unneeded); break; }
+      const region = reg.cells[k], erasers = inside.filter((x) => x.kind === "eraser");
+      if (!erasers.length) { out.push(...assess(p, b, region, inside).problems); continue; }
+      // each eraser cancels a symbol that's wrong before any erasing, or pairs off with another eraser
+      const before = assess(p, b, region, inside);
+      const works = (i: number, gone: Set<Sym>, paired: Set<Sym>): boolean => {
+        if (i === erasers.length) return !assess(p, b, region, inside.filter((x) => x.kind !== "eraser" && !gone.has(x))).problems.length;
+        const e = erasers[i];
+        if (paired.has(e)) return works(i + 1, gone, paired);
+        for (const t of before.bad) if (!gone.has(t) && works(i + 1, new Set([...gone, t]), paired)) return true;
+        for (const f of erasers.slice(i + 1)) if (!paired.has(f) && works(i + 1, gone, new Set([...paired, e, f]))) return true;
+        return false;
+      };
+      if (works(0, new Set(), new Set())) continue;
+      out.push(...(before.problems.length ? before.problems : [{ message: "An eraser cancels a symbol in its region that's wrong (or another eraser): this one has nothing to cancel.", cells: erasers.map((x) => x.cell) }]));
     }
     return out;
   },
   asp(_s: RuleSpec, p: Puzzle) {
     const g = p.grid, syms = symbolsOf(p), out: string[] = [];
     if (!syms.length) return "";
-    const erasers = syms.filter((x) => x.kind === "eraser").length, shapes = syms.filter((x) => x.kind === "shape");
-    if (erasers > 2) throw new Error("a panel can have at most two erasers");
+    const erasers = syms.some((x) => x.kind === "eraser"), shapes = syms.filter((x) => x.kind === "shape");
     if (erasers && shapes.length) throw new Error("erasers and shapes don't go in the same panel (yet)");
     for (const x of syms) {
       out.push(`sym(${x.id}).`);
       if (x.kind === "hexagon") out.push(x.hex!.at === "corner" ? `hexv(${x.id},${x.hex!.v}).` : `hexb(${x.id},${x.hex!.e}).`);
-      else out.push(`scell(${x.id},${x.cell}).`);
-      if (x.kind === "square") out.push(`sq(${x.id},${colorOf(x)}). colored(${x.id},${colorOf(x)}).`);
-      if (x.kind === "star") out.push(`st(${x.id},${colorOf(x)}). colored(${x.id},${colorOf(x)}).`);
+      else out.push(`scell(${x.id},${x.cell}). colored(${x.id},${colorOf(x)}).`);
+      if (x.kind === "square") out.push(`sq(${x.id},${colorOf(x)}).`);
+      if (x.kind === "star") out.push(`st(${x.id},${colorOf(x)}).`);
       if (x.kind === "triangle" && x.x!.kind === "triangle") out.push(`tri(${x.id},${x.x!.value}).`);
       if (x.kind === "eraser") out.push(`er(${x.id}).`);
     }
@@ -329,7 +341,15 @@ inreg(X,R) :- scell(X,I), member(R,I).
 inreg(X,R) :- hexv(X,V), not vis(V), vcell(V,I), member(R,I).
 inreg(X,R) :- hexb(X,B), not fence(B), cb(I,B), member(R,I).`);
     out.push(erasers ? `
-1 { erase(E,X): inreg(X,R), not er(X) } 1 :- er(E), inreg(E,R).
+% what's wrong before any erasing (erasers count toward stars)
+bad0(X) :- sq(X,C), inreg(X,R), sq(Y,D), inreg(Y,R), C != D.
+bad0(X) :- st(X,C), inreg(X,R), #count{Y: inreg(Y,R), colored(Y,C)} != 2.
+bad0(X) :- tri(X,N), scell(X,I), inreg(X,_), N != #count{B: fence(B), cb(I,B)}.
+bad0(X) :- hexv(X,_), inreg(X,_).
+bad0(X) :- hexb(X,_), inreg(X,_).
+% each eraser cancels one of those, or pairs off with another eraser
+1 { erase(E,X): inreg(X,R), bad0(X); pairs(E,F): er(F), inreg(F,R), F != E } 1 :- er(E), inreg(E,R).
+:- pairs(E,F), not pairs(F,E).
 :- erase(E1,X), erase(E2,X), E1 < E2.
 gone(X) :- erase(_,X).
 live(X) :- inreg(X,_), not er(X), not gone(X).` : "live(X) :- inreg(X,_).");
@@ -344,10 +364,15 @@ live(X) :- inreg(X,_), not er(X), not gone(X).` : "live(X) :- inreg(X,_).");
       for (const x of shapes) {
         const sh = x.x as Extract<CellSymbol, { kind: "shape" }>;
         out.push(`shp(${x.id}). ${sh.negative ? "neg" : "pos"}(${x.id}).`);
-        placements(g, sh.value, !!sh.rotate).forEach((pl, k) => out.push(`pl(${x.id},${k}).${pl.map((c) => ` pc(${x.id},${k},${c}).`).join("")}`));
+        placements(g, sh.value, !!sh.rotate).forEach((pl, k) => {
+          // the stretches of line inside a (positive) shape, which the line can't cut through
+          const inner = sh.negative ? [] : pl.flatMap((a) => pl.filter((c) => c > a).map((c) => g.borderBetween(a, c)).filter((e) => e >= 0));
+          out.push(`pl(${x.id},${k}).${pl.map((c) => ` pc(${x.id},${k},${c}).`).join("")}${inner.map((e) => ` pin(${x.id},${k},${e}).`).join("")}`);
+        });
       }
       out.push(`
 1 { place(X,P): pl(X,P) } 1 :- live(X), shp(X).
+:- place(X,P), pin(X,P,B), fence(B).
 hasshape(R) :- live(X), shp(X), inreg(X,R).`);
       out.push(negative ? `
 1 { iv(R,0); iv(R,1) } 1 :- hasshape(R).
@@ -357,23 +382,6 @@ net(R,C,N) :- hasshape(R), cell(C), N = #sum{ 1,X: place(X,P), pc(X,P,C), inreg(
 :- place(X,P), pc(X,P,C), inreg(X,R), not member(R,C).
 :- hasshape(R), member(R,C), #count{X: place(X,P), pc(X,P,C), inreg(X,R)} != 1.`);
     }
-    if (erasers) out.push(`
-% an eraser must be needed: the region doesn't work with nothing erased...
-kreg(R,K) :- root(R), K = #count{E: er(E), inreg(E,R)}, K > 0.
-cand(R,X) :- inreg(X,R), not er(X).
-v0(R) :- cand(R,X), cand(R,Y), sq(X,C), sq(Y,D), C != D.
-v0(R) :- cand(R,X), st(X,C), #count{Y: cand(R,Y), colored(Y,C)} != 2.
-v0(R) :- cand(R,X), tri(X,N), scell(X,I), N != #count{B: fence(B), cb(I,B)}.
-v0(R) :- cand(R,X), hexv(X,_).
-v0(R) :- cand(R,X), hexb(X,_).
-:- kreg(R,_), not v0(R).
-% ...and with two erasers, no single symbol taken out makes it work
-v1(R,Z) :- kreg(R,2), cand(R,Z), cand(R,X), cand(R,Y), X != Z, Y != Z, sq(X,C), sq(Y,D), C != D.
-v1(R,Z) :- kreg(R,2), cand(R,Z), cand(R,X), X != Z, st(X,C), #count{Y: cand(R,Y), colored(Y,C), Y != Z} != 2.
-v1(R,Z) :- kreg(R,2), cand(R,Z), cand(R,X), X != Z, tri(X,N), scell(X,I), N != #count{B: fence(B), cb(I,B)}.
-v1(R,Z) :- kreg(R,2), cand(R,Z), cand(R,X), X != Z, hexv(X,_).
-v1(R,Z) :- kreg(R,2), cand(R,Z), cand(R,X), X != Z, hexb(X,_).
-:- kreg(R,2), cand(R,Z), not v1(R,Z).`);
     return out.join("\n");
   },
   needs: ["regions"] as ("regions" | "shapes")[],

@@ -173,6 +173,6 @@
 .grid-game .panel-dot { fill: var(--paper-ink); stroke: var(--paper, #fbfaf6); stroke-width: 1.5; }
 .grid-game .panel-square.white, .grid-game .panel-star.white { stroke: var(--paper-ink); stroke-width: 1.6; }
 .grid-game .panel-triangle { fill: #f2913a; }
-.grid-game .panel-shape rect { fill: #f2c23a; }
-.grid-game .panel-shape.negative rect { fill: none; stroke: #3f8fe0; stroke-width: 1.8; }
+.grid-game .panel-shape rect { fill: var(--shape, #f2c23a); }
+.grid-game .panel-shape.negative rect { fill: none; stroke: var(--shape, #3f8fe0); stroke-width: 1.8; }
 .grid-game .panel-eraser { fill: none; stroke: var(--paper-ink); stroke-width: 3.2; stroke-linecap: round; }

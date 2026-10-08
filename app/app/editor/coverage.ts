@@ -17,7 +17,7 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
-  rules: "Star Battle's stars; Panel Symmetry's mirror; the Rules panel (Panes, and admins)", style: "the Look panel (admins)", picture: "Picture, and painting (Nonogram)",
+  rules: "Star Battle's stars; a panel's symmetry; the Rules panel (Panes, and admins)", style: "the Look panel (admins)", picture: "Picture, and painting (Nonogram)",
   marks: "the Look panel (admins)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
 };
 

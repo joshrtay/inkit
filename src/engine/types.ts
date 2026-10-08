@@ -26,9 +26,9 @@ export type Given =
   | { at: "line"; corners: [RC, RC]; kind: "hexagon"; color?: LineColor }    // a dot halfway along a stretch of grid line: the line runs along it
   | { at: "line"; corners: [RC, RC]; kind: "gap" }                           // a break in a grid line: the line can't run along it
   | { at: "cell"; cell: RC; kind: "square" | "star"; color: SymbolColor }    // squares: one color per region; stars: two of a color per region
-  | { at: "cell"; cell: RC; kind: "triangle"; value: number }                // 1-3 triangles: how many of the cell's sides the line runs along
-  | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean }   // a polyomino (its cells, top-left at 0,0); the region is made of its region's shapes
-  | { at: "cell"; cell: RC; kind: "eraser" };                                // cancels itself and one other symbol in its region
+  | { at: "cell"; cell: RC; kind: "triangle"; value: number; color?: SymbolColor }   // 1-3 triangles: how many of the cell's sides the line runs along (orange)
+  | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean; color?: SymbolColor }   // a polyomino (its cells, top-left at 0,0); the region is made of its region's shapes (yellow; hollow ones blue)
+  | { at: "cell"; cell: RC; kind: "eraser"; color?: SymbolColor };           // cancels itself and a wrong symbol in its region, or another eraser (white)
 
 /** The two lines of a symmetry panel. */
 export type LineColor = "blue" | "yellow";

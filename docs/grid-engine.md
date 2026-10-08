@@ -7,8 +7,7 @@ the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), 
 Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
-and Sudoku, and seven line panels in the style of The Witness (`panel-dots`, `panel-squares`, `panel-stars`,
-`panel-triangles`, `panel-shapes`, `panel-erasers`, `panel-symmetry`; see "Panels" below).
+and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below).
 
 ## The model
 
@@ -136,19 +135,22 @@ where it can go:
 |---|---|---|
 | Dot | `hexagon` on a corner or a line | The line passes through it (with symmetry, a colored dot by the line of that color). |
 | Square | `square`, with a color | No region holds squares of two colors. |
-| Star | `star`, with a color | Its region holds exactly one other star or square of its color. |
+| Star | `star`, with a color | Its region holds exactly one other symbol of its color, of any kind. |
 | Triangle | `triangle`, 1-3 | The line runs along that many of the cell's sides. |
-| Shape | `shape`: its cells, `rotate`, `negative` | A region with shapes is exactly its shapes fitted together, as drawn (tilted ones may turn); hollow (negative) shapes cancel cells of the others: every cell of the region is covered 0 or 1 times net (the same for all), every cell outside it evenly. |
-| Eraser | `eraser` | Cancels itself and one other symbol in its region (not another eraser), only when needed: the region mustn't work with fewer erasers used. |
+| Shape | `shape`: its cells, `rotate`, `negative` | A region with shapes is exactly its shapes fitted together, as drawn (tilted ones may turn), and the line never cuts through a shape; hollow (negative) shapes cancel cells of the others: every cell of the region is covered 0 or 1 times net (the same for all), every cell outside it evenly. |
+| Eraser | `eraser` | Cancels itself and one symbol in its region that's wrong before any erasing, or pairs off with another eraser. |
 
-These follow Demaine et al., "Who witnesses The Witness?" (2018), including its reading of
-erasers. Two limits keep the one-solution proof exact in clingo: at most two erasers in a panel,
-and no erasers in a panel with shapes (proving a region can't be packed is a harder problem).
-Every panel genre has both rules, so symbols mix freely; the seven types are named for the
-symbol they teach. Left out, since paper can't carry them: environmental and shadow puzzles,
-sound, colored light, reflections, and puzzles that span several panels.
+Every cell symbol has a color that stars count: squares and stars as given, triangles orange,
+shapes yellow, hollow shapes blue, erasers white (a given's `color` can change it). The rules
+follow the game as the open-source Witness puzzle validator has it (jbzdarkid's witness-puzzles,
+`engine/validate.js` and `polyominos.js`, default settings), and Demaine et al., "Who witnesses The
+Witness?" (2018), where they agree. One limit keeps the one-solution proof exact in clingo: no
+erasers in a panel with shapes (proving a region can't be packed is a harder problem). It's one
+game type: symbols mix freely, and symmetry is a setting (a puzzle's own `panel-line` rule). Left
+out, since paper can't carry them: environmental and shadow puzzles, sound, colored light,
+reflections, and puzzles that span several panels.
 
-`npm run new -- --genre panel-<type>` (`puzzles/grid/panels.ts`) draws a random winding line,
+`npm run new -- --genre panel --mix <dots|squares|stars|triangles|shapes|erasers|symmetry>` (`puzzles/grid/panels.ts`) draws a random winding line,
 puts every symbol true of it on the panel, adds gaps until the line is the only one, and takes out
 what isn't needed (gaps first). Drawing: `src/game-types/grid/panel-draw.ts` (pale tracks with
 the ink line in them; the symbols over it). Playing: the line is drawn like a fence; gaps can't be

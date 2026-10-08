@@ -13,7 +13,7 @@
 //   node puzzles/grid/new.ts --genre akari --size 7x7 --number 1 --name "Lights On"
 //   node puzzles/grid/new.ts --genre shikaku --size 6x6 --number 1 --name "Boxes"
 //   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
-//   node puzzles/grid/new.ts --genre panel-squares --size 4x4 --number 1 --name "Two Tones"   (any panel-*: panels.ts)
+//   node puzzles/grid/new.ts --genre panel --mix squares --size 4x4 --number 8 --name "Two Tones"   (mixes: panels.ts)
 //
 // 1. clingo picks a random finished board that obeys the genre's rules (a loop, a wall,
 //    a set of panes), 2. every clue that's true of that board goes in a pool, 3. clues
@@ -24,7 +24,7 @@ import { makePuzzle, check } from "../../src/engine/puzzle.ts";
 import { program, boardOf, solve } from "../../src/engine/solve.ts";
 import { regionsOf, shapeKey } from "../../src/engine/derive.ts";
 import type { Board, Given, GridSpec, RuleSpec } from "../../src/engine/types.ts";
-import { makePanel } from "./panels.ts";
+import { makePanel, PANEL_MIXES } from "./panels.ts";
 
 const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const genre = arg("genre")!, [rows, cols] = (arg("size", "5x5")!).split("x").map(Number);
@@ -471,8 +471,10 @@ for (let attempt = 0; attempt < 40 && !result; attempt++) {
       spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : x.at === "line" ? `l${x.corners}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
       if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
     }
-  } else if (genre.startsWith("panel-")) {
-    result = await makePanel(genre, rows, cols, rand);
+  } else if (genre === "panel") {
+    const mix = arg("mix", "squares") as (typeof PANEL_MIXES)[number];
+    if (!PANEL_MIXES.includes(mix)) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}`);
+    result = await makePanel(mix, rows, cols, rand);
   } else throw new Error(`no generator for genre "${genre}"`);
 }
 if (!result) { console.error("no unique puzzle found; try another --seed or size"); process.exit(1); }

@@ -8,7 +8,7 @@ type ReadGiven = Reading["givens"][number];
 const g = (kind: ReadGiven["kind"], row: number, col: number, value = ""): ReadGiven => ({ kind, row, col, value });
 
 const reading = (over: Partial<Reading>): Reading => ({
-  readable: true, problem: "", genre: "panel-dots", candidates: ["panel-dots"], title: "",
+  readable: true, problem: "", genre: "panel", candidates: ["panel"], title: "",
   bounds: { left: 0, top: 0, right: 1, bottom: 1 }, rows: 3, cols: 3, rules: [], givens: [], runs: [],
   pictureRows: [], palette: [], areas: [], figure: [], sure: true, notes: [], ...over,
 });
@@ -41,6 +41,16 @@ describe("reading panels", () => {
     expect(givenOf(g("triangle", 2, 0, "2"))).toEqual({ at: "cell", cell: [2, 0], kind: "triangle", value: 2 });
     expect(givenOf(g("triangle", 2, 0, "▲▲▲"))).toEqual({ at: "cell", cell: [2, 0], kind: "triangle", value: 3 });
     expect(givenOf(g("triangle", 2, 0, "4"))).toBeNull();
+  });
+  it("keeps a triangle's, shape's or eraser's color only when it isn't the usual one", () => {
+    expect(givenOf(g("triangle", 2, 0, "2 purple"))).toEqual({ at: "cell", cell: [2, 0], kind: "triangle", value: 2, color: "purple" });
+    expect(givenOf(g("triangle", 2, 0, "2 orange"))).toEqual({ at: "cell", cell: [2, 0], kind: "triangle", value: 2 });
+    expect(givenOf(g("shape", 0, 0, "0,0 1,0 red"))).toEqual({ at: "cell", cell: [0, 0], kind: "shape", value: [[0, 0], [1, 0]], color: "red" });
+    expect(givenOf(g("shape", 0, 0, "0,0 yellow"))).toEqual({ at: "cell", cell: [0, 0], kind: "shape", value: [[0, 0]] });
+    expect(givenOf(g("shape", 0, 0, "0,0 hollow blue"))).toEqual({ at: "cell", cell: [0, 0], kind: "shape", value: [[0, 0]], negative: true });
+    expect(givenOf(g("shape", 0, 0, "0,0 blue"))).toEqual({ at: "cell", cell: [0, 0], kind: "shape", value: [[0, 0]], color: "blue" });
+    expect(givenOf(g("eraser", 0, 0, "white"))).toEqual({ at: "cell", cell: [0, 0], kind: "eraser" });
+    expect(givenOf(g("eraser", 0, 0, "green"))).toEqual({ at: "cell", cell: [0, 0], kind: "eraser", color: "green" });
     expect(givenOf(g("triangle", 2, 0))).toBeNull();
   });
   it("reads a shape's blocks from the top left, tilted and hollow", () => {
@@ -69,16 +79,17 @@ describe("reading panels", () => {
     const parsed = parseSketch(toSketch(r));
     expect(parsed.ok ? parsed.spec.givens?.length : parsed.errors).toBe(10);
   });
-  it("keeps a symmetry panel mirrored unless the drawing says another way", () => {
+  it("draws two mirrored lines only with a symmetry", () => {
     const sym = (rules: Reading["rules"]) => {
       const parsed = parseSketch(toSketch(reading({
-        genre: "panel-symmetry", candidates: ["panel-symmetry"], rows: 2, cols: 2, rules,
+        rows: 2, cols: 2, rules,
         givens: [g("start", 2, 0, "blue"), g("start", 2, 2, "yellow"), g("end", 0, 0), g("end", 0, 2)],
       })));
       return parsed.ok ? parsed.spec.rules : parsed.errors;
     };
-    // a plain panel-line would replace the type's mirrored one, so it's left out
+    // a plain panel-line is the panel's own (one line), so it's left out
     expect(sym([{ rule: "panel-line", settings: "" }])).toBeUndefined();
+    expect(sym([{ rule: "panel-line", settings: "symmetry left-right" }])).toEqual([{ rule: "panel-line", symmetry: "left-right" }]);
     expect(sym([{ rule: "panel-line", settings: "symmetry turn" }])).toEqual([{ rule: "panel-line", symmetry: "turn" }]);
   });
 });

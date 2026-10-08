@@ -13,15 +13,18 @@ type RC = [number, number];
 type Group = Given[];
 const debug = (m: string) => { if (process.env.DEBUG) console.error(`panel: ${m}`); };
 
-export async function makePanel(genre: string, rows: number, cols: number, rand: () => number): Promise<GridSpec | null> {
+/** `mix`: which symbols the panel is made of: dots, squares, stars, triangles, shapes, erasers or
+ *  symmetry (two mirrored lines, with dots). */
+export const PANEL_MIXES = ["dots", "squares", "stars", "triangles", "shapes", "erasers", "symmetry"] as const;
+export async function makePanel(mix: (typeof PANEL_MIXES)[number], rows: number, cols: number, rand: () => number): Promise<GridSpec | null> {
   const clingo = await import("clingo-wasm");
   const shuffle = <T,>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
-  const sym: Symmetry | null = genre === "panel-symmetry" ? "left-right" : null;
+  const sym: Symmetry | null = mix === "symmetry" ? "left-right" : null;
 
   // where the line starts and ends: the bottom-left corner to the top-right one, as panels often do
   // (or somewhere else on the edge, now and then)
-  const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+  const base: GridSpec = { genre: "panel", size: [rows, cols], givens: [], ...(sym ? { rules: [{ rule: "panel-line", symmetry: sym }] } : {}) };
   const probe = makePuzzle({ ...base, givens: [] }, { unfinished: true }), g = probe.grid;
   const start: RC = sym ? [rows, 0] : pick([[rows, 0], [rows, 0], [Math.floor(rows / 2), Math.floor(cols / 2)]] as RC[]);
   const end: RC = sym ? [0, 0] : pick([[0, cols], [0, cols], [0, Math.floor(cols / 2)]] as RC[]);
@@ -67,8 +70,8 @@ export async function makePanel(genre: string, rows: number, cols: number, rand:
   };
 
   let first: Group | null = null;   // a group the puzzle starts with (an eraser)
-  if (genre === "panel-dots") { dots(); gaps(); }
-  else if (genre === "panel-symmetry") {
+  if (mix === "dots") { dots(); gaps(); }
+  else if (mix === "symmetry") {
     const color = new Map<number, "blue" | "yellow">();
     // which line each corner is on
     for (const x of base.givens!) if (x.kind === "start") {
@@ -78,9 +81,9 @@ export async function makePanel(genre: string, rows: number, cols: number, rand:
     for (let v = 0; v < g.cornerCount; v++) if (visited(v) && !p0.cornerGivens.has(v) && rand() < 0.5) pool.push([{ at: "corner", corner: cornerXY(v), kind: "hexagon", ...(rand() < 0.4 ? { color: color.get(v) } : {}) }]);
     gaps();
   }
-  else if (genre === "panel-squares") squares();
-  else if (genre === "panel-triangles") triangles();
-  else if (genre === "panel-stars") {
+  else if (mix === "squares") squares();
+  else if (mix === "triangles") triangles();
+  else if (mix === "stars") {
     // pairs of stars of one color in a region; a region's pairs have different colors
     const colors: SymbolColor[] = ["orange", "purple", "green", "red"];
     reg.cells.forEach((cs) => {
@@ -91,7 +94,7 @@ export async function makePanel(genre: string, rows: number, cols: number, rand:
       }
     });
   }
-  else if (genre === "panel-shapes") {
+  else if (mix === "shapes") {
     // each region cut into random pieces of 1 to 4 squares; the group is all of them, each drawn in
     // one of the region's squares; now and then a piece reaches into its neighbour's and a hollow
     // square takes the overlap back
@@ -123,7 +126,7 @@ export async function makePanel(genre: string, rows: number, cols: number, rand:
       pool.push(group);
     });
   }
-  else if (genre === "panel-erasers") {
+  else if (mix === "erasers") {
     // an eraser with something it has to cancel, in one region: a square of the wrong color (with
     // one of the right color), a lone star, or a triangle that's wrong
     const k = reg.cells.findIndex((cs) => cs.length >= 3);
@@ -143,10 +146,10 @@ export async function makePanel(genre: string, rows: number, cols: number, rand:
     for (const i of cs.slice(0, half)) take(i);
     triangles();
   }
-  else throw new Error(`no panel generator for "${genre}"`);
+  else throw new Error(`no panel mix "${mix}" (${PANEL_MIXES.join(", ")})`);
   // gaps for every type: symbols in cells can't tell apart lines that cut out the same regions
   // (one hugging the edge a different way)
-  if (genre !== "panel-dots" && genre !== "panel-symmetry") gaps();
+  if (mix !== "dots" && mix !== "symmetry") gaps();
 
   // 3. every symbol group at once (one symbol to a cell), then gaps until the target is the only
   // line, 4. then take out what isn't needed, gaps first, so the symbols do the work

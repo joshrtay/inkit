@@ -101,6 +101,12 @@
         ],
         "kind": "gap"
       }
+    ],
+    "rules": [
+      {
+        "rule": "panel-line",
+        "symmetry": "left-right"
+      }
     ]
   }
 }

@@ -5,7 +5,9 @@ import { makePuzzle } from "~site/engine/puzzle.ts";
 import type { GridSpec } from "~site/engine/types.ts";
 import * as ops from "~/editor/ops";
 
-const panel = (genre = "panel-dots", size: [number, number] = [4, 4], extra: Partial<GridSpec> = {}): GridSpec => ({ genre, size, givens: [], ...extra });
+const panel = (size: [number, number] = [4, 4], extra: Partial<GridSpec> = {}): GridSpec => ({ genre: "panel", size, givens: [], ...extra });
+/** A panel with two mirrored lines (left to right). */
+const mirrored = (size: [number, number] = [4, 5]) => panel(size, { rules: [{ rule: "panel-line", symmetry: "left-right" }] });
 
 describe("starts and ends", () => {
   it("toggle a start on a corner", () => {
@@ -25,7 +27,7 @@ describe("starts and ends", () => {
     expect(ops.toggleStart(s, [0, 0]).givens).toEqual([{ at: "corner", corner: [0, 0], kind: "end" }]);
   });
   it("come in mirrored pairs in a symmetry panel: a blue start and a yellow one", () => {
-    const s = ops.toggleStart(panel("panel-symmetry", [4, 5]), [4, 1]);
+    const s = ops.toggleStart(mirrored(), [4, 1]);
     expect(s.givens).toEqual([
       { at: "corner", corner: [4, 1], kind: "start", color: "blue" },
       { at: "corner", corner: [4, 4], kind: "start", color: "yellow" },
@@ -38,7 +40,7 @@ describe("starts and ends", () => {
     expect(() => makePuzzle(e)).not.toThrow();
   });
   it("erase a start with its mirror, and a corner's dot", () => {
-    let s = ops.toggleStart(panel("panel-symmetry", [4, 5]), [4, 1]);
+    let s = ops.toggleStart(mirrored(), [4, 1]);
     s = ops.toggleDot(s, { corner: [2, 2] });
     s = ops.eraseCorner(s, [4, 1]);
     expect(s.givens).toEqual([{ at: "corner", corner: [2, 2], kind: "hexagon" }]);
@@ -47,15 +49,15 @@ describe("starts and ends", () => {
 });
 
 describe("symmetry", () => {
-  it("is the type's, or the puzzle's own", () => {
+  it("is the puzzle's own panel-line rule: set, changed and removed", () => {
     expect(ops.symmetryOf(panel())).toBeNull();
-    expect(ops.symmetryOf(panel("panel-symmetry"))).toBe("left-right");
-    const s = ops.setSymmetry(panel("panel-symmetry"), "turn");
+    expect(ops.symmetryOf(mirrored())).toBe("left-right");
+    const s = ops.setSymmetry(mirrored(), "turn");
     expect(s.rules).toEqual([{ rule: "panel-line", symmetry: "turn" }]);
     expect(ops.symmetryOf(s)).toBe("turn");
-    expect(ops.setSymmetry(s, "left-right").rules).toBeUndefined();
-    expect(ops.symmetryOf(ops.setSymmetry(panel("panel-symmetry"), null))).toBeNull();
+    expect(ops.setSymmetry(s, null).rules).toBeUndefined();
     expect(ops.setSymmetry(panel(), "up-down").rules).toEqual([{ rule: "panel-line", symmetry: "up-down" }]);
+    expect(ops.setSymmetry(panel(), null)).toEqual(panel());
   });
   it("mirrors corners", () => {
     expect(ops.mirrorCorner([4, 5], [1, 1], "left-right")).toEqual([1, 4]);
@@ -80,7 +82,7 @@ describe("gaps and dots", () => {
     expect(ops.toggleDot(s, { corner: [1, 1] }).givens).toHaveLength(1);
   });
   it("recolor a dot, then remove it", () => {
-    let s = ops.toggleDot(panel("panel-symmetry"), { corner: [1, 1] }, "blue");
+    let s = ops.toggleDot(mirrored(), { corner: [1, 1] }, "blue");
     expect(s.givens).toEqual([{ at: "corner", corner: [1, 1], kind: "hexagon", color: "blue" }]);
     s = ops.toggleDot(s, { corner: [1, 1] }, "yellow");
     expect(s.givens).toEqual([{ at: "corner", corner: [1, 1], kind: "hexagon", color: "yellow" }]);
@@ -90,7 +92,7 @@ describe("gaps and dots", () => {
 
 describe("symbols in cells", () => {
   it("place a colored square, replace it with another color, and remove it", () => {
-    let s = ops.toggleCellSymbol(panel("panel-squares"), [1, 1], { kind: "square", color: "black" });
+    let s = ops.toggleCellSymbol(panel(), [1, 1], { kind: "square", color: "black" });
     expect(s.givens).toEqual([{ at: "cell", cell: [1, 1], kind: "square", color: "black" }]);
     s = ops.toggleCellSymbol(s, [1, 1], { kind: "square", color: "white" });
     expect(s.givens).toEqual([{ at: "cell", cell: [1, 1], kind: "square", color: "white" }]);
@@ -99,7 +101,7 @@ describe("symbols in cells", () => {
     expect(ops.toggleCellSymbol(s, [1, 1], { kind: "star", color: "white" }).givens).toEqual([]);
   });
   it("cycle triangles 1, 2, 3, none", () => {
-    let s = panel("panel-triangles");
+    let s = panel();
     for (const n of [1, 2, 3]) {
       s = ops.cycleTriangle(s, [0, 0]);
       expect(s.givens).toEqual([{ at: "cell", cell: [0, 0], kind: "triangle", value: n }]);
@@ -108,12 +110,12 @@ describe("symbols in cells", () => {
   });
   it("place shapes (turnable, hollow) and erasers", () => {
     const L = ops.SHAPES.find((x) => x.name === "Three, bent")!.cells;
-    let s = ops.toggleCellSymbol(panel("panel-shapes"), [2, 2], { kind: "shape", value: L, rotate: true });
+    let s = ops.toggleCellSymbol(panel(), [2, 2], { kind: "shape", value: L, rotate: true });
     expect(s.givens).toEqual([{ at: "cell", cell: [2, 2], kind: "shape", value: [[0, 0], [1, 0], [1, 1]], rotate: true }]);
     s = ops.toggleCellSymbol(s, [2, 2], { kind: "shape", value: L, negative: true });
     expect(s.givens).toEqual([{ at: "cell", cell: [2, 2], kind: "shape", value: L, negative: true }]);
     expect(ops.toggleCellSymbol(s, [2, 2], { kind: "shape", value: L, negative: true }).givens).toEqual([]);
-    s = ops.toggleCellSymbol(panel("panel-erasers"), [3, 3], { kind: "eraser" });
+    s = ops.toggleCellSymbol(panel(), [3, 3], { kind: "eraser" });
     expect(s.givens).toEqual([{ at: "cell", cell: [3, 3], kind: "eraser" }]);
     expect(ops.toggleCellSymbol(s, [3, 3], { kind: "eraser" }).givens).toEqual([]);
   });

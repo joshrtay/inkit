@@ -7,8 +7,6 @@ import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, Rule
 
 export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number }
 
-const PANEL: Genre = { marks: ["fence"], rules: [{ rule: "panel-line" }, { rule: "panel-symbols" }], style: {} };
-
 export const genres = {
   slitherlink: {
     marks: ["fence"],
@@ -163,18 +161,10 @@ export const genres = {
     style: { palette: ["#ef5a6a", "#f7cf3d", "#3fb0e6"] },
     hearts: 3,
   },
-  // Panels, line puzzles in the style of The Witness (panel.ts): a line along the grid lines from a
-  // start circle to an end, cutting the grid into regions; the symbols say where it goes. Every
-  // panel type has every symbol's rule (a symbol that isn't there asks nothing), so they mix; the
-  // types are named for the symbol they teach.
-  "panel-dots": PANEL,
-  "panel-squares": PANEL,
-  "panel-stars": PANEL,
-  "panel-triangles": PANEL,
-  "panel-shapes": PANEL,
-  "panel-erasers": PANEL,
-  // two lines at once, mirror images of each other (the puzzle can say up-down or turn instead)
-  "panel-symmetry": { ...PANEL, rules: [{ rule: "panel-line", symmetry: "left-right" }, { rule: "panel-symbols" }] },
+  // Panel: line puzzles in the style of The Witness (panel.ts): a line along the grid lines from a
+  // start circle to an end, cutting the grid into regions; the symbols say where it goes, and mix
+  // freely. With symmetry (a puzzle's own panel-line rule) there are two mirrored lines.
+  panel: { marks: ["fence"], rules: [{ rule: "panel-line" }, { rule: "panel-symbols" }], style: {} },
   // our region-division puzzles in the style of The Artisan of Glimmith: each puzzle lists its rules
   panes: {
     marks: ["regions"],

@@ -28,13 +28,7 @@ export const KIND_NAMES: Record<GenreName, string> = {
   sudoku: "Sudoku",
   maze: "Number Line Maze",
   coats: "Three Coats",
-  // line panels in the style of The Witness (src/engine/panel.ts), named for the symbol they teach
-  "panel-dots": "Panel Dots",
-  "panel-squares": "Panel Squares",
-  "panel-stars": "Panel Stars",
-  "panel-triangles": "Panel Triangles",
-  "panel-shapes": "Panel Shapes",
-  "panel-erasers": "Panel Erasers",
-  "panel-symmetry": "Panel Symmetry",
+  // line panels in the style of The Witness (src/engine/panel.ts)
+  panel: "Panel",
 };
 export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;

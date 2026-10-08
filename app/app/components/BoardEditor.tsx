@@ -65,11 +65,7 @@ const TOOL_HINTS: Record<ToolId, string> = {
   eraser: "Click a square to add or remove an eraser",
 };
 
-/** A panel's tools: the line's start, end, gaps and dots, then the symbol its type teaches, then
- *  the others (every symbol works in every panel), then Erase. */
-const LINE_TOOLS: ToolId[] = ["start", "end", "gap", "dot"];
-const SYMBOL_TOOLS: ToolId[] = ["square", "star", "triangle", "shape", "eraser"];
-const panelTools = (own: ToolId | null): ToolId[] => [...LINE_TOOLS, ...(own ? [own] : []), ...SYMBOL_TOOLS.filter((t) => t !== own), "erase"];
+
 
 /** Each grid type's tools, most used first (Three Coats has its own editor). Typed against the
  *  engine's genres, so a new genre needs its tools here before the build passes. */
@@ -98,13 +94,8 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   sudoku: ["number", "erase"],
   panes: ["number", "symbol", "compass", "diamond", "block", "erase"],
   maze: ["corner", "wall", "door", "erase"],
-  "panel-dots": panelTools(null),
-  "panel-squares": panelTools("square"),
-  "panel-stars": panelTools("star"),
-  "panel-triangles": panelTools("triangle"),
-  "panel-shapes": panelTools("shape"),
-  "panel-erasers": panelTools("eraser"),
-  "panel-symmetry": panelTools(null),
+  // the line's start, ends, gaps and dots, then the symbols in the cells
+  panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
 };
 
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in TOOLS;
@@ -189,7 +180,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const [rows, cols] = spec.size, picture = spec.picture, areas = spec.areas;
   const palette = picture?.palette ?? {};
   const nonogram = genre === "nonogram";
-  const panel = genre.startsWith("panel-"), symmetry = panel ? ops.symmetryOf(spec) : null;
+  const panel = genre === "panel", symmetry = panel ? ops.symmetryOf(spec) : null;
   const shapeCells = Array.from({ length: turns }).reduce<RC[]>((cs) => ops.turnShape(cs), ops.SHAPES[shapeAt].cells);
   const shapeSymbol: ops.PanelSymbol = { kind: "shape", value: shapeCells, ...(canTurn ? { rotate: true } : {}), ...(hollow ? { negative: true } : {}) };
   const letters = spec.style?.symbols ?? (genres[genre]?.style as { symbols?: string } | undefined)?.symbols ?? "ABCDEFGHI";
@@ -519,10 +510,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={stars === n} onClick={() => change(ops.setStars(spec, n))}>{n} star{n > 1 ? "s" : ""}</button>)}
         </span>
       )}
-      {symmetry && genre === "panel-symmetry" && (
-        <span className="be-group be-seg" role="group" aria-label="Mirrored">
-          {SYMMETRIES.map((m) => <button key={m} type="button" className="be-btn" aria-pressed={symmetry === m} onClick={() => change(ops.setSymmetry(spec, m))}
-            title="The two lines are mirror images this way">{SYMMETRY_LABELS[m]}</button>)}
+      {panel && (
+        <span className="be-group be-seg" role="group" aria-label="Symmetry">
+          {[null, ...SYMMETRIES].map((m) => <button key={m ?? "none"} type="button" className="be-btn" aria-pressed={symmetry === m} onClick={() => change(ops.setSymmetry(spec, m))}
+            title={m ? "Two lines, mirror images of each other this way" : "One line"}>{m ? SYMMETRY_LABELS[m] : "None"}</button>)}
         </span>
       )}
       {nonogram && picture && (

@@ -81,37 +81,17 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   cell {row: 0, col: the piece's index in "figure"}. Set rows to 1 and cols to the number of pieces.`,
   panes: `panes: split the grid into regions. The rules are written on the sketch (e.g. "panes: size 4, twins");
   list each one in "rules".`,
-  // panels (The Witness): what they share is PANEL_HOW, given once below the list of types
-  "panel-dots": `panel-dots (Panel Dots): a panel (see "Panels" below) whose symbols are mostly small dots (hexagons) on
-  corners or halfway along grid lines; the line must pass through every dot.`,
-  "panel-squares": `panel-squares (Panel Squares): a panel whose symbols are mostly colored squares (filled or rounded squares)
-  in the cells; the line keeps squares of different colors apart.`,
-  "panel-stars": `panel-stars (Panel Stars): a panel whose symbols are mostly colored stars (often 8-pointed suns) in the cells;
-  each star pairs with exactly one other star or square of its color in its region.`,
-  "panel-triangles": `panel-triangles (Panel Triangles): a panel whose symbols are mostly little triangles (1, 2 or 3 in a cell);
-  the line runs along that many of the cell's sides.`,
-  "panel-shapes": `panel-shapes (Panel Shapes): a panel whose symbols are mostly little block shapes (polyominoes: tetris
-  pieces, a single block, an L...) in the cells; each region is exactly its shapes fitted together.`,
-  "panel-erasers": `panel-erasers (Panel Erasers): a panel with one or two erasers (a Y-shaped mark, three short strokes
-  from a centre) among its other symbols.`,
-  "panel-symmetry": `panel-symmetry (Panel Symmetry): a panel with two start circles and two ends, mirror images of each other
-  (often colored blue and yellow): two lines are drawn at once, mirroring each other. Usually mirrored left to right;
-  if it's mirrored top to bottom, or turned halfway round, add the rule panel-line with settings "symmetry up-down" or
-  "symmetry turn".`,
+  panel: `panel (Panel, line puzzles in the style of The Witness): a grid of squares; a line is drawn along the grid
+  lines from a start circle (a big fat dot on a corner) to an end (a short stub sticking out of the outside edge at a
+  corner). "rows" and "cols" count the squares (cells), not the lines: corners run from 0 to rows and 0 to cols.
+  Starts, ends and corner dots sit on corners: their row and col are the corner's (0..rows, 0..cols). Dots halfway
+  along a grid line, and gaps (a break in a grid line), sit between two neighbouring corners: give the corner at the
+  top / left end and which way the line goes from it ("right" or "below"). Symbols in the squares (squares, stars,
+  triangles, shapes, erasers) use the cell's row and col, and may mix freely. Two start circles and two ends placed as
+  mirror images (often a blue and a yellow start) mean two lines drawn at once: add the rule panel-line with settings
+  "symmetry left-right" (mirrored left to right), "symmetry up-down" (mirrored top to bottom) or "symmetry turn"
+  (turned halfway round). Leave out a line drawn as the answer.`,
 };
-
-/** How every panel type is transcribed (said once in the system prompt, and in a re-read's brief). */
-const PANEL_HOW = `Panels (every panel-* type, line puzzles in the style of The Witness): a grid of squares; a line is
-drawn along the grid lines from a start circle (a big fat dot on a corner) to an end (a short stub sticking out of the
-outside edge at a corner). "rows" and "cols" count the squares (cells), not the lines: corners run from 0 to rows
-and 0 to cols. Starts, ends and corner dots sit on corners: their row and col are the corner's (0..rows, 0..cols).
-Dots halfway along a grid line, and gaps (a break in a grid line), sit between two neighbouring corners: give the
-corner at the top / left end and which way the line goes from it ("right" or "below"). Symbols in the squares
-(squares, stars, triangles, shapes, erasers) use the cell's row and col. Every panel type allows every symbol, so
-symbols may mix; tell the types apart by the symbol most of the panel is about (an eraser makes it panel-erasers;
-two starts and two ends mirroring each other make it panel-symmetry), and list the other panel types its symbols
-would also fit as candidates. Leave out a line drawn as the answer.`;
-const isPanel = (genre: GenreName) => genre.startsWith("panel-");
 
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
@@ -131,18 +111,19 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   galaxy: "a galaxy circle (spiral-galaxies): row, col = its centre in half-cell steps (a cell's centre is 2r+1, 2c+1; even numbers are on lines); value \"\"",
   door: "an arrow at the outside edge (mazes, simple-path): row, col of the cell beside it; value that cell's side and in or out, e.g. \"top in\"",
   // panels: corners are 0..rows, 0..cols; a stretch of grid line is a corner and "right" / "below"
-  start: "a start circle (panels: a big fat dot on a corner): row, col = the corner (0..rows, 0..cols); value its color, \"blue\" or \"yellow\", in panel-symmetry when the two starts are colored; else \"\"",
+  start: "a start circle (panels: a big fat dot on a corner): row, col = the corner (0..rows, 0..cols); value its color, \"blue\" or \"yellow\", with two mirrored lines when the starts are colored; else \"\"",
   end: "an end (panels: a short stub sticking out of the outside edge at a corner): row, col = the corner it sticks out of (on the outside edge); value \"\"",
   hexagon: "a dot the line must pass (panels: a small dot or hexagon on the grid lines): on a corner, row, col = the corner and value \"\"; " +
-    "halfway along a grid line, row, col = the corner at its top / left end and value \"right\" or \"below\"; add \"blue\" or \"yellow\" if it's colored (panel-symmetry), e.g. \"right blue\" or \"blue\"",
+    "halfway along a grid line, row, col = the corner at its top / left end and value \"right\" or \"below\"; add \"blue\" or \"yellow\" if it's colored (two mirrored lines), e.g. \"right blue\" or \"blue\"",
   gap: "a gap (panels: a break in a grid line the line can't cross): row, col = the corner at the top / left end of that stretch of line; value \"right\" or \"below\"",
   square: `a colored square in a cell (panels): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (an empty outline is white, plain ink black)`,
-  star: `a star (sun) in a cell (panels): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (plain ink is black)`,
-  triangle: "little triangles in a cell (panels): row, col; value how many, 1, 2 or 3, e.g. \"2\"",
+  star: `a star (sun) in a cell (panels; it pairs with exactly one other symbol of its color in its region, of any kind): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (plain ink is black)`,
+  triangle: "little triangles in a cell (panels): row, col; value how many, 1, 2 or 3, e.g. \"2\"; add a color only if they're clearly not orange (plain ink counts as orange), e.g. \"2 purple\"",
   shape: "a block shape in a cell (panels: a polyomino drawn small, e.g. an L or a tetris piece): row, col of the cell it's in; value its blocks as row,col pairs " +
     "with the top-left block at 0,0, then \"rotate\" if it's drawn tilted (it may be turned), and \"negative\" if it's drawn hollow / outlined (it takes away), " +
-    "e.g. \"0,0 1,0 1,1\", \"0,0 0,1 rotate\" or \"0,0 negative\"",
-  eraser: "an eraser in a cell (panels: a Y-shaped mark, three short strokes from a centre): row, col; value \"\"",
+    "then a color only if it's clearly not the usual one (yellow, or blue for a hollow shape; plain ink counts as usual), " +
+    "e.g. \"0,0 1,0 1,1\", \"0,0 0,1 rotate\", \"0,0 negative\" or \"0,0 1,0 red\"",
+  eraser: "an eraser in a cell (panels: a Y-shaped mark, three short strokes from a centre): row, col; value \"\", or a color if it's clearly not white (plain ink counts as white)",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
@@ -191,9 +172,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "neighbor-dots": "k dots of a color in a piece need at least k neighbours of that color (comes with coats)",
   "color-count": "exactly this many pieces of each color, when written on the sketch (red, yellow, blue)",
   "perfect-maze": "the walls make a maze: every square reachable, one way between any two (comes with maze)",
-  "panel-line": "one line along the grid lines from a start circle to an end, never touching itself or crossing a gap (comes with every panel type); " +
-    "symmetry left-right / up-down / turn: two mirrored lines (comes with panel-symmetry as left-right; list it only with \"symmetry up-down\" or \"symmetry turn\" when the panel mirrors that way)",
-  "panel-symbols": "the panel's symbols (dots, squares, stars, triangles, shapes, erasers) say where the line goes (comes with every panel type)",
+  "panel-line": "one line along the grid lines from a start circle to an end, never touching itself or crossing a gap (comes with panel); " +
+    "symmetry left-right / up-down / turn: two lines at once, mirror images (list it, with its symmetry, when the panel has two mirrored starts and ends)",
+  "panel-symbols": "the panel's symbols (dots, squares, stars, triangles, shapes, erasers) say where the line goes (comes with panel)",
 };
 
 // Every field is required (empty when unused): the API caps how many fields may be nullable or
@@ -258,8 +239,6 @@ and the site checks which of them have exactly one solution). Only list types th
 reading; if the type is written on the sketch, list just that one. The types:
 
 ${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
-
-${PANEL_HOW}
 
 Clues ("givens"):
 ${Object.entries(CLUE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
@@ -333,7 +312,6 @@ function typeBrief(genre: GenreName) {
     `${g.name}: ${g.summary}`,
     `Its rules:\n${g.rules.map((r) => `- ${r.text}`).join("\n")}`,
     `How to transcribe it: ${GENRE_GUIDE[genre]}`,
-    ...(isPanel(genre) ? [PANEL_HOW] : []),
   ].join("\n\n");
 }
 
@@ -410,8 +388,7 @@ export function toSketch(r: Reading): string {
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
     : { at: run.line, index: run.index, kind: "runs", value: run.runs });
   const rules: RuleSpec[] = r.rules.map(({ rule, settings }) => ({ rule, ...ruleSettings(settings) }))
-    // a panel-line without a symmetry is what every panel has already; listed in a panel-symmetry
-    // it would replace the type's own (mirrored) panel-line, so it's left out
+    // a panel-line without a symmetry is what every panel has already (one line)
     .filter((s: RuleSpec) => s.rule !== "panel-line" || s.symmetry);
   const figure = r.genre === "coats" && r.figure.length ? { pieces: r.figure } : undefined;
   const body: Omit<GridSpec, "genre"> = {
@@ -439,6 +416,11 @@ function lineFrom(row: number, col: number, v: string): [[number, number], [numb
   return null;
 }
 const lineColor = (v: string) => (/\bblue\b/.test(v) ? { color: "blue" as const } : /\byellow\b/.test(v) ? { color: "yellow" as const } : {});
+
+/** A panel symbol's color word in a clue's text, if any. */
+const symbolColor = (v: string) => SYMBOL_COLORS.find((c) => new RegExp(`\\b${c}\\b`).test(v));
+/** A triangle's, shape's or eraser's color, kept only when it isn't the one it has anyway. */
+const unusual = (v: string, usual: SymbolColor): { color?: SymbolColor } => { const c = symbolColor(v); return c && c !== usual ? { color: c } : {}; };
 
 /** One given from the reader's row, col and value text (null if the value can't be read). */
 export function givenOf({ kind, row, col, value }: Reading["givens"][number]): Given | null {
@@ -474,23 +456,25 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
     case "gap": { const corners = lineFrom(row, col, v); return corners ? { at: "line", corners, kind } : null; }
     case "square": case "star": {
       // a color the panel can't show is read as black (the creator sees it and can change it)
-      const color: SymbolColor = SYMBOL_COLORS.find((c) => new RegExp(`\\b${c}\\b`).test(v)) ?? "black";
+      const color: SymbolColor = symbolColor(v) ?? "black";
       return { at: "cell", cell, kind, color };
     }
-    case "triangle": { const n = num(v) ?? ([...v].filter((c) => "▲△▴▵".includes(c)).length || null); return n !== null && n >= 1 && n <= 3 ? { at: "cell", cell, kind, value: n } : null; }
+    case "triangle": { const n = num(v) ?? ([...v].filter((c) => "▲△▴▵".includes(c)).length || null); return n !== null && n >= 1 && n <= 3 ? { at: "cell", cell, kind, value: n, ...unusual(v, "orange") } : null; }
     case "shape": {
       const blocks = [...v.matchAll(/(-?\d+)\s*,\s*(-?\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
       if (!blocks.length) return null;
+      const negative = /\b(negative|hollow|outlined)\b/.test(v);
       // the top-left block at 0,0, whatever the reader counted from
       const r0 = Math.min(...blocks.map((b) => b[0])), c0 = Math.min(...blocks.map((b) => b[1]));
       const cells = [...new Map(blocks.map(([r, c]) => [`${r - r0},${c - c0}`, [r - r0, c - c0] as [number, number]])).values()];
       return {
         at: "cell", cell, kind, value: cells,
         ...(/\b(rotate|rotated|rotates|tilted|turn|turns)\b/.test(v) ? { rotate: true } : {}),
-        ...(/\b(negative|hollow|outlined|blue)\b/.test(v) ? { negative: true } : {}),
+        ...(negative ? { negative: true } : {}),
+        ...unusual(v, negative ? "blue" : "yellow"),
       };
     }
-    case "eraser": return { at: "cell", cell, kind };
+    case "eraser": return { at: "cell", cell, kind, ...unusual(v, "white") };
   }
 }
 
