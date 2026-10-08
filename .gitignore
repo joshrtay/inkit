@@ -11,3 +11,4 @@ __pycache__/
 
 # local Claude Code settings
 .claude/settings.local.json
+.claude/worktrees/
