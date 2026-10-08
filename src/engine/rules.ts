@@ -936,7 +936,8 @@ function duplicates(cells: number[], b: Board) {
 }
 const boxSize = (s: RuleSpec, p: Puzzle): [number, number] => {
   if (Array.isArray(s.box)) return s.box as [number, number];
-  const n = p.digits, h = [3, 2, 1].find((x) => n % x === 0 && x * x <= n && n / x >= x) ?? 1;   // 9 -> 3x3, 6 -> 2x3, 4 -> 2x2
+  // the squarest boxes: 9 -> 3x3, 6 -> 2x3, 4 -> 2x2, 16 -> 4x4, 12 -> 3x4, 25 -> 5x5
+  const n = p.digits, h = Array.from({ length: Math.floor(Math.sqrt(n)) }, (_, k) => Math.floor(Math.sqrt(n)) - k).find((x) => n % x === 0) ?? 1;
   return [h, n / h];
 };
 function boxesOf(s: RuleSpec, p: Puzzle): number[][] {
