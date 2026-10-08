@@ -9,11 +9,14 @@
 // to its corners, stamps to its squares or points, washes fill whole squares. Mouse, pen and touch
 // (pointer events).
 //
-// The chrome is a paint app's: the tools in a strip on the left (a bottom bar on a phone), the
-// chosen tool's options along the top, the paper on a workspace in the middle (fitted to it, and
-// zoomed with Cmd/Ctrl + − 0), a status line under it, and Colour and Stamps panels on the right
-// (a bottom sheet on a phone).
+// The chrome is a paint app's, each part with one job and nothing in two places: the page's header
+// holds what acts on the whole drawing (undo, redo, clear: the page gives a slot for them, beside
+// its Download and Read); the tools in a strip on the left (a bottom bar on a phone); only the
+// chosen tool's own settings along the top; Colour and Stamps on the right (a bottom sheet on a
+// phone), the one place to choose either; and a status line under the paper for the hint and the
+// workspace (the grid's size, Snap, zoom with Cmd/Ctrl + − 0).
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { addInk } from "~site/lib/ink.ts";
 import * as m from "~/sketchpad/model";
 import { gridSvg, itemSvg, stampSvg } from "~/sketchpad/draw";
@@ -92,13 +95,13 @@ export interface SketchpadHandle {
   empty: boolean;
 }
 
-export function Sketchpad({ handle, onChange, aside }: {
+export function Sketchpad({ handle, onChange, actions }: {
   /** set to the sketchpad's exporter (the page's Download and Read buttons use it) */
   handle: React.MutableRefObject<SketchpadHandle | null>;
   /** after every change */
   onChange?: (d: Drawing) => void;
-  /** more for the side panel, under Colour and Stamps (the page's "Goes in") */
-  aside?: React.ReactNode;
+  /** where in the page's header undo, redo and clear go */
+  actions?: HTMLElement | null;
 }) {
   const [history, setHistory] = useState(() => m.start());
   const [draft, setDraft] = useState<Drawing | null>(null);   // the drawing during a gesture
@@ -353,11 +356,6 @@ export function Sketchpad({ handle, onChange, aside }: {
 
   // ---- the side panel: always there on a wide screen, a bottom sheet on a phone ----
   const phone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
-  /** Go to a panel's current choice (opening the sheet first on a phone). */
-  const openSide = (panel: "colour" | "stamps") => {
-    if (phone()) setSheet(true);
-    setTimeout(() => side.current?.querySelector<HTMLElement>(`#sp-${panel} [aria-pressed="true"]`)?.focus(), 60);
-  };
   const pickStamp = (k: StampKind) => { setStampKind(k); setTool("stamp"); setTyping(null); if (phone()) setSheet(false); };
 
   // ---- the tool palette: a toolbar, arrows move along it ----
@@ -411,19 +409,7 @@ export function Sketchpad({ handle, onChange, aside }: {
               <SpIcon name="straight" /><span>Straight</span></button>
           )}
 
-          {tool === "wash" && (
-            <button type="button" className="sp-btn sp-chip sp-tip" onClick={() => openSide("colour")} aria-label={`Wash colour: ${capital(wash)}`} data-tip="Wash colour">
-              <span className="sp-dot" style={{ background: paint(wash) }} /><span>{capital(wash)}</span></button>
-          )}
-
           {tool === "stamp" && <>
-            <button type="button" className="sp-btn sp-chip sp-tip" onClick={() => openSide("stamps")} aria-label={`Stamp: ${STAMP_LABEL[stampKind]}`} data-tip="Choose a stamp">
-              <StampIcon s={{ stamp: stampKind, color: colors[stampKind], ...(stampKind === "triangle" ? { count } : {}), ...(stampKind === "shape" ? { cells } : {}) }} />
-              <span>{STAMP_LABEL[stampKind]}</span></button>
-            {COLORED.has(stampKind) && (
-              <button type="button" className="sp-btn sp-chip sp-tip" onClick={() => openSide("colour")} aria-label={`${colourFor}: ${capital(colour)}`} data-tip={colourFor}>
-                <span className="sp-dot" style={{ background: paint(colour) }} /><span>{capital(colour)}</span></button>
-            )}
             {stampKind === "triangle" && (
               <span className="sp-seg" role="group" aria-label="How many">
                 {[1, 2, 3].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}
@@ -438,17 +424,17 @@ export function Sketchpad({ handle, onChange, aside }: {
                 <SpIcon name="rotate" /><StampIcon s={{ stamp: "shape", cells, color: colors.shape }} /></button>
             </>}
           </>}
-          {tool !== "erase" && snapToggle}
-          {(tool === "text" || tool === "erase") && <span className="sp-say">{toolHint}</span>}
         </span>
-        <span className="sp-opts-end">
-          <IconButton icon="palette" label="Colour and stamps" className="sp-phone-only" onClick={() => setSheet(true)} />
+        <span className="sp-opts-end sp-phone-only">
+          <IconButton icon="palette" label="Colour and stamps" onClick={() => setSheet(true)} />
+        </span>
+      </div>
+      {actions && createPortal(<span className="sp-doc">
           <IconButton icon="undo" label="Undo" tip={`Undo (${mod}Z)`} onClick={undo} disabled={!history.past.length} />
           <IconButton icon="redo" label="Redo" tip={`Redo (${shift}Z)`} onClick={redo} disabled={!history.future.length} />
           <IconButton icon="clear" label="Clear" tip="Clear the page" disabled={!history.now.items.length && !history.now.grid}
             onClick={() => { if (confirm("Clear the page? (Undo brings it back.)")) { setTyping(null); edit(m.clear); } }} />
-        </span>
-      </div>
+        </span>, actions)}
 
       {/* ---- the tools, down the left (along the bottom on a phone) ---- */}
       <div className="sp-tools" role="toolbar" aria-label="Tools" aria-orientation="vertical" onKeyDown={onToolKey}>
@@ -504,7 +490,8 @@ export function Sketchpad({ handle, onChange, aside }: {
       {/* ---- the status line ---- */}
       <div className="sp-status">
         <span className="sp-status-hint" aria-live="polite">{toolHint}</span>
-        <span className="sp-status-facts">{g ? `${g.rows} × ${g.cols} grid` : "No grid"} · Snap {snapping ? "on" : "off"}</span>
+        <span className="sp-status-facts">{g ? `${g.rows} × ${g.cols} grid` : "No grid"}</span>
+        {snapToggle}
         <span className="sp-zoom" role="group" aria-label="Zoom">
           <IconButton icon="zoomOut" label="Zoom out" tip={`Zoom out (${mod}−)`} onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} />
           <button type="button" className="sp-btn sp-zoom-fit sp-tip" aria-label="Zoom to fit" data-tip={`Fit the page (${mod}0)`} onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
@@ -545,7 +532,6 @@ export function Sketchpad({ handle, onChange, aside }: {
             </div>
           ))}
         </section>
-        {aside && <section className="sp-panel sp-aside">{aside}</section>}
       </aside>
     </div>
   );

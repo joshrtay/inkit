@@ -1,4 +1,5 @@
-// Make a new game: inkit.games/new (optionally ?in=<collection slug>).
+// Make a new game: inkit.games/new. It goes in the creator's profile (or, from a studio's link,
+// ?in=<collection slug>, that studio).
 // Upload a photo of a hand-drawn sketch; Claude reads it into a draft, which the creator then
 // confirms (or fixes) and checks on its edit page. Or draw it here instead (/new/draw: the
 // sketchpad), which sends its picture the same way.
@@ -11,7 +12,6 @@ import { currentCreator } from "~/lib/auth.server";
 import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { GuidePane } from "~/components/GuidePane";
-import { Select } from "~/components/Select";
 import { ReadingScreen } from "~/components/ReadingScreen";
 
 export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
@@ -47,7 +47,7 @@ async function shrink(file: File): Promise<Blob> {
   }
 }
 
-export default function NewGame({ loaderData: { targets, collection, slug }, actionData }: Route.ComponentProps) {
+export default function NewGame({ loaderData: { collection, slug }, actionData }: Route.ComponentProps) {
   const submit = useSubmit();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
@@ -73,8 +73,7 @@ export default function NewGame({ loaderData: { targets, collection, slug }, act
           data.set("image", photo, "sketch.jpg");
           submit(data, { method: "post", encType: "multipart/form-data" });
         }}>
-        <Select name="collection" label="Goes in" defaultValue={collection}
-          options={targets.map((t) => ({ value: t.id, label: t.title, hint: t.personal ? "your profile" : "studio" }))} />
+        <input type="hidden" name="collection" value={collection} />
         <label className="drop">
           {preview ? <img src={preview} alt="Your sketch" /> : <span>Choose or take a photo of the sketch</span>}
           <input type="file" accept="image/*" required

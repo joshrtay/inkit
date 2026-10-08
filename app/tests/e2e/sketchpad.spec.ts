@@ -131,7 +131,11 @@ test("the paint-app chrome: a tool palette with arrow keys and letters, panels, 
   await page.keyboard.press("w");
   await expect(palette.getByRole("button", { name: "Wash", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Green", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Wash colour: Green" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Green", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // each choice has one place: colour and stamps only in the side panel, undo in the header
+  await expect(page.locator(".sp-opts .sp-chip")).toHaveCount(0);
+  await expect(page.locator(".studio-top").getByRole("button", { name: "Undo" })).toBeVisible();
+  await expect(page.getByText("Goes in")).toHaveCount(0);
   await page.getByRole("button", { name: "Crest", exact: true }).click();
   await expect(palette.getByRole("button", { name: "Stamp", exact: true })).toHaveAttribute("aria-pressed", "true");
   // zoom: Cmd/Ctrl + and 0, and the paper grows and comes back
@@ -153,6 +157,6 @@ test("on a phone: the tools along the bottom, Colour and Stamps in a sheet", asy
   await page.getByRole("button", { name: "Colour and stamps" }).click();
   await stone.click();
   await expect(stone).toBeHidden();
-  await expect(page.getByRole("button", { name: "Stamp: Stone" })).toBeVisible();
+  await expect(page.getByRole("toolbar", { name: "Tools" }).getByRole("button", { name: "Stamp", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

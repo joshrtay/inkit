@@ -45,7 +45,7 @@
   .sp-tools .sp-tip[data-tip]:hover::after, .sp-tools .sp-tip[data-tip]:focus-visible::after { top: 50%; left: calc(100% + 8px); transform: translateY(-50%); }
   .sp-status .sp-tip[data-tip]:hover::after, .sp-status .sp-tip[data-tip]:focus-visible::after { top: auto; bottom: calc(100% + 6px); }
   .sp-opts-end .sp-tip[data-tip]:hover::after, .sp-opts-end .sp-tip[data-tip]:focus-visible::after,
-  .sp-zoom .sp-tip:last-child:hover::after { left: auto; right: 0; transform: none; }
+  .sp-zoom .sp-tip:last-child:hover::after, .sp-status .sp-toggle:hover::after, .sp-status .sp-toggle:focus-visible::after { left: auto; right: 0; transform: none; }
   .sp-side .sp-tip[data-tip]:hover::after { top: auto; bottom: calc(100% + 4px); }
 }
 
@@ -88,7 +88,6 @@
 .sp-thumb { width: 32px; padding: 0; background: var(--paper); }
 .sp-thumb:hover:not(:disabled) { background: color-mix(in srgb, var(--paper) 85%, var(--wash-blue)); }
 .sp-thumb .be-icon { width: 24px; height: 24px; }
-.sp-say { font-size: 13px; color: var(--muted); }
 .sp-phone-only, .sp-sheet-head { display: none; }
 
 /* ---- the workspace and the paper on it, fitted to it (Sketchpad sets the width) ---- */
@@ -136,6 +135,10 @@
 }
 .sp-status-hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-status-facts { white-space: nowrap; }
+.sp-status .sp-toggle { height: 26px; font-size: 12.5px; }
+/* undo, redo and clear, in the page's header beside Download */
+.sp-doc-slot, .sp-doc { display: inline-flex; align-items: center; gap: 2px; }
+.sp-doc { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
 .sp-zoom { display: inline-flex; align-items: center; }
 .sp-zoom .sp-btn { height: 28px; min-width: 28px; }
 .sp-zoom .sp-icon { width: 17px; height: 17px; }
@@ -170,9 +173,6 @@
 .sp-stamp:hover { border-color: var(--line-strong); }
 .sp-stamp[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
 .sp-stamp .be-icon { width: 30px; height: 30px; }
-.sp-aside { display: grid; gap: 10px; border-bottom: 0; }
-.sp-aside .select { min-width: 0; }
-.sp-aside .hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 
 .sp-error {
   position: fixed; z-index: 20; top: 64px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
@@ -189,6 +189,11 @@
 /* ---- a phone: the paper on top; under it the status, the options and the tools; a sheet for the rest ---- */
 @media (max-width: 720px) {
   .sp-title { display: none; }
+  .sp-studio .studio-top { gap: 6px; padding-left: 4px; padding-right: 8px; }
+  .sp-studio .studio-left { flex: none; margin-right: 6px; }
+  .sp-studio .studio-actions { gap: 6px; min-width: 0; }
+  .sp-studio .studio-actions .btn { white-space: nowrap; padding: 0 10px; font-size: 14px; }
+  .sp-doc { padding-right: 4px; margin-right: 0; }
   .sp-work {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto auto auto;
@@ -199,7 +204,7 @@
   .sp-status-facts { display: none; }
   .sp-status-hint { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; padding: 3px 0; }
   .sp-opts { min-height: 46px; padding: 6px 8px; gap: 8px; border-bottom: 0; border-top: 1px solid var(--line); }
-  .sp-opts-tool, .sp-opts-sep, .sp-say { display: none; }
+  .sp-opts-tool, .sp-opts-sep { display: none; }
   .sp-opts-body { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; }
   .sp-opts-body::-webkit-scrollbar { display: none; }
   .sp-opts-body > * { flex: none; }

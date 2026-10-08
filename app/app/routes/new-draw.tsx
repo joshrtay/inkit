@@ -1,4 +1,5 @@
-// Draw a new game here instead of on paper: inkit.games/new/draw (optionally ?in=<collection slug>).
+// Draw a new game here instead of on paper: inkit.games/new/draw. It goes in the creator's profile
+// (or, from a studio's link, ?in=<collection slug>, that studio).
 // The sketchpad (components/Sketchpad.tsx) makes a picture of the drawing, which goes to the
 // reader exactly as a photo does on /new: Claude reads it into a draft, then the editor.
 import { useRef, useState } from "react";
@@ -9,7 +10,6 @@ import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
-import { Select } from "~/components/Select";
 import { ReadingScreen } from "~/components/ReadingScreen";
 import { Sketchpad, type SketchpadHandle } from "~/components/Sketchpad";
 
@@ -17,7 +17,7 @@ export const meta: Route.MetaFunction = () => [{ title: "Draw a puzzle · inkit"
 // a page of its own, like the editor: the whole width for the paper
 export const handle = { bare: true };
 
-// as /new's: where it can go, and making the game from the picture
+// as /new's: where it goes, and making the game from the picture
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const me = await currentCreator(env, request);
@@ -35,13 +35,13 @@ export async function action({ request, context }: Route.ActionArgs) {
   return attempt(async () => redirect(`/g/${await createFromDrawing(getDb(env), env, me, form)}/edit`));
 }
 
-export default function DrawGame({ loaderData: { targets, collection, slug }, actionData }: Route.ComponentProps) {
+export default function DrawGame({ loaderData: { collection, slug }, actionData }: Route.ComponentProps) {
   const submit = useSubmit();
   const nav = useNavigation();
   const busy = nav.state !== "idle";
   const reading = nav.state === "submitting" || (nav.state === "loading" && !!nav.formData);
   const pad = useRef<SketchpadHandle | null>(null);
-  const [into, setInto] = useState(collection);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);   // the header's place for undo, redo and clear
   const [empty, setEmpty] = useState(true);
   const [preview, setPreview] = useState<string>();
   const [problem, setProblem] = useState<string>();
@@ -63,10 +63,10 @@ export default function DrawGame({ loaderData: { targets, collection, slug }, ac
   };
   const read = async () => {
     const png = await picture();
-    if (!png || !into) return;
+    if (!png || !collection) return;
     setPreview(URL.createObjectURL(png));
     const data = new FormData();
-    data.set("collection", into);
+    data.set("collection", collection);
     data.set("image", png, "sketch.png");
     submit(data, { method: "post", encType: "multipart/form-data" });
   };
@@ -79,15 +79,12 @@ export default function DrawGame({ loaderData: { targets, collection, slug }, ac
           <strong className="sp-title">Draw a puzzle</strong>
         </div>
         <div className="studio-actions">
+          <span ref={setSlot} className="sp-doc-slot" />
           <button type="button" className="btn" disabled={empty} onClick={download} title="Save the drawing as a picture">Download</button>
-          <button type="button" className="btn primary" disabled={empty || busy || !into} onClick={read}>Read my drawing</button>
+          <button type="button" className="btn primary" disabled={empty || busy || !collection} onClick={read} title="Claude reads the drawing as it would a photo; then you check it in the editor">Read my drawing</button>
         </div>
       </header>
-      <Sketchpad handle={pad} onChange={(d) => setEmpty(!d.grid && !d.items.length)} aside={<>
-        <Select name="collection" label="Goes in" defaultValue={collection} onChange={(v) => { setInto(v); }}
-          options={targets.map((t) => ({ value: t.id, label: t.title, hint: t.personal ? "your profile" : "studio" }))} />
-        <p className="hint">Claude reads your drawing as it would a photo: then you check it in the editor. Writing the puzzle's type at the top helps.</p>
-      </>} />
+      <Sketchpad handle={pad} onChange={(d) => setEmpty(!d.grid && !d.items.length)} actions={slot} />
       {error && <p className="sp-error" role="alert">{error}</p>}
       {reading && <ReadingScreen image={preview} />}
     </div>
