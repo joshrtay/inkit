@@ -106,7 +106,7 @@ const brushY = (x: number, y: number, r: number) => [-90, 30, 150].map((deg) => 
 /** A Kinship tile (rules.ts tileOf): its shape is a stone, a crest or a triangle, its wash the colour. */
 export function tileSvg(tile: { kind: string; color: string }, cx: number, cy: number, S: number): string {
   const kind = tile.kind === "stone" ? "square" : tile.kind === "crest" ? "star" : "triangle";
-  return tag("g", { class: `tile ${tile.kind} ${tile.color}` }, symbolSvg({ kind, color: tile.color, value: 1 }, cx, cy, kind === "triangle" ? S * 1.35 : S));
+  return tag("g", { class: `tile ${tile.kind} ${tile.color}` }, symbolSvg({ kind, color: tile.color, value: 1 }, cx, cy, kind === "triangle" ? S * 2.2 : S));
 }
 
 export function symbolSvg(x: { kind: string; color?: string; value?: unknown; rotate?: boolean; negative?: boolean }, cx: number, cy: number, S: number): string {

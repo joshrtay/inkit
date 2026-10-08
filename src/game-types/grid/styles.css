@@ -41,6 +41,10 @@
 
 /* marks: pen lines, a watercolor river, shaded washes, stained-glass lead */
 .grid-game .wash { filter: var(--wash); }
+/* Kinship's pad: tiles in their own little pictures, where the board's wash filter doesn't reach */
+.grid-game .pad .wash { filter: none; }
+.grid-game .pad .num svg { display: block; }
+.grid-game .pad .tile .stone-line { fill: none; stroke-width: var(--pen-medium); }
 .grid-game .shaded { fill: color-mix(in srgb, var(--paper-ink) 78%, #fff); }
 .grid-game .pen { stroke: var(--paper-ink); stroke-width: var(--pen-bold); stroke-linecap: round; }
 .grid-game .river { stroke: var(--wash-blue); stroke-width: var(--wash-stroke); stroke-linecap: round; }
