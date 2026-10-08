@@ -4,29 +4,39 @@
 // it undoes and erases a piece at a time; draw.ts draws it, export.ts makes the picture.
 //
 // The tools, general to specific: a grid (drag a rectangle; then its rows and columns), the pen
-// (freehand; Shift for a straight line), straight lines, wash, stamps (the real stones and symbols),
-// writing, and the eraser. The grid is a magnet: with Snap on, line ends go to its corners, stamps
-// to its squares or points, washes fill whole squares. Mouse, pen and touch (pointer events).
-import { useEffect, useMemo, useRef, useState } from "react";
+// (freehand; Shift or the straight-line lock for a straight line), straight lines, wash, stamps (the
+// real stones and symbols), writing, and the eraser. The grid is a magnet: with Snap on, line ends go
+// to its corners, stamps to its squares or points, washes fill whole squares. Mouse, pen and touch
+// (pointer events).
+//
+// The chrome is a paint app's: the tools in a strip on the left (a bottom bar on a phone), the
+// chosen tool's options along the top, the paper on a workspace in the middle (fitted to it, and
+// zoomed with Cmd/Ctrl + − 0), a status line under it, and Colour and Stamps panels on the right
+// (a bottom sheet on a phone).
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { addInk } from "~site/lib/ink.ts";
 import * as m from "~/sketchpad/model";
 import { gridSvg, itemSvg, stampSvg } from "~/sketchpad/draw";
 import { exportPng } from "~/sketchpad/export";
 import { SHAPES, turnShape, type RC } from "~/editor/ops";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
+import { SpIcon, type SpIconName } from "./SketchpadIcons";
 import "~site/game-types/grid/styles.css";
 
 type Tool = "grid" | "pen" | "line" | "wash" | "stamp" | "text" | "erase";
-const TOOLS: { id: Tool; label: string; key: string; hint: string }[] = [
-  { id: "grid", label: "Grid", key: "g", hint: "Drag a rectangle for a grid; drag the grid to move it, its corner to resize it" },
-  { id: "pen", label: "Pen", key: "p", hint: "Draw freehand (hold Shift for a straight line)" },
-  { id: "line", label: "Line", key: "l", hint: "Drag a straight line; it keeps level or upright near the axes" },
-  { id: "wash", label: "Wash", key: "w", hint: "Tap or drag across squares to wash them (again to clear); brush off the grid" },
-  { id: "stamp", label: "Stamp", key: "s", hint: "Pick a stamp, then tap where it goes (again to take it off)" },
-  { id: "text", label: "Text", key: "t", hint: "Tap a square and type a number or letter (Enter to finish, arrows to move on)" },
-  { id: "erase", label: "Eraser", key: "e", hint: "Tap or drag over anything to rub it out" },
+/** The tools, in the palette's groups (a thin line between groups). */
+const TOOLS: { id: Tool; label: string; key: string; hint: string; group: number }[] = [
+  { id: "grid", label: "Grid", key: "g", group: 0, hint: "Drag a rectangle for a grid; drag the grid to move it, its corner to resize it" },
+  { id: "pen", label: "Pen", key: "p", group: 1, hint: "Draw freehand (hold Shift for a straight line)" },
+  { id: "line", label: "Line", key: "l", group: 1, hint: "Drag a straight line; it keeps level or upright near the axes" },
+  { id: "wash", label: "Wash", key: "w", group: 2, hint: "Tap or drag across squares to wash them (again to clear); brush off the grid" },
+  { id: "stamp", label: "Stamp", key: "s", group: 2, hint: "Tap where the stamp goes (again to take it off)" },
+  { id: "text", label: "Text", key: "t", group: 2, hint: "Tap a square and type a number or letter (Enter to finish, arrows to move on)" },
+  { id: "erase", label: "Eraser", key: "e", group: 3, hint: "Tap or drag over anything to rub it out" },
 ];
-const WEIGHTS: { id: Weight; label: string }[] = [{ id: "fine", label: "Fine" }, { id: "medium", label: "Medium" }, { id: "bold", label: "Bold" }];
+/** The pen's weights, with the board's widths (docs/style.md) for the buttons' previews. */
+const WEIGHTS: { id: Weight; label: string; width: number }[] = [
+  { id: "fine", label: "Fine", width: 1.6 }, { id: "medium", label: "Medium", width: 2.6 }, { id: "bold", label: "Bold", width: 5.5 }];
 /** The stamps, grouped for the picker. */
 const STAMP_GROUPS: { name: string; stamps: { id: StampKind; label: string }[] }[] = [
   { name: "Stones", stamps: [{ id: "stone", label: "Stone" }] },
@@ -34,11 +44,18 @@ const STAMP_GROUPS: { name: string; stamps: { id: StampKind; label: string }[] }
   { name: "Panel symbols", stamps: [{ id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
     { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" }] },
 ];
+const STAMP_LABEL = Object.fromEntries(STAMP_GROUPS.flatMap((g) => g.stamps.map((s) => [s.id, s.label]))) as Record<StampKind, string>;
 const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape"]);
+/** The colour panel: the watercolours, then the two stones' colours. */
+const PALETTE = [...m.WASHES, "black", "white"] as const;
+type Colour = typeof PALETTE[number];
+const paint = (c: Colour) => (c === "black" ? "var(--sumi)" : c === "white" ? "var(--shell)" : `var(--wash-${c})`);
 const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
 const SAVED = "inkit:sketchpad";
 const WASH_SCALE = 400;
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+/** Zoom, as a multiple of fitting the paper to the workspace. */
+const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
 
 /** A stamp drawn small, for a button. */
 const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
@@ -46,6 +63,16 @@ const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
 );
 /** The square a stamp's button draws it in (a shaded square fills it; the rest sit in it). */
 const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48 };
+
+/** A chrome button with an icon, its name for screen readers, and a tooltip (name and shortcut). */
+function IconButton({ icon, label, tip, pressed, className = "", ...rest }: {
+  icon: SpIconName; label: string; tip?: string; pressed?: boolean; className?: string;
+} & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className">) {
+  return (
+    <button type="button" className={`sp-btn sp-tip ${className}`} aria-label={label} data-tip={tip ?? label}
+      aria-pressed={pressed} {...rest}><SpIcon name={icon} /></button>
+  );
+}
 
 /** What the pointer is doing, from pointer-down to up (one undo step). */
 type Gesture =
@@ -65,11 +92,13 @@ export interface SketchpadHandle {
   empty: boolean;
 }
 
-export function Sketchpad({ handle, onChange }: {
+export function Sketchpad({ handle, onChange, aside }: {
   /** set to the sketchpad's exporter (the page's Download and Read buttons use it) */
   handle: React.MutableRefObject<SketchpadHandle | null>;
   /** after every change */
   onChange?: (d: Drawing) => void;
+  /** more for the side panel, under Colour and Stamps (the page's "Goes in") */
+  aside?: React.ReactNode;
 }) {
   const [history, setHistory] = useState(() => m.start());
   const [draft, setDraft] = useState<Drawing | null>(null);   // the drawing during a gesture
@@ -85,6 +114,13 @@ export function Sketchpad({ handle, onChange }: {
   const [hover, setHover] = useState<XY | null>(null);
   const [typing, setTyping] = useState<{ at: Anchor; value: string } | null>(null);
   const [preview, setPreview] = useState<Grid | null>(null);   // a grid being dragged out
+  const [straight, setStraight] = useState(false);   // the pen draws straight lines, as with Shift
+  const [zoom, setZoom] = useState(1);
+  const [fit, setFit] = useState<number | null>(null);   // the paper's width that fits the workspace
+  const [sheet, setSheet] = useState(false);   // the side panel, open as a sheet (phones)
+  const [mod, setMod] = useState("Ctrl+");
+  const toolButtons = useRef<(HTMLButtonElement | null)[]>([]);
+  const side = useRef<HTMLElement>(null);
   const svg = useRef<SVGSVGElement>(null);
   const defs = useRef<SVGSVGElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -104,6 +140,15 @@ export function Sketchpad({ handle, onChange }: {
   // the watercolour filter (in a hidden SVG of its own, so React's never has to make room for
   // it); and the drawing from last time
   useEffect(() => { if (defs.current && root.current) addInk(defs.current, root.current); }, []);
+  useEffect(() => { if (/Mac|iPhone|iPad/.test(navigator.platform)) setMod("⌘"); }, []);
+  // the paper fits the workspace (zoom 1), whatever the window's size
+  useEffect(() => {
+    const el = root.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setFit(Math.max(220, Math.floor(Math.min(el.clientWidth, el.clientHeight) - 40))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     try { const saved = m.revive(JSON.parse(localStorage.getItem(SAVED) ?? "null")); if (saved) setHistory(m.start(saved)); } catch { /* nothing saved */ }
@@ -125,6 +170,7 @@ export function Sketchpad({ handle, onChange }: {
   const change = (next: Drawing) => setHistory((h) => m.commit(h, next));
   /** A change made to the drawing as it is when it lands (not as this render saw it). */
   const edit = (f: (d: Drawing) => Drawing) => setHistory((h) => m.commit(h, f(h.now)));
+  const zoomBy = (step: 1 | -1) => setZoom((z) => ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(z) + step))] ?? 1);
   const undo = () => { setTyping(null); setHistory(m.undo); };
   const redo = () => { setTyping(null); setHistory(m.redo); };
 
@@ -136,9 +182,13 @@ export function Sketchpad({ handle, onChange }: {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); (e.shiftKey ? redo : undo)(); return; }
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
+      if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomBy(1); return; }
+      if (mod && (e.key === "-" || e.key === "_")) { e.preventDefault(); zoomBy(-1); return; }
+      if (mod && e.key === "0") { e.preventDefault(); setZoom(1); return; }
+      if (e.key === "Escape") { setSheet(false); return; }
       if (mod || e.altKey) return;
       const to = TOOLS.find((x) => x.key === e.key.toLowerCase());
-      if (to) setTool(to.id);
+      if (to) { setTool(to.id); setTyping(null); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -167,7 +217,7 @@ export function Sketchpad({ handle, onChange }: {
         else begin({ kind: "grid-new", from: p });
         break;
       case "pen":
-        if (e.shiftKey) begin({ kind: "line", from: p });
+        if (e.shiftKey || straight) begin({ kind: "line", from: p });
         else { begin({ kind: "pen", points: [p] }); show(m.add(base, { kind: "pen", weight, points: m.penStroke(bg, [p], false) })); }
         break;
       case "line": begin({ kind: "line", from: p }); break;
@@ -292,84 +342,127 @@ export function Sketchpad({ handle, onChange }: {
     return "";
   })();
   const toolHint = TOOLS.find((x) => x.id === tool)!.hint;
+  const toolLabel = TOOLS.find((x) => x.id === tool)!.label;
+
+  // ---- colour: the chosen stamp's, if it has one and the stamp tool's out; else the wash's ----
+  const forStamp = tool === "stamp" && COLORED.has(stampKind);
+  const colour: Colour = forStamp ? (colors[stampKind] ?? "black") : wash;
+  const colourFor = forStamp ? `${STAMP_LABEL[stampKind]} colour` : "Wash colour";
+  const allowed = (c: Colour) => (forStamp ? c !== "pink" && (stampKind === "stone" || c !== "black") : (m.WASHES as readonly string[]).includes(c));
+  const pickColour = (c: Colour) => { if (forStamp) setColors({ ...colors, [stampKind]: c as SymbolColor }); else setWash(c as WashColor); };
+
+  // ---- the side panel: always there on a wide screen, a bottom sheet on a phone ----
+  const phone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
+  /** Go to a panel's current choice (opening the sheet first on a phone). */
+  const openSide = (panel: "colour" | "stamps") => {
+    if (phone()) setSheet(true);
+    setTimeout(() => side.current?.querySelector<HTMLElement>(`#sp-${panel} [aria-pressed="true"]`)?.focus(), 60);
+  };
+  const pickStamp = (k: StampKind) => { setStampKind(k); setTool("stamp"); setTyping(null); if (phone()) setSheet(false); };
+
+  // ---- the tool palette: a toolbar, arrows move along it ----
+  const onToolKey = (e: React.KeyboardEvent) => {
+    const k = toolButtons.current.findIndex((b) => b === document.activeElement), n = TOOLS.length;
+    if (k < 0) return;
+    const to = e.key === "ArrowDown" || e.key === "ArrowRight" ? (k + 1) % n : e.key === "ArrowUp" || e.key === "ArrowLeft" ? (k + n - 1) % n
+      : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    toolButtons.current[to]?.focus();
+  };
+  const shift = mod === "⌘" ? "⇧⌘" : "Ctrl+Shift+";
+
+  const snapToggle = (
+    <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={snapping} onClick={() => setSnapping(!snapping)}
+      data-tip="Snap to the grid: line ends to its corners, stamps to its squares and points, washes fill squares"><SpIcon name="magnet" /><span>Snap</span></button>
+  );
+  const stepper = (name: string, value: number, set: (n: number) => void) => (
+    <span className="sp-field"><span className="sp-label">{name}</span>
+      <span className="sp-stepper">
+        <button type="button" className="sp-btn" onClick={() => set(value - 1)} aria-label={`Fewer ${name.toLowerCase()}`}>−</button>
+        <output aria-label={name}>{value}</output>
+        <button type="button" className="sp-btn" onClick={() => set(value + 1)} aria-label={`More ${name.toLowerCase()}`}>+</button>
+      </span>
+    </span>
+  );
 
   return (
-    <>
-      <div className="studio-tools sp-tools">
-        <div className="be-tools">
-          <span className="be-group be-seg" role="group" aria-label="Tool">
-            {TOOLS.map((x) => <button key={x.id} type="button" className="be-btn" aria-pressed={tool === x.id} title={`${x.hint} (${x.key.toUpperCase()})`}
-              onClick={() => { setTool(x.id); setTyping(null); }}>{x.label}</button>)}
-          </span>
-          <span className="tool-sep" aria-hidden="true" />
-          <span className="be-group">
-            <button type="button" className="be-btn" aria-pressed={snapping} onClick={() => setSnapping(!snapping)}
-              title="Line ends go to the grid's corners, stamps to its squares and points, washes fill squares">Snap</button>
-            <button type="button" className="be-btn" onClick={undo} disabled={!history.past.length} title="Undo (⌘Z)">Undo</button>
-            <button type="button" className="be-btn" onClick={redo} disabled={!history.future.length} title="Redo (⇧⌘Z)">Redo</button>
-            <button type="button" className="be-btn" disabled={!history.now.items.length && !history.now.grid}
-              onClick={() => { if (confirm("Clear the page? (Undo brings it back.)")) { setTyping(null); edit(m.clear); } }}>Clear</button>
-          </span>
-        </div>
-        {/* the tool's own choices, on a line of their own so the page doesn't jump when the tool changes */}
-        <div className="be-tools sp-options">
+    <div className="sp-work">
+      {/* ---- the chosen tool's options, along the top ---- */}
+      <div className="sp-opts" role="group" aria-label={`${toolLabel} options`}>
+        <span className="sp-opts-tool" aria-hidden="true"><SpIcon name={tool} />{toolLabel}</span>
+        <span className="sp-opts-sep" aria-hidden="true" />
+        <span className="sp-opts-body">
           {tool === "grid" && (g ? <>
-            <span className="be-group be-size">Rows <button type="button" className="be-btn" onClick={() => resize(g.rows - 1, g.cols)} aria-label="Fewer rows">−</button><b>{g.rows}</b><button type="button" className="be-btn" onClick={() => resize(g.rows + 1, g.cols)} aria-label="More rows">+</button></span>
-            <span className="be-group be-size">Columns <button type="button" className="be-btn" onClick={() => resize(g.rows, g.cols - 1)} aria-label="Fewer columns">−</button><b>{g.cols}</b><button type="button" className="be-btn" onClick={() => resize(g.rows, g.cols + 1)} aria-label="More columns">+</button></span>
-            <button type="button" className="be-btn" onClick={() => edit(m.removeGrid)} title="Take the grid away (what's drawn stays)">Remove grid</button>
-          </> : <button type="button" className="be-btn" onClick={addGrid} title="A 6 × 6 grid in the middle of the page (or drag one out)">Add a grid</button>)}
+            {stepper("Rows", g.rows, (n) => resize(n, g.cols))}
+            {stepper("Columns", g.cols, (n) => resize(g.rows, n))}
+            <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
+          </> : <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the page (or drag one out)">Add a grid</button>)}
 
           {(tool === "pen" || tool === "line") && (
-            <span className="be-group be-seg" role="group" aria-label="Pen">
-              {WEIGHTS.map((w) => <button key={w.id} type="button" className="be-btn" aria-pressed={weight === w.id} onClick={() => setWeight(w.id)}>{w.label}</button>)}
-            </span>
-          )}
-
-          {tool === "wash" && (
-            <span className="be-group be-swatches" role="group" aria-label="Wash color">
-              {m.WASHES.map((c) => <button key={c} type="button" className="be-swatch" aria-pressed={wash === c} aria-label={capital(c)} title={capital(c)} onClick={() => setWash(c)}>
-                <span className="sp-swatch" style={{ background: `var(--wash-${c})` }} />
+            <span className="sp-seg" role="group" aria-label="Pen weight">
+              {WEIGHTS.map((w) => <button key={w.id} type="button" className="sp-btn sp-weight sp-tip" aria-label={w.label} data-tip={`${w.label} pen`} aria-pressed={weight === w.id} onClick={() => setWeight(w.id)}>
+                <svg viewBox="0 0 30 14" aria-hidden="true"><line x1="4" y1="7" x2="26" y2="7" style={{ strokeWidth: w.width }} /></svg>
               </button>)}
             </span>
           )}
+          {tool === "pen" && (
+            <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
+              <SpIcon name="straight" /><span>Straight</span></button>
+          )}
+
+          {tool === "wash" && (
+            <button type="button" className="sp-btn sp-chip sp-tip" onClick={() => openSide("colour")} aria-label={`Wash colour: ${capital(wash)}`} data-tip="Wash colour">
+              <span className="sp-dot" style={{ background: paint(wash) }} /><span>{capital(wash)}</span></button>
+          )}
 
           {tool === "stamp" && <>
-            {STAMP_GROUPS.map((grp) => (
-              <span key={grp.name} className="be-group be-swatches" role="group" aria-label={grp.name}>
-                {grp.stamps.map((s) => <button key={s.id} type="button" className="be-swatch" aria-pressed={stampKind === s.id} aria-label={s.label} title={s.label} onClick={() => setStampKind(s.id)}>
-                  <StampIcon s={{ stamp: s.id, color: colors[s.id], ...(s.id === "triangle" ? { count: 1 } : {}), ...(s.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
-                </button>)}
-              </span>
-            ))}
-            {COLORED.has(stampKind) && <>
-              <span className="tool-sep" aria-hidden="true" />
-              <span className="be-group be-swatches" role="group" aria-label={`${capital(stampKind)} color`}>
-                {m.SYMBOL_COLORS.filter((c) => stampKind === "stone" || c !== "black").map((c) => (
-                  <button key={c} type="button" className="be-swatch" aria-pressed={colors[stampKind] === c} aria-label={capital(c)} title={capital(c)} onClick={() => setColors({ ...colors, [stampKind]: c })}>
-                    <StampIcon s={{ stamp: "stone", color: c }} />
-                  </button>))}
-              </span>
-            </>}
+            <button type="button" className="sp-btn sp-chip sp-tip" onClick={() => openSide("stamps")} aria-label={`Stamp: ${STAMP_LABEL[stampKind]}`} data-tip="Choose a stamp">
+              <StampIcon s={{ stamp: stampKind, color: colors[stampKind], ...(stampKind === "triangle" ? { count } : {}), ...(stampKind === "shape" ? { cells } : {}) }} />
+              <span>{STAMP_LABEL[stampKind]}</span></button>
+            {COLORED.has(stampKind) && (
+              <button type="button" className="sp-btn sp-chip sp-tip" onClick={() => openSide("colour")} aria-label={`${colourFor}: ${capital(colour)}`} data-tip={colourFor}>
+                <span className="sp-dot" style={{ background: paint(colour) }} /><span>{capital(colour)}</span></button>
+            )}
             {stampKind === "triangle" && (
-              <span className="be-group be-seg" role="group" aria-label="How many">
-                {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}
+              <span className="sp-seg" role="group" aria-label="How many">
+                {[1, 2, 3].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}
               </span>
             )}
-            {stampKind === "shape" && (
-              <span className="be-group be-shapes" role="group" aria-label="Shape">
-                {SHAPES.map((x, k) => <button key={x.name} type="button" className="be-swatch" aria-pressed={shapeAt === k} aria-label={x.name} title={x.name}
+            {stampKind === "shape" && <>
+              <span className="sp-shapes" role="group" aria-label="Shape">
+                {SHAPES.map((x, k) => <button key={x.name} type="button" className="sp-btn sp-thumb sp-tip" aria-pressed={shapeAt === k} aria-label={x.name} data-tip={x.name}
                   onClick={() => { setShapeAt(k); setTurns(0); }}><StampIcon s={{ stamp: "shape", cells: x.cells, color: colors.shape }} /></button>)}
-                <button type="button" className="be-btn be-turn" onClick={() => setTurns((turns + 1) % 4)} title="Turn the shape a quarter turn">
-                  <StampIcon s={{ stamp: "shape", cells, color: colors.shape }} />↻</button>
               </span>
-            )}
+              <button type="button" className="sp-btn sp-toggle sp-tip" onClick={() => setTurns((turns + 1) % 4)} data-tip="Turn the shape a quarter turn" aria-label="Turn the shape">
+                <SpIcon name="rotate" /><StampIcon s={{ stamp: "shape", cells, color: colors.shape }} /></button>
+            </>}
           </>}
+          {tool !== "erase" && snapToggle}
           {(tool === "text" || tool === "erase") && <span className="sp-say">{toolHint}</span>}
-        </div>
+        </span>
+        <span className="sp-opts-end">
+          <IconButton icon="palette" label="Colour and stamps" className="sp-phone-only" onClick={() => setSheet(true)} />
+          <IconButton icon="undo" label="Undo" tip={`Undo (${mod}Z)`} onClick={undo} disabled={!history.past.length} />
+          <IconButton icon="redo" label="Redo" tip={`Redo (${shift}Z)`} onClick={redo} disabled={!history.future.length} />
+          <IconButton icon="clear" label="Clear" tip="Clear the page" disabled={!history.now.items.length && !history.now.grid}
+            onClick={() => { if (confirm("Clear the page? (Undo brings it back.)")) { setTyping(null); edit(m.clear); } }} />
+        </span>
       </div>
 
-      <div className="grid-game sketchpad" ref={root}>
-        <div className={`sp-paper tool-${tool}`}>
+      {/* ---- the tools, down the left (along the bottom on a phone) ---- */}
+      <div className="sp-tools" role="toolbar" aria-label="Tools" aria-orientation="vertical" onKeyDown={onToolKey}>
+        {TOOLS.map((x, k) => <Fragment key={x.id}>
+          {k > 0 && TOOLS[k - 1].group !== x.group && <span className="sp-sep" aria-hidden="true" />}
+          <button ref={(el) => { toolButtons.current[k] = el; }} type="button" className="sp-btn sp-tool sp-tip" aria-label={x.label}
+            aria-keyshortcuts={x.key.toUpperCase()} aria-pressed={tool === x.id} tabIndex={tool === x.id ? 0 : -1} data-tip={`${x.label} (${x.key.toUpperCase()})`}
+            onClick={() => { setTool(x.id); setTyping(null); }}><SpIcon name={x.id} /></button>
+        </Fragment>)}
+      </div>
+
+      {/* ---- the paper, on the workspace ---- */}
+      <div className="grid-game sketchpad sp-canvas" ref={root}>
+        <div className={`sp-paper tool-${tool}`} style={fit ? { width: Math.round(fit * zoom) } : undefined}>
           {/* the wash filter, made for a board about WASH_SCALE units across (a 7 × 7 board's), so a
               stamp's watercolour comes out as it does on the board */}
           <svg className="sp-defs" viewBox={`0 0 ${WASH_SCALE} ${WASH_SCALE}`} ref={defs} aria-hidden="true" />
@@ -406,8 +499,54 @@ export function Sketchpad({ handle, onChange }: {
               }} />
           )}
         </div>
-        {tool !== "text" && tool !== "erase" && <p className="hint sp-hint" aria-live="polite">{toolHint}</p>}
       </div>
-    </>
+
+      {/* ---- the status line ---- */}
+      <div className="sp-status">
+        <span className="sp-status-hint" aria-live="polite">{toolHint}</span>
+        <span className="sp-status-facts">{g ? `${g.rows} × ${g.cols} grid` : "No grid"} · Snap {snapping ? "on" : "off"}</span>
+        <span className="sp-zoom" role="group" aria-label="Zoom">
+          <IconButton icon="zoomOut" label="Zoom out" tip={`Zoom out (${mod}−)`} onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} />
+          <button type="button" className="sp-btn sp-zoom-fit sp-tip" aria-label="Zoom to fit" data-tip={`Fit the page (${mod}0)`} onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
+          <IconButton icon="zoomIn" label="Zoom in" tip={`Zoom in (${mod}+)`} onClick={() => zoomBy(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} />
+        </span>
+      </div>
+
+      {/* ---- Colour and Stamps, on the right (a bottom sheet on a phone) ---- */}
+      {sheet && <div className="sp-scrim" aria-hidden="true" onClick={() => setSheet(false)} />}
+      <aside ref={side} className={`sp-side${sheet ? " open" : ""}`} aria-label="Colour and stamps">
+        <div className="sp-sheet-head">
+          <strong>Colour and stamps</strong>
+          <IconButton icon="close" label="Close" onClick={() => setSheet(false)} />
+        </div>
+        <section id="sp-colour" className="sp-panel" aria-labelledby="sp-colour-h">
+          <h2 id="sp-colour-h" className="sp-panel-h">Colour</h2>
+          <div className="sp-current">
+            <span className="sp-fg" style={{ background: paint(colour) }} aria-hidden="true" />
+            <span className="sp-current-text"><span>{colourFor}</span><b>{capital(colour)}</b></span>
+          </div>
+          <div className="sp-swatches" role="group" aria-label={colourFor}>
+            {PALETTE.map((c) => <button key={c} type="button" className="sp-swatch sp-tip" aria-label={capital(c)} data-tip={capital(c)}
+              aria-pressed={colour === c} disabled={!allowed(c)} onClick={() => { pickColour(c); if (phone()) setSheet(false); }}>
+              <span style={{ background: paint(c) }} /></button>)}
+          </div>
+        </section>
+        <section id="sp-stamps" className="sp-panel" aria-labelledby="sp-stamps-h">
+          <h2 id="sp-stamps-h" className="sp-panel-h">Stamps</h2>
+          {STAMP_GROUPS.map((grp) => (
+            <div key={grp.name} className="sp-stamp-group" role="group" aria-label={grp.name}>
+              <h3 aria-hidden="true">{grp.name}</h3>
+              <div className="sp-stamps">
+                {grp.stamps.map((st) => <button key={st.id} type="button" className="sp-stamp sp-tip" aria-label={st.label} data-tip={st.label}
+                  aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
+                  <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
+                </button>)}
+              </div>
+            </div>
+          ))}
+        </section>
+        {aside && <section className="sp-panel sp-aside">{aside}</section>}
+      </aside>
+    </div>
   );
 }

@@ -1,18 +1,106 @@
-/* The sketchpad (/new/draw: components/Sketchpad.tsx): a sheet of puzzle paper to draw a puzzle on,
-   under the editor's top bar and toolbar (editor.css: .studio-*, .be-*). The drawing is in the
-   boards' look: the pen weights and washes come from .grid-game (styles.css), the pen wobble from
-   root.tsx's #pen. The paper stays paper in the dark theme. */
+/* The sketchpad (/new/draw: components/Sketchpad.tsx), laid out like a paint app: the editor's top
+   bar (editor.css: .studio-*), then the chosen tool's options along the top, the tools down the left,
+   the paper on a workspace in the middle with a status line under it, and Colour and Stamps on the
+   right. On a phone: the paper, the status line, the options and the tools stacked up from the
+   bottom, and Colour and Stamps in a bottom sheet. The chrome is the site's (tokens in global.css);
+   the drawing is in the boards' look: the pen weights and washes from .grid-game (styles.css), the
+   pen wobble from root.tsx's #pen. The paper stays paper in the dark theme. */
 
-/* one column, never wider than the screen (the toolbar scrolls sideways on a phone instead) */
-.sp-studio { grid-template-columns: minmax(0, 1fr); }
+/* ---- the page: the top bar, then the workspace filling the rest of the screen ---- */
+.studio.sp-studio { display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow: hidden; }
+.sp-studio .studio-top { position: static; flex: none; border-bottom: 1px solid var(--line); }
 .sp-title { font: 800 17px/1 var(--display); }
-.sp-main { display: grid; justify-items: center; gap: 14px; padding: 14px 16px 80px; }
-.sketchpad { display: grid; width: 100%; justify-items: center; padding: 20px 16px 0; }
-/* as big as the screen allows under the top bar and toolbar, and never wider than the page */
+.sp-studio {
+  --sp-workspace: color-mix(in srgb, var(--line) 45%, var(--bg));
+  --sp-hover: color-mix(in srgb, var(--ink) 9%, transparent);
+  --sp-on: color-mix(in srgb, var(--ink) 16%, var(--panel));
+}
+.sp-work {
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 264px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "opts opts opts" "tools canvas side" "tools status side";
+}
+
+/* ---- buttons in the chrome ---- */
+.sp-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px;
+  font: 600 13px/1 var(--body); color: var(--ink); background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+}
+.sp-btn:hover:not(:disabled) { background: var(--sp-hover); }
+.sp-btn[aria-pressed="true"] { background: var(--sp-on); border-color: color-mix(in srgb, var(--ink) 45%, transparent); }
+.sp-btn:disabled { opacity: .38; cursor: default; }
+.sp-btn:focus-visible, .sp-swatch:focus-visible, .sp-stamp:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.sp-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.sp-btn[aria-pressed="true"] .sp-icon { stroke-width: 2.1; }
+
+/* tooltips: the button's name and shortcut (the accessible name stays its aria-label) */
+@media (hover: hover) {
+  .sp-tip { position: relative; }
+  .sp-tip[data-tip]:hover::after, .sp-tip[data-tip]:focus-visible::after {
+    content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+    padding: 5px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+    font: 600 12px/1.2 var(--body); color: var(--panel); background: var(--ink); box-shadow: 0 4px 12px var(--shadow);
+  }
+  .sp-tools .sp-tip[data-tip]:hover::after, .sp-tools .sp-tip[data-tip]:focus-visible::after { top: 50%; left: calc(100% + 8px); transform: translateY(-50%); }
+  .sp-status .sp-tip[data-tip]:hover::after, .sp-status .sp-tip[data-tip]:focus-visible::after { top: auto; bottom: calc(100% + 6px); }
+  .sp-opts-end .sp-tip[data-tip]:hover::after, .sp-opts-end .sp-tip[data-tip]:focus-visible::after,
+  .sp-zoom .sp-tip:last-child:hover::after { left: auto; right: 0; transform: none; }
+  .sp-side .sp-tip[data-tip]:hover::after { top: auto; bottom: calc(100% + 4px); }
+}
+
+/* ---- the tool palette ---- */
+.sp-tools {
+  grid-area: tools; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 7px;
+  background: var(--panel); border-right: 1px solid var(--line); z-index: 3;
+}
+.sp-tool { width: 40px; height: 40px; padding: 0; }
+.sp-tool .sp-icon { width: 22px; height: 22px; }
+.sp-tool[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.sp-sep { flex: none; width: 26px; height: 1px; margin: 3px 0; background: var(--line-strong); }
+
+/* ---- the options bar ---- */
+.sp-opts {
+  grid-area: opts; display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 7px 12px;
+  background: var(--panel); border-bottom: 1px solid var(--line); z-index: 4;
+}
+.sp-opts-tool { display: inline-flex; align-items: center; gap: 7px; font: 800 14px/1 var(--display); color: var(--ink); min-width: 76px; }
+.sp-opts-sep { width: 1px; align-self: stretch; background: var(--line); }
+.sp-opts-body { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.sp-opts-end { display: flex; align-items: center; gap: 2px; margin-left: auto; padding-left: 10px; border-left: 1px solid var(--line); }
+.sp-field { display: inline-flex; align-items: center; gap: 8px; }
+.sp-label { font-size: 13px; color: var(--muted); }
+.sp-stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--bg); }
+.sp-stepper .sp-btn { min-width: 28px; height: 28px; font-size: 17px; border-radius: 6px; }
+.sp-stepper output { min-width: 26px; text-align: center; font: 800 14px/1 var(--body); color: var(--ink); }
+.sp-text-btn { border-color: var(--line-strong); padding: 0 10px; }
+.sp-seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg); }
+.sp-seg .sp-btn { height: 28px; }
+.sp-weight svg { width: 30px; height: 14px; }
+.sp-weight line { stroke: currentColor; stroke-linecap: round; }
+.sp-num { min-width: 28px; font-weight: 800; }
+.sp-toggle { border-color: var(--line-strong); padding: 0 9px 0 7px; }
+.sp-toggle .be-icon { width: 20px; height: 20px; }
+.sp-chip { border-color: var(--line-strong); padding: 0 10px 0 5px; }
+.sp-chip .be-icon { width: 24px; height: 24px; background: var(--paper); border-radius: 4px; }
+.sp-dot { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.sp-shapes { display: inline-flex; gap: 2px; }
+.sp-thumb { width: 32px; padding: 0; background: var(--paper); }
+.sp-thumb:hover:not(:disabled) { background: color-mix(in srgb, var(--paper) 85%, var(--wash-blue)); }
+.sp-thumb .be-icon { width: 24px; height: 24px; }
+.sp-say { font-size: 13px; color: var(--muted); }
+.sp-phone-only, .sp-sheet-head { display: none; }
+
+/* ---- the workspace and the paper on it, fitted to it (Sketchpad sets the width) ---- */
+.grid-game.sp-canvas {
+  grid-area: canvas; display: flex; overflow: auto; min-width: 0; min-height: 0; padding: 20px;
+  background: var(--sp-workspace);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--shadow) 60%, transparent);
+}
 .sp-paper {
-  position: relative; width: min(100%, 760px, calc(100dvh - 190px)); min-width: min(100%, 280px);
-  background: var(--paper); color: var(--paper-ink); border-radius: 3px;
-  box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
+  position: relative; flex: none; margin: auto; width: min(100%, 560px);
+  background: var(--paper); color: var(--paper-ink); border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 2px 4px var(--shadow), 0 14px 32px -10px var(--shadow);
 }
 .sp-paper > svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
 .sp-paper.tool-erase > svg { cursor: cell; }
@@ -41,14 +129,106 @@
   border: 1px solid var(--paper-ink); border-radius: 4px; padding: 2px 4px; outline: none;
 }
 
-.sp-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 16px; width: min(100%, 760px); }
-.sp-foot .select { min-width: 12rem; }
-.sp-foot .hint { margin: 0; font-size: 13px; color: var(--muted); flex: 1 1 260px; }
-.sp-error { margin: 0; color: var(--red); }
-@media (max-width: 640px) {
-  .sp-main { padding: 12px 8px 64px; }
-  .sketchpad { padding: 12px 8px 0; }
+/* ---- the status line ---- */
+.sp-status {
+  grid-area: status; display: flex; align-items: center; gap: 14px; min-height: 34px; padding: 2px 6px 2px 14px;
+  font-size: 12.5px; color: var(--muted); background: var(--panel); border-top: 1px solid var(--line);
+}
+.sp-status-hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-status-facts { white-space: nowrap; }
+.sp-zoom { display: inline-flex; align-items: center; }
+.sp-zoom .sp-btn { height: 28px; min-width: 28px; }
+.sp-zoom .sp-icon { width: 17px; height: 17px; }
+.sp-zoom-fit { min-width: 48px; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* ---- Colour and Stamps ---- */
+.sp-side { grid-area: side; overflow-y: auto; background: var(--panel); border-left: 1px solid var(--line); z-index: 3; }
+.sp-panel { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); }
+.sp-panel-h { margin: 0 0 12px; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.sp-current { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.sp-fg { width: 44px; height: 44px; flex: none; border-radius: 8px; border: 3px solid var(--panel); box-shadow: 0 0 0 1px var(--line-strong), 3px 3px 0 1px var(--line); }
+.sp-dot, .sp-fg { outline: 1px solid color-mix(in srgb, var(--line-strong) 60%, transparent); outline-offset: -1px; }
+.sp-current-text { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
+.sp-current-text b { font-size: 15px; color: var(--ink); }
+.sp-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 6px; }
+.sp-swatch { aspect-ratio: 1; padding: 3px; border-radius: 50%; border: 2px solid transparent; background: none; cursor: pointer; display: grid; }
+.sp-swatch { position: relative; }
+.sp-swatch > span { border-radius: 50%; box-shadow: 0 0 0 1px color-mix(in srgb, var(--line-strong) 70%, transparent), inset -2px -3px 0 rgba(0, 0, 0, .1); }
+.sp-swatch:hover:not(:disabled) { border-color: var(--line-strong); }
+.sp-swatch[aria-pressed="true"] { border-color: var(--ink); }
+/* a colour the current stamp can't have: faded and struck through */
+.sp-swatch:disabled { cursor: default; }
+.sp-swatch:disabled > span { opacity: .3; }
+.sp-swatch:disabled::after { content: ""; position: absolute; left: 50%; top: 12%; bottom: 12%; width: 1.5px; background: var(--muted); transform: rotate(45deg); }
+.sp-stamp-group + .sp-stamp-group { margin-top: 12px; }
+.sp-stamp-group h3 { margin: 0 0 6px; font: 700 12.5px/1 var(--body); color: var(--muted); }
+.sp-stamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; }
+.sp-stamp {
+  aspect-ratio: 1; display: grid; place-items: center; padding: 0; cursor: pointer;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
+}
+.sp-stamp:hover { border-color: var(--line-strong); }
+.sp-stamp[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.sp-stamp .be-icon { width: 30px; height: 30px; }
+.sp-aside { display: grid; gap: 10px; border-bottom: 0; }
+.sp-aside .select { min-width: 0; }
+.sp-aside .hint { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+
+.sp-error {
+  position: fixed; z-index: 20; top: 64px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px);
+  margin: 0; padding: 8px 14px; border-radius: 8px; color: var(--red); background: var(--panel); border: 1px solid var(--red); box-shadow: 0 6px 18px var(--shadow);
+}
+
+/* a narrower screen: a slimmer side panel */
+@media (max-width: 1000px) {
+  .sp-work { grid-template-columns: auto minmax(0, 1fr) 216px; }
+  .sp-opts-tool { min-width: 0; }
+  .sp-opts-tool > :not(svg) { display: none; }
+}
+
+/* ---- a phone: the paper on top; under it the status, the options and the tools; a sheet for the rest ---- */
+@media (max-width: 720px) {
   .sp-title { display: none; }
+  .sp-work {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "canvas" "status" "opts" "tools";
+  }
+  .grid-game.sp-canvas { padding: 10px; }
+  .sp-status { min-height: 28px; padding: 0 4px 0 10px; border-top: 1px solid var(--line); }
+  .sp-status-facts { display: none; }
+  .sp-status-hint { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; padding: 3px 0; }
+  .sp-opts { min-height: 46px; padding: 6px 8px; gap: 8px; border-bottom: 0; border-top: 1px solid var(--line); }
+  .sp-opts-tool, .sp-opts-sep, .sp-say { display: none; }
+  .sp-opts-body { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; gap: 8px; }
+  .sp-opts-body::-webkit-scrollbar { display: none; }
+  .sp-opts-body > * { flex: none; }
+  .sp-opts-end { padding-left: 6px; }
+  .sp-phone-only { display: inline-flex; }
+  .sp-tools {
+    flex-direction: row; justify-content: space-between; gap: 2px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    overflow-x: auto; scrollbar-width: none; border-right: 0; border-top: 1px solid var(--line);
+  }
+  .sp-tools::-webkit-scrollbar { display: none; }
+  .sp-tool { flex: none; width: 44px; height: 44px; }
+  .sp-sep { width: 1px; height: 26px; margin: 0 2px; }
+
+  /* the bottom sheet */
+  .sp-side {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; max-height: 78dvh; border: 0;
+    border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px var(--shadow);
+    transform: translateY(100%); visibility: hidden; transition: transform .22s ease, visibility 0s .22s;
+  }
+  .sp-side.open { transform: none; visibility: visible; transition: transform .22s ease; }
+  .sp-sheet-head {
+    display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 1;
+    padding: 10px 8px 6px 16px; background: var(--panel); font: 800 15px/1 var(--display); color: var(--ink);
+  }
+  .sp-sheet-head::before { content: ""; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line-strong); }
+  .sp-swatches { grid-template-columns: repeat(9, 1fr); }
+  .sp-stamps { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  .sp-scrim { position: fixed; inset: 0; z-index: 39; background: color-mix(in srgb, #000 40%, transparent); }
+  .sp-error { top: 56px; }
 }
 
 /* /new: a photo or a drawing */
@@ -58,14 +238,3 @@
 .new-ways a:last-child { border-radius: 0 var(--radius) var(--radius) 0; margin-left: -1.5px; }
 .new-ways a[aria-current="page"] { background: var(--ink); color: var(--panel); }
 .new-ways a:hover:not([aria-current="page"]) { background: color-mix(in srgb, var(--wash-blue) 18%, var(--panel)); }
-.sp-swatch { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset -3px -4px 0 rgba(0, 0, 0, .12); }
-.sketchpad .sp-hint { margin: 8px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
-/* the toolbar: the tools on one line, the chosen tool's choices on the next */
-.studio-tools.sp-tools { flex-direction: column; gap: 6px; }
-.sp-tools .sp-options { min-height: 34px; }
-.sp-say { font-size: 13px; color: var(--muted); }
-@media (max-width: 640px) {
-  .studio-tools.sp-tools { align-items: stretch; overflow-x: visible; min-width: 0; }
-  .sp-tools .be-tools { overflow-x: auto; scrollbar-width: none; min-width: 0; }
-  .sp-tools .be-tools::-webkit-scrollbar { display: none; }
-}

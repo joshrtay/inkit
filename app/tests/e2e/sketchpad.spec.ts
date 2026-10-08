@@ -116,3 +116,43 @@ test("the eraser rubs out what it touches; the drawing is kept when the page rel
   await expect(board.locator(".sp-ink .star")).toHaveCount(1);
   await expect(board).toHaveAttribute("data-grid", "6x6");
 });
+
+test("the paint-app chrome: a tool palette with arrow keys and letters, panels, and zoom", async ({ page }) => {
+  await page.goto("/new/draw");
+  const palette = page.getByRole("toolbar", { name: "Tools" });
+  const pen = palette.getByRole("button", { name: "Pen", exact: true });
+  await palette.getByRole("button", { name: "Grid", exact: true }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(pen).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(pen).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Bold" })).toHaveAttribute("aria-pressed", "true");
+  // a letter picks a tool; a stamp from the panel picks the stamp tool
+  await page.keyboard.press("w");
+  await expect(palette.getByRole("button", { name: "Wash", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Green", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Wash colour: Green" })).toBeVisible();
+  await page.getByRole("button", { name: "Crest", exact: true }).click();
+  await expect(palette.getByRole("button", { name: "Stamp", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // zoom: Cmd/Ctrl + and 0, and the paper grows and comes back
+  const board = page.locator(".sp-board");
+  const w0 = (await board.boundingBox())!.width;
+  await page.keyboard.press("ControlOrMeta+=");
+  await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("125%");
+  expect((await board.boundingBox())!.width).toBeGreaterThan(w0 * 1.2);
+  await page.keyboard.press("ControlOrMeta+0");
+  await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("100%");
+});
+
+test("on a phone: the tools along the bottom, Colour and Stamps in a sheet", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/new/draw");
+  const stone = page.getByRole("button", { name: "Stone", exact: true });
+  await expect(stone).toBeHidden();
+  await page.getByRole("toolbar", { name: "Tools" }).getByRole("button", { name: "Text", exact: true }).click();
+  await page.getByRole("button", { name: "Colour and stamps" }).click();
+  await stone.click();
+  await expect(stone).toBeHidden();
+  await expect(page.getByRole("button", { name: "Stamp: Stone" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});

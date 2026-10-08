@@ -83,15 +83,12 @@ export default function DrawGame({ loaderData: { targets, collection, slug }, ac
           <button type="button" className="btn primary" disabled={empty || busy || !into} onClick={read}>Read my drawing</button>
         </div>
       </header>
-      <Sketchpad handle={pad} onChange={(d) => setEmpty(!d.grid && !d.items.length)} />
-      <div className="sp-main">
-        <div className="sp-foot">
-          <Select name="collection" label="Goes in" defaultValue={collection} onChange={(v) => { setInto(v); }}
-            options={targets.map((t) => ({ value: t.id, label: t.title, hint: t.personal ? "your profile" : "studio" }))} />
-          <p className="hint">Claude reads your drawing as it would a photo: then you check it in the editor. Writing the puzzle's type at the top helps.</p>
-        </div>
-        {error && <p className="sp-error" role="alert">{error}</p>}
-      </div>
+      <Sketchpad handle={pad} onChange={(d) => setEmpty(!d.grid && !d.items.length)} aside={<>
+        <Select name="collection" label="Goes in" defaultValue={collection} onChange={(v) => { setInto(v); }}
+          options={targets.map((t) => ({ value: t.id, label: t.title, hint: t.personal ? "your profile" : "studio" }))} />
+        <p className="hint">Claude reads your drawing as it would a photo: then you check it in the editor. Writing the puzzle's type at the top helps.</p>
+      </>} />
+      {error && <p className="sp-error" role="alert">{error}</p>}
       {reading && <ReadingScreen image={preview} />}
     </div>
   );
