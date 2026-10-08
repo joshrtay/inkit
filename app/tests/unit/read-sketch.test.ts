@@ -184,3 +184,17 @@ describe("what the type has anyway, and Three Coats' hidden dots", () => {
     expect(givenOf(g("dots", 0, 1, "113"))).toEqual({ at: "cell", cell: [0, 1], kind: "dots", value: [1, 1, 3] });
   });
 });
+
+describe("Beast Academy-style types", () => {
+  it("reads a list of sizes, flipping, a symmetry and Kinship's tiles", () => {
+    expect(ruleSettings("sizes 4 6")).toEqual({ sizes: [4, 6] });
+    expect(ruleSettings("flip")).toEqual({ flip: true });
+    expect(ruleSettings("symmetry mirror")).toEqual({ symmetry: "mirror" });
+    expect(ruleSettings("kinds 3 colors 2")).toEqual({ kinds: 3, colors: 2 });
+  });
+  it("turns Kinship tiles drawn in cells into the engine's tile numbers (one not in the set is left out)", () => {
+    const parsed = parseSketch(toSketch(reading({ genre: "kinship", candidates: ["kinship"], rows: 1, cols: 6,
+      givens: [g("symbol", 0, 0, "red stone"), g("symbol", 0, 5, "blue crest"), g("symbol", 0, 3, "green star")] })));
+    expect(parsed.ok && parsed.spec.givens).toEqual([{ at: "cell", cell: [0, 0], kind: "number", value: 1 }, { at: "cell", cell: [0, 5], kind: "number", value: 6 }]);
+  });
+});

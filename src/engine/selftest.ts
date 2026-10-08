@@ -94,7 +94,52 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
   return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghij"[a]).join(""));
 }
 
+/** Region and placement types in the style of Beast Academy's Puzzle Lab (fillomino and after). */
+const PIECE_KINDS = ["fillomino", "sum-regions", "polyomino-packing", "critters", "symmetry-cut", "kinship"];
+function pieceSpec(kind: string): GridSpec {
+  const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
+  const cells = (rows: number, cols: number) => Array.from({ length: rows * cols }, (_, i) => cellOf(i, cols));
+  const holes = (rows: number, cols: number, p: number) => cells(rows, cols).filter(() => rand() < p).map((cell) => ({ at: "cell" as const, cell, kind: "block" as const }));
+  if (kind === "fillomino") {
+    const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
+    const givens = cells(rows, cols).filter(() => rand() < 0.3).map((cell) => ({ at: "cell" as const, cell, kind: "number" as const, value: 1 + Math.floor(rand() * 4) }));
+    return { genre: "fillomino", size: [rows, cols], givens: [...givens, ...holesAndWalls(rows, cols)], ...(rand() < 0.35 ? { rules: [{ rule: "allowed-sizes", sizes: pick([[1, 3], [2, 4], [2, 3], [1, 2, 4]]) }] } : {}) };
+  }
+  if (kind === "sum-regions") {
+    const [rows, cols] = pick([[2, 3], [3, 3], [2, 4], [3, 4]]);
+    const givens = cells(rows, cols).map((cell) => ({ at: "cell" as const, cell, kind: "number" as const, value: rand() < 0.08 ? 0 : 1 + Math.floor(rand() * 4) }));
+    return { genre: "sum-regions", size: [rows, cols], rules: [{ rule: "region-sum", is: 3 + Math.floor(rand() * 5) }], givens: [...givens, ...(rand() < 0.3 ? holes(rows, cols, 0.15) : [])] };
+  }
+  if (kind === "polyomino-packing") {
+    const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
+    const bank = Array.from({ length: 2 + Math.floor(rand() * 2) }, () => ({ at: "aside" as const, kind: "bank" as const, value: pick(SMALL_SHAPES) }));
+    return { genre: "polyomino-packing", size: [rows, cols], givens: [...bank, ...holes(rows, cols, 0.2)] };
+  }
+  if (kind === "critters") {
+    const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
+    const bank = Array.from({ length: 1 + Math.floor(rand() * 2) }, () => ({ at: "aside" as const, kind: "bank" as const, value: pick(SMALL_SHAPES.slice(0, 5).concat([[[0, 0], [1, 0], [1, 1], [2, 1]]])) }));
+    const critters = shuffle(cells(rows, cols)).slice(0, 1 + Math.floor(rand() * 2)).map((cell) => ({ at: "cell" as const, cell, kind: "symbol" as const, value: "★" }));
+    return { genre: "critters", size: [rows, cols], givens: [...bank, ...critters, ...holes(rows, cols, 0.1)], ...(rand() < 0.4 ? { rules: [{ rule: "pieces", flip: true }] } : {}) };
+  }
+  if (kind === "kinship") {
+    // 4 or 6 tiles in a row, or in a 2 × 3 / 2 × 4 box with holes; some placed already
+    const [kinds, colors] = pick([[2, 2], [2, 3], [3, 2], [1, 3]]), n = kinds * colors;
+    const [rows, cols] = pick([[1, n], [2, 3]]);   // every board is tried: (n + 1) ^ cells
+    const holeCells = shuffle(cells(rows, cols)).slice(0, rows * cols - n + (rand() < 0.15 ? 1 : 0));
+    const open = cells(rows, cols).filter((x) => !holeCells.some((h) => h[0] === x[0] && h[1] === x[1]));
+    const placed = shuffle(open).slice(0, Math.floor(rand() * 3)).map((cell) => ({ at: "cell" as const, cell, kind: "number" as const, value: 1 + Math.floor(rand() * n) }));
+    return { genre: "kinship", size: [rows, cols], rules: [{ rule: "tiles", kinds, colors }],
+      givens: [...holeCells.map((cell) => ({ at: "cell" as const, cell, kind: "block" as const })), ...placed] };
+  }
+  const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
+  const sym = pick(["mirror", "turn", undefined]);
+  return { genre: "symmetry-cut", size: [rows, cols], givens: holes(rows, cols, 0.15),
+    rules: [{ rule: "region-count", is: pick([2, 2, 3]) }, ...(sym ? [{ rule: "symmetric-regions", symmetry: sym }] : [])] };
+}
+
 function randomSpec(): GridSpec {
+  const own = process.argv[4] ? (PIECE_KINDS.includes(process.argv[4]) ? process.argv[4] : null) : rand() < 0.15 ? pick(PIECE_KINDS) : null;
+  if (own) return pieceSpec(own);
   const kind = process.argv[4] ?? pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
     "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];

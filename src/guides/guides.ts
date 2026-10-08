@@ -29,6 +29,7 @@ const differ = (a: RC, b: RC, value: number): Given => ({ at: "border", cells: [
 const tower = (r: number, c: number, value: number): Given => ({ at: "corner", corner: [r, c], kind: "watchtower", value });
 const bank = (...value: RC[]): Given => ({ at: "aside", kind: "bank", value });
 const ELL: RC[] = [[0, 0], [0, 1], [1, 0]];
+const critter = (r: number, c: number): Given => ({ at: "cell", cell: [r, c], kind: "symbol", value: "★" });
 // panels: corners are [row, col] from 0,0 at the top left; a stretch of line is its two corners
 const start = (r: number, c: number, color?: LineColor): Given => ({ at: "corner", corner: [r, c], kind: "start", ...(color ? { color } : {}) });
 const end = (r: number, c: number): Given => ({ at: "corner", corner: [r, c], kind: "end" });
@@ -632,5 +633,111 @@ export const guides: Record<GenreName, Guide> = {
     ],
     controls: "Pick a pot (or press R, Y or B), then tap a piece.",
     example: "three-coats/2.json",
+  },
+
+  // ---------------- regions and pieces, after Beast Academy's Puzzle Lab ----------------
+  fillomino: {
+    name: "Fillomino", category: "Regions", ink: "#26398f",
+    summary: "Split the grid into regions: a number is its region's size, and regions of the same size never share a side.",
+    origin: "A Nikoli puzzle, first published in 1994.",
+    rules: [
+      { text: "Split the grid into regions. A number tells how many cells its region has. A region can hold several numbers (all the same), or none.", checks: ["size-clue"], pictures: [
+        { ok: true, note: "3, 2 and 1", size: [2, 3], givens: [num(0, 0, 3), num(1, 2, 2)], regions: ["aab", "acb"] },
+        { ok: false, note: "The 3 has 4 cells", size: [2, 3], givens: [num(0, 0, 3), num(1, 2, 2)], regions: ["aab", "aab"] },
+      ] },
+      { text: "Two regions of the same size never share a side (touching at a corner is fine).", checks: ["neighbors-differ-size"], pictures: [
+        { ok: true, note: "All different", size: [2, 3], regions: ["aab", "acb"] },
+        { ok: false, note: "Two 2s side by side", size: [2, 3], regions: ["aab", "ccb"] },
+      ] },
+      { text: "Some puzzles allow only a few sizes, written with the puzzle (here only 1s and 3s).", checks: ["allowed-sizes"], pictures: [
+        { ok: true, note: "Two 3s", size: [2, 3], rules: [{ rule: "allowed-sizes", sizes: [1, 3] }], regions: ["aab", "abb"] },
+        { ok: false, note: "A 2", size: [2, 3], rules: [{ rule: "allowed-sizes", sizes: [1, 3] }], regions: ["aab", "acb"] },
+      ] },
+    ],
+    controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a group.",
+    example: "fillomino/1.json",
+  },
+  "sum-regions": {
+    name: "Sum Regions", category: "Regions", ink: "#2f6b3a",
+    summary: "Every square has a number: split the grid into regions whose numbers each add up to the target.",
+    origin: "Our own name for an old idea: dividing a grid of numbers into groups with the same total. Beast Academy's Puzzle Lab has a version.",
+    rules: [
+      { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written with the puzzle (here 6).", checks: ["region-sum"], pictures: [
+        { ok: true, note: "6, 6 and 6", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["aab", "ccb"] },
+        { ok: false, note: "7 and 5", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["abb", "aab"] },
+      ] },
+    ],
+    controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a group.",
+    example: "sum-regions/1.json",
+  },
+  "polyomino-packing": {
+    name: "Polyomino Packing", aka: ["Polyomino Tiling", "Pentomino puzzle"], category: "Regions", ink: "#5b3a8f",
+    summary: "Cut the board into the pieces under it, using each piece exactly once.",
+    origin: "Fitting polyominoes into a shape is a classic: Solomon Golomb named polyominoes in 1953, and pentomino puzzles go back to Henry Dudeney's in 1907.",
+    rules: [
+      { text: "Cut the board into the pieces under it, each used exactly once. Pieces may be turned or flipped. Dark squares aren't part of the board.", checks: ["shape-bank"], pictures: [
+        { ok: true, note: "An L and a domino", size: [2, 3], givens: [rock(1, 2), bank(...ELL), bank([0, 0], [0, 1])], regions: ["abb", "aa#"] },
+        { ok: false, note: "A square isn't a piece", size: [2, 3], givens: [rock(1, 2), bank(...ELL), bank([0, 0], [0, 1])], regions: ["aab", "aa#"] },
+      ] },
+    ],
+    controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a piece.",
+    example: "polyomino-packing/1.json",
+  },
+  critters: {
+    name: "Critter Connecting", category: "Shading", ink: "#7a4a1f",
+    summary: "Place the pieces so they cover every critter and join up into one group.",
+    origin: "Our own name for a placement puzzle like Beast Academy's in its Puzzle Lab.",
+    rules: [
+      { text: "Shade squares to place every piece under the board exactly once. Pieces can be turned but not flipped (unless the puzzle says so), and never overlap.", checks: ["pieces"], pictures: [
+        { ok: true, note: "Turned is fine", size: [3, 2], givens: [bank([0, 1], [0, 2], [1, 0], [1, 1])], shade: ["#.", "##", ".#"] },
+        { ok: false, note: "Flipped", size: [2, 3], givens: [bank([0, 1], [0, 2], [1, 0], [1, 1])], shade: ["##.", ".##"] },
+        { ok: false, note: "An extra square", size: [2, 3], givens: [bank(...ELL)], shade: ["###", "#.."] },
+      ] },
+      { text: "Every critter (✦) is covered by a piece.", checks: ["cover-symbols"], pictures: [
+        { ok: true, note: "Both covered", size: [1, 3], givens: [critter(0, 0), critter(0, 2)], shade: ["###"] },
+        { ok: false, note: "One left out", size: [1, 3], givens: [critter(0, 0), critter(0, 2)], shade: ["##."] },
+      ] },
+      { text: "All the pieces join into one group, side by side.", checks: ["connected"], pictures: [
+        { ok: true, note: "One group", size: [2, 3], shade: ["###", "#.#"] },
+        { ok: false, note: "Two groups", size: [2, 3], shade: ["#.#", "#.#"] },
+      ] },
+    ],
+    controls: "Tap a cell to shade it, again for a dot (empty), again to clear.",
+    example: "critters/1.json",
+  },
+  "symmetry-cut": {
+    name: "Symmetry Cut", category: "Regions", ink: "#a3343f",
+    summary: "Cut the shape into two pieces (or three), each of them symmetric.",
+    origin: "Our own name for a cutting puzzle like Beast Academy's in its Puzzle Lab.",
+    rules: [
+      { text: "Cut the shape along the grid lines into two pieces (or as many as the puzzle says). Dark squares aren't part of it.", checks: ["region-count"], pictures: [
+        { ok: true, note: "Two pieces", size: [2, 3], regions: ["aab", "abb"] },
+        { ok: false, note: "Three pieces", size: [2, 3], regions: ["abc", "abc"] },
+      ] },
+      { text: "Every piece is symmetric: it matches its mirror image (folded across, down or corner to corner), or it looks the same turned halfway round. A puzzle may ask for just mirrors or just turns.", checks: ["symmetric-regions"], pictures: [
+        { ok: true, note: "Two mirror Ls", size: [2, 3], regions: ["aab", "abb"] },
+        { ok: true, note: "Same turned round", size: [2, 3], givens: [rock(0, 0), rock(1, 2)], regions: ["#aa", "aa#"] },
+        { ok: false, note: "Lopsided", size: [2, 3], regions: ["aab", "bbb"] },
+      ] },
+    ],
+    controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a piece.",
+    example: "symmetry-cut/1.json",
+  },
+  kinship: {
+    name: "Kinship", category: "Numbers", ink: "#2b2b30",
+    summary: "Place every tile so that tiles side by side share a colour or a shape.",
+    origin: "Our own rule set, after the idea of a tile-placing puzzle in Beast Academy's Puzzle Lab.",
+    rules: [
+      { text: "There's one tile of every shape in every colour. Place each tile once, one in every open square; some are placed already.", checks: ["tiles"], pictures: [
+        { ok: true, note: "All six", size: [1, 6], digits: ["124365"] },
+        { ok: false, note: "A tile twice", size: [1, 6], digits: ["114365"] },
+      ] },
+      { text: "Tiles side by side share a colour or a shape (or both).", checks: ["shared-feature"], pictures: [
+        { ok: true, note: "Red, then crests", size: [1, 3], digits: ["124"] },
+        { ok: false, note: "Nothing shared", size: [1, 2], digits: ["14"] },
+      ] },
+    ],
+    controls: "Tap a square, then a tile on the pad. Erase takes a tile back.",
+    example: "kinship/1.json",
   },
 };

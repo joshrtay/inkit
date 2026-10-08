@@ -3,7 +3,7 @@
 // predicates it can use), describe itself in plain words, and say which derived
 // structures it needs. A puzzle's rules are blocks with settings, e.g. { rule: "size", is: 4 }.
 import type { Board, Problem, Puzzle, RuleSpec } from "./types.ts";
-import { lineGraph, orientations, regionsOf, shadedGroups, shapeKey, shapeKeyOf, type Regions } from "./derive.ts";
+import { HALF_TURN, lineGraph, MIRRORS, orientations, regionsOf, rotations, shadedGroups, shapeKey, shapeKeyOf, symmetricUnder, type Regions } from "./derive.ts";
 import { panelLine, panelSymbols } from "./panel.ts";
 
 /** A nudge for the player: what to look at, and what it gives away. */
@@ -952,17 +952,28 @@ nds(I,N) :- member(R,I), size(R,N).
 :- adj(I,J,L), I < J, cut(L), nds(I,N), nds(J,N).`,
   },
   "shape-bank": {
-    describe: (_s, p) => `Every region is one of the shapes in the bank${p.bank.length ? ` (${p.bank.length === 1 ? "one shape" : `${p.bank.length} shapes`}, drawn beside the board)` : ""}, turned or flipped any way. A shape can be used any number of times.`,
+    describe: (s, p) => s.once
+      ? `Cut the board into the pieces in the bank${p.bank.length ? ` (${p.bank.length === 1 ? "one piece" : `${p.bank.length} pieces`}, drawn under the board)` : ""}, each used exactly once, turned or flipped any way.`
+      : `Every region is one of the shapes in the bank${p.bank.length ? ` (${p.bank.length === 1 ? "one shape" : `${p.bank.length} shapes`}, drawn beside the board)` : ""}, turned or flipped any way. A shape can be used any number of times.`,
     needs: ["regions"],
-    check(_s, p, _b, r) {
-      const keys = new Set(p.bank.map(shapeKeyOf));
-      return r().cells.filter((cs) => !keys.has(shapeKey(p.grid, cs))).map((cs) => ({ message: "Every region must be one of the shapes in the bank.", cells: cs }));
+    check(s, p, _b, r) {
+      const keys = new Set(p.bank.map(shapeKeyOf)), cells = r().cells;
+      const out: Problem[] = cells.filter((cs) => !keys.has(shapeKey(p.grid, cs))).map((cs) => ({ message: s.once ? "Every piece must be one of the shapes in the bank." : "Every region must be one of the shapes in the bank.", cells: cs }));
+      if (s.once && !out.length) for (const [key, n] of bankKinds(p)) {
+        const used = cells.filter((cs) => shapeKey(p.grid, cs) === key);
+        if (used.length !== n) out.push({ message: "Use each piece in the bank exactly once.", cells: used.flat() });
+      }
+      return out;
     },
-    asp(_s, p) {
+    asp(s, p) {
       const out: string[] = [];
       let k = 0;
-      for (const shape of p.bank) for (const pl of placements(p, shape)) out.push(placementAsp("sb", k++, pl));
+      [...bankKinds(p)].forEach(([, n, shape], t) => {
+        for (const pl of placements(p, shape)) out.push(`${placementAsp("sb", k, pl)} sbs(${k++},${t}).`);
+        if (s.once) out.push(`:- #count{K: sbpl(K), sbs(K,${t})} != ${n}.`);
+      });
       out.push("sbcov(I) :- sbpl(K), sbc(K,I).\n:- open(I), not sbcov(I).");
+      if (s.once) out.push(`:- #count{R: root(R)} != ${p.bank.length}.`);
       return out.join("\n");
     },
   },
@@ -1017,6 +1028,121 @@ nds(I,N) :- member(R,I), size(R,N).
     },
     asp: (_s, p) => watchtowers(p).map(({ cells, value }, k) =>
       `${cells.map((i) => `wt(${k},R) :- member(R,${i}).`).join(" ")}\n:- #count{R: wt(${k},R)} != ${value}.`).join("\n"),
+  },
+
+  // ---- more regions and pieces: Fillomino's sizes, Sum Regions, Symmetry Cut, Critter Connecting ----
+  "allowed-sizes": {
+    describe: (s) => `Every region has ${sizeList(s)} cells.`,
+    needs: ["regions"],
+    check(s, _p, _b, r) {
+      const ok = new Set(sizesOf(s));
+      return r().cells.filter((cs) => !ok.has(cs.length)).map((cs) => ({ message: `Every region has ${sizeList(s)} cells.`, cells: cs }));
+    },
+    asp: (s) => `asz(${sizesOf(s).join(";")}).\n:- size(R,N), not asz(N).`,
+  },
+  "region-sum": {
+    describe: (s) => `Split the grid into regions whose numbers each add up to ${sumTarget(s)}.`,
+    needs: ["regions"],
+    check(s, p, _b, r) {
+      const v = new Map(numberClues(p)), t = sumTarget(s);
+      return r().cells.filter((cs) => cs.reduce((a, i) => a + (v.get(i) ?? 0), 0) !== t)
+        .map((cs) => ({ message: `The numbers in each region add up to ${t}.`, cells: cs }));
+    },
+    asp: (s, p) => `${numberClues(p).map(([i, v]) => `rsv(${i},${v}).`).join(" ")}\n:- root(R), #sum{V,I: member(R,I), rsv(I,V)} != ${sumTarget(s)}.`,
+  },
+  "region-count": {
+    describe: (s) => `Cut it into exactly ${regionCount(s)} pieces.`,
+    needs: ["regions"],
+    check: (s, _p, _b, r) => (r().cells.length === regionCount(s) ? [] : [{ message: `Cut it into exactly ${regionCount(s)} pieces.`, cells: r().cells.flat() }]),
+    asp: (s) => `:- #count{R: root(R)} != ${regionCount(s)}.`,
+  },
+  "symmetric-regions": {
+    describe: (s) => s.symmetry === "mirror" ? "Every piece is a mirror image of itself: fold it along a straight line (across, down or corner to corner) and the halves match."
+      : s.symmetry === "turn" ? "Every piece looks the same turned halfway round."
+      : "Every piece is symmetric: it matches its own mirror image, or looks the same turned halfway round.",
+    needs: ["regions"],
+    check(s, p, _b, r) {
+      const fs = symmetriesOf(s);
+      return r().cells.filter((cs) => !fs.some((f) => symmetricUnder(cs.map((i) => p.grid.rc(i)), f)))
+        .map((cs) => ({ message: s.symmetry === "mirror" ? "Every piece must match its mirror image." : s.symmetry === "turn" ? "Every piece must look the same turned halfway round." : "Every piece must be symmetric.", cells: cs }));
+    },
+    asp(s) {
+      // each piece's box (rows A..B, columns C..D); a cell's image under each symmetry must be in the
+      // piece too. The diagonal mirrors need a square box.
+      const kinds = s.symmetry === "mirror" ? [1, 2, 3, 4] : s.symmetry === "turn" ? [0] : [0, 1, 2, 3, 4];
+      const img: Record<number, string> = {
+        0: "Y2 = A+B-Y, X2 = C+D-X", 1: "Y2 = Y, X2 = C+D-X", 2: "Y2 = A+B-Y, X2 = X",
+        3: "Y2 = A+(X-C), X2 = C+(Y-A)", 4: "Y2 = A+(D-X), X2 = C+(B-Y)",
+      };
+      return `syb(R,A,B,C,D) :- root(R), A = #min{Y: member(R,I), row(I,Y)}, B = #max{Y: member(R,I), row(I,Y)}, C = #min{X: member(R,I), col(I,X)}, D = #max{X: member(R,I), col(I,X)}.
+syin(R,Y,X) :- member(R,I), row(I,Y), col(I,X).
+${kinds.map((k) => `syk(${k}).\nsybad(R,${k}) :- syb(R,A,B,C,D), member(R,I), row(I,Y), col(I,X), ${img[k]}, not syin(R,Y2,X2).${k >= 3 ? `\nsybad(R,${k}) :- syb(R,A,B,C,D), B-A != D-C.` : ""}`).join("\n")}
+:- root(R), sybad(R,K) : syk(K).`;
+    },
+  },
+  pieces: {
+    describe: (s, p) => `Shade cells to place ${p.bank.length === 1 ? "the piece" : p.bank.length ? `the ${p.bank.length} pieces` : "the pieces"} under the board, each exactly once, turned${s.flip ? " or flipped" : " (not flipped)"} any way. Pieces never overlap.`,
+    check(s, p, b) {
+      const shaded = new Set(Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => b.shade[i] === 1));
+      return packs(p, shaded, p.bank.map((x) => (s.flip ? orientations(x) : rotations(x)))) ? []
+        : [{ message: "The shaded cells must be exactly the pieces under the board, each used once.", cells: [...shaded] }];
+    },
+    asp(s, p) {
+      const out: string[] = [];
+      p.bank.forEach((shape, k) => {
+        out.push(`pcs(${k}).`);
+        piecePlacements(p, shape, !!s.flip).forEach((cells, j) => out.push(`pcp(${k},${j}). ${cells.map((i) => `pcc(${k},${j},${i}).`).join(" ")}`));
+      });
+      out.push(`1 { pcon(K,J) : pcp(K,J) } 1 :- pcs(K).
+pccov(I) :- pcon(K,J), pcc(K,J,I).
+:- cell(I), #count{K,J: pcon(K,J), pcc(K,J,I)} > 1.
+:- shaded(I), not pccov(I).
+:- pccov(I), not shaded(I).`);
+      return out.join("\n");
+    },
+  },
+  "cover-symbols": {
+    describe: () => "Every critter (✦) is covered: its cell is shaded.",
+    shadeClues: true,
+    check(_s, p, b) {
+      const bare = symbolCells(p).filter((i) => b.shade[i] !== 1);
+      return bare.length ? [{ message: "Every critter must be covered.", cells: bare }] : [];
+    },
+    asp: (_s, p) => symbolCells(p).map((i) => `:- not shaded(${i}).`).join("\n"),
+  },
+  // ---- Kinship: tiles of a shape and a colour, placed so neighbours share one ----
+  tiles: {
+    describe: (s) => `Place all ${tileCount(s)} tiles (${tileKinds(s)} shapes in ${tileColors(s)} colours, one of each), one in every open cell.`,
+    check(s, p, b) {
+      const g = p.grid, n = tileCount(s), out: Problem[] = [];
+      const empty = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i) && !(b.digit[i] >= 1 && b.digit[i] <= n));
+      if (empty.length) out.push({ message: "Every open cell gets a tile.", cells: empty });
+      const onRock = [...p.blocked].filter((i) => b.digit[i]);
+      if (onRock.length) out.push({ message: "Tiles can't go on a dark cell.", cells: onRock });
+      const twice = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => b.digit[i] && Array.from({ length: g.cellCount }, (_, j) => j).some((j) => j !== i && b.digit[j] === b.digit[i]));
+      if (twice.length) out.push({ message: "Each tile is used once.", cells: twice });
+      else if (Array.from({ length: n }, (_, d) => d + 1).some((d) => !b.digit.includes(d))) out.push({ message: "Place every tile." });
+      return out;
+    },
+    asp: () => ":- cell(I), not blocked(I), not digit(I,_).\n:- digit(I,_), blocked(I).\n:- d(D), #count{I: digit(I,D)} != 1.",
+  },
+  "shared-feature": {
+    describe: () => "Tiles side by side share a colour or a shape (or both).",
+    check(s, p, b) {
+      const tile = (d: number) => tileOf(tileSpec(p) ?? s, d), bad: number[] = [];
+      for (const l of p.grid.links) {
+        const [x, y] = l.cells.map((i) => b.digit[i]);
+        if (!x || !y) continue;
+        const a = tile(x), c = tile(y);
+        if (a.kind !== c.kind && a.color !== c.color) bad.push(...l.cells);
+      }
+      return bad.length ? [{ message: "Tiles side by side must share a colour or a shape.", cells: [...new Set(bad)] }] : [];
+    },
+    asp(s, p) {
+      const t = tileSpec(p) ?? s, n = tileCount(t);
+      return `${Array.from({ length: n }, (_, k) => { const x = tileOf(t, k + 1); return `tk(${k + 1},${x.k}). tcl(${k + 1},${x.c}).`; }).join(" ")}
+:- adj(I,J,_), I < J, digit(I,D1), digit(J,D2), tk(D1,K1), tk(D2,K2), K1 != K2, tcl(D1,C1), tcl(D2,C2), C1 != C2.`;
+    },
   },
 
   // ---- panels (line puzzles in the style of The Witness: panel.ts) ----
@@ -1088,6 +1214,75 @@ export const boxLines = (s: RuleSpec, p: Puzzle) => boxSize(s, p);
 
 function sizeOk(n: number, s: RuleSpec) {
   return (s.is === undefined || n === s.is) && (s.min === undefined || n >= (s.min as number)) && (s.max === undefined || n <= (s.max as number));
+}
+
+/** Kinship's tiles: up to three shapes (drawn as a stone, a crest and a triangle) in up to three
+ *  colours. Tile d (1..kinds × colours) is shape (d-1) % kinds in colour (d-1) / kinds. */
+export const TILE_KINDS = ["stone", "crest", "triangle"] as const;
+export const TILE_COLORS = ["red", "yellow", "blue"] as const;
+const clamp3 = (v: unknown, d: number) => (typeof v === "number" && Number.isInteger(v) ? Math.max(1, Math.min(3, v)) : d);
+export const tileKinds = (s: RuleSpec) => clamp3(s.kinds, 2);
+export const tileColors = (s: RuleSpec) => clamp3(s.colors, 3);
+export const tileCount = (s: RuleSpec) => tileKinds(s) * tileColors(s);
+/** A puzzle's tiles rule, if it has one. */
+export const tileSpec = (p: Puzzle) => p.rules.find((s) => s.rule === "tiles");
+/** Tile d's shape and colour (indices, and names). */
+export function tileOf(s: RuleSpec, d: number) {
+  const k = (d - 1) % tileKinds(s), c = Math.floor((d - 1) / tileKinds(s));
+  return { k, c, kind: TILE_KINDS[k], color: TILE_COLORS[c] };
+}
+
+/** allowed-sizes: the sizes a region may have (sorted), and them in words ("4 or 6"). */
+export const sizesOf = (s: RuleSpec) => [...new Set(Array.isArray(s.sizes) ? (s.sizes as unknown[]).filter((x): x is number => Number.isInteger(x) && (x as number) > 0) : [])].sort((a, b) => a - b);
+const sizeList = (s: RuleSpec) => { const z = sizesOf(s); return z.length > 1 ? `${z.slice(0, -1).join(", ")} or ${z.at(-1)}` : String(z[0] ?? "no"); };
+/** region-sum's target (10 if it doesn't say), and region-count's number of pieces (2). */
+const sumTarget = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 10);
+const regionCount = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 2);
+/** The symmetries a piece may have: a mirror (any of four), a half turn, or either. */
+const symmetriesOf = (s: RuleSpec) => (s.symmetry === "mirror" ? MIRRORS : s.symmetry === "turn" ? [HALF_TURN] : [...MIRRORS, HALF_TURN]);
+/** The cells holding a symbol (Critter Connecting's critters). */
+const symbolCells = (p: Puzzle) => [...p.cellGivens].filter(([, gs]) => gs.some((g) => g.kind === "symbol")).map(([i]) => i);
+/** The bank's different shapes: each one's key, how many times it's in the bank, and its cells. */
+const bankKinds = (p: Puzzle) => {
+  const out = new Map<string, [string, number, [number, number][]]>();
+  for (const shape of p.bank) { const k = shapeKeyOf(shape), had = out.get(k); out.set(k, [k, (had?.[1] ?? 0) + 1, shape]); }
+  return [...out.values()];
+};
+/** Every way to put a piece on the open cells (turned, and flipped if it may be): its cells. */
+export function piecePlacements(p: Puzzle, shape: [number, number][], flip: boolean): number[][] {
+  const g = p.grid, out: number[][] = [];
+  for (const o of flip ? orientations(shape) : rotations(shape)) {
+    const h = Math.max(...o.map((x) => x[0])) + 1, w = Math.max(...o.map((x) => x[1])) + 1;
+    for (let r = 0; r + h <= g.rows; r++) for (let c = 0; c + w <= g.cols; c++) {
+      const cells = o.map(([y, x]) => g.cell(r + y, c + x));
+      if (!cells.some((i) => p.blocked.has(i))) out.push(cells);
+    }
+  }
+  return out;
+}
+/** Can these cells be split exactly into the pieces, each used once (each piece given as its
+ *  orientations, cells in reading order)? The first cell left must be some piece's first cell. */
+function packs(p: Puzzle, cells: Set<number>, pieces: [number, number][][][]): boolean {
+  if (cells.size !== pieces.reduce((a, os) => a + (os[0]?.length ?? 0), 0)) return false;
+  const g = p.grid, used = new Array<boolean>(pieces.length).fill(false);
+  const keys = pieces.map((os) => os.map((o) => o.join(";")).sort().join("|"));
+  const go = (left: Set<number>): boolean => {
+    if (!left.size) return true;
+    const first = Math.min(...left), [r, c] = g.rc(first);
+    for (let k = 0; k < pieces.length; k++) {
+      if (used[k] || keys.findIndex((x, j) => !used[j] && x === keys[k]) !== k) continue;   // the same piece twice: try it once
+      for (const o of pieces[k]) {
+        const cs = o.map(([y, x]) => [r + y - o[0][0], c + x - o[0][1]]);
+        if (cs.some(([y, x]) => y < 0 || x < 0 || y >= g.rows || x >= g.cols || !left.has(g.cell(y, x)))) continue;
+        const rest = new Set(left); for (const [y, x] of cs) rest.delete(g.cell(y, x));
+        used[k] = true;
+        if (go(rest)) return true;
+        used[k] = false;
+      }
+    }
+    return false;
+  };
+  return go(cells);
 }
 
 /** Each kind of symbol on the puzzle (its value) and the cells holding one. */

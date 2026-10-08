@@ -14,7 +14,9 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
   // Panes: a sign or a number on a border, a watchtower on a corner, the shape bank
   | "inequality" | "difference" | "watchtower" | "bank"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
-  | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser";
+  | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser"
+  // Kinship: a tile in a square (a number given, drawn as its tile)
+  | "tile";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
@@ -37,7 +39,8 @@ export type Setting =
   | { key: string; label: string; type: "number" }
   | { key: string; label: string; type: "choice"; choices: string[]; /** what no choice means (default: "default") */ none?: string }
   | { key: string; label: string; type: "flag" }
-  | { key: string; label: string; type: "pair" };
+  | { key: string; label: string; type: "pair" }
+  | { key: string; label: string; type: "numbers" };
 
 /** Every rule block, in plain words, with every setting it takes. */
 export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
@@ -88,7 +91,7 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "no-rectangles": { label: "No region is a rectangle (Non-Boxy)", settings: [] },
   "all-same": { label: "Every region has the same shape (Match)", settings: [] },
   "neighbors-differ-size": { label: "Neighbouring regions differ in size (Size Separation)", settings: [] },
-  "shape-bank": { label: "Every region is a shape from the bank (Shape Bank)", settings: [] },
+  "shape-bank": { label: "Every region is a shape from the bank (Shape Bank)", settings: [{ key: "once", label: "each used exactly once (Polyomino Packing)", type: "flag" }] },
   "region-shape": { label: "A shape in a square is its region's shape (Polyomino)", settings: [] },
   "size-compare": { label: "A < sign points to the smaller region (Inequality)", settings: [] },
   "size-difference": { label: "A number on a border is the regions' size difference (Difference)", settings: [] },
@@ -99,6 +102,14 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "neighbor-dots": { label: "Dots ask for neighbours of their color", settings: [] },
   "panel-line": { label: "A line from a start circle to an end on the edge", settings: [{ key: "symmetry", label: "two lines, mirrored", type: "choice", choices: ["left-right", "up-down", "turn"], none: "no (one line)" }] },
   "panel-symbols": { label: "The symbols in the cells say where the line goes", settings: [] },
+  "allowed-sizes": { label: "Only these region sizes (Fillomino)", settings: [{ key: "sizes", label: "sizes", type: "numbers" }] },
+  "region-sum": { label: "Each region's numbers add up to", settings: [{ key: "is", label: "target", type: "number" }] },
+  "region-count": { label: "How many pieces", settings: [{ key: "is", label: "pieces", type: "number" }] },
+  "symmetric-regions": { label: "Every piece is symmetric", settings: [{ key: "symmetry", label: "kind", type: "choice", choices: ["mirror", "turn"], none: "either" }] },
+  pieces: { label: "Shaded cells are the bank's pieces, each once", settings: [{ key: "flip", label: "may be flipped", type: "flag" }] },
+  "cover-symbols": { label: "Every critter (✦) is shaded", settings: [] },
+  tiles: { label: "Place every tile once (Kinship)", settings: [{ key: "kinds", label: "shapes (1-3)", type: "number" }, { key: "colors", label: "colours (1-3)", type: "number" }] },
+  "shared-feature": { label: "Tiles side by side share a colour or a shape", settings: [] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
 };
 
@@ -117,8 +128,9 @@ export function settingProblems(spec: RuleSpec): string[] {
     const ok = setting.type === "number" ? typeof v === "number" && Number.isInteger(v) && v >= 0
       : setting.type === "flag" ? typeof v === "boolean"
       : setting.type === "choice" ? setting.choices.includes(v as string)
+      : setting.type === "numbers" ? Array.isArray(v) && v.length > 0 && v.every((x) => Number.isInteger(x) && x > 0)
       : Array.isArray(v) && v.length === 2 && v.every((x) => Number.isInteger(x) && x > 0);
-    if (!ok) out.push(`The rule "${spec.rule}" can't have ${key} ${JSON.stringify(v)} (${setting.type === "choice" ? `one of: ${setting.choices.join(", ")}` : setting.type === "number" ? "a whole number" : setting.type === "flag" ? "true or false" : "two whole numbers"}).`);
+    if (!ok) out.push(`The rule "${spec.rule}" can't have ${key} ${JSON.stringify(v)} (${setting.type === "choice" ? `one of: ${setting.choices.join(", ")}` : setting.type === "number" ? "a whole number" : setting.type === "flag" ? "true or false" : setting.type === "numbers" ? "whole numbers" : "two whole numbers"}).`);
   }
   return out;
 }

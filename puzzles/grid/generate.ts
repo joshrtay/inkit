@@ -9,6 +9,7 @@ import { program, boardOf, solve } from "../../src/engine/solve.ts";
 import { regionsOf, shapeKey } from "../../src/engine/derive.ts";
 import type { Board, Given, GridSpec, RuleSpec } from "../../src/engine/types.ts";
 import { makePanel, PANEL_MIXES } from "./panels.ts";
+import { makePieceGenre, PIECE_GENRES } from "./pieces.ts";
 
 export interface GenerateOptions {
   genre: string;
@@ -123,6 +124,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
 
   const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
   let result: GridSpec | null = null;
+  // Fillomino, Sum Regions, Polyomino Packing, Critter Connecting, Symmetry Cut, Kinship: ./pieces.ts
+  if (PIECE_GENRES.includes(genre)) return makePieceGenre(genre, rows, cols, rand, o.rules);
 
   for (let attempt = 0; attempt < 40 && !result; attempt++) {
     const near4 = (i: number) => { const r = Math.floor(i / cols), c = i % cols; return [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1].filter((j) => j >= 0); };

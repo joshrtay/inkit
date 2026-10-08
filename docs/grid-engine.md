@@ -7,7 +7,11 @@ the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), 
 Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
-and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below).
+and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below). After
+Beast Academy's Puzzle Lab (docs/beast-academy-puzzles.md), with names of ours where there's no shared
+one: Fillomino (`fillomino`), Sum Regions (`sum-regions`), Polyomino Packing (`polyomino-packing`),
+Critter Connecting (`critters`), Symmetry Cut (`symmetry-cut`) and Kinship (`kinship`); their
+generators are in `puzzles/grid/pieces.ts`.
 
 ## The model
 
@@ -113,7 +117,7 @@ puzzle can use it.
 | `no-rectangles` | No region is a rectangle (Glimmith's Non-Boxy). |
 | `all-same` | Every region has the same shape, turned or flipped (Glimmith's Match). |
 | `neighbors-differ-size` | Regions that share a border have different sizes (Glimmith's Size Separation). |
-| `shape-bank` | Every region is one of the `bank` shapes, turned or flipped (Glimmith's Shape Bank). |
+| `shape-bank` | Every region is one of the `bank` shapes, turned or flipped (Glimmith's Shape Bank); with `once`, each bank shape is used exactly once (Polyomino Packing). |
 | `region-shape` | A `shape` clue in a cell is its region's shape, turned or flipped (Glimmith's Polyomino). |
 | `size-compare` | An `inequality` sign on a border points to the smaller of the two regions (its first cell's; Glimmith's Inequality). |
 | `size-difference` | A `difference` number on a border: two different regions whose sizes differ by it (Glimmith's Difference). |
@@ -129,6 +133,14 @@ puzzle can use it.
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 | `panel-line` | A panel's line (fence marks) runs from a start circle to an end on the outside edge, never touching itself or crossing a gap; `symmetry` (`left-right`, `up-down`, `turn`) makes it two lines, mirror images that never touch, each passing the dots of its color. |
 | `panel-symbols` | Every symbol in the regions the line cuts the grid into: dots, squares, stars, triangles, shapes and erasers (see "Panels"). |
+| `allowed-sizes` | Every region has one of the `sizes` (Fillomino with only 4s and 6s, say). |
+| `region-sum` | The numbers in every region add up to `is` (Sum Regions; 10 if it doesn't say). |
+| `region-count` | Exactly `is` regions (Symmetry Cut: 2 or 3). |
+| `symmetric-regions` | Every region matches its own mirror image (across, down or along a diagonal) or its half turn; `symmetry`: `mirror` or `turn` for just one (Symmetry Cut). |
+| `pieces` | The shaded cells are exactly the bank's pieces, each once, turned (and with `flip`, flipped) any way, never overlapping (Critter Connecting). |
+| `cover-symbols` | Every symbol (a critter) is shaded (Critter Connecting). |
+| `tiles` | Kinship's tiles: `kinds` shapes (1-3: stone, crest, triangle) in `colors` colours (1-3: red, yellow, blue), one of each, placed once each, one per open cell. Tile d is a digit: shape (d-1) % kinds in colour (d-1) / kinds; given tiles are given digits. |
+| `shared-feature` | Tiles side by side share a colour or a shape (Kinship). |
 
 Genre names: use the standard name when a genre has one that's used across puzzle sites
 (Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku, Simple Loop, Nonogram...),

@@ -1,0 +1,128 @@
+{
+  "type": "grid",
+  "name": "Bug Bridge",
+  "meta": "5 × 5",
+  "grid": {
+    "size": [
+      5,
+      5
+    ],
+    "givens": [
+      {
+        "at": "aside",
+        "kind": "bank",
+        "value": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            2
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      {
+        "at": "aside",
+        "kind": "bank",
+        "value": [
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            2
+          ],
+          [
+            2,
+            1
+          ]
+        ]
+      },
+      {
+        "at": "aside",
+        "kind": "bank",
+        "value": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            1,
+            0
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          2
+        ],
+        "kind": "symbol",
+        "value": "★"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          4
+        ],
+        "kind": "symbol",
+        "value": "★"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          2
+        ],
+        "kind": "symbol",
+        "value": "★"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          0
+        ],
+        "kind": "symbol",
+        "value": "★"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          4
+        ],
+        "kind": "symbol",
+        "value": "★"
+      }
+    ]
+  }
+}

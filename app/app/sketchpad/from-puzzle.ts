@@ -5,6 +5,7 @@
 // Used by tests/unit/sketchpad-coverage.test.ts (can every type be drawn?) and
 // tests/e2e/reader.spec.ts (does the reader read each drawing back as the puzzle it came from?).
 import { normalShape } from "~site/engine/puzzle.ts";
+import { tileOf, tileSpec } from "~site/engine/rules.ts";
 import type { Given, GridSpec, Puzzle, Side } from "~site/engine/types.ts";
 import { kindName } from "~/games/kinds";
 import * as m from "./model";
@@ -174,7 +175,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
     for (const [i, v] of p.colRuns) runs("col", i, v);
   }
 
-  const letters = p.style.symbols;
+  const letters = p.style.symbols, tiles = tileSpec(p);
   const cellText = (g0: Given) => (letters && g0.kind === "number" ? letters[g0.value - 1] : String((g0 as { value: number }).value));
   const blocks = new Set([...p.blocked]);
   /** the middle of the border between two cells, as a loose point */
@@ -203,6 +204,12 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
     switch (gv.kind) {
       case "number": {
         const [r, c] = gv.cell;
+        // a Kinship tile: its shape's stamp (stone, crest, triangle) in its colour
+        if (tiles) {
+          const t = tileOf(tiles, gv.value), at: m.Anchor = { at: "cell", r, c };
+          stamp({ kind: "stamp", stamp: t.kind, color: t.color, ...(t.kind === "triangle" ? { count: 1 } : {}), at }, "tile");
+          break;
+        }
         text({ at: "cell", r, c }, cellText(gv));
         const it = d.items[d.items.length - 1] as Extract<m.Item, { kind: "text" }>;
         if (blocks.has(r * cols + c) && !onDark(d, it)) gaps.add("a number on a shaded square (ink on the dark rock)");

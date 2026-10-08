@@ -375,3 +375,32 @@ export function eraseCorner(s: Spec, corner: RC): Spec {
   const paired = gs.filter((g) => g.at === "corner" && same(g.corner, corner) && (g.kind === "start" || g.kind === "end")).map((g) => g.kind);
   return withGivens(s, gs.filter((g) => !(g.at === "corner" && (same(g.corner, corner) || (mirror && same(g.corner, mirror) && paired.includes(g.kind))))));
 }
+
+// ---- a type's own settings, kept as the puzzle's own rule (Fillomino's sizes, Sum Regions' target,
+// Symmetry Cut's pieces and symmetry, Critter Connecting's flipping, Kinship's tiles) ----
+
+/** A setting of one of the puzzle's rules: the puzzle's own rule, else its type's. */
+export function ruleSetting(s: Spec, rule: string, key: string): unknown {
+  return ((s.rules ?? []).find((x) => x.rule === rule) ?? presetRule(s, rule))?.[key];
+}
+/** One rule setting changed (undefined: taken out). The rule is the puzzle's own only while it
+ *  differs from the type's; a rule the type doesn't have goes away when it has no settings left
+ *  and `dropEmpty` (allowed-sizes with no sizes means any size). */
+export function setRuleSetting(s: Spec, rule: string, key: string, value: unknown, dropEmpty = false): Spec {
+  const preset = presetRule(s, rule), own = (s.rules ?? []).find((x) => x.rule === rule);
+  const next: RuleSpec = { ...(own ?? preset ?? { rule }), [key]: value };
+  if (value === undefined || value === false) delete next[key];
+  const others = (s.rules ?? []).filter((x) => x.rule !== rule);
+  const sameAsPreset = preset && JSON.stringify(Object.entries(next).sort()) === JSON.stringify(Object.entries(preset).sort());
+  const empty = !preset && dropEmpty && Object.keys(next).length === 1;
+  const rules = sameAsPreset || empty ? others : [...others, next];
+  if (JSON.stringify(rules) === JSON.stringify(s.rules ?? [])) return s;
+  const { rules: _r, ...rest } = s;
+  return rules.length ? { ...rest, rules } : rest;
+}
+
+/** Kinship: tile d in a square, or (the same tile again) taken out. */
+export function toggleTile(s: Spec, cell: RC, d: number): Spec {
+  const had = givensOf(s).some((g) => at(cell)(g) && g.kind === "number" && g.value === d);
+  return setNumber(s, cell, had ? null : d);
+}

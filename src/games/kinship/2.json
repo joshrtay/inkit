@@ -1,0 +1,47 @@
+{
+  "type": "grid",
+  "name": "Two by Four",
+  "meta": "2 × 4",
+  "grid": {
+    "size": [
+      2,
+      4
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 6
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "number",
+        "value": 1
+      }
+    ]
+  }
+}
