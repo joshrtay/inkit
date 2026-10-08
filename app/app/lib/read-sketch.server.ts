@@ -363,9 +363,12 @@ export function drawingBrief(drawing: string) {
     + "(walls, region borders, a loop, a thermometer, a cage) and which type of puzzle it is.",
     "Places are given in squares from the grid's top-left corner: {at: \"cell\", r, c} is square (r, c)'s centre (r = -1 or rows, c = -1 or cols: just outside the grid, for clues beside it); "
     + "{at: \"corner\", r, c} is the point where lines meet (0..rows, 0..cols); {at: \"edge\", r, c, side} is the middle of square (r, c)'s top or left line; "
+    + "{at: \"inset\", r, c, spot} is inside square (r, c) toward a side or corner (n, s, e, w, nw, ne, sw, se: where small writing goes, e.g. a corner sum or a compass's numbers); "
     + "{at: \"grid\", r, c} is a loose point in squares (fractions between); {at: \"page\", x, y} is off the grid, in page units. Rows and columns count from 0 here; in your transcription use the numbering your instructions give.",
     "Stamps are the boards' own symbols: stone (a Masyu pearl, or a panel's coloured square), star, rock (a shaded square), galaxy (a small circle), x, dot, hoshi (a panel's dot on the line), "
-    + "start and end (a panel's line), crest (a panel's star), triangle (count 1-3), shape (a polyomino: its cells from 0,0), eraser. A start or hoshi coloured blue or yellow belongs to one of a symmetry panel's two lines.",
+    + "start and end (a panel's line), crest (a panel's star), triangle (count 1-3), shape (a polyomino: its cells from 0,0; hollow = a negative shape; rotate = it may turn), eraser, "
+    + "diamond (filled, on a line: the squares either side are twins) and open-diamond (on a line: opposites). A start or hoshi coloured blue or yellow belongs to one of a symmetry panel's two lines; "
+    + "a hidden stone is a dot that stays hidden until its piece is painted. A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
     `The drawing:\n${drawing}`,
   ].join("\n\n");
 }

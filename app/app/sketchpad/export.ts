@@ -4,7 +4,7 @@
 // filters it uses (the #pen wobble from root.tsx, the wash from ink.ts) copied into it. The
 // writing is drawn onto the canvas afterwards, in the handwriting font the page has loaded.
 import { pointOf, type Drawing } from "./model";
-import { textSize } from "./draw";
+import { onDark, textSize } from "./draw";
 
 const NS = "http://www.w3.org/2000/svg";
 /** The look of an element, as styles.css and sketchpad.css set it. */
@@ -66,19 +66,21 @@ export async function exportPng(svg: SVGSVGElement, d: Drawing, size = 1600): Pr
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  // the writing, in the page's own handwriting font
+  // the writing, in the page's own handwriting font: in ink, or in the paper's colour on a dark square
   const sample = svg.querySelector<SVGTextElement>(".sp-text");
   const look = sample ? getComputedStyle(sample) : css;
-  const font = `${look.fontWeight || 700} ${textSize(d) * k}px ${look.fontFamily || "cursive"}`;
-  await document.fonts?.load(font).catch(() => undefined);
-  ctx.font = font;
-  ctx.fillStyle = (sample && look.fill) || css.getPropertyValue("--paper-ink").trim() || "black";
+  const fontAt = (px: number) => `${look.fontWeight || 700} ${px}px ${look.fontFamily || "cursive"}`;
+  await document.fonts?.load(fontAt(textSize(d) * k)).catch(() => undefined);
+  const ink = (sample && look.fill) || css.getPropertyValue("--paper-ink").trim() || "black";
+  const paper = css.getPropertyValue("--paper").trim() || "white";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (const it of d.items) {
     if (it.kind !== "text") continue;
-    const p = pointOf(d.grid, it.at);
-    ctx.fillText(it.text, p.x * k, (p.y + (d.grid?.S ?? 48) * 0.03) * k);
+    const p = pointOf(d.grid, it.at), size = textSize(d, it.small);
+    ctx.font = fontAt(size * k);
+    ctx.fillStyle = onDark(d, it) ? paper : ink;
+    ctx.fillText(it.text, p.x * k, (p.y + size * 0.06) * k);
   }
   return new Promise((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("The drawing couldn't be saved"))), "image/png"));
 }

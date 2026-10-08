@@ -5,7 +5,8 @@
 //
 // The tools, general to specific: a grid (drag a rectangle; then its rows and columns), the pen
 // (freehand; Shift or the straight-line lock for a straight line), straight lines, wash, stamps (the
-// real stones and symbols), writing, and the eraser. The grid is a magnet: with Snap on, line ends go
+// real stones and symbols, any shape from the shape pad), writing (normal, or small on corners and lines),
+// and the eraser (which also breaks a grid line: a panel's gap). The grid is a magnet: with Snap on, line ends go
 // to its corners, stamps to its squares or points, washes fill whole squares. Mouse, pen and touch
 // (pointer events).
 //
@@ -19,9 +20,9 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { addInk } from "~site/lib/ink.ts";
 import * as m from "~/sketchpad/model";
-import { gridSvg, itemSvg, stampSvg } from "~/sketchpad/draw";
+import { gridSvg, itemSvg, penVars, stampSvg } from "~/sketchpad/draw";
 import { exportPng } from "~/sketchpad/export";
-import { SHAPES, turnShape, type RC } from "~/editor/ops";
+import { SHAPES, type RC } from "~/editor/ops";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
 import { SpIcon, type SpIconName } from "./SketchpadIcons";
 import "~site/game-types/grid/styles.css";
@@ -34,21 +35,23 @@ const TOOLS: { id: Tool; label: string; key: string; hint: string; group: number
   { id: "line", label: "Line", key: "l", group: 1, hint: "Drag a straight line; it keeps level or upright near the axes" },
   { id: "wash", label: "Wash", key: "w", group: 2, hint: "Tap or drag across squares to wash them (again to clear); brush off the grid" },
   { id: "stamp", label: "Stamp", key: "s", group: 2, hint: "Tap where the stamp goes (again to take it off)" },
-  { id: "text", label: "Text", key: "t", group: 2, hint: "Tap a square and type a number or letter (Enter to finish, arrows to move on)" },
-  { id: "erase", label: "Eraser", key: "e", group: 3, hint: "Tap or drag over anything to rub it out" },
+  { id: "text", label: "Text", key: "t", group: 2, hint: "Tap a square and type a number or letter (Enter to finish, arrows to move on); small text goes on corners, lines and a square's sides" },
+  { id: "erase", label: "Eraser", key: "e", group: 3, hint: "Tap or drag over anything to rub it out; along a grid line to break it (again to mend it)" },
 ];
 /** The pen's weights, with the board's widths (docs/style.md) for the buttons' previews. */
 const WEIGHTS: { id: Weight; label: string; width: number }[] = [
   { id: "fine", label: "Fine", width: 1.6 }, { id: "medium", label: "Medium", width: 2.6 }, { id: "bold", label: "Bold", width: 5.5 }];
 /** The stamps, grouped for the picker. */
-const STAMP_GROUPS: { name: string; stamps: { id: StampKind; label: string }[] }[] = [
-  { name: "Stones", stamps: [{ id: "stone", label: "Stone" }] },
-  { name: "Marks", stamps: [{ id: "star", label: "Star" }, { id: "rock", label: "Shaded square" }, { id: "galaxy", label: "Circle" }, { id: "x", label: "X" }, { id: "dot", label: "Dot" }] },
+const STAMP_GROUPS: { name: string; stamps: { id: StampKind; label: string; tip?: string }[] }[] = [
+  // a panel's squares are stones too (docs/style.md), so the stone, in any colour, draws them
+  { name: "Stones", stamps: [{ id: "stone", label: "Stone", tip: "Stone (pearls, a panel's squares, paint dots)" }] },
+  { name: "Marks", stamps: [{ id: "star", label: "Star" }, { id: "rock", label: "Shaded square" }, { id: "galaxy", label: "Circle" }, { id: "x", label: "X" }, { id: "dot", label: "Dot" },
+    { id: "diamond", label: "Filled diamond", tip: "Filled diamond, on a line (twins)" }, { id: "open-diamond", label: "Empty diamond", tip: "Empty diamond, on a line (opposites)" }] },
   { name: "Panel symbols", stamps: [{ id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
     { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" }] },
 ];
 const STAMP_LABEL = Object.fromEntries(STAMP_GROUPS.flatMap((g) => g.stamps.map((s) => [s.id, s.label]))) as Record<StampKind, string>;
-const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape", "start", "hoshi"]);
+const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape", "eraser", "start", "hoshi"]);
 /** A symmetry panel's starts and dots: ink, or one of its two lines' colours. */
 const LINE_STAMPS = new Set<StampKind>(["start", "hoshi"]);
 /** The colour panel: the watercolours, then the two stones' colours. */
@@ -67,7 +70,10 @@ const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
   <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: stampSvg(s, 16, 16, ICON_SIZE[s.stamp] ?? 40) }} /></span>
 );
 /** The square a stamp's button draws it in (a shaded square fills it; the rest sit in it). */
-const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48 };
+const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44 };
+/** The shape pad's size, in squares. */
+const PAD = 5;
+const cellsKey = (cells: RC[]) => JSON.stringify(m.normalCells(cells));
 
 /** A chrome button with an icon, its name for screen readers, and a tooltip (name and shortcut). */
 function IconButton({ icon, label, tip, pressed, className = "", ...rest }: {
@@ -76,6 +82,32 @@ function IconButton({ icon, label, tip, pressed, className = "", ...rest }: {
   return (
     <button type="button" className={`sp-btn sp-tip ${className}`} aria-label={label} data-tip={tip ?? label}
       aria-pressed={pressed} {...rest}><SpIcon name={icon} /></button>
+  );
+}
+
+/** The shape stamp's pad: PAD × PAD squares to make any shape, tapped on and off (arrows move
+ *  between them). The shape is its squares moved up to the top-left. */
+function ShapePad({ cells, color, onChange }: { cells: RC[]; color: string; onChange: (cells: RC[]) => void }) {
+  const on = new Set(cells.map(([r, c]) => `${r},${c}`));
+  const [focus, setFocus] = useState(0);
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const onKey = (e: React.KeyboardEvent) => {
+    const step = STEPS[e.key];
+    if (!step) return;
+    e.preventDefault();
+    const r = Math.min(PAD - 1, Math.max(0, Math.floor(focus / PAD) + step[0])), c = Math.min(PAD - 1, Math.max(0, (focus % PAD) + step[1]));
+    setFocus(r * PAD + c);
+    refs.current[r * PAD + c]?.focus();
+  };
+  return (
+    <span className="sp-pad sp-tip" role="group" aria-label="Shape pad" data-tip="Tap squares to make any shape" onKeyDown={onKey} style={{ "--sp-pad-on": color } as React.CSSProperties}>
+      {Array.from({ length: PAD * PAD }, (_, k) => {
+        const r = Math.floor(k / PAD), c = k % PAD;
+        return <button key={k} ref={(el) => { refs.current[k] = el; }} type="button" className="sp-pad-cell" tabIndex={k === focus ? 0 : -1}
+          aria-label={`Row ${r + 1}, column ${c + 1}`} aria-pressed={on.has(`${r},${c}`)}
+          onClick={() => { setFocus(k); onChange(m.toggleCell(cells, r, c)); }} />;
+      })}
+    </span>
   );
 }
 
@@ -88,7 +120,8 @@ type Gesture =
   | { kind: "line"; from: XY }
   | { kind: "wash"; on: boolean; last: XY }
   | { kind: "brush"; points: XY[] }
-  | { kind: "erase"; last: XY };
+  /** rubbing out: things (not gaps), or breaking grid lines (along level or upright ones), or mending them */
+  | { kind: "erase"; last: XY; mode: "items" | "gap" | "mend"; side?: m.EdgeAt["side"] };
 
 export interface SketchpadHandle {
   /** the drawing as a PNG (about 1600px across) */
@@ -114,12 +147,15 @@ export function Sketchpad({ handle, onChange, actions }: {
   const [weight, setWeight] = useState<Weight>("bold");
   const [wash, setWash] = useState<WashColor>("blue");
   const [stampKind, setStampKind] = useState<StampKind>("stone");
-  const [colors, setColors] = useState<Partial<Record<StampKind, SymbolColor>>>({ stone: "black", crest: "orange", triangle: "orange", shape: "yellow", start: "black", hoshi: "black" });
+  const [colors, setColors] = useState<Partial<Record<StampKind, SymbolColor>>>({ stone: "black", crest: "orange", triangle: "orange", shape: "yellow", eraser: "white", start: "black", hoshi: "black" });
   const [count, setCount] = useState(1);
-  const [shapeAt, setShapeAt] = useState(0);
-  const [turns, setTurns] = useState(0);
+  const [pad, setPad] = useState<RC[]>(SHAPES[2].cells);   // the shape pad's squares, where they are on it
+  const [hollow, setHollow] = useState(false);
+  const [mayTurn, setMayTurn] = useState(false);
+  const [hidden, setHidden] = useState(false);
+  const [small, setSmall] = useState(false);
   const [hover, setHover] = useState<XY | null>(null);
-  const [typing, setTyping] = useState<{ at: Anchor; value: string } | null>(null);
+  const [typing, setTyping] = useState<{ at: Anchor; value: string; small: boolean } | null>(null);
   const [preview, setPreview] = useState<Grid | null>(null);   // a grid being dragged out
   const [straight, setStraight] = useState(false);   // the pen draws straight lines, as with Shift
   const [zoom, setZoom] = useState(1);
@@ -136,12 +172,13 @@ export function Sketchpad({ handle, onChange, actions }: {
 
   const d = draft ?? history.now;
   const g = d.grid, S = m.squareOf(d);
-  const cells = Array.from({ length: turns }).reduce<RC[]>((cs) => turnShape(cs), SHAPES[shapeAt].cells);
+  const cells = m.normalCells(pad);
   const current = (at: Anchor): m.Stamp => ({
     kind: "stamp", stamp: stampKind, at,
     ...(COLORED.has(stampKind) ? { color: colors[stampKind] } : {}),
     ...(stampKind === "triangle" ? { count } : {}),
-    ...(stampKind === "shape" ? { cells } : {}),
+    ...(stampKind === "shape" ? { cells, ...(hollow ? { hollow } : {}), ...(mayTurn ? { rotate: true } : {}) } : {}),
+    ...(stampKind === "stone" && hidden ? { hidden } : {}),
   });
 
   // the watercolour filter (in a hidden SVG of its own, so React's never has to make room for
@@ -241,14 +278,17 @@ export function Sketchpad({ handle, onChange, actions }: {
       case "stamp": { const s = current(m.stampAnchor(bg, p, stampKind, snapping)); edit((dd) => m.stamp(dd, s)); break; }
       case "text": {
         e.preventDefault();
-        const at = (snapping && m.snap(bg, p, ["cell"])) || m.loose(bg, p);
-        setTyping({ at, value: m.textAt(base, at)?.text ?? "" });
+        const at = m.textAnchor(bg, p, small, snapping), there = m.textAt(base, at);
+        setTyping({ at, value: there?.text ?? "", small: there ? !!there.small : small });
         break;
       }
       case "erase": {
-        begin({ kind: "erase", last: p });
-        const it = m.hit(base, p, reachOf(e));
-        if (it) show(m.remove(base, [it.id]));
+        // on a gap: mend it; on a bare grid line (or a washed square's edge): break it; else rub out
+        const reach = reachOf(e), it = m.hit(base, p, reach), edge = m.edgeAt(bg, p, reach);
+        const onLine = edge && (!it || ((it.kind === "wash" || it.kind === "brush") && m.edgeAt(bg, p, reach / 2)));
+        if (it?.kind === "gap") { begin({ kind: "erase", last: p, mode: "mend" }); show(m.remove(base, [it.id])); }
+        else if (onLine) { begin({ kind: "erase", last: p, mode: "gap", side: edge.side }); show(m.gapEdge(base, edge, true)); }
+        else { begin({ kind: "erase", last: p, mode: "items" }); if (it) show(m.remove(base, [it.id])); }
         break;
       }
     }
@@ -288,7 +328,12 @@ export function Sketchpad({ handle, onChange, actions }: {
       }
       case "erase": {
         let next = now;
-        for (const q of m.along(gg.last, p, 4)) { const it = m.hit(next, q, reachOf(e)); if (it) next = m.remove(next, [it.id]); }
+        const reach = reachOf(e);
+        for (const q of m.along(gg.last, p, 4)) {
+          if (gg.mode === "gap") { const edge = m.edgeAt(base.grid, q, reach, gg.side); if (edge) next = m.gapEdge(next, edge, true); continue; }
+          const it = m.hit(next, q, reach, gg.mode === "mend" ? (x) => x.kind === "gap" : (x) => x.kind !== "gap");
+          if (it) next = m.remove(next, [it.id]);
+        }
         gg.last = p;
         show(next);
         break;
@@ -325,8 +370,8 @@ export function Sketchpad({ handle, onChange, actions }: {
   function commitTyping(then?: Anchor | null) {
     if (!typing) return;
     const { at, value } = typing;
-    edit((dd) => m.write(dd, at, value));
-    if (then) setTyping({ at: then, value: m.textAt(history.now, then)?.text ?? "" });
+    edit((dd) => m.write(dd, at, value, typing.small));
+    if (then) setTyping({ at: then, value: m.textAt(history.now, then)?.text ?? "", small: typing.small });
     else setTyping(null);
   }
   const typingAt = typing && m.pointOf(g, typing.at);
@@ -339,13 +384,23 @@ export function Sketchpad({ handle, onChange, actions }: {
 
   // ---- what's drawn ----
   const layers = useMemo(() => m.LAYERS.map((kinds) => d.items.filter((it) => kinds.includes(it.kind))), [d]);
+  const gaps = useMemo(() => m.gapsOf(d), [d]);
   const markup = (it: m.Item) => itemSvg(d, it);
   const ghost = (() => {
     if (!hover || gesture.current || typing) return "";
     if (tool === "stamp") { const at = m.stampAnchor(g, hover, stampKind, snapping), q = m.pointOf(g, at); return `<g class="ghost">${stampSvg(current(at), q.x, q.y, S, m.outward(g, at))}</g>`; }
+    if (tool === "text" && small && snapping && g) {
+      const q = m.pointOf(g, m.textAnchor(g, hover, true, true));
+      return `<circle class="spot" cx="${q.x}" cy="${q.y}" r="${Math.max(5, S * 0.16)}"/>`;
+    }
     if ((tool === "text" || tool === "wash") && snapping) {
       const at = tool === "text" ? m.snap(g, hover, ["cell"]) : m.cellAt(g, hover);
       if (at) { const q = m.pointOf(g, at); return `<rect class="spot" x="${q.x - S / 2}" y="${q.y - S / 2}" width="${S}" height="${S}"/>`; }
+    }
+    if (tool === "erase" && !m.hit(d, hover, 8)) {
+      // the stretch of grid line the eraser would break
+      const edge = m.edgeAt(g, hover, 8);
+      if (edge) { const [a, b] = m.edgeEnds(edge).map((x) => m.pointOf(g, x)); return `<line class="spot-line" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`; }
     }
     return "";
   })();
@@ -358,7 +413,7 @@ export function Sketchpad({ handle, onChange, actions }: {
   const colourFor = forStamp ? `${STAMP_LABEL[stampKind]} colour` : "Wash colour";
   const allowed = (c: Colour) => (!forStamp ? (m.WASHES as readonly string[]).includes(c)
     : LINE_STAMPS.has(stampKind) ? c === "black" || c === "blue" || c === "yellow"
-    : c !== "pink" && (stampKind === "stone" || c !== "black"));
+    : c !== "pink" && (stampKind === "stone" || stampKind === "eraser" || c !== "black"));
   const pickColour = (c: Colour) => { if (forStamp) setColors({ ...colors, [stampKind]: c as SymbolColor }); else setWash(c as WashColor); };
 
   // ---- the side panel: always there on a wide screen, a bottom sheet on a phone ----
@@ -416,7 +471,19 @@ export function Sketchpad({ handle, onChange, actions }: {
               <SpIcon name="straight" /><span>Straight</span></button>
           )}
 
+          {tool === "text" && (
+            <span className="sp-seg" role="group" aria-label="Text size">
+              <button type="button" className="sp-btn sp-tip" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal: a clue in a square">Normal</button>
+              <button type="button" className="sp-btn sp-tip sp-small-btn" aria-pressed={small} onClick={() => setSmall(true)}
+                data-tip="Small: on a corner, a line, or a square's side or corner">Small</button>
+            </span>
+          )}
+
           {tool === "stamp" && <>
+            {stampKind === "stone" && (
+              <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
+                <StampIcon s={{ stamp: "stone", color: colors.stone, hidden: true }} /><span>Hidden</span></button>
+            )}
             {stampKind === "triangle" && (
               <span className="sp-seg" role="group" aria-label="How many">
                 {[1, 2, 3].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}
@@ -424,11 +491,18 @@ export function Sketchpad({ handle, onChange, actions }: {
             )}
             {stampKind === "shape" && <>
               <span className="sp-shapes" role="group" aria-label="Shape">
-                {SHAPES.map((x, k) => <button key={x.name} type="button" className="sp-btn sp-thumb sp-tip" aria-pressed={shapeAt === k} aria-label={x.name} data-tip={x.name}
-                  onClick={() => { setShapeAt(k); setTurns(0); }}><StampIcon s={{ stamp: "shape", cells: x.cells, color: colors.shape }} /></button>)}
+                {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb sp-tip" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}
+                  onClick={() => setPad(x.cells)}><StampIcon s={{ stamp: "shape", cells: x.cells, color: colors.shape }} /></button>)}
               </span>
-              <button type="button" className="sp-btn sp-toggle sp-tip" onClick={() => setTurns((turns + 1) % 4)} data-tip="Turn the shape a quarter turn" aria-label="Turn the shape">
-                <SpIcon name="rotate" /><StampIcon s={{ stamp: "shape", cells, color: colors.shape }} /></button>
+              <ShapePad cells={pad} color={paint(colors.shape ?? "yellow")} onChange={setPad} />
+              <span className="sp-seg" role="group" aria-label="Turn or flip">
+                <IconButton icon="rotate" label="Turn the shape" tip="Turn a quarter turn" onClick={() => setPad(m.turnCells(pad))} />
+                <IconButton icon="flip" label="Flip the shape" tip="Flip (its mirror image)" onClick={() => setPad(m.flipCells(pad))} />
+              </span>
+              <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape, outlined">
+                <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, hollow: true }} /><span>Hollow</span></button>
+              <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={mayTurn} onClick={() => setMayTurn(!mayTurn)} data-tip="May turn: drawn tilted">
+                <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, rotate: true }} /><span>May turn</span></button>
             </>}
           </>}
         </span>
@@ -459,12 +533,12 @@ export function Sketchpad({ handle, onChange, actions }: {
           {/* the wash filter, made for a board about WASH_SCALE units across (a 7 × 7 board's), so a
               stamp's watercolour comes out as it does on the board */}
           <svg className="sp-defs" viewBox={`0 0 ${WASH_SCALE} ${WASH_SCALE}`} ref={defs} aria-hidden="true" />
-          <svg ref={svg} className="sp-board" viewBox={`0 0 ${m.PAGE} ${m.PAGE}`} role="img" aria-label="Your drawing"
+          <svg ref={svg} className="sp-board" viewBox={`0 0 ${m.PAGE} ${m.PAGE}`} role="img" aria-label="Your drawing" style={penVars(S) as React.CSSProperties}
             onMouseDown={(e) => e.preventDefault()} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={() => setHover(null)}
             data-items={d.items.length} data-grid={g ? `${g.rows}x${g.cols}` : ""}>
             <g className="sp-ink">
               <g dangerouslySetInnerHTML={{ __html: layers[0].map(markup).join("") }} />
-              {g && <g dangerouslySetInnerHTML={{ __html: gridSvg(g) }} />}
+              {g && <g dangerouslySetInnerHTML={{ __html: gridSvg(g, gaps) }} />}
               <g dangerouslySetInnerHTML={{ __html: layers[1].map(markup).join("") }} />
               <g dangerouslySetInnerHTML={{ __html: layers[2].map(markup).join("") }} />
               <g data-export="skip" dangerouslySetInnerHTML={{ __html: layers[3].map(markup).join("") }} />
@@ -477,7 +551,7 @@ export function Sketchpad({ handle, onChange, actions }: {
             </g>
           </svg>
           {typing && typingAt && (
-            <input ref={typed} className="sp-typing" aria-label="Text" value={typing.value} maxLength={12}
+            <input ref={typed} className={`sp-typing${typing.small ? " small" : ""}`} aria-label="Text" value={typing.value} maxLength={12}
               style={{ left: `${(typingAt.x / m.PAGE) * 100}%`, top: `${(typingAt.y / m.PAGE) * 100}%`, width: `${Math.max(2.2, typing.value.length + 1.2)}em` }}
               onChange={(e) => setTyping({ ...typing, value: e.target.value })}
               onBlur={() => commitTyping()}
@@ -531,7 +605,7 @@ export function Sketchpad({ handle, onChange, actions }: {
             <div key={grp.name} className="sp-stamp-group" role="group" aria-label={grp.name}>
               <h3 aria-hidden="true">{grp.name}</h3>
               <div className="sp-stamps">
-                {grp.stamps.map((st) => <button key={st.id} type="button" className="sp-stamp sp-tip" aria-label={st.label} data-tip={st.label}
+                {grp.stamps.map((st) => <button key={st.id} type="button" className="sp-stamp sp-tip" aria-label={st.label} data-tip={st.tip ?? st.label}
                   aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
                   <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
                 </button>)}

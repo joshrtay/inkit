@@ -28,9 +28,17 @@ export type Anchor =
   | { at: "cell"; r: number; c: number }
   | { at: "corner"; r: number; c: number }
   | { at: "edge"; r: number; c: number; side: "top" | "left" }
+  | { at: "inset"; r: number; c: number; spot: Spot }
   | { at: "grid"; r: number; c: number }
   | { at: "page"; x: number; y: number };
 export type CellAt = Extract<Anchor, { at: "cell" }>;
+export type EdgeAt = Extract<Anchor, { at: "edge" }>;
+/** A place inside a square, toward one of its sides or corners (an "inset" anchor): where small
+ *  writing goes, as a corner sum (nw) or a compass's numbers (n, e, s, w). */
+export const SPOTS = { n: [-1, 0], s: [1, 0], e: [0, 1], w: [0, -1], nw: [-1, -1], ne: [-1, 1], sw: [1, -1], se: [1, 1] } as const;
+export type Spot = keyof typeof SPOTS;
+/** How far an inset is from its square's centre, in squares: toward a side, and toward a corner (each way). */
+const INSET_SIDE = 0.3, INSET_CORNER = 0.27;
 
 /** The pen's weights (docs/style.md): fine for small marks, medium for outlines, bold for lines. */
 export type Weight = "fine" | "medium" | "bold";
@@ -45,6 +53,8 @@ export type SymbolColor = typeof SYMBOL_COLORS[number];
 export const STAMP_SNAP = {
   stone: ["cell"], star: ["cell"], rock: ["cell"], x: ["cell", "edge"], dot: ["cell", "edge"],
   galaxy: ["cell", "corner", "edge"],
+  // Panes' border marks: ◆ (the squares either side are twins) and ◇ (opposites)
+  diamond: ["edge"], "open-diamond": ["edge"],
   hoshi: ["corner", "edge"], start: ["corner"], end: ["corner"],
   crest: ["cell"], triangle: ["cell"], shape: ["cell"], eraser: ["cell"],
 } satisfies Record<string, Snap[]>;
@@ -59,10 +69,15 @@ export type Item =
   | { id: number; kind: "wash"; color: WashColor; at: CellAt }
   /** a freehand brush of wash */
   | { id: number; kind: "brush"; color: WashColor; points: Anchor[] }
-  /** `color` for stones and panel symbols; `count` a triangle's; `cells` a shape's (from 0,0) */
-  | { id: number; kind: "stamp"; stamp: StampKind; at: Anchor; color?: SymbolColor; count?: number; cells?: [number, number][] }
-  /** a number, letter or word, handwritten */
-  | { id: number; kind: "text"; at: Anchor; text: string };
+  /** `color` for stones and panel symbols; `count` a triangle's; `cells` a shape's (from 0,0),
+   *  `hollow` (a negative shape, drawn dashed) and `rotate` (it may turn: drawn tilted); `hidden`
+   *  a stone that isn't shown until it's painted (Three Coats' hidden dots: a dashed outline) */
+  | { id: number; kind: "stamp"; stamp: StampKind; at: Anchor; color?: SymbolColor; count?: number; cells?: [number, number][];
+      hollow?: boolean; rotate?: boolean; hidden?: boolean }
+  /** a number, letter or word, handwritten; `small`: half size (corner sums, compass and border numbers) */
+  | { id: number; kind: "text"; at: Anchor; text: string; small?: boolean }
+  /** a break in a grid line (a panel's gap): the line between two corners, left out */
+  | { id: number; kind: "gap"; at: EdgeAt };
 type WithoutId<T> = T extends unknown ? Omit<T, "id"> : never;
 /** An item before it's added (add() gives it its id). */
 export type NewItem = WithoutId<Item>;
@@ -84,6 +99,10 @@ export function pointOf(g: Grid | null, a: Anchor): XY {
   const at = (r: number, c: number) => ({ x: x + c * S, y: y + r * S });
   switch (a.at) {
     case "cell": return at(a.r + 0.5, a.c + 0.5);
+    case "inset": {
+      const [dr, dc] = SPOTS[a.spot], k = dr && dc ? INSET_CORNER : INSET_SIDE;
+      return at(a.r + 0.5 + dr * k, a.c + 0.5 + dc * k);
+    }
     case "corner": case "grid": return at(a.r, a.c);
     case "edge": return a.side === "top" ? at(a.r, a.c + 0.5) : at(a.r + 0.5, a.c);
   }
@@ -92,7 +111,7 @@ export function pointOf(g: Grid | null, a: Anchor): XY {
 /** The size things are drawn at: the grid's square, or a board's. */
 export const squareOf = (d: Drawing) => d.grid?.S ?? CELL;
 
-export type Snap = "cell" | "corner" | "edge";
+export type Snap = "cell" | "corner" | "edge" | "inset";
 
 /** The nearest place of these kinds to `p` on the grid: any square's centre (in the grid or the
  *  ring just outside it) if squares are wanted, else a corner or the middle of a line no more than
@@ -115,18 +134,19 @@ export function snap(g: Grid | null, p: XY, to: readonly Snap[], reach = 0.5): A
     if (tr >= 0 && tr <= g.rows && tc >= 0 && tc < g.cols) consider({ at: "edge", r: tr, c: tc, side: "top" });
     if (lr >= 0 && lr < g.rows && lc >= 0 && lc <= g.cols) consider({ at: "edge", r: lr, c: lc, side: "left" });
   }
+  if (to.includes("inset")) {
+    const cr = Math.floor(r), cc = Math.floor(c);
+    if (cr >= 0 && cr < g.rows && cc >= 0 && cc < g.cols) for (const spot of Object.keys(SPOTS) as Spot[]) consider({ at: "inset", r: cr, c: cc, spot });
+  }
   const best = found.sort((a, b) => a.d - b.d)[0];
   if (!best) return null;
-  return best.a.at === "cell" || best.d <= reach ? best.a : null;
+  return best.a.at === "cell" || best.a.at === "inset" || best.d <= reach ? best.a : null;
 }
 
-/** A point kept as it is: in the grid's squares over (or just around) the grid, so it moves with
- *  it; on the page elsewhere. */
+/** A point kept as it is: in the grid's squares when there's a grid (however far from it), so it
+ *  moves and grows with it, as clues in the margin should; on the page when there isn't. */
 export function loose(g: Grid | null, p: XY): Anchor {
-  if (g) {
-    const r = (p.y - g.y) / g.S, c = (p.x - g.x) / g.S;
-    if (r >= -1 && r <= g.rows + 1 && c >= -1 && c <= g.cols + 1) return { at: "grid", r: round3(r), c: round3(c) };
-  }
+  if (g) return { at: "grid", r: round3((p.y - g.y) / g.S), c: round3((p.x - g.x) / g.S) };
   return { at: "page", x: round3(p.x), y: round3(p.y) };
 }
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -136,11 +156,34 @@ export function stampAnchor(g: Grid | null, p: XY, stamp: StampKind, snapping: b
   return (snapping && snap(g, p, STAMP_SNAP[stamp])) || loose(g, p);
 }
 
+/** Where writing goes: a square's centre (snapping), or for small writing the nearest of a
+ *  square's centre, sides and corners, a corner of the grid or the middle of a line. */
+export function textAnchor(g: Grid | null, p: XY, small: boolean, snapping: boolean): Anchor {
+  return (snapping && snap(g, p, small ? ["cell", "inset", "corner", "edge"] : ["cell"])) || loose(g, p);
+}
+
+/** The grid line under `p` (within `reach` page units of it): the stretch between two corners.
+ *  `side`: only level lines ("top") or only upright ones ("left"). */
+export function edgeAt(g: Grid | null, p: XY, reach: number, side?: EdgeAt["side"]): EdgeAt | null {
+  if (!g) return null;
+  const r = (p.y - g.y) / g.S, c = (p.x - g.x) / g.S, rr = Math.round(r), rc = Math.round(c);
+  const found: { a: EdgeAt; d: number }[] = [];
+  if (side !== "left" && rr >= 0 && rr <= g.rows && c >= 0 && c < g.cols) found.push({ a: { at: "edge", r: rr, c: Math.floor(c), side: "top" }, d: Math.abs(r - rr) * g.S });
+  if (side !== "top" && rc >= 0 && rc <= g.cols && r >= 0 && r < g.rows) found.push({ a: { at: "edge", r: Math.floor(r), c: rc, side: "left" }, d: Math.abs(c - rc) * g.S });
+  const best = found.filter((f) => f.d <= reach).sort((a, b) => a.d - b.d)[0];
+  return best?.a ?? null;
+}
+/** A grid line's two ends, as corners. */
+export function edgeEnds(e: EdgeAt): [Anchor, Anchor] {
+  return [{ at: "corner", r: e.r, c: e.c }, e.side === "top" ? { at: "corner", r: e.r, c: e.c + 1 } : { at: "corner", r: e.r + 1, c: e.c }];
+}
+
 export function sameAnchor(a: Anchor, b: Anchor): boolean {
   if (a.at !== b.at) return false;
   if (a.at === "page") return near(a.x, (b as typeof a).x) && near(a.y, (b as typeof a).y);
   const o = b as Exclude<Anchor, { at: "page" }>;
-  return near(a.r, o.r) && near(a.c, o.c) && (a.at !== "edge" || a.side === (o as typeof a).side);
+  return near(a.r, o.r) && near(a.c, o.c) && (a.at !== "edge" || a.side === (o as typeof a).side)
+    && (a.at !== "inset" || a.spot === (o as typeof a).spot);
 }
 
 /** Which way an end sticks out from a corner: away from the grid on its edge; up otherwise. */
@@ -215,6 +258,27 @@ export function smoothPath(pts: XY[]): string {
   return d + `L${P(pts[pts.length - 1])}`;
 }
 
+// ---- shapes (the shape stamp's pad) ----
+
+export type Cells = [number, number][];
+/** A shape's squares moved up against 0,0, in reading order, each once. */
+export function normalCells(cells: Cells): Cells {
+  if (!cells.length) return [];
+  const r0 = Math.min(...cells.map((x) => x[0])), c0 = Math.min(...cells.map((x) => x[1]));
+  const keys = [...new Set(cells.map(([r, c]) => `${r - r0},${c - c0}`))];
+  return keys.map((k) => k.split(",").map(Number) as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+/** A quarter turn clockwise. */
+export const turnCells = (cells: Cells): Cells => normalCells(cells.map(([r, c]) => [c, -r]));
+/** Its mirror image, left to right. */
+export const flipCells = (cells: Cells): Cells => normalCells(cells.map(([r, c]) => [r, -c]));
+/** A square of the pad on or off (never the last one off). */
+export function toggleCell(cells: Cells, r: number, c: number): Cells {
+  const has = cells.some((x) => x[0] === r && x[1] === c);
+  if (has && cells.length === 1) return cells;
+  return has ? cells.filter((x) => x[0] !== r || x[1] !== c) : [...cells, [r, c]];
+}
+
 // ---- the grid ----
 
 /** A grid over a dragged rectangle, its rows and columns given or worked out from the drag (squares
@@ -261,7 +325,7 @@ export function removeGrid(d: Drawing): Drawing {
     switch (it.kind) {
       case "pen": case "brush": return [{ ...it, points: it.points.map(keep) }];
       case "line": return [{ ...it, from: keep(it.from), to: keep(it.to) }];
-      case "wash": return [];   // a washed square is the grid's
+      case "wash": case "gap": return [];   // a washed square, a gap in a line: the grid's
       case "stamp": case "text": return [{ ...it, at: keep(it.at) }];
     }
   });
@@ -281,7 +345,7 @@ export function remove(d: Drawing, ids: Iterable<number>): Drawing {
 export const clear = (d: Drawing): Drawing => (d.items.length || d.grid ? { ...EMPTY, next: d.next } : d);
 
 const sameStamp = (a: Stamp, b: Stamp) => a.stamp === b.stamp && a.color === b.color && a.count === b.count
-  && JSON.stringify(a.cells) === JSON.stringify(b.cells);
+  && JSON.stringify(a.cells) === JSON.stringify(b.cells) && !a.hollow === !b.hollow && !a.rotate === !b.rotate && !a.hidden === !b.hidden;
 
 /** Stamp something: the same stamp tapped again comes off; a different one in the same place
  *  (a square holds one stamp, as a point does) takes its spot. */
@@ -303,19 +367,30 @@ export const washOf = (d: Drawing, at: CellAt) =>
   d.items.find((it): it is Extract<Item, { kind: "wash" }> => it.kind === "wash" && sameAnchor(it.at, at));
 
 /** Write in a place, replacing what was written there; nothing written takes it away. */
-export function write(d: Drawing, at: Anchor, text: string): Drawing {
+export function write(d: Drawing, at: Anchor, text: string, small = false): Drawing {
   const there = textAt(d, at), t = text.trim();
-  if (there && there.text === t) return d;
+  if (there && there.text === t && !there.small === !small) return d;
   const without = there ? remove(d, [there.id]) : d;
-  return t ? add(without, { kind: "text", at, text: t }) : without;
+  return t ? add(without, { kind: "text", at, text: t, ...(small ? { small: true } : {}) }) : without;
 }
+
+/** Break a grid line (`on`), or mend it. */
+export function gapEdge(d: Drawing, at: EdgeAt, on: boolean): Drawing {
+  const there = gapAt(d, at);
+  if (on === !!there) return d;
+  return there ? remove(d, [there.id]) : add(d, { kind: "gap", at });
+}
+export const gapAt = (d: Drawing, at: EdgeAt) =>
+  d.items.find((it): it is Extract<Item, { kind: "gap" }> => it.kind === "gap" && sameAnchor(it.at, at));
+/** The grid lines left out. */
+export const gapsOf = (d: Drawing): EdgeAt[] => d.items.flatMap((it) => (it.kind === "gap" ? [it.at] : []));
 export const textAt = (d: Drawing, at: Anchor) =>
   d.items.find((it): it is Extract<Item, { kind: "text" }> => it.kind === "text" && sameAnchor(it.at, at));
 
 // ---- what's under a point (the eraser) ----
 
 /** The layers, bottom to top (draw.ts draws them in this order; the grid goes over the washes). */
-export const LAYERS: Item["kind"][][] = [["wash", "brush"], ["pen", "line"], ["stamp"], ["text"]];
+export const LAYERS: Item["kind"][][] = [["gap", "wash", "brush"], ["pen", "line"], ["stamp"], ["text"]];
 const layerOf = (k: Item["kind"]) => LAYERS.findIndex((l) => l.includes(k));
 
 function segDist(p: XY, a: XY, b: XY) {
@@ -333,14 +408,17 @@ export function distanceTo(d: Drawing, it: Item, p: XY): number {
     case "brush": return Math.max(0, pathDist(p, it.points.map(at)) - 6);   // half a wash stroke
     case "line": return segDist(p, at(it.from), at(it.to));
     case "wash": { const c = at(it.at); return Math.max(0, Math.abs(p.x - c.x) - S / 2, Math.abs(p.y - c.y) - S / 2); }
-    case "stamp": case "text": return Math.max(0, dist(p, at(it.at)) - S * 0.3);
+    case "stamp": return Math.max(0, dist(p, at(it.at)) - S * 0.3);
+    case "text": return Math.max(0, dist(p, at(it.at)) - S * (it.small ? 0.15 : 0.3));
+    case "gap": { const [a, b] = edgeEnds(it.at); return segDist(p, at(a), at(b)); }
   }
 }
 
 /** The item under `p` (within `reach`): the top one, and of those the nearest. */
-export function hit(d: Drawing, p: XY, reach = 8): Item | null {
+export function hit(d: Drawing, p: XY, reach = 8, only?: (it: Item) => boolean): Item | null {
   let best: { it: Item; layer: number; d: number } | null = null;
   for (const it of d.items) {
+    if (only && !only(it)) continue;
     const dd = distanceTo(d, it, p);
     if (dd > reach) continue;
     const layer = layerOf(it.kind);

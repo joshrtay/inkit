@@ -88,6 +88,13 @@
 .sp-thumb { width: 32px; padding: 0; background: var(--paper); }
 .sp-thumb:hover:not(:disabled) { background: color-mix(in srgb, var(--paper) 85%, var(--wash-blue)); }
 .sp-thumb .be-icon { width: 24px; height: 24px; }
+/* the shape pad: 5 × 5 squares, the shape's in its colour */
+.sp-pad { display: inline-grid; grid-template-columns: repeat(5, 9px); grid-auto-rows: 9px; gap: 1px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--line); }
+.sp-pad-cell { width: 9px; height: 9px; padding: 0; border: 0; border-radius: 1px; background: var(--paper); cursor: pointer; }
+.sp-pad-cell:hover { background: color-mix(in srgb, var(--paper) 70%, var(--sp-pad-on)); }
+.sp-pad-cell[aria-pressed="true"] { background: var(--sp-pad-on); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 55%, transparent); }
+.sp-pad-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; position: relative; z-index: 1; }
+.sp-small-btn { font-size: 11px; }
 .sp-phone-only, .sp-sheet-head { display: none; }
 
 /* ---- the workspace and the paper on it, fitted to it (Sketchpad sets the width) ---- */
@@ -118,6 +125,10 @@
 .sp-ui { pointer-events: none; }
 .sp-ui .ghost { opacity: .35; }
 .sp-ui .spot { fill: color-mix(in srgb, var(--wash-yellow) 35%, transparent); }
+.sp-ui .spot-line { stroke: color-mix(in srgb, var(--wash-red) 55%, transparent); stroke-width: 6; stroke-linecap: round; }
+/* a stone that's hidden until painted (Three Coats): pale, its outline dashed */
+.grid-game .stone.sp-hidden .wash { fill-opacity: .3; }
+.grid-game .stone.sp-hidden .stone-line { stroke-dasharray: 3 2.5; }
 .sp-ui .outline { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 45%, transparent); stroke-width: var(--pen-fine); stroke-dasharray: 4 3; }
 .sp-ui .handle { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-fine); }
 
@@ -127,6 +138,7 @@
   font: 700 22px/1 var(--hand); color: var(--paper-ink); background: color-mix(in srgb, var(--wash-yellow) 30%, var(--paper));
   border: 1px solid var(--paper-ink); border-radius: 4px; padding: 2px 4px; outline: none;
 }
+.sp-typing.small { font-size: 13px; padding: 1px 3px; }
 
 /* ---- the status line ---- */
 .sp-status {
@@ -232,6 +244,8 @@
   .sp-sheet-head::before { content: ""; position: absolute; top: 5px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line-strong); }
   .sp-swatches { grid-template-columns: repeat(9, 1fr); }
   .sp-stamps { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); }
+  .sp-pad { grid-template-columns: repeat(5, 11px); grid-auto-rows: 11px; order: -1; }   /* first: the presets scroll on after it */
+  .sp-pad-cell { width: 11px; height: 11px; }
   .sp-scrim { position: fixed; inset: 0; z-index: 39; background: color-mix(in srgb, #000 40%, transparent); }
   .sp-error { top: 56px; }
 }

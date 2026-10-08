@@ -121,9 +121,12 @@ test("the paint-app chrome: a tool palette with arrow keys and letters, panels, 
   await page.goto("/new/draw");
   const palette = page.getByRole("toolbar", { name: "Tools" });
   const pen = palette.getByRole("button", { name: "Pen", exact: true });
-  await palette.getByRole("button", { name: "Grid", exact: true }).focus();
-  await page.keyboard.press("ArrowDown");
-  await expect(pen).toBeFocused();
+  // (again until the page has hydrated and the palette listens for its arrow keys)
+  await expect(async () => {
+    await palette.getByRole("button", { name: "Grid", exact: true }).focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(pen).toBeFocused({ timeout: 500 });
+  }).toPass();
   await page.keyboard.press("Enter");
   await expect(pen).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Bold" })).toHaveAttribute("aria-pressed", "true");
@@ -159,4 +162,50 @@ test("on a phone: the tools along the bottom, Colour and Stamps in a sheet", asy
   await expect(stone).toBeHidden();
   await expect(page.getByRole("toolbar", { name: "Tools" }).getByRole("button", { name: "Stamp", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test("a panel: gaps in the grid's lines, a hollow pentomino from the pad, coloured starts, small writing", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto("/new/draw");
+  const board = page.locator(".sp-board");
+  await page.getByRole("button", { name: "Add a grid" }).click();   // 6 × 6 at (64, 64), squares of 72
+
+  // the eraser along a bare grid line breaks it; on the break, mends it; undo brings it back
+  await tool(page, "Eraser");
+  await drag(page, [64 + 72 * 1.2, 64 + 72], [64 + 72 * 2.8, 64 + 72]);
+  const data = () => page.evaluate(() => JSON.parse(localStorage.getItem("inkit:sketchpad") ?? "{}").items ?? []);
+  await expect.poll(async () => (await data()).filter((it: { kind: string }) => it.kind === "gap").length).toBe(2);
+  await tap(page, 64 + 72 * 1.5, 64 + 72);
+  await expect.poll(async () => (await data()).filter((it: { kind: string }) => it.kind === "gap").length).toBe(1);
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect.poll(async () => (await data()).filter((it: { kind: string }) => it.kind === "gap").length).toBe(2);
+
+  // a hollow P pentomino, made on the pad (three in a row, then two more squares), flipped
+  await page.getByRole("button", { name: "Shape", exact: true }).click();
+  const pad = page.getByRole("group", { name: "Shape pad" });
+  await pad.getByRole("button", { name: "Row 2, column 1" }).click();
+  await pad.getByRole("button", { name: "Row 2, column 2" }).click();
+  await page.getByRole("button", { name: "Flip the shape" }).click();
+  await page.getByRole("button", { name: "Hollow", exact: true }).click();
+  await tap(page, 64 + 72 * 2.5, 64 + 72 * 2.5);
+  await expect(board.locator(".sp-ink .panel-shape.negative")).toHaveCount(1);
+  const shape = (await data()).find((it: { stamp?: string }) => it.stamp === "shape");
+  expect(shape).toMatchObject({ hollow: true, cells: [[0, 0], [0, 1], [0, 2], [1, 1], [1, 2]] });
+
+  // a blue start
+  await page.getByRole("button", { name: "Start", exact: true }).click();
+  await page.getByRole("button", { name: "Blue", exact: true }).click();
+  await tap(page, 64, 64 + 72 * 6);
+  await expect(board.locator(".sp-ink .panel-enso")).toHaveAttribute("style", /fill:#3f8fe0/);
+
+  // small writing on a corner of the grid
+  await tool(page, "Text");
+  await page.getByRole("button", { name: "Small", exact: true }).click();
+  await tap(page, 64 + 72 * 3 + 2, 64 + 72 * 3 + 2);
+  await page.locator(".sp-typing").fill("3");
+  await page.locator(".sp-typing").press("Enter");
+  await expect(board.locator("text.sp-text.small")).toHaveText("3");
+  expect((await data()).find((it: { kind: string }) => it.kind === "text")).toMatchObject({ small: true, at: { at: "corner", r: 3, c: 3 } });
+  expect(errors).toEqual([]);
 });
