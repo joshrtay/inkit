@@ -68,6 +68,7 @@ export default function DrawGame({ loaderData: { collection, slug }, actionData 
     const data = new FormData();
     data.set("collection", collection);
     data.set("image", png, "sketch.png");
+    data.set("drawing", pad.current!.data());   // what's drawn, exactly: the reader reads it with the picture
     submit(data, { method: "post", encType: "multipart/form-data" });
   };
 

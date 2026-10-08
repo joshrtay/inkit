@@ -48,7 +48,9 @@ const STAMP_GROUPS: { name: string; stamps: { id: StampKind; label: string }[] }
     { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" }] },
 ];
 const STAMP_LABEL = Object.fromEntries(STAMP_GROUPS.flatMap((g) => g.stamps.map((s) => [s.id, s.label]))) as Record<StampKind, string>;
-const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape"]);
+const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape", "start", "hoshi"]);
+/** A symmetry panel's starts and dots: ink, or one of its two lines' colours. */
+const LINE_STAMPS = new Set<StampKind>(["start", "hoshi"]);
 /** The colour panel: the watercolours, then the two stones' colours. */
 const PALETTE = [...m.WASHES, "black", "white"] as const;
 type Colour = typeof PALETTE[number];
@@ -91,6 +93,8 @@ type Gesture =
 export interface SketchpadHandle {
   /** the drawing as a PNG (about 1600px across) */
   png(): Promise<Blob>;
+  /** the drawing as data (model.ts objects()), as JSON: sent to the reader with the picture */
+  data(): string;
   /** whether anything's drawn */
   empty: boolean;
 }
@@ -110,7 +114,7 @@ export function Sketchpad({ handle, onChange, actions }: {
   const [weight, setWeight] = useState<Weight>("bold");
   const [wash, setWash] = useState<WashColor>("blue");
   const [stampKind, setStampKind] = useState<StampKind>("stone");
-  const [colors, setColors] = useState<Partial<Record<StampKind, SymbolColor>>>({ stone: "black", crest: "orange", triangle: "orange", shape: "yellow" });
+  const [colors, setColors] = useState<Partial<Record<StampKind, SymbolColor>>>({ stone: "black", crest: "orange", triangle: "orange", shape: "yellow", start: "black", hoshi: "black" });
   const [count, setCount] = useState(1);
   const [shapeAt, setShapeAt] = useState(0);
   const [turns, setTurns] = useState(0);
@@ -167,6 +171,7 @@ export function Sketchpad({ handle, onChange, actions }: {
   latest.current = history.now;
   handle.current = {
     png: () => exportPng(svg.current!, latest.current),
+    data: () => JSON.stringify(m.objects(latest.current)),
     empty: !history.now.grid && !history.now.items.length,
   };
 
@@ -351,7 +356,9 @@ export function Sketchpad({ handle, onChange, actions }: {
   const forStamp = tool === "stamp" && COLORED.has(stampKind);
   const colour: Colour = forStamp ? (colors[stampKind] ?? "black") : wash;
   const colourFor = forStamp ? `${STAMP_LABEL[stampKind]} colour` : "Wash colour";
-  const allowed = (c: Colour) => (forStamp ? c !== "pink" && (stampKind === "stone" || c !== "black") : (m.WASHES as readonly string[]).includes(c));
+  const allowed = (c: Colour) => (!forStamp ? (m.WASHES as readonly string[]).includes(c)
+    : LINE_STAMPS.has(stampKind) ? c === "black" || c === "blue" || c === "yellow"
+    : c !== "pink" && (stampKind === "stone" || c !== "black"));
   const pickColour = (c: Colour) => { if (forStamp) setColors({ ...colors, [stampKind]: c as SymbolColor }); else setWash(c as WashColor); };
 
   // ---- the side panel: always there on a wide screen, a bottom sheet on a phone ----

@@ -2,7 +2,7 @@
 // grid in pen like a board's, washes in watercolour, and every stamp drawn by the same functions
 // the player uses (panel-draw.ts), so a stone here is the stone a player sees. The classes are
 // styles.css's (under .grid-game) and sketchpad.css's (.sp-*).
-import { ensoPath, stoneSvg, symbolSvg } from "~site/game-types/grid/panel-draw.ts";
+import { ensoPath, LINE_COLORS, stoneSvg, symbolSvg } from "~site/game-types/grid/panel-draw.ts";
 import { outward, pointOf, squareOf, type Drawing, type Grid, type Item, type XY, smoothPath } from "./model";
 
 type A = Record<string, string | number>;
@@ -27,6 +27,8 @@ export function gridSvg(g: Grid): string {
   return lines + tag("rect", { class: "frame", x, y, width: W, height: H });
 }
 
+const lineColor = (c?: string): A => (c && LINE_COLORS[c] ? { style: `fill:${LINE_COLORS[c]}` } : {});
+
 /** One stamp, around (x, y), sized to a square of `S`. Also draws the toolbar's buttons. */
 export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "color" | "count" | "cells">, x: number, y: number, S: number, out: XY = { x: 0, y: -1 }): string {
   switch (s.stamp) {
@@ -36,8 +38,9 @@ export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "co
     case "galaxy": return tag("circle", { class: "galaxy", cx: x, cy: y, r: S * 0.15 });
     case "x": return tag("path", { class: "xmark cellx", d: xPath(x, y, S * 0.18) });
     case "dot": return tag("circle", { class: "dotmark", cx: x, cy: y, r: S * 0.075 });
-    case "hoshi": return tag("circle", { class: "panel-dot", cx: x, cy: y, r: S * 0.1 });
-    case "start": return tag("circle", { class: "panel-start", cx: x, cy: y, r: S * 0.26 }) + tag("path", { class: "panel-enso", d: ensoPath(x, y, S * 0.21) });
+    // a symmetry panel's starts and dots take its two lines' colours (blue, yellow); otherwise ink
+    case "hoshi": return tag("circle", { class: "panel-dot", cx: x, cy: y, r: S * 0.1, ...lineColor(s.color) });
+    case "start": return tag("circle", { class: "panel-start", cx: x, cy: y, r: S * 0.26 }) + tag("path", { class: "panel-enso", d: ensoPath(x, y, S * 0.21), ...lineColor(s.color) });
     case "end": return tag("line", { class: "mark pen panel-end", x1: x, y1: y, x2: x + out.x * S * 0.3, y2: y + out.y * S * 0.3 });
     case "crest": return symbolSvg({ kind: "star", color: s.color ?? "orange" }, x, y, S);
     case "triangle": return symbolSvg({ kind: "triangle", value: s.count ?? 1, color: s.color ?? "orange" }, x, y, S);
