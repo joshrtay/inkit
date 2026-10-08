@@ -66,8 +66,10 @@ export function unstamp(root: HTMLElement) {
  *  sample), or else anywhere on the grid. The drops burst from these. */
 function inkSpots(board: SVGSVGElement, n: number) {
   const box = board.getBoundingClientRect();
-  const marks = [...board.querySelectorAll<SVGGraphicsElement>("text, .wash, circle, .star, .wall, .given")]
-    .map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.width < box.width / 2);
+  // the drawn line (panels, loops, fences) and the panel's symbols count as ink; the pale tracks
+  // and an empty start circle don't
+  const marks = [...board.querySelectorAll<SVGGraphicsElement>("text, .wash, circle:not(.panel-start), .panel-start.ink, .star, .wall, .given, .mark.pen, .river, [class^='panel-']:not(.panel-track):not(.panel-frame):not(.panel-start)")]
+    .map((e) => e.getBoundingClientRect()).filter((r) => (r.width > 0 || r.height > 0) && r.width < box.width / 2 && r.height < box.height / 2);
   const frame = (board.querySelector(".frame") ?? board).getBoundingClientRect();
   return Array.from({ length: n }, (_, i) => {
     const r = marks.length && i % 3 !== 2 ? marks[Math.floor(Math.random() * marks.length)] : frame;
