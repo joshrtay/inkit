@@ -75,9 +75,10 @@ Interest can't be measured from inside; each instrument is validated against:
 2. **Planted flaws**: puzzles we make bad on purpose: trial-and-error heavy (unique but needs
    guessing), red herrings (a clue that only matters at the end), trivial (one technique
    repeated), slogs (many hard steps). An instrument must flag these.
-3. **People**: pairwise "which was more fun?" choices from a small panel (Josh, Wyatt, friends)
-   turned into a ranking (Elo/Bradley-Terry); later, the site's own data: likes, solves,
-   completion and abandonment, solve time.
+3. **People**: existing ratings rather than a panel of our own: Puzzle Square JP's like and solver
+   counts per puzzle (bay-puz/psjp publishes them, MIT; the puzzles are puzz.link links we can
+   convert), where likes per solver is a quality signal and solver counts a difficulty one; later,
+   the site's own data: likes, solves, completion and abandonment, solve time.
 
 ## Tests
 
@@ -85,7 +86,7 @@ Interest can't be measured from inside; each instrument is validated against:
 |---|---|---|
 | T1 | **Discrimination**: each instrument's score separates acclaimed from random puzzles (per type) | AUC ≥ 0.75 on held-out puzzles |
 | T2 | **Flaw detection**: each planted-flaw kind is flagged | ≥ 80% recall per kind, few false alarms on acclaimed |
-| T3 | **Agreement with people**: correlation with the pairwise panel ranking | Spearman ρ ≥ 0.5 |
+| T3 | **Agreement with people**: correlation with Puzzle Square JP's likes per solver (same type, similar size) | Spearman ρ ≥ 0.4 |
 | T4 | **Stability**: the same puzzle scored 3 times (model instruments) | spread small against differences between puzzles |
 | T5 | **Grounding**: model claims checked by clingo (H2/H4) | report the error rate; instruments whose claims are often false are discounted |
 | T6 | **Key-step location**: does the instrument find the step people name as the "aha" (from the panel, or the acclaimed puzzle's published commentary when there is one) | top-3 hit rate ≥ 60% |
@@ -97,13 +98,12 @@ Interest can't be measured from inside; each instrument is validated against:
 
 1. **D, the deduction solver** (no AI cost): solve paths and profiles for every type; run it over
    the reference sets and our own puzzles. Also needed for flaw planting (T2) and H1/H2/H5/H6.
-2. **Datasets**: per type, acclaimed vs. random vs. planted flaws, held-out splits; the pairwise
-   panel page (a small admin-only page showing two puzzles and asking which was more fun).
+2. **Datasets**: per type, acclaimed vs. random vs. planted flaws, held-out splits; Puzzle Square
+   JP's rated puzzles converted to our format.
 3. **Pilot on one type** (Star Battle or Slitherlink: good acclaimed sources, mid-size grids):
    D, M, H1, H2, H4 on ~30 acclaimed + ~30 random + planted flaws, 3 samples each for model
    instruments; T1, T2, T4, T5, T7. Budget about $25.
-4. **Expand** to the instruments and types that pass; fit a combined scorer; T3 once the panel has
-   enough votes; plug the scorer into the AI creators' candidate selection (puzzles/ai/week.ts's
+4. **Expand** to the instruments and types that pass; fit a combined scorer; T3 on the Puzzle Square JP ratings; plug the scorer into the AI creators' candidate selection (puzzles/ai/week.ts's
    pluggable scoring); T9 on the site.
 
 ## Sources
