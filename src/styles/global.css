@@ -31,6 +31,9 @@
   --wash-orange: #f29a38;
   --wash-green: #7cc68f;
   --wash-pink: #f07ab8;
+  --wash-purple: #a77bd6;
+  --sumi: #2b2a33;     /* black stones: sumi ink */
+  --shell: #efece4;    /* white stones: clamshell */
 
   /* Only the puzzles are handwritten (--hand: numbers and clues on boards). The site itself
      is plain type; the brush script is kept only for the logo. */

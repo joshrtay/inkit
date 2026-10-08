@@ -90,6 +90,8 @@ nothing.
 ## Look
 
 Ballpoint pen on white paper, after the game Inked: a faint cloudy paper texture, boards in ink
-with a slight pen wobble, and watercolor washes for every fill (`addInk()` in `src/lib/ink.ts`).
+with a slight pen wobble, and watercolor washes for every fill (`addInk()` in `src/lib/ink.ts`),
+with a Japanese accent: stones, star points, crests. The rules (pen vs. watercolour, the pen
+weights, the colour tokens, the symbol family) are in [docs/style.md](docs/style.md).
 Clues are handwritten (Kalam); the site is Nunito, with Kaushan Script for the logo. Dark is the
 default, with Light and Match device in the More menu.
