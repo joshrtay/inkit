@@ -94,11 +94,14 @@ export async function likesOf(db: Db, gameId: string, viewerId: string | undefin
   return { count: n, liked };
 }
 
+/** Ids in groups small enough for one query (D1 takes at most 100 bound parameters). */
+const chunks = (ids: string[], size = 90) => Array.from({ length: Math.ceil(ids.length / size) }, (_, k) => ids.slice(k * size, (k + 1) * size));
+
 /** Which of these games this viewer likes. */
 export async function likedAmong(db: Db, viewerId: string | undefined, gameIds: string[]) {
   if (!viewerId || !gameIds.length) return new Set<string>();
-  const rows = await db.select({ id: schema.likes.gameId }).from(schema.likes)
-    .where(and(eq(schema.likes.creatorId, viewerId), inArray(schema.likes.gameId, gameIds)));
+  const rows = (await Promise.all(chunks(gameIds).map((ids) => db.select({ id: schema.likes.gameId }).from(schema.likes)
+    .where(and(eq(schema.likes.creatorId, viewerId), inArray(schema.likes.gameId, ids)))))).flat();
   return new Set(rows.map((r) => r.id));
 }
 
@@ -112,8 +115,8 @@ export async function solvesOf(db: Db, gameId: string, viewerId: string | undefi
 /** Which of these games this viewer has solved. */
 export async function solvedAmong(db: Db, viewerId: string | undefined, gameIds: string[]) {
   if (!viewerId || !gameIds.length) return new Set<string>();
-  const rows = await db.select({ id: schema.solves.gameId }).from(schema.solves)
-    .where(and(eq(schema.solves.creatorId, viewerId), inArray(schema.solves.gameId, gameIds)));
+  const rows = (await Promise.all(chunks(gameIds).map((ids) => db.select({ id: schema.solves.gameId }).from(schema.solves)
+    .where(and(eq(schema.solves.creatorId, viewerId), inArray(schema.solves.gameId, ids)))))).flat();
   return new Set(rows.map((r) => r.id));
 }
 
