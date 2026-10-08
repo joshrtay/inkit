@@ -137,7 +137,7 @@ where it can go:
 | Square | `square`, with a color | No region holds squares of two colors. |
 | Star | `star`, with a color | Its region holds exactly one other symbol of its color, of any kind. |
 | Triangle | `triangle`, 1-3 | The line runs along that many of the cell's sides. |
-| Shape | `shape`: its cells, `rotate`, `negative` | A region with shapes is exactly its shapes fitted together, as drawn (tilted ones may turn), and the line never cuts through a shape; hollow (negative) shapes cancel cells of the others: every cell of the region is covered 0 or 1 times net (the same for all), every cell outside it evenly. |
+| Shape | `shape`: its cells, `rotate`, `negative` | A region with shapes is exactly its shapes fitted together, as drawn (tilted ones may turn), and the line never cuts through a shape; hollow (negative) shapes cancel cells of the others: every cell of the region is covered 0 or 1 times net (the same for all), every cell outside it evenly. As the game counts it, a solid shape also fills the stretches of line between its squares and a hollow one takes away every stretch around its squares, so the line can cut through a solid shape only where a hollow one cancels the cut. |
 | Eraser | `eraser` | Cancels itself and one symbol in its region that's wrong before any erasing, or pairs off with another eraser. |
 
 Every cell symbol has a color that stars count: squares and stars as given, triangles orange,
@@ -149,6 +149,11 @@ erasers in a panel with shapes (proving a region can't be packed is a harder pro
 game type: symbols mix freely, and symmetry is a setting (a puzzle's own `panel-line` rule). Left
 out, since paper can't carry them: environmental and shadow puzzles, sound, colored light,
 reflections, and puzzles that span several panels.
+
+`node puzzles/grid/witness-import.ts <codes> <out dir>` turns panels written in The Windmill's
+format (windmill.thefifthmatt.com) into ours and counts their solutions (trying every line when the
+solver can't take a panel); it builds the local reference set in `references/witness/` (not
+published: those are the games' designs).
 
 `npm run new -- --genre panel --mix <dots|squares|stars|triangles|shapes|erasers|symmetry>` (`puzzles/grid/panels.ts`) draws a random winding line,
 puts every symbol true of it on the panel, adds gaps until the line is the only one, and takes out

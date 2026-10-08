@@ -82,31 +82,42 @@ export function placements(g: Grid, cells: RC[], rotate: boolean): number[][] {
   return out;
 }
 
-/** Can these shapes (positive and hollow) be laid on the grid so that every cell of the region
- *  is covered the same number of times more by positive shapes than hollow ones, 0 or 1 (the same
- *  for all of them), and every cell outside it evenly? */
-export function packs(g: Grid, region: number[], shapes: { cells: RC[]; rotate: boolean; negative: boolean }[], split: (a: number, b: number) => boolean = () => false): boolean {
+/** The stretches of grid line between a placed shape's own squares (a solid shape counts them). */
+export const innerEdges = (g: Grid, pl: number[]) => pl.flatMap((a) => pl.filter((c) => c > a).map((c) => g.borderBetween(a, c)).filter((e) => e >= 0));
+/** Every stretch of line inside the grid that touches a placed shape's squares (a hollow shape takes them away). */
+export const touchingEdges = (g: Grid, pl: number[]) => [...new Set(pl.flatMap((c) => g.cellBorders[c].filter((e) => g.borders[e].link >= 0)))];
+
+/** Can these shapes (solid and hollow) be laid on the grid so that, as the game counts them, every
+ *  cell of the region is covered the same number of times more by solid shapes than hollow ones,
+ *  0 or 1 (the same for all), every cell outside it evenly, and no stretch of line between
+ *  squares is overfilled? A solid shape fills the stretches between its own squares; a hollow one
+ *  takes away every stretch around its squares; a stretch inside the region can hold 1 (0 when
+ *  they cancel out), one the line runs along, or outside the region, none. So the line can only
+ *  cut through a solid shape where a hollow one cancels the cut. `onLine(e)`: the line runs along e. */
+export function packs(g: Grid, region: number[], shapes: { cells: RC[]; rotate: boolean; negative: boolean }[], onLine: (e: number) => boolean = () => false): boolean {
   const pos = shapes.filter((s) => !s.negative), neg = shapes.filter((s) => s.negative);
   const area = (ss: typeof shapes) => ss.reduce((n, s) => n + s.cells.length, 0);
   const inRegion = new Set(region);
   for (const i of [1, 0]) {
     if (area(pos) - area(neg) !== i * region.length) continue;
-    // lay the hollow shapes first, then cover what each cell needs with the positive ones
+    // lay the hollow shapes first, then cover what each cell needs with the solid ones
     const need = new Array<number>(g.cellCount).fill(0);
     for (const c of inRegion) need[c] = i;
+    // how much more each stretch of line can take
+    const room = new Array<number>(g.borders.length).fill(0);
+    for (const e of g.borders) if (e.link >= 0 && inRegion.has(e.cells[0]) && inRegion.has(e.cells[1]) && !onLine(e.id)) room[e.id] = i;
     const negPl = neg.map((s) => placements(g, s.cells, s.rotate));
-    // a positive shape can't straddle the line
-    const whole = (pl: number[]) => !pl.some((a) => pl.some((c) => c > a && g.borderBetween(a, c) >= 0 && split(a, c)));
-    const posPl = pos.map((s) => placements(g, s.cells, s.rotate).filter(whole));
+    const posPl = pos.map((s) => placements(g, s.cells, s.rotate).map((pl) => ({ pl, inner: innerEdges(g, pl) })));
     const cover = (left: number[]): boolean => {
       const cell = need.findIndex((n) => n > 0);
       if (cell < 0) return left.length === 0;
-      if (need.some((n) => n < 0)) return false;
-      for (const k of left) for (const pl of posPl[k]) {
-        if (!pl.includes(cell) || pl.some((c) => need[c] <= 0)) continue;
+      for (const k of left) for (const { pl, inner } of posPl[k]) {
+        if (!pl.includes(cell) || pl.some((c) => need[c] <= 0) || inner.some((e) => room[e] <= 0)) continue;
         for (const c of pl) need[c]--;
+        for (const e of inner) room[e]--;
         const ok = cover(left.filter((x) => x !== k));
         for (const c of pl) need[c]++;
+        for (const e of inner) room[e]++;
         if (ok) return true;
       }
       return false;
@@ -114,9 +125,12 @@ export function packs(g: Grid, region: number[], shapes: { cells: RC[]; rotate: 
     const layNeg = (k: number): boolean => {
       if (k === negPl.length) return cover(pos.map((_, j) => j));
       for (const pl of negPl[k]) {
+        const touch = touchingEdges(g, pl);
         for (const c of pl) need[c]++;
+        for (const e of touch) room[e]++;
         const ok = layNeg(k + 1);
         for (const c of pl) need[c]--;
+        for (const e of touch) room[e]--;
         if (ok) return true;
       }
       return false;
@@ -268,8 +282,7 @@ function assess(p: Puzzle, b: Board, region: number[], present: Sym[]): { bad: S
   const dots = present.filter((x) => x.kind === "hexagon");
   if (dots.length) { bad.push(...dots); problems.push({ message: "The line passes through every dot.", borders: dots.flatMap((x) => (x.hex!.at === "line" ? [x.hex!.e] : g.cornerBorders[x.hex!.v])) }); }
   const shapes = present.filter((x) => x.kind === "shape");
-  const split = (a: number, c: number) => b.fence[g.borderBetween(a, c)] === 1;
-  if (shapes.length && !packs(g, region, shapes.map((x) => x.x as Extract<CellSymbol, { kind: "shape" }>).map((x) => ({ cells: x.value, rotate: !!x.rotate, negative: !!x.negative })), split)) {
+  if (shapes.length && !packs(g, region, shapes.map((x) => x.x as Extract<CellSymbol, { kind: "shape" }>).map((x) => ({ cells: x.value, rotate: !!x.rotate, negative: !!x.negative })), (e) => b.fence[e] === 1)) {
     bad.push(...shapes); problems.push({ message: "A region with shapes is exactly those shapes fitted together, and the line never cuts through a shape.", cells: region });
   }
   return { bad, problems };
@@ -365,20 +378,26 @@ live(X) :- inreg(X,_), not er(X), not gone(X).` : "live(X) :- inreg(X,_).");
         const sh = x.x as Extract<CellSymbol, { kind: "shape" }>;
         out.push(`shp(${x.id}). ${sh.negative ? "neg" : "pos"}(${x.id}).`);
         placements(g, sh.value, !!sh.rotate).forEach((pl, k) => {
-          // the stretches of line inside a (positive) shape, which the line can't cut through
-          const inner = sh.negative ? [] : pl.flatMap((a) => pl.filter((c) => c > a).map((c) => g.borderBetween(a, c)).filter((e) => e >= 0));
-          out.push(`pl(${x.id},${k}).${pl.map((c) => ` pc(${x.id},${k},${c}).`).join("")}${inner.map((e) => ` pin(${x.id},${k},${e}).`).join("")}`);
+          // a solid shape fills the stretches of line between its squares; a hollow one takes away
+          // every stretch around its squares
+          const edges = sh.negative ? touchingEdges(g, pl).map((e) => ` ptouch(${x.id},${k},${e}).`) : innerEdges(g, pl).map((e) => ` pin(${x.id},${k},${e}).`);
+          out.push(`pl(${x.id},${k}).${pl.map((c) => ` pc(${x.id},${k},${c}).`).join("")}${edges.join("")}`);
         });
       }
       out.push(`
 1 { place(X,P): pl(X,P) } 1 :- live(X), shp(X).
-:- place(X,P), pin(X,P,B), fence(B).
 hasshape(R) :- live(X), shp(X), inreg(X,R).`);
       out.push(negative ? `
 1 { iv(R,0); iv(R,1) } 1 :- hasshape(R).
 net(R,C,N) :- hasshape(R), cell(C), N = #sum{ 1,X: place(X,P), pc(X,P,C), inreg(X,R), pos(X); -1,X: place(X,P), pc(X,P,C), inreg(X,R), neg(X) }.
 :- net(R,C,N), member(R,C), iv(R,K), N != K.
-:- net(R,C,N), not member(R,C), N != 0.` : `
+:- net(R,C,N), not member(R,C), N != 0.
+% the stretches of line: what the region's shapes put on them, against what they can hold
+ein(R,B) :- member(R,I), member(R,J), I < J, adj(I,J,L), lb(L,B), not fence(B).
+enet(R,B,N) :- hasshape(R), lb(_,B), N = #sum{ 1,X: place(X,P), pin(X,P,B), inreg(X,R), pos(X); -1,X: place(X,P), ptouch(X,P,B), inreg(X,R), neg(X) }.
+:- enet(R,B,N), ein(R,B), iv(R,K), N > K.
+:- enet(R,B,N), not ein(R,B), N > 0.` : `
+:- place(X,P), pin(X,P,B), fence(B).   % the line never cuts through a shape
 :- place(X,P), pc(X,P,C), inreg(X,R), not member(R,C).
 :- hasshape(R), member(R,C), #count{X: place(X,P), pc(X,P,C), inreg(X,R)} != 1.`);
     }
