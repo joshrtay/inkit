@@ -78,6 +78,11 @@ one per line in `cases.jsonl`: `{ "id", "photo": "<file>", "expected": "<sketch>
 by hand. Each run writes its results to `eval/data/runs/`. Change the prompt or models, run it
 again, and compare.
 
+**Sketchpad drawings**: `npm --prefix app run test:reader` (`app/tests/e2e/reader.spec.ts`) draws each
+type's first example in the sketchpad, reads it through the local site and scores the draft against
+the example; results in [reader-eval.md](reader-eval.md). It calls Claude (about $1.20 for every type),
+so it only runs with `READER_EVAL=1`; `READER_TYPES=akari,cave` reruns just those.
+
 Published puzzles are a good but not perfect answer key: a creator may change a puzzle after
 reading it (making it harder, fixing their own drawing), which the diff counts against the reader.
 Re-reads and edits made before publishing are the clearest signal of a misread.

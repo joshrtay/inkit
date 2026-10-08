@@ -16,6 +16,7 @@
     "db:seed": "wrangler d1 execute inkit-db --local --file seed/dev.sql",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:reader": "READER_EVAL=1 playwright test reader.spec.ts",
     "eval": "vite-node --config vitest.config.ts eval/run.ts --",
     "eval:pull": "vite-node --config vitest.config.ts eval/pull.ts --"
   },

@@ -12,4 +12,8 @@ export const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 /** The test run's account and drafts (written by setup.ts). */
 export interface Run { userId: string; handle: string; collectionId: string; drafts: Record<string, string> }
-export const RUN_FILE = "tests/e2e/.run.json";
+// The reader evaluation (READER_EVAL=1, reader.spec.ts) keeps its own account, so it can run while
+// the other browser tests do.
+const own = process.env.READER_EVAL ? ".reader" : "";
+export const RUN_FILE = `tests/e2e/${own}.run.json`;
+export const AUTH_FILE = `tests/e2e/${own}.auth.json`;

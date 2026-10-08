@@ -1,0 +1,2534 @@
+{
+ "runs": [
+  {
+   "date": "2026-10-08T16:08:03.217Z",
+   "types": [
+    "sudoku"
+   ],
+   "cost": 0.037576
+  },
+  {
+   "date": "2026-10-08T16:09:12.238Z",
+   "types": [
+    "akari",
+    "aquarium",
+    "cave",
+    "easy-as-abc",
+    "hitori",
+    "irregular-sudoku",
+    "masyu",
+    "minesweeper",
+    "number-line-maze",
+    "numberlink",
+    "nurikabe",
+    "panel",
+    "panes",
+    "picture-squares",
+    "round-the-bend",
+    "shikaku",
+    "simple-path",
+    "skyscrapers",
+    "slitherlink",
+    "spiral-galaxies",
+    "square-jam",
+    "star-battle",
+    "thermo-sudoku",
+    "three-coats",
+    "wittgenstein-briquet"
+   ],
+   "cost": 1.1811980000000002
+  },
+  {
+   "date": "2026-10-08T16:16:09.825Z",
+   "types": [
+    "easy-as-abc",
+    "panel",
+    "picture-squares",
+    "three-coats"
+   ],
+   "cost": 0.24462599999999998
+  }
+ ],
+ "latest": {
+  "sudoku": {
+   "type": "sudoku",
+   "genre": "sudoku",
+   "date": "2026-10-08T16:08:03.217Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3984,
+     "inputTokens": 17558,
+     "outputTokens": 246,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.037576,
+   "model": "claude-sonnet-5-5",
+   "sketch": "sudoku\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "sudoku",
+     "got": "sudoku",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "akari": {
+   "type": "akari",
+   "genre": "akari",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 5398,
+     "inputTokens": 17640,
+     "outputTokens": 544,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.04072,
+   "model": "claude-sonnet-5-5",
+   "sketch": "akari\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    5\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    5\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    2\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "akari",
+     "got": "akari",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 18,
+     "correct": 18,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "aquarium": {
+   "type": "aquarium",
+   "genre": "aquarium",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 17404,
+     "inputTokens": 18750,
+     "outputTokens": 2160,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.0591,
+   "model": "claude-sonnet-5-5",
+   "sketch": "aquarium\n{\n \"size\": [\n  6,\n  6\n ],\n \"areas\": [\n  \"AABBCD\",\n  \"AAABED\",\n  \"FAABEE\",\n  \"FHHHII\",\n  \"FHHHGI\",\n  \"FFFGGI\"\n ],\n \"givens\": [\n  {\n   \"at\": \"col\",\n   \"index\": 1,\n   \"kind\": \"total\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 3,\n   \"kind\": \"total\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 4,\n   \"kind\": \"total\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 0,\n   \"kind\": \"total\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 5,\n   \"kind\": \"total\",\n   \"value\": 0\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "aquarium",
+     "got": "aquarium",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": {
+     "ok": true,
+     "cells": 0
+    },
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "cave": {
+   "type": "cave",
+   "genre": "cave",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 2993,
+     "inputTokens": 17286,
+     "outputTokens": 352,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038092,
+   "model": "claude-sonnet-5-5",
+   "sketch": "cave\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "cave",
+     "got": "cave",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 9,
+     "correct": 9,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "easy-as-abc": {
+   "type": "easy-as-abc",
+   "genre": "easy-as-abc",
+   "date": "2026-10-08T16:16:09.825Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4001,
+     "inputTokens": 17202,
+     "outputTokens": 308,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.037484,
+   "model": "claude-sonnet-5-5",
+   "sketch": "easy-as-abc\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"side\": \"left\",\n   \"kind\": \"first\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"side\": \"left\",\n   \"kind\": \"first\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"side\": \"top\",\n   \"kind\": \"first\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"side\": \"right\",\n   \"kind\": \"first\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"side\": \"bottom\",\n   \"kind\": \"first\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "easy-as-abc",
+     "got": "easy-as-abc",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "hitori": {
+   "type": "hitori",
+   "genre": "hitori",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6864,
+     "inputTokens": 17833,
+     "outputTokens": 747,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.043136,
+   "model": "claude-sonnet-5-5",
+   "sketch": "hitori\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "hitori",
+     "got": "hitori",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 25,
+     "correct": 25,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "irregular-sudoku": {
+   "type": "irregular-sudoku",
+   "genre": "irregular-sudoku",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 14187,
+     "inputTokens": 18675,
+     "outputTokens": 1612,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.05347,
+   "model": "claude-sonnet-5-5",
+   "sketch": "irregular-sudoku\n{\n \"size\": [\n  6,\n  6\n ],\n \"areas\": [\n  \"ABBBBB\",\n  \"ACCCCB\",\n  \"ACCDEE\",\n  \"AADDEE\",\n  \"AFDDDE\",\n  \"FFFFFE\"\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 6\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "irregular-sudoku",
+     "got": "irregular-sudoku",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 6,
+     "correct": 6,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": {
+     "ok": true,
+     "cells": 0
+    },
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "masyu": {
+   "type": "masyu",
+   "genre": "masyu",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3787,
+     "inputTokens": 17368,
+     "outputTokens": 373,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038466,
+   "model": "claude-sonnet-5-5",
+   "sketch": "masyu\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"black\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "masyu",
+     "got": "masyu",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 9,
+     "correct": 9,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "minesweeper": {
+   "type": "minesweeper",
+   "genre": "minesweeper",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4195,
+     "inputTokens": 17323,
+     "outputTokens": 393,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038576,
+   "model": "claude-sonnet-5-5",
+   "sketch": "minesweeper\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "minesweeper",
+     "got": "minesweeper",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "number-line-maze": {
+   "type": "number-line-maze",
+   "genre": "maze",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6947,
+     "inputTokens": 18282,
+     "outputTokens": 794,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.044504,
+   "model": "claude-sonnet-5-5",
+   "sketch": "maze\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"side\": \"top\",\n   \"kind\": \"door\",\n   \"role\": \"in\"\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"side\": \"right\",\n   \"kind\": \"door\",\n   \"role\": \"out\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "maze",
+     "got": "maze",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 27,
+     "correct": 27,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "numberlink": {
+   "type": "numberlink",
+   "genre": "numberlink",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3208,
+     "inputTokens": 17261,
+     "outputTokens": 355,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038072,
+   "model": "claude-sonnet-5-5",
+   "sketch": "numberlink\n{\n \"size\": [\n  5,\n  5\n ],\n \"rules\": [\n  {\n   \"rule\": \"links\",\n   \"cover\": true\n  }\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "numberlink",
+     "got": "numberlink",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 8,
+     "correct": 8,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "nurikabe": {
+   "type": "nurikabe",
+   "genre": "nurikabe",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3476,
+     "inputTokens": 17155,
+     "outputTokens": 273,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.03704,
+   "model": "claude-sonnet-5-5",
+   "sketch": "nurikabe\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "nurikabe",
+     "got": "nurikabe",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "panel": {
+   "type": "panel",
+   "genre": "panel",
+   "date": "2026-10-08T16:16:09.825Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6242,
+     "inputTokens": 17580,
+     "outputTokens": 590,
+     "stopReason": "end_turn",
+     "trouble": [
+      "not sure of its reading"
+     ]
+    },
+    {
+     "reader": "careful",
+     "model": "claude-opus-5-5",
+     "effort": "high",
+     "ms": 7950,
+     "inputTokens": 17580,
+     "outputTokens": 885,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.12908,
+   "model": "claude-opus-5-5",
+   "sketch": "panel\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    0\n   ],\n   \"kind\": \"start\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    4\n   ],\n   \"kind\": \"end\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    2\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    0\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     0,\n     1\n    ],\n    [\n     0,\n     2\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     2,\n     3\n    ],\n    [\n     3,\n     3\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     4,\n     2\n    ],\n    [\n     4,\n     3\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     1,\n     0\n    ],\n    [\n     2,\n     0\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     4,\n     1\n    ],\n    [\n     4,\n     2\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     2,\n     0\n    ],\n    [\n     2,\n     1\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    1\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     2,\n     3\n    ],\n    [\n     2,\n     4\n    ]\n   ],\n   \"kind\": \"gap\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     3,\n     0\n    ],\n    [\n     3,\n     1\n    ]\n   ],\n   \"kind\": \"gap\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "panel",
+     "got": "panel",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 13,
+     "correct": 13,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "panes": {
+   "type": "panes",
+   "genre": "panes",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3799,
+     "inputTokens": 17134,
+     "outputTokens": 271,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.036978,
+   "model": "claude-sonnet-5-5",
+   "sketch": "panes\n{\n \"size\": [\n  4,\n  4\n ],\n \"rules\": [\n  {\n   \"rule\": \"size\",\n   \"is\": 4\n  },\n  {\n   \"rule\": \"twins\"\n  },\n  {\n   \"rule\": \"opposites\"\n  }\n ],\n \"givens\": [\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     0,\n     0\n    ],\n    [\n     1,\n     0\n    ]\n   ],\n   \"kind\": \"opposites\"\n  },\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     2,\n     1\n    ],\n    [\n     2,\n     2\n    ]\n   ],\n   \"kind\": \"opposites\"\n  },\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     2,\n     1\n    ],\n    [\n     3,\n     1\n    ]\n   ],\n   \"kind\": \"twins\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "panes",
+     "got": "panes",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 3,
+     "correct": 3,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "picture-squares": {
+   "type": "picture-squares",
+   "genre": "nonogram",
+   "date": "2026-10-08T16:16:09.825Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3097,
+     "inputTokens": 17460,
+     "outputTokens": 342,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.03834,
+   "model": "claude-sonnet-5-5",
+   "sketch": "nonogram\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"row\",\n   \"index\": 0,\n   \"kind\": \"runs\",\n   \"value\": [\n    1,\n    1\n   ]\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 1,\n   \"kind\": \"runs\",\n   \"value\": [\n    5\n   ]\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 2,\n   \"kind\": \"runs\",\n   \"value\": [\n    5\n   ]\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 3,\n   \"kind\": \"runs\",\n   \"value\": [\n    3\n   ]\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 4,\n   \"kind\": \"runs\",\n   \"value\": [\n    1\n   ]\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 0,\n   \"kind\": \"runs\",\n   \"value\": [\n    2\n   ]\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 1,\n   \"kind\": \"runs\",\n   \"value\": [\n    4\n   ]\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 2,\n   \"kind\": \"runs\",\n   \"value\": [\n    4\n   ]\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 3,\n   \"kind\": \"runs\",\n   \"value\": [\n    4\n   ]\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 4,\n   \"kind\": \"runs\",\n   \"value\": [\n    2\n   ]\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "nonogram",
+     "got": "nonogram",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "round-the-bend": {
+   "type": "round-the-bend",
+   "genre": "simple-loop",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 2815,
+     "inputTokens": 17019,
+     "outputTokens": 175,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.035788,
+   "model": "claude-sonnet-5-5",
+   "sketch": "simple-loop\n{\n \"size\": [\n  3,\n  3\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"block\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "simple-loop",
+     "got": "simple-loop",
+     "ok": true
+    },
+    "size": {
+     "want": "3x3",
+     "got": "3x3",
+     "ok": true
+    },
+    "givens": {
+     "total": 1,
+     "correct": 1,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "shikaku": {
+   "type": "shikaku",
+   "genre": "shikaku",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4104,
+     "inputTokens": 17322,
+     "outputTokens": 390,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038544,
+   "model": "claude-sonnet-5-5",
+   "sketch": "shikaku\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 8\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 8\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 6\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "shikaku",
+     "got": "shikaku",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "simple-path": {
+   "type": "simple-path",
+   "genre": "simple-path",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3077,
+     "inputTokens": 17485,
+     "outputTokens": 263,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.0376,
+   "model": "claude-sonnet-5-5",
+   "sketch": "simple-path\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     1,\n     3\n    ],\n    [\n     1,\n     4\n    ]\n   ],\n   \"kind\": \"wall\"\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    4,\n    4\n   ],\n   \"side\": \"bottom\",\n   \"kind\": \"door\",\n   \"role\": \"in\"\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"side\": \"right\",\n   \"kind\": \"door\",\n   \"role\": \"out\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "simple-path",
+     "got": "simple-path",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "skyscrapers": {
+   "type": "skyscrapers",
+   "genre": "skyscrapers",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3217,
+     "inputTokens": 17122,
+     "outputTokens": 386,
+     "stopReason": "end_turn",
+     "trouble": [
+      "not sure of its reading"
+     ]
+    },
+    {
+     "reader": "careful",
+     "model": "claude-opus-5-5",
+     "effort": "high",
+     "ms": 5751,
+     "inputTokens": 17122,
+     "outputTokens": 494,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.11647199999999999,
+   "model": "claude-opus-5-5",
+   "sketch": "skyscrapers\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"side\": \"right\",\n   \"kind\": \"skyscraper\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"side\": \"bottom\",\n   \"kind\": \"skyscraper\",\n   \"value\": 3\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "skyscrapers",
+     "got": "skyscrapers",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "slitherlink": {
+   "type": "slitherlink",
+   "genre": "slitherlink",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3388,
+     "inputTokens": 17359,
+     "outputTokens": 417,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038888,
+   "model": "claude-sonnet-5-5",
+   "sketch": "slitherlink\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "slitherlink",
+     "got": "slitherlink",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 11,
+     "correct": 11,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "spiral-galaxies": {
+   "type": "spiral-galaxies",
+   "genre": "spiral-galaxies",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6872,
+     "inputTokens": 17416,
+     "outputTokens": 828,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.043112,
+   "model": "claude-sonnet-5-5",
+   "sketch": "spiral-galaxies\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"point\",\n   \"point\": [\n    2,\n    9\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    5,\n    9\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    7,\n    6\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    1,\n    2\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    4,\n    4\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    3,\n    1\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    9,\n    9\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    1,\n    5\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    9,\n    2\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    9,\n    7\n   ],\n   \"kind\": \"galaxy\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "spiral-galaxies",
+     "got": "spiral-galaxies",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "square-jam": {
+   "type": "square-jam",
+   "genre": "square-jam",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3147,
+     "inputTokens": 17118,
+     "outputTokens": 238,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.036616,
+   "model": "claude-sonnet-5-5",
+   "sketch": "square-jam\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "square-jam",
+     "got": "square-jam",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "star-battle": {
+   "type": "star-battle",
+   "genre": "star-battle",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 10597,
+     "inputTokens": 18029,
+     "outputTokens": 1405,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.050108,
+   "model": "claude-sonnet-5-5",
+   "sketch": "star-battle\n{\n \"size\": [\n  5,\n  5\n ],\n \"areas\": [\n  \"ABBBC\",\n  \"ABCCC\",\n  \"AADEE\",\n  \"DDDDE\",\n  \"DDEEE\"\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "star-battle",
+     "got": "star-battle",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 0,
+     "correct": 0,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": {
+     "ok": true,
+     "cells": 0
+    },
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "thermo-sudoku": {
+   "type": "thermo-sudoku",
+   "genre": "thermo-sudoku",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4627,
+     "inputTokens": 18657,
+     "outputTokens": 454,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.041854,
+   "model": "claude-sonnet-5-5",
+   "sketch": "thermo-sudoku\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     4,\n     4\n    ],\n    [\n     5,\n     4\n    ],\n    [\n     5,\n     3\n    ]\n   ],\n   \"kind\": \"thermo\"\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     5,\n     5\n    ],\n    [\n     4,\n     5\n    ],\n    [\n     3,\n     5\n    ]\n   ],\n   \"kind\": \"thermo\"\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     2,\n     2\n    ],\n    [\n     1,\n     2\n    ],\n    [\n     0,\n     2\n    ]\n   ],\n   \"kind\": \"thermo\"\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     0,\n     0\n    ],\n    [\n     0,\n     1\n    ],\n    [\n     1,\n     1\n    ],\n    [\n     2,\n     1\n    ]\n   ],\n   \"kind\": \"thermo\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "thermo-sudoku",
+     "got": "thermo-sudoku",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "three-coats": {
+   "type": "three-coats",
+   "genre": "coats",
+   "date": "2026-10-08T16:16:09.825Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3071,
+     "inputTokens": 18066,
+     "outputTokens": 359,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.039722,
+   "model": "claude-sonnet-5-5",
+   "sketch": "coats\n{\n \"size\": [\n  1,\n  4\n ],\n \"figure\": {\n  \"pieces\": [\n   [\n    [\n     50,\n     0\n    ],\n    [\n     75,\n     50\n    ],\n    [\n     25,\n     50\n    ]\n   ],\n   [\n    [\n     25,\n     50\n    ],\n    [\n     50,\n     100\n    ],\n    [\n     0,\n     100\n    ]\n   ],\n   [\n    [\n     75,\n     50\n    ],\n    [\n     100,\n     100\n    ],\n    [\n     50,\n     100\n    ]\n   ],\n   [\n    [\n     25,\n     50\n    ],\n    [\n     75,\n     50\n    ],\n    [\n     50,\n     100\n    ]\n   ]\n  ]\n },\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    2\n   ],\n   \"hidden\": true\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    2\n   ],\n   \"hidden\": true\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    2\n   ],\n   \"hidden\": true\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    1,\n    1,\n    1\n   ]\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "coats",
+     "got": "coats",
+     "ok": true
+    },
+    "size": {
+     "want": "1x4",
+     "got": "1x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "wittgenstein-briquet": {
+   "type": "wittgenstein-briquet",
+   "genre": "wittgenstein-briquet",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3635,
+     "inputTokens": 17226,
+     "outputTokens": 336,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.037812,
+   "model": "claude-sonnet-5-5",
+   "sketch": "wittgenstein-briquet\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "wittgenstein-briquet",
+     "got": "wittgenstein-briquet",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 7,
+     "correct": 7,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  }
+ },
+ "first": {
+  "sudoku": {
+   "type": "sudoku",
+   "genre": "sudoku",
+   "date": "2026-10-08T16:08:03.217Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3984,
+     "inputTokens": 17558,
+     "outputTokens": 246,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.037576,
+   "model": "claude-sonnet-5-5",
+   "sketch": "sudoku\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "sudoku",
+     "got": "sudoku",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "akari": {
+   "type": "akari",
+   "genre": "akari",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 5398,
+     "inputTokens": 17640,
+     "outputTokens": 544,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.04072,
+   "model": "claude-sonnet-5-5",
+   "sketch": "akari\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    5\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    5\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    2\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "akari",
+     "got": "akari",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 18,
+     "correct": 18,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "aquarium": {
+   "type": "aquarium",
+   "genre": "aquarium",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 17404,
+     "inputTokens": 18750,
+     "outputTokens": 2160,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.0591,
+   "model": "claude-sonnet-5-5",
+   "sketch": "aquarium\n{\n \"size\": [\n  6,\n  6\n ],\n \"areas\": [\n  \"AABBCD\",\n  \"AAABED\",\n  \"FAABEE\",\n  \"FHHHII\",\n  \"FHHHGI\",\n  \"FFFGGI\"\n ],\n \"givens\": [\n  {\n   \"at\": \"col\",\n   \"index\": 1,\n   \"kind\": \"total\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 3,\n   \"kind\": \"total\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"col\",\n   \"index\": 4,\n   \"kind\": \"total\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 0,\n   \"kind\": \"total\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"row\",\n   \"index\": 5,\n   \"kind\": \"total\",\n   \"value\": 0\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "aquarium",
+     "got": "aquarium",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": {
+     "ok": true,
+     "cells": 0
+    },
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "cave": {
+   "type": "cave",
+   "genre": "cave",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 2993,
+     "inputTokens": 17286,
+     "outputTokens": 352,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038092,
+   "model": "claude-sonnet-5-5",
+   "sketch": "cave\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 7\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "cave",
+     "got": "cave",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 9,
+     "correct": 9,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "easy-as-abc": {
+   "type": "easy-as-abc",
+   "genre": "easy-as-abc",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 5611,
+     "inputTokens": 17157,
+     "outputTokens": 396,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038274,
+   "model": "claude-sonnet-5-5",
+   "sketch": "easy-as-abc\n{\n \"size\": [\n  4,\n  4\n ],\n \"rules\": [\n  {\n   \"rule\": \"letters\",\n   \"count\": 3\n  }\n ],\n \"givens\": [\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"side\": \"left\",\n   \"kind\": \"first\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"side\": \"left\",\n   \"kind\": \"first\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"side\": \"top\",\n   \"kind\": \"first\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"side\": \"right\",\n   \"kind\": \"first\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"side\": \"bottom\",\n   \"kind\": \"first\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "easy-as-abc",
+     "got": "easy-as-abc",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": false,
+     "missing": [],
+     "extra": [
+      "{count:3,rule:\"letters\"}"
+     ]
+    },
+    "solution": "same",
+    "exact": false
+   }
+  },
+  "hitori": {
+   "type": "hitori",
+   "genre": "hitori",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6864,
+     "inputTokens": 17833,
+     "outputTokens": 747,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.043136,
+   "model": "claude-sonnet-5-5",
+   "sketch": "hitori\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "hitori",
+     "got": "hitori",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 25,
+     "correct": 25,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "irregular-sudoku": {
+   "type": "irregular-sudoku",
+   "genre": "irregular-sudoku",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 14187,
+     "inputTokens": 18675,
+     "outputTokens": 1612,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.05347,
+   "model": "claude-sonnet-5-5",
+   "sketch": "irregular-sudoku\n{\n \"size\": [\n  6,\n  6\n ],\n \"areas\": [\n  \"ABBBBB\",\n  \"ACCCCB\",\n  \"ACCDEE\",\n  \"AADDEE\",\n  \"AFDDDE\",\n  \"FFFFFE\"\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 6\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "irregular-sudoku",
+     "got": "irregular-sudoku",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 6,
+     "correct": 6,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": {
+     "ok": true,
+     "cells": 0
+    },
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "masyu": {
+   "type": "masyu",
+   "genre": "masyu",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3787,
+     "inputTokens": 17368,
+     "outputTokens": 373,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038466,
+   "model": "claude-sonnet-5-5",
+   "sketch": "masyu\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"black\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"pearl\",\n   \"value\": \"white\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "masyu",
+     "got": "masyu",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 9,
+     "correct": 9,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "minesweeper": {
+   "type": "minesweeper",
+   "genre": "minesweeper",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4195,
+     "inputTokens": 17323,
+     "outputTokens": 393,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038576,
+   "model": "claude-sonnet-5-5",
+   "sketch": "minesweeper\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "minesweeper",
+     "got": "minesweeper",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "number-line-maze": {
+   "type": "number-line-maze",
+   "genre": "maze",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6947,
+     "inputTokens": 18282,
+     "outputTokens": 794,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.044504,
+   "model": "claude-sonnet-5-5",
+   "sketch": "maze\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"side\": \"top\",\n   \"kind\": \"door\",\n   \"role\": \"in\"\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"side\": \"right\",\n   \"kind\": \"door\",\n   \"role\": \"out\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    2,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    0\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    1\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    2\n   ],\n   \"kind\": \"count\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    3\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    4\n   ],\n   \"kind\": \"count\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "maze",
+     "got": "maze",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 27,
+     "correct": 27,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "numberlink": {
+   "type": "numberlink",
+   "genre": "numberlink",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3208,
+     "inputTokens": 17261,
+     "outputTokens": 355,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038072,
+   "model": "claude-sonnet-5-5",
+   "sketch": "numberlink\n{\n \"size\": [\n  5,\n  5\n ],\n \"rules\": [\n  {\n   \"rule\": \"links\",\n   \"cover\": true\n  }\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "numberlink",
+     "got": "numberlink",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 8,
+     "correct": 8,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "nurikabe": {
+   "type": "nurikabe",
+   "genre": "nurikabe",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3476,
+     "inputTokens": 17155,
+     "outputTokens": 273,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.03704,
+   "model": "claude-sonnet-5-5",
+   "sketch": "nurikabe\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "nurikabe",
+     "got": "nurikabe",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "panel": {
+   "type": "panel",
+   "genre": "panel",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 10212,
+     "inputTokens": 17528,
+     "outputTokens": 1053,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.045586,
+   "model": "claude-sonnet-5-5",
+   "sketch": "panel\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    4,\n    0\n   ],\n   \"kind\": \"start\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    4\n   ],\n   \"kind\": \"end\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    3,\n    2\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    0,\n    0\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"corner\",\n   \"corner\": [\n    1,\n    1\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     0,\n     1\n    ],\n    [\n     0,\n     2\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     2,\n     3\n    ],\n    [\n     3,\n     3\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     4,\n     2\n    ],\n    [\n     4,\n     3\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     1,\n     0\n    ],\n    [\n     2,\n     0\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     4,\n     1\n    ],\n    [\n     4,\n     2\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     2,\n     0\n    ],\n    [\n     2,\n     1\n    ]\n   ],\n   \"kind\": \"hexagon\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     2,\n     3\n    ],\n    [\n     2,\n     4\n    ]\n   ],\n   \"kind\": \"gap\"\n  },\n  {\n   \"at\": \"line\",\n   \"corners\": [\n    [\n     3,\n     0\n    ],\n    [\n     3,\n     1\n    ]\n   ],\n   \"kind\": \"gap\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "panel",
+     "got": "panel",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 13,
+     "correct": 13,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "panes": {
+   "type": "panes",
+   "genre": "panes",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3799,
+     "inputTokens": 17134,
+     "outputTokens": 271,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.036978,
+   "model": "claude-sonnet-5-5",
+   "sketch": "panes\n{\n \"size\": [\n  4,\n  4\n ],\n \"rules\": [\n  {\n   \"rule\": \"size\",\n   \"is\": 4\n  },\n  {\n   \"rule\": \"twins\"\n  },\n  {\n   \"rule\": \"opposites\"\n  }\n ],\n \"givens\": [\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     0,\n     0\n    ],\n    [\n     1,\n     0\n    ]\n   ],\n   \"kind\": \"opposites\"\n  },\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     2,\n     1\n    ],\n    [\n     2,\n     2\n    ]\n   ],\n   \"kind\": \"opposites\"\n  },\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     2,\n     1\n    ],\n    [\n     3,\n     1\n    ]\n   ],\n   \"kind\": \"twins\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "panes",
+     "got": "panes",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 3,
+     "correct": 3,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "picture-squares": {
+   "type": "picture-squares",
+   "genre": "nonogram",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3185,
+     "inputTokens": 16988,
+     "outputTokens": 241,
+     "stopReason": "end_turn",
+     "trouble": [
+      "not sure of its reading"
+     ]
+    },
+    {
+     "reader": "careful",
+     "model": "claude-opus-5-5",
+     "effort": "high",
+     "ms": 6712,
+     "inputTokens": 16988,
+     "outputTokens": 410,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.112538,
+   "model": "claude-opus-5-5",
+   "sketch": "nonogram\n{\n \"size\": [\n  5,\n  5\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "nonogram",
+     "got": "nonogram",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 0,
+     "missing": [
+      "runs row 0 [1,1]",
+      "runs row 1 [5]",
+      "runs row 2 [5]",
+      "runs row 3 [3]",
+      "runs row 4 [1]",
+      "runs col 0 [2]",
+      "runs col 1 [4]",
+      "runs col 2 [4]",
+      "runs col 3 [4]",
+      "runs col 4 [2]"
+     ],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "many",
+    "exact": false
+   }
+  },
+  "round-the-bend": {
+   "type": "round-the-bend",
+   "genre": "simple-loop",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 2815,
+     "inputTokens": 17019,
+     "outputTokens": 175,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.035788,
+   "model": "claude-sonnet-5-5",
+   "sketch": "simple-loop\n{\n \"size\": [\n  3,\n  3\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"block\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "simple-loop",
+     "got": "simple-loop",
+     "ok": true
+    },
+    "size": {
+     "want": "3x3",
+     "got": "3x3",
+     "ok": true
+    },
+    "givens": {
+     "total": 1,
+     "correct": 1,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "shikaku": {
+   "type": "shikaku",
+   "genre": "shikaku",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4104,
+     "inputTokens": 17322,
+     "outputTokens": 390,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038544,
+   "model": "claude-sonnet-5-5",
+   "sketch": "shikaku\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 8\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 8\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 6\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "shikaku",
+     "got": "shikaku",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "simple-path": {
+   "type": "simple-path",
+   "genre": "simple-path",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3077,
+     "inputTokens": 17485,
+     "outputTokens": 263,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.0376,
+   "model": "claude-sonnet-5-5",
+   "sketch": "simple-path\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"block\"\n  },\n  {\n   \"at\": \"border\",\n   \"cells\": [\n    [\n     1,\n     3\n    ],\n    [\n     1,\n     4\n    ]\n   ],\n   \"kind\": \"wall\"\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    4,\n    4\n   ],\n   \"side\": \"bottom\",\n   \"kind\": \"door\",\n   \"role\": \"in\"\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"side\": \"right\",\n   \"kind\": \"door\",\n   \"role\": \"out\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "simple-path",
+     "got": "simple-path",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 5,
+     "correct": 5,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "skyscrapers": {
+   "type": "skyscrapers",
+   "genre": "skyscrapers",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3217,
+     "inputTokens": 17122,
+     "outputTokens": 386,
+     "stopReason": "end_turn",
+     "trouble": [
+      "not sure of its reading"
+     ]
+    },
+    {
+     "reader": "careful",
+     "model": "claude-opus-5-5",
+     "effort": "high",
+     "ms": 5751,
+     "inputTokens": 17122,
+     "outputTokens": 494,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.11647199999999999,
+   "model": "claude-opus-5-5",
+   "sketch": "skyscrapers\n{\n \"size\": [\n  4,\n  4\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"side\": \"right\",\n   \"kind\": \"skyscraper\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"edge\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"side\": \"bottom\",\n   \"kind\": \"skyscraper\",\n   \"value\": 3\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "skyscrapers",
+     "got": "skyscrapers",
+     "ok": true
+    },
+    "size": {
+     "want": "4x4",
+     "got": "4x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "slitherlink": {
+   "type": "slitherlink",
+   "genre": "slitherlink",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3388,
+     "inputTokens": 17359,
+     "outputTokens": 417,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.038888,
+   "model": "claude-sonnet-5-5",
+   "sketch": "slitherlink\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "slitherlink",
+     "got": "slitherlink",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 11,
+     "correct": 11,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "spiral-galaxies": {
+   "type": "spiral-galaxies",
+   "genre": "spiral-galaxies",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 6872,
+     "inputTokens": 17416,
+     "outputTokens": 828,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.043112,
+   "model": "claude-sonnet-5-5",
+   "sketch": "spiral-galaxies\n{\n \"size\": [\n  5,\n  5\n ],\n \"givens\": [\n  {\n   \"at\": \"point\",\n   \"point\": [\n    2,\n    9\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    5,\n    9\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    7,\n    6\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    1,\n    2\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    4,\n    4\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    3,\n    1\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    9,\n    9\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    1,\n    5\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    9,\n    2\n   ],\n   \"kind\": \"galaxy\"\n  },\n  {\n   \"at\": \"point\",\n   \"point\": [\n    9,\n    7\n   ],\n   \"kind\": \"galaxy\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "spiral-galaxies",
+     "got": "spiral-galaxies",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "square-jam": {
+   "type": "square-jam",
+   "genre": "square-jam",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3147,
+     "inputTokens": 17118,
+     "outputTokens": 238,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.036616,
+   "model": "claude-sonnet-5-5",
+   "sketch": "square-jam\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "square-jam",
+     "got": "square-jam",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 4,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "star-battle": {
+   "type": "star-battle",
+   "genre": "star-battle",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 10597,
+     "inputTokens": 18029,
+     "outputTokens": 1405,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.050108,
+   "model": "claude-sonnet-5-5",
+   "sketch": "star-battle\n{\n \"size\": [\n  5,\n  5\n ],\n \"areas\": [\n  \"ABBBC\",\n  \"ABCCC\",\n  \"AADEE\",\n  \"DDDDE\",\n  \"DDEEE\"\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "star-battle",
+     "got": "star-battle",
+     "ok": true
+    },
+    "size": {
+     "want": "5x5",
+     "got": "5x5",
+     "ok": true
+    },
+    "givens": {
+     "total": 0,
+     "correct": 0,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": {
+     "ok": true,
+     "cells": 0
+    },
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "thermo-sudoku": {
+   "type": "thermo-sudoku",
+   "genre": "thermo-sudoku",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4627,
+     "inputTokens": 18657,
+     "outputTokens": 454,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.041854,
+   "model": "claude-sonnet-5-5",
+   "sketch": "thermo-sudoku\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 5\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    1,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 3\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    5\n   ],\n   \"kind\": \"number\",\n   \"value\": 4\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     4,\n     4\n    ],\n    [\n     5,\n     4\n    ],\n    [\n     5,\n     3\n    ]\n   ],\n   \"kind\": \"thermo\"\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     5,\n     5\n    ],\n    [\n     4,\n     5\n    ],\n    [\n     3,\n     5\n    ]\n   ],\n   \"kind\": \"thermo\"\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     2,\n     2\n    ],\n    [\n     1,\n     2\n    ],\n    [\n     0,\n     2\n    ]\n   ],\n   \"kind\": \"thermo\"\n  },\n  {\n   \"at\": \"cells\",\n   \"cells\": [\n    [\n     0,\n     0\n    ],\n    [\n     0,\n     1\n    ],\n    [\n     1,\n     1\n    ],\n    [\n     2,\n     1\n    ]\n   ],\n   \"kind\": \"thermo\"\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "thermo-sudoku",
+     "got": "thermo-sudoku",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 10,
+     "correct": 10,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  },
+  "three-coats": {
+   "type": "three-coats",
+   "genre": "coats",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 4056,
+     "inputTokens": 18021,
+     "outputTokens": 381,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.039852,
+   "model": "claude-sonnet-5-5",
+   "sketch": "coats\n{\n \"size\": [\n  1,\n  4\n ],\n \"figure\": {\n  \"pieces\": [\n   [\n    [\n     50,\n     11\n    ],\n    [\n     71.5,\n     47.5\n    ],\n    [\n     28.5,\n     47.5\n    ]\n   ],\n   [\n    [\n     28.5,\n     47.5\n    ],\n    [\n     50,\n     84.5\n    ],\n    [\n     7,\n     84.5\n    ]\n   ],\n   [\n    [\n     71.5,\n     47.5\n    ],\n    [\n     93,\n     84.5\n    ],\n    [\n     50,\n     84.5\n    ]\n   ],\n   [\n    [\n     71.5,\n     47.5\n    ],\n    [\n     50,\n     84.5\n    ],\n    [\n     28.5,\n     47.5\n    ]\n   ]\n  ]\n },\n \"rules\": [\n  {\n   \"rule\": \"painted\"\n  },\n  {\n   \"rule\": \"neighbor-dots\"\n  }\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    0\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    2\n   ]\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    1\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    2\n   ]\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    2\n   ]\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    3\n   ],\n   \"kind\": \"dots\",\n   \"value\": [\n    1,\n    1,\n    1\n   ]\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "coats",
+     "got": "coats",
+     "ok": true
+    },
+    "size": {
+     "want": "1x4",
+     "got": "1x4",
+     "ok": true
+    },
+    "givens": {
+     "total": 4,
+     "correct": 1,
+     "missing": [],
+     "extra": [],
+     "wrong": [
+      "dots cell 0,1: {hidden:true,value:[2]} read as {value:[2]}",
+      "dots cell 0,2: {hidden:true,value:[2]} read as {value:[2]}",
+      "dots cell 0,3: {hidden:true,value:[2]} read as {value:[2]}"
+     ]
+    },
+    "areas": null,
+    "rules": {
+     "ok": false,
+     "missing": [],
+     "extra": [
+      "{rule:\"painted\"}",
+      "{rule:\"neighbor-dots\"}"
+     ]
+    },
+    "solution": "same",
+    "exact": false
+   }
+  },
+  "wittgenstein-briquet": {
+   "type": "wittgenstein-briquet",
+   "genre": "wittgenstein-briquet",
+   "date": "2026-10-08T16:09:12.238Z",
+   "looks": [
+    {
+     "reader": "quick",
+     "model": "claude-sonnet-5-5",
+     "effort": "medium",
+     "ms": 3635,
+     "inputTokens": 17226,
+     "outputTokens": 336,
+     "stopReason": "end_turn"
+    }
+   ],
+   "cost": 0.037812,
+   "model": "claude-sonnet-5-5",
+   "sketch": "wittgenstein-briquet\n{\n \"size\": [\n  6,\n  6\n ],\n \"givens\": [\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    4\n   ],\n   \"kind\": \"number\",\n   \"value\": 2\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    3,\n    3\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    5,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    4,\n    1\n   ],\n   \"kind\": \"number\",\n   \"value\": 1\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    2,\n    0\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  },\n  {\n   \"at\": \"cell\",\n   \"cell\": [\n    0,\n    2\n   ],\n   \"kind\": \"number\",\n   \"value\": 0\n  }\n ]\n}",
+   "score": {
+    "genre": {
+     "want": "wittgenstein-briquet",
+     "got": "wittgenstein-briquet",
+     "ok": true
+    },
+    "size": {
+     "want": "6x6",
+     "got": "6x6",
+     "ok": true
+    },
+    "givens": {
+     "total": 7,
+     "correct": 7,
+     "missing": [],
+     "extra": [],
+     "wrong": []
+    },
+    "areas": null,
+    "rules": {
+     "ok": true,
+     "missing": [],
+     "extra": []
+    },
+    "solution": "same",
+    "exact": true
+   }
+  }
+ }
+}

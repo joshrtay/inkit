@@ -7,7 +7,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { SYMBOL_COLORS, type Given, type GridSpec, type RuleSpec, type SymbolColor } from "~site/engine/types.ts";
 import { SYMMETRIES } from "~site/engine/panel.ts";
-import { GENRE_NAMES, normalShape, type GenreName } from "~site/engine/puzzle.ts";
+import { GENRE_NAMES, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
 import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
@@ -126,7 +126,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   watchtower: "a number on a corner, where grid lines cross (panes, Glimmith's Watchtower: how many regions meet there): row, col = the corner (0..rows, 0..cols); value the number, 1 to 4",
   bank: "one shape of a shape bank (panes, Glimmith's Shape Bank: shapes drawn on the rule scroll or beside the board, not in a cell): row -1, col -1; value its blocks as row,col pairs with the top-left block at 0,0, e.g. \"0,0 0,1 1,0\"",
   count: "a number on a corner, where grid lines cross (mazes): row, col = the corner (0..rows, 0..cols); value the number",
-  dots: "colored dots in a piece (Three Coats): row 0, col = the piece's index in figure; value the dot colors as digits, 1 red, 2 yellow, 3 blue, e.g. \"113\"",
+  dots: "colored dots in a piece (Three Coats): row 0, col = the piece's index in figure; value the dot colors as digits, 1 red, 2 yellow, 3 blue, e.g. \"113\"; then \"hidden\" if they're drawn hidden (dashed outlines: they show once the piece is painted), e.g. \"2 hidden\"",
   pearl: "a circle in a cell (masyu): row, col; value \"white\" or \"black\"",
   first: "a letter outside the grid (easy-as-abc): row, col of the cell next to it; value its side of that cell and the letter's number (A = 1), e.g. \"left 2\"",
   skyscraper: "a number outside the grid (skyscrapers): row, col of the cell next to it; value its side of that cell and the number, e.g. \"top 3\"",
@@ -446,7 +446,10 @@ export function toSketch(r: Reading): string {
   for (const run of r.runs) givens.push(r.genre === "aquarium"
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
     : { at: run.line, index: run.index, kind: "runs", value: run.runs });
+  const own = new Set(((genres as Record<string, { rules: RuleSpec[] }>)[r.genre]?.rules ?? []).map(sameRule));
   const rules: RuleSpec[] = r.rules.map(({ rule, settings }) => ({ rule, ...ruleSettings(settings) }))
+    // a rule the type has anyway, as it has it (easy-as-abc's "letters count 3", Three Coats' "painted")
+    .filter((s: RuleSpec) => !own.has(sameRule(s)))
     // a panel-line without a symmetry is what every panel has already (one line)
     .filter((s: RuleSpec) => s.rule !== "panel-line" || s.symmetry);
   const figure = r.genre === "coats" && r.figure.length ? { pieces: r.figure } : undefined;
@@ -462,6 +465,9 @@ export function toSketch(r: Reading): string {
   };
   return `${r.genre}\n${JSON.stringify(body, null, 1)}`;
 }
+
+/** A rule with its settings in a fixed order, to compare. */
+const sameRule = (s: RuleSpec) => JSON.stringify(Object.entries(s).sort(([a], [b]) => a.localeCompare(b)));
 
 const SIDES = ["top", "right", "bottom", "left"] as const;
 const num = (t: string) => { const m = t.match(/-?\d+/); return m ? Number(m[0]) : null; };
@@ -523,7 +529,10 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
       const blocks = [...v.matchAll(/(-?\d+)\s*,\s*(-?\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
       return blocks.length ? { at: "aside", kind, value: normalShape(blocks) } : null;
     }
-    case "dots": { const d = [...v].filter((c) => "123".includes(c)).map(Number); return d.length ? { at: "cell", cell, kind, value: d } : null; }
+    case "dots": {
+      const d = [...v.replace(/hidden|dashed/g, "")].filter((c) => "123".includes(c)).map(Number);
+      return d.length ? { at: "cell", cell, kind, value: d, ...(/\b(hidden|dashed)\b/.test(v) ? { hidden: true } : {}) } : null;
+    }
     case "pearl": return { at: "cell", cell, kind, value: v.includes("black") ? "black" : "white" };
     case "first": case "skyscraper": { const n = num(v); return side && n !== null ? { at: "edge", cell, side, kind, value: n } : null; }
     case "door": return side ? { at: "edge", cell, side, kind, role: v.includes("out") ? "out" : "in" } : null;

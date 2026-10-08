@@ -168,3 +168,19 @@ describe("a sketchpad drawing's data, sent with its picture", () => {
     expect(brief).toMatch(/symmetry panel/);
   });
 });
+
+describe("what the type has anyway, and Three Coats' hidden dots", () => {
+  it("leaves out a rule the type already has, with the same settings", () => {
+    const rules = (genre: Reading["genre"], list: Reading["rules"]) => {
+      const p = parseSketch(toSketch(reading({ genre, candidates: [genre], rows: 4, cols: 4, rules: list, givens: [g("first", 0, 0, "left 1")] })));
+      return p.ok ? p.spec.rules : p.errors;
+    };
+    expect(rules("easy-as-abc", [{ rule: "letters", settings: "count 3" }])).toBeUndefined();
+    expect(rules("easy-as-abc", [{ rule: "letters", settings: "count 4" }])).toEqual([{ rule: "letters", count: 4 }]);
+  });
+
+  it("reads dots drawn hidden", () => {
+    expect(givenOf(g("dots", 0, 1, "2 hidden"))).toEqual({ at: "cell", cell: [0, 1], kind: "dots", value: [2], hidden: true });
+    expect(givenOf(g("dots", 0, 1, "113"))).toEqual({ at: "cell", cell: [0, 1], kind: "dots", value: [1, 1, 3] });
+  });
+});
