@@ -11,10 +11,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { genres, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
-import { solveLine } from "~site/engine/rules.ts";
+import { solveLine, tileCount, tileKinds, tileColors, tileOf } from "~site/engine/rules.ts";
 import { SYMMETRIES, type Symmetry } from "~site/engine/panel.ts";
 import { SYMBOL_COLORS, type Given, type GridSpec, type LineColor, type Puzzle, type Side, type SymbolColor } from "~site/engine/types.ts";
-import { symbolSvg } from "~site/game-types/grid/panel-draw.ts";
+import { symbolSvg, tileSvg } from "~site/game-types/grid/panel-draw.ts";
 import { symbolClueSvg } from "~site/game-types/grid/region-clues.ts";
 import { pictureLayout, pictureSvg, type Room } from "~site/game-types/grid/picture.ts";
 import "~site/game-types/grid/styles.css";
@@ -39,6 +39,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   inequality: "< sign", difference: "Difference", watchtower: "Watchtower", bank: "Shape bank",
   paint: "Color",
   peg: "Dot", lengths: "Lengths",
+  tile: "Tile",
 };
 
 const TOOL_HINTS: Record<ToolId, string> = {
@@ -75,6 +76,7 @@ const TOOL_HINTS: Record<ToolId, string> = {
   paint: "Pick a color, then click a square to print it there (the same color again clears it)",
   peg: "Click a point to add or remove a dot",
   lengths: "Type the path's lengths, e.g. 1 √2 2 √5 (√5 is 1 one way and 2 the other; r5 works too)",
+  tile: "Pick a tile, then click a square to place it there (click again to take it out)",
 };
 
 
@@ -119,6 +121,14 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   "missing-number": ["number", "block", "erase"],
   // a lattice: its dots, and the lengths under it
   "distance-path": ["peg", "lengths", "erase"],
+  // Fillomino's allowed sizes, Sum Regions' target, Symmetry Cut's pieces and symmetry, Critter
+  // Connecting's flipping and Kinship's tiles are set in the toolbar (typeSettings below)
+  fillomino: ["number", "erase"],
+  "sum-regions": ["number", "block", "erase"],
+  "polyomino-packing": ["bank", "block", "erase"],
+  critters: ["symbol", "bank", "block", "erase"],
+  "symmetry-cut": ["block", "erase"],
+  kinship: ["tile", "block", "erase"],
 };
 
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in TOOLS;
@@ -218,6 +228,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const [hollow, setHollow] = useState(false);
   // Panes: the shape on the shape pad (a Polyomino clue, or one for the bank)
   const [pad, setPad] = useState<RC[]>([[0, 0], [1, 0], [1, 1]]);
+  // Kinship: the tile placed
+  const [tileAt, setTileAt] = useState(1);
   const [typing, setTyping] = useState<(Typing & { value: string }) | null>(null);
   // Binairo, Colour Balance: the color printed in a square
   const [paintColor, setPaintColor] = useState(1);
@@ -468,6 +480,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "difference": { const b = borderAt(h); if (b) startTyping({ kind: "difference", cells: b }); return; }
       case "inequality": { const b = borderAt(h); if (b) change(ops.cycleInequality(latest.current, ...b)); return; }
       case "bank": return;
+      case "tile": if (inGrid(h)) change(ops.toggleTile(latest.current, cell, tileAt)); return;
       case "total": {
         if (h.gx < 0 && h.r >= 0 && h.r < rows) startTyping({ kind: "total", at: "row", index: h.r });
         else if (h.gy < 0 && h.c >= 0 && h.c < cols) startTyping({ kind: "total", at: "col", index: h.c });
@@ -540,6 +553,37 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const newArea = () => { const k = [...LETTERS].find((l) => !areaLetters.includes(l)); if (k) { setArea(k); setTool("area"); } };
   const addAreas = () => { change(ops.addAreas(spec)); setArea("b"); setTool("area"); };
   const stars = ops.starsOf(spec);
+
+  // a type's own settings, in the toolbar (kept as the puzzle's own rule: ops.setRuleSetting)
+  const setting = (rule: string, key: string) => ops.ruleSetting(spec, rule, key);
+  const setSetting = (rule: string, key: string, v: unknown, dropEmpty = false) => change(ops.setRuleSetting(spec, rule, key, v, dropEmpty));
+  const tilesRule = { rule: "tiles", kinds: setting("tiles", "kinds"), colors: setting("tiles", "colors") };
+  const stepper = (label: string, value: number, set: (n: number) => void, lo: number, hi: number) => (
+    <span className="be-group be-size">{label} <button type="button" className="be-btn" onClick={() => value > lo && set(value - 1)} aria-label={`Fewer: ${label}`}>−</button><b>{value}</b>
+      <button type="button" className="be-btn" onClick={() => value < hi && set(value + 1)} aria-label={`More: ${label}`}>+</button></span>
+  );
+  const sizesNow = (setting("allowed-sizes", "sizes") as number[] | undefined) ?? [];
+  const typeSettings = genre === "fillomino" ? (
+    <label className="be-group" title="Only these region sizes (e.g. 4 6); empty for any size">Sizes
+      <input key={sizesNow.join(" ")} className="be-sizes" placeholder="any" aria-label="Allowed sizes" defaultValue={sizesNow.join(" ")} size={6}
+        onBlur={(e) => { const z = e.target.value.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0); setSetting("allowed-sizes", "sizes", z.length ? z : undefined, true); }} /></label>
+  ) : genre === "sum-regions" ? stepper("Target", Number(setting("region-sum", "is") ?? 10), (n) => setSetting("region-sum", "is", n), 1, 99)
+    : genre === "symmetry-cut" ? (<>
+      <span className="be-group be-seg" role="group" aria-label="Pieces">
+        {[2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={Number(setting("region-count", "is") ?? 2) === n} onClick={() => setSetting("region-count", "is", n)}>{n} pieces</button>)}
+      </span>
+      <span className="be-group be-seg" role="group" aria-label="Symmetry">
+        {([undefined, "mirror", "turn"] as const).map((m) => <button key={m ?? "either"} type="button" className="be-btn" aria-pressed={setting("symmetric-regions", "symmetry") === m}
+          onClick={() => setSetting("symmetric-regions", "symmetry", m)}>{m === "mirror" ? "Mirror" : m === "turn" ? "Half turn" : "Either"}</button>)}
+      </span>
+    </>)
+    : genre === "critters" ? (
+      <button type="button" className="be-btn" aria-pressed={!!setting("pieces", "flip")} onClick={() => setSetting("pieces", "flip", !setting("pieces", "flip"))}
+        title="Pieces may be flipped over as well as turned">Pieces may flip</button>
+    ) : genre === "kinship" ? (<>
+      {stepper("Shapes", tileKinds(tilesRule), (n) => setSetting("tiles", "kinds", n), 1, 3)}
+      {stepper("Colours", tileColors(tilesRule), (n) => setSetting("tiles", "colors", n), 1, 3)}
+    </>) : null;
 
   // ---- doubts: where each is (the box it's about) and its pin just off that box ----
   const target = (p: Pin) => {
@@ -677,7 +721,16 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
             title={c ? `Passed by the ${c} line` : "Passed by either line"} onClick={() => setDotColor(c)}>{c ? capital(c) : "Plain"}</button>)}
         </span>
       )}
-      {panes && (tool === "shape" || tool === "bank") && (
+      {typeSettings}
+      {tool === "tile" && (
+        <span className="be-group be-swatches" role="group" aria-label="Tile">
+          {Array.from({ length: tileCount(tilesRule) }, (_, k) => k + 1).map((d) => { const t = tileOf(tilesRule, d); return (
+            <button key={d} type="button" className="be-swatch" aria-pressed={tileAt === d} aria-label={`${capital(t.color)} ${t.kind}`} title={`${capital(t.color)} ${t.kind}`} onClick={() => setTileAt(d)}>
+              <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: tileSvg(t, 16, 16, 40) }} /></span>
+            </button>); })}
+        </span>
+      )}
+      {((panes && tool === "shape") || tool === "bank") && (
         <span className="be-group be-shapes" role="group" aria-label="Shape">
           <ShapePad cells={pad} onChange={setPad} />
           {ops.SHAPES.map((x) => <button key={x.name} type="button" className="be-swatch" aria-label={x.name} title={x.name}
@@ -686,7 +739,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           {tool === "bank" && <button type="button" className="be-btn" onClick={() => change(ops.addToBank(spec, ops.normalShape(pad)))} disabled={!pad.length}>Add to the bank</button>}
         </span>
       )}
-      {panes && tool === "bank" && (
+      {tool === "bank" && (
         <span className="be-group be-shapes" role="group" aria-label="The shape bank">
           {ops.bankOf(spec).length ? ops.bankOf(spec).map((x, k) => <button key={k} type="button" className="be-swatch" aria-label={`Take shape ${k + 1} out of the bank`}
             title="Take this shape out of the bank" onClick={() => change(ops.removeFromBank(spec, k))}><SymbolIcon x={{ kind: "shape", value: x }} /></button>) : <span className="be-note">The bank is empty</span>}

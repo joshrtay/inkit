@@ -1,0 +1,37 @@
+{
+  "type": "grid",
+  "name": "Two Halves",
+  "meta": "4 × 5",
+  "grid": {
+    "size": [
+      3,
+      5
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          1
+        ],
+        "kind": "block"
+      }
+    ]
+  }
+}

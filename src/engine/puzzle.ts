@@ -2,7 +2,7 @@
 // checking a whole board against every rule.
 import { figureGrid, hexGrid, latticeGrid, squareGrid, type Grid } from "./geometry.ts";
 import { regionsOf, type Regions } from "./derive.ts";
-import { blockFor, sharesProblem } from "./rules.ts";
+import { blockFor, sharesProblem, tileCount } from "./rules.ts";
 import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 
 /** `solutions`: how many a published puzzle may have: exactly one (most types), or any number but
@@ -206,6 +206,49 @@ export const genres = {
   // Distance Path: join the dots on a lattice into one path of straight segments whose lengths are
   // the listed ones (√5 and so on), each used once; it never crosses itself
   "distance-path": { marks: ["loop"], rules: [{ rule: "distance-path" }], style: {}, geometry: "lattice" },
+  // Fillomino: split the grid into regions; a number is its region's size, and regions of the same
+  // size never share a side. A puzzle may also allow only some sizes (its own allowed-sizes rule).
+  fillomino: {
+    marks: ["regions"],
+    rules: [{ rule: "size-clue" }, { rule: "neighbors-differ-size" }],
+    style: { palette: ["#f2c23a", "#4f9fdc", "#e2667a", "#6cbf7e", "#a77bd6", "#f29a52"] },
+  },
+  // Sum Regions (ours): every cell has a number; split the grid into regions whose numbers each add
+  // up to the target (the puzzle's own region-sum rule; 10 if it doesn't say)
+  "sum-regions": {
+    marks: ["regions"],
+    rules: [{ rule: "region-sum", is: 10 }],
+    style: { palette: ["#6cbf7e", "#f2c23a", "#4f9fdc", "#e2667a", "#a77bd6", "#f29a52"] },
+  },
+  // Polyomino Packing: cut the board (rocks are holes, outside it) into the bank's pieces, each used
+  // exactly once, turned or flipped any way
+  "polyomino-packing": {
+    marks: ["regions"],
+    rules: [{ rule: "shape-bank", once: true }],
+    style: { palette: ["#a77bd6", "#f2c23a", "#4f9fdc", "#e2667a", "#6cbf7e", "#f29a52"] },
+  },
+  // Critter Connecting (ours): shade cells to place the bank's pieces, each once and only turned;
+  // together they cover every critter and make one connected group
+  critters: {
+    marks: ["shade"],
+    rules: [{ rule: "pieces" }, { rule: "cover-symbols" }, { rule: "connected" }],
+    style: { empty: "dot" },
+  },
+  // Symmetry Cut (ours): cut the board (rocks are holes) into two pieces (or three: the puzzle's own
+  // region-count), each symmetric: a mirror image of itself, the same turned halfway round, or either
+  "symmetry-cut": {
+    marks: ["regions"],
+    rules: [{ rule: "region-count", is: 2 }, { rule: "symmetric-regions" }],
+    style: { palette: ["#4f9fdc", "#e2667a", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
+  },
+  // Kinship (ours, after the idea of Beast Academy's Twins and Triplets): place a set of tiles,
+  // every shape in every colour once, one per open cell, so tiles side by side share a colour or a
+  // shape. Tiles are digits (rules.ts tileOf); given ones are placed already.
+  kinship: {
+    marks: ["digit"],
+    rules: [{ rule: "tiles", kinds: 2, colors: 3 }, { rule: "shared-feature" }],
+    style: {},
+  },
 } satisfies Record<string, Genre>;
 
 /** The colors a Colour Balance puzzle can use (its palette is the first 2 or 3). */
@@ -305,6 +348,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const own = new Set((spec.rules ?? []).map((s) => s.rule));
   const rules = [...(genre?.rules ?? []).filter((s) => !own.has(s.rule)), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
+  const tiles = rules.find((s) => s.rule === "tiles");   // Kinship: one digit per tile
   if (!unfinished && rules.some((s) => s.rule === "perfect-maze" || s.rule === "path")) {
     const roles = [...doors.values()];
     if (roles.filter((r) => r === "in").length !== 1 || roles.filter((r) => r === "out").length !== 1)
@@ -338,9 +382,9 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const mexDigits = rules.some((s) => s.rule === "smallest-missing") ? 1 + Math.max(0, ...grid.cellLinks.map((ls) => ls.length)) : 0;
   return {
     spec, grid, cellGivens, borderGivens, cornerGivens, lineGivens, gaps, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
-    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? (fillIn ? symbols.length : (pathDigits || mexDigits || spec.size[1])),
+    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? (tiles ? tileCount(tiles) : fillIn ? symbols.length : (pathDigits || mexDigits || spec.size[1])),
     pegs, lengths,
-    blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
+    blanks: rules.some((s) => s.rule === "letters") || !!tiles, edgeClues, thermos, galaxies,
     bank, areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style, entries,
   };

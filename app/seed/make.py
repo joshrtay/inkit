@@ -17,7 +17,9 @@ GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": 
           "nurikabe": "nurikabe", "panes": "panes", "sudoku": "sudoku",
           "panel": "panel",
           "binairo": "binairo", "colour-balance": "colour-balance", "fill-in": "fill-in",
-          "hidoku": "hidoku", "hex-hidoku": "hex-hidoku", "missing-number": "missing-number", "distance-path": "distance-path"}
+          "hidoku": "hidoku", "hex-hidoku": "hex-hidoku", "missing-number": "missing-number", "distance-path": "distance-path",
+          "fillomino": "fillomino", "sum-regions": "sum-regions", "polyomino-packing": "polyomino-packing",
+          "critters": "critters", "symmetry-cut": "symmetry-cut", "kinship": "kinship"}
 FEATURED = ["simple-loop-5", "panes-1", "sudoku-1", "nonogram-2"]
 
 q = lambda s: "'" + s.replace("'", "''") + "'"

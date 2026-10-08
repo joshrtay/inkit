@@ -12636,4 +12636,2070 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   }
  ]
 }', 'distance-path', 'published', (unixepoch() * 1000) + 100);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('fillomino-1', 'c-wyatt', 'wyatt', 'First Fill', 'fillomino
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  }
+ ]
+}', 'fillomino', 'published', (unixepoch() * 1000) + 101);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('fillomino-2', 'c-wyatt', 'wyatt', 'Patchwork', 'fillomino
+{
+ "size": [
+  6,
+  6
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    5
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    5,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  }
+ ]
+}', 'fillomino', 'published', (unixepoch() * 1000) + 102);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('fillomino-3', 'c-wyatt', 'wyatt', 'Fours and Sixes', 'fillomino
+{
+ "size": [
+  5,
+  6
+ ],
+ "rules": [
+  {
+   "rule": "allowed-sizes",
+   "sizes": [
+    4,
+    6
+   ]
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    5
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    5
+   ],
+   "kind": "number",
+   "value": 6
+  }
+ ]
+}', 'fillomino', 'published', (unixepoch() * 1000) + 103);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sum-regions-1', 'c-wyatt', 'wyatt', 'Make Ten', 'sum-regions
+{
+ "size": [
+  4,
+  4
+ ],
+ "rules": [
+  {
+   "rule": "region-sum",
+   "is": 10
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 8
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  }
+ ]
+}', 'sum-regions', 'published', (unixepoch() * 1000) + 104);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sum-regions-2', 'c-wyatt', 'wyatt', 'Twelves', 'sum-regions
+{
+ "size": [
+  5,
+  5
+ ],
+ "rules": [
+  {
+   "rule": "region-sum",
+   "is": 12
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 8
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 9
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "number",
+   "value": 8
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "number",
+   "value": 7
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  }
+ ]
+}', 'sum-regions', 'published', (unixepoch() * 1000) + 105);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('sum-regions-3', 'c-wyatt', 'wyatt', 'Eights', 'sum-regions
+{
+ "size": [
+  4,
+  5
+ ],
+ "rules": [
+  {
+   "rule": "region-sum",
+   "is": 8
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "number",
+   "value": 4
+  }
+ ]
+}', 'sum-regions', 'published', (unixepoch() * 1000) + 106);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('polyomino-packing-1', 'c-wyatt', 'wyatt', 'Snug Fit', 'polyomino-packing
+{
+ "size": [
+  4,
+  5
+ ],
+ "givens": [
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     2,
+     0
+    ],
+    [
+     2,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "block"
+  }
+ ]
+}', 'polyomino-packing', 'published', (unixepoch() * 1000) + 107);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('polyomino-packing-2', 'c-wyatt', 'wyatt', 'Five Pieces', 'polyomino-packing
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     2,
+     0
+    ],
+    [
+     3,
+     0
+    ],
+    [
+     3,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    4
+   ],
+   "kind": "block"
+  }
+ ]
+}', 'polyomino-packing', 'published', (unixepoch() * 1000) + 108);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('polyomino-packing-3', 'c-wyatt', 'wyatt', 'Three in a Box', 'polyomino-packing
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ],
+    [
+     0,
+     3
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "block"
+  }
+ ]
+}', 'polyomino-packing', 'published', (unixepoch() * 1000) + 109);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('critters-1', 'c-wyatt', 'wyatt', 'Bug Bridge', 'critters
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    0
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    4
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  }
+ ]
+}', 'critters', 'published', (unixepoch() * 1000) + 110);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('critters-2', 'c-wyatt', 'wyatt', 'Ladybird Lane', 'critters
+{
+ "size": [
+  5,
+  6
+ ],
+ "givens": [
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    5
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    5
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    5
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  }
+ ]
+}', 'critters', 'published', (unixepoch() * 1000) + 111);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('critters-3', 'c-wyatt', 'wyatt', 'Flip Side', 'critters
+{
+ "size": [
+  4,
+  5
+ ],
+ "rules": [
+  {
+   "rule": "pieces",
+   "flip": true
+  }
+ ],
+ "givens": [
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "aside",
+   "kind": "bank",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "symbol",
+   "value": "\u2605"
+  }
+ ]
+}', 'critters', 'published', (unixepoch() * 1000) + 112);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('symmetry-cut-1', 'c-wyatt', 'wyatt', 'Two Halves', 'symmetry-cut
+{
+ "size": [
+  3,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "block"
+  }
+ ]
+}', 'symmetry-cut', 'published', (unixepoch() * 1000) + 113);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('symmetry-cut-2', 'c-wyatt', 'wyatt', 'Mirror, Mirror', 'symmetry-cut
+{
+ "size": [
+  4,
+  5
+ ],
+ "rules": [
+  {
+   "rule": "symmetric-regions",
+   "symmetry": "mirror"
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    4
+   ],
+   "kind": "block"
+  }
+ ]
+}', 'symmetry-cut', 'published', (unixepoch() * 1000) + 114);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('symmetry-cut-3', 'c-wyatt', 'wyatt', 'Three Ways', 'symmetry-cut
+{
+ "size": [
+  5,
+  6
+ ],
+ "rules": [
+  {
+   "rule": "region-count",
+   "is": 3
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    3
+   ],
+   "kind": "block"
+  }
+ ]
+}', 'symmetry-cut', 'published', (unixepoch() * 1000) + 115);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('kinship-1', 'c-wyatt', 'wyatt', 'In a Row', 'kinship
+{
+ "size": [
+  1,
+  6
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    5
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 6
+  }
+ ]
+}', 'kinship', 'published', (unixepoch() * 1000) + 116);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('kinship-2', 'c-wyatt', 'wyatt', 'Two by Four', 'kinship
+{
+ "size": [
+  2,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 6
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 1
+  }
+ ]
+}', 'kinship', 'published', (unixepoch() * 1000) + 117);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('kinship-3', 'c-wyatt', 'wyatt', 'Nine Tiles', 'kinship
+{
+ "size": [
+  3,
+  4
+ ],
+ "rules": [
+  {
+   "rule": "tiles",
+   "kinds": 3,
+   "colors": 3
+  }
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 8
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 2
+  }
+ ]
+}', 'kinship', 'published', (unixepoch() * 1000) + 118);
 INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES ('simple-loop-5', 0, 'wyatt'), ('panes-1', 1, 'wyatt'), ('sudoku-1', 2, 'wyatt'), ('nonogram-2', 3, 'wyatt');

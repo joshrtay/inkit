@@ -12,6 +12,10 @@ and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "P
 Distance Path (`distance-path`).
 Later: Binairo (`binairo`), Colour Balance (`colour-balance`, our name: each row and column holds its
 share of each of 2 or 3 colors) and Number Fill-In (`fill-in`), and Akari ciphers (letters for numbers).
+After Beast Academy's Puzzle Lab (docs/beast-academy-puzzles.md), with names of ours where there's no shared
+one: Fillomino (`fillomino`), Sum Regions (`sum-regions`), Polyomino Packing (`polyomino-packing`),
+Critter Connecting (`critters`), Symmetry Cut (`symmetry-cut`) and Kinship (`kinship`); their
+generators are in `puzzles/grid/pieces.ts`.
 
 ## The model
 
@@ -138,7 +142,7 @@ puzzle can use it.
 | `no-rectangles` | No region is a rectangle (Glimmith's Non-Boxy). |
 | `all-same` | Every region has the same shape, turned or flipped (Glimmith's Match). |
 | `neighbors-differ-size` | Regions that share a border have different sizes (Glimmith's Size Separation). |
-| `shape-bank` | Every region is one of the `bank` shapes, turned or flipped (Glimmith's Shape Bank). |
+| `shape-bank` | Every region is one of the `bank` shapes, turned or flipped (Glimmith's Shape Bank); with `once`, each bank shape is used exactly once (Polyomino Packing). |
 | `region-shape` | A `shape` clue in a cell is its region's shape, turned or flipped (Glimmith's Polyomino). |
 | `size-compare` | An `inequality` sign on a border points to the smaller of the two regions (its first cell's; Glimmith's Inequality). |
 | `size-difference` | A `difference` number on a border: two different regions whose sizes differ by it (Glimmith's Difference). |
@@ -161,6 +165,14 @@ puzzle can use it.
 | `number-path` | Every open cell holds 1..N once (N: the open cells), and each number touches the next across a link; `diagonals` (squares): touching at a corner counts too (Hidoku has it; without it, sides only). |
 | `smallest-missing` | Every open cell holds the smallest positive number none of its neighbours has (its neighbours' "mex"; Missing Number). |
 | `distance-path` | The segments (loop marks on a lattice) make one path through every dot that never crosses itself, and their lengths are the `lengths` given (as squares: 5 is √5), each used once, in any order; `moves`: `queen` (straight or diagonal) or `knight` (one 1-and-2 jump). |
+| `allowed-sizes` | Every region has one of the `sizes` (Fillomino with only 4s and 6s, say). |
+| `region-sum` | The numbers in every region add up to `is` (Sum Regions; 10 if it doesn't say). |
+| `region-count` | Exactly `is` regions (Symmetry Cut: 2 or 3). |
+| `symmetric-regions` | Every region matches its own mirror image (across, down or along a diagonal) or its half turn; `symmetry`: `mirror` or `turn` for just one (Symmetry Cut). |
+| `pieces` | The shaded cells are exactly the bank's pieces, each once, turned (and with `flip`, flipped) any way, never overlapping (Critter Connecting). |
+| `cover-symbols` | Every symbol (a critter) is shaded (Critter Connecting). |
+| `tiles` | Kinship's tiles: `kinds` shapes (1-3: stone, crest, triangle) in `colors` colours (1-3: red, yellow, blue), one of each, placed once each, one per open cell. Tile d is a digit: shape (d-1) % kinds in colour (d-1) / kinds; given tiles are given digits. |
+| `shared-feature` | Tiles side by side share a colour or a shape (Kinship). |
 
 `adjacent-count` also reads an Akari cipher's letters: cells with the same letter have the same count,
 different letters different counts (0-4).

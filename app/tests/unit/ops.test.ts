@@ -241,3 +241,27 @@ describe("a fill-in's list", () => {
     expect(t.givens).toEqual([{ at: "cell", cell: [0, 2], kind: "block" }]);
   });
 });
+
+describe("a type's own settings (Fillomino, Sum Regions, Symmetry Cut, Critter Connecting, Kinship)", () => {
+  it("keeps a setting as the puzzle's own rule only while it differs from the type's", () => {
+    let s = ops.setRuleSetting(grid("sum-regions"), "region-sum", "is", 12);
+    expect(s.rules).toEqual([{ rule: "region-sum", is: 12 }]);
+    expect(ops.ruleSetting(s, "region-sum", "is")).toBe(12);
+    s = ops.setRuleSetting(s, "region-sum", "is", 10);
+    expect(s.rules).toBeUndefined();
+    expect(ops.ruleSetting(s, "region-sum", "is")).toBe(10);
+  });
+  it("adds a rule the type doesn't have, and drops it when it's empty", () => {
+    let s = ops.setRuleSetting(grid("fillomino"), "allowed-sizes", "sizes", [4, 6], true);
+    expect(s.rules).toEqual([{ rule: "allowed-sizes", sizes: [4, 6] }]);
+    s = ops.setRuleSetting(s, "allowed-sizes", "sizes", undefined, true);
+    expect(s.rules).toBeUndefined();
+    expect(ops.setRuleSetting(grid("critters"), "pieces", "flip", true).rules).toEqual([{ rule: "pieces", flip: true }]);
+    expect(ops.setRuleSetting(grid("kinship"), "tiles", "kinds", 3).rules).toEqual([{ rule: "tiles", kinds: 3, colors: 3 }]);
+  });
+  it("places a Kinship tile, and takes it out again", () => {
+    const s = ops.toggleTile(grid("kinship", [1, 6]), [0, 2], 4);
+    expect(s.givens).toEqual([{ at: "cell", cell: [0, 2], kind: "number", value: 4 }]);
+    expect(ops.toggleTile(s, [0, 2], 4).givens).toEqual([]);
+  });
+});

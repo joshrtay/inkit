@@ -4,12 +4,12 @@
 //
 // Wrap it in an element with the class "grid-game" (and the board's ink as --paper-ink) to style it.
 import { regionsOf } from "../../engine/derive.ts";
-import { boxLines, symbolOf } from "../../engine/rules.ts";
+import { boxLines, symbolOf, tileOf, tileSpec } from "../../engine/rules.ts";
 import type { Board, Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { washDefs } from "../../lib/ink.ts";
-import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
+import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
 import { entriesDone, entryList } from "./entry-list.ts";
 import { isShaped, shapedLayout, shapedSvg } from "./shaped.ts";
 
@@ -61,6 +61,10 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   if (isShaped(p)) return shapedSvg(p, b, label, { room: opts.room });
   const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const paint = marks.includes("paint"), palette = p.style.palette?.length ? p.style.palette : PAINT;
+  // a digit, or a Kinship tile
+  const tiles = tileSpec(p);
+  const digitMark = (d: number, given: boolean, x: number, y: number) => tiles ? tileSvg(tileOf(tiles, d), x, y, S)
+    : text({ class: given ? "digit given" : "digit", x, y: y + 2 }, symbolOf(p, d));
   const links = p.rules.some((s) => s.rule === "links"), maze = p.rules.some((s) => s.rule === "perfect-maze");
   const { ML, MT, MR, MB } = pictureLayout(p, opts.room);
   const X = (c: number) => ML + c * S, Y = (r: number) => MT + r * S;
@@ -198,7 +202,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
       if (marks.includes("shade") && b.shade[i] === 2) {
         if (p.style.empty === "x") out.marks += xMark(x, y, S * 0.18, "xmark cellx"); else out.marks += tag("circle", { class: "dotmark", cx: x, cy: y, r: 3.5 });
       }
-      if (digits && b.digit[i]) out.marks += text({ class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2 }, symbolOf(p, b.digit[i]));
+      if (digits && b.digit[i]) out.marks += digitMark(b.digit[i], givenDigit.has(i), x, y);
     }
     const tint = panel?.symmetry ? lineColors(p, b) : () => undefined;
     if (panel) out.lines += panelInk(p, frame, b, panel.symmetry ? tint : undefined);
@@ -219,7 +223,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
       }
     }
   } else {
-    for (const i of givenDigit) { const [x, y] = center(i); out.marks += text({ class: "digit given", x, y: y + 2 }, symbolOf(p, (p.cellGivens.get(i) ?? []).find((x) => x.kind === "number")!.value as number)); }
+    for (const i of givenDigit) { const [x, y] = center(i); out.marks += digitMark((p.cellGivens.get(i) ?? []).find((x) => x.kind === "number")!.value as number, true, x, y); }
   }
 
   const W = ML + g.cols * S + MR, H = MT + g.rows * S + MB, wash = washDefs(W);

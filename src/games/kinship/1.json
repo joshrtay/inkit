@@ -1,0 +1,40 @@
+{
+  "type": "grid",
+  "name": "In a Row",
+  "meta": "1 × 6",
+  "grid": {
+    "size": [
+      1,
+      6
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          5
+        ],
+        "kind": "number",
+        "value": 2
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "number",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "number",
+        "value": 6
+      }
+    ]
+  }
+}

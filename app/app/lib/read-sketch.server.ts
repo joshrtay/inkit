@@ -8,7 +8,7 @@ import { z } from "zod";
 import { SYMBOL_COLORS, type Given, type GridSpec, type RuleSpec, type SymbolColor } from "~site/engine/types.ts";
 import { SYMMETRIES } from "~site/engine/panel.ts";
 import { BALANCE_COLORS, GENRE_NAMES, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
-import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
+import { RULE_NAMES, TILE_COLORS, tileColors, tileKinds, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
 import { DOUBT_PLACES, type DoubtPlace } from "../games/doubts";
@@ -142,6 +142,28 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   point's row and col (0 at the top / left). The list is one {kind: "lengths"}, row -1, col -1. If it says segments go
   like a queen (straight or diagonal) or a knight, add the rule distance-path with "moves queen" / "moves knight".
   Leave out a path drawn as the answer.`,
+  fillomino: `fillomino (Fillomino): numbers in some cells; split the grid into regions, each number its region's size, and
+  regions of the same size never side by side: {kind: "number", value}. If it says only some sizes are allowed (e.g. "only
+  4s and 6s"), add the rule allowed-sizes with "sizes 4 6". Leave out regions drawn as the answer.`,
+  "sum-regions": `sum-regions (Sum Regions, also "sum blobs"): a number in every cell; split the grid into regions whose
+  numbers each add up to a target written with the puzzle ("sum 10", "make 12"): every number is {kind: "number", value},
+  and the target is the rule region-sum with "is 10". Cells that aren't part of the board (shaded, crossed out) are {kind: "block"}.`,
+  "polyomino-packing": `polyomino-packing (Polyomino Packing / Polyominoes, tiling a shape with pieces): a shape to cut into the
+  pieces drawn beside it, each used once. Give the shape's bounding grid as rows and cols, every square of that grid
+  outside the shape as {kind: "block"}, and each piece as a bank clue (its blocks). Leave out cuts drawn as the answer.`,
+  critters: `critters (Critter Connecting, also "Connect the Critters"): a grid with critters (bugs, animals, smileys or any
+  little picture) in some cells, and pieces (polyominoes) drawn beside it to place so they cover every critter and join
+  into one group. Each critter is {kind: "symbol", value: "★"}; each piece a bank clue (its blocks). If it says pieces may
+  be flipped, add the rule pieces with "flip". Shaded cells that are holes are {kind: "block"}.`,
+  "symmetry-cut": `symmetry-cut (Symmetry Cut, also "find the cut line"): a shape to cut into two pieces (or three), each
+  symmetric. Give the shape's bounding grid as rows and cols and every square outside the shape as {kind: "block"}. With
+  three pieces add the rule region-count with "is 3"; if it asks only for mirror symmetry (a line of symmetry) add the rule
+  symmetric-regions with "symmetry mirror", only for turning symmetry (half turn, rotation) "symmetry turn".`,
+  kinship: `kinship (Kinship, tiles that share a colour or a shape): a row or small grid; a set of tiles, one of every
+  shape in every colour (shapes: stone = a circle or disc, crest = a star or flower, triangle; colours: red, yellow, blue),
+  is placed one per open cell so neighbours share a colour or a shape. Tiles already drawn in a cell are {kind: "symbol",
+  value: "<colour> <shape>"}, e.g. "red stone", "blue triangle". Cells that aren't used are {kind: "block"}. Add the rule
+  tiles with "kinds N colors M" for its N shapes and M colours (the set beside the grid, or what the drawing uses).`,
 };
 
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
@@ -149,7 +171,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"; an Akari cipher's letter: the letter, e.g. \"A\"",
   color: "a cell colored in at the start (binairo, colour-balance): row, col; value its color's number as the type says, e.g. \"2\"",
   block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
-  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black",
+  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black; a critter (critters) is \"★\"; a kinship tile is its colour and shape, e.g. \"red stone\"",
   palisade: "a palisade mark in a cell (panes: a small diamond with some of its four sides drawn thick; each thick side is one of the cell's sides that is a region border): row, col; " +
     "value how many sides are drawn, and with two whether they meet at a corner or are opposite: \"0\", \"1\", \"2 corner\", \"2 opposite\", \"3\" or \"4\" (three sides make a U; look closely, it's easy to misread as two)",
   compass: "a compass in a cell: row, col; value its numbers by direction, any missing, e.g. \"n2 e1 w0\"",
@@ -255,6 +277,14 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "number-path": "the numbers 1 to the last, each touching the next (comes with hidoku and hex-hidoku); diagonals: touching at a corner counts (hidoku has it; list number-path without it for \"sides only\")",
   "smallest-missing": "each number is the smallest its neighbours don't have (comes with missing-number)",
   "distance-path": "one path through every dot with the listed lengths, never crossing (comes with distance-path); moves queen / knight: segments run straight or diagonal / one knight's jump",
+  "allowed-sizes": "every region has one of these sizes, e.g. \"sizes 4 6\" (fillomino: only 4s and 6s)",
+  "region-sum": "the numbers in every region add up to the target, e.g. \"is 10\" (comes with sum-regions; always list it with the puzzle's target)",
+  "region-count": "cut into exactly this many pieces, e.g. \"is 3\" (comes with symmetry-cut, is 2)",
+  "symmetric-regions": "every piece is symmetric (comes with symmetry-cut); \"symmetry mirror\" or \"symmetry turn\" when only one kind is asked for",
+  pieces: "the shaded cells are the bank's pieces, each once, turned (comes with critters); \"flip\" if they may also be flipped",
+  "cover-symbols": "every critter (symbol) is covered (comes with critters)",
+  tiles: "kinship's tiles: \"kinds N colors M\", N shapes in M colours, each tile placed once (comes with kinship, kinds 2 colors 3)",
+  "shared-feature": "tiles side by side share a colour or a shape (comes with kinship)",
 };
 
 // Every field is required (empty when unused): the API caps how many fields may be nullable or
@@ -490,8 +520,10 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
 
 /** A reading as sketch text: the genre line, then the puzzle as JSON. */
 export function toSketch(r: Reading): string {
-  // a fill-in's digits 0-9 are its symbols 1-10
-  const givens: Given[] = r.givens.flatMap((g) => givenOf(g) ?? [])
+  // kinship: a tile drawn in a cell ("red stone") is that tile's number; a fill-in's digits 0-9 are its symbols 1-10
+  const tilesRead = r.rules.find((x) => x.rule === "tiles");
+  const tileRule = { ...(tilesRead ? ruleSettings(tilesRead.settings) : genres.kinship.rules[0]), rule: "tiles" };
+  const givens: Given[] = r.givens.flatMap((g) => (r.genre === "kinship" && g.kind === "symbol" ? tileGiven(g, tileRule) : givenOf(g)) ?? [])
     .map((g) => (r.genre === "fill-in" && g.kind === "number" ? { ...g, value: g.value + 1 } : g));
   for (const run of r.runs) givens.push(r.genre === "aquarium"
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
@@ -520,6 +552,15 @@ export function toSketch(r: Reading): string {
       : {}),
   };
   return `${r.genre}\n${JSON.stringify(body, null, 1)}`;
+}
+
+/** A Kinship tile read as "<colour> <shape>" (a stone, crest or triangle; circle, star and flower
+ *  too), as the number the engine gives it, or null if it isn't one of the set's tiles. */
+export function tileGiven({ row, col, value }: Reading["givens"][number], tiles: RuleSpec): Given | null {
+  const v = value.toLowerCase(), kinds = tileKinds(tiles), colors = tileColors(tiles);
+  const k = /\b(stone|circle|disc|dot)\b/.test(v) ? 0 : /\b(crest|star|flower|sun)\b/.test(v) ? 1 : /\btriangle\b/.test(v) ? 2 : -1;
+  const c = TILE_COLORS.findIndex((x) => new RegExp(`\\b${x}\\b`).test(v));
+  return k < 0 || c < 0 || k >= kinds || c >= colors ? null : { at: "cell", cell: [row, col], kind: "number", value: c * kinds + k + 1 };
 }
 
 /** A rule with its settings in a fixed order, to compare. */
@@ -643,6 +684,10 @@ export function ruleSettings(text: string): Record<string, unknown> {
     else if (w === "outline") out.outline = true;
     else if (w === "diagonals") out.diagonals = true;
     else if (w === "moves" && (next === "queen" || next === "knight")) { out.moves = next; k++; }
+    else if (w === "once") out.once = true;
+    else if (w === "flip" || w === "flipped") out.flip = true;
+    else if ((w === "symmetry" && (next === "mirror" || next === "turn"))) { out.symmetry = next; k++; }
+    else if (w === "sizes") { const z: number[] = []; while (words[k + 1] !== undefined && /^\d+$/.test(words[k + 1])) z.push(Number(words[++k])); if (z.length) out.sizes = z; }
     else if (w === "symmetry" && next && (SYMMETRIES as string[]).includes(next)) { out.symmetry = next; k++; }
     else if ((SYMMETRIES as string[]).includes(w)) out.symmetry = w;
     else if (w === "of" && next) { out.of = next; k++; }

@@ -18,7 +18,9 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
   // Binairo and Colour Balance: a printed color in a square
   | "paint"
   // lattices (Distance Path): dots on the points, and the path's lengths
-  | "peg" | "lengths";
+  | "peg" | "lengths"
+  // Kinship: a tile in a square (a number given, drawn as its tile)
+  | "tile";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
@@ -98,7 +100,7 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "no-rectangles": { label: "No region is a rectangle (Non-Boxy)", settings: [] },
   "all-same": { label: "Every region has the same shape (Match)", settings: [] },
   "neighbors-differ-size": { label: "Neighbouring regions differ in size (Size Separation)", settings: [] },
-  "shape-bank": { label: "Every region is a shape from the bank (Shape Bank)", settings: [] },
+  "shape-bank": { label: "Every region is a shape from the bank (Shape Bank)", settings: [{ key: "once", label: "each used exactly once (Polyomino Packing)", type: "flag" }] },
   "region-shape": { label: "A shape in a square is its region's shape (Polyomino)", settings: [] },
   "size-compare": { label: "A < sign points to the smaller region (Inequality)", settings: [] },
   "size-difference": { label: "A number on a border is the regions' size difference (Difference)", settings: [] },
@@ -112,6 +114,14 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "number-path": { label: "Numbers 1 to the last, each touching the next (Hidoku)", settings: [{ key: "diagonals", label: "touching at a corner counts (squares)", type: "flag" }] },
   "smallest-missing": { label: "Each number is the smallest its neighbours lack (Missing Number)", settings: [] },
   "distance-path": { label: "One path through the dots, with the listed lengths (Distance Path)", settings: [{ key: "moves", label: "segments run", type: "choice", choices: ["queen", "knight"], none: "any way" }] },
+  "allowed-sizes": { label: "Only these region sizes (Fillomino)", settings: [{ key: "sizes", label: "sizes", type: "list" }] },
+  "region-sum": { label: "Each region's numbers add up to", settings: [{ key: "is", label: "target", type: "number" }] },
+  "region-count": { label: "How many pieces", settings: [{ key: "is", label: "pieces", type: "number" }] },
+  "symmetric-regions": { label: "Every piece is symmetric", settings: [{ key: "symmetry", label: "kind", type: "choice", choices: ["mirror", "turn"], none: "either" }] },
+  pieces: { label: "Shaded cells are the bank's pieces, each once", settings: [{ key: "flip", label: "may be flipped", type: "flag" }] },
+  "cover-symbols": { label: "Every critter (✦) is shaded", settings: [] },
+  tiles: { label: "Place every tile once (Kinship)", settings: [{ key: "kinds", label: "shapes (1-3)", type: "number" }, { key: "colors", label: "colours (1-3)", type: "number" }] },
+  "shared-feature": { label: "Tiles side by side share a colour or a shape", settings: [] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
   "line-shares": { label: "Each row and column has its share of each color", settings: [{ key: "parts", label: "shares, one per color (1 1 = half and half)", type: "list" }] },
   "no-three-in-a-row": { label: "No three in a row the same color", settings: [] },

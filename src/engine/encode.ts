@@ -10,7 +10,7 @@
 //   fence(B) line(L) shaded(I) cut(L) paint(I,C)           the marks (choices)
 //   open(I) member(R,I) root(R) size(R,N)                  regions ("regions" need; a panel's are cut by its line)
 //   same(R1,R2) for pairs listed in cmp(R1,R2)             shapes ("shapes" need)
-import { blockFor } from "./rules.ts";
+import { blockFor, sizesOf } from "./rules.ts";
 import { linesCut } from "./derive.ts";
 import { emptyBoard, type Board, type Puzzle } from "./types.ts";
 
@@ -111,6 +111,21 @@ export function maxRegion(p: Puzzle): number {
   for (const s of p.rules) if (s.rule === "size") n = Math.min(n, (s.is ?? s.max ?? n) as number);
   // every region is a shape from the bank: no bigger than its biggest
   if (p.rules.some((s) => s.rule === "shape-bank") && p.bank.length) n = Math.min(n, Math.max(...p.bank.map((x) => x.length)));
+  // only some sizes allowed: no bigger than the biggest
+  for (const s of p.rules) if (s.rule === "allowed-sizes" && sizesOf(s).length) n = Math.min(n, Math.max(...sizesOf(s)));
+  // every open cell holds a number of 1 or more and every region adds up to the target: no more
+  // cells than the smallest numbers that fit under it
+  const sum = p.rules.find((s) => s.rule === "region-sum");
+  if (sum) {
+    const vals = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const g of gs) if (g.kind === "number") vals.set(i, g.value);
+    const open = Array.from({ length: p.grid.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i));
+    if (open.every((i) => (vals.get(i) ?? 0) >= 1)) {
+      let total = 0, k = 0;
+      for (const v of open.map((i) => vals.get(i)!).sort((a, b) => a - b)) { if (total + v > (typeof sum.is === "number" ? sum.is : 10)) break; total += v; k++; }
+      n = Math.min(n, Math.max(k, 1));
+    }
+  }
   // every region holds exactly one number and is that size: no bigger than the biggest number
   if (p.rules.some((s) => s.rule === "size-clue") && p.rules.some((s) => s.rule === "one-each" && (s.of ?? "number") === "number")) {
     const nums = [...p.cellGivens.values()].flat().filter((g) => g.kind === "number").map((g) => g.value as number);

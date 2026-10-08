@@ -18,7 +18,7 @@ import { addInk } from "../../lib/ink";
 import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
-import { blockFor, boxLines, colorName, fillSlots, runsOf, symbolOf, type Hint } from "../../engine/rules.ts";
+import { blockFor, boxLines, colorName, fillSlots, runsOf, symbolOf, tileOf, tileSpec, type Hint } from "../../engine/rules.ts";
 import { entriesDone, entryList } from "./entry-list";
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
@@ -26,7 +26,7 @@ import { createWalk } from "./walk";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { endsOf, mirrorBorder, mirrorCorner, startsOf, type Symmetry } from "../../engine/panel.ts";
 import * as Line from "./line-input";
-import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
+import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
 import { createFigure } from "./figure";
 import { createShaped, isShaped } from "./shaped.ts";
 
@@ -54,6 +54,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   // paint on the grid's cells (Binairo, Colour Balance): pick a pot and paint; printed colors stay
   const paintGrid = marks.includes("paint");
+  const tiles = tileSpec(p);   // Kinship: digits are drawn as tiles
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const links = p.rules.some((s) => s.rule === "links");
   const palette = p.style.palette ?? (paintGrid ? ["#ef5a6a", "#f7cf3d", "#3fb0e6"] : []);
@@ -329,13 +330,16 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       if (marks.includes("shade") && board.shade[i] === 2) {
         if (p.style.empty === "x") xMark(x, y, S * 0.18, "xmark cellx"); else el("circle", { class: "dotmark", cx: x, cy: y, r: 3.5 }, gMarks);
       }
-      if (digits && board.digit[i]) {
+      if (digits && board.digit[i] && tiles) {
+        gMarks.insertAdjacentHTML("beforeend", tileSvg(tileOf(tiles, board.digit[i]), x, y, S));
+      } else if (digits && board.digit[i]) {
         el("text", { class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2 }, gMarks).textContent = label(board.digit[i]);
       } else if (digits && board.pencil[i]) {
         const per = Math.ceil(Math.sqrt(p.digits));
         for (let d = 1; d <= p.digits; d++) if (board.pencil[i] & (1 << d)) {
           const k = d - 1, px = x - S / 2 + (S / per) * ((k % per) + 0.5), py = y - S / 2 + (S / per) * (Math.floor(k / per) + 0.5);
-          el("text", { class: "pencil", x: px, y: py + 1 }, gMarks).textContent = label(d);
+          if (tiles) gMarks.insertAdjacentHTML("beforeend", tileSvg(tileOf(tiles, d), px, py, S / per));
+          else el("text", { class: "pencil", x: px, y: py + 1 }, gMarks).textContent = label(d);
         }
       }
     }
@@ -673,6 +677,14 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const pencilBtn = root.querySelector<HTMLButtonElement>("[data-pencil]");
   const setPencil = (on: boolean) => { pencilMode = on; pencilBtn?.setAttribute("aria-pressed", String(on)); };
   root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => b.addEventListener("click", () => enter(Number(b.dataset.digit))));
+  // Kinship: the pad's buttons are its tiles
+  if (tiles) root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => {
+    const d = Number(b.dataset.digit);
+    if (d < 1) return;
+    const t = tileOf(tiles, d);
+    b.setAttribute("aria-label", `${t.color} ${t.kind}`);
+    b.innerHTML = `<svg class="grid-game-tile" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">${tileSvg(t, 16, 16, 40)}</svg>`;
+  });
   pencilBtn?.addEventListener("click", () => setPencil(!pencilMode));
   const onKey = (e: KeyboardEvent) => {
     const t = e.target;

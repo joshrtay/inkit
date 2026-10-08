@@ -77,6 +77,29 @@ export function orientations(pts: number[][]): [number, number][][] {
   return [...seen.values()];
 }
 
+/** A shape's distinct orientations when it may only be turned, not flipped (the turns among SYMMETRIES8). */
+export function rotations(pts: number[][]): [number, number][][] {
+  const seen = new Map<string, [number, number][]>();
+  for (const f of [0, 3, 5, 6].map((k) => SYMMETRIES8[k])) {
+    const q = pts.map(f), r0 = Math.min(...q.map((x) => x[0])), c0 = Math.min(...q.map((x) => x[1]));
+    const cells = q.map(([r, c]) => [r - r0, c - c0] as [number, number]).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    seen.set(cells.map((x) => x.join(".")).join(" "), cells);
+  }
+  return [...seen.values()];
+}
+
+/** The mirrors among SYMMETRIES8 (left-right, up-down and the two diagonals), and the half turn. */
+export const MIRRORS = [1, 2, 4, 7].map((k) => SYMMETRIES8[k]);
+export const HALF_TURN = SYMMETRIES8[3];
+/** Does a shape look the same after this turn or flip (moved back into place)? */
+export function symmetricUnder(pts: number[][], f: (x: number[]) => number[]): boolean {
+  const norm = (q: number[][]) => {
+    const r0 = Math.min(...q.map((x) => x[0])), c0 = Math.min(...q.map((x) => x[1]));
+    return q.map(([r, c]) => `${r - r0}.${c - c0}`).sort().join(" ");
+  };
+  return norm(pts) === norm(pts.map(f));
+}
+
 /** Shaded cells as groups, for connectivity rules. */
 export function shadedGroups(g: Grid, b: Board): number[][] {
   const seen = new Uint8Array(g.cellCount), groups: number[][] = [];
