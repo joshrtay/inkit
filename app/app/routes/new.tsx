@@ -64,7 +64,7 @@ export default function NewGame({ loaderData: { targets, collection, slug }, act
         <Link to={slug ? `/new?in=${encodeURIComponent(slug)}` : "/new"} aria-current="page">Upload a photo</Link>
         <Link to={slug ? `/new/draw?in=${encodeURIComponent(slug)}` : "/new/draw"}>Draw it here</Link>
       </nav>
-      <p className="muted">Take a photo of your hand-drawn puzzle. Claude reads it, then you check it matches your drawing and that it has exactly one solution.</p>
+      <p className="muted">Take a photo of your hand-drawn puzzle. Claude reads it, then you check it matches your drawing and that it can be solved: exactly one way for most types, at least one for panels.</p>
       <Form method="post" encType="multipart/form-data" className="form"
         onSubmit={(e) => {
           e.preventDefault();

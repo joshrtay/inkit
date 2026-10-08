@@ -166,7 +166,7 @@
    being drawn, the spot being typed into */
 .be-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .be-overlay .be-slot { fill: none; stroke: color-mix(in srgb, #26398f 45%, transparent); stroke-width: 1.5; stroke-dasharray: 3 3; }
-.be-overlay .be-slot.small { fill: color-mix(in srgb, #26398f 35%, transparent); stroke: none; }
+.be-overlay .be-slot.small { fill: color-mix(in srgb, #26398f 16%, transparent); stroke: color-mix(in srgb, #26398f 30%, transparent); stroke-width: 0.75; stroke-dasharray: none; }
 .be-overlay .be-thermo-draft polyline { fill: none; stroke: color-mix(in srgb, #26398f 35%, transparent); stroke-width: 18; stroke-linecap: round; stroke-linejoin: round; }
 .be-overlay .be-thermo-draft circle { fill: color-mix(in srgb, #26398f 35%, transparent); }
 .be-overlay .be-typing { fill: none; stroke: #e0a100; stroke-width: 3; }

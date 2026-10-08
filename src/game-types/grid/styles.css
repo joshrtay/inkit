@@ -185,3 +185,5 @@
 
 /* stones: panel squares and Masyu's pearls, a watercolour disc with a bold pen outline */
 .grid-game .stone-line { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
+/* still pictures (picture.ts: guides, the editor, lists) get the board's pen wobble too */
+.grid-game svg.picture { filter: url(#pen); }

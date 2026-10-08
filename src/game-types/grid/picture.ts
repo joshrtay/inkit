@@ -8,6 +8,7 @@ import { boxLines, symbolOf } from "../../engine/rules.ts";
 import type { Board, Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
 import { palisadeSvg, symbolClueSvg } from "./region-clues.ts";
+import { washDefs } from "../../lib/ink.ts";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 
 const S = 48, M = 26;
@@ -202,8 +203,8 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     for (const i of givenDigit) { const [x, y] = center(i); out.marks += text({ class: "digit given", x, y: y + 2 }, symbolOf(p, (p.cellGivens.get(i) ?? []).find((x) => x.kind === "number")!.value as number)); }
   }
 
-  const W = ML + g.cols * S + MR, H = MT + g.rows * S + MB;
-  return `<svg class="board picture" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label.replace(/"/g, "&quot;")}" style="--ratio:${n1(W / H)}">`
+  const W = ML + g.cols * S + MR, H = MT + g.rows * S + MB, wash = washDefs(W);
+  return `<svg class="board picture" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label.replace(/"/g, "&quot;")}" style="--ratio:${n1(W / H)};--wash:url(#${wash.id})">` + wash.svg
     + tag("g", {}, out.tint) + tag("g", { class: "wash" }, out.wash) + tag("g", { class: "wash" }, out.rocks) + tag("g", { class: "gridlines" }, out.grid)
     + tag("g", { class: "water" }, out.water) + tag("g", {}, out.lines) + tag("g", {}, out.givens) + tag("g", { class: "marks" }, out.marks)
     + tag("g", { class: "runs" }, out.runs) + tag("g", {}, out.corners) + tag("g", {}, out.over) + "</svg>";
@@ -230,8 +231,8 @@ function figureSvg(p: Puzzle, b: Board | null | undefined, label: string): strin
       return tag("circle", { class: "paint-dot", cx: n1(cx + ring * Math.cos(a)), cy: n1(cy + ring * Math.sin(a)), r: n1(r), fill: palette[col - 1] ?? "#999" });
     }).join(""));
   });
-  const vb = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad].map(n1);
-  return `<svg class="board picture" viewBox="${vb.join(" ")}" role="img" aria-label="${label}" style="--edge:${n1(span * 0.006)};--ratio:${n1(vb[2] / vb[3])}">`
+  const vb = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad].map(n1), wash = washDefs(vb[2]);
+  return `<svg class="board picture" viewBox="${vb.join(" ")}" role="img" aria-label="${label}" style="--edge:${n1(span * 0.006)};--ratio:${n1(vb[2] / vb[3])};--wash:url(#${wash.id})">` + wash.svg
     + tag("g", { class: "wash" }, fills) + tag("g", {}, edges) + tag("g", {}, dots) + "</svg>";
 }
 
