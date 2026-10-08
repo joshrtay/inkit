@@ -37,6 +37,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   area: "Areas", symbol: "Symbol", compass: "Compass", diamond: "◆ / ◇", palisade: "Palisade", erase: "Erase",
   start: "Start", end: "End", gap: "Gap", dot: "Dot", square: "Square", star: "Star", triangle: "Triangle", shape: "Shape", eraser: "Eraser",
   inequality: "< sign", difference: "Difference", watchtower: "Watchtower", bank: "Shape bank",
+  peg: "Dot", lengths: "Lengths",
 };
 
 const TOOL_HINTS: Record<ToolId, string> = {
@@ -70,6 +71,8 @@ const TOOL_HINTS: Record<ToolId, string> = {
   difference: "Click the line between two squares and type how much the regions' sizes differ",
   watchtower: "Click where grid lines meet and type how many regions meet there (1 to 4)",
   bank: "Draw or pick a shape, then add it to the bank under the board; click a shape in the bank to take it out",
+  peg: "Click a point to add or remove a dot",
+  lengths: "Type the path's lengths, e.g. 1 √2 2 √5 (√5 is 1 one way and 2 the other; r5 works too)",
 };
 
 
@@ -103,6 +106,12 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   maze: ["corner", "wall", "door", "erase"],
   // the line's start, ends, gaps and dots, then the symbols in the cells
   panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
+  // number paths: numbers and rocks, on squares or hexagons; Missing Number the same on hexagons
+  hidoku: ["number", "block", "erase"],
+  "hex-hidoku": ["number", "block", "erase"],
+  "missing-number": ["number", "block", "erase"],
+  // a lattice: its dots, and the lengths under it
+  "distance-path": ["peg", "lengths", "erase"],
 };
 
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in TOOLS;
@@ -164,7 +173,8 @@ type Typing =
   | { kind: "corner"; corner: RC }
   | { kind: "watchtower"; corner: RC }
   | { kind: "difference"; cells: [RC, RC] }
-  | { kind: "compass"; cell: RC };
+  | { kind: "compass"; cell: RC }
+  | { kind: "lengths" };
 
 export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins = [] }: {
   spec: Spec;
@@ -246,6 +256,11 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const pt = el.createSVGPoint(); pt.x = clientX; pt.y = clientY;
     const { x, y } = pt.matrixTransform(el.getScreenCTM()!.inverse());
     const gx = (x - lay.ML) / lay.S, gy = (y - lay.MT) / lay.S;   // in squares, from the grid's top-left
+    // hexagons: the one whose centre is nearest
+    if (lay && "cellAt" in lay && puzzle?.grid.kind === "hex") {
+      const i = lay.cellAt(x, y);
+      return { gx, gy, r: i < 0 ? -1 : Math.floor(i / cols), c: i < 0 ? -1 : i % cols };
+    }
     return { gx, gy, r: Math.floor(gy), c: Math.floor(gx) };
   };
   type Hit = NonNullable<ReturnType<typeof hitAt>>;
@@ -286,12 +301,16 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const r = el.getBoundingClientRect();
     return { left: r.left - b.left + (x / lay.W) * r.width, top: r.top - b.top + (y / lay.H) * r.height };
   };
-  const cellCenter = ([r, c]: RC) => (lay ? { x: lay.ML + (c + 0.5) * lay.S, y: lay.MT + (r + 0.5) * lay.S } : { x: 0, y: 0 });
+  const cellCenter = ([r, c]: RC) => {
+    if (lay && "at" in lay) { const [x, y] = lay.at(r * cols + c); return { x, y }; }
+    return lay ? { x: lay.ML + (c + 0.5) * lay.S, y: lay.MT + (r + 0.5) * lay.S } : { x: 0, y: 0 };
+  };
   const typingSpot = (t: Typing) => {
     if (!lay) return { x: 0, y: 0 };
     const { S, ML, MT } = lay;
     switch (t.kind) {
       case "number": case "compass": return cellCenter(t.cell);
+      case "lengths": return { x: lay.W / 2, y: lay.H - 22 };
       case "runs": case "total": return t.at === "row" ? { x: ML - S * 0.6, y: MT + (t.index + 0.5) * S } : { x: ML + (t.index + 0.5) * S, y: MT - S * 0.5 };
       case "outside": {
         const { x, y } = cellCenter(t.cell), d = S * 0.9;
@@ -313,6 +332,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "corner": { const g = gs.find((x) => x.at === "corner" && same(x.corner, t.corner)); return g && g.kind === "count" ? String(g.value) : ""; }
       case "watchtower": { const g = gs.find((x) => x.at === "corner" && same(x.corner, t.corner)); return g && g.kind === "watchtower" ? String(g.value) : ""; }
       case "difference": { const g = gs.find((x) => onBorder(x, ...t.cells) && x.kind === "difference"); return g && g.kind === "difference" ? String(g.value) : ""; }
+      case "lengths": return ops.lengthsText(ops.lengthsOf(latest.current));
       case "compass": {
         const g = gs.find((x) => x.at === "cell" && same(x.cell, t.cell) && x.kind === "compass");
         return g && g.kind === "compass" ? (["n", "e", "s", "w"] as const).map((d) => g.value[d] ?? "-").join(" ") : "";
@@ -338,6 +358,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "corner": next = ops.setCorner(cur, t.corner, num); break;
       case "watchtower": next = ops.setWatchtower(cur, t.corner, num); break;
       case "difference": next = ops.setDifference(cur, ...t.cells, num); break;
+      case "lengths": { const v2 = ops.parseLengths(v); if (v2) next = ops.setLengths(cur, v2); break; }
       case "compass": {
         const parts = v.split(/[\s,]+/).filter(Boolean), value: Record<string, number> = {};
         (["n", "e", "s", "w"] as const).forEach((d, k) => { const x = parseInt(parts[k] ?? "", 10); if (Number.isInteger(x) && x >= 0) value[d] = x; });
@@ -442,6 +463,9 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "triangle": if (inGrid(h)) change(ops.cycleTriangle(latest.current, cell)); return;
       case "shape": if (inGrid(h) && (!panes || pad.length)) change(ops.toggleCellSymbol(latest.current, cell, shapeSymbol)); return;
       case "eraser": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, { kind: "eraser" })); return;
+      // a lattice: dots on its points, the lengths typed
+      case "peg": if (inGrid(h)) change(ops.togglePeg(latest.current, cell)); return;
+      case "lengths": startTyping({ kind: "lengths" }); return;
     }
   }
   function move(evt: React.PointerEvent) {
@@ -542,6 +566,18 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           <span className="be-group be-size">Rows <button type="button" className="be-btn" onClick={() => resizeTo(rows - 1, cols)} aria-label="Fewer rows">−</button><b>{rows}</b><button type="button" className="be-btn" onClick={() => resizeTo(rows + 1, cols)} aria-label="More rows">+</button></span>
           <span className="be-group be-size">Columns <button type="button" className="be-btn" onClick={() => resizeTo(rows, cols - 1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" className="be-btn" onClick={() => resizeTo(rows, cols + 1)} aria-label="More columns">+</button></span>
         </>
+      )}
+      {genre === "hidoku" && (
+        <span className="be-group be-seg" role="group" aria-label="How numbers touch">
+          {[false, true].map((on) => <button key={String(on)} type="button" className="be-btn" aria-pressed={ops.sidesOnly(spec) === on} onClick={() => change(ops.setSidesOnly(spec, on))}
+            title={on ? "Each number shares a side with the next" : "Each number touches the next at a side or a corner"}>{on ? "Sides only" : "Corners too"}</button>)}
+        </span>
+      )}
+      {genre === "distance-path" && (
+        <span className="be-group be-seg" role="group" aria-label="How segments run">
+          {([null, "queen", "knight"] as const).map((m) => <button key={m ?? "any"} type="button" className="be-btn" aria-pressed={ops.movesOf(spec) === m} onClick={() => change(ops.setMoves(spec, m))}
+            title={m === "queen" ? "Straight across, up and down, or diagonal" : m === "knight" ? "Each segment one knight's jump (1 and 2)" : "Any way, dot to dot"}>{m ? capital(m) : "Any way"}</button>)}
+        </span>
       )}
       {genre === "star-battle" && (
         <span className="be-group be-seg" role="group" aria-label="Stars in each row, column and area">
@@ -664,7 +700,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     : typing.kind === "runs" || typing.kind === "total" ? (typing.at === "row" ? `Row ${typing.index + 1}` : `Column ${typing.index + 1}`)
       : typing.kind === "outside" ? `${typing.letter ? "Letter" : "Number"} outside`
         : typing.kind === "corner" ? "Corner number" : typing.kind === "watchtower" ? "Regions meeting here (1-4)"
-          : typing.kind === "difference" ? "Size difference" : "North east south west (- for none)";
+          : typing.kind === "difference" ? "Size difference" : typing.kind === "lengths" ? "Lengths, e.g. 1 √2 2 √5" : "North east south west (- for none)";
 
   return (
     <div className={`board-editor${flashing ? " flashing" : ""}`}>

@@ -10802,4 +10802,640 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   }
  ]
 }', 'panel', 'published', (unixepoch() * 1000) + 78);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hidoku-1', 'c-wyatt', 'wyatt', 'Number Snake', 'hidoku
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "block"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 14
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 8
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 11
+  }
+ ]
+}', 'hidoku', 'published', (unixepoch() * 1000) + 79);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hidoku-2', 'c-wyatt', 'wyatt', 'Sides Only', 'hidoku
+{
+ "size": [
+  4,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 20
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    4
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "number",
+   "value": 15
+  }
+ ],
+ "rules": [
+  {
+   "rule": "number-path"
+  }
+ ]
+}', 'hidoku', 'published', (unixepoch() * 1000) + 80);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hex-hidoku-1', 'c-wyatt', 'wyatt', 'First Honeycomb', 'hex-hidoku
+{
+ "size": [
+  3,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 12
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 9
+  }
+ ]
+}', 'hex-hidoku', 'published', (unixepoch() * 1000) + 81);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hex-hidoku-2', 'c-wyatt', 'wyatt', 'Busy Bees', 'hex-hidoku
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 16
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 6
+  }
+ ]
+}', 'hex-hidoku', 'published', (unixepoch() * 1000) + 82);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('hex-hidoku-3', 'c-wyatt', 'wyatt', 'Twenty Cells', 'hex-hidoku
+{
+ "size": [
+  4,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 20
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 10
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 19
+  }
+ ]
+}', 'hex-hidoku', 'published', (unixepoch() * 1000) + 83);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('missing-number-1', 'c-wyatt', 'wyatt', 'Little Hive', 'missing-number
+{
+ "size": [
+  3,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 3
+  }
+ ]
+}', 'missing-number', 'published', (unixepoch() * 1000) + 84);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('missing-number-2', 'c-wyatt', 'wyatt', 'Smallest Missing', 'missing-number
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "number",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 6
+  }
+ ]
+}', 'missing-number', 'published', (unixepoch() * 1000) + 85);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('missing-number-3', 'c-wyatt', 'wyatt', 'Busy Hive', 'missing-number
+{
+ "size": [
+  4,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "number",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "number",
+   "value": 5
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "number",
+   "value": 4
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    4
+   ],
+   "kind": "number",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "number",
+   "value": 5
+  }
+ ]
+}', 'missing-number', 'published', (unixepoch() * 1000) + 86);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('distance-path-1', 'c-wyatt', 'wyatt', 'Geoboard', 'distance-path
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "aside",
+   "kind": "lengths",
+   "value": [
+    1,
+    4,
+    5,
+    8,
+    10
+   ]
+  }
+ ]
+}', 'distance-path', 'published', (unixepoch() * 1000) + 87);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('distance-path-2', 'c-wyatt', 'wyatt', 'Queen''s Path', 'distance-path
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "aside",
+   "kind": "lengths",
+   "value": [
+    1,
+    1,
+    1,
+    1,
+    4,
+    18
+   ]
+  }
+ ],
+ "rules": [
+  {
+   "rule": "distance-path",
+   "moves": "queen"
+  }
+ ]
+}', 'distance-path', 'published', (unixepoch() * 1000) + 88);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('distance-path-3', 'c-wyatt', 'wyatt', 'Long Way Round', 'distance-path
+{
+ "size": [
+  5,
+  5
+ ],
+ "givens": [
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    4
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    1
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    4,
+    2
+   ],
+   "kind": "peg"
+  },
+  {
+   "at": "aside",
+   "kind": "lengths",
+   "value": [
+    1,
+    1,
+    1,
+    5,
+    8,
+    10
+   ]
+  }
+ ]
+}', 'distance-path', 'published', (unixepoch() * 1000) + 89);
 INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES ('simple-loop-5', 0, 'wyatt'), ('panes-1', 1, 'wyatt'), ('sudoku-1', 2, 'wyatt'), ('nonogram-2', 3, 'wyatt');

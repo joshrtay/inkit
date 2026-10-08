@@ -53,6 +53,12 @@ const MIRROR: RuleSpec[] = [{ rule: "panel-line", symmetry: "left-right" }];
 const TWO = [start(2, 0, "blue"), start(2, 2, "yellow"), end(0, 0), end(0, 2)];
 const SIDES: RC[][] = [[[2, 0], [0, 0]], [[2, 2], [0, 2]]];
 
+// lattices: a dot on a point, and the lengths (as squares: 5 is √5)
+const peg = (r: number, c: number): Given => ({ at: "cell", cell: [r, c], kind: "peg" });
+const lengths = (...value: number[]): Given => ({ at: "aside", kind: "lengths", value });
+/** Four dots at a 3 × 3 lattice's corners. */
+const FOUR = [peg(0, 0), peg(0, 2), peg(2, 0), peg(2, 2)];
+
 const squares = (n: number) => ({ pieces: Array.from({ length: n }, (_, i) => [[i * 10, 0], [i * 10 + 10, 0], [i * 10 + 10, 10], [i * 10, 10]]) });
 
 export const CATEGORIES: Category[] = ["Lines", "Shading", "Regions", "Numbers", "Paint"];
@@ -615,6 +621,90 @@ export const guides: Record<GenreName, Guide> = {
     ],
     controls: "Tap a cell, then a letter (or type it). Erase leaves a cell empty.",
     example: "easy-as-abc/1.json",
+  },
+
+  hidoku: {
+    name: "Hidoku", aka: ["Number Snake"], category: "Numbers", ink: "#26398f",
+    summary: "Fill in the numbers 1 to the last so each one touches the next, making one snake through the grid.",
+    origin: "Invented by Gyora Benedek in 2008 and sold under its own trademarked name; Hidoku and Number Snake are the names puzzle sites use. The sides-only kind is often called Numbrix.",
+    rules: [
+      { text: "Fill every white cell with the numbers 1 to the last one, each once.", checks: ["number-path"], pictures: [
+        { ok: true, note: "1 to 6, once each", size: [2, 3], digits: ["135", "246"] },
+        { ok: false, note: "4 twice, no 6", size: [2, 3], digits: ["135", "244"] },
+      ] },
+      { text: "Each number touches the next one, at a side or a corner.", checks: ["number-path"], pictures: [
+        { ok: true, note: "Corners count", size: [2, 3], digits: ["135", "246"] },
+        { ok: false, note: "5 and 6 apart", size: [2, 3], digits: ["123", "645"] },
+      ] },
+      { text: "Dark cells are rocks: the snake goes around them.", checks: ["number-path"], pictures: [
+        { ok: true, note: "Around the rock", size: [2, 3], givens: [rock(0, 2)], digits: ["12.", "543"] },
+      ] },
+      { text: "When a puzzle says \"sides only\", a corner isn't enough.", checks: ["number-path"], pictures: [
+        { ok: true, note: "Side to side", size: [2, 3], rules: [{ rule: "number-path" }], digits: ["123", "654"] },
+        { ok: false, note: "2 to 3 at a corner", size: [2, 3], rules: [{ rule: "number-path" }], digits: ["135", "246"] },
+      ] },
+    ],
+    controls: "Tap a cell, then type its number (1 then 2 makes 12), on the keys under the board or the keyboard. Backspace erases.",
+    example: "hidoku/1.json",
+  },
+  "hex-hidoku": {
+    name: "Hex Hidoku", aka: ["Honeycomb Number Snake"], category: "Numbers", ink: "#7a4a12",
+    summary: "Fill a honeycomb with the numbers 1 to the last so each one touches the next.",
+    origin: "Hidoku on hexagons. A hexagon touches six others, always along a side, so there are no corner steps to worry about.",
+    rules: [
+      { text: "Fill every hexagon with the numbers 1 to the last one, each once.", checks: ["number-path"], pictures: [
+        { ok: true, note: "1 to 6, once each", size: [2, 3], digits: ["123", "654"] },
+        { ok: false, note: "4 twice, no 6", size: [2, 3], digits: ["123", "445"] },
+      ] },
+      { text: "Each number touches the next one: the numbers make one snake through the honeycomb.", checks: ["number-path"], pictures: [
+        { ok: true, note: "A snake", size: [2, 3], digits: ["123", "654"] },
+        { ok: false, note: "3 and 4 apart", size: [2, 3], digits: ["123", "456"] },
+      ] },
+    ],
+    controls: "Tap a hexagon, then type its number (1 then 2 makes 12), on the keys under the board or the keyboard. Backspace erases.",
+    example: "hex-hidoku/1.json",
+  },
+  "missing-number": {
+    name: "Missing Number", category: "Numbers", ink: "#7a4a12",
+    summary: "Each hexagon holds the smallest number that none of its neighbours has.",
+    origin: "Our name for a honeycomb puzzle from maths books for kids. Each number is the \"mex\" (minimum excluded value) of its neighbours, the rule behind Sprague and Grundy's numbers for games, from the 1930s.",
+    rules: [
+      { text: "Hexagons that touch never hold the same number.", checks: ["smallest-missing"], pictures: [
+        { ok: true, note: "No two the same", size: [2, 3], digits: ["143", "212"] },
+        { ok: false, note: "Two 1s touch", size: [2, 3], digits: ["143", "211"] },
+      ] },
+      { text: "Each hexagon's number is the smallest one its neighbours don't have: a hexagon next to 1, 2 and 3 (and no 4) is 4.", checks: ["smallest-missing"], pictures: [
+        { ok: true, note: "Next to 1, 2, 3: 4", size: [2, 3], digits: ["143", "212"] },
+        { ok: false, note: "Should be 4, not 5", size: [2, 3], digits: ["153", "212"] },
+      ] },
+    ],
+    controls: "Tap a hexagon, then a number (or type it). Pencil notes keep track of what's possible.",
+    example: "missing-number/1.json",
+  },
+  "distance-path": {
+    name: "Distance Path", category: "Lines", ink: "#2d6a45",
+    summary: "Join the dots with one path of straight segments whose lengths are the ones listed.",
+    origin: "Our name for a geoboard puzzle from maths books for kids. The lengths come from Pythagoras: a segment 1 across and 2 down is √(1² + 2²) = √5 long.",
+    rules: [
+      { text: "Join all the dots into one path of straight segments, each from a dot to a dot.", checks: ["distance-path"], pictures: [
+        { ok: true, note: "Every dot", size: [3, 3], givens: [peg(0, 0), peg(0, 2), peg(2, 1), lengths(4, 5)], lines: [[[0, 0], [0, 2], [2, 1]]] },
+        { ok: false, note: "A dot left out", size: [3, 3], givens: [peg(0, 0), peg(0, 2), peg(2, 1), lengths(4, 5)], lines: [[[0, 0], [0, 2]]] },
+      ] },
+      { text: "The segments are the listed lengths, each used once, in any order. √5 means 1 square one way and 2 the other.", checks: ["distance-path"], pictures: [
+        { ok: true, note: "2 and √5", size: [3, 3], givens: [peg(0, 0), peg(0, 2), peg(2, 1), lengths(4, 5)], lines: [[[0, 0], [0, 2], [2, 1]]] },
+        { ok: false, note: "√5 twice, no 2", size: [3, 3], givens: [peg(0, 0), peg(0, 2), peg(2, 1), lengths(4, 5)], lines: [[[0, 0], [2, 1], [0, 2]]] },
+      ] },
+      { text: "The path never crosses itself.", checks: ["distance-path"], pictures: [
+        { ok: true, note: "Around the edge", size: [3, 3], givens: [...FOUR, lengths(4, 4, 4)], lines: [[[0, 0], [0, 2], [2, 2], [2, 0]]] },
+        { ok: false, note: "Crosses", size: [3, 3], givens: [...FOUR, lengths(4, 8, 8)], lines: [[[0, 0], [2, 2], [0, 2], [2, 0]]] },
+      ] },
+      { text: "Some puzzles say how segments may run: like a chess queen (straight or diagonal) or a knight (one jump of 1 and 2).", checks: ["distance-path"], pictures: [
+        { ok: true, note: "Queen: diagonal", size: [3, 3], rules: [{ rule: "distance-path", moves: "queen" }], givens: [peg(0, 0), peg(2, 2), peg(2, 0), lengths(4, 8)], lines: [[[0, 0], [2, 2], [2, 0]]] },
+        { ok: false, note: "Queen: not √5", size: [3, 3], rules: [{ rule: "distance-path", moves: "queen" }], givens: [peg(0, 0), peg(0, 2), peg(2, 1), lengths(4, 5)], lines: [[[0, 0], [0, 2], [2, 1]]] },
+      ] },
+    ],
+    controls: "Drag from dot to dot to draw a segment; drag back over it, or tap it, to take it away. The lengths cross themselves off as you use them.",
+    example: "distance-path/1.json",
   },
 
   // ---------------- paint ----------------

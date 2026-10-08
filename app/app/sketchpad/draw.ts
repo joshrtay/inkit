@@ -3,7 +3,8 @@
 // the player uses (panel-draw.ts), so a stone here is the stone a player sees. The classes are
 // styles.css's (under .grid-game) and sketchpad.css's (.sp-*).
 import { ensoPath, LINE_COLORS, stoneSvg, symbolSvg } from "~site/game-types/grid/panel-draw.ts";
-import { CELL, gapsOf, outward, pointOf, sameAnchor, squareOf, type Drawing, type EdgeAt, type Grid, type Item, type XY, smoothPath } from "./model";
+import { HEX_SIDE, hexGrid } from "~site/engine/geometry.ts";
+import { CELL, gapsOf, outward, pointOf, sameAnchor, squareOf, type Anchor, type Drawing, type EdgeAt, type Grid, type Item, type XY, smoothPath } from "./model";
 
 type A = Record<string, string | number>;
 const f1 = (v: number) => Math.round(v * 10) / 10;
@@ -25,6 +26,8 @@ const GAP_STUB = 0.36;
 /** The grid in pen: faint lines inside a medium frame, with its gaps (breaks in a line) left out. */
 export function gridSvg(g: Grid, gaps: EdgeAt[] = []): string {
   const { x, y, S, rows, cols } = g, W = cols * S, H = rows * S;
+  if (g.shape === "hex") return hexSvg(g);
+  if (g.shape === "dots") return dotsSvg(g);
   if (g.tracks) return tracksSvg(g, gaps);
   if (!gaps.length) {
     let lines = "";
@@ -57,6 +60,34 @@ export function gridSvg(g: Grid, gaps: EdgeAt[] = []): string {
   }
   return lines + (frame ? tag("path", { class: "frame", d: frame, "stroke-linecap": "square" }) : "");
 }
+
+/** A honeycomb, as the boards draw one (shaped.ts): the hexagons' shared sides faint, the outside in medium pen. */
+function hexSvg(g: Grid): string {
+  const h = hexGrid(g.rows, g.cols), at = (v: number) => { const [cx, cy] = h.cornerXY(v); return [g.x + cx * g.S, g.y + cy * g.S]; };
+  let lines = "", frame = "";
+  for (const e of h.borders) {
+    const [[x1, y1], [x2, y2]] = e.corners.map(at);
+    if (e.link >= 0) lines += tag("line", { class: "gridline", x1, y1, x2, y2 });
+    else frame += `M${f1(x1)} ${f1(y1)}L${f1(x2)} ${f1(y2)}`;
+  }
+  return lines + tag("path", { class: "frame", d: frame, "stroke-linecap": "round" });
+}
+/** A lattice of points, one at each square's centre, faint, as the boards draw one (shaped.ts). */
+function dotsSvg(g: Grid): string {
+  let out = "";
+  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) {
+    const p = pointOf(g, { at: "cell", r, c });
+    out += tag("circle", { class: "dot lattice-point", cx: p.x, cy: p.y, r: Math.max(1.6, g.S * 0.055) });
+  }
+  return out;
+}
+/** A hexagon around (x, y) for a grid of `S` squares, as points. */
+const hexPoints = (x: number, y: number, S: number) => Array.from({ length: 6 }, (_, k) => {
+  const a = ((-90 + 60 * k) * Math.PI) / 180;
+  return `${f1(x + HEX_SIDE * S * Math.cos(a))},${f1(y + HEX_SIDE * S * Math.sin(a))}`;
+}).join(" ");
+/** On a honeycomb, a cell's wash and a rock fill its hexagon. */
+const onHex = (g: Grid | null, a: Anchor) => g?.shape === "hex" && a.at === "cell";
 
 /** A panel's grid: every line a wide pale track with round ends, as the player draws it
  *  (panel-draw.ts's panelTracks), broken in the middle at a gap. */
@@ -120,10 +151,11 @@ export function itemSvg(d: Drawing, it: Item): string {
     case "pen": return tag("path", { class: `sp-pen ${it.weight}`, d: smoothPath(it.points.map(at)) });
     case "line": { const a = at(it.from), b = at(it.to); return tag("line", { class: `sp-pen ${it.weight}`, x1: a.x, y1: a.y, x2: b.x, y2: b.y }); }
     case "brush": return tag("path", { class: "wash sp-brush", d: smoothPath(it.points.map(at)), style: `stroke:var(--wash-${it.color})` });
-    case "wash": { const c = at(it.at); return tag("rect", { class: "wash sp-wash", x: c.x - S / 2, y: c.y - S / 2, width: S, height: S, style: `fill:var(--wash-${it.color})` }); }
+    case "wash": { const c = at(it.at); if (onHex(g, it.at)) return tag("polygon", { class: "wash sp-wash", points: hexPoints(c.x, c.y, S), style: `fill:var(--wash-${it.color})` }); return tag("rect", { class: "wash sp-wash", x: c.x - S / 2, y: c.y - S / 2, width: S, height: S, style: `fill:var(--wash-${it.color})` }); }
     case "stamp": {
       const p = at(it.at), out = outward(g, it.at);
       // on a panel's tracks, an end is a short track out of the edge, as the player draws it
+      if (it.stamp === "rock" && onHex(g, it.at)) return tag("polygon", { class: "rock wash", points: hexPoints(p.x, p.y, S) });
       if (it.stamp === "end" && g?.tracks) return tag("line", { class: "panel-track", x1: p.x, y1: p.y, x2: p.x + out.x * S * 0.3, y2: p.y + out.y * S * 0.3, style: `stroke-width:${f1(S * 0.25)}` });
       return stampSvg(it, p.x, p.y, S, out);
     }

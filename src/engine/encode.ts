@@ -29,7 +29,7 @@ export function program(p: Puzzle): string {
     for (let v = 0; v < g.cornerCount; v++) out.push(`corner(${v}).`);
     for (const e of g.borders) out.push(`border(${e.id}). vb(${e.corners[0]},${e.id}). vb(${e.corners[1]},${e.id}).` + e.cells.filter((x) => x >= 0).map((x) => ` cb(${x},${e.id}).`).join(""));
   }
-  for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++)
+  if (g.kind === "square") for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++)
     out.push(`quad(${g.cell(r, c)},${g.cell(r, c + 1)},${g.cell(r + 1, c)},${g.cell(r + 1, c + 1)}).`);
 
   // the marks the player can make
@@ -45,7 +45,7 @@ cut(L) :- adj(I,J,L), blocked(I), not blocked(J).
 :- cut(L), adj(I,J,L), blocked(I), blocked(J).`);
   if (p.marks.includes("paint")) out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
   if (p.marks.includes("digit")) {
-    out.push(`d(1..${p.digits}).\n${p.blanks ? "" : "1 "}{ digit(I,D) : d(D) } 1 :- cell(I).`);
+    out.push(`d(1..${p.digits}).\n${p.blanks ? "" : "1 "}{ digit(I,D) : d(D) } 1 :- cell(I), not blocked(I).`);
     for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "number") out.push(`digit(${i},${giv.value}).`);
   }
 

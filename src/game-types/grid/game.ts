@@ -27,6 +27,7 @@ import { endsOf, mirrorBorder, mirrorCorner, startsOf, type Symmetry } from "../
 import * as Line from "./line-input";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 import { createFigure } from "./figure";
+import { createShaped, isShaped } from "./shaped.ts";
 
 type Layer = keyof Board;
 interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
@@ -48,6 +49,7 @@ const starPath = (x: number, y: number, r: number) => Array.from({ length: 10 },
 export const createGrid = (config: GridClientConfig): MountGame => (root, host) => {
   const p = makePuzzle(config.spec), g = p.grid, marks = p.marks;
   if (marks.includes("paint")) return createFigure(p, root, host);   // painted pieces (Three Coats)
+  if (isShaped(p)) return createShaped(p, root, host);               // hexagons, a lattice, a number path
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const links = p.rules.some((s) => s.rule === "links");

@@ -1,0 +1,49 @@
+{
+  "type": "grid",
+  "name": "Twenty Cells",
+  "meta": "4 × 5",
+  "grid": {
+    "size": [
+      4,
+      5
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "number",
+        "value": 1
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "number",
+        "value": 20
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "number",
+        "value": 10
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          1
+        ],
+        "kind": "number",
+        "value": 19
+      }
+    ]
+  }
+}

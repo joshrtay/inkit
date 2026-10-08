@@ -10,6 +10,7 @@ import { piecesOf, roomiest } from "./pieces";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { washDefs } from "../../lib/ink.ts";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
+import { isShaped, shapedLayout, shapedSvg } from "./shaped.ts";
 
 const S = 48, M = 26;
 const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];
@@ -26,6 +27,8 @@ export type Room = Partial<Record<"top" | "left" | "right" | "bottom", number>>;
  *  and asks for `room` (at least this much margin) where clues can be added outside. */
 export function pictureLayout(p: Puzzle, room0: Room = {}) {
   const g = p.grid;
+  // hexagons, a lattice, a number path: their own layout (shaped.ts); S, the margins, W and H as here
+  if (isShaped(p)) return shapedLayout(p, room0);
   const maxRow = Math.max(0, ...[...p.rowRuns.values()].map((c) => c.length)), maxCol = Math.max(0, ...[...p.colRuns.values()].map((c) => c.length));
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const doorSide = (role: string) => {
@@ -54,6 +57,7 @@ export interface PictureOptions {
 /** The puzzle as an SVG string. `b` adds the player's marks (a solution, or a mistake). */
 export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: PictureOptions = {}): string {
   if (p.marks.includes("paint")) return figureSvg(p, b, label);
+  if (isShaped(p)) return shapedSvg(p, b, label, { room: opts.room });
   const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const links = p.rules.some((s) => s.rule === "links"), maze = p.rules.some((s) => s.rule === "perfect-maze");
   const { ML, MT, MR, MB } = pictureLayout(p, opts.room);

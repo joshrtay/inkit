@@ -1,0 +1,87 @@
+{
+  "type": "grid",
+  "name": "Queen's Path",
+  "meta": "4 × 4",
+  "grid": {
+    "size": [
+      4,
+      4
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          3
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          0
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          2
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "peg"
+      },
+      {
+        "at": "aside",
+        "kind": "lengths",
+        "value": [
+          1,
+          1,
+          1,
+          1,
+          4,
+          18
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "rule": "distance-path",
+        "moves": "queen"
+      }
+    ]
+  }
+}

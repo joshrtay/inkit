@@ -1,13 +1,13 @@
 // Genres (presets of marks + rules + style), turning a description into a Puzzle, and
 // checking a whole board against every rule.
-import { figureGrid, squareGrid, type Grid } from "./geometry.ts";
+import { figureGrid, hexGrid, latticeGrid, squareGrid, type Grid } from "./geometry.ts";
 import { regionsOf, type Regions } from "./derive.ts";
 import { blockFor } from "./rules.ts";
 import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 
 /** `solutions`: how many a published puzzle may have: exactly one (most types), or any number but
  *  none ("some": panels, where any line that obeys the symbols solves it, as in the game). */
-export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number; solutions?: "one" | "some" }
+export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number; solutions?: "one" | "some"; geometry?: GridSpec["geometry"] }
 
 export const genres = {
   slitherlink: {
@@ -174,6 +174,16 @@ export const genres = {
     rules: [],
     style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
+  // Hidoku (a number snake): fill every open cell with 1 to N so each number touches the next, at a
+  // side or a corner. Without diagonals (a puzzle's own number-path rule) it's sides only.
+  hidoku: { marks: ["digit"], rules: [{ rule: "number-path", diagonals: true }], style: {} },
+  // Hex Hidoku: the same on hexagons, each touching six others
+  "hex-hidoku": { marks: ["digit"], rules: [{ rule: "number-path" }], style: {}, geometry: "hex" },
+  // Missing Number: fill every hexagon with the smallest number none of its neighbours has
+  "missing-number": { marks: ["digit"], rules: [{ rule: "smallest-missing" }], style: {}, geometry: "hex" },
+  // Distance Path: join the dots on a lattice into one path of straight segments whose lengths are
+  // the listed ones (√5 and so on), each used once; it never crosses itself
+  "distance-path": { marks: ["loop"], rules: [{ rule: "distance-path" }], style: {}, geometry: "lattice" },
 } satisfies Record<string, Genre>;
 
 /** Must a puzzle of this genre have exactly one solution (most), or just one or more (panels)? */
@@ -190,7 +200,11 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const genre = spec.genre ? (genres as Record<string, Genre>)[spec.genre] : undefined;
   if (spec.genre && !genre) throw new Error(`unknown genre "${spec.genre}"`);
   const fig = spec.figure ? figureGrid(spec.figure.pieces) : null;
-  const grid = fig ? fig.grid : squareGrid(spec.size[0], spec.size[1]);
+  const geometry = spec.geometry ?? genre?.geometry ?? "square";
+  const [rows0, cols0] = spec.size;
+  // a lattice's links join its dots, so they're found first
+  const pegCells = (spec.givens ?? []).flatMap((g) => (g.kind === "peg" && g.cell[0] >= 0 && g.cell[1] >= 0 && g.cell[0] < rows0 && g.cell[1] < cols0 ? [g.cell[0] * cols0 + g.cell[1]] : []));
+  const grid = fig ? fig.grid : geometry === "hex" ? hexGrid(rows0, cols0) : geometry === "lattice" ? latticeGrid(rows0, cols0, pegCells) : squareGrid(rows0, cols0);
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>(), cornerGivens = new Map<number, Given[]>();
   const doors = new Map<number, "in" | "out">();
   const edgeClues: Puzzle["edgeClues"] = [], thermos: number[][] = [], galaxies: [number, number][] = [];
@@ -199,6 +213,8 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const blocked = new Set<number>(), walls = new Set<number>(), gaps = new Set<number>();
   const lineGivens = new Map<number, Given[]>();
   const bank: [number, number][][] = [];
+  const pegs: number[] = [];
+  let lengths: number[] | null = null;
   const push = <K>(m: Map<K, Given[]>, k: K, g: Given) => m.set(k, [...(m.get(k) ?? []), g]);
   const givens = [...(spec.givens ?? []), ...pictureClues(spec)];
   for (const g of givens) {
@@ -207,6 +223,11 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
       push(cellGivens, grid.cell(...g.cell), g);
       if (g.kind === "block") blocked.add(grid.cell(...g.cell));
       if (g.kind === "palisade" && (!Number.isInteger(g.value) || g.value < 0 || g.value > 4)) throw new Error(`a palisade mark shows 0 to 4 borders (cell ${g.cell[0]},${g.cell[1]} has ${g.value})`);
+      if (g.kind === "peg") {
+        if (grid.kind !== "lattice") throw new Error("a dot on a lattice point needs a lattice (Distance Path)");
+        if (pegs.includes(grid.cell(...g.cell))) throw new Error(`two dots on one point (${g.cell[0]},${g.cell[1]})`);
+        pegs.push(grid.cell(...g.cell));
+      }
     } else if (g.at === "border") {
       const e = grid.borderBetween(grid.cell(...g.cells[0]), grid.cell(...g.cells[1]));
       if (e < 0) throw new Error(`a ${g.kind} mark needs two neighbouring cells`);
@@ -219,6 +240,10 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
       if (g.kind === "end" && r > 0 && c > 0 && r < grid.rows && c < grid.cols) throw new Error(`an end goes on the outside edge (corner ${r},${c} isn't)`);
       if (g.kind === "watchtower" && (!Number.isInteger(g.value) || g.value < 1 || g.value > 4)) throw new Error(`a watchtower counts 1 to 4 regions (corner ${r},${c} has ${g.value})`);
       push(cornerGivens, grid.corner(r, c), g);
+    } else if (g.at === "aside" && g.kind === "lengths") {
+      if (lengths) throw new Error("a puzzle has one list of lengths");
+      if (!Array.isArray(g.value) || g.value.some((v) => !Number.isInteger(v) || v < 1)) throw new Error("the lengths are written as whole squares, 1 or more (5 is √5)");
+      lengths = [...g.value];
     } else if (g.at === "aside") {
       if (!Array.isArray(g.value) || !g.value.length || !connectedShape(g.value)) throw new Error("a shape in the shape bank is one or more squares joined side to side");
       bank.push(normalShape(g.value));
@@ -263,9 +288,18 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
     const starts = givens.filter((x) => x.kind === "start").length, ends = givens.filter((x) => x.kind === "end").length;
     if (starts < lines || ends < lines) throw new Error(lines === 2 ? "a symmetry panel needs two start circles and two ends" : "a panel needs a start circle and an end");
   }
+  if (grid.kind === "hex" || grid.kind === "lattice") {
+    const used = givens.filter((g) => !(g.at === "cell" && ["number", "block", "peg"].includes(g.kind)) && !(g.at === "aside" && g.kind === "lengths"));
+    if (used.length) throw new Error(`a ${grid.kind === "hex" ? "board of hexagons" : "lattice"} can't have a ${used[0].kind} clue`);
+  }
+  // a number path's numbers run 1 to the number of open cells
+  const pathDigits = rules.some((s) => s.rule === "number-path") ? grid.cellCount - blocked.size : 0;
+  // the smallest missing number is at most one more than a cell's neighbours
+  const mexDigits = rules.some((s) => s.rule === "smallest-missing") ? 1 + Math.max(0, ...grid.cellLinks.map((ls) => ls.length)) : 0;
   return {
     spec, grid, cellGivens, borderGivens, cornerGivens, lineGivens, gaps, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
-    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? spec.size[1],
+    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? (pathDigits || mexDigits || spec.size[1]),
+    pegs, lengths,
     blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
     bank, areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },

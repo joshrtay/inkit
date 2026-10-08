@@ -106,6 +106,12 @@
 .grid-game .peer { fill: color-mix(in srgb, var(--wash-yellow) 13%, transparent); }
 .grid-game .same { fill: color-mix(in srgb, var(--wash-blue) 18%, transparent); }
 .grid-game .pad { height: 42px; }
+/* boards that aren't square lines (shaped.ts): a number path's faint trail from each number to the
+   next, a lattice's faint points and its lengths (crossed off as the path uses them), a mistake */
+.grid-game .num-trail { stroke: color-mix(in srgb, var(--paper-ink) 14%, var(--paper)); stroke-width: var(--wash-stroke); stroke-linecap: round; }
+.grid-game .lattice-point { fill: color-mix(in srgb, var(--paper-ink) 45%, transparent); }
+.grid-game .clue.length.done { fill: color-mix(in srgb, var(--paper-ink) 35%, transparent); text-decoration: line-through; }
+.grid-game .wrong-cell { fill: color-mix(in srgb, var(--wash-red) 30%, transparent); }
 .grid-game .pad .num { min-width: 30px; font-size: 20px; padding: 6px 4px; }
 .grid-game .pad .word[aria-pressed="true"] { background: color-mix(in srgb, var(--paper-ink) 12%, transparent); text-decoration: none; }
 

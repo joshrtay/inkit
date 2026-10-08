@@ -30,5 +30,11 @@ export const KIND_NAMES: Record<GenreName, string> = {
   coats: "Three Coats",
   // line panels in the style of The Witness (src/engine/panel.ts)
   panel: "Panel",
+  // number paths (Hidoku: a standard name; the original's name is a trademark), on squares and hexagons
+  hidoku: "Hidoku",
+  "hex-hidoku": "Hex Hidoku",
+  // names of ours: each hexagon the smallest number its neighbours lack; a path of set lengths on a lattice
+  "missing-number": "Missing Number",
+  "distance-path": "Distance Path",
 };
 export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;

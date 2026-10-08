@@ -288,6 +288,46 @@ test("undo", async ({ page }) => {
   await eventually("minesweeper", (s) => !has(s.givens, { cell: [0, 0], value: 5 }));
 });
 
+/** Where hexagon (r, c)'s centre is, in squares from the board's top-left (rows 1, 3... sit half a hexagon right). */
+const HS = 1 / Math.sqrt(3);
+const hexAt = (r: number, c: number): [number, number] => [HS + r * 1.5 * HS, c + 0.5 + 0.5 * (r % 2)];
+
+test("hexagons: numbers and rocks go in the hexagon clicked", async ({ page }) => {
+  await open(page, "hex-hidoku");
+  await tap(page, ...hexAt(1, 2));
+  await type(page, "17");
+  await page.locator(".be-clue input").press("Escape");
+  await tool(page, "Rock");
+  await tap(page, ...hexAt(2, 0));
+  await eventually("hex-hidoku", (s) => has(s.givens, { cell: [1, 2], value: 17 }) && has(s.givens, { cell: [2, 0], kind: "block" }));
+  await open(page, "missing-number");
+  await tap(page, ...hexAt(0, 1));
+  await type(page, "3");
+  await eventually("missing-number", (s) => has(s.givens, { cell: [0, 1], value: 3 }));
+});
+
+test("Hidoku: sides only, and back", async ({ page }) => {
+  await open(page, "hidoku");
+  await page.locator(".studio-tools").getByRole("button", { name: "Sides only" }).click();
+  await eventually("hidoku", (s) => (s.rules ?? []).some((r) => r.rule === "number-path" && !r.diagonals));
+  await page.locator(".studio-tools").getByRole("button", { name: "Corners too" }).click();
+  await eventually("hidoku", (s) => !(s.rules ?? []).some((r) => r.rule === "number-path"));
+});
+
+test("Distance Path: dots, lengths and moves", async ({ page }) => {
+  await open(page, "distance-path");
+  // a point with no dot gets one; a dot clicked again goes
+  const existed = saved("distance-path").givens!.some((g) => g.kind === "peg" && JSON.stringify(g.cell) === "[3,3]");
+  await tap(page, 3.5, 3.5);
+  await eventually("distance-path", (s) => has(s.givens, { cell: [3, 3], kind: "peg" }) === !existed);
+  await tool(page, "Lengths");
+  await tap(page, 2, 2);
+  await type(page, "1 √2 r5 2");
+  await eventually("distance-path", (s) => has(s.givens, { kind: "lengths", value: [1, 2, 5, 4] }));
+  await page.locator(".studio-tools").getByRole("button", { name: "Queen" }).click();
+  await eventually("distance-path", (s) => (s.rules ?? []).some((r) => r.rule === "distance-path" && r.moves === "queen"));
+});
+
 test("a panel with more than one solution can still be published", async ({ page }) => {
   // a bare 2 × 2 panel: many lines from the start to the end
   const sketch = `panel\n${JSON.stringify({ size: [2, 2], givens: [{ at: "corner", corner: [2, 0], kind: "start" }, { at: "corner", corner: [0, 2], kind: "end" }] })}`;

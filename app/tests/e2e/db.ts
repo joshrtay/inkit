@@ -17,3 +17,6 @@ export interface Run { userId: string; handle: string; collectionId: string; dra
 const own = process.env.READER_EVAL ? ".reader" : "";
 export const RUN_FILE = `tests/e2e/${own}.run.json`;
 export const AUTH_FILE = `tests/e2e/${own}.auth.json`;
+/** The local site the browser tests drive: http://localhost:5173, or E2E_PORT's (a second checkout's
+ *  own site, whose .dev.vars BETTER_AUTH_URL says that port). */
+export const BASE_URL = `http://localhost:${process.env.E2E_PORT ?? "5173"}`;

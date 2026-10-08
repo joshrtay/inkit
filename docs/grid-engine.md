@@ -7,7 +7,9 @@ the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), 
 Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
-and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below).
+and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below), Hidoku
+(`hidoku`), and on the shapes below Hex Hidoku (`hex-hidoku`), Missing Number (`missing-number`) and
+Distance Path (`distance-path`).
 
 ## The model
 
@@ -19,6 +21,22 @@ Every interior border has a matching link across it. There are two geometries
 part of an edge are neighbours (a border and a link between them), and corners closer than
 1.5% of the figure's size are snapped together so hand-traced pieces meet. A figure is
 played by painting.
+
+Two more shapes, set by a genre's (or a puzzle's) `geometry`:
+- **Hexagons** (`"hex"`, `hexGrid`): hexagons in rows, pointy side up, every other row (1, 3...)
+  shifted half a hexagon right. Cells are still `r * cols + c`; each touches six others (two in its
+  row, two in each row beside it) across a link. Corners are the hexagons' corners, shared where
+  they meet and numbered as found (`cornerXY` places them; `corner(r, c)` isn't used), and borders
+  their sides, so line and region rules can run on hexagons later. Rocks work as on squares.
+- **A lattice** (`"lattice"`, `latticeGrid`): rows × cols points, each a cell, with `peg` dots on
+  some; every two dots are joined by a link (a straight segment) unless it would run through
+  another dot. No corners or borders. Played with `loop` marks: a segment is a link.
+
+Every grid says where its cells and corners are (`cellXY`, `cornerXY`, `width`, `height`, in cell
+widths), and its `kind`. Rules that walk rows and columns (`latin`, `touching`) assume squares;
+rules that follow links (`number-path`, `smallest-missing`, `distance-path`) work on any shape.
+Drawing and playing hexagons, lattices and number paths is `src/game-types/grid/shaped.ts`
+(`picture.ts` and `game.ts` hand them over), so the square boards are untouched.
 
 **Marks** are what the player puts down. Each kind lives on one kind of element:
 
@@ -48,7 +66,7 @@ counting regions), a shape bank's shapes (`{at: "aside", kind: "bank"}`, drawn u
 it's painted), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs or a `total` beside a row or above a column, a clue outside the grid looking in
 (`first` letter seen, `skyscraper` count), a `thermo` through a run of cells (bulb first), and a
-`galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners). A nonogram's runs can instead come from its
+`galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners), a `peg` (a dot on a lattice point) and a lattice path's `lengths` (`{at: "aside"}`, as squares, drawn under the board). A nonogram's runs can instead come from its
 `picture`, which solving reveals.
 
 **Rules** are configured *building blocks* (`src/engine/rules.ts`). Each block does four
@@ -129,6 +147,9 @@ puzzle can use it.
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 | `panel-line` | A panel's line (fence marks) runs from a start circle to an end on the outside edge, never touching itself or crossing a gap; `symmetry` (`left-right`, `up-down`, `turn`) makes it two lines, mirror images that never touch, each passing the dots of its color. |
 | `panel-symbols` | Every symbol in the regions the line cuts the grid into: dots, squares, stars, triangles, shapes and erasers (see "Panels"). |
+| `number-path` | Every open cell holds 1..N once (N: the open cells), and each number touches the next across a link; `diagonals` (squares): touching at a corner counts too (Hidoku has it; without it, sides only). |
+| `smallest-missing` | Every open cell holds the smallest positive number none of its neighbours has (its neighbours' "mex"; Missing Number). |
+| `distance-path` | The segments (loop marks on a lattice) make one path through every dot that never crosses itself, and their lengths are the `lengths` given (as squares: 5 is √5), each used once, in any order; `moves`: `queen` (straight or diagonal) or `knight` (one 1-and-2 jump). |
 
 Genre names: use the standard name when a genre has one that's used across puzzle sites
 (Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku, Simple Loop, Nonogram...),

@@ -22,6 +22,9 @@ export interface GenerateOptions {
   mix?: string;
   /** Star Battle: stars per row, column and area (only 1 for now) */
   stars?: number;
+  /** Distance Path: how segments may run (queen, knight; any if not given), and how many dots */
+  moves?: string;
+  dots?: number;
 }
 
 /** A puzzle with exactly one solution (a panel: one line), or null if none was found in 40 tries. */
@@ -88,7 +91,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc"].includes(genre) ? [...b.digit].join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "hex-hidoku", "missing-number"].includes(genre) ? [...b.digit].join("") : genre === "distance-path" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -466,6 +469,45 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         // a cell can hold only one clue: keep the first
         const seen = new Set<string>();
         spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : x.at === "line" ? `l${x.corners}` : x.at === "aside" ? `a${x.value}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
+        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+      }
+    } else if (genre === "hidoku" || genre === "hex-hidoku") {
+      // sometimes a rock or two (squares only), a random path of numbers through the rest, then given
+      // numbers until it's the only one; 1 and the last number are always shown
+      const n = rows * cols, givens: Given[] = [];
+      if (genre === "hidoku" && rand() < 0.5) for (const i of shuffle(Array.from({ length: n }, (_, i) => i)).slice(0, 1 + Math.floor(rand() * 2))) givens.push({ at: "cell", cell: at(i), kind: "block" });
+      const rules: RuleSpec[] | undefined = genre === "hidoku" && o.moves === "sides" ? [{ rule: "number-path" }] : undefined;
+      const base: GridSpec = { genre, size: [rows, cols], givens, ...(rules ? { rules } : {}) };
+      const target = await randomBoard(base, "");
+      if (!target) continue;
+      const last = n - givens.length, open = Array.from({ length: n }, (_, i) => i).filter((i) => target.digit[i]);
+      const ends = open.filter((i) => target.digit[i] === 1 || target.digit[i] === last);
+      const pool: Given[] = open.filter((i) => !ends.includes(i)).map((i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
+      result = await narrow({ ...base, givens: [...givens, ...ends.map((i): Given => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }))] }, target, pool);
+    } else if (genre === "missing-number") {
+      // a random filling, then given numbers until it's the only one
+      const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+      const target = await randomBoard(base, "");
+      if (!target) continue;
+      const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
+      result = await narrow(base, target, pool);
+    } else if (genre === "distance-path") {
+      // dots at random points, a random path through them (no crossings), and its segments' lengths;
+      // kept when no other path has the same lengths
+      const n = rows * cols, k = o.dots ?? Math.max(4, Math.min(8, Math.round(n * 0.4)));
+      const rules: RuleSpec[] | undefined = o.moves ? [{ rule: "distance-path", moves: o.moves }] : undefined;
+      for (let t = 0; t < 60 && !result; t++) {
+        const pegs: Given[] = shuffle(Array.from({ length: n }, (_, i) => i)).slice(0, k).sort((a, b) => a - b).map((i) => ({ at: "cell", cell: at(i), kind: "peg" }));
+        const base: GridSpec = { genre, size: [rows, cols], givens: pegs, ...(rules ? { rules } : {}) };
+        const target = await randomBoard(base, "");
+        if (!target) continue;
+        const p0 = makePuzzle(base), lengths = p0.grid.links.filter((l) => target.loop[l.id] === 1).map((l) => {
+          const [a, b] = l.cells.map((i) => p0.grid.rc(i));
+          return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2;
+        }).sort((a, b) => a - b);
+        // a few different lengths, so the list says something
+        if (new Set(lengths).size < Math.min(3, lengths.length) && o.moves !== "knight") continue;
+        const spec: GridSpec = { ...base, givens: [...pegs, { at: "aside", kind: "lengths", value: lengths }] };
         if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
       }
     } else if (genre === "panel") {
