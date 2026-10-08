@@ -25,6 +25,7 @@ const GAP_STUB = 0.36;
 /** The grid in pen: faint lines inside a medium frame, with its gaps (breaks in a line) left out. */
 export function gridSvg(g: Grid, gaps: EdgeAt[] = []): string {
   const { x, y, S, rows, cols } = g, W = cols * S, H = rows * S;
+  if (g.tracks) return tracksSvg(g, gaps);
   if (!gaps.length) {
     let lines = "";
     for (let r = 1; r < rows; r++) lines += tag("line", { class: "gridline", x1: x, y1: y + r * S, x2: x + W, y2: y + r * S });
@@ -55,6 +56,23 @@ export function gridSvg(g: Grid, gaps: EdgeAt[] = []): string {
     if (c === 0 || c === cols) frame += seg; else lines += tag("line", { class: "gridline", x1: x + c * S, y1: y + a * S, x2: x + c * S, y2: y + b * S });
   }
   return lines + (frame ? tag("path", { class: "frame", d: frame, "stroke-linecap": "square" }) : "");
+}
+
+/** A panel's grid: every line a wide pale track with round ends, as the player draws it
+ *  (panel-draw.ts's panelTracks), broken in the middle at a gap. */
+function tracksSvg(g: Grid, gaps: EdgeAt[]): string {
+  const { x, y, S, rows, cols } = g, gap = new Set(gaps.map((e) => `${e.side}${e.r},${e.c}`));
+  const line = (x1: number, y1: number, x2: number, y2: number) => tag("line", { class: "panel-track", x1, y1, x2, y2, style: `stroke-width:${f1(S * 0.25)}` });
+  let out = "";
+  for (let r = 0; r <= rows; r++) for (let c = 0; c < cols; c++) {
+    const [x1, x2, yy] = [x + c * S, x + (c + 1) * S, y + r * S];
+    out += gap.has(`top${r},${c}`) ? line(x1, yy, x1 + S * GAP_STUB, yy) + line(x2 - S * GAP_STUB, yy, x2, yy) : line(x1, yy, x2, yy);
+  }
+  for (let c = 0; c <= cols; c++) for (let r = 0; r < rows; r++) {
+    const [y1, y2, xx] = [y + r * S, y + (r + 1) * S, x + c * S];
+    out += gap.has(`left${r},${c}`) ? line(xx, y1, xx, y1 + S * GAP_STUB) + line(xx, y2 - S * GAP_STUB, xx, y2) : line(xx, y1, xx, y2);
+  }
+  return out;
 }
 
 /** The pens' weights for a grid of `S` squares: the boards' (docs/style.md) at a board's 48, thinner
@@ -103,7 +121,12 @@ export function itemSvg(d: Drawing, it: Item): string {
     case "line": { const a = at(it.from), b = at(it.to); return tag("line", { class: `sp-pen ${it.weight}`, x1: a.x, y1: a.y, x2: b.x, y2: b.y }); }
     case "brush": return tag("path", { class: "wash sp-brush", d: smoothPath(it.points.map(at)), style: `stroke:var(--wash-${it.color})` });
     case "wash": { const c = at(it.at); return tag("rect", { class: "wash sp-wash", x: c.x - S / 2, y: c.y - S / 2, width: S, height: S, style: `fill:var(--wash-${it.color})` }); }
-    case "stamp": { const p = at(it.at); return stampSvg(it, p.x, p.y, S, outward(g, it.at)); }
+    case "stamp": {
+      const p = at(it.at), out = outward(g, it.at);
+      // on a panel's tracks, an end is a short track out of the edge, as the player draws it
+      if (it.stamp === "end" && g?.tracks) return tag("line", { class: "panel-track", x1: p.x, y1: p.y, x2: p.x + out.x * S * 0.3, y2: p.y + out.y * S * 0.3, style: `stroke-width:${f1(S * 0.25)}` });
+      return stampSvg(it, p.x, p.y, S, out);
+    }
     case "text": {
       const p = at(it.at), size = textSize(d, it.small);
       return tag("text", { class: `clue sp-text${it.small ? " small" : ""}${onDark(d, it) ? " on-rock" : ""}`, x: p.x, y: p.y + size * 0.06, style: `font-size:${f1(size)}px` }, esc(it.text));

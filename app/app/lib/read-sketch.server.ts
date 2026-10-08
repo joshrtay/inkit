@@ -368,7 +368,7 @@ export function drawingBrief(drawing: string) {
     "Stamps are the boards' own symbols: stone (a Masyu pearl, or a panel's coloured square), star, rock (a shaded square), galaxy (a small circle), x, dot, hoshi (a panel's dot on the line), "
     + "start and end (a panel's line), crest (a panel's star), triangle (count 1-3), shape (a polyomino: its cells from 0,0; hollow = a negative shape; rotate = it may turn), eraser, "
     + "diamond (filled, on a line: the squares either side are twins) and open-diamond (on a line: opposites). A start or hoshi coloured blue or yellow belongs to one of a symmetry panel's two lines; "
-    + "a hidden stone is a dot that stays hidden until its piece is painted. A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
+    + "a hidden stone is a dot that stays hidden until its piece is painted. A grid with tracks: true is drawn as a panel's wide tracks (so it is a panel). A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
     `The drawing:\n${drawing}`,
   ].join("\n\n");
 }

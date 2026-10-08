@@ -263,6 +263,14 @@ describe("the drawing as data", () => {
 });
 
 describe("drawing it", () => {
+  it("a panel's grid as tracks: every stretch a wide pale stroke, broken in the middle at a gap", () => {
+    const tracks = { ...grid, tracks: true };
+    const n = grid.rows * (grid.cols + 1) + grid.cols * (grid.rows + 1);
+    expect(gridSvg(tracks).match(/class="panel-track"/g)).toHaveLength(n);
+    expect(gridSvg(tracks)).not.toContain("gridline");
+    expect(gridSvg(tracks, [{ at: "edge", r: 1, c: 1, side: "top" }]).match(/class="panel-track"/g)).toHaveLength(n + 1);
+    expect(m.objects(m.setGrid(m.EMPTY, tracks)).grid).toMatchObject({ tracks: true });
+  });
   it("in the boards' classes: a pen grid, washes, the real stones, handwriting", () => {
     expect(gridSvg(grid)).toContain('class="frame"');
     expect(gridSvg(grid).match(/class="gridline"/g)).toHaveLength(3 + 4);

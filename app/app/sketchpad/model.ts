@@ -17,7 +17,8 @@ const MAX_LINES = 30;
 
 export interface XY { x: number; y: number }
 /** The grid: its top-left corner on the page, its rows and columns, and the size of a square. */
-export interface Grid { x: number; y: number; rows: number; cols: number; S: number }
+/** `tracks`: drawn as a panel's tracks (wide pale strokes with round ends) instead of pen lines. */
+export interface Grid { x: number; y: number; rows: number; cols: number; S: number; tracks?: boolean }
 
 /** Where something is. On the grid (rows and columns from its top-left corner): a square's
  *  centre; a corner where lines meet (0..rows, 0..cols); the middle of a square's top or left
@@ -453,7 +454,7 @@ export function redo(h: History): History {
 export function objects(d: Drawing) {
   return {
     page: PAGE,
-    grid: d.grid && { rows: d.grid.rows, cols: d.grid.cols, x: d.grid.x, y: d.grid.y, square: d.grid.S },
+    grid: d.grid && { rows: d.grid.rows, cols: d.grid.cols, x: d.grid.x, y: d.grid.y, square: d.grid.S, ...(d.grid.tracks ? { tracks: true } : {}) },
     items: d.items.map(({ id: _id, ...rest }) => rest),
   };
 }

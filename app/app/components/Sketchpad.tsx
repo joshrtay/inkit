@@ -456,6 +456,10 @@ export function Sketchpad({ handle, onChange, actions }: {
           {tool === "grid" && (g ? <>
             {stepper("Rows", g.rows, (n) => resize(n, g.cols))}
             {stepper("Columns", g.cols, (n) => resize(g.rows, n))}
+            <span className="sp-seg sp-tip" role="group" aria-label="Grid look" data-tip="Pen lines, or a panel's wide tracks">
+              {([["Lines", false], ["Tracks", true]] as const).map(([name, on]) => <button key={name} type="button" className="sp-btn sp-text-btn" aria-pressed={!!g.tracks === on}
+                onClick={() => edit((dd) => (dd.grid ? m.setGrid(dd, { ...dd.grid, tracks: on || undefined }) : dd))}>{name}</button>)}
+            </span>
             <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
           </> : <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the page (or drag one out)">Add a grid</button>)}
 
