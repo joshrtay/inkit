@@ -185,17 +185,17 @@ describe("what the type has anyway, and Three Coats' hidden dots", () => {
   });
 });
 
-describe("reading Binairo, Colour Balance, fill-ins and Akari ciphers", () => {
+describe("reading Binairo, Abstract Art, fill-ins and Akari ciphers", () => {
   const body = (r: Reading) => JSON.parse(toSketch(r).split("\n").slice(1).join("\n"));
   it("reads a cipher's letter on an Akari number, and printed colors", () => {
     expect(givenOf(g("number", 1, 2, "B"))).toEqual({ at: "cell", cell: [1, 2], kind: "number", value: 0, letter: "B" });
     expect(givenOf(g("color", 0, 3, "2"))).toEqual({ at: "cell", cell: [0, 3], kind: "color", value: 2 });
     expect(givenOf(g("color", 0, 3, "7"))).toBeNull();
   });
-  it("reads Colour Balance's shares, with three colors for three parts", () => {
+  it("reads Abstract Art's shares, with three colors for three parts", () => {
     expect(ruleSettings("parts 1 1 1")).toEqual({ parts: [1, 1, 1] });
     expect(ruleSettings("parts 1:2")).toEqual({ parts: [1, 2] });
-    const b = body(reading({ genre: "colour-balance", candidates: ["colour-balance"], rows: 6, cols: 6, rules: [{ rule: "line-shares", settings: "parts 1 1 1" }] }));
+    const b = body(reading({ genre: "abstract-art", candidates: ["abstract-art"], rows: 6, cols: 6, rules: [{ rule: "line-shares", settings: "parts 1 1 1" }] }));
     expect(b.rules).toEqual([{ rule: "line-shares", parts: [1, 1, 1] }]);
     expect(b.style.palette).toHaveLength(3);
   });
@@ -207,14 +207,14 @@ describe("reading Binairo, Colour Balance, fill-ins and Akari ciphers", () => {
 });
 
 describe("Beast Academy-style types", () => {
-  it("reads a list of sizes, flipping, a symmetry and Kinship's tiles", () => {
+  it("reads a list of sizes, flipping, a symmetry and Twins and Triplets' tiles", () => {
     expect(ruleSettings("sizes 4 6")).toEqual({ sizes: [4, 6] });
     expect(ruleSettings("flip")).toEqual({ flip: true });
     expect(ruleSettings("symmetry mirror")).toEqual({ symmetry: "mirror" });
     expect(ruleSettings("kinds 3 colors 2")).toEqual({ kinds: 3, colors: 2 });
   });
-  it("turns Kinship tiles drawn in cells into the engine's tile numbers (one not in the set is left out)", () => {
-    const parsed = parseSketch(toSketch(reading({ genre: "kinship", candidates: ["kinship"], rows: 1, cols: 6,
+  it("turns Twins and Triplets tiles drawn in cells into the engine's tile numbers (one not in the set is left out)", () => {
+    const parsed = parseSketch(toSketch(reading({ genre: "twins-and-triplets", candidates: ["twins-and-triplets"], rows: 1, cols: 6,
       givens: [g("symbol", 0, 0, "red stone"), g("symbol", 0, 5, "blue crest"), g("symbol", 0, 3, "green star")] })));
     expect(parsed.ok && parsed.spec.givens).toEqual([{ at: "cell", cell: [0, 0], kind: "number", value: 1 }, { at: "cell", cell: [0, 5], kind: "number", value: 6 }]);
   });

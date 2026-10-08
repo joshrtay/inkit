@@ -114,7 +114,7 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   written as 0 and 1, or X and O, instead): half of each in every row and column, no three alike in a row, no two rows or
   columns the same. Each cell given at the start is {kind: "color", value: 1 for the first color (red, 0, X), 2 for the
   second (blue, 1, O)}. Leave out cells filled in as the answer.`,
-  "colour-balance": `colour-balance (Colour Balance): every cell gets one of 2 or 3 colors, so each row and column holds the
+  "abstract-art": `abstract-art (Abstract Art): every cell gets one of 2 or 3 colors, so each row and column holds the
   share of each color written on the sketch (e.g. "half blue, half yellow", "a third each", "1/3 blue 2/3 yellow").
   Each cell colored at the start is {kind: "color", value: 1, 2 or 3}: the colors in the order the sketch names them
   (else blue 1, yellow 2, red 3). Unless it's half and half, add the rule line-shares with "parts" in that same order,
@@ -128,15 +128,15 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   given, {kind: "number", value}; the player fills in 1 to the last so each number touches the next (sides or corners).
   Shaded / crossed-out squares are rocks {kind: "block"}. If it says "sides only" (or "no diagonals"; Numbrix is this
   kind), add the rule number-path with settings "" (no diagonals). Leave out numbers drawn as the answer.`,
-  "hex-hidoku": `hex-hidoku (Hex Hidoku, a number snake on a honeycomb): hexagons in rows, pointy side up, every other row
+  "honeycomb-paths": `honeycomb-paths (Honeycomb Paths, Hidoku on a honeycomb): hexagons in rows, pointy side up, every other row
   shifted half a hexagon right (rows 1, 3... sit further right). "rows" counts the rows of hexagons and "cols" the
   hexagons in each row; row r, col c is the c-th hexagon from the left in row r. Given numbers are {kind: "number",
   value}; shaded hexagons are rocks {kind: "block"}. If a row has one fewer hexagon, or a hexagon is missing, give the
   full rows and make the missing ones rocks. Leave out numbers drawn as the answer.`,
-  "missing-number": `missing-number (Missing Number): a honeycomb, laid out as for hex-hidoku (rows of hexagons, every other row
+  hive: `hive (Hive, the smallest missing number): a honeycomb, laid out as for honeycomb-paths (rows of hexagons, every other row
   shifted half right; row r, col c), with some numbers given, {kind: "number", value}; each hexagon's number is the
   smallest one none of its neighbours has. Shaded hexagons are rocks {kind: "block"}. Leave out numbers drawn as the answer.`,
-  "distance-path": `distance-path (Distance Path, a geoboard path): dots on some points of a square lattice of points (often
+  "pythagorean-paths": `pythagorean-paths (Pythagorean Paths, a geoboard path): dots on some points of a square lattice of points (often
   drawn faint, or as squared paper with the dots on its crossings or in its squares), and a list of lengths like
   "1, √2, √5, 2". "rows" and "cols" count the lattice's points down and across, and each dot is {kind: "peg"} at its
   point's row and col (0 at the top / left). The list is one {kind: "lengths"}, row -1, col -1. If it says segments go
@@ -145,21 +145,21 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   fillomino: `fillomino (Fillomino): numbers in some cells; split the grid into regions, each number its region's size, and
   regions of the same size never side by side: {kind: "number", value}. If it says only some sizes are allowed (e.g. "only
   4s and 6s"), add the rule allowed-sizes with "sizes 4 6". Leave out regions drawn as the answer.`,
-  "sum-regions": `sum-regions (Sum Regions, also "sum blobs"): a number in every cell; split the grid into regions whose
+  "sum-blobs": `sum-blobs (Sum Blobs, regions that add up to a target): a number in every cell; split the grid into regions whose
   numbers each add up to a target written with the puzzle ("sum 10", "make 12"): every number is {kind: "number", value},
   and the target is the rule region-sum with "is 10". Cells that aren't part of the board (shaded, crossed out) are {kind: "block"}.`,
   "polyomino-packing": `polyomino-packing (Polyomino Packing / Polyominoes, tiling a shape with pieces): a shape to cut into the
   pieces drawn beside it, each used once. Give the shape's bounding grid as rows and cols, every square of that grid
   outside the shape as {kind: "block"}, and each piece as a bank clue (its blocks). Leave out cuts drawn as the answer.`,
-  critters: `critters (Critter Connecting, also "Connect the Critters"): a grid with critters (bugs, animals, smileys or any
+  "connect-the-critters": `connect-the-critters (Connect the Critters, placing pieces over critters): a grid with critters (bugs, animals, smileys or any
   little picture) in some cells, and pieces (polyominoes) drawn beside it to place so they cover every critter and join
   into one group. Each critter is {kind: "symbol", value: "★"}; each piece a bank clue (its blocks). If it says pieces may
   be flipped, add the rule pieces with "flip". Shaded cells that are holes are {kind: "block"}.`,
-  "symmetry-cut": `symmetry-cut (Symmetry Cut, also "find the cut line"): a shape to cut into two pieces (or three), each
+  "find-the-cut-line": `find-the-cut-line (Find the Cut Line, cutting a shape into symmetric pieces): a shape to cut into two pieces (or three), each
   symmetric. Give the shape's bounding grid as rows and cols and every square outside the shape as {kind: "block"}. With
   three pieces add the rule region-count with "is 3"; if it asks only for mirror symmetry (a line of symmetry) add the rule
   symmetric-regions with "symmetry mirror", only for turning symmetry (half turn, rotation) "symmetry turn".`,
-  kinship: `kinship (Kinship, tiles that share a colour or a shape): a row or small grid; a set of tiles, one of every
+  "twins-and-triplets": `twins-and-triplets (Twins and Triplets, tiles that share a colour or a shape): a row or small grid; a set of tiles, one of every
   shape in every colour (shapes: stone = a circle or disc, crest = a star or flower, triangle; colours: red, yellow, blue),
   is placed one per open cell so neighbours share a colour or a shape. Tiles already drawn in a cell are {kind: "symbol",
   value: "<colour> <shape>"}, e.g. "red stone", "blue triangle". Cells that aren't used are {kind: "block"}. Add the rule
@@ -169,9 +169,9 @@ const GENRE_GUIDE: Record<GenreName, string> = {
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"; an Akari cipher's letter: the letter, e.g. \"A\"",
-  color: "a cell colored in at the start (binairo, colour-balance): row, col; value its color's number as the type says, e.g. \"2\"",
+  color: "a cell colored in at the start (binairo, abstract-art): row, col; value its color's number as the type says, e.g. \"2\"",
   block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
-  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black; a critter (critters) is \"★\"; a kinship tile is its colour and shape, e.g. \"red stone\"",
+  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black; a critter (connect-the-critters) is \"★\"; a twins-and-triplets tile is its colour and shape, e.g. \"red stone\"",
   palisade: "a palisade mark in a cell (panes: a small diamond with some of its four sides drawn thick; each thick side is one of the cell's sides that is a region border): row, col; " +
     "value how many sides are drawn, and with two whether they meet at a corner or are opposite: \"0\", \"1\", \"2 corner\", \"2 opposite\", \"3\" or \"4\" (three sides make a U; look closely, it's easy to misread as two)",
   compass: "a compass in a cell: row, col; value its numbers by direction, any missing, e.g. \"n2 e1 w0\"",
@@ -205,8 +205,8 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
     "then a color only if it's clearly not the usual one (yellow, or blue for a hollow shape; plain ink counts as usual), " +
     "e.g. \"0,0 1,0 1,1\", \"0,0 0,1 rotate\", \"0,0 negative\" or \"0,0 1,0 red\"",
   eraser: "an eraser in a cell (panels: a Y-shaped mark, three short strokes from a centre): row, col; value \"\", or a color if it's clearly not white (plain ink counts as white)",
-  peg: "a dot on a point of a lattice (distance-path): row, col of the point; value \"\"",
-  lengths: "the list of a lattice path's lengths (distance-path): row -1, col -1; value the lengths as written, roots as √n (or rn), e.g. \"1 √2 √5 2\"",
+  peg: "a dot on a point of a lattice (pythagorean-paths): row, col of the point; value \"\"",
+  lengths: "the list of a lattice path's lengths (pythagorean-paths): row -1, col -1; value the lengths as written, roots as √n (or rn), e.g. \"1 √2 √5 2\"",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
@@ -270,21 +270,21 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "panel-line": "one line along the grid lines from a start circle to an end, never touching itself or crossing a gap (comes with panel); " +
     "symmetry left-right / up-down / turn: two lines at once, mirror images (list it, with its symmetry, when the panel has two mirrored starts and ends)",
   "panel-symbols": "the panel's symbols (dots, squares, stars, triangles, shapes, erasers) say where the line goes (comes with panel)",
-  "line-shares": "every row and column holds its share of each color (comes with binairo and colour-balance, half and half); parts: one number per color, e.g. \"parts 1 1 1\" (a third each), \"parts 1 2\" (a third and two thirds)",
+  "line-shares": "every row and column holds its share of each color (comes with binairo and abstract-art, half and half); parts: one number per color, e.g. \"parts 1 1 1\" (a third each), \"parts 1 2\" (a third and two thirds)",
   "no-three-in-a-row": "no three cells in a row, across or down, have the same color (comes with binairo)",
   "unique-lines": "no two rows are colored the same, and no two columns (comes with binairo)",
   "fill-in": "every number on the list fits once, across or down (comes with fill-in)",
-  "number-path": "the numbers 1 to the last, each touching the next (comes with hidoku and hex-hidoku); diagonals: touching at a corner counts (hidoku has it; list number-path without it for \"sides only\")",
-  "smallest-missing": "each number is the smallest its neighbours don't have (comes with missing-number)",
-  "distance-path": "one path through every dot with the listed lengths, never crossing (comes with distance-path); moves queen / knight: segments run straight or diagonal / one knight's jump",
+  "number-path": "the numbers 1 to the last, each touching the next (comes with hidoku and honeycomb-paths); diagonals: touching at a corner counts (hidoku has it; list number-path without it for \"sides only\")",
+  "smallest-missing": "each number is the smallest its neighbours don't have (comes with hive)",
+  "distance-path": "one path through every dot with the listed lengths, never crossing (comes with pythagorean-paths); moves queen / knight: segments run straight or diagonal / one knight's jump",
   "allowed-sizes": "every region has one of these sizes, e.g. \"sizes 4 6\" (fillomino: only 4s and 6s)",
-  "region-sum": "the numbers in every region add up to the target, e.g. \"is 10\" (comes with sum-regions; always list it with the puzzle's target)",
-  "region-count": "cut into exactly this many pieces, e.g. \"is 3\" (comes with symmetry-cut, is 2)",
-  "symmetric-regions": "every piece is symmetric (comes with symmetry-cut); \"symmetry mirror\" or \"symmetry turn\" when only one kind is asked for",
-  pieces: "the shaded cells are the bank's pieces, each once, turned (comes with critters); \"flip\" if they may also be flipped",
-  "cover-symbols": "every critter (symbol) is covered (comes with critters)",
-  tiles: "kinship's tiles: \"kinds N colors M\", N shapes in M colours, each tile placed once (comes with kinship, kinds 2 colors 3)",
-  "shared-feature": "tiles side by side share a colour or a shape (comes with kinship)",
+  "region-sum": "the numbers in every region add up to the target, e.g. \"is 10\" (comes with sum-blobs; always list it with the puzzle's target)",
+  "region-count": "cut into exactly this many pieces, e.g. \"is 3\" (comes with find-the-cut-line, is 2)",
+  "symmetric-regions": "every piece is symmetric (comes with find-the-cut-line); \"symmetry mirror\" or \"symmetry turn\" when only one kind is asked for",
+  pieces: "the shaded cells are the bank's pieces, each once, turned (comes with connect-the-critters); \"flip\" if they may also be flipped",
+  "cover-symbols": "every critter (symbol) is covered (comes with connect-the-critters)",
+  tiles: "Twins and Triplets' tiles: \"kinds N colors M\", N shapes in M colours, each tile placed once (comes with twins-and-triplets, kinds 2 colors 3)",
+  "shared-feature": "tiles side by side share a colour or a shape (comes with twins-and-triplets)",
 };
 
 // Every field is required (empty when unused): the API caps how many fields may be nullable or
@@ -446,7 +446,7 @@ export function drawingBrief(drawing: string) {
     + "diamond (filled, on a line: the squares either side are twins) and open-diamond (on a line: opposites). A start or hoshi coloured blue or yellow belongs to one of a symmetry panel's two lines; "
     + "a hidden stone is a dot that stays hidden until its piece is painted. A grid with tracks: true is drawn as a panel's wide tracks (so it is a panel). "
     + "A grid with shape: \"hex\" is hexagons in rows, every other row (1, 3...) shifted half a hexagon right: {at: \"cell\", r, c} is hexagon c of row r (a honeycomb puzzle). "
-    + "A grid with shape: \"dots\" is a lattice of faint points, one at each square's centre and no lines: a cell anchor is a point, and a black stone on one is a dot to join (distance-path). A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
+    + "A grid with shape: \"dots\" is a lattice of faint points, one at each square's centre and no lines: a cell anchor is a point, and a black stone on one is a dot to join (pythagorean-paths). A gap item is a break in a grid line (a panel's gap). Text marked small is written small to fit beside other things: a corner sum, a compass's numbers, a sign or number on a line.",
     `The drawing:\n${drawing}`,
   ].join("\n\n");
 }
@@ -520,10 +520,10 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
 
 /** A reading as sketch text: the genre line, then the puzzle as JSON. */
 export function toSketch(r: Reading): string {
-  // kinship: a tile drawn in a cell ("red stone") is that tile's number; a fill-in's digits 0-9 are its symbols 1-10
+  // twins-and-triplets: a tile drawn in a cell ("red stone") is that tile's number; a fill-in's digits 0-9 are its symbols 1-10
   const tilesRead = r.rules.find((x) => x.rule === "tiles");
-  const tileRule = { ...(tilesRead ? ruleSettings(tilesRead.settings) : genres.kinship.rules[0]), rule: "tiles" };
-  const givens: Given[] = r.givens.flatMap((g) => (r.genre === "kinship" && g.kind === "symbol" ? tileGiven(g, tileRule) : givenOf(g)) ?? [])
+  const tileRule = { ...(tilesRead ? ruleSettings(tilesRead.settings) : genres["twins-and-triplets"].rules[0]), rule: "tiles" };
+  const givens: Given[] = r.givens.flatMap((g) => (r.genre === "twins-and-triplets" && g.kind === "symbol" ? tileGiven(g, tileRule) : givenOf(g)) ?? [])
     .map((g) => (r.genre === "fill-in" && g.kind === "number" ? { ...g, value: g.value + 1 } : g));
   for (const run of r.runs) givens.push(r.genre === "aquarium"
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
@@ -535,9 +535,9 @@ export function toSketch(r: Reading): string {
     // a panel-line without a symmetry is what every panel has already (one line)
     .filter((s: RuleSpec) => s.rule !== "panel-line" || s.symmetry);
   const figure = r.genre === "coats" && r.figure.length ? { pieces: r.figure } : undefined;
-  // Colour Balance's colors follow its shares (three parts, three colors)
+  // Abstract Art's colors follow its shares (three parts, three colors)
   const parts = rules.find((s) => s.rule === "line-shares")?.parts;
-  const palette = r.genre === "colour-balance" && Array.isArray(parts) && parts.length === 3 ? BALANCE_COLORS.slice(0, 3) : undefined;
+  const palette = r.genre === "abstract-art" && Array.isArray(parts) && parts.length === 3 ? BALANCE_COLORS.slice(0, 3) : undefined;
   const entries = r.genre === "fill-in" ? (r.entries ?? []).map((e) => e.replace(/\D/g, "")).filter(Boolean) : [];
   const body: Omit<GridSpec, "genre"> = {
     size: figure ? [1, figure.pieces.length] : [r.rows, r.cols],
@@ -554,7 +554,7 @@ export function toSketch(r: Reading): string {
   return `${r.genre}\n${JSON.stringify(body, null, 1)}`;
 }
 
-/** A Kinship tile read as "<colour> <shape>" (a stone, crest or triangle; circle, star and flower
+/** A Twins and Triplets tile read as "<colour> <shape>" (a stone, crest or triangle; circle, star and flower
  *  too), as the number the engine gives it, or null if it isn't one of the set's tiles. */
 export function tileGiven({ row, col, value }: Reading["givens"][number], tiles: RuleSpec): Given | null {
   const v = value.toLowerCase(), kinds = tileKinds(tiles), colors = tileColors(tiles);

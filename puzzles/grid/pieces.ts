@@ -1,21 +1,21 @@
 // Making region and placement puzzles in the style of Beast Academy's Puzzle Lab, each with exactly
-// one solution, for puzzles/grid/generate.ts: Fillomino, Sum Regions, Polyomino Packing, Critter
-// Connecting, Symmetry Cut and Kinship. Two ways:
-// - clues from a random answer (Fillomino's sizes, the critters, Kinship's placed tiles): clingo
+// one solution, for puzzles/grid/generate.ts: Fillomino, Sum Blobs, Polyomino Packing, Critter
+// Connecting, Find the Cut Line and Twins and Triplets. Two ways:
+// - clues from a random answer (Fillomino's sizes, the critters, Twins and Triplets' placed tiles): clingo
 //   picks a random finished board, every clue true of it goes in a pool, clues that rule out the
 //   other solutions are added until it's the only one, then clues that aren't needed come out;
 // - a board built around a random answer, tried until it has one solution (Polyomino Packing,
-//   Symmetry Cut), or nudged towards one (Sum Regions' numbers).
-// `settings` ("--rules" in new.ts): "sizes=4/6" (Fillomino), "target=10" (Sum Regions),
+//   Find the Cut Line), or nudged towards one (Sum Blobs' numbers).
+// `settings` ("--rules" in new.ts): "sizes=4/6" (Fillomino), "target=10" (Sum Blobs),
 // "pieces=4" (packing, critters, cut), "flip" (critters), "symmetry=mirror|turn" (cut),
-// "kinds=2,colors=3" (Kinship).
+// "kinds=2,colors=3" (Twins and Triplets).
 import { makePuzzle, check, normalShape, connectedShape } from "../../src/engine/puzzle.ts";
 import { program, boardOf, solve } from "../../src/engine/solve.ts";
 import { regionsOf, orientations, SYMMETRIES8, MIRRORS, HALF_TURN, symmetricUnder } from "../../src/engine/derive.ts";
 import type { Board, Given, GridSpec, Puzzle, RuleSpec } from "../../src/engine/types.ts";
 
 type RC = [number, number];
-export const PIECE_GENRES = ["fillomino", "sum-regions", "polyomino-packing", "critters", "symmetry-cut", "kinship"];
+export const PIECE_GENRES = ["fillomino", "sum-blobs", "polyomino-packing", "connect-the-critters", "find-the-cut-line", "twins-and-triplets"];
 const debug = (m: string) => { if (process.env.DEBUG) console.error(`pieces: ${m}`); };
 
 /** Pieces kids know: trominoes, tetrominoes and a few pentominoes. */
@@ -106,7 +106,7 @@ export async function makePieceGenre(genre: string, rows: number, cols: number, 
       const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: reg.cells[reg.of[i]].length }));
       const spec = await narrow(base, target, pool);
       if (spec) return spec;
-    } else if (genre === "sum-regions") {
+    } else if (genre === "sum-blobs") {
       // regions of 2 to 4 cells, numbers that add up to the target in each, then numbers nudged
       // (moving 1 between two cells of a region) while that doesn't add solutions, until one is left
       const T = num("target", 10);
@@ -127,7 +127,7 @@ export async function makePieceGenre(genre: string, rows: number, cols: number, 
         if (n >= 1 && n <= now) { v.splice(0, v.length, ...next); now = n; }
       }
       if (now === 1) return specOf(v);
-      debug(`sum-regions: ${now} solutions left`);
+      debug(`sum-blobs: ${now} solutions left`);
     } else if (genre === "polyomino-packing") {
       // pieces glued together at random make the board; tried until only one packing fits
       const shapes = Array.from({ length: num("pieces", 4) }, () => pick(PIECES));
@@ -136,7 +136,7 @@ export async function makePieceGenre(genre: string, rows: number, cols: number, 
       const { size, holes } = boardOfCells(placed.flat());
       const spec: GridSpec = { genre, size, givens: [...shapes.map((value): Given => ({ at: "aside", kind: "bank", value: normalShape(value) })), ...holes] };
       if (await unique(spec)) return spec;
-    } else if (genre === "critters") {
+    } else if (genre === "connect-the-critters") {
       // the pieces placed at random (touching), then critters on them until only that placement fits
       const shapes = Array.from({ length: num("pieces", 3) }, () => pick(PIECES.slice(0, 9)));
       const base: GridSpec = { genre, size: [rows, cols], ...(opts.has("flip") ? { rules: [{ rule: "pieces", flip: true }] } : {}),
@@ -150,7 +150,7 @@ export async function makePieceGenre(genre: string, rows: number, cols: number, 
       const spec = await narrow(base, target, pool);
       if (spec && (!best || spec.givens!.length < best.givens!.length)) best = spec;
       if (best && ++tries >= num("tries", 6)) return best;
-    } else if (genre === "symmetry-cut") {
+    } else if (genre === "find-the-cut-line") {
       // symmetric pieces glued together make the board; tried until only one cut fits
       const k = num("pieces", 2), want = opts.get("symmetry");
       const shapes: RC[][] = [];
@@ -165,7 +165,7 @@ export async function makePieceGenre(genre: string, rows: number, cols: number, 
       const rules: RuleSpec[] = [...(k !== 2 ? [{ rule: "region-count", is: k }] : []), ...(want ? [{ rule: "symmetric-regions", symmetry: want }] : [])];
       const spec: GridSpec = { genre, size, ...(rules.length ? { rules } : {}), givens: holes };
       if (await unique(spec)) return spec;
-    } else if (genre === "kinship") {
+    } else if (genre === "twins-and-triplets") {
       // holes so the open cells hold the tiles (kept in one piece), a random placing, then tiles
       // placed already until it's the only one
       const kinds = num("kinds", 2), colors = num("colors", 3), n = kinds * colors;

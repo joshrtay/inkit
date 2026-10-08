@@ -1,5 +1,5 @@
-// Boards that aren't drawn as a square grid of lines: hexagons in rows (Hex Hidoku, Missing
-// Number), a lattice of points with dots on it (Distance Path), and number paths (Hidoku, whose
+// Boards that aren't drawn as a square grid of lines: hexagons in rows (Honeycomb Paths, Missing
+// Number), a lattice of points with dots on it (Pythagorean Paths), and number paths (Hidoku, whose
 // numbers run past 9). The still picture (picture.ts sends them here) and the player (game.ts
 // sends them here) share one drawing, in the boards' look (docs/style.md): the grid in pen, rocks
 // in wash, printed numbers in ink and the player's in a lighter blue, a lattice's dots as stones

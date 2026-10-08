@@ -35,7 +35,7 @@ describe("editing number paths and lattices", () => {
     expect(ops.setSidesOnly(s, false)).toEqual(hid);
     expect(makePuzzle(s).rules).toEqual([{ rule: "number-path" }]);
   });
-  const dp: GridSpec = { genre: "distance-path", size: [4, 4] };
+  const dp: GridSpec = { genre: "pythagorean-paths", size: [4, 4] };
   it("dots go on and off a point", () => {
     const s = ops.togglePeg(dp, [1, 2]);
     expect(s.givens).toEqual([{ at: "cell", cell: [1, 2], kind: "peg" }]);
@@ -61,7 +61,7 @@ describe("editing number paths and lattices", () => {
 
 describe("reading hexagons and lattices", () => {
   const reading = (over: Partial<Reading>): Reading => ({
-    readable: true, problem: "", genre: "distance-path", candidates: ["distance-path"], title: "",
+    readable: true, problem: "", genre: "pythagorean-paths", candidates: ["pythagorean-paths"], title: "",
     bounds: { left: 0, top: 0, right: 1, bottom: 1 }, rows: 3, cols: 3, rules: [], givens: [], runs: [],
     pictureRows: [], palette: [], areas: [], figure: [], sure: true, notes: [], ...over,
   });

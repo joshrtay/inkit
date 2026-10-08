@@ -16,10 +16,10 @@ GAMES = Path(__file__).resolve().parents[2] / "src" / "games"
 GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": "simple-loop", "simple-path": "simple-path", "star-battle": "star-battle", "irregular-sudoku": "irregular-sudoku", "akari": "akari", "shikaku": "shikaku", "numberlink": "numberlink", "masyu": "masyu", "cave": "cave", "aquarium": "aquarium", "square-jam": "square-jam", "wittgenstein-briquet": "wittgenstein-briquet", "hitori": "hitori", "minesweeper": "minesweeper", "spiral-galaxies": "spiral-galaxies", "thermo-sudoku": "thermo-sudoku", "skyscrapers": "skyscrapers", "easy-as-abc": "easy-as-abc", "picture-squares": "nonogram", "slitherlink": "slitherlink",
           "nurikabe": "nurikabe", "panes": "panes", "sudoku": "sudoku",
           "panel": "panel",
-          "binairo": "binairo", "colour-balance": "colour-balance", "fill-in": "fill-in",
-          "hidoku": "hidoku", "hex-hidoku": "hex-hidoku", "missing-number": "missing-number", "distance-path": "distance-path",
-          "fillomino": "fillomino", "sum-regions": "sum-regions", "polyomino-packing": "polyomino-packing",
-          "critters": "critters", "symmetry-cut": "symmetry-cut", "kinship": "kinship"}
+          "binairo": "binairo", "abstract-art": "abstract-art", "fill-in": "fill-in",
+          "hidoku": "hidoku", "honeycomb-paths": "honeycomb-paths", "hive": "hive", "pythagorean-paths": "pythagorean-paths",
+          "fillomino": "fillomino", "sum-blobs": "sum-blobs", "polyomino-packing": "polyomino-packing",
+          "connect-the-critters": "connect-the-critters", "find-the-cut-line": "find-the-cut-line", "twins-and-triplets": "twins-and-triplets"}
 FEATURED = ["simple-loop-5", "panes-1", "sudoku-1", "nonogram-2"]
 
 q = lambda s: "'" + s.replace("'", "''") + "'"

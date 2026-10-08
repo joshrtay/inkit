@@ -1059,7 +1059,7 @@ nds(I,N) :- member(R,I), size(R,N).
       `${cells.map((i) => `wt(${k},R) :- member(R,${i}).`).join(" ")}\n:- #count{R: wt(${k},R)} != ${value}.`).join("\n"),
   },
 
-  // ---- more regions and pieces: Fillomino's sizes, Sum Regions, Symmetry Cut, Critter Connecting ----
+  // ---- more regions and pieces: Fillomino's sizes, Sum Blobs, Find the Cut Line, Connect the Critters ----
   "allowed-sizes": {
     describe: (s) => `Every region has ${sizeList(s)} cells.`,
     needs: ["regions"],
@@ -1139,7 +1139,7 @@ pccov(I) :- pcon(K,J), pcc(K,J,I).
     },
     asp: (_s, p) => symbolCells(p).map((i) => `:- not shaded(${i}).`).join("\n"),
   },
-  // ---- Kinship: tiles of a shape and a colour, placed so neighbours share one ----
+  // ---- Twins and Triplets: tiles of a shape and a colour, placed so neighbours share one ----
   tiles: {
     describe: (s) => `Place all ${tileCount(s)} tiles (${tileKinds(s)} shapes in ${tileColors(s)} colours, one of each), one in every open cell.`,
     check(s, p, b) {
@@ -1178,7 +1178,7 @@ pccov(I) :- pcon(K,J), pcc(K,J,I).
   "panel-line": panelLine,
   "panel-symbols": panelSymbols,
 
-  // ---- paint on a square grid (Binairo, Colour Balance) ----
+  // ---- paint on a square grid (Binairo, Abstract Art) ----
   "line-shares": {
     describe: (s, p) => `Paint every cell ${colorList(p)}. Every row and every column is ${shareWords(p, partsOf(s, p.style))}.`,
     check(s, p, b) {
@@ -1279,7 +1279,7 @@ cdiff(A,B) :- col(I,A), col(J,B), A < B, row(I,Y), row(J,Y), paint(I,C), not pai
     },
   },
 
-  // ---- the smallest missing number (Missing Number) ----
+  // ---- the smallest missing number (Hive) ----
   "smallest-missing": {
     describe: (_s, p) => `Fill every ${p.blocked.size ? "white " : ""}${p.grid.kind === "hex" ? "hexagon" : "cell"} with a number: the smallest number (1, 2, 3...) that none of its neighbours has. `
       + "So neighbours never match, and one whose neighbours hold 1, 2 and 3 (and no 4) must be 4.",
@@ -1309,7 +1309,7 @@ mhas(I,D) :- mn(I,J), digit(J,D).
     },
   },
 
-  // ---- a path on a lattice (Distance Path) ----
+  // ---- a path on a lattice (Pythagorean Paths) ----
   "distance-path": {
     describe: (s, p) => `Join all the dots into one path of straight segments, each from a dot to a dot. ${p.lengths ? `The segments' lengths are the ones listed (${p.lengths.map(rootText).join(", ")}), each used once, in any order. ` : ""}`
       + `The path never crosses itself${s.moves === "queen" ? "; every segment runs straight across, up and down, or diagonally" : s.moves === "knight" ? "; every segment is one knight's jump (one square one way, two the other)" : ""}.`,
@@ -1412,7 +1412,7 @@ export const sqLength = (p: Puzzle, l: number) => {
 };
 /** A length written as people write it: 2 for 4, √5 for 5. */
 export const rootText = (sq: number) => { const r = Math.round(Math.sqrt(sq)); return r * r === sq ? String(r) : `√${sq}`; };
-/** Can a segment go this way? (Distance Path's moves: any, a queen's lines, or a knight's jump.) */
+/** Can a segment go this way? (Pythagorean Paths's moves: any, a queen's lines, or a knight's jump.) */
 function moveOk(s: RuleSpec, p: Puzzle, l: number) {
   const [a, c] = p.grid.links[l].cells.map((i) => p.grid.rc(i)), dr = Math.abs(a[0] - c[0]), dc = Math.abs(a[1] - c[1]);
   return s.moves === "queen" ? dr === 0 || dc === 0 || dr === dc : s.moves === "knight" ? (dr === 1 && dc === 2) || (dr === 2 && dc === 1) : true;
@@ -1498,7 +1498,7 @@ function sizeOk(n: number, s: RuleSpec) {
   return (s.is === undefined || n === s.is) && (s.min === undefined || n >= (s.min as number)) && (s.max === undefined || n <= (s.max as number));
 }
 
-/** Kinship's tiles: up to three shapes (drawn as a stone, a crest and a triangle) in up to three
+/** Twins and Triplets' tiles: up to three shapes (drawn as a stone, a crest and a triangle) in up to three
  *  colours. Tile d (1..kinds × colours) is shape (d-1) % kinds in colour (d-1) / kinds. */
 export const TILE_KINDS = ["stone", "crest", "triangle"] as const;
 export const TILE_COLORS = ["red", "yellow", "blue"] as const;
@@ -1522,7 +1522,7 @@ const sumTarget = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 10);
 const regionCount = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 2);
 /** The symmetries a piece may have: a mirror (any of four), a half turn, or either. */
 const symmetriesOf = (s: RuleSpec) => (s.symmetry === "mirror" ? MIRRORS : s.symmetry === "turn" ? [HALF_TURN] : [...MIRRORS, HALF_TURN]);
-/** The cells holding a symbol (Critter Connecting's critters). */
+/** The cells holding a symbol (Connect the Critters' critters). */
 const symbolCells = (p: Puzzle) => [...p.cellGivens].filter(([, gs]) => gs.some((g) => g.kind === "symbol")).map(([i]) => i);
 /** The bank's different shapes: each one's key, how many times it's in the bank, and its cells. */
 const bankKinds = (p: Puzzle) => {

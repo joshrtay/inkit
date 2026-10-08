@@ -8,13 +8,12 @@ Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below), Hidoku
-(`hidoku`), and on the shapes below Hex Hidoku (`hex-hidoku`), Missing Number (`missing-number`) and
-Distance Path (`distance-path`).
-Later: Binairo (`binairo`), Colour Balance (`colour-balance`, our name: each row and column holds its
+(`hidoku`), and on the shapes below Honeycomb Paths (`honeycomb-paths`), Hive (`hive`) and
+Pythagorean Paths (`pythagorean-paths`).
+Later: Binairo (`binairo`), Abstract Art (`abstract-art`, Beast Academy's: each row and column holds its
 share of each of 2 or 3 colors) and Number Fill-In (`fill-in`), and Akari ciphers (letters for numbers).
-After Beast Academy's Puzzle Lab (docs/beast-academy-puzzles.md), with names of ours where there's no shared
-one: Fillomino (`fillomino`), Sum Regions (`sum-regions`), Polyomino Packing (`polyomino-packing`),
-Critter Connecting (`critters`), Symmetry Cut (`symmetry-cut`) and Kinship (`kinship`); their
+From Beast Academy (docs/beast-academy-puzzles.md), with its names except where a standard one exists: Fillomino (`fillomino`), Sum Blobs (`sum-blobs`), Polyomino Packing (`polyomino-packing`),
+Connect the Critters (`connect-the-critters`), Find the Cut Line (`find-the-cut-line`) and Twins and Triplets (`twins-and-triplets`); their
 generators are in `puzzles/grid/pieces.ts`.
 
 ## The model
@@ -53,7 +52,7 @@ Drawing and playing hexagons, lattices and number paths is `src/game-types/grid/
 | `loop` | links | empty, line, X | Simple Loop, Masyu |
 | `regions` | borders + cell colors | cut / color | Panes (Glimmith-style), Fillomino, Shikaku |
 | `digit` | cells | 1..n, pencil notes (shown as the style's `symbols`: Easy as ABC's letters, a fill-in's 0-9) | Sudoku, Number Fill-In |
-| `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats (a figure's pieces), Binairo and Colour Balance (a square grid's cells) |
+| `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats (a figure's pieces), Binairo and Abstract Art (a square grid's cells) |
 
 Regions come from either input: painting cells a color, or cutting borders. A region is a
 connected group of same-color cells not separated by a cut. For shading puzzles, the
@@ -75,7 +74,7 @@ nonogram's runs or a `total` beside a row or above a column, a clue outside the 
 `galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners), a `peg` (a dot on a lattice point) and a lattice path's `lengths` (`{at: "aside"}`, as squares, drawn under the board). A nonogram's runs can instead come from its
 `picture`, which solving reveals. A number in a cell can carry a `letter` instead (an Akari cipher: each
 letter stands for a different number 0-4, found while solving; its `value` isn't used); a `color` in a
-cell is a printed paint color that stays (Binairo, Colour Balance). A fill-in's list of numbers is the
+cell is a printed paint color that stays (Binairo, Abstract Art). A fill-in's list of numbers is the
 puzzle's `entries` (strings in the style's symbols), drawn under the board grouped by length and
 crossed off as they appear (`src/game-types/grid/entry-list.ts`); its black squares are rocks, which
 digit puzzles leave empty.
@@ -158,31 +157,37 @@ puzzle can use it.
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 | `panel-line` | A panel's line (fence marks) runs from a start circle to an end on the outside edge, never touching itself or crossing a gap; `symmetry` (`left-right`, `up-down`, `turn`) makes it two lines, mirror images that never touch, each passing the dots of its color. |
 | `panel-symbols` | Every symbol in the regions the line cuts the grid into: dots, squares, stars, triangles, shapes and erasers (see "Panels"). |
-| `line-shares` | Every row and column holds each paint color in proportion to `parts` (one per palette color; default equal: half and half). A line that can't be split evenly makes the puzzle invalid (Binairo, Colour Balance). |
+| `line-shares` | Every row and column holds each paint color in proportion to `parts` (one per palette color; default equal: half and half). A line that can't be split evenly makes the puzzle invalid (Binairo, Abstract Art). |
 | `no-three-in-a-row` | No three cells in a row, across or down, have the same paint color (Binairo). |
 | `unique-lines` | No two rows are painted the same, and no two columns (Binairo). |
 | `fill-in` | Every entry on the list goes into one slot (a run of 2+ open cells across or down, between rocks or the edge), every slot takes one, every open cell gets a digit (Number Fill-In). |
 | `number-path` | Every open cell holds 1..N once (N: the open cells), and each number touches the next across a link; `diagonals` (squares): touching at a corner counts too (Hidoku has it; without it, sides only). |
-| `smallest-missing` | Every open cell holds the smallest positive number none of its neighbours has (its neighbours' "mex"; Missing Number). |
+| `smallest-missing` | Every open cell holds the smallest positive number none of its neighbours has (its neighbours' "mex"; Hive). |
 | `distance-path` | The segments (loop marks on a lattice) make one path through every dot that never crosses itself, and their lengths are the `lengths` given (as squares: 5 is √5), each used once, in any order; `moves`: `queen` (straight or diagonal) or `knight` (one 1-and-2 jump). |
 | `allowed-sizes` | Every region has one of the `sizes` (Fillomino with only 4s and 6s, say). |
-| `region-sum` | The numbers in every region add up to `is` (Sum Regions; 10 if it doesn't say). |
-| `region-count` | Exactly `is` regions (Symmetry Cut: 2 or 3). |
-| `symmetric-regions` | Every region matches its own mirror image (across, down or along a diagonal) or its half turn; `symmetry`: `mirror` or `turn` for just one (Symmetry Cut). |
-| `pieces` | The shaded cells are exactly the bank's pieces, each once, turned (and with `flip`, flipped) any way, never overlapping (Critter Connecting). |
-| `cover-symbols` | Every symbol (a critter) is shaded (Critter Connecting). |
-| `tiles` | Kinship's tiles: `kinds` shapes (1-3: stone, crest, triangle) in `colors` colours (1-3: red, yellow, blue), one of each, placed once each, one per open cell. Tile d is a digit: shape (d-1) % kinds in colour (d-1) / kinds; given tiles are given digits. |
-| `shared-feature` | Tiles side by side share a colour or a shape (Kinship). |
+| `region-sum` | The numbers in every region add up to `is` (Sum Blobs; 10 if it doesn't say). |
+| `region-count` | Exactly `is` regions (Find the Cut Line: 2 or 3). |
+| `symmetric-regions` | Every region matches its own mirror image (across, down or along a diagonal) or its half turn; `symmetry`: `mirror` or `turn` for just one (Find the Cut Line). |
+| `pieces` | The shaded cells are exactly the bank's pieces, each once, turned (and with `flip`, flipped) any way, never overlapping (Connect the Critters). |
+| `cover-symbols` | Every symbol (a critter) is shaded (Connect the Critters). |
+| `tiles` | Twins and Triplets' tiles: `kinds` shapes (1-3: stone, crest, triangle) in `colors` colours (1-3: red, yellow, blue), one of each, placed once each, one per open cell. Tile d is a digit: shape (d-1) % kinds in colour (d-1) / kinds; given tiles are given digits. |
+| `shared-feature` | Tiles side by side share a colour or a shape (Twins and Triplets). |
 
 `adjacent-count` also reads an Akari cipher's letters: cells with the same letter have the same count,
 different letters different counts (0-4).
 
-Genre names: use the standard name when a genre has one that's used across puzzle sites
-(Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku, Simple Loop, Nonogram...),
-Wyatt's games included. A genre with no shared name (Number Line Maze), or whose only name is one
-commercial game's (Three Coats, after FLEB's RYB), gets a name of ours.
-Mechanics are fair game; other sites' art and levels aren't ours to copy, so puzzles are Wyatt's
-(or generated).
+Genre names: a genre keeps its original name, the one its inventor or popularizer uses, even when
+a single publisher introduced it (Beast Academy's Sum Blobs, Abstract Art, Hive, Pythagorean Paths,
+Honeycomb Paths, Connect the Critters, Find the Cut Line, Twins and Triplets). Where a genre has
+several names across sites, the standard cross-site name wins (Round the Bend is Simple Loop, Picture
+Squares is Nonogram, BA's Polyominoes is Polyomino Packing, Numbercross is Number Fill-In). The one
+exception is a name an org explicitly protected, such as a registered trademark: that genre gets a
+generic name and its credit names the original (Hidato is Hidoku). Check for a registered trademark
+before adopting a name. Wyatt's own genres keep his names (Number Line Maze, Three Coats).
+Every guide (`src/guides/guides.ts`) has a `credit`: the inventor, the org or person who popularized
+it, the year if known, and a source link; it shows under the summary on `/puzzles/<kind>`. Say less
+rather than guess. Mechanics and names are shared; rules text, art and example puzzles are our own
+(Wyatt's, or generated).
 
 ## Panels
 

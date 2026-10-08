@@ -41,7 +41,7 @@
 
 /* marks: pen lines, a watercolor river, shaded washes, stained-glass lead */
 .grid-game .wash { filter: var(--wash); }
-/* Kinship's pad: tiles in their own little pictures, where the board's wash filter doesn't reach */
+/* Twins and Triplets' pad: tiles in their own little pictures, where the board's wash filter doesn't reach */
 .grid-game .pad .wash { filter: none; }
 .grid-game .pad .num svg { display: block; }
 .grid-game .pad .tile .stone-line { fill: none; stroke-width: var(--pen-medium); }
@@ -83,7 +83,7 @@
 .grid-game .clue.entry { font-size: 20px; }
 .grid-game .clue.entry.done { fill: color-mix(in srgb, var(--paper-ink) 35%, transparent); text-decoration: line-through; }
 .grid-game .clue.entry-label { font-size: 13px; text-anchor: start; fill: color-mix(in srgb, var(--paper-ink) 60%, transparent); }
-/* paint on the grid (Binairo, Colour Balance): a printed color is its wash with a pen outline */
+/* paint on the grid (Binairo, Abstract Art): a printed color is its wash with a pen outline */
 .grid-game .paint-given { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); pointer-events: none; }
 .grid-game .xmark.cellx { stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); stroke-width: var(--pen-fine); }
 .grid-game .hint-area { fill: color-mix(in srgb, var(--wash-yellow) 25%, transparent); stroke: var(--wash-orange); stroke-width: var(--pen-fine); }

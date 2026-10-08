@@ -31,21 +31,22 @@ export const KIND_NAMES: Record<GenreName, string> = {
   // line panels in the style of The Witness (src/engine/panel.ts)
   panel: "Panel",
   binairo: "Binairo",
-  // our name: each row and column holds its share of each color
-  "colour-balance": "Colour Balance",
+  // Beast Academy's: each row and column holds its share of each color
+  "abstract-art": "Abstract Art",
   "fill-in": "Number Fill-In",
-  // number paths (Hidoku: a standard name; the original's name is a trademark), on squares and hexagons
+  // number paths: Hidoku (a generic name, since Hidato is a registered trademark) and Beast Academy's
+  // Honeycomb Paths on hexagons
   hidoku: "Hidoku",
-  "hex-hidoku": "Hex Hidoku",
-  // names of ours: each hexagon the smallest number its neighbours lack; a path of set lengths on a lattice
-  "missing-number": "Missing Number",
-  "distance-path": "Distance Path",
-  // region and placement types after Beast Academy's Puzzle Lab (names of ours where it has no shared one)
+  "honeycomb-paths": "Honeycomb Paths",
+  // Beast Academy's: each hexagon the smallest number its neighbours lack; a path of set lengths on a lattice
+  hive: "Hive",
+  "pythagorean-paths": "Pythagorean Paths",
+  // region and placement types from Beast Academy (its names; Fillomino and Polyomino Packing are the standard ones)
   fillomino: "Fillomino",
-  "sum-regions": "Sum Regions",
+  "sum-blobs": "Sum Blobs",
   "polyomino-packing": "Polyomino Packing",
-  critters: "Critter Connecting",
-  "symmetry-cut": "Symmetry Cut",
-  kinship: "Kinship",
+  "connect-the-critters": "Connect the Critters",
+  "find-the-cut-line": "Find the Cut Line",
+  "twins-and-triplets": "Twins and Triplets",
 };
 export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;

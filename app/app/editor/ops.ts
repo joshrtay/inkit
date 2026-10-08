@@ -387,19 +387,19 @@ export function setLetter(s: Spec, cell: RC, letter: string | null): Spec {
   return withGivens(next, givensOf(next).map((g) => (at(cell)(g) && g.kind === "number" ? { ...g, value: 0, letter: l } : g)));
 }
 
-// ---- paint on the grid (Binairo, Colour Balance) ----
+// ---- paint on the grid (Binairo, Abstract Art) ----
 
 /** A printed color in a square (palette color 1..n); the same color again takes it off. */
 export function togglePaint(s: Spec, cell: RC, color: number): Spec {
   const gs = givensOf(s), had = gs.some((g) => at(cell)(g) && g.kind === "color" && g.value === color);
   return withGivens(s, [...gs.filter((g) => !at(cell)(g)), ...(had ? [] : [{ at: "cell", cell, kind: "color", value: color } as Given])]);
 }
-/** Colour Balance's shares: its own line-shares parts, else one each of its colors. */
+/** Abstract Art's shares: its own line-shares parts, else one each of its colors. */
 export function sharesOf(s: Spec): number[] {
   const own = (s.rules ?? []).find((x) => x.rule === "line-shares")?.parts;
   return Array.isArray(own) ? (own as number[]) : (s.style?.palette ?? (genres[s.genre as GenreName]?.style as { palette?: string[] } | undefined)?.palette ?? ["", ""]).map(() => 1);
 }
-/** Colour Balance's shares set, e.g. [1, 1] (half and half), [1, 2] (a third and two thirds), [1, 1, 1]
+/** Abstract Art's shares set, e.g. [1, 1] (half and half), [1, 2] (a third and two thirds), [1, 1, 1]
  *  (a third each): the colors follow (two or three), and printed colors past them go. */
 export function setShares(s: Spec, parts: number[]): Spec {
   const others = (s.rules ?? []).filter((x) => x.rule !== "line-shares");
@@ -410,7 +410,7 @@ export function setShares(s: Spec, parts: number[]): Spec {
   const next: Spec = { ...rest, ...(rules.length ? { rules } : {}), ...(Object.keys(nextStyle).length ? { style: nextStyle } : {}) };
   return withGivens(next, givensOf(s).filter((g) => g.kind !== "color" || g.value <= parts.length));
 }
-/** A rule with no settings (Colour Balance's no-three-in-a-row, unique-lines), on or off. */
+/** A rule with no settings (Abstract Art's no-three-in-a-row, unique-lines), on or off. */
 export const hasRule = (s: Spec, rule: string) => (s.rules ?? []).some((x) => x.rule === rule);
 export function toggleRule(s: Spec, rule: string): Spec {
   const rules = hasRule(s, rule) ? (s.rules ?? []).filter((x) => x.rule !== rule) : [...(s.rules ?? []), { rule }];
@@ -451,7 +451,7 @@ export function listFromGrid(s: Spec): Spec {
   return withGivens({ ...s, entries: out }, gs.filter((g) => g.kind !== "number"));
 }
 
-// ---- number paths (Hidoku) and lattices (Distance Path) ----
+// ---- number paths (Hidoku) and lattices (Pythagorean Paths) ----
 
 /** A Hidoku that says "sides only": its own number-path rule without diagonals. */
 export const sidesOnly = (s: Spec) => (s.rules ?? []).some((x) => x.rule === "number-path" && !x.diagonals);
@@ -506,8 +506,8 @@ export function setMoves(s: Spec, moves: Moves | null): Spec {
   return rules.length ? { ...rest, rules } : rest;
 }
 
-// ---- a type's own settings, kept as the puzzle's own rule (Fillomino's sizes, Sum Regions' target,
-// Symmetry Cut's pieces and symmetry, Critter Connecting's flipping, Kinship's tiles) ----
+// ---- a type's own settings, kept as the puzzle's own rule (Fillomino's sizes, Sum Blobs' target,
+// Find the Cut Line's pieces and symmetry, Connect the Critters' flipping, Twins and Triplets' tiles) ----
 
 /** A setting of one of the puzzle's rules: the puzzle's own rule, else its type's. */
 export function ruleSetting(s: Spec, rule: string, key: string): unknown {
@@ -529,7 +529,7 @@ export function setRuleSetting(s: Spec, rule: string, key: string, value: unknow
   return rules.length ? { ...rest, rules } : rest;
 }
 
-/** Kinship: tile d in a square, or (the same tile again) taken out. */
+/** Twins and Triplets: tile d in a square, or (the same tile again) taken out. */
 export function toggleTile(s: Spec, cell: RC, d: number): Spec {
   const had = givensOf(s).some((g) => at(cell)(g) && g.kind === "number" && g.value === d);
   return setNumber(s, cell, had ? null : d);

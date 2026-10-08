@@ -199,7 +199,7 @@ describe("Akari ciphers", () => {
   });
 });
 
-describe("printed colors and shares (Binairo, Colour Balance)", () => {
+describe("printed colors and shares (Binairo, Abstract Art)", () => {
   it("prints a color in a square, and the same color again takes it off", () => {
     const s = ops.togglePaint(grid("binairo"), [0, 1], 2);
     expect(s.givens).toEqual([{ at: "cell", cell: [0, 1], kind: "color", value: 2 }]);
@@ -207,7 +207,7 @@ describe("printed colors and shares (Binairo, Colour Balance)", () => {
     expect(ops.togglePaint(s, [0, 1], 2).givens).toEqual([]);
   });
   it("sets the shares: three parts bring three colors; half and half is the type's own", () => {
-    let s = ops.togglePaint(grid("colour-balance", [6, 6]), [0, 0], 2);
+    let s = ops.togglePaint(grid("abstract-art", [6, 6]), [0, 0], 2);
     expect(ops.sharesOf(s)).toEqual([1, 1]);
     s = ops.setShares(s, [1, 1, 1]);
     expect(s.rules).toEqual([{ rule: "line-shares", parts: [1, 1, 1] }]);
@@ -219,7 +219,7 @@ describe("printed colors and shares (Binairo, Colour Balance)", () => {
     expect(back.givens).toEqual([{ at: "cell", cell: [0, 0], kind: "color", value: 2 }]);   // color 3 goes with the third color
   });
   it("turns a rule without settings on and off", () => {
-    const s = ops.toggleRule(grid("colour-balance"), "no-three-in-a-row");
+    const s = ops.toggleRule(grid("abstract-art"), "no-three-in-a-row");
     expect(ops.hasRule(s, "no-three-in-a-row")).toBe(true);
     expect(ops.toggleRule(s, "no-three-in-a-row").rules).toBeUndefined();
   });
@@ -242,9 +242,9 @@ describe("a fill-in's list", () => {
   });
 });
 
-describe("a type's own settings (Fillomino, Sum Regions, Symmetry Cut, Critter Connecting, Kinship)", () => {
+describe("a type's own settings (Fillomino, Sum Blobs, Find the Cut Line, Connect the Critters, Twins and Triplets)", () => {
   it("keeps a setting as the puzzle's own rule only while it differs from the type's", () => {
-    let s = ops.setRuleSetting(grid("sum-regions"), "region-sum", "is", 12);
+    let s = ops.setRuleSetting(grid("sum-blobs"), "region-sum", "is", 12);
     expect(s.rules).toEqual([{ rule: "region-sum", is: 12 }]);
     expect(ops.ruleSetting(s, "region-sum", "is")).toBe(12);
     s = ops.setRuleSetting(s, "region-sum", "is", 10);
@@ -256,11 +256,11 @@ describe("a type's own settings (Fillomino, Sum Regions, Symmetry Cut, Critter C
     expect(s.rules).toEqual([{ rule: "allowed-sizes", sizes: [4, 6] }]);
     s = ops.setRuleSetting(s, "allowed-sizes", "sizes", undefined, true);
     expect(s.rules).toBeUndefined();
-    expect(ops.setRuleSetting(grid("critters"), "pieces", "flip", true).rules).toEqual([{ rule: "pieces", flip: true }]);
-    expect(ops.setRuleSetting(grid("kinship"), "tiles", "kinds", 3).rules).toEqual([{ rule: "tiles", kinds: 3, colors: 3 }]);
+    expect(ops.setRuleSetting(grid("connect-the-critters"), "pieces", "flip", true).rules).toEqual([{ rule: "pieces", flip: true }]);
+    expect(ops.setRuleSetting(grid("twins-and-triplets"), "tiles", "kinds", 3).rules).toEqual([{ rule: "tiles", kinds: 3, colors: 3 }]);
   });
-  it("places a Kinship tile, and takes it out again", () => {
-    const s = ops.toggleTile(grid("kinship", [1, 6]), [0, 2], 4);
+  it("places a Twins and Triplets tile, and takes it out again", () => {
+    const s = ops.toggleTile(grid("twins-and-triplets", [1, 6]), [0, 2], 4);
     expect(s.givens).toEqual([{ at: "cell", cell: [0, 2], kind: "number", value: 4 }]);
     expect(ops.toggleTile(s, [0, 2], 4).givens).toEqual([]);
   });

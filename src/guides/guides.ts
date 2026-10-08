@@ -655,10 +655,10 @@ export const guides: Record<GenreName, Guide> = {
     controls: "Tap a cell, then type its number (1 then 2 makes 12), on the keys under the board or the keyboard. Backspace erases.",
     example: "hidoku/1.json",
   },
-  "hex-hidoku": {
-    name: "Hex Hidoku", aka: ["Honeycomb Number Snake"], category: "Numbers", ink: "#7a4a12",
+  "honeycomb-paths": {
+    name: "Honeycomb Paths", aka: ["Hex Hidoku", "Honeycombs"], category: "Numbers", ink: "#7a4a12",
     summary: "Fill a honeycomb with the numbers 1 to the last so each one touches the next.",
-    origin: "Hidoku on hexagons. A hexagon touches six others, always along a side, so there are no corner steps to worry about.",
+    origin: "Hidoku on hexagons, as Beast Academy draws it. A hexagon touches six others, always along a side, so there are no corner steps to worry about.",
     rules: [
       { text: "Fill every hexagon with the numbers 1 to the last one, each once.", checks: ["number-path"], pictures: [
         { ok: true, note: "1 to 6, once each", size: [2, 3], digits: ["123", "654"] },
@@ -670,12 +670,12 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Tap a hexagon, then type its number (1 then 2 makes 12), on the keys under the board or the keyboard. Backspace erases.",
-    example: "hex-hidoku/1.json",
+    example: "honeycomb-paths/1.json",
   },
-  "missing-number": {
-    name: "Missing Number", category: "Numbers", ink: "#7a4a12",
+  hive: {
+    name: "Hive", category: "Numbers", ink: "#7a4a12",
     summary: "Each hexagon holds the smallest number that none of its neighbours has.",
-    origin: "Our name for a honeycomb puzzle from maths books for kids. Each number is the \"mex\" (minimum excluded value) of its neighbours, the rule behind Sprague and Grundy's numbers for games, from the 1930s.",
+    origin: "A honeycomb puzzle from Beast Academy's maths books for kids. Each number is the \"mex\" (minimum excluded value) of its neighbours, the rule behind Sprague and Grundy's numbers for games, from the 1930s.",
     rules: [
       { text: "Hexagons that touch never hold the same number.", checks: ["smallest-missing"], pictures: [
         { ok: true, note: "No two the same", size: [2, 3], digits: ["143", "212"] },
@@ -687,12 +687,12 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Tap a hexagon, then a number (or type it). Pencil notes keep track of what's possible.",
-    example: "missing-number/1.json",
+    example: "hive/1.json",
   },
-  "distance-path": {
-    name: "Distance Path", category: "Lines", ink: "#2d6a45",
+  "pythagorean-paths": {
+    name: "Pythagorean Paths", category: "Lines", ink: "#2d6a45",
     summary: "Join the dots with one path of straight segments whose lengths are the ones listed.",
-    origin: "Our name for a geoboard puzzle from maths books for kids. The lengths come from Pythagoras: a segment 1 across and 2 down is √(1² + 2²) = √5 long.",
+    origin: "A geoboard puzzle from Beast Academy's maths books for kids. The lengths come from Pythagoras: a segment 1 across and 2 down is √(1² + 2²) = √5 long.",
     rules: [
       { text: "Join all the dots into one path of straight segments, each from a dot to a dot.", checks: ["distance-path"], pictures: [
         { ok: true, note: "Every dot", size: [3, 3], givens: [peg(0, 0), peg(0, 2), peg(2, 1), lengths(4, 5)], lines: [[[0, 0], [0, 2], [2, 1]]] },
@@ -712,12 +712,12 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Drag from dot to dot to draw a segment; drag back over it, or tap it, to take it away. The lengths cross themselves off as you use them.",
-    example: "distance-path/1.json",
+    example: "pythagorean-paths/1.json",
   },
 
   // ---------------- paint ----------------
   coats: {
-    name: "Three Coats", category: "Paint", ink: "#2b2b30",
+    name: "Three Coats", aka: ["RYB"], category: "Paint", ink: "#2b2b30",
     summary: "Paint every shape red, yellow or blue so each dot sees its color next door.",
     origin: "Our version of RYB, a 2016 logic game by FLEB.",
     rules: [
@@ -752,10 +752,10 @@ export const guides: Record<GenreName, Guide> = {
     controls: "Pick a pot (or press 1 or 2), then tap or drag across cells to paint them. The same color again clears a cell.",
     example: "binairo/2.json",
   },
-  "colour-balance": {
-    name: "Colour Balance", category: "Paint", ink: "#26398f",
+  "abstract-art": {
+    name: "Abstract Art", category: "Paint", ink: "#26398f",
     summary: "Paint every cell so each row and column has its share of each color: half and half, a third of each, or whatever the puzzle asks.",
-    origin: "Our name for a family of paint-by-shares puzzles; Binairo is its best-known two-color member.",
+    origin: "A paint-by-shares puzzle from Beast Academy's maths books for kids; Binairo is its best-known two-color cousin.",
     rules: [
       { text: "Paint every cell. Every row and every column has the share of each color the puzzle asks for, like half blue and half yellow.", checks: ["line-shares"], pictures: [
         { ok: true, note: "Half and half", size: [2, 4], paint: [1, 2, 2, 1, 2, 1, 1, 2] },
@@ -771,10 +771,10 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Pick a pot (or press 1, 2 or 3), then tap or drag across cells to paint them. The same color again clears a cell.",
-    example: "colour-balance/2.json",
+    example: "abstract-art/2.json",
   },
   "fill-in": {
-    name: "Number Fill-In", aka: ["Fill-In"], category: "Numbers", ink: "#2b2b30",
+    name: "Number Fill-In", aka: ["Fill-In", "Numbercross"], category: "Numbers", ink: "#2b2b30",
     summary: "Fit every number on the list into the grid, across or down, like a crossword made of numbers.",
     origin: "A puzzle-magazine favourite: fill-ins come with words or numbers, and the number kind is usually called Number Fill-In.",
     rules: [
@@ -813,10 +813,10 @@ export const guides: Record<GenreName, Guide> = {
     controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a group.",
     example: "fillomino/1.json",
   },
-  "sum-regions": {
-    name: "Sum Regions", category: "Regions", ink: "#2f6b3a",
+  "sum-blobs": {
+    name: "Sum Blobs", category: "Regions", ink: "#2f6b3a",
     summary: "Every square has a number: split the grid into regions whose numbers each add up to the target.",
-    origin: "Our own name for an old idea: dividing a grid of numbers into groups with the same total. Beast Academy's Puzzle Lab has a version.",
+    origin: "Beast Academy's puzzle, from its maths books for kids: dividing a grid of numbers into groups with the same total.",
     rules: [
       { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written with the puzzle (here 6).", checks: ["region-sum"], pictures: [
         { ok: true, note: "6, 6 and 6", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["aab", "ccb"] },
@@ -824,10 +824,10 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a group.",
-    example: "sum-regions/1.json",
+    example: "sum-blobs/1.json",
   },
   "polyomino-packing": {
-    name: "Polyomino Packing", aka: ["Polyomino Tiling", "Pentomino puzzle"], category: "Regions", ink: "#5b3a8f",
+    name: "Polyomino Packing", aka: ["Polyominoes", "Polyomino Tiling", "Pentomino puzzle"], category: "Regions", ink: "#5b3a8f",
     summary: "Cut the board into the pieces under it, using each piece exactly once.",
     origin: "Fitting polyominoes into a shape is a classic: Solomon Golomb named polyominoes in 1953, and pentomino puzzles go back to Henry Dudeney's in 1907.",
     rules: [
@@ -839,10 +839,10 @@ export const guides: Record<GenreName, Guide> = {
     controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a piece.",
     example: "polyomino-packing/1.json",
   },
-  critters: {
-    name: "Critter Connecting", category: "Shading", ink: "#7a4a1f",
+  "connect-the-critters": {
+    name: "Connect the Critters", category: "Shading", ink: "#7a4a1f",
     summary: "Place the pieces so they cover every critter and join up into one group.",
-    origin: "Our own name for a placement puzzle like Beast Academy's in its Puzzle Lab.",
+    origin: "A placement puzzle from Beast Academy's maths books for kids and its online Puzzle Lab.",
     rules: [
       { text: "Shade squares to place every piece under the board exactly once. Pieces can be turned but not flipped (unless the puzzle says so), and never overlap.", checks: ["pieces"], pictures: [
         { ok: true, note: "Turned is fine", size: [3, 2], givens: [bank([0, 1], [0, 2], [1, 0], [1, 1])], shade: ["#.", "##", ".#"] },
@@ -859,12 +859,12 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Tap a cell to shade it, again for a dot (empty), again to clear.",
-    example: "critters/1.json",
+    example: "connect-the-critters/1.json",
   },
-  "symmetry-cut": {
-    name: "Symmetry Cut", category: "Regions", ink: "#a3343f",
+  "find-the-cut-line": {
+    name: "Find the Cut Line", category: "Regions", ink: "#a3343f",
     summary: "Cut the shape into two pieces (or three), each of them symmetric.",
-    origin: "Our own name for a cutting puzzle like Beast Academy's in its Puzzle Lab.",
+    origin: "A cutting puzzle from Beast Academy's online Puzzle Lab.",
     rules: [
       { text: "Cut the shape along the grid lines into two pieces (or as many as the puzzle says). Dark squares aren't part of it.", checks: ["region-count"], pictures: [
         { ok: true, note: "Two pieces", size: [2, 3], regions: ["aab", "abb"] },
@@ -877,12 +877,12 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Drag along the lines between cells to cut, or pick a color and paint cells into a piece.",
-    example: "symmetry-cut/1.json",
+    example: "find-the-cut-line/1.json",
   },
-  kinship: {
-    name: "Kinship", category: "Numbers", ink: "#2b2b30",
+  "twins-and-triplets": {
+    name: "Twins and Triplets", category: "Numbers", ink: "#2b2b30",
     summary: "Place every tile so that tiles side by side share a colour or a shape.",
-    origin: "Our own rule set, after the idea of a tile-placing puzzle in Beast Academy's Puzzle Lab.",
+    origin: "A tile-placing puzzle from Beast Academy's online Puzzle Lab. Beast Academy doesn't publish its rules in words; ours were worked out from its puzzles.",
     rules: [
       { text: "There's one tile of every shape in every colour. Place each tile once, one in every open square; some are placed already.", checks: ["tiles"], pictures: [
         { ok: true, note: "All six", size: [1, 6], digits: ["124365"] },
@@ -894,6 +894,6 @@ export const guides: Record<GenreName, Guide> = {
       ] },
     ],
     controls: "Tap a square, then a tile on the pad. Erase takes a tile back.",
-    example: "kinship/1.json",
+    example: "twins-and-triplets/1.json",
   },
 };

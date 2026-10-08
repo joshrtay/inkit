@@ -181,10 +181,10 @@ export const genres = {
     rules: [{ rule: "line-shares" }, { rule: "no-three-in-a-row" }, { rule: "unique-lines" }],
     style: { palette: ["#ef5a6a", "#3fb0e6"] },
   },
-  // Colour Balance (our name): paint every cell one of 2 or 3 colors so each row and column has its
+  // Abstract Art (Beast Academy's): paint every cell one of 2 or 3 colors so each row and column has its
   // share of each (a puzzle's own line-shares: half and half, a third each, a third and two thirds);
   // a puzzle may add no-three-in-a-row or unique-lines. The palette is the colors (2 or 3).
-  "colour-balance": {
+  "abstract-art": {
     marks: ["paint"],
     rules: [{ rule: "line-shares" }],
     style: { palette: ["#3fb0e6", "#f7cf3d"] },
@@ -199,13 +199,13 @@ export const genres = {
   // Hidoku (a number snake): fill every open cell with 1 to N so each number touches the next, at a
   // side or a corner. Without diagonals (a puzzle's own number-path rule) it's sides only.
   hidoku: { marks: ["digit"], rules: [{ rule: "number-path", diagonals: true }], style: {} },
-  // Hex Hidoku: the same on hexagons, each touching six others
-  "hex-hidoku": { marks: ["digit"], rules: [{ rule: "number-path" }], style: {}, geometry: "hex" },
-  // Missing Number: fill every hexagon with the smallest number none of its neighbours has
-  "missing-number": { marks: ["digit"], rules: [{ rule: "smallest-missing" }], style: {}, geometry: "hex" },
-  // Distance Path: join the dots on a lattice into one path of straight segments whose lengths are
+  // Honeycomb Paths: the same on hexagons, each touching six others
+  "honeycomb-paths": { marks: ["digit"], rules: [{ rule: "number-path" }], style: {}, geometry: "hex" },
+  // Hive: fill every hexagon with the smallest number none of its neighbours has
+  hive: { marks: ["digit"], rules: [{ rule: "smallest-missing" }], style: {}, geometry: "hex" },
+  // Pythagorean Paths: join the dots on a lattice into one path of straight segments whose lengths are
   // the listed ones (√5 and so on), each used once; it never crosses itself
-  "distance-path": { marks: ["loop"], rules: [{ rule: "distance-path" }], style: {}, geometry: "lattice" },
+  "pythagorean-paths": { marks: ["loop"], rules: [{ rule: "distance-path" }], style: {}, geometry: "lattice" },
   // Fillomino: split the grid into regions; a number is its region's size, and regions of the same
   // size never share a side. A puzzle may also allow only some sizes (its own allowed-sizes rule).
   fillomino: {
@@ -213,9 +213,9 @@ export const genres = {
     rules: [{ rule: "size-clue" }, { rule: "neighbors-differ-size" }],
     style: { palette: ["#f2c23a", "#4f9fdc", "#e2667a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
-  // Sum Regions (ours): every cell has a number; split the grid into regions whose numbers each add
+  // Sum Blobs (Beast Academy's): every cell has a number; split the grid into regions whose numbers each add
   // up to the target (the puzzle's own region-sum rule; 10 if it doesn't say)
-  "sum-regions": {
+  "sum-blobs": {
     marks: ["regions"],
     rules: [{ rule: "region-sum", is: 10 }],
     style: { palette: ["#6cbf7e", "#f2c23a", "#4f9fdc", "#e2667a", "#a77bd6", "#f29a52"] },
@@ -227,31 +227,31 @@ export const genres = {
     rules: [{ rule: "shape-bank", once: true }],
     style: { palette: ["#a77bd6", "#f2c23a", "#4f9fdc", "#e2667a", "#6cbf7e", "#f29a52"] },
   },
-  // Critter Connecting (ours): shade cells to place the bank's pieces, each once and only turned;
+  // Connect the Critters (Beast Academy's): shade cells to place the bank's pieces, each once and only turned;
   // together they cover every critter and make one connected group
-  critters: {
+  "connect-the-critters": {
     marks: ["shade"],
     rules: [{ rule: "pieces" }, { rule: "cover-symbols" }, { rule: "connected" }],
     style: { empty: "dot" },
   },
-  // Symmetry Cut (ours): cut the board (rocks are holes) into two pieces (or three: the puzzle's own
+  // Find the Cut Line (Beast Academy's): cut the board (rocks are holes) into two pieces (or three: the puzzle's own
   // region-count), each symmetric: a mirror image of itself, the same turned halfway round, or either
-  "symmetry-cut": {
+  "find-the-cut-line": {
     marks: ["regions"],
     rules: [{ rule: "region-count", is: 2 }, { rule: "symmetric-regions" }],
     style: { palette: ["#4f9fdc", "#e2667a", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
-  // Kinship (ours, after the idea of Beast Academy's Twins and Triplets): place a set of tiles,
+  // Twins and Triplets (Beast Academy's; its rules here are inferred from puzzles): place a set of tiles,
   // every shape in every colour once, one per open cell, so tiles side by side share a colour or a
   // shape. Tiles are digits (rules.ts tileOf); given ones are placed already.
-  kinship: {
+  "twins-and-triplets": {
     marks: ["digit"],
     rules: [{ rule: "tiles", kinds: 2, colors: 3 }, { rule: "shared-feature" }],
     style: {},
   },
 } satisfies Record<string, Genre>;
 
-/** The colors a Colour Balance puzzle can use (its palette is the first 2 or 3). */
+/** The colors an Abstract Art puzzle can use (its palette is the first 2 or 3). */
 export const BALANCE_COLORS = ["#3fb0e6", "#f7cf3d", "#ef5a6a"];
 
 /** Must a puzzle of this genre have exactly one solution (most), or just one or more (panels)? */
@@ -294,7 +294,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
       if (g.kind === "color" && (!Number.isInteger(g.value) || g.value < 1)) throw new Error(`a printed color is a palette color, 1 or more (cell ${g.cell[0]},${g.cell[1]} has ${g.value})`);
       if (g.kind === "number" && g.letter !== undefined && !/^[A-Z]$/.test(g.letter)) throw new Error(`a cipher letter is one capital letter (cell ${g.cell[0]},${g.cell[1]} has "${g.letter}")`);
       if (g.kind === "peg") {
-        if (grid.kind !== "lattice") throw new Error("a dot on a lattice point needs a lattice (Distance Path)");
+        if (grid.kind !== "lattice") throw new Error("a dot on a lattice point needs a lattice (Pythagorean Paths)");
         if (pegs.includes(grid.cell(...g.cell))) throw new Error(`two dots on one point (${g.cell[0]},${g.cell[1]})`);
         pegs.push(grid.cell(...g.cell));
       }
@@ -348,7 +348,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const own = new Set((spec.rules ?? []).map((s) => s.rule));
   const rules = [...(genre?.rules ?? []).filter((s) => !own.has(s.rule)), ...(spec.rules ?? [])];
   rules.forEach(blockFor);   // fails early on an unknown rule
-  const tiles = rules.find((s) => s.rule === "tiles");   // Kinship: one digit per tile
+  const tiles = rules.find((s) => s.rule === "tiles");   // Twins and Triplets: one digit per tile
   if (!unfinished && rules.some((s) => s.rule === "perfect-maze" || s.rule === "path")) {
     const roles = [...doors.values()];
     if (roles.filter((r) => r === "in").length !== 1 || roles.filter((r) => r === "out").length !== 1)

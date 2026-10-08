@@ -26,7 +26,7 @@ export interface GenerateOptions {
   stars?: number;
   /** Akari: a cipher, with letters for its numbers */
   cipher?: boolean;
-  /** Distance Path: how segments may run (queen, knight; any if not given), and how many dots */
+  /** Pythagorean Paths: how segments may run (queen, knight; any if not given), and how many dots */
   moves?: string;
   dots?: number;
 }
@@ -95,7 +95,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "binairo" || genre === "colour-balance" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "hex-hidoku", "missing-number"].includes(genre) ? [...b.digit].join("") : genre === "distance-path" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "binairo" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -130,7 +130,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
 
   const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
   let result: GridSpec | null = null;
-  // Fillomino, Sum Regions, Polyomino Packing, Critter Connecting, Symmetry Cut, Kinship: ./pieces.ts
+  // Fillomino, Sum Blobs, Polyomino Packing, Connect the Critters, Find the Cut Line, Twins and Triplets: ./pieces.ts
   if (PIECE_GENRES.includes(genre)) return makePieceGenre(genre, rows, cols, rand, o.rules);
 
   for (let attempt = 0; attempt < 40 && !result; attempt++) {
@@ -491,7 +491,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : x.at === "line" ? `l${x.corners}` : x.at === "aside" ? `a${x.value}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
         if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
       }
-    } else if (genre === "hidoku" || genre === "hex-hidoku") {
+    } else if (genre === "hidoku" || genre === "honeycomb-paths") {
       // sometimes a rock or two (squares only), a random path of numbers through the rest, then given
       // numbers until it's the only one; 1 and the last number are always shown
       const n = rows * cols, givens: Given[] = [];
@@ -504,14 +504,14 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const ends = open.filter((i) => target.digit[i] === 1 || target.digit[i] === last);
       const pool: Given[] = open.filter((i) => !ends.includes(i)).map((i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
       result = await narrow({ ...base, givens: [...givens, ...ends.map((i): Given => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }))] }, target, pool);
-    } else if (genre === "missing-number") {
+    } else if (genre === "hive") {
       // a random filling, then given numbers until it's the only one
       const base: GridSpec = { genre, size: [rows, cols], givens: [] };
       const target = await randomBoard(base, "");
       if (!target) continue;
       const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
       result = await narrow(base, target, pool);
-    } else if (genre === "distance-path") {
+    } else if (genre === "pythagorean-paths") {
       // dots at random points, a random path through them (no crossings), and its segments' lengths;
       // kept when no other path has the same lengths
       const n = rows * cols, k = o.dots ?? Math.max(4, Math.min(8, Math.round(n * 0.4)));
@@ -534,12 +534,12 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const mix = (o.mix ?? "squares") as (typeof PANEL_MIXES)[number];
       if (!PANEL_MIXES.includes(mix)) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}`);
       result = await makePanel(mix, rows, cols, rand);
-    } else if (genre === "binairo" || genre === "colour-balance") {
-      // a random painting, then printed colors until it's the only one. Colour Balance's --rules:
+    } else if (genre === "binairo" || genre === "abstract-art") {
+      // a random painting, then printed colors until it's the only one. Abstract Art's --rules:
       // "parts=1:2" (the shares; three parts, three colors), and no-three-in-a-row, unique-lines
       const rules: RuleSpec[] = [];
       let colors = 2;
-      for (const w of (genre === "colour-balance" ? o.rules ?? "" : "").split(",").map((x) => x.trim()).filter(Boolean)) {
+      for (const w of (genre === "abstract-art" ? o.rules ?? "" : "").split(",").map((x) => x.trim()).filter(Boolean)) {
         const [k, v] = w.split("=");
         if (k === "parts") { const parts = v.split(":").map(Number); colors = parts.length; rules.push({ rule: "line-shares", parts }); }
         else rules.push({ rule: k });

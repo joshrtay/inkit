@@ -61,7 +61,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   if (isShaped(p)) return shapedSvg(p, b, label, { room: opts.room });
   const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
   const paint = marks.includes("paint"), palette = p.style.palette?.length ? p.style.palette : PAINT;
-  // a digit, or a Kinship tile
+  // a digit, or a Twins and Triplets tile
   const tiles = tileSpec(p);
   const digitMark = (d: number, given: boolean, x: number, y: number) => tiles ? tileSvg(tileOf(tiles, d), x, y, S)
     : text({ class: given ? "digit given" : "digit", x, y: y + 2 }, symbolOf(p, d));

@@ -110,25 +110,25 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   maze: ["corner", "wall", "door", "erase"],
   // the line's start, ends, gaps and dots, then the symbols in the cells
   panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
-  // printed colors (Colour Balance's shares and extra rules are in the toolbar)
+  // printed colors (Abstract Art's shares and extra rules are in the toolbar)
   binairo: ["paint", "erase"],
-  "colour-balance": ["paint", "erase"],
+  "abstract-art": ["paint", "erase"],
   // black squares and printed digits (the list is in the toolbar)
   "fill-in": ["block", "number", "erase"],
-  // number paths: numbers and rocks, on squares or hexagons; Missing Number the same on hexagons
+  // number paths: numbers and rocks, on squares or hexagons; Hive the same on hexagons
   hidoku: ["number", "block", "erase"],
-  "hex-hidoku": ["number", "block", "erase"],
-  "missing-number": ["number", "block", "erase"],
+  "honeycomb-paths": ["number", "block", "erase"],
+  "hive": ["number", "block", "erase"],
   // a lattice: its dots, and the lengths under it
-  "distance-path": ["peg", "lengths", "erase"],
-  // Fillomino's allowed sizes, Sum Regions' target, Symmetry Cut's pieces and symmetry, Critter
-  // Connecting's flipping and Kinship's tiles are set in the toolbar (typeSettings below)
+  "pythagorean-paths": ["peg", "lengths", "erase"],
+  // Fillomino's allowed sizes, Sum Blobs' target, Find the Cut Line's pieces and symmetry, Critter
+  // Connecting's flipping and Twins and Triplets' tiles are set in the toolbar (typeSettings below)
   fillomino: ["number", "erase"],
-  "sum-regions": ["number", "block", "erase"],
+  "sum-blobs": ["number", "block", "erase"],
   "polyomino-packing": ["bank", "block", "erase"],
-  critters: ["symbol", "bank", "block", "erase"],
-  "symmetry-cut": ["block", "erase"],
-  kinship: ["tile", "block", "erase"],
+  "connect-the-critters": ["symbol", "bank", "block", "erase"],
+  "find-the-cut-line": ["block", "erase"],
+  "twins-and-triplets": ["tile", "block", "erase"],
 };
 
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in TOOLS;
@@ -161,7 +161,7 @@ function ShapePad({ cells, onChange }: { cells: RC[]; onChange: (cells: RC[]) =>
     </span>
   );
 }
-/** Colour Balance's shares, as the toolbar offers them: the parts, the button, its title. */
+/** Abstract Art's shares, as the toolbar offers them: the parts, the button, its title. */
 const SHARES: [number[], string, string][] = [
   [[1, 1], "½ ½", "Half and half (two colors)"], [[1, 2], "⅓ ⅔", "A third and two thirds (two colors)"],
   [[1, 1, 1], "⅓ ⅓ ⅓", "A third each (three colors)"], [[1, 1, 2], "¼ ¼ ½", "A quarter, a quarter and a half (three colors)"],
@@ -228,10 +228,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const [hollow, setHollow] = useState(false);
   // Panes: the shape on the shape pad (a Polyomino clue, or one for the bank)
   const [pad, setPad] = useState<RC[]>([[0, 0], [1, 0], [1, 1]]);
-  // Kinship: the tile placed
+  // Twins and Triplets: the tile placed
   const [tileAt, setTileAt] = useState(1);
   const [typing, setTyping] = useState<(Typing & { value: string }) | null>(null);
-  // Binairo, Colour Balance: the color printed in a square
+  // Binairo, Abstract Art: the color printed in a square
   const [paintColor, setPaintColor] = useState(1);
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -567,8 +567,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     <label className="be-group" title="Only these region sizes (e.g. 4 6); empty for any size">Sizes
       <input key={sizesNow.join(" ")} className="be-sizes" placeholder="any" aria-label="Allowed sizes" defaultValue={sizesNow.join(" ")} size={6}
         onBlur={(e) => { const z = e.target.value.trim().split(/[\s,]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0); setSetting("allowed-sizes", "sizes", z.length ? z : undefined, true); }} /></label>
-  ) : genre === "sum-regions" ? stepper("Target", Number(setting("region-sum", "is") ?? 10), (n) => setSetting("region-sum", "is", n), 1, 99)
-    : genre === "symmetry-cut" ? (<>
+  ) : genre === "sum-blobs" ? stepper("Target", Number(setting("region-sum", "is") ?? 10), (n) => setSetting("region-sum", "is", n), 1, 99)
+    : genre === "find-the-cut-line" ? (<>
       <span className="be-group be-seg" role="group" aria-label="Pieces">
         {[2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={Number(setting("region-count", "is") ?? 2) === n} onClick={() => setSetting("region-count", "is", n)}>{n} pieces</button>)}
       </span>
@@ -577,10 +577,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           onClick={() => setSetting("symmetric-regions", "symmetry", m)}>{m === "mirror" ? "Mirror" : m === "turn" ? "Half turn" : "Either"}</button>)}
       </span>
     </>)
-    : genre === "critters" ? (
+    : genre === "connect-the-critters" ? (
       <button type="button" className="be-btn" aria-pressed={!!setting("pieces", "flip")} onClick={() => setSetting("pieces", "flip", !setting("pieces", "flip"))}
         title="Pieces may be flipped over as well as turned">Pieces may flip</button>
-    ) : genre === "kinship" ? (<>
+    ) : genre === "twins-and-triplets" ? (<>
       {stepper("Shapes", tileKinds(tilesRule), (n) => setSetting("tiles", "kinds", n), 1, 3)}
       {stepper("Colours", tileColors(tilesRule), (n) => setSetting("tiles", "colors", n), 1, 3)}
     </>) : null;
@@ -643,7 +643,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
             title={on ? "Each number shares a side with the next" : "Each number touches the next at a side or a corner"}>{on ? "Sides only" : "Corners too"}</button>)}
         </span>
       )}
-      {genre === "distance-path" && (
+      {genre === "pythagorean-paths" && (
         <span className="be-group be-seg" role="group" aria-label="How segments run">
           {([null, "queen", "knight"] as const).map((m) => <button key={m ?? "any"} type="button" className="be-btn" aria-pressed={ops.movesOf(spec) === m} onClick={() => change(ops.setMoves(spec, m))}
             title={m === "queen" ? "Straight across, up and down, or diagonal" : m === "knight" ? "Each segment one knight's jump (1 and 2)" : "Any way, dot to dot"}>{m ? capital(m) : "Any way"}</button>)}
@@ -654,7 +654,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={stars === n} onClick={() => change(ops.setStars(spec, n))}>{n} star{n > 1 ? "s" : ""}</button>)}
         </span>
       )}
-      {genre === "colour-balance" && (
+      {genre === "abstract-art" && (
         <>
           <span className="be-group be-seg" role="group" aria-label="Each row's and column's shares">
             {SHARES.map(([parts, label, title]) => <button key={label} type="button" className="be-btn" aria-pressed={sameParts(shares, parts)} title={title}

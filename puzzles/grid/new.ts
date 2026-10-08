@@ -16,11 +16,11 @@
 //   node puzzles/grid/new.ts --genre panel --mix squares --size 4x4 --number 8 --name "Two Tones"   (mixes: panels.ts)
 //   node puzzles/grid/new.ts --genre akari --cipher --size 6x6 --number 3 --name "Secret Code"   (letters for numbers)
 //   node puzzles/grid/new.ts --genre binairo --size 6x6 --number 1 --name "Red and Blue"
-//   node puzzles/grid/new.ts --genre colour-balance --size 6x6 --number 1 --name "Thirds" --rules "parts=1:1:1,no-three-in-a-row"
+//   node puzzles/grid/new.ts --genre abstract-art --size 6x6 --number 1 --name "Thirds" --rules "parts=1:1:1,no-three-in-a-row"
 //   node puzzles/grid/new.ts --genre fill-in --size 5x5 --number 1 --name "Number Fit"
 //   node puzzles/grid/new.ts --genre hidoku --size 4x4 --number 1 --name "Snake" [--moves sides]   (sides: no corners)
-//   node puzzles/grid/new.ts --genre hex-hidoku --size 4x4 --number 1 --name "Honeycomb"
-//   node puzzles/grid/new.ts --genre distance-path --size 4x4 --number 1 --name "Geoboard" [--dots 6] [--moves queen|knight]
+//   node puzzles/grid/new.ts --genre honeycomb-paths --size 4x4 --number 1 --name "Honeycomb"
+//   node puzzles/grid/new.ts --genre pythagorean-paths --size 4x4 --number 1 --name "Geoboard" [--dots 6] [--moves queen|knight]
 //
 // How a puzzle is made is in ./generate.ts (also used by puzzles/ai/week.ts, the AI creators'
 // weekly batch). The site build re-proves the result is unique.

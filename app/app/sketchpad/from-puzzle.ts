@@ -221,7 +221,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
     switch (gv.kind) {
       case "number": {
         const [r, c] = gv.cell;
-        // a Kinship tile: its shape's stamp (stone, crest, triangle) in its colour
+        // a Twins and Triplets tile: its shape's stamp (stone, crest, triangle) in its colour
         if (tiles) {
           const t = tileOf(tiles, gv.value), at: m.Anchor = { at: "cell", r, c };
           stamp({ kind: "stamp", stamp: t.kind, color: t.color, ...(t.kind === "triangle" ? { count: 1 } : {}), at }, "tile");
@@ -333,7 +333,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
       case "eraser":
         stamp({ kind: "stamp", stamp: "eraser", color: colour(gv.color, "white", "an eraser", true), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "eraser");
         break;
-      // a printed color (Binairo, Colour Balance): the square washed in it
+      // a printed color (Binairo, Abstract Art): the square washed in it
       case "color": {
         const name = colorName(p, gv.value);
         if ((m.WASHES as readonly string[]).includes(name)) d = m.washCell(d, { at: "cell", r: gv.cell[0], c: gv.cell[1] }, name as m.WashColor, true);

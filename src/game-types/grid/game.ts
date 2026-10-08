@@ -52,9 +52,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   if (marks.includes("paint") && p.figure) return createFigure(p, root, host);   // painted pieces (Three Coats)
   if (isShaped(p)) return createShaped(p, root, host);               // hexagons, a lattice, a number path
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
-  // paint on the grid's cells (Binairo, Colour Balance): pick a pot and paint; printed colors stay
+  // paint on the grid's cells (Binairo, Abstract Art): pick a pot and paint; printed colors stay
   const paintGrid = marks.includes("paint");
-  const tiles = tileSpec(p);   // Kinship: digits are drawn as tiles
+  const tiles = tileSpec(p);   // Twins and Triplets: digits are drawn as tiles
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const links = p.rules.some((s) => s.rule === "links");
   const palette = p.style.palette ?? (paintGrid ? ["#ef5a6a", "#f7cf3d", "#3fb0e6"] : []);
@@ -677,7 +677,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const pencilBtn = root.querySelector<HTMLButtonElement>("[data-pencil]");
   const setPencil = (on: boolean) => { pencilMode = on; pencilBtn?.setAttribute("aria-pressed", String(on)); };
   root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => b.addEventListener("click", () => enter(Number(b.dataset.digit))));
-  // Kinship: the pad's buttons are its tiles
+  // Twins and Triplets: the pad's buttons are its tiles
   if (tiles) root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => {
     const d = Number(b.dataset.digit);
     if (d < 1) return;

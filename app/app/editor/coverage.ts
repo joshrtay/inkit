@@ -15,19 +15,19 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
   | "inequality" | "difference" | "watchtower" | "bank"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
   | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser"
-  // Binairo and Colour Balance: a printed color in a square
+  // Binairo and Abstract Art: a printed color in a square
   | "paint"
-  // lattices (Distance Path): dots on the points, and the path's lengths
+  // lattices (Pythagorean Paths): dots on the points, and the path's lengths
   | "peg" | "lengths"
-  // Kinship: a tile in a square (a number given, drawn as its tile)
+  // Twins and Triplets: a tile in a square (a number given, drawn as its tile)
   | "tile";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
-  rules: "Star Battle's stars; a panel's symmetry; Colour Balance's shares and extra rules; the Rules panel (Panes, and admins)",
-  style: "the Look panel (admins); Colour Balance's colors (its shares)", picture: "Picture, and painting (Nonogram)",
-  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Hex Hidoku, Missing Number; a lattice: Distance Path)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
+  rules: "Star Battle's stars; a panel's symmetry; Abstract Art's shares and extra rules; the Rules panel (Panes, and admins)",
+  style: "the Look panel (admins); Abstract Art's colors (its shares)", picture: "Picture, and painting (Nonogram)",
+  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Honeycomb Paths, Hive; a lattice: Pythagorean Paths)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
   entries: "the Numbers box in the toolbar (Number Fill-In)",
 };
 
@@ -112,15 +112,15 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "panel-line": { label: "A line from a start circle to an end on the edge", settings: [{ key: "symmetry", label: "two lines, mirrored", type: "choice", choices: ["left-right", "up-down", "turn"], none: "no (one line)" }] },
   "panel-symbols": { label: "The symbols in the cells say where the line goes", settings: [] },
   "number-path": { label: "Numbers 1 to the last, each touching the next (Hidoku)", settings: [{ key: "diagonals", label: "touching at a corner counts (squares)", type: "flag" }] },
-  "smallest-missing": { label: "Each number is the smallest its neighbours lack (Missing Number)", settings: [] },
-  "distance-path": { label: "One path through the dots, with the listed lengths (Distance Path)", settings: [{ key: "moves", label: "segments run", type: "choice", choices: ["queen", "knight"], none: "any way" }] },
+  "smallest-missing": { label: "Each number is the smallest its neighbours lack (Hive)", settings: [] },
+  "distance-path": { label: "One path through the dots, with the listed lengths (Pythagorean Paths)", settings: [{ key: "moves", label: "segments run", type: "choice", choices: ["queen", "knight"], none: "any way" }] },
   "allowed-sizes": { label: "Only these region sizes (Fillomino)", settings: [{ key: "sizes", label: "sizes", type: "list" }] },
   "region-sum": { label: "Each region's numbers add up to", settings: [{ key: "is", label: "target", type: "number" }] },
   "region-count": { label: "How many pieces", settings: [{ key: "is", label: "pieces", type: "number" }] },
   "symmetric-regions": { label: "Every piece is symmetric", settings: [{ key: "symmetry", label: "kind", type: "choice", choices: ["mirror", "turn"], none: "either" }] },
   pieces: { label: "Shaded cells are the bank's pieces, each once", settings: [{ key: "flip", label: "may be flipped", type: "flag" }] },
   "cover-symbols": { label: "Every critter (✦) is shaded", settings: [] },
-  tiles: { label: "Place every tile once (Kinship)", settings: [{ key: "kinds", label: "shapes (1-3)", type: "number" }, { key: "colors", label: "colours (1-3)", type: "number" }] },
+  tiles: { label: "Place every tile once (Twins and Triplets)", settings: [{ key: "kinds", label: "shapes (1-3)", type: "number" }, { key: "colors", label: "colours (1-3)", type: "number" }] },
   "shared-feature": { label: "Tiles side by side share a colour or a shape", settings: [] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
   "line-shares": { label: "Each row and column has its share of each color", settings: [{ key: "parts", label: "shares, one per color (1 1 = half and half)", type: "list" }] },
