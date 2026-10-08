@@ -74,7 +74,7 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
   pots.forEach((b) => b.addEventListener("click", () => pick(Number(b.dataset.color))));
   const heartsEl = q<HTMLElement>("[data-hearts]");
   if (!maxHearts) { q("[data-hearts]")?.remove(); }
-  else { q("[data-undo]")?.remove(); q("[data-check]")?.remove(); }
+  else q("[data-undo]")?.remove();
 
   function render() {
     shapes.forEach((s, i) => {
@@ -136,14 +136,6 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
     const last = history.pop();
     if (!last || solved) return;
     color[last[0]] = last[1]; gErr.replaceChildren(); settle();
-  });
-  q<HTMLButtonElement>("[data-check]")?.addEventListener("click", () => {
-    const ps = check(p, paintBoard());
-    gErr.replaceChildren();
-    if (!ps.length) { say("Solved!", "good"); return; }
-    say(ps[0].message, "warn");
-    for (const i of ps[0].cells ?? []) el("polygon", { points: ptsOf(pieces[i]) }, gErr);
-    setTimeout(() => { gErr.replaceChildren(); if (status.classList.contains("warn")) say(""); }, 4000);
   });
   const reset = q<HTMLButtonElement>("[data-reset]");
   let confirming = false;

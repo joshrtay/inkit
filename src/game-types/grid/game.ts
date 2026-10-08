@@ -14,7 +14,7 @@ import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
 import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/rules.ts";
-import { emptyBoard, type Board, type Problem } from "../../engine/types.ts";
+import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
 import { createFigure } from "./figure";
@@ -96,7 +96,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // ---- layers, back to front ----
   const gTint = el("g", {}), gReveal = el("g", { class: "reveal wash" }), gWash = el("g", { class: "wash" }), gRocks = el("g", { class: "wash" });
   const gGrid = el("g", { class: "gridlines" }), gWater = el("g", { class: "water" }), gLines = el("g", {}), gGivens = el("g", {});
-  const gMarks = el("g", { class: "marks" }), gHint = el("g", {}), gErr = el("g", { class: "errors" });
+  const gMarks = el("g", { class: "marks" }), gHint = el("g", {});
   const gWalk = el("g", { class: "walk" }), gCorners = el("g", {});
 
   // ---- what never changes: grid, rocks, walls, clues ----
@@ -324,16 +324,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     root.classList.toggle("solved", solved);
   }
 
-  function showProblems(ps: Problem[]) {
-    gErr.replaceChildren();
-    for (const pr of ps) {
-      for (const i of pr.cells ?? []) cellRect(i, "", gErr);
-      for (const e of pr.borders ?? []) { const [[x1, y1], [x2, y2]] = borderXY(e); el("line", { x1, y1, x2, y2 }, gErr); }
-      for (const l of pr.links ?? []) { const [x1, y1] = center(g.links[l].cells[0]), [x2, y2] = center(g.links[l].cells[1]); el("line", { x1, y1, x2, y2 }, gErr); }
-    }
-  }
   let errTimer = 0;
-  const clearProblems = () => { gErr.replaceChildren(); gHint.replaceChildren(); clearTimeout(errTimer); };
+  const clearProblems = () => { gHint.replaceChildren(); clearTimeout(errTimer); };
 
   /** nonogram helpers: tick a line's numbers once it matches, and X out the rest of a ticked line */
   function assist() {
@@ -599,15 +591,6 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     if (!last) return;
     for (const [layer, i, v] of last.reverse()) board[layer][i] = v;
     clearProblems(); afterChange();
-  });
-  q<HTMLButtonElement>("[data-check]").addEventListener("click", () => {
-    const ps = check(p, board);
-    if (walk?.active && !solved) { say("The walls are right. Drag from the arrow in to the arrow out.", "good"); return; }
-    if (!ps.length) { say("Solved!", "good"); return; }
-    say(ps[0].message, "warn");
-    showProblems(ps.filter((x) => x.message === ps[0].message));   // just what the note is about
-    clearTimeout(errTimer);
-    errTimer = window.setTimeout(() => { clearProblems(); if (status.classList.contains("warn")) say(""); }, 4000);
   });
   root.querySelector<HTMLButtonElement>("[data-hint]")?.addEventListener("click", () => {
     if (solved) return;

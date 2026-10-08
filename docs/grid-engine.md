@@ -51,7 +51,7 @@ nonogram's runs or a `total` beside a row or above a column, a clue outside the 
 **Rules** are configured *building blocks* (`src/engine/rules.ts`). Each block does four
 jobs:
 
-1. **check** a board and point at what's wrong (browser: Check button, auto-solve),
+1. **check** a board and point at what's wrong (browser: auto-solve),
 2. **encode** itself for the solver (answer set programming, run with clingo),
 3. **describe** itself in plain words for the "How to play" card,
 4. say which shared structures (regions, shapes) its encoding needs.

@@ -30,7 +30,7 @@ function markup(l: Layout) {
   return `<div class="grid-game"${l.ink ? ` style="--paper-ink: ${esc(l.ink)}"` : ""}>
     <div class="sheet"${l.digits ? ' style="--below: 46px"' : ""}>
       <div class="paper-bar"><div class="group">${pots}</div><div class="status" aria-live="polite"></div>
-        <div class="group">${l.hearts ? '<div class="hearts" data-hearts role="img"></div>' : ""}${tool("undo", "Undo", "undo")}${l.hints ? tool("hint", "Hint", "hint") : ""}${tool("check", "Check", "check")}${tool("reset", "Reset", "reset")}</div></div>
+        <div class="group">${l.hearts ? '<div class="hearts" data-hearts role="img"></div>' : ""}${tool("undo", "Undo", "undo")}${l.hints ? tool("hint", "Hint", "hint") : ""}${tool("reset", "Reset", "reset")}</div></div>
       <svg class="board" role="img" aria-label="Puzzle grid"></svg>${pad}${sign}
     </div></div>`;
 }
