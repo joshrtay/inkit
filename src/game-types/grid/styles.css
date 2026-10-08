@@ -144,7 +144,7 @@
 .sheet > svg:not(.celebration):not(.solved-stamp) { filter: url(#pen) grayscale(var(--gray)) opacity(calc(1 - var(--gray) * .45)); transition: --gray .6s ease; }
 .sheet.drained > svg:not(.celebration):not(.solved-stamp) { --gray: 1; transition-duration: .35s; }
 .sheet > svg.celebration { position: absolute; display: block; filter: none; cursor: default; pointer-events: none; overflow: visible; z-index: 3; }
-.celebration .drop { fill: var(--c); }
+.celebration .ink-drop { fill: var(--c); }
 .celebration .flier { transition: transform .65s cubic-bezier(.5, 0, .2, 1); }
 .check-ink { fill: none; stroke: var(--paper-ink, #26398f); stroke-linecap: round; stroke-linejoin: round; }
 /* the transition only once it draws, so hiding it at the start doesn't animate */

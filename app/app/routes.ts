@@ -10,6 +10,7 @@ export default [
   route("new", "routes/new.tsx"),
   route("studios/new", "routes/studio-new.tsx"),
   route("explore", "routes/explore.tsx"),
+  route("settings", "routes/settings.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("terms", "routes/terms.tsx"),
   route("puzzles", "routes/puzzles.tsx"),

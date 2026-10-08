@@ -38,8 +38,10 @@ givens, areas, picture, rules). The engine checks and plays it. Creators never s
 
 **Pages**: Subscriptions (the home feed), Explore (creators), Puzzle types (`/puzzles`, the
 guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Subscriptions), games at
-`/g/<id>`, Create (`/new`), sign-in (Better Auth: email + password, Google), privacy and terms.
-The left nav (`components/Shell.tsx`) frames every page except the editor.
+`/g/<id>`, Create (`/new`), Settings (`/settings`: profile, email, password, handle, appearance),
+sign-in (Better Auth: email + password, Google), privacy and terms. The left nav
+(`components/Shell.tsx`: Subscriptions, Explore, Profile, Create, and More at the bottom with
+Settings, Puzzle types and Sign out) frames every page except the editor.
 
 **Reading a drawing** (`app/lib/read-sketch.server.ts`): Claude reads the photo into a structured
 reading (type, size, clues, rules, and doubts, each tied to a square, a line's clues, rows,

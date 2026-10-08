@@ -118,7 +118,7 @@ export function celebrate(root: HTMLElement, inks: string[]) {
   inks = [...new Set([...inks, ...painted])].slice(0, 6);
   const drops = from.map(({ x, y }, i) => {
     const r = i % 5 === 0 ? 2 + Math.random() * 1.5 : 3.5 + Math.random() * 5;
-    const e = svgEl("circle", { r: r.toFixed(1), class: "drop", cx: 0, cy: 0, filter: "url(#pen)" });
+    const e = svgEl("circle", { r: r.toFixed(1), class: "ink-drop", cx: 0, cy: 0, filter: "url(#pen)" });
     // mostly the puzzle's ink, with its other colors mixed in
     e.style.setProperty("--c", inks[i % 3 === 0 ? 1 + (i % Math.max(1, inks.length - 1)) : 0] ?? inks[0]);
     e.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(0)`);

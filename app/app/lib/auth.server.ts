@@ -6,7 +6,7 @@ import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { HANDLE_HINT, isReserved, isValidHandle, newId, slugTaken } from "./names.server";
-import { resetEmail, sendEmail } from "./email.server";
+import { newEmailEmail, resetEmail, sendEmail } from "./email.server";
 
 export function createAuth(env: Env) {
   const db = getDb(env);
@@ -27,6 +27,14 @@ export function createAuth(env: Env) {
         isAdmin: { type: "boolean", required: false, defaultValue: false, input: false },
         deletedAt: { type: "date", required: false, input: false },
       },
+      // Settings > Email: the new address gets a link, and the email changes once it's opened
+      changeEmail: { enabled: true },
+    },
+    // only used for a change of email (sign-ups aren't asked to verify)
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }) => { await sendEmail(env, { to: user.email, ...newEmailEmail(user.name, url) }); },
+      expiresIn: 60 * 60 * 24,
+      autoSignInAfterVerification: true,
     },
     emailAndPassword: {
       enabled: true,

@@ -16,6 +16,8 @@ async function load(request: Request, env: Env, slug: string) {
   const db = getDb(env);
   const collection = await collectionBySlug(db, slug.toLowerCase());
   if (!collection) throw data(null, { status: 404 });
+  // your own profile's details are in your settings
+  if (collection.personalOf === me.id) throw redirect("/settings");
   const role = await roleIn(db, collection.id, me.id);
   if (!role) throw data(null, { status: 404 });
   return { db, me, collection, role };

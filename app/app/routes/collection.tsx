@@ -103,7 +103,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
         <div className="profile-actions">
           {mine ? <CreateMenu /> : role ? <Link className="btn primary" to={`/new?in=${collection.slug}`}>New puzzle here</Link>
             : <SubscribeButton slug={collection.slug} subscribed={subscribed} signedIn={!!me} />}
-          {role && <Link className="btn" to={`/${collection.slug}/settings`}>{mine ? "Edit profile" : "Settings"}</Link>}
+          {mine ? <Link className="btn" to="/settings">Edit profile</Link> : role && <Link className="btn" to={`/${collection.slug}/settings`}>Settings</Link>}
         </div>
       </header>
 
