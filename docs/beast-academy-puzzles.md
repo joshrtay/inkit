@@ -368,11 +368,11 @@ solution. Rules are in our own words, worked out from one or two puzzles each; n
 | Find The Cut Line | Cut a shape into two pieces, each with the asked-for symmetry. | Symmetry dissection | Region division with a symmetric-region rule: new (galaxies have a related rule). |
 | Spiral Galaxies | Standard. | Spiral Galaxies | Have it. |
 | Numbercross | Place the listed numbers into the grid's across and down slots. | Number fill-in | New (word-list placement). |
-| Hive | Numbers in a honeycomb; the small examples fit "every N touches all of 1..N-1", but a bigger one didn't check out. | (unconfirmed) | Unconfirmed. |
+| Hive | Every hexagon holds the smallest positive number that none of its neighbours has, so touching hexagons never match (confirmed: BA's 4B printable, HivePuzzles.pdf, and a Well-Trained Mind thread). | (mex hive) | Hex grid plus a mex rule: being built with Hex Hidato. |
 | Laser Mazes | Push boxes so the cat can reach the milk. | Sokoban-like | Not a grid logic puzzle (moves). |
 | Akari | Standard; "Cipher" sets give clue letters standing for different numbers to work out. | Akari | Have it; ciphers would be a new clue option. |
-| Twins and Triplets | Place a given set of monster tiles; matching monsters seem to have to sit together. | (unconfirmed) | Unconfirmed. |
-| Fracturns | A small path of turn arrows and multiplications with fraction clues at the ends. | (unconfirmed) | Unconfirmed. |
+| Twins and Triplets | Monsters have two features (head and shirt colour), every combination once; place them all so side-by-side monsters share a feature. Inferred from two puzzles, not a stated rule. | — | Tile placement with an adjacency rule: being built under a name of ours. |
+| Fracturns | Digits and decimal points in a small grid; each fraction clue seems to be read as a decimal along a line that the arrows turn, with loops giving repeating decimals (⅓ = 0.333…). One clue didn't fit this reading. | — | Unconfirmed; not built. |
 | Pythagorean Paths | Join the dots into one path whose segment lengths are the listed values (√2, √8, …); sets limit moves like chess pieces. | — | New (lattice geometry). |
 
 What this adds to the shortlist: **Fillomino with allowed sizes**, **Sum Blobs** and **Abstract Art**
@@ -381,7 +381,7 @@ also open Hive.
 
 ## What we couldn't confirm
 
-- **Puzzle Lab**: now seen (above); Hive, Twins and Triplets and Fracturns are still unconfirmed.
+- **Puzzle Lab**: now seen (above); only Fracturns is still unconfirmed (no public description found).
   Before that: it has 17 types, up to 10 sets of up to 8 puzzles each, and unlocks at XP level 10. The Puzzles books'
   "find more in BA Online" notes suggest Spiral Galaxies, Shikaku, Fillomino, Fence 'Em In,
   Connect the Critters, Abstract Art and a skip-counting type, but that's inference.
