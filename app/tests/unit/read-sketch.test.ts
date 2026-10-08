@@ -157,3 +157,14 @@ describe("reading Panes (Glimmith) clues and rules", () => {
     expect(parseSketch(sketch).ok).toBe(true);
   });
 });
+
+describe("a sketchpad drawing's data, sent with its picture", () => {
+  it("is given to the reader whole, with how to read its places", async () => {
+    const { drawingBrief } = await import("~/lib/read-sketch.server");
+    const data = JSON.stringify({ page: 560, grid: { rows: 4, cols: 4, x: 0, y: 0, square: 72 }, items: [{ kind: "stamp", stamp: "start", at: { at: "corner", r: 4, c: 0 }, color: "blue" }] });
+    const brief = drawingBrief(data);
+    expect(brief).toContain(data);
+    expect(brief).toMatch(/Trust the data/);
+    expect(brief).toMatch(/symmetry panel/);
+  });
+});

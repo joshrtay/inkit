@@ -323,18 +323,18 @@ export interface Attempt {
  *  the careful reader reads it again. `previous` asks for a corrected re-read. Each look is added
  *  to `log` as it happens (so a failed read is still recorded). */
 export async function readSketch(env: Env, image: { data: string; type: ImageType },
-  options: { previous?: Previous; careful?: boolean; log?: Attempt[] } = {}) {
+  options: { previous?: Previous; careful?: boolean; log?: Attempt[]; drawing?: string } = {}) {
   const log = options.log ?? [];
   if (!env.ANTHROPIC_API_KEY) throw new Invalid("Reading sketches needs an Anthropic API key (ANTHROPIC_API_KEY) on the server.");
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   if (!options.careful && !options.previous) {
-    const quick = await readWith(client, "quick", image, options.previous, log);
+    const quick = await readWith(client, "quick", image, options.previous, log, options.drawing);
     const trouble = troubleWith(quick);
     if (!trouble.length) return { ...quick, reader: "quick" as Reader };
     log[log.length - 1].trouble = trouble;
     console.log(`sketch reader: quick read had trouble (${trouble.join("; ")}${quick.reading.problem ? `: ${quick.reading.problem}` : ""}); reading carefully`);
   }
-  const careful = await readWith(client, "careful", image, options.previous, log);
+  const careful = await readWith(client, "careful", image, options.previous, log, options.drawing);
   if (!careful.reading.readable) throw new Invalid(careful.reading.problem || "That doesn't look like a puzzle Claude can read.");
   const genre = options.previous?.genre;
   if (genre && careful.reading.genre !== genre) {   // the creator said which type it is
@@ -355,7 +355,22 @@ function typeBrief(genre: GenreName) {
   ].join("\n\n");
 }
 
-async function readWith(client: Anthropic, reader: Reader, image: { data: string; type: ImageType }, previous: Previous | undefined, log: Attempt[]) {
+/** For a drawing made in the sketchpad (/new/draw): what's on it, exactly, as its data. */
+export function drawingBrief(drawing: string) {
+  return [
+    "This picture was drawn in inkit's sketchpad, not photographed, and here is exactly what is on it, as data. "
+    + "Trust the data for the grid's size and for every stamp's and every piece of writing's kind, colour and place; use the picture to see what the pen lines and washes mean "
+    + "(walls, region borders, a loop, a thermometer, a cage) and which type of puzzle it is.",
+    "Places are given in squares from the grid's top-left corner: {at: \"cell\", r, c} is square (r, c)'s centre (r = -1 or rows, c = -1 or cols: just outside the grid, for clues beside it); "
+    + "{at: \"corner\", r, c} is the point where lines meet (0..rows, 0..cols); {at: \"edge\", r, c, side} is the middle of square (r, c)'s top or left line; "
+    + "{at: \"grid\", r, c} is a loose point in squares (fractions between); {at: \"page\", x, y} is off the grid, in page units. Rows and columns count from 0 here; in your transcription use the numbering your instructions give.",
+    "Stamps are the boards' own symbols: stone (a Masyu pearl, or a panel's coloured square), star, rock (a shaded square), galaxy (a small circle), x, dot, hoshi (a panel's dot on the line), "
+    + "start and end (a panel's line), crest (a panel's star), triangle (count 1-3), shape (a polyomino: its cells from 0,0), eraser. A start or hoshi coloured blue or yellow belongs to one of a symmetry panel's two lines.",
+    `The drawing:\n${drawing}`,
+  ].join("\n\n");
+}
+
+async function readWith(client: Anthropic, reader: Reader, image: { data: string; type: ImageType }, previous: Previous | undefined, log: Attempt[], drawing?: string) {
   const { model, effort } = READERS[reader];
   const attempt: Attempt = { reader, model, effort, ms: 0 };
   log.push(attempt);
@@ -383,6 +398,7 @@ async function readWith(client: Anthropic, reader: Reader, image: { data: string
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: image.type, data: image.data } },
+          ...(drawing ? [{ type: "text" as const, text: drawingBrief(drawing) }] : []),
           { type: "text", text: ask },
         ],
       }],
