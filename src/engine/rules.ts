@@ -81,9 +81,12 @@ const quads = (p: Puzzle) => {
 };
 /** Rectangles: around each inner grid point, two cuts meeting at a right angle make a corner that
  *  points into a region: not allowed. (A lone cut is already ruled out: a cut separates two regions.) */
-const cornerRule = (p: Puzzle) => quads(p).flatMap(([top, bottom, left, right]) =>
+const cornerRule = (p: Puzzle) => `% a line between two holes counts as a border here (it's never cut, but no region crosses it)
+rcut(L) :- cut(L).
+rcut(L) :- adj(I,J,L), blocked(I), blocked(J).
+` + quads(p).flatMap(([top, bottom, left, right]) =>
   [[top, left, bottom, right], [top, right, bottom, left], [bottom, left, top, right], [bottom, right, top, left]]
-    .map(([x, y, u, v]) => `:- cut(${x}), cut(${y}), not cut(${u}), not cut(${v}).`)).join("\n");
+    .map(([x, y, u, v]) => `:- rcut(${x}), rcut(${y}), not rcut(${u}), not rcut(${v}).`)).join("\n");
 const barLen = (s: RuleSpec) => (typeof s.length === "number" ? s.length : 3);
 /** Every place a straight block of `len` cells fits (not on clue cells or rocks). */
 const barPlacements = (p: Puzzle, len: number) => {

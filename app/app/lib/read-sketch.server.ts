@@ -511,7 +511,7 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
 
 /** A rule's settings from text like "is 4", "min 2 max 3", "box 2 3", "of symbol", "cover". */
 export function ruleSettings(text: string): Record<string, unknown> {
-  const out: Record<string, unknown> = {}, words = text.toLowerCase().replace(/[=:,x×]/g, " ").split(/\s+/).filter(Boolean);
+  const out: Record<string, unknown> = {}, words = text.toLowerCase().replace(/[=:,]/g, " ").replace(/(\d)\s*[x×]\s*(\d)/g, "$1 $2").split(/\s+/).filter(Boolean);   // "box 2x3" is two numbers; "max" keeps its x
   for (let k = 0; k < words.length; k++) {
     const w = words[k], next = words[k + 1];
     if (w === "box") { const a = Number(words[k + 1]), b = Number(words[k + 2]); if (a > 0 && b > 0) out.box = [a, b]; k += 2; }

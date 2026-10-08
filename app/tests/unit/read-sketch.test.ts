@@ -66,6 +66,10 @@ describe("reading panels", () => {
   it("reads a symmetry", () => {
     expect(ruleSettings("symmetry up-down")).toEqual({ symmetry: "up-down" });
     expect(ruleSettings("turn")).toEqual({ symmetry: "turn" });
+    // an x between numbers separates them; elsewhere it's a letter ("max", not "ma")
+    expect(ruleSettings("max 3")).toMatchObject({ max: 3 });
+    expect(ruleSettings("min 2 max 5")).toMatchObject({ min: 2, max: 5 });
+    expect(ruleSettings("box 2x3")).toMatchObject({ box: [2, 3] });
     expect(ruleSettings("symmetry sideways")).toEqual({});
   });
 
