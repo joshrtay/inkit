@@ -60,7 +60,7 @@ async function validated(f: Fields, publishing: boolean, draft = false): Promise
   }
   if (!parsed.ok) throw new Invalid(parsed.errors.join(" "));
   if (publishing && f.checked !== (await sketchHash(f.sketch))) {
-    throw new Invalid("Check the puzzle first: it needs exactly one solution to be published.");
+    throw new Invalid("Check the puzzle first: it needs exactly one solution (a panel, at least one) to be published.");
   }
   return parsed;
 }

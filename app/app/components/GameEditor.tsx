@@ -15,11 +15,12 @@ import { layoutOf } from "~/games/layout-of";
 import { doubtPlace, type Doubt } from "~/games/doubts";
 import { KIND_NAMES, kindName } from "~/games/kinds";
 import type { GridSpec } from "~site/engine/types.ts";
+import { needsOneSolution } from "~site/engine/puzzle.ts";
 import { FigureEditor } from "./FigureEditor";
 import { RulesPanel } from "./RulesPanel";
 import { LookPanel } from "./LookPanel";
 import { BoardEditor, hasBoardEditor } from "./BoardEditor";
-import { useLiveCheck } from "./useOneSolutionCheck";
+import { passed, useLiveCheck } from "./useOneSolutionCheck";
 import { Select } from "./Select";
 import { ReadingScreen } from "./ReadingScreen";
 import { PreviewScreen } from "./PreviewScreen";
@@ -142,7 +143,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
             <button type="button" className="check-chip many" title="Show the cells the clues can't pin down" onClick={() => setFlash((n) => n + 1)}>✕ {check.text}</button>
           ) : (
             <span className={`check-chip ${check.state}`} role="status" title={check.state === "broken" ? check.text : undefined}>
-              {check.state === "one" ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
+              {passed(check.state) ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
             </span>
           )}
           <button type="button" className="btn" disabled={!play} onClick={() => setPanel("preview")}>Preview</button>
@@ -272,10 +273,10 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
                 <input type="hidden" name="description" value={description} />
                 <p className="publish-what"><strong>{title.trim() || "Untitled"}</strong>{description && <span className="muted">{description}</span>}</p>
                 {!title.trim() && <p className="error">Give it a title first (at the top of the page).</p>}
-                {check.state !== "one" && <p className="error">{check.state === "checking" ? "Still checking for one solution…" : `It needs exactly one solution first (${check.state === "broken" ? check.text : check.text.toLowerCase()}).`}</p>}
+                {!passed(check.state) && <p className="error">{check.state === "checking" ? "Still checking its solutions…" : `It needs ${needsOneSolution(loose?.genre) ? "exactly one solution" : "a solution"} first (${check.state === "broken" ? check.text : check.text.toLowerCase()}).`}</p>}
                 {open > 0 && <p className="muted">{open === 1 ? "One of Claude's doubts isn't" : `${open} of Claude's doubts aren't`} checked yet.</p>}
                 <div className="editor-actions">
-                  <button className="btn primary" name="intent" value="publish" disabled={check.state !== "one" || !title.trim()}>{isDraft ? "Publish" : "Update"}</button>
+                  <button className="btn primary" name="intent" value="publish" disabled={!passed(check.state) || !title.trim()}>{isDraft ? "Publish" : "Update"}</button>
                   {isDraft && <><input type="hidden" name="stay" value="1" /><button className="btn" name="intent" value="save">Save draft</button></>}
                 </div>
               </Form>

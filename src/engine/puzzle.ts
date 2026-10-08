@@ -5,7 +5,9 @@ import { regionsOf, type Regions } from "./derive.ts";
 import { blockFor } from "./rules.ts";
 import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 
-export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number }
+/** `solutions`: how many a published puzzle may have: exactly one (most types), or any number but
+ *  none ("some": panels, where any line that obeys the symbols solves it, as in the game). */
+export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number; solutions?: "one" | "some" }
 
 export const genres = {
   slitherlink: {
@@ -164,7 +166,8 @@ export const genres = {
   // Panel: line puzzles in the style of The Witness (panel.ts): a line along the grid lines from a
   // start circle to an end, cutting the grid into regions; the symbols say where it goes, and mix
   // freely. With symmetry (a puzzle's own panel-line rule) there are two mirrored lines.
-  panel: { marks: ["fence"], rules: [{ rule: "panel-line" }, { rule: "panel-symbols" }], style: {} },
+  // Any line that obeys the symbols solves a panel, so a panel needs a solution, not exactly one.
+  panel: { marks: ["fence"], rules: [{ rule: "panel-line" }, { rule: "panel-symbols" }], style: {}, solutions: "some" },
   // our region-division puzzles in the style of The Artisan of Glimmith: each puzzle lists its rules
   panes: {
     marks: ["regions"],
@@ -172,6 +175,9 @@ export const genres = {
     style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
 } satisfies Record<string, Genre>;
+
+/** Must a puzzle of this genre have exactly one solution (most), or just one or more (panels)? */
+export const needsOneSolution = (genre: string | undefined) => (genre ? (genres as Record<string, Genre>)[genre]?.solutions : undefined) !== "some";
 
 /** Every genre's name. The visual editor and the sketch reader list them all, so the build fails
  *  if a new genre isn't added there too. */

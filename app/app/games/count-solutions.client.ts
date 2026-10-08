@@ -1,4 +1,4 @@
-// Runs in the creator's browser: does a sketch's puzzle have exactly one solution?
+// Runs in the creator's browser: how many solutions does a sketch's puzzle have (0, 1, or 2 for more)?
 // The same proof the puzzle tools run (src/engine/solve.ts, puzzles/grid/new.ts), but with the
 // browser build of clingo, in a Web Worker, so typing in the editor never freezes the page.
 // (Solving is too heavy for a Worker request on Cloudflare's free plan.)

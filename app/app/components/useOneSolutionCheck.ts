@@ -1,15 +1,19 @@
-// The one-solution check for a sketch, run in this browser with clingo (count-solutions.client.ts),
-// a moment after each change. `hash` is the sketch's hash once it passed: the form sends it so the
-// server lets the game be published.
+// The solution check for a sketch, run in this browser with clingo (count-solutions.client.ts),
+// a moment after each change: most types need exactly one solution, panels at least one
+// (needsOneSolution). `hash` is the sketch's hash once it passed: the form sends it so the server
+// lets the game be published.
 import { useEffect, useState } from "react";
 import type { GridSpec } from "~site/engine/types.ts";
+import { needsOneSolution } from "~site/engine/puzzle.ts";
 
 async function hash(text: string) {
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export type CheckState = "checking" | "one" | "none" | "many" | "broken";
+export type CheckState = "checking" | "one" | "some" | "none" | "many" | "broken";
+/** The check passed: the puzzle can be published. */
+export const passed = (s: CheckState) => s === "one" || s === "some";
 export interface Check { state: CheckState; text: string; hash: string }
 
 const TEXT: Record<Exclude<CheckState, "broken">, string> = {
@@ -17,6 +21,7 @@ const TEXT: Record<Exclude<CheckState, "broken">, string> = {
   one: "One solution",
   none: "No solution",
   many: "More than one solution",
+  some: "Solvable",
 };
 
 /** `problem`: why the sketch can't be played at all (then there's nothing to check). */
@@ -31,8 +36,8 @@ export function useLiveCheck(sketch: string, spec: GridSpec | null, problem = ""
       if (!live) return;
       if ("error" in r) setCheck({ sketch, state: "broken", text: r.error, hash: "" });
       else {
-        const state = r.solutions === 1 ? "one" : r.solutions === 0 ? "none" : "many";
-        setCheck({ sketch, state, text: TEXT[state], hash: state === "one" ? await hash(sketch) : "" });
+        const state = r.solutions === 1 ? "one" : r.solutions === 0 ? "none" : needsOneSolution(spec.genre) ? "many" : "some";
+        setCheck({ sketch, state, text: TEXT[state], hash: passed(state) ? await hash(sketch) : "" });
       }
     }, 400);
     return () => { live = false; clearTimeout(t); };

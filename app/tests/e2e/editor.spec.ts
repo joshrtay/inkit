@@ -250,3 +250,13 @@ test("undo", async ({ page }) => {
   await page.getByRole("button", { name: /Undo/ }).click();
   await eventually("minesweeper", (s) => !has(s.givens, { cell: [0, 0], value: 5 }));
 });
+
+test("a panel with more than one solution can still be published", async ({ page }) => {
+  // a bare 2 × 2 panel: many lines from the start to the end
+  const sketch = `panel\n${JSON.stringify({ size: [2, 2], givens: [{ at: "corner", corner: [2, 0], kind: "start" }, { at: "corner", corner: [0, 2], kind: "end" }] })}`;
+  sql(`update games set sketch = ${q(sketch)} where id = ${q(run.drafts.panel)}`);
+  await open(page, "panel");
+  await expect(page.locator(".check-chip")).toHaveText("✓ Solvable", { timeout: 15_000 });
+  await page.getByRole("button", { name: "Publish" }).click();
+  await expect(page.locator("button[name=intent][value=publish]")).toBeEnabled();
+});

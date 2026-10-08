@@ -146,7 +146,9 @@ follow the game as the open-source Witness puzzle validator has it (jbzdarkid's 
 `engine/validate.js` and `polyominos.js`, default settings), and Demaine et al., "Who witnesses The
 Witness?" (2018), where they agree. One limit keeps the one-solution proof exact in clingo: no
 erasers in a panel with shapes (proving a region can't be packed is a harder problem). It's one
-game type: symbols mix freely, and symmetry is a setting (a puzzle's own `panel-line` rule). Left
+game type: symbols mix freely, and symmetry is a setting (a puzzle's own `panel-line` rule). A
+panel needs a solution, not exactly one (the genre's `solutions: "some"`): as in the game, any
+line that obeys the symbols solves it. The generator still makes panels with one solution. Left
 out, since paper can't carry them: environmental and shadow puzzles, sound, colored light,
 reflections, and puzzles that span several panels.
 
