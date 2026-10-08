@@ -40,6 +40,7 @@
 .nav-guest { display: grid; gap: 8px; }
 .nav-guest .btn { justify-content: center; padding: 11px; }
 .nav-foot { margin-top: auto; position: relative; display: grid; gap: 10px; }
+.nav-foot .account { position: relative; }   /* More opens from its own button, over Puzzle types */
 
 .nav-legal { margin: 0; padding: 0 12px; font-size: 13px; color: var(--muted); }
 .wrap .nav-legal a, .nav-legal a { color: var(--muted); }

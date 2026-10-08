@@ -24,7 +24,7 @@ export function CreateMenu({ className = "" }: { className?: string }) {
   return <Link className={`btn primary create-btn ${className}`} to="/new"><Icon name="plus" /><span>Create</span></Link>;
 }
 
-/** More: a menu that opens upward from the bottom of the nav, after Substack's. */
+/** More: a menu that opens upward from its button, over the Puzzle types link above it, after Substack's. */
 function MoreMenu() {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -44,7 +44,6 @@ function MoreMenu() {
       {open && (
         <div className="menu up more-menu" role="menu">
           <Link role="menuitem" to="/settings">Settings</Link>
-          <Link role="menuitem" to="/puzzles">Puzzle types</Link>
           <button role="menuitem" type="button" onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>
           <div className="menu-legal"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div>
         </div>
@@ -63,13 +62,12 @@ export function SideNav({ me }: { me: Me | null }) {
       <div className="nav-items">
         {me && <NavLink className="nav-item" to="/" end><Icon name="feed" /><span>Subscriptions</span></NavLink>}
         <NavLink className="nav-item" to="/explore"><Icon name="explore" /><span>Explore</span></NavLink>
-        {/* signed in, the puzzle types are in More */}
-        {!me && <NavLink className="nav-item" to="/puzzles"><Icon name="guide" /><span>Puzzle types</span></NavLink>}
         {me && <Link className={`nav-item${onProfile ? " active" : ""}`} to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={26} /><span>Profile</span></Link>}
       </div>
       {me && <CreateMenu />}
-      {/* at the bottom: More, or sign in */}
+      {/* at the bottom: the puzzle types, then More (which opens over them) or sign in */}
       <div className="nav-foot">
+        <NavLink className="nav-item" to="/puzzles"><Icon name="guide" /><span>Puzzle types</span></NavLink>
         {me ? <MoreMenu /> : (
           <>
             <div className="nav-guest">

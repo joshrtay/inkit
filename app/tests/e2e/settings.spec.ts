@@ -6,11 +6,22 @@ import { q, RUN_FILE, sql, type Run } from "./db";
 
 const run = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
 
-test("More: settings, puzzle types, sign out, and the small print", async ({ page }) => {
+test("More: settings, sign out, and the small print, opening over Puzzle types", async ({ page }) => {
   await page.goto("/explore");
-  await page.locator(".sidenav").getByRole("button", { name: "More" }).click();
+  // Puzzle types sits right above More, outside the menu
+  const types = page.locator(".sidenav .nav-foot").getByRole("link", { name: "Puzzle types" });
+  const more = page.locator(".sidenav").getByRole("button", { name: "More" });
+  const [t, b] = [(await types.boundingBox())!, (await more.boundingBox())!];
+  expect(t.y + t.height).toBeLessThanOrEqual(b.y);
+  expect(b.y - (t.y + t.height)).toBeLessThan(20);
+  await more.click();
   const menu = page.locator(".more-menu");
-  await expect(menu.getByRole("menuitem")).toHaveText(["Settings", "Puzzle types", "Sign out"]);
+  await expect(menu.getByRole("menuitem")).toHaveText(["Settings", "Sign out"]);
+  // the menu opens over the Puzzle types link, not above it
+  const mb = (await menu.boundingBox())!;
+  expect(mb.y).toBeLessThan(t.y);
+  expect(mb.y + mb.height).toBeGreaterThanOrEqual(t.y + t.height);
+  expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest(".more-menu"), [t.x + t.width / 2, t.y + t.height / 2])).toBe(true);
   await expect(menu.locator(".menu-legal a")).toHaveText(["Privacy", "Terms"]);
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
@@ -21,12 +32,11 @@ test("More: settings, puzzle types, sign out, and the small print", async ({ pag
 });
 
 for (const width of [1280, 1000]) {
-  test(`More > Puzzle types opens them, from any page (${width}px wide)`, async ({ page }) => {
+  test(`Puzzle types (above More) opens them, from any page (${width}px wide)`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     for (const from of ["/explore", "/g/sudoku-1", `/${run.handle}`, "/settings"]) {
       await page.goto(from);
-      await page.locator(".sidenav").getByRole("button", { name: "More" }).click();
-      await page.locator(".more-menu").getByRole("menuitem", { name: "Puzzle types" }).click();
+      await page.locator(".sidenav .nav-foot").getByRole("link", { name: "Puzzle types" }).click();
       await expect(page, `from ${from}`).toHaveURL(/\/puzzles$/);
     }
   });
