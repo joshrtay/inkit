@@ -8,6 +8,8 @@ Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below).
+Later: Binairo (`binairo`), Colour Balance (`colour-balance`, our name: each row and column holds its
+share of each of 2 or 3 colors) and Number Fill-In (`fill-in`), and Akari ciphers (letters for numbers).
 
 ## The model
 
@@ -28,8 +30,8 @@ played by painting.
 | `fence` | borders | empty, line, X | Slitherlink |
 | `loop` | links | empty, line, X | Simple Loop, Masyu |
 | `regions` | borders + cell colors | cut / color | Panes (Glimmith-style), Fillomino, Shikaku |
-| `digit` | cells | 1..n, pencil notes | Sudoku (Kakuro later) |
-| `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats |
+| `digit` | cells | 1..n, pencil notes (shown as the style's `symbols`: Easy as ABC's letters, a fill-in's 0-9) | Sudoku, Number Fill-In |
+| `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats (a figure's pieces), Binairo and Colour Balance (a square grid's cells) |
 
 Regions come from either input: painting cells a color, or cutting borders. A region is a
 connected group of same-color cells not separated by a cut. For shading puzzles, the
@@ -49,7 +51,12 @@ it's painted), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs or a `total` beside a row or above a column, a clue outside the grid looking in
 (`first` letter seen, `skyscraper` count), a `thermo` through a run of cells (bulb first), and a
 `galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners). A nonogram's runs can instead come from its
-`picture`, which solving reveals.
+`picture`, which solving reveals. A number in a cell can carry a `letter` instead (an Akari cipher: each
+letter stands for a different number 0-4, found while solving; its `value` isn't used); a `color` in a
+cell is a printed paint color that stays (Binairo, Colour Balance). A fill-in's list of numbers is the
+puzzle's `entries` (strings in the style's symbols), drawn under the board grouped by length and
+crossed off as they appear (`src/game-types/grid/entry-list.ts`); its black squares are rocks, which
+digit puzzles leave empty.
 
 **Rules** are configured *building blocks* (`src/engine/rules.ts`). Each block does four
 jobs:
@@ -129,6 +136,13 @@ puzzle can use it.
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 | `panel-line` | A panel's line (fence marks) runs from a start circle to an end on the outside edge, never touching itself or crossing a gap; `symmetry` (`left-right`, `up-down`, `turn`) makes it two lines, mirror images that never touch, each passing the dots of its color. |
 | `panel-symbols` | Every symbol in the regions the line cuts the grid into: dots, squares, stars, triangles, shapes and erasers (see "Panels"). |
+| `line-shares` | Every row and column holds each paint color in proportion to `parts` (one per palette color; default equal: half and half). A line that can't be split evenly makes the puzzle invalid (Binairo, Colour Balance). |
+| `no-three-in-a-row` | No three cells in a row, across or down, have the same paint color (Binairo). |
+| `unique-lines` | No two rows are painted the same, and no two columns (Binairo). |
+| `fill-in` | Every entry on the list goes into one slot (a run of 2+ open cells across or down, between rocks or the edge), every slot takes one, every open cell gets a digit (Number Fill-In). |
+
+`adjacent-count` also reads an Akari cipher's letters: cells with the same letter have the same count,
+different letters different counts (0-4).
 
 Genre names: use the standard name when a genre has one that's used across puzzle sites
 (Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku, Simple Loop, Nonogram...),

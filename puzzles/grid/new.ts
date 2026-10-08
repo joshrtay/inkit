@@ -14,6 +14,10 @@
 //   node puzzles/grid/new.ts --genre shikaku --size 6x6 --number 1 --name "Boxes"
 //   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
 //   node puzzles/grid/new.ts --genre panel --mix squares --size 4x4 --number 8 --name "Two Tones"   (mixes: panels.ts)
+//   node puzzles/grid/new.ts --genre akari --cipher --size 6x6 --number 3 --name "Secret Code"   (letters for numbers)
+//   node puzzles/grid/new.ts --genre binairo --size 6x6 --number 1 --name "Red and Blue"
+//   node puzzles/grid/new.ts --genre colour-balance --size 6x6 --number 1 --name "Thirds" --rules "parts=1:1:1,no-three-in-a-row"
+//   node puzzles/grid/new.ts --genre fill-in --size 5x5 --number 1 --name "Number Fit"
 //
 // How a puzzle is made is in ./generate.ts (also used by puzzles/ai/week.ts, the AI creators'
 // weekly batch). The site build re-proves the result is unique.
@@ -25,7 +29,7 @@ const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`
 const genre = arg("genre")!, [rows, cols] = (arg("size", "5x5")!).split("x").map(Number);
 const number = Number(arg("number")), name = arg("name") ?? `${genre} ${number}`;
 if (!genre || !number) { console.error("usage: --genre <g> --size RxC --number <n> --name <name> [--rules ...] [--seed s]"); process.exit(1); }
-const result = await generate({ genre, rows, cols, seed: Number(arg("seed", "1")), rules: arg("rules"), mix: arg("mix"), stars: arg("stars") ? Number(arg("stars")) : undefined });
+const result = await generate({ genre, rows, cols, seed: Number(arg("seed", "1")), rules: arg("rules"), mix: arg("mix"), stars: arg("stars") ? Number(arg("stars")) : undefined, cipher: process.argv.includes("--cipher") });
 if (!result) { console.error("no unique puzzle found; try another --seed or size"); process.exit(1); }
 
 const { genre: _g, ...grid } = result;

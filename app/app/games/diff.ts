@@ -34,6 +34,8 @@ export function factsOf(spec: GridSpec): Set<string> {
   pic?.rows.forEach((row, r) => [...row].forEach((ch, c) => { if (ch !== ".") out.add(`picture ${r},${c} ${(pic.palette[ch] ?? ch).toLowerCase()}`); }));
   for (const rule of spec.rules ?? []) out.add(`rule ${canonical(rule)}`);
   if (spec.figure) out.add(`figure ${canonical(spec.figure)}`);
+  // a fill-in's list (in any order; a number twice counts twice)
+  [...(spec.entries ?? [])].sort().forEach((e, k, all) => out.add(`entry ${e} ${all.slice(0, k).filter((x) => x === e).length}`));
   return out;
 }
 

@@ -37,6 +37,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   area: "Areas", symbol: "Symbol", compass: "Compass", diamond: "◆ / ◇", palisade: "Palisade", erase: "Erase",
   start: "Start", end: "End", gap: "Gap", dot: "Dot", square: "Square", star: "Star", triangle: "Triangle", shape: "Shape", eraser: "Eraser",
   inequality: "< sign", difference: "Difference", watchtower: "Watchtower", bank: "Shape bank",
+  paint: "Color",
 };
 
 const TOOL_HINTS: Record<ToolId, string> = {
@@ -70,6 +71,7 @@ const TOOL_HINTS: Record<ToolId, string> = {
   difference: "Click the line between two squares and type how much the regions' sizes differ",
   watchtower: "Click where grid lines meet and type how many regions meet there (1 to 4)",
   bank: "Draw or pick a shape, then add it to the bank under the board; click a shape in the bank to take it out",
+  paint: "Pick a color, then click a square to print it there (the same color again clears it)",
 };
 
 
@@ -103,6 +105,11 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   maze: ["corner", "wall", "door", "erase"],
   // the line's start, ends, gaps and dots, then the symbols in the cells
   panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
+  // printed colors (Colour Balance's shares and extra rules are in the toolbar)
+  binairo: ["paint", "erase"],
+  "colour-balance": ["paint", "erase"],
+  // black squares and printed digits (the list is in the toolbar)
+  "fill-in": ["block", "number", "erase"],
 };
 
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in TOOLS;
@@ -135,6 +142,12 @@ function ShapePad({ cells, onChange }: { cells: RC[]; onChange: (cells: RC[]) =>
     </span>
   );
 }
+/** Colour Balance's shares, as the toolbar offers them: the parts, the button, its title. */
+const SHARES: [number[], string, string][] = [
+  [[1, 1], "½ ½", "Half and half (two colors)"], [[1, 2], "⅓ ⅔", "A third and two thirds (two colors)"],
+  [[1, 1, 1], "⅓ ⅓ ⅓", "A third each (three colors)"], [[1, 1, 2], "¼ ¼ ½", "A quarter, a quarter and a half (three colors)"],
+];
+const sameParts = (a: number[], b: number[]) => a.length === b.length && a.every((x, i) => x === b[i]);
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
 /** A nonogram's cells that solving one line at a time can't decide (null: the clues contradict). */
@@ -196,6 +209,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   // Panes: the shape on the shape pad (a Polyomino clue, or one for the bank)
   const [pad, setPad] = useState<RC[]>([[0, 0], [1, 0], [1, 1]]);
   const [typing, setTyping] = useState<(Typing & { value: string }) | null>(null);
+  // Binairo, Colour Balance: the color printed in a square
+  const [paintColor, setPaintColor] = useState(1);
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const typed = useRef<HTMLInputElement>(null);
@@ -212,6 +227,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const shapeSymbol: ops.PanelSymbol = panes ? { kind: "shape", value: ops.normalShape(pad) }
     : { kind: "shape", value: shapeCells, ...(canTurn ? { rotate: true } : {}), ...(hollow ? { negative: true } : {}) };
   const letters = spec.style?.symbols ?? (genres[genre]?.style as { symbols?: string } | undefined)?.symbols ?? "ABCDEFGHI";
+  // a fill-in's digits are symbols (0-9); an Akari number may be a cipher's letter
+  const fillIn = genre === "fill-in", cipher = genre === "akari";
 
   // leave room outside the grid where clues can be added there
   const room: Room = toolList.includes("outside-number") || toolList.includes("outside-letter") ? { top: 38, left: 38, right: 38, bottom: 38 }
@@ -303,7 +320,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   };
   const valueOf = (t: Typing, gs: Given[] = latest.current.givens ?? []): string => {
     switch (t.kind) {
-      case "number": { const g = gs.find((x) => x.at === "cell" && same(x.cell, t.cell) && x.kind === "number"); return g && g.kind === "number" ? String(g.value) : ""; }
+      case "number": {
+        const g = gs.find((x) => x.at === "cell" && same(x.cell, t.cell) && x.kind === "number");
+        return g && g.kind === "number" ? g.letter ?? (fillIn ? letters[g.value - 1] ?? "" : String(g.value)) : "";
+      }
       case "runs": { const g = gs.find((x) => x.at === t.at && x.index === t.index && x.kind === "runs"); return g && g.kind === "runs" ? runsText(g.value) : ""; }
       case "total": { const g = gs.find((x) => x.at === t.at && x.index === t.index && x.kind === "total"); return g && g.kind === "total" ? String(g.value) : ""; }
       case "outside": {
@@ -326,7 +346,11 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const v = text.trim(), n = parseInt(v, 10), num = Number.isInteger(n) && n >= 0 ? n : null;
     let next = cur;
     switch (t.kind) {
-      case "number": next = ops.setNumber(cur, t.cell, num); break;
+      case "number":
+        if (cipher && /^[a-z]$/i.test(v)) next = ops.setLetter(cur, t.cell, v);   // a letter standing for a number
+        else if (fillIn) next = ops.setNumber(cur, t.cell, v.length === 1 && letters.includes(v) ? letters.indexOf(v) + 1 : null);   // a digit 0-9
+        else next = ops.setNumber(cur, t.cell, num);
+        break;
       case "runs": next = ops.setLine(cur, t.at, t.index, { kind: "runs", value: parseRuns(v) }); break;
       case "total": next = ops.setLine(cur, t.at, t.index, num === null ? null : { kind: "total", value: num }); break;
       case "outside": {
@@ -442,6 +466,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       case "triangle": if (inGrid(h)) change(ops.cycleTriangle(latest.current, cell)); return;
       case "shape": if (inGrid(h) && (!panes || pad.length)) change(ops.toggleCellSymbol(latest.current, cell, shapeSymbol)); return;
       case "eraser": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, { kind: "eraser" })); return;
+      case "paint": if (inGrid(h)) change(ops.togglePaint(latest.current, cell, paintColor)); return;
     }
   }
   function move(evt: React.PointerEvent) {
@@ -520,6 +545,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
 
   // ---- the toolbar: general to specific (what the player gets, the size, then the tools) ----
   const sizes = SUDOKU_SIZES[genre];
+  const shares = ops.sharesOf(spec), paints = puzzle?.style.palette ?? ["#ef5a6a", "#f7cf3d", "#3fb0e6"];
   const showAreas = toolList.includes("area") && (tool === "area" || toolList.length === 1);
   const toolbar = (
     <div className="be-tools">
@@ -546,6 +572,37 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       {genre === "star-battle" && (
         <span className="be-group be-seg" role="group" aria-label="Stars in each row, column and area">
           {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={stars === n} onClick={() => change(ops.setStars(spec, n))}>{n} star{n > 1 ? "s" : ""}</button>)}
+        </span>
+      )}
+      {genre === "colour-balance" && (
+        <>
+          <span className="be-group be-seg" role="group" aria-label="Each row's and column's shares">
+            {SHARES.map(([parts, label, title]) => <button key={label} type="button" className="be-btn" aria-pressed={sameParts(shares, parts)} title={title}
+              onClick={() => change(ops.setShares(spec, parts))}>{label}</button>)}
+          </span>
+          <span className="be-group be-seg" role="group" aria-label="Extra rules">
+            <button type="button" className="be-btn" aria-pressed={ops.hasRule(spec, "no-three-in-a-row")} onClick={() => change(ops.toggleRule(spec, "no-three-in-a-row"))}
+              title="No three squares in a row, across or down, are the same color">No three in a row</button>
+            <button type="button" className="be-btn" aria-pressed={ops.hasRule(spec, "unique-lines")} onClick={() => change(ops.toggleRule(spec, "unique-lines"))}
+              title="No two rows are painted the same, and no two columns">No two lines alike</button>
+          </span>
+        </>
+      )}
+      {tool === "paint" && (
+        <span className="be-group be-swatches" role="group" aria-label="Color">
+          {paints.map((c, k) => <button key={k} type="button" className="be-swatch be-paint" aria-pressed={paintColor === k + 1} aria-label={`Color ${k + 1}`} title={`Color ${k + 1}`}
+            style={{ "--c": c } as React.CSSProperties} onClick={() => setPaintColor(k + 1)}><span className="be-pot" style={{ "--c": c } as React.CSSProperties} /></button>)}
+        </span>
+      )}
+      {fillIn && (
+        <span className="be-group be-list">
+          <label title="Every number the player fits in, separated by spaces or commas">Numbers
+            <input key={(spec.entries ?? []).join(" ")} defaultValue={(spec.entries ?? []).join(" ")} placeholder="e.g. 12 45 307" aria-label="The list of numbers"
+              onBlur={(e) => change(ops.setEntries(latest.current, e.currentTarget.value))}
+              onKeyDown={(e) => { if (e.key === "Enter") change(ops.setEntries(latest.current, e.currentTarget.value)); }} />
+          </label>
+          <button type="button" className="be-btn" onClick={() => change(ops.listFromGrid(spec))}
+            title="Type the answer's digits into every white square, then make the list from them (the digits are cleared)">List from the grid</button>
         </span>
       )}
       {panel && (
@@ -621,7 +678,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       ) : <button type="button" className="be-btn" onClick={addAreas}>Add areas</button>)}
     </div>
   );
-  const hint = nonogram ? (picture ? "" : "Click a row's or column's numbers to type them") : TOOL_HINTS[tool];
+  const hint = nonogram ? (picture ? "" : "Click a row's or column's numbers to type them")
+    : cipher && tool === "number" ? "Click a square and type its number, or a letter (A, B, C...) for a cipher: each letter stands for a different number"
+      : fillIn && tool === "number" ? "Click a square and type a printed digit; or type the whole answer and press List from the grid"
+        : TOOL_HINTS[tool];
 
   // ---- drawn over the board: guides, area tints, slots for clues outside, a thermometer being drawn ----
   const S = lay?.S ?? 48, ML = lay?.ML ?? 0, MT = lay?.MT ?? 0;
@@ -685,7 +745,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
             }}>
             <label>{typingLabel}
               <input ref={typed} name="v" autoFocus autoComplete="off" defaultValue={typing.value} onFocus={(e) => e.currentTarget.select()}
-                inputMode={typing.kind === "number" || typing.kind === "total" || typing.kind === "corner" || typing.kind === "watchtower" || typing.kind === "difference" || (typing.kind === "outside" && !typing.letter) ? "numeric" : "text"}
+                inputMode={(typing.kind === "number" && !cipher) || typing.kind === "total" || typing.kind === "corner" || typing.kind === "watchtower" || typing.kind === "difference" || (typing.kind === "outside" && !typing.letter) ? "numeric" : "text"}
                 onBlur={(e) => applyTyping(typing, e.currentTarget.value, false)}
                 onKeyDown={(e) => {
                   if (e.key === "Escape") { e.currentTarget.value = typing.value; setTyping(null); return; }

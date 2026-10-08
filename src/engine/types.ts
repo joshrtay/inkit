@@ -5,8 +5,10 @@ export type MarkKind = "fence" | "loop" | "shade" | "regions" | "digit" | "paint
 
 /** A clue fixed to the grid. In a digit puzzle a "number" is a given digit. */
 export type Given =
-  | { at: "cell"; cell: RC; kind: "number"; value: number }
-  | { at: "cell"; cell: RC; kind: "block" }                       // a rock: no marks, not part of any loop or region
+  // with a letter (an Akari cipher) the cell shows the letter instead: each letter stands for a
+  // different number, worked out while solving, and `value` isn't used (0)
+  | { at: "cell"; cell: RC; kind: "number"; value: number; letter?: string }
+  | { at: "cell"; cell: RC; kind: "block" }                      // a rock: no marks, not part of any loop or region
   | { at: "cell"; cell: RC; kind: "compass"; value: { n?: number; e?: number; s?: number; w?: number } }
   | { at: "cell"; cell: RC; kind: "symbol"; value: string }                   // a symbol (★, or a color name for a colored one: Rose Windows' roses)
   | { at: "cell"; cell: RC; kind: "palisade"; value: number; opposite?: boolean }   // how many of the cell's sides are region borders (0-4); with 2, opposite or (default) at a corner
@@ -33,7 +35,9 @@ export type Given =
   | { at: "cell"; cell: RC; kind: "square" | "star"; color: SymbolColor }    // squares: one color per region; stars: two of a color per region
   | { at: "cell"; cell: RC; kind: "triangle"; value: number; color?: SymbolColor }   // 1-3 triangles: how many of the cell's sides the line runs along (orange)
   | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean; color?: SymbolColor }   // a polyomino (its cells, top-left at 0,0); in a panel the region is made of its region's shapes (yellow; hollow ones blue); in a region puzzle (region-shape) its region is that shape
-  | { at: "cell"; cell: RC; kind: "eraser"; color?: SymbolColor };           // cancels itself and a wrong symbol in its region, or another eraser (white)
+  | { at: "cell"; cell: RC; kind: "eraser"; color?: SymbolColor }           // cancels itself and a wrong symbol in its region, or another eraser (white)
+  // ---- paint on a square grid (Colour Balance, Binairo) ----
+  | { at: "cell"; cell: RC; kind: "color"; value: number };                  // a cell printed in a paint color (palette 1..n): it stays that color
 
 /** The two lines of a symmetry panel. */
 export type LineColor = "blue" | "yellow";
@@ -79,6 +83,9 @@ export interface GridSpec {
   /** Mistakes allowed: a wrong move is turned away and costs a heart, and pieces painted right
    *  lock in (paint puzzles). 0 = play freely and check at the end. */
   hearts?: number;
+  /** A fill-in's list of numbers, each written with the style's symbols (digits): every one goes
+   *  into the grid once, across or down (Number Fill-In). */
+  entries?: string[];
 }
 
 /** The player's board: one array per mark kind (unused kinds stay zero). */
@@ -145,4 +152,6 @@ export interface Puzzle {
   gaps: Set<number>;
   /** the shape bank's shapes (cells from 0,0), in the order given */
   bank: [number, number][][];
+  /** a fill-in's list: each entry as digits (symbol numbers 1..digits), in the order given */
+  entries: number[][];
 }

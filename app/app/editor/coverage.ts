@@ -14,13 +14,17 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
   // Panes: a sign or a number on a border, a watchtower on a corner, the shape bank
   | "inequality" | "difference" | "watchtower" | "bank"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
-  | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser";
+  | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser"
+  // Binairo and Colour Balance: a printed color in a square
+  | "paint";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
-  rules: "Star Battle's stars; a panel's symmetry; the Rules panel (Panes, and admins)", style: "the Look panel (admins)", picture: "Picture, and painting (Nonogram)",
+  rules: "Star Battle's stars; a panel's symmetry; Colour Balance's shares and extra rules; the Rules panel (Panes, and admins)",
+  style: "the Look panel (admins); Colour Balance's colors (its shares)", picture: "Picture, and painting (Nonogram)",
   marks: "the Look panel (admins)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
+  entries: "the Numbers box in the toolbar (Number Fill-In)",
 };
 
 /** Every clue kind and the tool that places it: a BoardEditor tool, Nonogram's own numbers, or
@@ -31,13 +35,16 @@ export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> =
   runs: "nonogram", total: "total", count: "corner", dots: "figure", pearl: "pearl", first: "outside-letter",
   skyscraper: "outside-number", thermo: "thermo", galaxy: "galaxy", door: "door",
   start: "start", end: "end", gap: "gap", hexagon: "dot", square: "square", star: "star", triangle: "triangle", shape: "shape", eraser: "eraser",
+  color: "paint",
 };
 
 export type Setting =
   | { key: string; label: string; type: "number" }
   | { key: string; label: string; type: "choice"; choices: string[]; /** what no choice means (default: "default") */ none?: string }
   | { key: string; label: string; type: "flag" }
-  | { key: string; label: string; type: "pair" };
+  | { key: string; label: string; type: "pair" }
+  /** whole numbers, one or more (line-shares' parts) */
+  | { key: string; label: string; type: "list" };
 
 /** Every rule block, in plain words, with every setting it takes. */
 export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
@@ -100,6 +107,10 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "panel-line": { label: "A line from a start circle to an end on the edge", settings: [{ key: "symmetry", label: "two lines, mirrored", type: "choice", choices: ["left-right", "up-down", "turn"], none: "no (one line)" }] },
   "panel-symbols": { label: "The symbols in the cells say where the line goes", settings: [] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
+  "line-shares": { label: "Each row and column has its share of each color", settings: [{ key: "parts", label: "shares, one per color (1 1 = half and half)", type: "list" }] },
+  "no-three-in-a-row": { label: "No three in a row the same color", settings: [] },
+  "unique-lines": { label: "No two rows (or columns) painted the same", settings: [] },
+  "fill-in": { label: "Every number on the list fits across or down, once", settings: [] },
 };
 
 /** What's wrong with a rule's settings: one it doesn't take (a sketch reader's made-up `of: "each"`,
@@ -117,15 +128,15 @@ export function settingProblems(spec: RuleSpec): string[] {
     const ok = setting.type === "number" ? typeof v === "number" && Number.isInteger(v) && v >= 0
       : setting.type === "flag" ? typeof v === "boolean"
       : setting.type === "choice" ? setting.choices.includes(v as string)
-      : Array.isArray(v) && v.length === 2 && v.every((x) => Number.isInteger(x) && x > 0);
-    if (!ok) out.push(`The rule "${spec.rule}" can't have ${key} ${JSON.stringify(v)} (${setting.type === "choice" ? `one of: ${setting.choices.join(", ")}` : setting.type === "number" ? "a whole number" : setting.type === "flag" ? "true or false" : "two whole numbers"}).`);
+      : Array.isArray(v) && (setting.type === "list" ? v.length > 0 : v.length === 2) && v.every((x) => Number.isInteger(x) && x > 0);
+    if (!ok) out.push(`The rule "${spec.rule}" can't have ${key} ${JSON.stringify(v)} (${setting.type === "choice" ? `one of: ${setting.choices.join(", ")}` : setting.type === "number" ? "a whole number" : setting.type === "flag" ? "true or false" : setting.type === "list" ? "whole numbers" : "two whole numbers"}).`);
   }
   return out;
 }
 
 /** Every style option. */
 export const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" | "number" | "choice" | "text"; choices?: string[] }> = {
-  symbols: { label: "Digits shown as letters (e.g. ABC)", type: "text" },
+  symbols: { label: "Digits shown as these symbols (e.g. ABC; a fill-in's 0123456789)", type: "text" },
   ink: { label: "Ink", type: "color" },
   wash: { label: "Shading / loop color", type: "color" },
   grid: { label: "Grid", type: "choice", choices: ["lines", "dots"] },
@@ -138,5 +149,5 @@ export const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "co
 /** Every kind of mark a player can put down (a genre picks its own; Look can override). */
 export const MARKS: Record<MarkKind, string> = {
   fence: "lines along cell edges", loop: "lines through cell centers", shade: "shading", regions: "regions", digit: "digits",
-  paint: "painting (red, yellow, blue)",
+  paint: "painting (the palette's colors: Three Coats' pieces, or squares)",
 };

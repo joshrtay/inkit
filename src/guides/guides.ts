@@ -8,6 +8,8 @@ import type { Category, Guide } from "./types.ts";
 
 type RC = [number, number];
 const num = (r: number, c: number, value: number): Given => ({ at: "cell", cell: [r, c], kind: "number", value });
+/** an Akari cipher's letter, standing for a number */
+const letter = (r: number, c: number, l: string): Given => ({ at: "cell", cell: [r, c], kind: "number", value: 0, letter: l });
 const rock = (r: number, c: number): Given => ({ at: "cell", cell: [r, c], kind: "block" });
 const wall = (a: RC, b: RC): Given => ({ at: "border", cells: [a, b], kind: "wall" });
 const twins = (a: RC, b: RC): Given => ({ at: "border", cells: [a, b], kind: "twins" });
@@ -298,6 +300,11 @@ export const guides: Record<GenreName, Guide> = {
       { text: "A number on a black cell says how many bulbs are right beside it (not diagonally).", checks: ["adjacent-count"], pictures: [
         { ok: true, note: "2 bulbs", size: [3, 3], givens: [rock(1, 1), num(1, 1, 2)], shade: [".#.", "..#", "..."] },
         { ok: false, note: "Not 1 bulb", size: [3, 3], givens: [rock(1, 1), num(1, 1, 1)], shade: [".#.", "..#", "..."] },
+      ] },
+      { text: "In a cipher, black cells show letters instead of numbers. Each letter stands for a number from 0 to 4: the same letter is always the same number, and different letters are different numbers. Work them out as you go.", checks: ["adjacent-count"], pictures: [
+        { ok: true, note: "Both A's are 1", size: [3, 3], givens: [rock(0, 0), letter(0, 0, "A"), rock(2, 2), letter(2, 2, "A")], shade: [".#.", "..#", "..."] },
+        { ok: false, note: "One A is 1, one is 0", size: [3, 3], givens: [rock(0, 0), letter(0, 0, "A"), rock(2, 2), letter(2, 2, "A")], shade: [".#.", "...", "..."] },
+        { ok: false, note: "A and B both 1", size: [3, 3], givens: [rock(0, 0), letter(0, 0, "A"), rock(2, 2), letter(2, 2, "B")], shade: [".#.", "..#", "..."] },
       ] },
     ],
     controls: "Tap a white cell for a bulb, again for a dot (no bulb), again to clear. Lit cells glow.",
@@ -632,5 +639,64 @@ export const guides: Record<GenreName, Guide> = {
     ],
     controls: "Pick a pot (or press R, Y or B), then tap a piece.",
     example: "three-coats/2.json",
+  },
+  binairo: {
+    name: "Binairo", aka: ["Takuzu", "Binary Puzzle"], category: "Paint", ink: "#2b2b30",
+    summary: "Paint every cell red or blue: half of each in every row and column, never three alike in a row, and no two lines the same.",
+    origin: "Published in Belgium by Peter De Schepper and Frank Coussement around 2009; also sold as Takuzu, and often written with 0s and 1s.",
+    rules: [
+      { text: "Every row and every column is half red and half blue.", checks: ["line-shares"], pictures: [
+        { ok: true, note: "Two of each", size: [2, 4], paint: [1, 2, 1, 2, 2, 1, 2, 1] },
+        { ok: false, note: "Three red, one blue", size: [2, 4], paint: [1, 1, 2, 1, 2, 2, 1, 2] },
+      ] },
+      { text: "No three cells in a row, across or down, are the same color.", checks: ["no-three-in-a-row"], pictures: [
+        { ok: true, note: "Never three", size: [2, 4], paint: [1, 1, 2, 2, 2, 2, 1, 1] },
+        { ok: false, note: "Three blue", size: [2, 4], paint: [1, 2, 2, 2, 2, 1, 1, 1] },
+      ] },
+      { text: "No two rows are painted the same, and no two columns are.", checks: ["unique-lines"], pictures: [
+        { ok: true, note: "All different", size: [2, 4], paint: [1, 1, 2, 2, 1, 2, 1, 2] },
+        { ok: false, note: "Two rows alike", size: [2, 4], paint: [1, 2, 1, 2, 1, 2, 1, 2] },
+      ] },
+    ],
+    controls: "Pick a pot (or press 1 or 2), then tap or drag across cells to paint them. The same color again clears a cell.",
+    example: "binairo/2.json",
+  },
+  "colour-balance": {
+    name: "Colour Balance", category: "Paint", ink: "#26398f",
+    summary: "Paint every cell so each row and column has its share of each color: half and half, a third of each, or whatever the puzzle asks.",
+    origin: "Our name for a family of paint-by-shares puzzles; Binairo is its best-known two-color member.",
+    rules: [
+      { text: "Paint every cell. Every row and every column has the share of each color the puzzle asks for, like half blue and half yellow.", checks: ["line-shares"], pictures: [
+        { ok: true, note: "Half and half", size: [2, 4], paint: [1, 2, 2, 1, 2, 1, 1, 2] },
+        { ok: false, note: "Too much yellow", size: [2, 4], paint: [2, 2, 1, 2, 1, 1, 2, 1] },
+      ] },
+      { text: "Shares can be thirds too: a third of each of three colors, or a third blue and two thirds yellow.", checks: ["line-shares"], pictures: [
+        { ok: true, note: "A third each", size: [3, 3], rules: [{ rule: "line-shares", parts: [1, 1, 1] }], style: { palette: ["#3fb0e6", "#f7cf3d", "#ef5a6a"] }, paint: [1, 2, 3, 2, 3, 1, 3, 1, 2] },
+        { ok: false, note: "No yellow in row 2", size: [3, 3], rules: [{ rule: "line-shares", parts: [1, 1, 1] }], style: { palette: ["#3fb0e6", "#f7cf3d", "#ef5a6a"] }, paint: [1, 2, 3, 3, 3, 1, 2, 1, 2] },
+        { ok: true, note: "⅓ blue, ⅔ yellow", size: [3, 3], rules: [{ rule: "line-shares", parts: [1, 2] }], paint: [1, 2, 2, 2, 1, 2, 2, 2, 1] },
+      ] },
+      { text: "Some puzzles add Binairo's rules: no three in a row of one color, or no two rows (or columns) alike. The rules under the puzzle say which.", checks: ["no-three-in-a-row"], pictures: [
+        { ok: false, note: "Three blue in a row", size: [2, 4], rules: [{ rule: "no-three-in-a-row" }], paint: [1, 1, 1, 2, 2, 2, 2, 1] },
+      ] },
+    ],
+    controls: "Pick a pot (or press 1, 2 or 3), then tap or drag across cells to paint them. The same color again clears a cell.",
+    example: "colour-balance/2.json",
+  },
+  "fill-in": {
+    name: "Number Fill-In", aka: ["Fill-In"], category: "Numbers", ink: "#2b2b30",
+    summary: "Fit every number on the list into the grid, across or down, like a crossword made of numbers.",
+    origin: "A puzzle-magazine favourite: fill-ins come with words or numbers, and the number kind is usually called Number Fill-In.",
+    rules: [
+      { text: "Every number on the list goes into the grid once, reading across (left to right) or down (top to bottom).", checks: ["fill-in"], pictures: [
+        { ok: true, note: "12, 34 across; 13, 24 down", size: [2, 2], entries: ["12", "13", "24", "34"], digits: ["12", "34"] },
+        { ok: false, note: "21 isn't on the list", size: [2, 2], entries: ["12", "13", "24", "34"], digits: ["21", "34"] },
+      ] },
+      { text: "A number fills a whole run of white squares, from the edge or a black square to the next. Black squares stay empty.", checks: ["fill-in"], pictures: [
+        { ok: true, note: "Every run filled", size: [2, 3], givens: [rock(0, 2)], entries: ["12", "13", "24", "345"], digits: ["12.", "345"] },
+        { ok: false, note: "123 doesn't fit", size: [2, 3], givens: [rock(0, 2)], entries: ["123", "13", "24", "345"], digits: ["12.", "345"] },
+      ] },
+    ],
+    controls: "Tap a square, then a digit (or type it). Numbers on the list cross themselves off once they're in the grid.",
+    example: "fill-in/1.json",
   },
 };

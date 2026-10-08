@@ -37,9 +37,12 @@ export function RulesPanel({ spec, onChange, open = false }: { spec: GridSpec; o
                       <option value="">{s.none ?? "default"}</option>{s.choices.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   )}
-                  {s.type === "pair" && (
-                    <input placeholder="e.g. 2 3" defaultValue={Array.isArray(r[s.key]) ? (r[s.key] as number[]).join(" ") : ""}
-                      onBlur={(e) => { const p = e.target.value.trim().split(/[\s×x,]+/).map(Number).filter((n) => n > 0); update(s.key, p.length === 2 ? p : undefined); }} />
+                  {(s.type === "pair" || s.type === "list") && (
+                    <input placeholder={s.type === "pair" ? "e.g. 2 3" : "e.g. 1 2"} defaultValue={Array.isArray(r[s.key]) ? (r[s.key] as number[]).join(" ") : ""}
+                      onBlur={(e) => {
+                        const p = e.target.value.trim().split(/[\s×x,:]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+                        update(s.key, (s.type === "pair" ? p.length === 2 : p.length > 0) ? p : undefined);
+                      }} />
                   )}
                 </label>
               ))}

@@ -14,6 +14,10 @@ export interface Mini {
   figure?: GridSpec["figure"];
   /** rules beyond (or replacing) the genre's own */
   rules?: RuleSpec[];
+  /** a style beyond the genre's (Colour Balance's three colors) */
+  style?: GridSpec["style"];
+  /** a fill-in's list */
+  entries?: string[];
   // marks, written compactly:
   /** one string per row: "#" shaded, "." empty, "x" known empty */
   shade?: string[];

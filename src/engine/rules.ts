@@ -24,8 +24,12 @@ export interface Block {
   hint?(s: RuleSpec, p: Puzzle, b: Board): Hint | null;
 }
 
+/** Number clues in cells (not cipher letters: see letterClues). */
 const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) =>
-  gs.filter((g) => g.kind === "number").map((g) => [i, g.value as number] as [number, number]));
+  gs.flatMap((g) => (g.kind === "number" && g.letter === undefined ? [[i, g.value] as [number, number]] : [])));
+/** An Akari cipher's letter clues: each cell with its letter. */
+export const letterClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) =>
+  gs.flatMap((g) => (g.kind === "number" && g.letter !== undefined ? [[i, g.letter] as [number, string]] : [])));
 const cornerClues = (p: Puzzle) => [...p.cornerGivens].flatMap(([v, gs]) =>
   gs.filter((g) => g.kind === "count").map((g) => [v, g.value as number] as [number, number]));
 /** Each dotted cell with how many dots of each color it has. */
@@ -35,8 +39,10 @@ export const dotClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs
   return [i, need] as [number, Map<number, number>];
 }));
 const neighbours = (p: Puzzle, i: number) => p.grid.cellLinks[i].map((l) => { const [a, c] = p.grid.links[l].cells; return a === i ? c : a; });
-const PAINT_NAMES: Record<string, string> = { "#ef5a6a": "red", "#f7cf3d": "yellow", "#3fb0e6": "blue" };
-/** A paint color's name: red / yellow / blue for Three Coats' pots, else "color n". */
+const PAINT_NAMES: Record<string, string> = { "#ef5a6a": "red", "#f7cf3d": "yellow", "#3fb0e6": "blue",
+  // the other watercolor washes (src/styles/global.css)
+  "#7cc68f": "green", "#f29a38": "orange", "#a77bd6": "purple", "#f07ab8": "pink" };
+/** A paint color's name: red / yellow / blue for Three Coats' pots (or another wash's), else "color n". */
 export const colorName = (p: Puzzle, c: number) => PAINT_NAMES[(p.style.palette?.[c - 1] ?? ["#ef5a6a", "#f7cf3d", "#3fb0e6"][c - 1] ?? "").toLowerCase()] ?? `color ${c}`;
 const colorList = (p: Puzzle) => {
   const names = Array.from({ length: p.style.palette?.length || 3 }, (_, k) => colorName(p, k + 1));
@@ -520,12 +526,35 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
     ].join("\n"),
   },
   "adjacent-count": {
-    describe: (_s, p) => `A number on a ${p.blocked.size ? "black cell" : "cell"} counts the ${p.style.shaded === "bulb" ? "bulbs" : "shaded cells"} right beside it (not diagonally).`,
+    describe: (_s, p) => `A number on a ${p.blocked.size ? "black cell" : "cell"} counts the ${p.style.shaded === "bulb" ? "bulbs" : "shaded cells"} right beside it (not diagonally).`
+      + (letterClues(p).length ? " A letter stands for a number from 0 to 4: the same letter is always the same number, and different letters are different numbers." : ""),
     check(_s, p, b) {
-      return numberClues(p).filter(([i, k]) => p.grid.cellLinks[i].filter((l) => b.shade[other(p, l, i)] === 1).length !== k)
+      const around = (i: number) => p.grid.cellLinks[i].filter((l) => b.shade[other(p, l, i)] === 1).length;
+      const out: Problem[] = numberClues(p).filter(([i, k]) => around(i) !== k)
         .map(([i, k]) => ({ message: `This ${k} needs exactly ${k} ${p.style.shaded === "bulb" ? (k === 1 ? "bulb" : "bulbs") : "shaded"} beside it.`, cells: [i] }));
+      // a cipher: each letter one number (the same around each of its cells), different letters different numbers
+      const byLetter = new Map<string, number[]>();
+      for (const [i, l] of letterClues(p)) byLetter.set(l, [...(byLetter.get(l) ?? []), i]);
+      const value = new Map<number, string[]>();
+      for (const [l, cells] of byLetter) {
+        const counts = new Set(cells.map(around));
+        if (counts.size > 1) out.push({ message: `Every ${l} stands for one number: each needs the same number of ${p.style.shaded === "bulb" ? "bulbs" : "shaded cells"} beside it.`, cells });
+        else { const k = [...counts][0]; value.set(k, [...(value.get(k) ?? []), l]); }
+      }
+      for (const [k, ls] of value) if (ls.length > 1)
+        out.push({ message: `${ls.join(" and ")} can't both be ${k}: different letters stand for different numbers.`, cells: ls.flatMap((l) => byLetter.get(l)!) });
+      return out;
     },
-    asp: (_s, p) => numberClues(p).map(([i, k]) => `:- #count{J: adj(${i},J,_), shaded(J)} != ${k}.`).join("\n"),
+    asp(_s, p) {
+      const out = numberClues(p).map(([i, k]) => `:- #count{J: adj(${i},J,_), shaded(J)} != ${k}.`);
+      const letters = [...new Set(letterClues(p).map(([, l]) => l))].sort();
+      if (letters.length) {
+        // each letter is a number 0-4, all different, and every cell with that letter has it
+        out.push(`ltr(0..${letters.length - 1}).`, "1 { lval(L,0..4) } 1 :- ltr(L).", ":- lval(L,N), lval(M,N), L < M.");
+        for (const [i, l] of letterClues(p)) out.push(`:- lval(${letters.indexOf(l)},N), #count{J: adj(${i},J,_), shaded(J)} != N.`);
+      }
+      return out.join("\n");
+    },
   },
   bars: {
     describe: (s) => `Shaded cells are blocks of ${barLen(s)} in a straight line (side by side or one above another). Blocks may touch.`,
@@ -1022,7 +1051,122 @@ nds(I,N) :- member(R,I), size(R,N).
   // ---- panels (line puzzles in the style of The Witness: panel.ts) ----
   "panel-line": panelLine,
   "panel-symbols": panelSymbols,
+
+  // ---- paint on a square grid (Binairo, Colour Balance) ----
+  "line-shares": {
+    describe: (s, p) => `Paint every cell ${colorList(p)}. Every row and every column is ${shareWords(p, partsOf(s, p.style))}.`,
+    check(s, p, b) {
+      const parts = partsOf(s, p.style), out: Problem[] = [];
+      linesOf(p).forEach((line, k) => {
+        const want = sharesIn(parts, line.length), name = k < p.grid.rows ? `Row ${k + 1}` : `Column ${k - p.grid.rows + 1}`;
+        if (!want) out.push({ message: `A line of ${line.length} cells can't be split ${parts.join(":")}.`, cells: line });
+        else if (want.some((n, c) => line.filter((i) => b.color[i] === c + 1).length !== n))
+          out.push({ message: `${name} needs ${want.map((n, c) => `${n} ${colorName(p, c + 1)}`).join(" and ")}.`, cells: line });
+      });
+      return out;
+    },
+    asp: (s, p) => linesOf(p).map((line, k) => {
+      const want = sharesIn(partsOf(s, p.style), line.length);
+      if (!want) return ":- cell(0).";   // can't be split: no solution
+      return `${line.map((i) => `sl(${k},${i}).`).join(" ")}\n${want.map((n, c) => `:- #count{I: sl(${k},I), paint(I,${c + 1})} != ${n}.`).join("\n")}`;
+    }).join("\n"),
+  },
+  "no-three-in-a-row": {
+    describe: () => "No three cells in a row, across or down, are the same color.",
+    check(_s, p, b) {
+      const bad = new Set<number>();
+      for (const t of triples(p)) if (b.color[t[0]] && t.every((i) => b.color[i] === b.color[t[0]])) t.forEach((i) => bad.add(i));
+      return bad.size ? [{ message: "Three in a row can't all be the same color.", cells: [...bad] }] : [];
+    },
+    asp: (_s, p) => triples(p).map(([a, c, d]) => `:- paint(${a},C), paint(${c},C), paint(${d},C).`).join("\n"),
+  },
+  "unique-lines": {
+    describe: () => "No two rows are painted the same, and no two columns are.",
+    check(_s, p, b) {
+      const out: Problem[] = [], lines = linesOf(p), rows = p.grid.rows;
+      const key = (line: number[]) => (line.every((i) => b.color[i]) ? line.map((i) => b.color[i]).join(",") : "");
+      for (const [from, to, word] of [[0, rows, "Rows"], [rows, lines.length, "Columns"]] as const)
+        for (let a = from; a < to; a++) for (let c = a + 1; c < to; c++)
+          if (key(lines[a]) && key(lines[a]) === key(lines[c])) out.push({ message: `${word} ${a - from + 1} and ${c - from + 1} are the same.`, cells: [...lines[a], ...lines[c]] });
+      return out;
+    },
+    asp: () => `rdiff(A,B) :- row(I,A), row(J,B), A < B, col(I,X), col(J,X), paint(I,C), not paint(J,C).
+:- row(_,A), row(_,B), A < B, not rdiff(A,B).
+cdiff(A,B) :- col(I,A), col(J,B), A < B, row(I,Y), row(J,Y), paint(I,C), not paint(J,C).
+:- col(_,A), col(_,B), A < B, not cdiff(A,B).`,
+  },
+
+  // ---- fill-ins ----
+  "fill-in": {
+    describe: () => "Fit every number on the list into the grid, once each. A number reads across (left to right) or down (top to bottom) and fills a whole run of white squares, from a black square or the edge to the next; every run of two or more white squares holds one.",
+    check(_s, p, b) {
+      const out: Problem[] = [], g = p.grid, slots = fillSlots(p);
+      const empty = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i) && !b.digit[i]);
+      if (empty.length) out.push({ message: "Write a digit in every white square.", cells: empty });
+      const inked = [...p.blocked].filter((i) => b.digit[i]);
+      if (inked.length) out.push({ message: "Black squares stay empty.", cells: inked });
+      if (slots.length !== p.entries.length) out.push({ message: `The list has ${p.entries.length} numbers, but the grid has room for ${slots.length}.` });
+      const left = new Map<string, number>();
+      for (const e of p.entries) left.set(e.join(","), (left.get(e.join(",")) ?? 0) + 1);
+      for (const s of slots) {
+        if (s.some((i) => !b.digit[i])) continue;
+        const k = s.map((i) => b.digit[i]).join(","), n = left.get(k) ?? 0, text = s.map((i) => symbolOf(p, b.digit[i])).join("");
+        if (n > 0) left.set(k, n - 1);
+        else out.push({ message: left.has(k) ? `${text} is on the list fewer times than that.` : `${text} isn't on the list.`, cells: s });
+      }
+      return out;
+    },
+    asp(_s, p) {
+      const out: string[] = [];
+      fillSlots(p).forEach((s, k) => { out.push(`slot(${k},${s.length}). ${s.map((i, j) => `scell(${k},${j},${i}).`).join(" ")}`); });
+      p.entries.forEach((e, k) => { out.push(`ent(${k},${e.length}). ${e.map((d, j) => `edig(${k},${j},${d}).`).join(" ")}`); });
+      out.push("1 { put(E,S) : slot(S,L) } 1 :- ent(E,L).", ":- slot(S,_), #count{E: put(E,S)} != 1.",
+        "digit(I,D) :- put(E,S), scell(S,K,I), edig(E,K,D).", ":- put(E,S), scell(S,K,I), edig(E,K,D), not digit(I,D).");
+      return out.join("\n");
+    },
+  },
 } satisfies Record<string, Block>;
+
+/** line-shares' parts: one per palette color (all equal if the rule doesn't say). */
+export const partsOf = (s: RuleSpec, style: Puzzle["style"]): number[] =>
+  Array.isArray(s.parts) ? (s.parts as number[]) : Array.from({ length: style.palette?.length || 3 }, () => 1);
+/** How many cells of each color a line of `len` cells has (null if the parts don't split it evenly). */
+export function sharesIn(parts: number[], len: number): number[] | null {
+  const sum = parts.reduce((a, x) => a + x, 0);
+  if (!sum || parts.some((x) => !Number.isInteger(x) || x < 0 || (len * x) % sum)) return null;
+  return parts.map((x) => (len * x) / sum);
+}
+/** Why a puzzle's line-shares can't work (its parts don't match its colors, or a line can't be split), or "". */
+export function sharesProblem(s: RuleSpec, style: Puzzle["style"], rows: number, cols: number): string {
+  const parts = partsOf(s, style), k = style.palette?.length || 3;
+  if (parts.length !== k) return `the shares (${parts.join(":")}) need one part for each of the ${k} colors`;
+  for (const len of new Set([rows, cols])) if (!sharesIn(parts, len)) return `a line of ${len} cells can't be split ${parts.join(":")}`;
+  return "";
+}
+const FRACTIONS: Record<string, string> = { "1/2": "half", "1/3": "a third", "2/3": "two thirds", "1/4": "a quarter", "3/4": "three quarters", "1/5": "a fifth", "2/5": "two fifths", "3/5": "three fifths", "4/5": "four fifths", "1/6": "a sixth", "5/6": "five sixths" };
+/** "half blue and half yellow", "a third blue, a third yellow and a third red". */
+function shareWords(p: Puzzle, parts: number[]) {
+  const sum = parts.reduce((a, x) => a + x, 0), gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+  const words = parts.map((x, c) => { const d = gcd(x, sum) || 1, f = `${x / d}/${sum / d}`; return `${x === sum ? "all" : FRACTIONS[f] ?? f} ${colorName(p, c + 1)}`; });
+  return words.length > 1 ? `${words.slice(0, -1).join(", ")} and ${words.at(-1)}` : words[0];
+}
+/** Every three cells in a row, across or down. */
+const triples = (p: Puzzle) => {
+  const g = p.grid, out: [number, number, number][] = [];
+  for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) {
+    if (c + 2 < g.cols) out.push([g.cell(r, c), g.cell(r, c + 1), g.cell(r, c + 2)]);
+    if (r + 2 < g.rows) out.push([g.cell(r, c), g.cell(r + 1, c), g.cell(r + 2, c)]);
+  }
+  return out;
+};
+/** A fill-in's slots: each run of two or more white cells across (left to right) or down (top to bottom). */
+export const fillSlots = (p: Puzzle) => {
+  const g = p.grid, out: number[][] = [];
+  const runs = (line: number[]) => { let cur: number[] = []; for (const i of [...line, -1]) { if (i >= 0 && !p.blocked.has(i)) cur.push(i); else { if (cur.length > 1) out.push(cur); cur = []; } } };
+  for (let r = 0; r < g.rows; r++) runs(Array.from({ length: g.cols }, (_, c) => g.cell(r, c)));
+  for (let c = 0; c < g.cols; c++) runs(Array.from({ length: g.rows }, (_, r) => g.cell(r, c)));
+  return out;
+};
 
 /** Every rule block's name. The visual editor (app/app/components/BoardEditor.tsx) and the sketch
  *  reader list them all, so the build fails if a new block isn't added there too. */

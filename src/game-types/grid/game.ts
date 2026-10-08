@@ -18,7 +18,8 @@ import { addInk } from "../../lib/ink";
 import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
-import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/rules.ts";
+import { blockFor, boxLines, colorName, fillSlots, runsOf, symbolOf, type Hint } from "../../engine/rules.ts";
+import { entriesDone, entryList } from "./entry-list";
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
@@ -47,11 +48,13 @@ const starPath = (x: number, y: number, r: number) => Array.from({ length: 10 },
 
 export const createGrid = (config: GridClientConfig): MountGame => (root, host) => {
   const p = makePuzzle(config.spec), g = p.grid, marks = p.marks;
-  if (marks.includes("paint")) return createFigure(p, root, host);   // painted pieces (Three Coats)
+  if (marks.includes("paint") && p.figure) return createFigure(p, root, host);   // painted pieces (Three Coats)
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
+  // paint on the grid's cells (Binairo, Colour Balance): pick a pot and paint; printed colors stay
+  const paintGrid = marks.includes("paint");
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const links = p.rules.some((s) => s.rule === "links");
-  const palette = p.style.palette ?? [];
+  const palette = p.style.palette ?? (paintGrid ? ["#ef5a6a", "#f7cf3d", "#3fb0e6"] : []);
   const board = emptyBoard(g);
   const saved = host.load<Saved>();
   if (saved) for (const k of Object.keys(board) as Layer[]) saved[k]?.forEach((v, i) => { if (i < board[k].length) board[k][i] = v; });
@@ -67,6 +70,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   lockWalls();
   const givenDigit = new Map<number, number>();
   for (const [i, gs] of p.cellGivens) for (const x of gs) if (digits && x.kind === "number") { givenDigit.set(i, x.value); board.digit[i] = x.value; }
+  const givenColor = new Map<number, number>();
+  for (const [i, gs] of p.cellGivens) for (const x of gs) if (paintGrid && x.kind === "color") { givenColor.set(i, x.value); board.color[i] = x.value; }
+  // a fill-in: its slots (to light up the ones through the selected square) and its list
+  const slots = p.entries.length || p.rules.some((s) => s.rule === "fill-in") ? fillSlots(p) : [];
   // nonogram helpers, only where the page offers them (it doesn't, for now: a saved choice stays off)
   const offered = !!root.querySelector("[data-pref]");
   const prefs = (() => { try { return { autoX: false, autoTick: false, ...(offered ? JSON.parse(localStorage.getItem(PREFS) || "{}") : {}) }; } catch { return { autoX: false, autoTick: false }; } })();
@@ -86,7 +93,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // clues outside the grid (Skyscrapers, Easy as ABC) sit beside the row or column they look along
   const edgeRoom = (side: string) => (p.edgeClues.some((c) => c.side === side) ? 38 : 0);
   // a shape bank (Panes) sits under the grid
-  const bankRoom = (side: string) => (side === "bottom" ? bankLayout(p, S).height : 0);
+  const bankRoom = (side: string) => (side === "bottom" ? bankLayout(p, S).height + entryList(p, g.cols * S).height : 0);
   const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side), edgeRoom(side), bankRoom(side));
   const shadeClues = p.rules.some((s) => blockFor(s).shadeClues);   // Hitori shades the numbers
   const label = (d: number) => symbolOf(p, d);
@@ -186,9 +193,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     if (giv.kind === "number" && !digits) {
       if (links) el("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 }, gGivens);
       const t = el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens) as SVGTextElement;
-      t.textContent = String(giv.value);
+      t.textContent = giv.letter ?? String(giv.value);   // a cipher's letter stands for its number
       if (shadeClues) digitEls.set(i, t);
     }
+    else if (giv.kind === "color") cellRect(i, "paint-given", gGivens, 6);   // a printed color: its wash (below) with a pen outline
     else if (giv.kind === "pearl") gGivens.insertAdjacentHTML("beforeend", stoneSvg(giv.value, x, y, S * 0.28, "pearl"));   // pearls are stones
     else if (giv.kind === "symbol") gGivens.insertAdjacentHTML("beforeend", symbolClueSvg(giv.value, x, y));
     else if (giv.kind === "palisade") gGivens.insertAdjacentHTML("beforeend", palisadeSvg(giv.value, !!giv.opposite, x, y, S));
@@ -227,6 +235,17 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     t.textContent = String(n); clueEls.push([`c${i}:${k}`, t]);
   });
 
+  // a fill-in's list under the board: numbers in the grid are crossed off
+  const entryEls: [number, SVGTextElement][] = [];
+  if (p.entries.length) {
+    const list = entryList(p, g.cols * S), top = Y(g.rows) + bankLayout(p, S).height;
+    for (const l of list.labels) el("text", { class: "clue entry-label", x: X(0) + l.x, y: top + l.y }, gClues).textContent = l.text;
+    for (const it of list.items) {
+      const t = el("text", { class: "clue entry", x: X(0) + it.x, y: top + it.y }, gClues) as SVGTextElement;
+      t.textContent = it.text; entryEls.push([it.k, t]);
+    }
+  }
+
   const totalEls: [number[], number, SVGTextElement][] = [];
   for (const [r, k] of p.rowTotals) {
     const t = el("text", { class: "clue run total", x: ML - 20, y: Y(r) + S / 2 + 1 }, gClues) as SVGTextElement;
@@ -261,6 +280,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const xMark = (x: number, y: number, d = 5, cls = "xmark") => el("path", { class: cls, d: `M${x - d} ${y - d}L${x + d} ${y + d}M${x + d} ${y - d}L${x - d} ${y + d}` }, gMarks);
   const peers = (i: number) => {
     if (i < 0) return new Set<number>();
+    if (slots.length) return new Set(slots.filter((s) => s.includes(i)).flat());   // a fill-in: the numbers through it
     const [r, c] = g.rc(i), boxes = p.rules.find((s) => s.rule === "boxes"), [bh, bw] = boxes ? boxLines(boxes, p) : [g.rows, g.cols];
     const out = new Set<number>();
     for (let j = 0; j < g.cellCount; j++) { const [r2, c2] = g.rc(j); if (r2 === r || c2 === c || (Math.floor(r2 / bh) === Math.floor(r / bh) && Math.floor(c2 / bw) === Math.floor(c / bw))) out.add(j); }
@@ -303,7 +323,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         }
         else cellRect(i, p.style.shaded === "water" ? "shaded water" : "shaded", gWash, -0.5);
       }
-      if (regionsPuzzle && colors[i] > 0) el("rect", { x: x - S / 2 - 0.5, y: y - S / 2 - 0.5, width: S + 1, height: S + 1, fill: palette[colors[i] - 1] ?? "#ccc" }, gWash);
+      if ((regionsPuzzle || paintGrid) && colors[i] > 0) el("rect", { x: x - S / 2 - 0.5, y: y - S / 2 - 0.5, width: S + 1, height: S + 1, fill: palette[colors[i] - 1] ?? "#ccc" }, gWash);
       if (marks.includes("shade") && board.shade[i] === 2) {
         if (p.style.empty === "x") xMark(x, y, S * 0.18, "xmark cellx"); else el("circle", { class: "dotmark", cx: x, cy: y, r: 3.5 }, gMarks);
       }
@@ -349,6 +369,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     for (const [k, t] of clueEls) t.classList.toggle("done", ticks.has(k));
     for (const [i, t] of digitEls) t.classList.toggle("on-shade", board.shade[i] === 1);
     for (const [cs, k, t] of totalEls) t.classList.toggle("done", cs.filter((i) => board.shade[i] === 1).length === k);
+    if (entryEls.length) { const found = entriesDone(p, board); for (const [k, t] of entryEls) t.classList.toggle("done", found.has(k)); }
     for (const [v, [n, want]] of cornerEls) {
       const have = g.cornerBorders[v].filter((e) => board.fence[e] === 1).length;
       n.classList.toggle("done", have === want); n.classList.toggle("over", have > want);
@@ -543,7 +564,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     }
     if (digits) {
       const i = cellAt(pt);
-      sel = i >= 0 && !givenDigit.has(i) ? i : -1;
+      sel = i >= 0 && !givenDigit.has(i) && !p.blocked.has(i) ? i : -1;
       render();
       return;
     }
@@ -575,7 +596,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         const v = (board.shade[i] + (back ? 2 : 1)) % 3;
         drag = { kind: "cells", layer: "shade", value: v, last: i };
         set("shade", i, v);
-      } else if (regionsPuzzle) {
+      } else if (regionsPuzzle || paintGrid) {
+        if (givenColor.has(i)) return;
         const v = board.color[i] === brush ? 0 : brush;
         drag = { kind: "cells", layer: "color", value: v, last: i };
         set("color", i, v);
@@ -596,7 +618,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       const [r0, c0] = g.rc(drag.last), [r1, c1] = g.rc(i), steps = Math.max(Math.abs(r1 - r0), Math.abs(c1 - c0));
       for (let s = 1; s <= steps; s++) {
         const j = g.cell(Math.round(r0 + ((r1 - r0) * s) / steps), Math.round(c0 + ((c1 - c0) * s) / steps));
-        if (!(drag.layer === "shade" && p.cellGivens.has(j) && !shadeClues)) set(drag.layer, j, drag.value);
+        if (!(drag.layer === "shade" && p.cellGivens.has(j) && !shadeClues) && !(drag.layer === "color" && givenColor.has(j))) set(drag.layer, j, drag.value);
       }
       drag.last = i; render();
       return;
@@ -652,26 +674,41 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   pencilBtn?.addEventListener("click", () => setPencil(!pencilMode));
   const onKey = (e: KeyboardEvent) => {
     const t = e.target;
-    if (!digits || (t instanceof Element && t.closest("input, textarea, select, dialog"))) return;
+    if (t instanceof Element && t.closest("input, textarea, select, dialog")) return;
+    if (paintGrid) {
+      // a pot by its number, or its color's first letter
+      const k = palette.length, key = e.key.toLowerCase();
+      const c = Array.from({ length: k }, (_, j) => j + 1).find((j) => colorName(p, j)[0] === key && !colorName(p, j).startsWith("color")) ?? (/^[1-9]$/.test(key) && Number(key) <= k ? Number(key) : 0);
+      if (c) pickPot(c);
+      return;
+    }
+    if (!digits) return;
     const moves: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
     if (e.key in moves) {
       e.preventDefault();
       let [r, c] = sel >= 0 ? g.rc(sel) : [0, -1];
       const [dr, dc] = moves[e.key];
-      do { r = (r + dr + g.rows) % g.rows; c = (c + dc + g.cols) % g.cols; } while (givenDigit.has(g.cell(r, c)) && g.cell(r, c) !== sel);
+      do { r = (r + dr + g.rows) % g.rows; c = (c + dc + g.cols) % g.cols; } while ((givenDigit.has(g.cell(r, c)) || p.blocked.has(g.cell(r, c))) && g.cell(r, c) !== sel);
       sel = g.cell(r, c); render();
-    } else if (/^[1-9]$/.test(e.key) && Number(e.key) <= p.digits) enter(Number(e.key));
+    }
+    // a digit shown as a symbol (Easy as ABC's letters, a fill-in's 0-9) goes by its symbol
     else if (p.style.symbols && p.style.symbols.toLowerCase().includes(e.key.toLowerCase()) && e.key.length === 1) enter(p.style.symbols.toLowerCase().indexOf(e.key.toLowerCase()) + 1);
+    else if (/^[1-9]$/.test(e.key) && Number(e.key) <= p.digits) enter(Number(e.key));
     else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") enter(0);
     else if (e.key === "p" || e.key === "P") setPencil(!pencilMode);
   };
   document.addEventListener("keydown", onKey);
 
   // ---- controls on the paper ----
-  root.querySelectorAll<HTMLButtonElement>("[data-color]").forEach((pot) => pot.addEventListener("click", () => {
-    brush = Number(pot.dataset.color);
-    root.querySelectorAll("[data-color]").forEach((x) => x.setAttribute("aria-pressed", String(x === pot)));
-  }));
+  function pickPot(c: number) {
+    brush = c;
+    root.querySelectorAll<HTMLElement>("[data-color]").forEach((x) => x.setAttribute("aria-pressed", String(Number(x.dataset.color) === c)));
+  }
+  root.querySelectorAll<HTMLButtonElement>("[data-color]").forEach((pot) => {
+    const c = Number(pot.dataset.color);
+    if (paintGrid && c) { pot.title = `${colorName(p, c)} (${c})`; pot.setAttribute("aria-label", colorName(p, c)); }
+    pot.addEventListener("click", () => pickPot(c));
+  });
   q<HTMLButtonElement>("[data-undo]").addEventListener("click", () => {
     if (walk?.back()) { saveWalk(); return; }
     if (solved) return;
@@ -706,6 +743,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     confirming = false; delete reset.dataset.confirm;
     for (const k of Object.keys(board) as Layer[]) board[k].fill(0);
     for (const [i, d] of givenDigit) board.digit[i] = d;
+    for (const [i, c] of givenColor) board.color[i] = c;
     lockWalls(); walk?.stop(); if (saved) delete saved.trail;
     ticks.clear(); history = []; solved = false; reported = false; sel = -1;
     root.classList.remove("revealed", "titled"); say(""); unstamp(root); clearProblems(); afterChange();

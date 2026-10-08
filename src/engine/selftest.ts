@@ -7,7 +7,7 @@ import { makePuzzle, check } from "./puzzle.ts";
 import { program, boardOf } from "./solve.ts";
 import { regionsOf } from "./derive.ts";
 import { solvePaint } from "./paint.ts";
-import { blockFor } from "./rules.ts";
+import { blockFor, fillSlots } from "./rules.ts";
 import { emptyBoard, type Board, type GridSpec, type Puzzle } from "./types.ts";
 
 const rounds = Number(process.argv[2] ?? 40);
@@ -52,17 +52,23 @@ function* allBoards(p: Puzzle): Generator<Board> {
     }
   } else if (p.marks.includes("paint")) {
     const k = p.style.palette?.length || 3;
-    for (let m = 0; m < k ** g.cellCount; m++) {
+    // printed colors stay (Colour Balance, Binairo)
+    const fixed = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "color") fixed.set(i, x.value);
+    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i));
+    for (let m = 0; m < k ** free.length; m++) {
       const b = emptyBoard(g);
+      for (const [i, v] of fixed) b.color[i] = v;
       let x = m;
-      for (let i = 0; i < g.cellCount; i++) { b.color[i] = (x % k) + 1; x = Math.floor(x / k); }
+      for (const i of free) { b.color[i] = (x % k) + 1; x = Math.floor(x / k); }
       yield b;
     }
   } else if (p.marks.includes("digit")) {
     const base = p.blanks ? p.digits + 1 : p.digits, low = p.blanks ? 0 : 1;
     const fixed = new Map<number, number>();
     for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") fixed.set(i, x.value as number);
-    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i));
+    // black cells (a fill-in's) stay empty
+    const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i) && !p.blocked.has(i));
     const total = base ** free.length;
     for (let m = 0; m < total; m++) {
       const b = emptyBoard(g);
@@ -96,7 +102,7 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 
 function randomSpec(): GridSpec {
   const kind = process.argv[4] ?? pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
-    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel"]);
+    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binairo", "binairo", "colour-balance", "colour-balance", "colour-balance", "fill-in", "fill-in", "fill-in"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "panel") return randomPanel();
   if (kind === "simple-loop") {
@@ -197,9 +203,39 @@ function randomSpec(): GridSpec {
     const givens: NonNullable<GridSpec["givens"]> = [];
     for (let i = 0; i < rows * cols; i++) if (rand() < 0.25) {
       givens.push({ at: "cell", cell: cellOf(i, cols), kind: "block" });
-      if (rand() < 0.5) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "number", value: Math.floor(rand() * 3) });
+      // a number, or (a cipher) a letter standing for one
+      if (rand() < 0.5) givens.push({ at: "cell", cell: cellOf(i, cols), kind: "number", value: Math.floor(rand() * 3), ...(rand() < 0.4 ? { value: 0, letter: pick(["A", "B", "C"]) } : {}) });
     }
     return { genre: "akari", size: [rows, cols], givens };
+  }
+  if (kind === "binairo" || kind === "colour-balance") {
+    // Binairo (two colors, half and half, no three in a row, no two lines alike), or Colour Balance's
+    // shares with two or three colors, sometimes with Binairo's other rules; a few printed colors
+    const [rows, cols, parts] = kind === "binairo" ? pick([[4, 4, [1, 1]], [4, 4, [1, 1]], [2, 4, [1, 1]]] as [number, number, number[]][])
+      : pick([[4, 4, [1, 1]], [2, 4, [1, 1]], [3, 3, [1, 2]], [3, 3, [1, 1, 1]], [3, 3, [2, 1]]] as [number, number, number[]][]);
+    const k = parts.length, rules: NonNullable<GridSpec["rules"]> = [];
+    if (kind === "colour-balance") {
+      if (k !== 2 || parts[0] !== parts[1] || rand() < 0.3) rules.push({ rule: "line-shares", parts });
+      if (rand() < 0.3) rules.push({ rule: "no-three-in-a-row" });
+      if (rand() < 0.3) rules.push({ rule: "unique-lines" });
+    }
+    const givens = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * (kind === "binairo" ? 3 : 4)))
+      .map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "color" as const, value: 1 + Math.floor(rand() * k) }));
+    return { genre: kind, size: [rows, cols], rules, givens, ...(k === 3 ? { style: { palette: ["#3fb0e6", "#f7cf3d", "#ef5a6a"] } } : {}) };
+  }
+  if (kind === "fill-in") {
+    // a few black cells, a random filling and its list (sometimes with a number changed), then most of
+    // the digits printed so every board can be tried (10^3)
+    const [rows, cols] = pick([[2, 2], [2, 3], [3, 3]]);
+    const p0 = makePuzzle({ genre: "fill-in", size: [rows, cols], givens: Array.from({ length: rows * cols }, (_, i) => i).filter(() => rand() < 0.2).map((i) => ({ at: "cell", cell: cellOf(i, cols), kind: "block" })) });
+    const white = Array.from({ length: rows * cols }, (_, i) => i).filter((i) => !p0.blocked.has(i));
+    const digit = Array.from({ length: rows * cols }, () => 1 + Math.floor(rand() * 3));
+    const entries = fillSlots(p0).map((s) => s.map((i) => "0123456789"[digit[i] - 1]).join(""));
+    if (entries.length && rand() < 0.3) entries[0] = [...entries[0]].map(() => pick(["0", "1", "2"])).join("");
+    if (rand() < 0.15) entries.pop();
+    const open = new Set(shuffle([...white]).slice(0, 3));
+    return { genre: "fill-in", size: [rows, cols], entries, givens: [...(p0.spec.givens ?? []),
+      ...white.filter((i) => !open.has(i)).map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "number" as const, value: digit[i] }))] };
   }
   if (kind === "shikaku") {
     const [rows, cols] = pick([[2, 3], [3, 3], [2, 4], [3, 4]]);

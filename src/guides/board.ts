@@ -7,6 +7,7 @@ import type { Mini } from "./types.ts";
 export const miniSpec = (genre: string, m: Mini): GridSpec => ({
   genre, size: m.size, ...(m.givens ? { givens: m.givens } : {}), ...(m.areas ? { areas: m.areas } : {}),
   ...(m.figure ? { figure: m.figure } : {}), ...(m.rules ? { rules: m.rules } : {}),
+  ...(m.style ? { style: m.style } : {}), ...(m.entries ? { entries: m.entries } : {}),
 });
 
 export const miniPuzzle = (genre: string, m: Mini): Puzzle => makePuzzle(miniSpec(genre, m));

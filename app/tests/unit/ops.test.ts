@@ -187,3 +187,57 @@ describe("Panes' Glimmith clues", () => {
     expect(ops.normalShape([[2, 3], [1, 3], [2, 4]])).toEqual([[0, 0], [1, 0], [1, 1]]);
   });
 });
+
+describe("Akari ciphers", () => {
+  it("puts a letter on a black square, and a number replaces it", () => {
+    let s = ops.setLetter(grid("akari"), [1, 1], "b");
+    expect(s.givens).toContainEqual({ at: "cell", cell: [1, 1], kind: "number", value: 0, letter: "B" });
+    expect(s.givens).toContainEqual({ at: "cell", cell: [1, 1], kind: "block" });
+    s = ops.setNumber(s, [1, 1], 2);
+    expect(s.givens).toContainEqual({ at: "cell", cell: [1, 1], kind: "number", value: 2 });
+    expect(ops.setLetter(s, [1, 1], "").givens).toEqual([{ at: "cell", cell: [1, 1], kind: "block" }]);
+  });
+});
+
+describe("printed colors and shares (Binairo, Colour Balance)", () => {
+  it("prints a color in a square, and the same color again takes it off", () => {
+    const s = ops.togglePaint(grid("binairo"), [0, 1], 2);
+    expect(s.givens).toEqual([{ at: "cell", cell: [0, 1], kind: "color", value: 2 }]);
+    expect(ops.togglePaint(s, [0, 1], 1).givens).toEqual([{ at: "cell", cell: [0, 1], kind: "color", value: 1 }]);
+    expect(ops.togglePaint(s, [0, 1], 2).givens).toEqual([]);
+  });
+  it("sets the shares: three parts bring three colors; half and half is the type's own", () => {
+    let s = ops.togglePaint(grid("colour-balance", [6, 6]), [0, 0], 2);
+    expect(ops.sharesOf(s)).toEqual([1, 1]);
+    s = ops.setShares(s, [1, 1, 1]);
+    expect(s.rules).toEqual([{ rule: "line-shares", parts: [1, 1, 1] }]);
+    expect(s.style?.palette).toHaveLength(3);
+    s = ops.togglePaint(s, [1, 1], 3);
+    const back = ops.setShares(s, [1, 1]);
+    expect(back.rules).toBeUndefined();
+    expect(back.style).toBeUndefined();
+    expect(back.givens).toEqual([{ at: "cell", cell: [0, 0], kind: "color", value: 2 }]);   // color 3 goes with the third color
+  });
+  it("turns a rule without settings on and off", () => {
+    const s = ops.toggleRule(grid("colour-balance"), "no-three-in-a-row");
+    expect(ops.hasRule(s, "no-three-in-a-row")).toBe(true);
+    expect(ops.toggleRule(s, "no-three-in-a-row").rules).toBeUndefined();
+  });
+});
+
+describe("a fill-in's list", () => {
+  it("takes numbers typed with spaces or commas", () => {
+    const s = ops.setEntries(grid("fill-in"), "12, 305  7x 44");
+    expect(s.entries).toEqual(["12", "305", "44"]);
+    expect(ops.setEntries(s, " ").entries).toBeUndefined();
+  });
+  it("reads the list off a filled-in grid and clears the digits", () => {
+    // 2 × 3 with the top right black: 12 and 345 across, 13 and 24 down
+    let s = ops.setBlock(grid("fill-in", [2, 3]), [0, 2], true);
+    expect(ops.listFromGrid(s)).toBe(s);   // not filled in yet
+    for (const [r, c, d] of [[0, 0, 1], [0, 1, 2], [1, 0, 3], [1, 1, 4], [1, 2, 5]]) s = ops.setNumber(s, [r, c], d + 1);   // digit d is symbol d + 1
+    const t = ops.listFromGrid(s);
+    expect(t.entries).toEqual(["12", "13", "24", "345"]);
+    expect(t.givens).toEqual([{ at: "cell", cell: [0, 2], kind: "block" }]);
+  });
+});

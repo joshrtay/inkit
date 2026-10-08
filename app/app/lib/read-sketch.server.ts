@@ -7,7 +7,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { SYMBOL_COLORS, type Given, type GridSpec, type RuleSpec, type SymbolColor } from "~site/engine/types.ts";
 import { SYMMETRIES } from "~site/engine/panel.ts";
-import { GENRE_NAMES, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
+import { BALANCE_COLORS, GENRE_NAMES, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
 import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
@@ -32,7 +32,9 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   clues. Give the areas as "areas" (one string per row, one letter per cell, same letter = same area). If it says
   "2 stars" (or similar), set the rules shaded-per-line and shaded-per-area with n: 2.`,
   akari: `akari (Akari / Light Up): black cells, some with a number 0-4. Each black cell is {kind: "block"}; a numbered
-  black cell is both {kind: "block"} and {kind: "number", value} on the same cell. Leave out any bulbs drawn as the answer.`,
+  black cell is both {kind: "block"} and {kind: "number", value} on the same cell. In a cipher, black cells show letters
+  instead of numbers (each letter stands for a different number): give the letter as the number's value, e.g. "A".
+  Leave out any bulbs drawn as the answer.`,
   numberlink: `numberlink (Numberlink / Connectlink / Flow): pairs of equal numbers (or letters / colors, numbered 1, 2, 3...)
   in cells, {kind: "number", value}. If the sketch says every cell must be used, add the rule links with cover: true.
   Leave out lines drawn as the answer.`,
@@ -107,11 +109,26 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   mirror images (often a blue and a yellow start) mean two lines drawn at once: add the rule panel-line with settings
   "symmetry left-right" (mirrored left to right), "symmetry up-down" (mirrored top to bottom) or "symmetry turn"
   (turned halfway round). Leave out a line drawn as the answer.`,
+  binairo: `binairo (Binairo / Takuzu / binary puzzle): an even-sized grid where every cell gets one of two colors (often
+  written as 0 and 1, or X and O, instead): half of each in every row and column, no three alike in a row, no two rows or
+  columns the same. Each cell given at the start is {kind: "color", value: 1 for the first color (red, 0, X), 2 for the
+  second (blue, 1, O)}. Leave out cells filled in as the answer.`,
+  "colour-balance": `colour-balance (Colour Balance): every cell gets one of 2 or 3 colors, so each row and column holds the
+  share of each color written on the sketch (e.g. "half blue, half yellow", "a third each", "1/3 blue 2/3 yellow").
+  Each cell colored at the start is {kind: "color", value: 1, 2 or 3}: the colors in the order the sketch names them
+  (else blue 1, yellow 2, red 3). Unless it's half and half, add the rule line-shares with "parts" in that same order,
+  e.g. "parts 1 1 1" (a third each) or "parts 1 2" (a third and two thirds). If the sketch also says no three in a row,
+  or no two rows (or columns) alike, add no-three-in-a-row or unique-lines. Leave out cells colored as the answer.`,
+  "fill-in": `fill-in (Number Fill-In): a grid with black squares, and a list of numbers beside it to fit into the grid
+  across and down (like a crossword of numbers). Each black square is {kind: "block"}; a digit printed in a white square
+  is {kind: "number", value: the digit, 0 to 9}. Give the list in "entries", every number as written, in any order.
+  Leave out digits filled in as the answer.`,
 };
 
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
-  number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"",
+  number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"; an Akari cipher's letter: the letter, e.g. \"A\"",
+  color: "a cell colored in at the start (binairo, colour-balance): row, col; value its color's number as the type says, e.g. \"2\"",
   block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
   symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black",
   palisade: "a palisade mark in a cell (panes: a small diamond with some of its four sides drawn thick; each thick side is one of the cell's sides that is a region border): row, col; " +
@@ -210,6 +227,10 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "panel-line": "one line along the grid lines from a start circle to an end, never touching itself or crossing a gap (comes with panel); " +
     "symmetry left-right / up-down / turn: two lines at once, mirror images (list it, with its symmetry, when the panel has two mirrored starts and ends)",
   "panel-symbols": "the panel's symbols (dots, squares, stars, triangles, shapes, erasers) say where the line goes (comes with panel)",
+  "line-shares": "every row and column holds its share of each color (comes with binairo and colour-balance, half and half); parts: one number per color, e.g. \"parts 1 1 1\" (a third each), \"parts 1 2\" (a third and two thirds)",
+  "no-three-in-a-row": "no three cells in a row, across or down, have the same color (comes with binairo)",
+  "unique-lines": "no two rows are colored the same, and no two columns (comes with binairo)",
+  "fill-in": "every number on the list fits once, across or down (comes with fill-in)",
 };
 
 // Every field is required (empty when unused): the API caps how many fields may be nullable or
@@ -243,6 +264,7 @@ const Reading = z.object({
   palette: z.array(z.object({ letter: z.string(), color: z.string().describe("a CSS hex color") })).describe("the picture's colors by letter; else []"),
   areas: z.array(z.string()).describe("outlined areas (star-battle, irregular-sudoku, aquarium): one string per row, one letter per cell; else []"),
   figure: z.array(z.array(z.array(z.number()))).describe("coats only: one polygon per piece, its corners as [x, y] on a 0..100 scale; else []"),
+  entries: z.array(z.string()).describe("fill-in only: the list of numbers beside the grid, each as written (digits only); else []"),
   sure: z.boolean().describe("true only if you could read the grid and every clue clearly"),
   notes: z.array(z.object({
     text: z.string().describe("what you weren't sure of and how you read it, e.g. \"looks like a 7 or a 2; read as 2\". Don't name rows or columns here: the place fields say where, and the creator sees it pinned there"),
@@ -442,7 +464,9 @@ function troubleWith({ reading, sketch }: { reading: Reading; sketch: string }):
 
 /** A reading as sketch text: the genre line, then the puzzle as JSON. */
 export function toSketch(r: Reading): string {
-  const givens: Given[] = r.givens.flatMap((g) => givenOf(g) ?? []);
+  // a fill-in's digits 0-9 are its symbols 1-10
+  const givens: Given[] = r.givens.flatMap((g) => givenOf(g) ?? [])
+    .map((g) => (r.genre === "fill-in" && g.kind === "number" ? { ...g, value: g.value + 1 } : g));
   for (const run of r.runs) givens.push(r.genre === "aquarium"
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
     : { at: run.line, index: run.index, kind: "runs", value: run.runs });
@@ -453,11 +477,17 @@ export function toSketch(r: Reading): string {
     // a panel-line without a symmetry is what every panel has already (one line)
     .filter((s: RuleSpec) => s.rule !== "panel-line" || s.symmetry);
   const figure = r.genre === "coats" && r.figure.length ? { pieces: r.figure } : undefined;
+  // Colour Balance's colors follow its shares (three parts, three colors)
+  const parts = rules.find((s) => s.rule === "line-shares")?.parts;
+  const palette = r.genre === "colour-balance" && Array.isArray(parts) && parts.length === 3 ? BALANCE_COLORS.slice(0, 3) : undefined;
+  const entries = r.genre === "fill-in" ? (r.entries ?? []).map((e) => e.replace(/\D/g, "")).filter(Boolean) : [];
   const body: Omit<GridSpec, "genre"> = {
     size: figure ? [1, figure.pieces.length] : [r.rows, r.cols],
     ...(figure ? { figure } : {}),
     ...(r.areas.length ? { areas: r.areas } : {}),
     ...(rules.length ? { rules } : {}),
+    ...(palette ? { style: { palette } } : {}),
+    ...(entries.length ? { entries } : {}),
     ...(givens.length ? { givens } : {}),
     ...(r.genre === "nonogram" && r.pictureRows.length && !r.runs.length
       ? { picture: { rows: r.pictureRows, palette: Object.fromEntries([[".", "#ffffff"], ...r.palette.map((p) => [p.letter, p.color])]), ...(r.title ? { title: r.title } : {}) } }
@@ -492,7 +522,12 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
   const cell: [number, number] = [row, col], v = value.trim().toLowerCase();
   const side = SIDES.find((s) => v.includes(s));
   switch (kind) {
-    case "number": { const n = num(v); return n === null ? null : { at: "cell", cell, kind, value: n }; }
+    case "number": {
+      // an Akari cipher's letter stands for a number
+      if (/^[a-z]$/.test(v)) return { at: "cell", cell, kind, value: 0, letter: v.toUpperCase() };
+      const n = num(v); return n === null ? null : { at: "cell", cell, kind, value: n };
+    }
+    case "color": { const n = num(v); return n === null || n < 1 || n > 3 ? null : { at: "cell", cell, kind, value: n }; }
     case "count": { const n = num(v); return n === null ? null : { at: "corner", corner: cell, kind, value: n }; }
     case "block": return { at: "cell", cell, kind };
     case "symbol": {
@@ -581,6 +616,7 @@ export function ruleSettings(text: string): Record<string, unknown> {
     else if (w === "symmetry" && next && (SYMMETRIES as string[]).includes(next)) { out.symmetry = next; k++; }
     else if ((SYMMETRIES as string[]).includes(w)) out.symmetry = w;
     else if (w === "of" && next) { out.of = next; k++; }
+    else if (w === "parts") { const ps: number[] = []; while (words[k + 1] !== undefined && /^\d+$/.test(words[k + 1])) ps.push(Number(words[++k])); if (ps.length) out.parts = ps; }
     else if (next !== undefined && !Number.isNaN(Number(next))) { out[w] = Number(next); k++; }
   }
   return out;
