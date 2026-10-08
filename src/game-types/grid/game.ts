@@ -2,13 +2,16 @@
 // gestures for its marks (docs/grid-engine.md, "Playing"):
 //   fence / cut   drag along the lines from corner to corner; tap a line to cycle it
 //   loop          drag from cell to cell; tap between two cells to cycle the link
+// Every drag that draws a line moves a head along the tracks (line-input.ts, after The Witness):
+// it glides between junctions, slides round corners, and backing up takes the stroke back.
 //   shade         tap cycles shaded / empty mark / clear; dragging paints what the first cell got
 //   color         pick a pot and paint cells (regions puzzles)
 //   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too
 // A maze (doors in its edge) is drawn with fence; once its walls check out, the player walks it
 // (walk.ts), and it's solved on the way out. Paint puzzles (figures of pieces) play in figure.ts.
-// A panel (panel.ts) is drawn with fence along its tracks; gaps can't be drawn over, and with
-// symmetry every stretch drawn draws its mirror image too.
+// A panel (panel.ts) is drawn as one line from a start (or on from the tip of the line): it
+// stops at gaps and at itself, pushes out into an end, and with symmetry its mirror image draws
+// itself and the two lines can't meet.
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
 import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
@@ -20,7 +23,8 @@ import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
-import { mirrorBorder, type Symmetry } from "../../engine/panel.ts";
+import { endsOf, mirrorBorder, mirrorCorner, startsOf, type Symmetry } from "../../engine/panel.ts";
+import * as Line from "./line-input";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 import { createFigure } from "./figure";
 
@@ -105,7 +109,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
 
   // ---- layers, back to front ----
   const gTint = el("g", {}), gReveal = el("g", { class: "reveal wash" }), gWash = el("g", { class: "wash" }), gRocks = el("g", { class: "wash" });
-  const gGrid = el("g", { class: "gridlines" }), gWater = el("g", { class: "water" }), gLines = el("g", {}), gGivens = el("g", {});
+  const gGrid = el("g", { class: "gridlines" }), gWater = el("g", { class: "water" }), gLines = el("g", {}), gHead = el("g", { class: "line-head" }), gGivens = el("g", {});
   const gMarks = el("g", { class: "marks" }), gHint = el("g", {});
   const gWalk = el("g", { class: "walk" }), gCorners = el("g", {});
 
@@ -453,49 +457,76 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const v = vr >= 0 && vr < g.rows && vc >= 0 && vc <= g.cols ? { e: (g.rows + 1) * g.cols + vr * (g.cols + 1) + vc, d: Math.abs(fx - vc) * S } : null;
     return !h ? v : !v ? h : h.d <= v.d ? h : v;
   };
-  const sharedBorder = (v1: number, v2: number) => g.cornerBorders[v1].find((e) => g.cornerBorders[v2].includes(e)) ?? -1;
   const linkOpen = (l: number) => !p.walls.has(l) && !g.links[l].cells.some((c) => p.blocked.has(c));
   const walk = maze ? createWalk(p, board.fence, S / 2, {
     svg, layer: gWalk, el, center, cellAt, toBoard, say,
     out: () => { if (!solved) { solved = true; win(); render(); } saveWalk(); },
   }) : null;
 
+  // ---- lines: a head that moves along the tracks (line-input.ts) ----
+  const panelEnds = panel ? endsOf(p) : [], panelStarts = panel ? startsOf(p) : [];
+  const edgeTrack = Line.cornerTrack(g, cornerXY, panel ? { gaps: p.gaps, ends: panelEnds, stub: S * 0.3 } : {});
+  const cellTrack = Line.cellTrack(g, center, linkOpen);
+  const panelRules: Line.Rules = { revisit: "block", ...(mirror ? { mirror: Line.trackMirror(edgeTrack, g.cornerCount, (v) => mirrorCorner(g, v, mirror)) } : {}) };
+  const strokeRules: Line.Rules = { revisit: "close" };
+
+  type Stroke = { layer: "fence" | "cut" | "loop"; track: Line.Track; cursor: Line.Cursor; was: Map<number, number>; mode: number | null };
   type Drag =
-    | { kind: "edges"; layer: "fence" | "cut"; last: number; tapBorder: number; mode: number | null; start: [number, number]; moved: boolean }
-    | { kind: "links"; last: number; tapLink: number; mode: number | null; start: [number, number]; moved: boolean }
+    | { kind: "panel"; cursor: Line.Cursor }
+    | { kind: "edges"; stroke: Stroke; tapBorder: number; start: [number, number]; moved: boolean }
+    | { kind: "links"; stroke: Stroke; tapLink: number; start: [number, number]; moved: boolean }
     | { kind: "cells"; layer: "shade" | "color"; value: number; last: number };
   let drag: Drag | null = null;
 
-  /** toggle the edges between two corners (fence / cut) in the drag's mode */
-  const dragEdge = (d: Extract<Drag, { kind: "edges" }>, to: number) => {
-    const [r0, c0] = g.cornerRC(d.last), [r1, c1] = g.cornerRC(to);
-    if (r0 !== r1 && c0 !== c1) return;   // only straight runs along the grid
-    const steps = Math.abs(r1 - r0) + Math.abs(c1 - c0), dr = Math.sign(r1 - r0), dc = Math.sign(c1 - c0);
-    let cur = d.last;
-    for (let k = 0; k < steps; k++) {
-      const [r, c] = g.cornerRC(cur), next = g.corner(r + dr, c + dc), e = sharedBorder(cur, next);
-      if (e >= 0 && !locked.has(e) && (d.layer === "fence" || g.borders[e].link >= 0)) {
-        d.mode ??= board[d.layer][e] === 1 ? 0 : 1;
-        set(d.layer, e, d.mode);
-      }
-      cur = next;
+  /** a tick under the finger at each junction (Android; iOS has no vibration) */
+  const buzz = (evt: PointerEvent) => { if (evt.pointerType !== "mouse") try { navigator.vibrate?.(6); } catch { /* not allowed */ } };
+  /** the head: the part of a segment not yet drawn, and a round tip */
+  function drawHead(track: Line.Track, c: Line.Cursor, river: boolean, mirrorOf?: (n: number) => number) {
+    gHead.replaceChildren();
+    const one = (path: number[], toward: number, color?: string) => {
+      const from = track.xy(path[path.length - 1]), [x, y] = toward < 0 ? from : Line.headXY(track, { path, toward, t: c.t });
+      const style = color ? `stroke:${color};fill:${color}` : "";
+      if (toward >= 0) el("line", { class: river ? "river" : "pen", x1: from[0], y1: from[1], x2: x, y2: y, style }, gHead);
+      el("circle", { class: river ? "joint" : "tip", cx: x, cy: y, r: river ? 6.5 : 4.6, style }, gHead);
+    };
+    const color = (n: number) => { const s = panelStarts.find((x) => x.v === n); return s?.color ? LINE_COLORS[s.color] : undefined; };
+    one(c.path, c.toward, mirrorOf ? color(c.path[0]) : undefined);
+    if (mirrorOf) one(c.path.map(mirrorOf), c.toward < 0 ? -1 : mirrorOf(c.toward), color(mirrorOf(c.path[0])));
+  }
+  /** a panel's line is the drag's path, and its mirror image: put it on the board */
+  function layPanel(c: Line.Cursor) {
+    const want = new Set(Line.edgesOf(edgeTrack, c.path));
+    for (const e of g.borders) if (!locked.has(e.id)) {
+      const on = want.has(e.id) || (!!mirror && want.has(mirrorBorder(g, e.id, mirror)));
+      put("fence", e.id, on ? 1 : 0);
     }
-    d.last = to;
-  };
-  /** extend the loop from the last cell to this one, filling in cells skipped on a fast drag */
-  const dragLink = (d: Extract<Drag, { kind: "links" }>, to: number) => {
-    const [r0, c0] = g.rc(d.last), [r1, c1] = g.rc(to);
-    if (r0 !== r1 && c0 !== c1) return;
-    const steps = Math.abs(r1 - r0) + Math.abs(c1 - c0), dr = Math.sign(r1 - r0), dc = Math.sign(c1 - c0);
-    for (let k = 0; k < steps; k++) {
-      const [r, c] = g.rc(d.last), next = g.cell(r + dr, c + dc);
-      const l = g.cellLinks[d.last].find((x) => g.links[x].cells.includes(next));
-      if (l === undefined || !linkOpen(l)) return;
-      d.mode ??= board.loop[l] === 1 ? 0 : 1;
-      set("loop", l, d.mode);
-      d.last = next;
+  }
+  /** the line on the board from a start, as corners, to its tip */
+  function panelPath(start: number) {
+    const path = [start];
+    for (;;) {
+      const v = path[path.length - 1], n = g.cornerBorders[v].filter((e) => board.fence[e] === 1)
+        .map((e) => g.borders[e].corners.find((w) => w !== v)!).find((w) => w !== path[path.length - 2]);
+      if (n === undefined || path.includes(n)) return path;
+      path.push(n);
     }
-  };
+  }
+  /** a stroke (fence, cut, loop) is the drag's path: segments it reaches take its mode (the first
+   *  one decides draw or erase), segments it backs off go back to what they were */
+  function strokeTo(st: Stroke, next: Line.Cursor) {
+    const { removed, added } = Line.diffPaths(st.track, st.cursor.path, next.path);
+    for (const e of removed) if (st.was.has(e)) { set(st.layer, e, st.was.get(e)!); st.was.delete(e); }
+    for (const e of added) {
+      if (st.layer !== "loop" && (locked.has(e) || (st.layer === "cut" && g.borders[e].link < 0))) continue;
+      st.mode ??= board[st.layer][e] === 1 ? 0 : 1;
+      if (!st.was.has(e)) st.was.set(e, board[st.layer][e]);
+      set(st.layer, e, st.mode);
+    }
+    const grew = next.path.length !== st.cursor.path.length;
+    st.cursor = next;
+    return grew;
+  }
+  const showStroke = (st: Stroke) => { if (st.mode === 0) gHead.replaceChildren(); else drawHead(st.track, st.cursor, st.layer === "loop"); };
   let brush = 1;
 
   svg.addEventListener("contextmenu", (e) => e.preventDefault());
@@ -517,13 +548,25 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       return;
     }
     const nb = nearestBorder(pt);
-    if (marks.includes("fence") || (regionsPuzzle && nb && nb.d < S * 0.22 && g.borders[nb.e].link >= 0)) {
-      drag = { kind: "edges", layer: marks.includes("fence") ? "fence" : "cut", last: nearestCorner(pt).v, tapBorder: nb ? nb.e : -1, mode: null, start: pt, moved: false };
+    if (panel) {
+      // from a start (a new line), or on from the tip of the line there is
+      const tips = panelStarts.map((s) => panelPath(s.v)), nearStart = Line.nearestNode(edgeTrack, pt, panelStarts.map((s) => s.v));
+      const nearTip = Line.nearestNode(edgeTrack, pt, tips.filter((t) => t.length > 1).map((t) => t[t.length - 1]));
+      let cursor: Line.Cursor | null = null;
+      if (nearTip.d < S * 0.4 && nearTip.d <= nearStart.d) cursor = { path: tips.find((t) => t[t.length - 1] === nearTip.n)!, toward: -1, t: 0 };
+      else if (nearStart.d < S * 0.45) cursor = Line.begin(nearStart.n);
+      if (!cursor) return;
+      drag = { kind: "panel", cursor };
+      layPanel(cursor);
+    } else if (marks.includes("fence") || (regionsPuzzle && nb && nb.d < S * 0.22 && g.borders[nb.e].link >= 0)) {
+      const stroke: Stroke = { layer: marks.includes("fence") ? "fence" : "cut", track: edgeTrack, cursor: Line.begin(nearestCorner(pt).v), was: new Map(), mode: null };
+      drag = { kind: "edges", stroke, tapBorder: nb ? nb.e : -1, start: pt, moved: false };
     } else if (marks.includes("loop")) {
       const i = cellAt(pt);
       if (i < 0) return;
       const near = nb && nb.d < S * 0.2 ? g.borders[nb.e].link : -1;
-      drag = { kind: "links", last: i, tapLink: near >= 0 && linkOpen(near) ? near : -1, mode: null, start: pt, moved: false };
+      const stroke: Stroke = { layer: "loop", track: cellTrack, cursor: Line.begin(i), was: new Map(), mode: null };
+      drag = { kind: "links", stroke, tapLink: near >= 0 && linkOpen(near) ? near : -1, start: pt, moved: false };
     } else {
       const i = cellAt(pt);
       if (i < 0) return;
@@ -541,6 +584,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     if (!drag) return;
     try { svg.setPointerCapture(evt.pointerId); } catch { /* synthetic events */ }
     render();
+    if (drag.kind === "panel") drawHead(edgeTrack, drag.cursor, false, panelRules.mirror);
   });
   svg.addEventListener("pointermove", (evt) => {
     if (!drag) return;
@@ -557,21 +601,33 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       drag.last = i; render();
       return;
     }
+    // every sample since the last frame, so a fast swipe doesn't cut corners
+    const pts = (evt.getCoalescedEvents?.() ?? []).map(toBoard);
+    if (!pts.length) pts.push(pt);
+    if (drag.kind === "panel") {
+      const before = drag.cursor.path.length;
+      for (const q of pts) drag.cursor = Line.moveTo(edgeTrack, panelRules, drag.cursor, q);
+      if (drag.cursor.path.length !== before) { layPanel(drag.cursor); render(); if (drag.cursor.path.length > before) buzz(evt); }
+      drawHead(edgeTrack, drag.cursor, false, panelRules.mirror);
+      return;
+    }
     if (!drag.moved && Math.hypot(pt[0] - drag.start[0], pt[1] - drag.start[1]) < S * 0.3) return;
     drag.moved = true;
-    if (drag.kind === "edges") {
-      const { v, d } = nearestCorner(pt);
-      if (d < S * 0.42 && v !== drag.last) { dragEdge(drag, v); render(); }
-    } else {
-      const i = cellAt(pt);
-      if (i >= 0 && i !== drag.last) { dragLink(drag, i); render(); }
-    }
+    const st = drag.stroke;
+    let grew = false;
+    for (const q of pts) grew = strokeTo(st, Line.moveTo(st.track, strokeRules, st.cursor, q)) || grew;
+    if (grew) { render(); buzz(evt); }
+    showStroke(st);
   });
   const end = () => {
     if (!drag) return;
+    gHead.replaceChildren();
+    // a head partway along a segment goes on to the next junction past half, otherwise back
+    if (drag.kind === "panel") layPanel(Line.settle(edgeTrack, panelRules, drag.cursor));
+    else if (drag.kind !== "cells" && drag.moved) strokeTo(drag.stroke, Line.settle(drag.stroke.track, strokeRules, drag.stroke.cursor));
     if (drag.kind === "edges" && !drag.moved && drag.tapBorder >= 0 && !locked.has(drag.tapBorder)) {
       const e = drag.tapBorder;
-      if (drag.layer === "fence") set("fence", e, (board.fence[e] + 1) % 3);
+      if (drag.stroke.layer === "fence") set("fence", e, (board.fence[e] + 1) % 3);
       else if (g.borders[e].link >= 0) set("cut", e, board.cut[e] ? 0 : 1);
     }
     if (drag.kind === "links" && !drag.moved && drag.tapLink >= 0) set("loop", drag.tapLink, (board.loop[drag.tapLink] + 1) % 3);

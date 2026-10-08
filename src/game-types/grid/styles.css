@@ -64,6 +64,10 @@
 .grid-game .water .river { stroke: var(--wash-blue); stroke-width: var(--wash-stroke); stroke-linecap: round; }
 .grid-game .water .joint { fill: var(--wash-blue); }
 .grid-game.solved .water .river, .grid-game.solved .water .joint { stroke: var(--wash-green); fill: var(--wash-green); }
+/* the head of a line being drawn (line-input.ts): the stretch not yet drawn, and a round tip */
+.grid-game .line-head { pointer-events: none; }
+.grid-game .line-head .joint { fill: var(--wash-blue); }
+.grid-game .line-head .tip { fill: var(--paper-ink); }
 .grid-game .rock { fill: color-mix(in srgb, var(--paper-ink) 75%, #fff); }
 .grid-game .wall { stroke: var(--paper-ink); stroke-width: var(--pen-bold); stroke-linecap: round; }
 
