@@ -16,7 +16,7 @@ const givensOf = (s: Spec) => s.givens ?? [];
 const withGivens = (s: Spec, givens: Given[]): Spec => (JSON.stringify(givens) === JSON.stringify(givensOf(s)) ? s : { ...s, givens });
 
 /** Types where a number sits on a black square (the square stays black). */
-const NUMBERS_ON_BLOCKS = new Set(["akari", "panes"]);
+const NUMBERS_ON_BLOCKS = new Set(["akari"]);
 
 /** A square's number, or none (null). In Akari a number makes its square black. */
 export function setNumber(s: Spec, cell: RC, value: number | null): Spec {
@@ -27,8 +27,8 @@ export function setNumber(s: Spec, cell: RC, value: number | null): Spec {
   return withGivens(s, next);
 }
 
-/** A rock (black square) on or off. It replaces what was in the square, except a number on a
- *  black square (Akari, Panes). */
+/** A rock (black square; in a region puzzle, a hole) on or off. It replaces what was in the
+ *  square, except a number on a black square (Akari). */
 export function setBlock(s: Spec, cell: RC, on: boolean): Spec {
   const gs = givensOf(s);
   if (gs.some((g) => at(cell)(g) && g.kind === "block") === on) return s;
@@ -39,10 +39,23 @@ export function setBlock(s: Spec, cell: RC, on: boolean): Spec {
 
 export const hasBlock = (s: Spec, cell: RC) => givensOf(s).some((g) => at(cell)(g) && g.kind === "block");
 
-/** A symbol in a square, on or off (Panes). */
-export function toggleSymbol(s: Spec, cell: RC): Spec {
-  const gs = givensOf(s), has = gs.some((g) => at(cell)(g) && g.kind === "symbol");
-  return withGivens(s, [...gs.filter((g) => !(at(cell)(g) && g.kind === "symbol")), ...(has ? [] : [{ at: "cell", cell, kind: "symbol", value: "★" } as Given])]);
+/** A symbol in a square (Panes): ★, or a color name for a colored one (Rose Windows' roses). The
+ *  same symbol again takes it off; a different one replaces it. */
+export function toggleSymbol(s: Spec, cell: RC, value = "★"): Spec {
+  const gs = givensOf(s), has = gs.some((g) => at(cell)(g) && g.kind === "symbol" && g.value === value);
+  return withGivens(s, [...gs.filter((g) => !(at(cell)(g) && g.kind === "symbol")), ...(has ? [] : [{ at: "cell", cell, kind: "symbol", value } as Given])]);
+}
+
+/** The palisade marks in the order a click steps through them: 0 to 4 borders, with two either
+ *  at a corner or opposite. */
+export const PALISADES: { value: number; opposite?: true }[] = [{ value: 0 }, { value: 1 }, { value: 2 }, { value: 2, opposite: true }, { value: 3 }, { value: 4 }];
+
+/** A square's palisade mark (Panes): none, 0, 1, 2 at a corner, 2 opposite, 3, 4, none. */
+export function cyclePalisade(s: Spec, cell: RC): Spec {
+  const gs = givensOf(s), had = gs.find((g) => at(cell)(g) && g.kind === "palisade");
+  const k = had && had.kind === "palisade" ? PALISADES.findIndex((x) => x.value === had.value && !!x.opposite === !!had.opposite) : -1;
+  const next = PALISADES[k + 1];
+  return withGivens(s, [...gs.filter((g) => !(at(cell)(g) && g.kind === "palisade")), ...(next ? [{ at: "cell", cell, kind: "palisade", ...next } as Given] : [])]);
 }
 
 /** A square's pearl: none, white, black, none (Masyu). */

@@ -40,7 +40,8 @@ string per row, one letter per cell. They're drawn with thick outlines; rules ca
 them (`shaded-per-area`), and `boxes` uses them as a sudoku's boxes when they're there.
 
 **Givens** are clues fixed to an element: a number in a cell (in a digit puzzle, a given
-digit), a rock (`block`: no marks), a symbol, a compass, a ◆ / ◇ / `wall` on a border, a
+digit), a rock (`block`: no marks; in a region puzzle a hole, in no region, its edges borders), a
+symbol (a color name for a colored one), a compass, a `palisade` mark, a ◆ / ◇ / `wall` on a border (in a region puzzle a wall is a border drawn already: different regions on either side), a
 number on a corner (`count`), paint `dots` in a piece (colors, optionally `hidden` until
 it's painted), a `door` in the outside edge (a maze's way in or out), and a
 nonogram's runs or a `total` beside a row or above a column, a clue outside the grid looking in
@@ -104,6 +105,9 @@ puzzle can use it.
 | `rectangles` | Every region is a rectangle (Shikaku). |
 | `all-different` | No two regions have the same shape. |
 | `compass` | A compass clue's numbers count the cells of its region that lie north, east, south and west of it. |
+| `neighbors-differ` | Regions that share a border have different shapes (Glimmith's Mingle Shape). |
+| `one-of-each` | Every region holds exactly one symbol of each kind: one of every color (Glimmith's Rose Windows with several colors of rose; a symbol's value is its color). |
+| `cell-borders` | A `palisade` clue shows how many of its cell's four sides are region borders (0-4), and with two whether they're `opposite` or at a corner, turned any way; the grid's edge and holes count (Glimmith's Palisade). |
 | `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |
 | `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
 | `boxes` | Each box (`box: [h, w]`, or sized from the grid; the outlined areas if the puzzle has them) has each digit once. |

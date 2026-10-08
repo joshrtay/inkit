@@ -13,6 +13,7 @@
 import { describe, genres, makePuzzle } from "~site/engine/puzzle.ts";
 import type { GridSpec, RuleSpec } from "~site/engine/types.ts";
 import { kindName } from "./kinds";
+import { RULES, settingProblems } from "~/editor/coverage";
 
 export const SKETCH_VERSION = 1;
 
@@ -39,6 +40,8 @@ export function parseSketch(sketch: string, version = SKETCH_VERSION): Parsed {
   }
   const rules = [...(ruleList ? ruleList.split(",").map(ruleFrom) : []), ...(body.rules ?? [])];
   const spec: GridSpec = { ...body, genre, size: body.size, ...(rules.length ? { rules } : {}) } as GridSpec;
+  const unknown = rules.flatMap((r) => (r && typeof r === "object" && typeof r.rule === "string" ? settingProblems(r) : []));
+  if (unknown.length) return { ok: false, errors: unknown };
   try {
     const puzzle = makePuzzle(spec);
     return { ok: true, kind: genre, spec, summary: `${kindName(genre)} · ${spec.figure ? `${spec.figure.pieces.length} pieces` : `${spec.size[1]} × ${spec.size[0]}`}`, rules: describe(puzzle) };
@@ -47,10 +50,12 @@ export function parseSketch(sketch: string, version = SKETCH_VERSION): Parsed {
   }
 }
 
-/** "size 4" -> { rule: "size", is: 4 }; "twins" -> { rule: "twins" }. */
+/** "size 4" -> { rule: "size", is: 4 }; "one-each symbol" -> { rule: "one-each", of: "symbol" };
+ *  "twins" -> { rule: "twins" }. A value goes to the rule's first setting. */
 function ruleFrom(text: string): RuleSpec {
   const [rule, value] = text.trim().split(/\s+/);
-  return value === undefined ? { rule } : { rule, is: Number.isNaN(Number(value)) ? value : Number(value) };
+  const key = (RULES as Record<string, { settings: { key: string }[] } | undefined>)[rule]?.settings[0]?.key ?? "is";
+  return value === undefined ? { rule } : { rule, [key]: Number.isNaN(Number(value)) ? value : Number(value) };
 }
 
 /** A puzzle description back to sketch text (the visual editor's output). */

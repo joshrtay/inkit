@@ -65,6 +65,23 @@ describe("pearls, galaxies, symbols", () => {
     const s = ops.toggleSymbol(grid("panes"), [0, 0]);
     expect(ops.toggleSymbol(s, [0, 0]).givens).toEqual([]);
   });
+  it("a colored symbol replaces another color, and the same color takes it off", () => {
+    const red = ops.toggleSymbol(grid("panes"), [0, 0], "red");
+    const blue = ops.toggleSymbol(red, [0, 0], "blue");
+    expect(blue.givens).toEqual([{ at: "cell", cell: [0, 0], kind: "symbol", value: "blue" }]);
+    expect(ops.toggleSymbol(blue, [0, 0], "blue").givens).toEqual([]);
+  });
+  it("a palisade mark steps through 0, 1, 2 at a corner, 2 opposite, 3, 4 and off", () => {
+    let s = grid("panes");
+    const seen: string[] = [];
+    for (let k = 0; k < 6; k++) {
+      s = ops.cyclePalisade(s, [1, 1]);
+      const g = s.givens?.find((x) => x.kind === "palisade");
+      seen.push(g && g.kind === "palisade" ? `${g.value}${g.opposite ? "o" : ""}` : "-");
+    }
+    expect(seen).toEqual(["0", "1", "2", "2o", "3", "4"]);
+    expect(ops.cyclePalisade(s, [1, 1]).givens).toEqual([]);
+  });
 });
 
 describe("thermometers", () => {

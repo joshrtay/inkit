@@ -736,10 +736,10 @@ sqc1(R,X) :- root(R), X = #max{Y: member(R,I), col(I,Y)}.
     needs: ["regions"],
     check(_s, p, _b, r) {
       const reg = r();
-      return numberClues(p).filter(([i, k]) => reg.cells[reg.of[i]].length !== k * k)
+      return numberClues(p).filter(([i, k]) => reg.of[i] < 0 || reg.cells[reg.of[i]].length !== k * k)
         .map(([i, k]) => ({ message: `This ${k} sits in a ${k}×${k} square.`, cells: [i] }));
     },
-    asp: (_s, p) => numberClues(p).map(([i, k]) => `:- member(R,${i}), size(R,N), N != ${k * k}.`).join("\n"),
+    asp: (_s, p) => numberClues(p).map(([i, k]) => `:- member(R,${i}), size(R,N), N != ${k * k}.\n:- not open(${i}).`).join("\n"),
   },
   rectangles: {
     describe: () => "Every region is a rectangle (or a square).",
@@ -757,20 +757,26 @@ sqc1(R,X) :- root(R), X = #max{Y: member(R,I), col(I,Y)}.
     describe: () => "Split the grid into regions, one around each circle. Each region is symmetric about its circle: turn it halfway round the circle and it looks the same.",
     check(_s, p, b) {
       const reg = regionsOf(p, b), out: number[][] = [];
+      const inAny = new Set<number>();
       reg.cells.forEach((cs) => {
-        const set = new Set(cs), inside = p.galaxies.filter((gx) => galaxyCore(p, gx).every((i) => set.has(i)));
-        if (inside.length !== 1 || cs.some((i) => !set.has(mirrorOf(p, i, inside[0])))) out.push(cs);
+        const set = new Set(cs), inside = p.galaxies.map((_, k) => k).filter((k) => galaxyCore(p, p.galaxies[k]).every((i) => set.has(i)));
+        inside.forEach((k) => inAny.add(k));
+        if (inside.length !== 1 || cs.some((i) => !set.has(mirrorOf(p, i, p.galaxies[inside[0]])))) out.push(cs);
       });
+      // every circle is the centre of a region (one on a hole can't be, and doesn't count)
+      const split = p.galaxies.filter((gx, k) => !inAny.has(k) && !galaxyCore(p, gx).some((i) => p.blocked.has(i)));
+      if (split.length) out.push(split.flatMap((gx) => galaxyCore(p, gx)));
       return out.length ? [{ message: "Each region holds one circle and is symmetric about it.", cells: out.flat() }] : [];
     },
     asp(_s, p) {
       const g = p.grid, out: string[] = [];
       p.galaxies.forEach((gx, k) => {
+        if (galaxyCore(p, gx).some((i) => p.blocked.has(i))) return;   // a circle on a hole centres nothing
         out.push(`galaxy(${k}). ${galaxyCore(p, gx).map((i) => `gal(${i},${k}).`).join(" ")}`);
         for (let i = 0; i < g.cellCount; i++) { const j = mirrorOf(p, i, gx); out.push(j < 0 ? `nomir(${i},${k}).` : `mir(${i},${k},${j}).`); }
         out.push(galaxyCore(p, gx).map((i) => `greach(${i},${k}).`).join(" "));
       });
-      out.push(`1 { gal(I,G) : galaxy(G) } 1 :- cell(I).
+      out.push(`1 { gal(I,G) : galaxy(G) } 1 :- cell(I), not blocked(I).
 :- gal(I,G), nomir(I,G).
 :- gal(I,G), mir(I,G,J), not gal(J,G).
 greach(J,G) :- greach(I,G), adj(I,J,_), gal(J,G).
@@ -803,7 +809,8 @@ cmp(R1,R2) :- ad(R1,R2).
       const reg = r(), g = p.grid, out: Problem[] = [];
       for (const [i, gs] of p.cellGivens) for (const giv of gs) {
         if (giv.kind !== "compass") continue;
-        const cs = reg.cells[reg.of[i]] ?? [], [r0, c0] = g.rc(i);
+        if (reg.of[i] < 0) { out.push({ message: "A compass can't sit in a hole.", cells: [i] }); continue; }
+        const cs = reg.cells[reg.of[i]], [r0, c0] = g.rc(i);
         const count = { n: 0, e: 0, s: 0, w: 0 };
         for (const j of cs) { const [r1, c1] = g.rc(j); if (r1 < r0) count.n++; if (r1 > r0) count.s++; if (c1 > c0) count.e++; if (c1 < c0) count.w++; }
         const v = giv.value as Record<string, number | undefined>;
@@ -816,12 +823,64 @@ cmp(R1,R2) :- ad(R1,R2).
       const lines: string[] = [];
       for (const [i, gs] of p.cellGivens) for (const giv of gs) {
         if (giv.kind !== "compass") continue;
+        if (p.blocked.has(i)) { lines.push(`:- blocked(${i}).   % a compass in a hole`); continue; }
         const v = giv.value as Record<string, number | undefined>;
         const cmpd = { n: "RJ < RI", s: "RJ > RI", e: "CJ > CI", w: "CJ < CI" } as const;
         for (const d of ["n", "e", "s", "w"] as const) if (v[d] !== undefined)
           lines.push(`:- member(R,${i}), row(${i},RI), col(${i},CI), ${v[d]} != #count{J: member(R,J), row(J,RJ), col(J,CJ), ${cmpd[d]}}.`);
       }
       return lines.join("\n");
+    },
+    needs: ["regions"],
+  },
+  "neighbors-differ": {
+    describe: () => "Regions that share a border have different shapes (turned or flipped counts as the same).",
+    check(_s, p, _b, r) {
+      const reg = r(), out: Problem[] = [], seen = new Set<string>();
+      for (const l of p.grid.links) {
+        const [x, y] = l.cells.map((i) => reg.of[i]);
+        if (x < 0 || y < 0 || x === y || seen.has(`${Math.min(x, y)} ${Math.max(x, y)}`)) continue;
+        seen.add(`${Math.min(x, y)} ${Math.max(x, y)}`);
+        if (shapeKey(p.grid, reg.cells[x]) === shapeKey(p.grid, reg.cells[y]))
+          out.push({ message: "Two regions side by side have the same shape.", cells: [...reg.cells[x], ...reg.cells[y]] });
+      }
+      return out;
+    },
+    asp: () => `
+nbr(R1,R2) :- member(R1,I), member(R2,J), adj(I,J,_), R1 < R2.
+cmp(R1,R2) :- nbr(R1,R2).
+:- nbr(R1,R2), same(R1,R2).`,
+    needs: ["regions", "shapes"],
+  },
+  "one-of-each": {
+    describe: () => "Every region holds exactly one symbol of each kind (one of every color).",
+    check(_s, p, _b, r) {
+      const kinds = symbolKinds(p);
+      return r().cells.filter((cs) => [...kinds.keys()].some((v) => cs.filter((i) => p.cellGivens.get(i)?.some((g) => g.kind === "symbol" && g.value === v)).length !== 1))
+        .map((cs) => ({ message: "Each region needs exactly one symbol of each kind.", cells: cs }));
+    },
+    asp: (_s, p) => [...symbolKinds(p).values()].map((cells, k) => `oev(${k}). ${cells.map((i) => `oe(${i},${k}).`).join(" ")}`).join("\n") +
+      "\n:- root(R), oev(K), #count{I: member(R,I), oe(I,K)} != 1.",
+    needs: ["regions"],
+  },
+  "cell-borders": {
+    describe: () => "A palisade mark shows how many of its cell's sides are region borders, and how they sit (turned any way): two at a corner or two opposite. The grid's edge and holes count as borders.",
+    check(_s, p, _b, r) {
+      const reg = r();
+      return palisades(p).filter(({ cell, value, opposite }) => {
+        const on = cellSides(p, cell).map((j) => j < 0 || p.blocked.has(j) || reg.of[j] !== reg.of[cell]);
+        return !palisadeFits(on, value, opposite);
+      }).map(({ cell }) => ({ message: "This palisade mark doesn't match its cell's borders.", cells: [cell] }));
+    },
+    asp(_s, p) {
+      const g = p.grid, out: string[] = [];
+      palisades(p).forEach(({ cell, value, opposite }, k) => {
+        cellSides(p, cell).forEach((j, d) => out.push(j < 0 || p.blocked.has(j) ? `pal(${k},${d}).` : `pal(${k},${d}) :- cut(${g.borders[g.borderBetween(cell, j)].link}).`));
+        out.push(`:- #count{D: pal(${k},D)} != ${value}.`);
+        if (value === 2) out.push(opposite ? `palo(${k}) :- pal(${k},0), pal(${k},2).\npalo(${k}) :- pal(${k},1), pal(${k},3).\n:- not palo(${k}).`
+          : `:- pal(${k},0), pal(${k},2).\n:- pal(${k},1), pal(${k},3).`);
+      });
+      return out.join("\n");
     },
     needs: ["regions"],
   },
@@ -896,14 +955,35 @@ function sizeOk(n: number, s: RuleSpec) {
   return (s.is === undefined || n === s.is) && (s.min === undefined || n >= (s.min as number)) && (s.max === undefined || n <= (s.max as number));
 }
 
+/** Each kind of symbol on the puzzle (its value) and the cells holding one. */
+const symbolKinds = (p: Puzzle) => {
+  const out = new Map<string, number[]>();
+  for (const [i, gs] of p.cellGivens) for (const g of gs) if (g.kind === "symbol" && !out.get(g.value)?.includes(i)) out.set(g.value, [...(out.get(g.value) ?? []), i]);
+  return out;
+};
+/** The palisade marks: a cell, how many of its sides are borders, and whether two are opposite. */
+const palisades = (p: Puzzle) => [...p.cellGivens].flatMap(([cell, gs]) => gs.flatMap((g) => g.kind === "palisade" ? [{ cell, value: g.value, opposite: !!g.opposite }] : []));
+/** A cell's four neighbours, clockwise from the top (-1 off the grid). */
+const cellSides = (p: Puzzle, i: number) => {
+  const g = p.grid, [r, c] = g.rc(i);
+  return [[-1, 0], [0, 1], [1, 0], [0, -1]].map(([dr, dc]) => (r + dr >= 0 && c + dc >= 0 && r + dr < g.rows && c + dc < g.cols ? g.cell(r + dr, c + dc) : -1));
+};
+/** Do a cell's borders (clockwise from the top) match a palisade mark? */
+export const palisadeFits = (on: boolean[], value: number, opposite: boolean) => {
+  if (on.filter(Boolean).length !== value) return false;
+  if (value !== 2) return true;
+  return opposite === ((on[0] && on[2]) || (on[1] && on[3]));
+};
+
 /** twins / opposites: the regions on the two sides of each marked border */
 function pairCheck(p: Puzzle, reg: Regions, kind: "twins" | "opposites", same: boolean): Problem[] {
   const out: Problem[] = [];
   for (const [e, gs] of p.borderGivens) {
     if (!gs.some((g) => g.kind === kind)) continue;
     const [a, c] = p.grid.borders[e].cells, ra = reg.of[a], rc = reg.of[c];
-    const bad = ra === rc || (shapeKey(p.grid, reg.cells[ra]) === shapeKey(p.grid, reg.cells[rc])) !== same;
-    if (bad) out.push({ message: same ? "The regions at a ◆ must be different regions with the same shape." : "The regions at a ◇ must be different regions with different shapes.", borders: [e], cells: [...reg.cells[ra], ...(ra === rc ? [] : reg.cells[rc])] });
+    // beside a hole (a rock) there's no region on that side
+    const bad = ra < 0 || rc < 0 || ra === rc || (shapeKey(p.grid, reg.cells[ra]) === shapeKey(p.grid, reg.cells[rc])) !== same;
+    if (bad) out.push({ message: same ? "The regions at a ◆ must be different regions with the same shape." : "The regions at a ◇ must be different regions with different shapes.", borders: [e], cells: [...(reg.cells[ra] ?? [a]), ...(ra === rc ? [] : reg.cells[rc] ?? [c])] });
   }
   return out;
 }
@@ -914,6 +994,7 @@ function pairFacts(p: Puzzle, kind: string, pred: string) {
     if (!gs.some((g) => g.kind === kind)) continue;
     const [a, c] = p.grid.borders[e].cells;
     out.push(`${pred}(R1,R2) :- member(R1,${a}), member(R2,${c}).`);
+    for (const x of [a, c]) if (p.blocked.has(x)) out.push(`:- blocked(${x}).   % no region beside a hole`);
   }
   return out.join("\n");
 }

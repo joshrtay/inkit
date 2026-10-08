@@ -37,7 +37,12 @@ export function program(p: Puzzle): string {
   if (p.marks.includes("loop")) out.push("{line(L)} :- link(L), not wall(L).\n:- line(L), lc(I,L), blocked(I).");
   // shading: not on clue cells, unless a rule shades the clues themselves (Hitori)
   if (p.marks.includes("shade")) out.push(p.rules.some((s) => blockFor(s).shadeClues) ? "{shaded(I)} :- cell(I), not blocked(I)." : "{shaded(I)} :- cell(I), not clue(I).");
-  if (p.marks.includes("regions")) out.push("{cut(L)} :- link(L).");
+  // region cuts: a given wall is always one, and so is the edge of a hole (a rock); there's
+  // nothing to cut between two rocks (they belong to no region)
+  if (p.marks.includes("regions")) out.push(`{cut(L)} :- link(L).
+cut(L) :- wall(L).
+cut(L) :- adj(I,J,L), blocked(I), not blocked(J).
+:- cut(L), adj(I,J,L), blocked(I), blocked(J).`);
   if (p.marks.includes("paint")) out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
   if (p.marks.includes("digit")) {
     out.push(`d(1..${p.digits}).\n${p.blanks ? "" : "1 "}{ digit(I,D) : d(D) } 1 :- cell(I).`);
@@ -55,7 +60,7 @@ export function program(p: Puzzle): string {
     }
     if (linesCut(p)) for (const l of g.links) out.push(`lb(${l.id},${l.border}).`);
     out.push(p.marks.includes("regions")
-      ? "open(I) :- cell(I).\nconn(I,J) :- adj(I,J,L), not cut(L)."
+      ? "open(I) :- cell(I), not blocked(I).\nconn(I,J) :- adj(I,J,L), not cut(L), open(I), open(J)."
       : linesCut(p) ? "open(I) :- cell(I).\nconn(I,J) :- adj(I,J,L), lb(L,B), not fence(B)."
       : "open(I) :- cell(I), not shaded(I).\nconn(I,J) :- adj(I,J,_), open(I), open(J).");
     out.push(`
@@ -67,7 +72,15 @@ member(R,I) :- root(R), reach(R,I).
 size(R,N) :- root(R), N = #count{I: member(R,I)}.`);
     if (p.marks.includes("regions")) out.push(":- cut(L), adj(I,J,L), reach(I,J).   % a cut must separate two regions");
   }
-  if (needs.has("shapes")) out.push(`
+  // when every region is a rectangle (or a square), two regions have the same shape exactly when
+  // their sides match: much cheaper than comparing the cells
+  if (needs.has("shapes") && p.rules.some((s) => s.rule === "rectangles" || s.rule === "squares")) out.push(`
+cmpr(R) :- cmp(R,_).   cmpr(R) :- cmp(_,R).
+rh(R,H) :- cmpr(R), H = #count{Y: member(R,J), row(J,Y)}.
+rw(R,W) :- cmpr(R), W = #count{X: member(R,J), col(J,X)}.
+same(R1,R2) :- cmp(R1,R2), rh(R1,A), rw(R1,B), rh(R2,A), rw(R2,B).
+same(R1,R2) :- cmp(R1,R2), rh(R1,A), rw(R1,B), rh(R2,B), rw(R2,A).`);
+  else if (needs.has("shapes")) out.push(`
 t(0..7).
 off(R,I,A,B) :- member(R,I), row(R,R0), col(R,C0), row(I,R1), col(I,C1), A = R1-R0, B = C1-C0.
 tr(R,0,A,B) :- off(R,_,A,B).   tr(R,1,A,-B) :- off(R,_,A,B).   tr(R,2,-A,B) :- off(R,_,A,B).   tr(R,3,-A,-B) :- off(R,_,A,B).

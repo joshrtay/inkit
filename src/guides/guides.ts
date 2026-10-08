@@ -21,6 +21,8 @@ const galaxy = (y: number, x: number): Given => ({ at: "point", point: [y, x], k
 const dots = (i: number, value: number[]): Given => ({ at: "cell", cell: [0, i], kind: "dots", value });
 const total = (at: "row" | "col", index: number, value: number): Given => ({ at, index, kind: "total", value });
 const runs = (at: "row" | "col", index: number, value: number[]): Given => ({ at, index, kind: "runs", value });
+const palisade = (r: number, c: number, value: number, opposite = false): Given => ({ at: "cell", cell: [r, c], kind: "palisade", value, ...(opposite ? { opposite } : {}) });
+const rose = (r: number, c: number, color: string): Given => ({ at: "cell", cell: [r, c], kind: "symbol", value: color });
 const compass = (r: number, c: number, value: { n?: number; e?: number; s?: number; w?: number }): Given => ({ at: "cell", cell: [r, c], kind: "compass", value });
 // panels: corners are [row, col] from 0,0 at the top left; a stretch of line is its two corners
 const start = (r: number, c: number, color?: LineColor): Given => ({ at: "corner", corner: [r, c], kind: "start", ...(color ? { color } : {}) });
@@ -447,9 +449,10 @@ export const guides: Record<GenreName, Guide> = {
     summary: "Cut the window into panes of stained glass that follow every rule listed with the puzzle.",
     origin: "Our own puzzle, after the region-dividing puzzles of The Artisan of Glimmith.",
     rules: [
-      { text: "Each puzzle lists its own rules. Size N: every pane has N cells.", checks: ["size"], pictures: [
+      { text: "Each puzzle lists its own rules. Size N: every pane has N cells. Dark squares are holes, in no pane; thick lines are borders drawn already.", checks: ["size"], pictures: [
         { ok: true, note: "Size 3", size: [2, 3], rules: [{ rule: "size", is: 3 }], regions: ["aab", "abb"] },
         { ok: false, note: "4 and 2", size: [2, 3], rules: [{ rule: "size", is: 3 }], regions: ["aab", "aab"] },
+        { ok: true, note: "Around the holes", size: [2, 4], rules: [{ rule: "size", is: 3 }], givens: [rock(0, 0), rock(1, 3)], regions: ["#abb", "aab#"] },
       ] },
       { text: "◆: the panes on either side have the same shape (turned or flipped is fine).", checks: ["twins"], pictures: [
         { ok: true, note: "Same shape", size: [2, 3], rules: [{ rule: "twins" }], givens: [twins([0, 1], [0, 2])], regions: ["aab", "abb"] },
@@ -462,6 +465,19 @@ export const guides: Record<GenreName, Guide> = {
       { text: "Compass: its numbers count the cells of its pane to the north, east, south and west.", checks: ["compass"], pictures: [
         { ok: true, note: "1 east, 1 south", size: [2, 3], rules: [{ rule: "compass" }], givens: [compass(0, 0, { e: 1, s: 1 })], regions: ["aab", "abb"] },
         { ok: false, note: "Not 2 east", size: [2, 3], rules: [{ rule: "compass" }], givens: [compass(0, 0, { e: 2 })], regions: ["aab", "abb"] },
+      ] },
+      { text: "Palisade: the diamond's thick sides are how many of its square's sides are borders, two at a corner or opposite (turned any way). The edge and holes count.", checks: ["cell-borders"], pictures: [
+        { ok: true, note: "2 at a corner", size: [2, 3], rules: [{ rule: "cell-borders" }], givens: [palisade(0, 1, 2)], regions: ["aab", "aab"] },
+        { ok: false, note: "Not opposite", size: [2, 3], rules: [{ rule: "cell-borders" }], givens: [palisade(0, 1, 2, true)], regions: ["aab", "aab"] },
+        { ok: true, note: "3 sides", size: [2, 3], rules: [{ rule: "cell-borders" }], givens: [palisade(0, 1, 3)], regions: ["abc", "abc"] },
+      ] },
+      { text: "Mingle Shape: panes side by side never have the same shape (turned or flipped counts as the same).", checks: ["neighbors-differ"], pictures: [
+        { ok: true, note: "All different", size: [2, 3], rules: [{ rule: "neighbors-differ" }], regions: ["aab", "acc"] },
+        { ok: false, note: "Two dominoes side by side", size: [2, 3], rules: [{ rule: "neighbors-differ" }], regions: ["aab", "ccb"] },
+      ] },
+      { text: "Rose Windows: every pane holds exactly one rose of each color.", checks: ["one-of-each"], pictures: [
+        { ok: true, note: "One of each", size: [2, 3], rules: [{ rule: "one-of-each" }], givens: [rose(0, 0, "red"), rose(1, 1, "blue"), rose(0, 2, "red"), rose(1, 2, "blue")], regions: ["aab", "aab"] },
+        { ok: false, note: "No blue", size: [2, 3], rules: [{ rule: "one-of-each" }], givens: [rose(0, 0, "red"), rose(1, 1, "blue"), rose(0, 2, "red"), rose(1, 2, "blue")], regions: ["abb", "abb"] },
       ] },
     ],
     controls: "Drag along the lines between cells to cut the glass, or pick a color and paint cells into a pane.",

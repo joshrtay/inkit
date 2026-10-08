@@ -55,7 +55,9 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   aquarium: `aquarium: a grid split into outlined tanks (thick lines), with a number beside some rows and above some
   columns. Give the tanks as "areas" (one string per row, one letter per cell) and each number in "runs" as a
   single-number list ({line: "row" / "col", index, runs: [n]}). Leave out water drawn as the answer.`,
-  shikaku: `shikaku: numbers in cells, {kind: "number", value}; the grid gets cut into rectangles each holding one number.
+  shikaku: `shikaku: numbers in cells, {kind: "number", value}; the grid gets cut into rectangles each holding exactly one
+  number, its size. Only when every rectangle must hold one number: rectangles with size numbers where a region may have
+  no number (Glimmith's Boxy + Area Number without Solitude) is panes with the rules rectangles and size-clue.
   Leave out rectangles drawn as the answer.`,
   "irregular-sudoku": `irregular-sudoku (Irregular / Jigsaw Sudoku): a sudoku whose boxes are irregular outlined areas.
   Give the printed digits {kind: "number", value} and the areas as "areas" (one string per row, one letter per cell).`,
@@ -79,8 +81,19 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   that share an edge must use the same corner coordinates where they meet, and a corner sitting on another
   piece's edge must lie exactly on that edge. Each piece's dots are {kind: "dots", dots: [colors]} with
   cell {row: 0, col: the piece's index in "figure"}. Set rows to 1 and cols to the number of pieces.`,
-  panes: `panes: split the grid into regions. The rules are written on the sketch (e.g. "panes: size 4, twins");
-  list each one in "rules".`,
+  panes: `panes: split the grid into regions (also The Artisan of Glimmith's puzzles). The rules are written on the
+  sketch (e.g. "panes: size 4, twins", or Glimmith's rule scrolls); list each one in "rules". Holes in the board (cells
+  that aren't part of it: shaded, crossed out, or the table showing through) are {kind: "block"}; border lines drawn in
+  from the start are {kind: "wall"} (both sides are different regions). Glimmith's rules: Boxy = rectangles;
+  Precision N = size "is N"; Minimum / Maximum / Range = size "min N" / "max N"; Area Number = size-clue (on its own:
+  regions without a number are fine; add one-each "of number" only if Solitude is there too); Solitude = one-each
+  ("of number" or "of symbol", whichever clues the puzzle has); Rose Windows = one-each "of symbol" with one kind of rose,
+  one-of-each with roses of several colors (each rose a symbol whose value is its color); Mismatch = all-different;
+  Mingle Shape = neighbors-differ; Gemini = twins (◆); Delta = opposites (◇); Compass = compass; Palisade =
+  cell-borders, with a palisade clue in each marked cell. Glimmith rules with no rule here (Non-Boxy, Match, Size
+  Separation, Polyomino, Shape Bank, Loopy, Bricky, Watchtower, Difference, Inequality, or anything else): never stand
+  in another rule for them; leave them out of "rules" and add a note (place "whole") naming the rule, e.g.
+  "rule not supported: Loopy (no T-junctions)".`,
   panel: `panel (Panel, line puzzles in the style of The Witness): a grid of squares; a line is drawn along the grid
   lines from a start circle (a big fat dot on a corner) to an end (a short stub sticking out of the outside edge at a
   corner). "rows" and "cols" count the squares (cells), not the lines: corners run from 0 to rows and 0 to cols.
@@ -97,7 +110,9 @@ const GENRE_GUIDE: Record<GenreName, string> = {
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"",
   block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
-  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol",
+  symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black",
+  palisade: "a palisade mark in a cell (panes: a small diamond with some of its four sides drawn thick; each thick side is one of the cell's sides that is a region border): row, col; " +
+    "value how many sides are drawn, and with two whether they meet at a corner or are opposite: \"0\", \"1\", \"2 corner\", \"2 opposite\", \"3\" or \"4\" (three sides make a U; look closely, it's easy to misread as two)",
   compass: "a compass in a cell: row, col; value its numbers by direction, any missing, e.g. \"n2 e1 w0\"",
   wall: "a thick wall on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\" (where the other cell is)",
   twins: "a filled diamond ◆ on the border between two cells: row, col of the top / left cell; value \"right\" or \"below\"",
@@ -140,7 +155,7 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "no-touch": "shaded cells (stars) never touch, not even diagonally (comes with star-battle)",
   lit: "bulbs light their row and column; every white cell lit, no two bulbs see each other (comes with akari)",
   "adjacent-count": "a number counts the shaded cells / bulbs right beside it (comes with akari)",
-  rectangles: "every region is a rectangle (comes with shikaku)",
+  rectangles: "every region is a rectangle (comes with shikaku; Glimmith's Boxy)",
   squares: "every region is a square (comes with square-jam)",
   "no-four-corners": "four regions never meet at a point (comes with square-jam)",
   "side-clue": "a number is the side of its square (comes with square-jam)",
@@ -161,8 +176,11 @@ const RULE_GUIDE: Record<RuleName, string> = {
   connected: "all shaded cells connect (comes with nurikabe)",
   "no-pool": "no 2×2 block of shaded cells (comes with nurikabe)",
   size: "every region has exactly N cells (is), or at least / at most (min / max)",
-  "size-clue": "a numbered cell's region has that many cells",
-  "one-each": "every region holds exactly one number or symbol (of)",
+  "size-clue": "a numbered cell's region has that many cells; regions without a number are fine (Glimmith's Area Number). Rectangles + size-clue is not shikaku unless every region must also hold exactly one number (one-each)",
+  "one-each": "every region holds exactly one number (\"of number\") or one symbol (\"of symbol\") (Glimmith's Solitude)",
+  "one-of-each": "every region holds exactly one symbol of each kind: one of every color (Glimmith's Rose Windows with roses of several colors)",
+  "neighbors-differ": "regions that share a border have different shapes (Glimmith's Mingle Shape)",
+  "cell-borders": "a palisade mark shows how many of its cell's sides are region borders, at a corner or opposite (Glimmith's Palisade)",
   twins: "the two regions on either side of a ◆ have the same shape",
   opposites: "the two regions on either side of a ◇ have different shapes",
   "all-different": "no two regions share a shape",
@@ -243,8 +261,13 @@ ${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
 Clues ("givens"):
 ${Object.entries(CLUE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
 
-Rules (list only the ones written on the sketch beyond what its game type always has):
+Rules (list only the ones written on the sketch beyond what its game type always has, each with only the settings
+it lists; a setting it doesn't list makes the puzzle fail to load):
 ${Object.entries(RULE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
+
+If a rule written on the sketch isn't one of these, don't put a different rule in its place (a stand-in changes
+the puzzle): leave it out and add a note (place "whole") that names it and says what it means, e.g. "rule not supported:
+Match (every region has the same shape)".
 
 Only transcribe what the player starts with. If the drawing also shows the solution (a loop drawn
 through the cells, filled-in digits, shaded answer cells in a nurikabe), use it to help you read the
@@ -430,7 +453,15 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
     case "number": { const n = num(v); return n === null ? null : { at: "cell", cell, kind, value: n }; }
     case "count": { const n = num(v); return n === null ? null : { at: "corner", corner: cell, kind, value: n }; }
     case "block": return { at: "cell", cell, kind };
-    case "symbol": return value.trim() ? { at: "cell", cell, kind, value: value.trim() } : null;
+    case "symbol": {
+      // a colored symbol (a rose) is its color's name
+      const color = SYMBOL_COLORS.find((c) => v === c || v === `${c} rose` || v === `${c} symbol`);
+      return value.trim() ? { at: "cell", cell, kind, value: color ?? value.trim() } : null;
+    }
+    case "palisade": {
+      const n = num(v);
+      return n === null || n < 0 || n > 4 ? null : { at: "cell", cell, kind, value: n, ...(n === 2 && /\b(opposite|straight|parallel)\b/.test(v) ? { opposite: true } : {}) };
+    }
     case "compass": {
       const out: { n?: number; e?: number; s?: number; w?: number } = {};
       for (const m of v.matchAll(/([nesw])\s*=?\s*(\d+)/g)) out[m[1] as "n" | "e" | "s" | "w"] = Number(m[2]);

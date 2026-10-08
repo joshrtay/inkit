@@ -6,11 +6,11 @@
 //   ** Whenever the engine gains something, add it to these tables, to the editor that edits it,
 //   ** and to the sketch reader (app/lib/read-sketch.server.ts). See docs/grid-engine.md.
 import type { RuleName } from "~site/engine/rules.ts";
-import type { Given, GridSpec, GridStyle, MarkKind } from "~site/engine/types.ts";
+import type { Given, GridSpec, GridStyle, MarkKind, RuleSpec } from "~site/engine/types.ts";
 
 /** The on-puzzle editor's tools (components/BoardEditor.tsx). */
 export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo" | "door" | "outside-number" | "outside-letter"
-  | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "erase"
+  | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "palisade" | "erase"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
   | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser";
 
@@ -24,7 +24,7 @@ export const SPEC_PARTS: Record<keyof GridSpec, string> = {
 /** Every clue kind and the tool that places it: a BoardEditor tool, Nonogram's own numbers, or
  *  Three Coats' figure editor. */
 export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> = {
-  number: "number", block: "block", symbol: "symbol", compass: "compass", wall: "wall", twins: "diamond", opposites: "diamond",
+  number: "number", block: "block", symbol: "symbol", compass: "compass", palisade: "palisade", wall: "wall", twins: "diamond", opposites: "diamond",
   runs: "nonogram", total: "total", count: "corner", dots: "figure", pearl: "pearl", first: "outside-letter",
   skyscraper: "outside-number", thermo: "thermo", galaxy: "galaxy", door: "door",
   start: "start", end: "end", gap: "gap", hexagon: "dot", square: "square", star: "star", triangle: "triangle", shape: "shape", eraser: "eraser",
@@ -78,6 +78,9 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   galaxies: { label: "Regions symmetric about their circles", settings: [] },
   "all-different": { label: "All regions differ in shape", settings: [] },
   compass: { label: "Compasses count their region", settings: [] },
+  "neighbors-differ": { label: "Neighbouring regions differ in shape (Mingle Shape)", settings: [] },
+  "one-of-each": { label: "One symbol of each color per region (Rose Windows)", settings: [] },
+  "cell-borders": { label: "Palisade marks show their square's borders", settings: [] },
   "corner-count": { label: "Corner numbers count their walls", settings: [] },
   "perfect-maze": { label: "Walls make a maze between two doors", settings: [] },
   painted: { label: "Paint every piece", settings: [] },
@@ -86,6 +89,27 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "panel-symbols": { label: "The symbols in the cells say where the line goes", settings: [] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
 };
+
+/** What's wrong with a rule's settings: one it doesn't take (a sketch reader's made-up `of: "each"`,
+ *  a typo like `ma: 4`), or a value it can't have. Empty when they're all fine. */
+export function settingProblems(spec: RuleSpec): string[] {
+  const def = (RULES as Record<string, { label: string; settings: Setting[] } | undefined>)[spec.rule];
+  if (!def) return [];   // an unknown rule is reported by the engine
+  const out: string[] = [];
+  const known = def.settings.map((x) => x.key).join(", ");
+  for (const [key, v] of Object.entries(spec)) {
+    if (key === "rule") continue;
+    // color-count also counts palette colors by number (c1, c2...)
+    const setting = def.settings.find((x) => x.key === key) ?? (spec.rule === "color-count" && /^c\d+$/.test(key) ? { key, label: key, type: "number" as const } : undefined);
+    if (!setting) { out.push(`The rule "${spec.rule}" has no setting "${key}" (${known ? `its settings: ${known}` : "it takes none"}).`); continue; }
+    const ok = setting.type === "number" ? typeof v === "number" && Number.isInteger(v) && v >= 0
+      : setting.type === "flag" ? typeof v === "boolean"
+      : setting.type === "choice" ? setting.choices.includes(v as string)
+      : Array.isArray(v) && v.length === 2 && v.every((x) => Number.isInteger(x) && x > 0);
+    if (!ok) out.push(`The rule "${spec.rule}" can't have ${key} ${JSON.stringify(v)} (${setting.type === "choice" ? `one of: ${setting.choices.join(", ")}` : setting.type === "number" ? "a whole number" : setting.type === "flag" ? "true or false" : "two whole numbers"}).`);
+  }
+  return out;
+}
 
 /** Every style option. */
 export const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "colors" | "number" | "choice" | "text"; choices?: string[] }> = {

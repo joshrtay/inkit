@@ -19,8 +19,9 @@ import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/ru
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
+import { palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { mirrorBorder, type Symmetry } from "../../engine/panel.ts";
-import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks } from "./panel-draw";
+import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 import { createFigure } from "./figure";
 
 type Layer = keyof Board;
@@ -182,8 +183,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       t.textContent = String(giv.value);
       if (shadeClues) digitEls.set(i, t);
     }
-    else if (giv.kind === "pearl") el("circle", { class: `pearl ${giv.value}`, cx: x, cy: y, r: S * 0.3 }, gGivens);
-    else if (giv.kind === "symbol") el("text", { class: "clue symbol", x, y: y + 1 }, gGivens).textContent = "✦";
+    else if (giv.kind === "pearl") gGivens.insertAdjacentHTML("beforeend", stoneSvg(giv.value, x, y, S * 0.28, "pearl"));   // pearls are stones
+    else if (giv.kind === "symbol") gGivens.insertAdjacentHTML("beforeend", symbolClueSvg(giv.value, x, y));
+    else if (giv.kind === "palisade") gGivens.insertAdjacentHTML("beforeend", palisadeSvg(giv.value, !!giv.opposite, x, y, S));
     else if (giv.kind === "compass") {
       const c = el("g", { class: "compass" }, gGivens);
       el("path", { d: `M${x} ${y - 7}V${y + 7}M${x - 7} ${y}H${x + 7}` }, c);

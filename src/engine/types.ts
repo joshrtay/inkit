@@ -8,7 +8,8 @@ export type Given =
   | { at: "cell"; cell: RC; kind: "number"; value: number }
   | { at: "cell"; cell: RC; kind: "block" }                       // a rock: no marks, not part of any loop or region
   | { at: "cell"; cell: RC; kind: "compass"; value: { n?: number; e?: number; s?: number; w?: number } }
-  | { at: "cell"; cell: RC; kind: "symbol"; value: string }
+  | { at: "cell"; cell: RC; kind: "symbol"; value: string }                   // a symbol (★, or a color name for a colored one: Rose Windows' roses)
+  | { at: "cell"; cell: RC; kind: "palisade"; value: number; opposite?: boolean }   // how many of the cell's sides are region borders (0-4); with 2, opposite or (default) at a corner
   | { at: "cell"; cell: RC; kind: "pearl"; value: "white" | "black" }        // Masyu
   | { at: "cell"; cell: RC; kind: "dots"; value: number[]; hidden?: boolean }   // paint dots (palette colors 1..n); hidden until painted
   | { at: "border"; cells: [RC, RC]; kind: "twins" | "opposites" | "wall" }   // a wall: loops can't cross it; in a maze, a wall given already drawn

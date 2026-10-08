@@ -15,6 +15,7 @@ import { solveLine } from "~site/engine/rules.ts";
 import { SYMMETRIES, type Symmetry } from "~site/engine/panel.ts";
 import { SYMBOL_COLORS, type Given, type GridSpec, type LineColor, type Puzzle, type Side, type SymbolColor } from "~site/engine/types.ts";
 import { symbolSvg } from "~site/game-types/grid/panel-draw.ts";
+import { symbolClueSvg } from "~site/game-types/grid/region-clues.ts";
 import { pictureLayout, pictureSvg, type Room } from "~site/game-types/grid/picture.ts";
 import "~site/game-types/grid/styles.css";
 import type { Doubt } from "~/games/doubts";
@@ -33,7 +34,7 @@ export interface Pin extends Omit<Doubt, "text" | "done"> { n: number; active?: 
 const TOOL_LABELS: Record<ToolId, string> = {
   number: "Number", block: "Rock", wall: "Wall", pearl: "Pearl", galaxy: "Circle", thermo: "Thermometer", door: "Door",
   "outside-number": "Number outside", "outside-letter": "Letter outside", corner: "Corner number", total: "Line total",
-  area: "Areas", symbol: "Symbol", compass: "Compass", diamond: "◆ / ◇", erase: "Erase",
+  area: "Areas", symbol: "Symbol", compass: "Compass", diamond: "◆ / ◇", palisade: "Palisade", erase: "Erase",
   start: "Start", end: "End", gap: "Gap", dot: "Dot", square: "Square", star: "Star", triangle: "Triangle", shape: "Shape", eraser: "Eraser",
 };
 
@@ -50,9 +51,10 @@ const TOOL_HINTS: Record<ToolId, string> = {
   corner: "Click where grid lines meet and type the number",
   total: "Click beside a row or above a column and type how many",
   area: "Pick an area, then click or drag squares into it",
-  symbol: "Click a square to add or remove a symbol",
+  symbol: "Pick ★ or a color, then click a square to add or remove a symbol",
   compass: "Click a square to set its compass numbers",
   diamond: "Click the line between two squares: ◆ same shape, ◇ different shape, none",
+  palisade: "Click a square: 0, 1, 2 at a corner, 2 opposite, 3 or 4 borders, none",
   erase: "Click any clue to remove it",
   start: "Click where grid lines meet to add or remove a start circle",
   end: "Click a corner on the outside edge to add or remove an end",
@@ -92,7 +94,7 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   "irregular-sudoku": ["area", "number", "erase"],
   nonogram: [],
   sudoku: ["number", "erase"],
-  panes: ["number", "symbol", "compass", "diamond", "block", "erase"],
+  panes: ["number", "symbol", "compass", "diamond", "palisade", "block", "wall", "erase"],
   maze: ["corner", "wall", "door", "erase"],
   // the line's start, ends, gaps and dots, then the symbols in the cells
   panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
@@ -165,6 +167,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   // panels: the color squares and stars are placed in, a symmetry panel's dot color, the shape
   const [symColor, setSymColor] = useState<Record<"square" | "star", SymbolColor>>({ square: "black", star: "orange" });
   const [dotColor, setDotColor] = useState<LineColor | undefined>(undefined);
+  // Panes: the symbol placed, ★ or a color (Rose Windows' roses)
+  const [roseColor, setRoseColor] = useState("★");
   const [shapeAt, setShapeAt] = useState(0);
   const [turns, setTurns] = useState(0);
   const [canTurn, setCanTurn] = useState(false);
@@ -374,7 +378,8 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         if (!inGrid(h)) return;
         stroke.current = { kind: "block", on: !ops.hasBlock(latest.current, cell) }; blockAt(h, false); capture(); return;
       }
-      case "symbol": if (inGrid(h)) change(ops.toggleSymbol(latest.current, cell)); return;
+      case "symbol": if (inGrid(h)) change(ops.toggleSymbol(latest.current, cell, roseColor)); return;
+      case "palisade": if (inGrid(h)) change(ops.cyclePalisade(latest.current, cell)); return;
       case "pearl": if (inGrid(h)) change(ops.cyclePearl(latest.current, cell)); return;
       case "wall": case "diamond": { const b = borderAt(h); if (b) change(ops.toggleBorder(latest.current, ...b, tool)); return; }
       case "galaxy": if (h.gx >= 0 && h.gy >= 0 && h.gx <= cols && h.gy <= rows) change(ops.toggleGalaxy(latest.current, pointAt(h))); return;
@@ -530,6 +535,14 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
         <span className="be-group be-swatches" role="group" aria-label={`${TOOL_LABELS[tool]} color`}>
           {SYMBOL_COLORS.map((c) => <button key={c} type="button" className="be-swatch" aria-pressed={symColor[tool] === c} aria-label={capital(c)} title={capital(c)}
             onClick={() => setSymColor({ ...symColor, [tool]: c })}><SymbolIcon x={{ kind: tool, color: c }} /></button>)}
+        </span>
+      )}
+      {tool === "symbol" && (
+        <span className="be-group be-swatches" role="group" aria-label="Symbol">
+          {["★", ...SYMBOL_COLORS].map((c) => <button key={c} type="button" className="be-swatch" aria-pressed={roseColor === c} aria-label={c === "★" ? "Plain" : capital(c)}
+            title={c === "★" ? "A plain symbol" : `A ${c} symbol (with one-of-each, every region holds one of each color)`} onClick={() => setRoseColor(c)}>
+            <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: symbolClueSvg(c, 16, 17) }} /></span>
+          </button>)}
         </span>
       )}
       {tool === "dot" && symmetry && (

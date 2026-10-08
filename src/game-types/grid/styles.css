@@ -1,46 +1,51 @@
 /* Grid engine boards. Global but scoped under .grid-game, because game.ts builds the board. */
-.grid-game { display: grid; }
+.grid-game { display: grid;
+  /* the pen's weights (docs/style.md): hairline for faint grid lines; fine for outlines and small
+     marks; medium for frames, area outlines, stones and symbols' strokes; bold for lines drawn
+     and walls; and the wide watercolour stroke for rivers, tracks and thermometers */
+  --pen-hair: 1; --pen-fine: 1.6; --pen-medium: 2.6; --pen-bold: 5.5; --wash-stroke: 12; }
 .grid-game .sheet > svg { touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
 
-.grid-game .gridline { stroke: color-mix(in srgb, var(--paper-ink) 28%, transparent); stroke-width: 1; }
-.grid-game .frame { fill: none; stroke: var(--paper-ink); stroke-width: 2.5; }
+.grid-game .gridline { stroke: color-mix(in srgb, var(--paper-ink) 28%, transparent); stroke-width: var(--pen-hair); }
+.grid-game .frame { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
 .grid-game .dot { fill: var(--paper-ink); }
-.grid-game .area-line { stroke: var(--paper-ink); stroke-width: 3.5; stroke-linecap: round; }
+.grid-game .area-line { stroke: var(--paper-ink); stroke-width: var(--pen-medium); stroke-linecap: round; }
 .grid-game .clue.on-rock { fill: var(--paper); }
 .grid-game .lit { fill: color-mix(in srgb, var(--wash-yellow) 35%, transparent); }
-.grid-game .bulb { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: 2; }
+.grid-game .bulb { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: var(--pen-fine); }
 .grid-game .bulb-base { fill: var(--paper-ink); }
-.grid-game .link-end { fill: var(--paper); stroke: var(--paper-ink); stroke-width: 2; }
-.grid-game .pearl { stroke: var(--paper-ink); stroke-width: 2.4; }
-.grid-game .pearl.white { fill: var(--paper); }
-.grid-game .pearl.black { fill: var(--paper-ink); }
+.grid-game .link-end { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-fine); }
 .grid-game .shaded.water { fill: var(--wash-blue); }
 .grid-game .clue.total { pointer-events: none; }
 .grid-game .clue.on-shade { fill: var(--paper); }
 .grid-game .clue.outside { font-size: 22px; }
 .grid-game .mine { fill: var(--paper-ink); }
-.grid-game .mine-spikes { stroke: var(--paper-ink); stroke-width: 3; stroke-linecap: round; }
-.grid-game .galaxy { fill: var(--paper); stroke: var(--paper-ink); stroke-width: 2.4; }
-.grid-game .thermo { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); stroke-width: 16; stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .mine-spikes { stroke: var(--paper-ink); stroke-width: var(--pen-medium); stroke-linecap: round; }
+.grid-game .galaxy { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
+.grid-game .thermo { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); stroke-width: calc(var(--wash-stroke) * 1.33); stroke-linecap: round; stroke-linejoin: round; }   /* a thermometer's tube: wider than a river */
 .grid-game .thermo-bulb { fill: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); }
-.grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: 2; stroke-linejoin: round; filter: var(--wash); }
+.grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: var(--pen-fine); stroke-linejoin: round; filter: var(--wash); }
 
 /* clues are handwritten in the board's ink */
 .grid-game .clue { font: 700 24px/1 var(--hand); fill: var(--paper-ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .grid-game .clue.small { font-size: 13px; }
 .grid-game .clue.symbol { font-size: 22px; fill: color-mix(in srgb, var(--paper-ink) 80%, var(--wash-yellow)); }
-.grid-game .compass path { stroke: color-mix(in srgb, var(--paper-ink) 45%, transparent); stroke-width: 1.4; stroke-linecap: round; }
-.grid-game .diamond { stroke: var(--paper-ink); stroke-width: 1.8; stroke-linejoin: round; pointer-events: none; }
+.grid-game .clue.symbol.colored { stroke: var(--paper-ink); stroke-width: var(--pen-hair); }
+.grid-game .palisade path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .palisade-faint { stroke: color-mix(in srgb, var(--paper-ink) 30%, transparent); stroke-width: var(--pen-hair); stroke-dasharray: 2 2.5; }
+.grid-game .palisade-ink { stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
+.grid-game .compass path { stroke: color-mix(in srgb, var(--paper-ink) 45%, transparent); stroke-width: var(--pen-fine); stroke-linecap: round; }
+.grid-game .diamond { stroke: var(--paper-ink); stroke-width: var(--pen-fine); stroke-linejoin: round; pointer-events: none; }
 .grid-game .diamond.twins { fill: var(--paper-ink); }
 .grid-game .diamond.opposites { fill: var(--paper); }
 
 /* marks: pen lines, a watercolor river, shaded washes, stained-glass lead */
 .grid-game .wash { filter: var(--wash); }
 .grid-game .shaded { fill: color-mix(in srgb, var(--paper-ink) 78%, #fff); }
-.grid-game .pen { stroke: var(--paper-ink); stroke-width: 5; stroke-linecap: round; }
-.grid-game .river { stroke: var(--wash-blue); stroke-width: 12; stroke-linecap: round; }
-.grid-game .lead { fill: none; stroke: var(--paper-ink); stroke-width: 5.5; stroke-linecap: round; stroke-linejoin: round; }
-.grid-game .xmark { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 55%, transparent); stroke-width: 2; stroke-linecap: round; }
+.grid-game .pen { stroke: var(--paper-ink); stroke-width: var(--pen-bold); stroke-linecap: round; }
+.grid-game .river { stroke: var(--wash-blue); stroke-width: var(--wash-stroke); stroke-linecap: round; }
+.grid-game .lead { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-bold); stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .xmark { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 55%, transparent); stroke-width: var(--pen-fine); stroke-linecap: round; }
 .grid-game .dotmark { fill: color-mix(in srgb, var(--paper-ink) 55%, transparent); }
 
 /* glass color pots (regions puzzles) */
@@ -56,20 +61,20 @@
 /* rivers (loop genres): watercolor water, dark rocks, thick walls, a faint checkerboard */
 .grid-game .alt { fill: color-mix(in srgb, var(--paper-ink) 4%, transparent); }
 .grid-game .water { filter: var(--wash); }
-.grid-game .water .river { stroke: var(--wash-blue); stroke-width: 13; stroke-linecap: round; }
+.grid-game .water .river { stroke: var(--wash-blue); stroke-width: var(--wash-stroke); stroke-linecap: round; }
 .grid-game .water .joint { fill: var(--wash-blue); }
 .grid-game.solved .water .river, .grid-game.solved .water .joint { stroke: var(--wash-green); fill: var(--wash-green); }
 .grid-game .rock { fill: color-mix(in srgb, var(--paper-ink) 75%, #fff); }
-.grid-game .wall { stroke: var(--paper-ink); stroke-width: 6; stroke-linecap: round; }
+.grid-game .wall { stroke: var(--paper-ink); stroke-width: var(--pen-bold); stroke-linecap: round; }
 
 /* nonograms: clues beside the rows and above the columns, heavier lines every 5 */
-.grid-game .gridline.major { stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); stroke-width: 2; }
+.grid-game .gridline.major { stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); stroke-width: var(--pen-fine); }
 .grid-game .clue.run { font-size: 20px; cursor: pointer; pointer-events: auto; }
 .grid-game .clue.run.done { fill: color-mix(in srgb, var(--paper-ink) 35%, transparent); text-decoration: line-through; }
-.grid-game .xmark.cellx { stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); stroke-width: 2.4; }
-.grid-game .hint-area { fill: color-mix(in srgb, var(--wash-yellow) 25%, transparent); stroke: var(--wash-orange); stroke-width: 2; }
+.grid-game .xmark.cellx { stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); stroke-width: var(--pen-fine); }
+.grid-game .hint-area { fill: color-mix(in srgb, var(--wash-yellow) 25%, transparent); stroke: var(--wash-orange); stroke-width: var(--pen-fine); }
 .grid-game .hint-fill { fill: color-mix(in srgb, var(--paper-ink) 45%, transparent); }
-.grid-game .hint-x { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 50%, transparent); stroke-width: 2.6; stroke-linecap: round; }
+.grid-game .hint-x { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 50%, transparent); stroke-width: var(--pen-medium); stroke-linecap: round; }
 .grid-game .prefs { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); justify-content: center; margin-top: 10px; }
 .grid-game .prefs label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 
@@ -91,7 +96,7 @@
 
 /* digits: given digits are printed, yours are handwritten; pencil notes small */
 .grid-game .digit { font: 700 28px/1 var(--hand); fill: color-mix(in srgb, var(--paper-ink) 70%, var(--wash-blue)); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
-.grid-game .digit.given { font: 800 26px/1 var(--body); fill: var(--paper-ink); }
+.grid-game .digit.given { font: 700 28px/1 var(--hand); fill: var(--paper-ink); }   /* printed: the pen's own ink; entered digits are a lighter blue */
 .grid-game .pencil { font: 700 11px/1 var(--hand); fill: color-mix(in srgb, var(--paper-ink) 55%, transparent); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .grid-game .sel { fill: color-mix(in srgb, var(--wash-yellow) 45%, transparent); }
 .grid-game .peer { fill: color-mix(in srgb, var(--wash-yellow) 13%, transparent); }
@@ -101,21 +106,21 @@
 .grid-game .pad .word[aria-pressed="true"] { background: color-mix(in srgb, var(--paper-ink) 12%, transparent); text-decoration: none; }
 
 /* mazes: numbers in circles on the corners, arrows at the doors; then a walk through it */
-.grid-game .num circle { fill: var(--paper); stroke: var(--paper-ink); stroke-width: 1.5; }
+.grid-game .num circle { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-fine); }
 .grid-game .num text { font: 700 17px/1 var(--hand); fill: var(--paper-ink); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .grid-game .num.done circle { fill: color-mix(in srgb, var(--wash-green) 40%, var(--paper)); stroke: var(--paper-good); }
-.grid-game .num.over circle { fill: color-mix(in srgb, var(--wash-red) 30%, var(--paper)); stroke: var(--paper-red); stroke-width: 2.2; }
+.grid-game .num.over circle { fill: color-mix(in srgb, var(--wash-red) 30%, var(--paper)); stroke: var(--paper-red); stroke-width: var(--pen-medium); }
 .grid-game .num.over text { fill: var(--paper-red); }
-.grid-game .arrow { fill: none; stroke: var(--paper-red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.grid-game .stub { stroke: color-mix(in srgb, var(--wash-blue) 55%, var(--paper)); stroke-width: 11; stroke-linecap: round; }
-.grid-game .wall.given { stroke: color-mix(in srgb, var(--paper-ink) 50%, var(--paper)); stroke-width: 5; }
+.grid-game .arrow { fill: none; stroke: var(--paper-red); stroke-width: var(--pen-medium); stroke-linecap: round; stroke-linejoin: round; }
+.grid-game .stub { stroke: color-mix(in srgb, var(--wash-blue) 55%, var(--paper)); stroke-width: var(--wash-stroke); stroke-linecap: round; }
+.grid-game .wall.given { stroke: color-mix(in srgb, var(--paper-ink) 50%, var(--paper)); stroke-width: var(--pen-bold); }
 .grid-game svg.walking { cursor: pointer; }
 .grid-game svg.walking .wall.given { stroke: var(--paper-ink); }
 .grid-game svg.walking .num circle { r: 4px; fill: var(--paper-ink); stroke: none; }
 .grid-game svg.walking .num text { display: none; }
 .grid-game .walk .reach { fill: color-mix(in srgb, var(--wash-orange) 25%, transparent); }
-.grid-game .walk .trail { fill: none; stroke: var(--wash-orange); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; opacity: .85; filter: var(--wash); }
-.grid-game .walk .token { fill: var(--paper-red); stroke: var(--paper); stroke-width: 2.5; }
+.grid-game .walk .trail { fill: none; stroke: var(--wash-orange); stroke-width: var(--wash-stroke); stroke-linecap: round; stroke-linejoin: round; opacity: .85; filter: var(--wash); }
+.grid-game .walk .token { fill: var(--paper-red); stroke: var(--paper); stroke-width: var(--pen-medium); }
 
 /* paint puzzles (Three Coats): pale pieces painted with watercolor, pen edges, colored dots */
 .grid-game.figure svg.board { cursor: pointer; }
@@ -132,7 +137,7 @@
 
 @media (prefers-reduced-motion: reduce) { .grid-game.revealed .reveal .pix { transition: none; } .grid-game.revealed .sign { animation: none; } }
 /* the on-puzzle editor: cells the clues can't pin down */
-.grid-game .undecided { fill: #e0a100; fill-opacity: .28; stroke: #e0a100; stroke-width: 1.5; stroke-dasharray: 3 2; pointer-events: none; }
+.grid-game .undecided { fill: #e0a100; fill-opacity: .28; stroke: #e0a100; stroke-width: var(--pen-fine); stroke-dasharray: 3 2; pointer-events: none; }
 
 /* ---- solving a puzzle (celebrate.ts): squeezed and let go; the ink bursts out in drops and
    the puzzle goes gray; the drops gather into a check, which flies to the corner as a stamp ---- */
@@ -163,16 +168,20 @@
 /* "Solved!" is still said (for screen readers), but the check says it on screen */
 .paper-bar .status.said { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* ---- panels (panel-draw.ts): pale tracks the ink line runs in, a start circle, ends sticking
-   out of the edge; dots and symbols over the line ---- */
-.grid-game .panel-track { stroke: color-mix(in srgb, var(--paper-ink) 15%, var(--paper, #fbfaf6)); stroke-width: 11; stroke-linecap: round; }
+/* ---- panels (panel-draw.ts): pale tracks the ink line runs in, an ensō for the start, ends
+   sticking out of the edge; hoshi dots and the symbols over the line (docs/style.md) ---- */
+.grid-game .panel-track { stroke: color-mix(in srgb, var(--paper-ink) 15%, var(--paper, #fbfaf6)); stroke-width: var(--wash-stroke); stroke-linecap: round; }
 .grid-game .panel-start { fill: color-mix(in srgb, var(--paper-ink) 15%, var(--paper, #fbfaf6)); }
 .grid-game .panel-start.ink { fill: var(--paper-ink); }
+.grid-game .panel-enso { fill: var(--paper-ink); }
 .grid-game .panel-frame { fill: none; stroke: none; }
-.grid-game .panel-end { stroke-width: 5; }
-.grid-game .panel-dot { fill: var(--paper-ink); stroke: var(--paper, #fbfaf6); stroke-width: 1.5; }
-.grid-game .panel-square.white, .grid-game .panel-star.white { stroke: var(--paper-ink); stroke-width: 1.6; }
-.grid-game .panel-triangle { fill: #f2913a; }
-.grid-game .panel-shape rect { fill: var(--shape, #f2c23a); }
-.grid-game .panel-shape.negative rect { fill: none; stroke: var(--shape, #3f8fe0); stroke-width: 1.8; }
-.grid-game .panel-eraser { fill: none; stroke: var(--paper-ink); stroke-width: 3.2; stroke-linecap: round; }
+.grid-game .panel-end { stroke-width: var(--pen-bold); }
+.grid-game .panel-dot { fill: var(--paper-ink); }
+.grid-game .crest-line, .grid-game .symbol-line { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-fine); stroke-linejoin: round; }
+.grid-game .crest-line { stroke-width: var(--pen-hair); stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); }   /* the petals overlap: a lighter line */
+.grid-game .symbol-line.hollow { stroke-width: var(--pen-medium); stroke-dasharray: 3 2.2; }
+.grid-game .crest-eye { fill: var(--paper-ink); }
+.grid-game .panel-eraser { fill: var(--paper-ink); }
+
+/* stones: panel squares and Masyu's pearls, a watercolour disc with a bold pen outline */
+.grid-game .stone-line { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); }

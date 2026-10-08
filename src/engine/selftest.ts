@@ -112,7 +112,7 @@ function randomSpec(): GridSpec {
   const num = (i: number, cols: number, v: number) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "number" as const, value: v });
   if (kind === "square-jam") {
     const [rows, cols] = pick([[3, 3], [2, 4], [3, 4]]);
-    return { genre: "square-jam", size: [rows, cols], givens: shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * 4)).map((i) => num(i, cols, 1 + Math.floor(rand() * 2))) };
+    return { genre: "square-jam", size: [rows, cols], givens: [...shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * 4)).map((i) => num(i, cols, 1 + Math.floor(rand() * 2))), ...holesAndWalls(rows, cols)] };
   }
   if (kind === "wittgenstein-briquet") {
     const [rows, cols] = pick([[3, 3], [3, 4], [4, 4]]);
@@ -141,7 +141,7 @@ function randomSpec(): GridSpec {
     split(0, 0, rows, cols);
     const points = rects.map(([r, c, h, w]) => [2 * r + h, 2 * c + w] as [number, number]);
     if (rand() < 0.3) points[0] = [1 + Math.floor(rand() * (2 * rows - 1)), 1 + Math.floor(rand() * (2 * cols - 1))];
-    return { genre: "spiral-galaxies", size: [rows, cols], givens: points.map((point) => ({ at: "point" as const, point, kind: "galaxy" as const })) };
+    return { genre: "spiral-galaxies", size: [rows, cols], givens: [...points.map((point) => ({ at: "point" as const, point, kind: "galaxy" as const })), ...holesAndWalls(rows, cols)] };
   }
   if (kind === "thermo-sudoku") {
     const solved = [[1, 2, 3, 4], [3, 4, 1, 2], [2, 1, 4, 3], [4, 3, 2, 1]];
@@ -214,7 +214,7 @@ function randomSpec(): GridSpec {
     };
     split(0, 0, rows, cols);
     const givens = rects.map(([r, c, h, w]) => ({ at: "cell" as const, cell: [r + Math.floor(rand() * h), c + Math.floor(rand() * w)] as [number, number], kind: "number" as const, value: rand() < 0.9 ? h * w : 1 + Math.floor(rand() * 4) }));
-    return rand() < 0.2 ? { genre: "panes", size: [rows, cols], rules: [{ rule: "rectangles" }] } : { genre: "shikaku", size: [rows, cols], givens };
+    return rand() < 0.2 ? { genre: "panes", size: [rows, cols], rules: [{ rule: "rectangles" }], givens: holesAndWalls(rows, cols) } : { genre: "shikaku", size: [rows, cols], givens: [...givens, ...holesAndWalls(rows, cols)] };
   }
   if (kind === "star-battle") {
     const size = pick([3, 4]);
@@ -319,8 +319,34 @@ function randomSpec(): GridSpec {
     rules.push({ rule: "one-each", of: "symbol" });
     for (let k = 0; k < 2; k++) givens.push({ at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "symbol", value: "star" });
   }
+  if (rand() < 0.3) rules.push({ rule: "rectangles" });
+  if (rand() < 0.3) rules.push({ rule: "neighbors-differ" });
+  if (rand() < 0.3) {
+    rules.push({ rule: "one-of-each" });
+    for (let k = 0; k < 2 + Math.floor(rand() * 3); k++) givens.push({ at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "symbol", value: pick(["red", "blue"]) });
+  }
+  if (rand() < 0.35) {
+    rules.push({ rule: "cell-borders" });
+    for (let k = 0; k < 1 + Math.floor(rand() * 2); k++) {
+      const value = Math.floor(rand() * 5);
+      givens.push({ at: "cell", cell: cellAt(Math.floor(rand() * rows * cols)), kind: "palisade", value, ...(value === 2 && rand() < 0.5 ? { opposite: true } : {}) });
+    }
+  }
+  // holes (rocks) and walls drawn in
+  givens.push(...holesAndWalls(rows, cols));
   if (!rules.length) rules.push({ rule: "size", is: 2 });
   return { genre: "panes", size: [rows, cols], rules, givens };
+}
+
+/** Sometimes a rock or two (holes in a region puzzle) and a wall drawn in. */
+function holesAndWalls(rows: number, cols: number): NonNullable<GridSpec["givens"]> {
+  const out: NonNullable<GridSpec["givens"]> = [];
+  if (rand() < 0.3) for (let k = 0; k < 1 + Math.floor(rand() * 2); k++) out.push({ at: "cell", cell: [Math.floor(rand() * rows), Math.floor(rand() * cols)], kind: "block" });
+  if (rand() < 0.3) {
+    const r = Math.floor(rand() * rows), c = Math.floor(rand() * cols);
+    out.push(rand() < 0.5 && c + 1 < cols ? { at: "border", cells: [[r, c], [r, c + 1]], kind: "wall" } : r + 1 < rows ? { at: "border", cells: [[r, c], [r + 1, c]], kind: "wall" } : { at: "border", cells: [[r - 1, c], [r, c]], kind: "wall" });
+  }
+  return out;
 }
 
 /** A small random panel: starts, ends, gaps, dots and a few symbols (fences of a 2x2 or 2x3 grid

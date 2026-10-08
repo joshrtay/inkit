@@ -7,7 +7,8 @@ export interface Regions {
   cells: number[][];     // region -> its cells, sorted
 }
 
-/** Connected groups of cells. For a regions puzzle: same color and not cut apart. For a
+/** Connected groups of cells. For a regions puzzle: same color and not cut apart (rocks are holes,
+ *  in no region; a given wall always cuts). For a
  *  shading puzzle: the islands of unshaded cells. For a line puzzle (a panel): the parts the line
  *  cuts the grid into. */
 export function regionsOf(p: Puzzle, b: Board): Regions {
@@ -17,7 +18,8 @@ export function regionsOf(p: Puzzle, b: Board): Regions {
   const joined = (l: number) => {
     const [a, c] = g.links[l].cells;
     if (!open(a) || !open(c)) return false;
-    if (p.marks.includes("regions")) return b.cut[g.links[l].border] !== 1 && b.color[a] === b.color[c];
+    // a given wall is a region border already drawn
+    if (p.marks.includes("regions")) return b.cut[g.links[l].border] !== 1 && !p.walls.has(l) && b.color[a] === b.color[c];
     if (lines) return b.fence[g.links[l].border] !== 1;
     return true;
   };

@@ -205,6 +205,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
       if (g.cell[0] < 0 || g.cell[1] < 0 || g.cell[0] >= grid.rows || g.cell[1] >= grid.cols) throw new Error(`cell ${g.cell[0]},${g.cell[1]} is outside the ${fig ? "figure" : "grid"}`);
       push(cellGivens, grid.cell(...g.cell), g);
       if (g.kind === "block") blocked.add(grid.cell(...g.cell));
+      if (g.kind === "palisade" && (!Number.isInteger(g.value) || g.value < 0 || g.value > 4)) throw new Error(`a palisade mark shows 0 to 4 borders (cell ${g.cell[0]},${g.cell[1]} has ${g.value})`);
     } else if (g.at === "border") {
       const e = grid.borderBetween(grid.cell(...g.cells[0]), grid.cell(...g.cells[1]));
       if (e < 0) throw new Error(`a ${g.kind} mark needs two neighbouring cells`);
@@ -320,6 +321,12 @@ export function check(p: Puzzle, b: Board): Problem[] {
   if (p.marks.includes("digit")) {
     const changed = [...p.cellGivens].filter(([i, gs]) => gs.some((g) => g.kind === "number" && b.digit[i] !== g.value)).map(([i]) => i);
     if (changed.length) out.push({ message: "The printed digits can't change.", cells: changed });
+  }
+  // a region puzzle's given walls are borders drawn already: different regions on either side
+  if (p.marks.includes("regions") && p.walls.size) {
+    const of = regions().of;
+    const bad = [...p.walls].filter((l) => { const [a, c] = p.grid.links[l].cells; return of[a] === of[c]; });
+    if (bad.length) out.push({ message: "A thick wall is a border: the cells on either side are in different regions.", borders: bad.map((l) => p.grid.links[l].border) });
   }
   return [...out, ...p.rules.flatMap((s) => blockFor(s).check(s, p, b, regions))];
 }

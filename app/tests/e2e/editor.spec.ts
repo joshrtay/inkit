@@ -185,6 +185,22 @@ test("Panes: compass, diamonds, symbols, and its rules", async ({ page }) => {
   await expect(page.locator(".ge-section summary", { hasText: "Rules" })).toBeVisible();
 });
 
+test("Panes: palisade marks, colored symbols, holes and walls", async ({ page }) => {
+  await open(page, "panes");
+  await tool(page, "Palisade");
+  await tap(page, 1.5, 1.5);
+  await tap(page, 1.5, 1.5);
+  await tool(page, "Symbol");
+  await tool(page, "Red");
+  await tap(page, 2.5, 2.5);
+  await tool(page, "Rock");
+  await tap(page, 3.5, 0.5);
+  await tool(page, "Wall");
+  await tap(page, 2.0, 1.5);
+  await eventually("panes", (s) => has(s.givens, { kind: "palisade", cell: [1, 1], value: 1 }) && has(s.givens, { kind: "symbol", cell: [2, 2], value: "red" })
+    && has(s.givens, { kind: "block", cell: [3, 0] }) && has(s.givens, { kind: "wall", cells: [[1, 1], [2, 1]] }));
+});
+
 test("Nonogram: paint the picture, or type the numbers", async ({ page }) => {
   await open(page, "nonogram");
   const before = saved("nonogram").picture!.rows[4];

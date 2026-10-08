@@ -93,3 +93,34 @@ describe("reading panels", () => {
     expect(sym([{ rule: "panel-line", settings: "symmetry turn" }])).toEqual([{ rule: "panel-line", symmetry: "turn" }]);
   });
 });
+
+describe("reading Panes (Glimmith) clues and rules", () => {
+  it("reads palisade marks: how many borders, and two at a corner or opposite", () => {
+    expect(givenOf(g("palisade", 1, 2, "0"))).toEqual({ at: "cell", cell: [1, 2], kind: "palisade", value: 0 });
+    expect(givenOf(g("palisade", 1, 2, "2 corner"))).toEqual({ at: "cell", cell: [1, 2], kind: "palisade", value: 2 });
+    expect(givenOf(g("palisade", 1, 2, "2 opposite"))).toEqual({ at: "cell", cell: [1, 2], kind: "palisade", value: 2, opposite: true });
+    expect(givenOf(g("palisade", 1, 2, "3"))).toEqual({ at: "cell", cell: [1, 2], kind: "palisade", value: 3 });
+    expect(givenOf(g("palisade", 1, 2, "5"))).toBeNull();
+  });
+  it("reads a colored rose as its color", () => {
+    expect(givenOf(g("symbol", 0, 0, "Red rose"))).toEqual({ at: "cell", cell: [0, 0], kind: "symbol", value: "red" });
+    expect(givenOf(g("symbol", 0, 0, "★"))).toEqual({ at: "cell", cell: [0, 0], kind: "symbol", value: "★" });
+  });
+  it("turns away a setting a rule doesn't take, saying which", () => {
+    const sketch = toSketch(reading({ genre: "panes", candidates: ["panes"], rules: [{ rule: "one-each", settings: "of each" }, { rule: "size", settings: "ma 4" }] }));
+    const parsed = parseSketch(sketch);
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) {
+      expect(parsed.errors.join(" ")).toMatch(/"one-each" can't have of "each"/);
+      expect(parsed.errors.join(" ")).toMatch(/"size" has no setting "ma"/);
+    }
+  });
+  it("makes a playable Glimmith puzzle with holes, walls and the new rules", () => {
+    const sketch = toSketch(reading({
+      genre: "panes", candidates: ["panes"], rows: 3, cols: 3,
+      rules: [{ rule: "cell-borders", settings: "" }, { rule: "neighbors-differ", settings: "" }, { rule: "one-of-each", settings: "" }],
+      givens: [g("block", 0, 0), g("wall", 1, 1, "right"), g("palisade", 2, 2, "2 corner"), g("symbol", 1, 0, "red"), g("symbol", 2, 1, "blue")],
+    }));
+    expect(parseSketch(sketch).ok).toBe(true);
+  });
+});

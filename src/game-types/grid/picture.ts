@@ -7,7 +7,8 @@ import { regionsOf } from "../../engine/derive.ts";
 import { boxLines, symbolOf } from "../../engine/rules.ts";
 import type { Board, Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
-import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks } from "./panel-draw";
+import { palisadeSvg, symbolClueSvg } from "./region-clues.ts";
+import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
 
 const S = 48, M = 26;
 const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];
@@ -120,8 +121,9 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
       if (links) out.givens += tag("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 });
       const onShade = b && b.shade[i] === 1;
       out.givens += text({ class: p.blocked.has(i) ? "clue on-rock" : onShade ? "clue on-shade" : "clue", x, y: y + 1 }, String(giv.value));
-    } else if (giv.kind === "pearl") out.givens += tag("circle", { class: `pearl ${giv.value}`, cx: x, cy: y, r: S * 0.3 });
-    else if (giv.kind === "symbol") out.givens += text({ class: "clue symbol", x, y: y + 1 }, "✦");
+    } else if (giv.kind === "pearl") out.givens += stoneSvg(giv.value, x, y, S * 0.28, "pearl");   // pearls are stones
+    else if (giv.kind === "symbol") out.givens += symbolClueSvg(giv.value, x, y);
+    else if (giv.kind === "palisade") out.givens += palisadeSvg(giv.value, !!giv.opposite, x, y, S);
     else if (giv.kind === "compass") {
       let c = tag("path", { d: `M${x} ${y - 7}V${y + 7}M${x - 7} ${y}H${x + 7}` });
       const at = { n: [x, y - 14], s: [x, y + 15], e: [x + 15, y + 1], w: [x - 15, y + 1] } as const;
