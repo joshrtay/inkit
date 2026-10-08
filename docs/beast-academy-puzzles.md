@@ -349,10 +349,40 @@ Sumtiles), and open-ended or counting work (Taxi Paths, dissections).
 - [Daily Puzzles](https://beastacademy.com/puzzles/daily) (names and one-line instructions from its public page code); [Playground](https://beastacademy.com/playground)
 - Dutch Loop as a known genre: [GMPuzzles, Dutch Loop (Hex, Tricolor)](https://www.gmpuzzles.com/blog/2021/06/dutch-loop-hex-tricolor-by-bryce-herdt/)
 
+## Puzzle Lab, seen from the parent view (October 2026)
+
+Read from a parent account's Puzzle Lab report, where each puzzle opens with its problem and
+solution. Rules are in our own words, worked out from one or two puzzles each; nothing was copied.
+"Fit" says how our engine would take it.
+
+| Puzzle Lab type | What it is | Standard name | Fit |
+|---|---|---|---|
+| Honeycomb Paths | Fill a honeycomb with 1 to N so each number touches the next: one path through every cell. | Hidato on hexagons | Needs a hex grid; the path rule exists (numbered path). |
+| Sum Blobs | Split a grid of numbers into connected blobs, each adding up to the target. | (sum-target division) | Region division with a sum rule: small new rule. |
+| Ice Rinks | A puck slides until it hits a wall; reach the star in the fewest moves. | Ricochet Robots-style | Not a grid logic puzzle (move planning). |
+| Polyominoes | Tile a shape exactly with a given set of pieces. | Polyomino packing | Region division with a shape bank (Glimmith's Shape Bank, used once each). |
+| Connect the Critters | Place the given pieces so they cover every critter and join into one connected group. | — | Placement with a connectivity rule: new. |
+| Abstract Art | Colour the cells so each row and column has the stated fraction of each colour. | Takuzu / Binairo-like, with fractions | Count-per-line rule exists (shaded-per-line); colours beyond two are new. |
+| Fillominoes | Fillomino, with only some region sizes allowed (e.g. only 4s and 6s). | Fillomino | Region size rules exist; add an allowed-sizes setting. |
+| Remove A Block | Take away one square so the shape has the asked-for symmetry. | — | Not a grid logic puzzle (one-move insight). |
+| Find The Cut Line | Cut a shape into two pieces, each with the asked-for symmetry. | Symmetry dissection | Region division with a symmetric-region rule: new (galaxies have a related rule). |
+| Spiral Galaxies | Standard. | Spiral Galaxies | Have it. |
+| Numbercross | Place the listed numbers into the grid's across and down slots. | Number fill-in | New (word-list placement). |
+| Hive | Numbers in a honeycomb; the small examples fit "every N touches all of 1..N-1", but a bigger one didn't check out. | (unconfirmed) | Unconfirmed. |
+| Laser Mazes | Push boxes so the cat can reach the milk. | Sokoban-like | Not a grid logic puzzle (moves). |
+| Akari | Standard; "Cipher" sets give clue letters standing for different numbers to work out. | Akari | Have it; ciphers would be a new clue option. |
+| Twins and Triplets | Place a given set of monster tiles; matching monsters seem to have to sit together. | (unconfirmed) | Unconfirmed. |
+| Fracturns | A small path of turn arrows and multiplications with fraction clues at the ends. | (unconfirmed) | Unconfirmed. |
+| Pythagorean Paths | Join the dots into one path whose segment lengths are the listed values (√2, √8, …); sets limit moves like chess pieces. | — | New (lattice geometry). |
+
+What this adds to the shortlist: **Fillomino with allowed sizes**, **Sum Blobs** and **Abstract Art**
+are close to rules we have; **Hidato on hexagons** (Honeycomb Paths) needs a hex grid, which would
+also open Hive.
+
 ## What we couldn't confirm
 
-- **Puzzle Lab**: we know it has 17 types, up to 10 sets of up to 8 puzzles each, and unlocks at XP
-  level 10. The type names, rules, sizes and difficulty curve are behind login. The Puzzles books'
+- **Puzzle Lab**: now seen (above); Hive, Twins and Triplets and Fracturns are still unconfirmed.
+  Before that: it has 17 types, up to 10 sets of up to 8 puzzles each, and unlocks at XP level 10. The Puzzles books'
   "find more in BA Online" notes suggest Spiral Galaxies, Shikaku, Fillomino, Fence 'Em In,
   Connect the Critters, Abstract Art and a skip-counting type, but that's inference.
 - **Puzzles inside BA Online lessons**: nothing public beyond "interactive puzzles in lessons".
