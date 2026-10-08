@@ -14,7 +14,7 @@ import { attempt, signInFirst } from "~/lib/http.server";
 import { GuidePane } from "~/components/GuidePane";
 import { ReadingScreen } from "~/components/ReadingScreen";
 
-export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }];
+export const meta: Route.MetaFunction = () => [{ title: "New game · inkit" }, { name: "robots", content: "noindex" }];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

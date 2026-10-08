@@ -13,7 +13,7 @@ import { attempt, signInFirst } from "~/lib/http.server";
 import { ReadingScreen } from "~/components/ReadingScreen";
 import { Sketchpad, type SketchpadHandle } from "~/components/Sketchpad";
 
-export const meta: Route.MetaFunction = () => [{ title: "Draw a puzzle · inkit" }];
+export const meta: Route.MetaFunction = () => [{ title: "Draw a puzzle · inkit" }, { name: "robots", content: "noindex" }];
 // a page of its own, like the editor: the whole width for the paper
 export const handle = { bare: true };
 

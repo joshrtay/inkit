@@ -43,7 +43,12 @@ givens, areas, picture, rules). The engine checks and plays it. Creators never s
 **Pages**: Subscriptions (the home feed), Explore (creators), Puzzle types (`/puzzles`, the
 guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Subscriptions), games at
 `/g/<id>`, Create (`/new`), Settings (`/settings`: profile, email, password, handle, appearance),
-sign-in (Better Auth: email + password, Google), privacy and terms. The left nav
+sign-in (Better Auth: email + password, Google), privacy and terms.
+**For search engines and agents** (`app/lib/seo.ts`, pure and unit-tested): every public page's
+canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts and editors are
+`noindex`. `/robots.txt` (AI crawlers welcome), `/sitemap.xml` (published games and profiles from
+D1), `/llms.txt`, `/llms-full.txt`, and each guide as Markdown at `/puzzles/<type>.md` (served by
+`workers/app.ts`). The left nav
 (`components/Shell.tsx`: Subscriptions, Explore, Profile, Create, and More at the bottom with
 Settings, Puzzle types and Sign out) frames every page except the editor.
 

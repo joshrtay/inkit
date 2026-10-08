@@ -11,6 +11,7 @@ import { roleIn } from "~/lib/permissions.server";
 import { signInFirst } from "~/lib/http.server";
 import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, markSolved, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
 import { withPictures } from "~/lib/thumbs.server";
+import { pageMeta, profileJsonLd } from "~/lib/seo";
 import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard";
 import { Avatar } from "~/components/Avatar";
 import { CreateMenu } from "~/components/Shell";
@@ -87,9 +88,18 @@ function aiProfile(handle: string) {
   return { howIMake: p.howIMake, schedule: p.schedule.summary, kinds: p.genres.map((g) => kindName(g.genre)), principles: p.quality.principles, paused: !!p.paused };
 }
 
-export const meta: Route.MetaFunction = ({ loaderData: data }) => data
-  ? [{ title: `${data.collection.title} · inkit` }, { name: "description", content: data.collection.description || `Puzzles by ${data.collection.title}.` }]
-  : [{ title: "Not found · inkit" }];
+export const meta: Route.MetaFunction = ({ loaderData: d }) => {
+  if (!d) return [{ title: "Not found · inkit" }];
+  const c = d.collection, n = d.games.length;
+  return pageMeta({
+    title: `${c.title} (@${c.slug}): logic puzzles · inkit`,
+    description: c.description || `${n ? `${n} hand-drawn logic puzzle${n === 1 ? "" : "s"}` : "Hand-drawn logic puzzles"} by ${c.title}, to play in your browser on inkit.`,
+    path: `/${c.slug}`, type: "profile",
+    // a deleted studio, still shown to its owners
+    noindex: c.deleted,
+    jsonLd: profileJsonLd({ slug: c.slug, title: c.title, description: c.description, person: c.personal }),
+  });
+};
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
   const { collection, person, persona, members, games, drafts, following, subscribers, subscribed, solves, role, me, tab } = d;

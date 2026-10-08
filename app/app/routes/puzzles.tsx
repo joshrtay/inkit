@@ -3,12 +3,15 @@ import { useMemo, useState } from "react";
 import { Form, Link } from "react-router";
 import type { Route } from "./+types/puzzles";
 import { CATEGORIES, guideCard, ORDER } from "~/lib/guides.server";
+import { pageMeta, puzzlesJsonLd } from "~/lib/seo";
 import "~site/game-types/grid/styles.css";
 
-export const meta: Route.MetaFunction = () => [
-  { title: "Puzzle types · inkit" },
-  { name: "description", content: "The rules of every puzzle type on inkit, with pictures and a worked example." },
-];
+export const meta: Route.MetaFunction = ({ loaderData: d }) => pageMeta({
+  title: "Logic puzzle types and their rules · inkit",
+  description: `How to play ${d?.types.length ?? "every"} kinds of logic puzzle, from Sudoku and Akari to Slitherlink and Nurikabe: the rules of each, with pictures and a worked example.`,
+  path: "/puzzles",
+  jsonLd: d ? puzzlesJsonLd(d.types) : undefined,
+});
 
 export function loader({ request }: Route.LoaderArgs) {
   return { types: ORDER.map(guideCard), categories: CATEGORIES, q: new URL(request.url).searchParams.get("q") ?? "" };

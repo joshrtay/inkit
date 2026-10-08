@@ -11,6 +11,7 @@ import { kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { likesOf, solvesOf } from "~/lib/queries.server";
 import { GamePageView } from "~/components/GamePageView";
+import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -42,12 +43,22 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     likes: await likesOf(db, game.id, viewer?.id),
     solves: await solvesOf(db, game.id, viewer?.id),
     signedIn: !!viewer,
+    dates: { created: game.createdAt.getTime(), published: game.publishedAt?.getTime() ?? null },
   };
 }
 
-export const meta: Route.MetaFunction = ({ loaderData: data }) => data
-  ? [{ title: `${data.game.title} · inkit` }, { name: "description", content: data.game.description || `A ${kindName(data.game.kind)} puzzle.` }]
-  : [{ title: "Not found · inkit" }];
+export const meta: Route.MetaFunction = ({ loaderData: d }) => {
+  if (!d) return [{ title: "Not found · inkit" }];
+  const { game, author } = d, kind = kindName(game.kind), a = /^[aeiou]/i.test(kind) ? "an" : "a";
+  const title = `${game.title}: ${a} ${kind} puzzle by ${author.name} · inkit`;
+  // drafts and games taken down are seen only by their author and owners: never indexed
+  if (game.state !== "published") return privateMeta(title);
+  return pageMeta({
+    title, path: `/g/${game.id}`, type: "article",
+    description: game.description || `${game.title}, ${a} ${kind} logic puzzle by ${author.name}, to play in your browser on inkit.`,
+    jsonLd: gameJsonLd({ id: game.id, title: game.title, description: game.description, kind: game.kind, kindName: kind, author, created: d.dates.created, published: d.dates.published }),
+  });
+};
 
 export default function Game({ loaderData }: Route.ComponentProps) {
   return <GamePageView {...loaderData} />;

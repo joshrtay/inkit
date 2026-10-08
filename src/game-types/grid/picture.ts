@@ -255,7 +255,7 @@ function figureSvg(p: Puzzle, b: Board | null | undefined, label: string): strin
     }).join(""));
   });
   const vb = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad].map(n1), wash = washDefs(vb[2]);
-  return `<svg class="board picture" viewBox="${vb.join(" ")}" role="img" aria-label="${label}" style="--edge:${n1(span * 0.006)};--ratio:${n1(vb[2] / vb[3])};--wash:url(#${wash.id})">` + wash.svg
+  return `<svg class="board picture" viewBox="${vb.join(" ")}" role="img" aria-label="${label.replace(/"/g, "&quot;")}" style="--edge:${n1(span * 0.006)};--ratio:${n1(vb[2] / vb[3])};--wash:url(#${wash.id})">` + wash.svg
     + tag("g", { class: "wash" }, fills) + tag("g", {}, edges) + tag("g", {}, dots) + "</svg>";
 }
 

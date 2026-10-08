@@ -8,12 +8,15 @@ import { currentCreator } from "~/lib/auth.server";
 import { exploreCollections, featuredGames, feedGames, likedAmong, solvedAmong, subscriptionsOf } from "~/lib/queries.server";
 import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, FeedItem, GameCard } from "~/components/GameCard";
+import { pageMeta, SITE, SITE_NAME } from "~/lib/seo";
 import "~site/game-types/grid/styles.css";
 
-export const meta: Route.MetaFunction = () => [
-  { title: "inkit" },
-  { name: "description", content: "Hand-drawn puzzles you can play in the browser, made by creators and studios." },
-];
+export const meta: Route.MetaFunction = () => pageMeta({
+  title: "inkit: hand-drawn logic puzzles to play in your browser",
+  description: "Hand-drawn logic puzzles you can play in the browser, made by creators and studios: Sudoku, Akari, Slitherlink, Nurikabe and dozens more. Draw your own and share it.",
+  path: "/",
+  jsonLd: { "@type": "WebSite", "@id": `${SITE}/#site`, name: SITE_NAME, url: SITE, description: "Hand-drawn logic puzzles you can play in the browser." },
+});
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

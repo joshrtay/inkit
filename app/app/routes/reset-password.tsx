@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/reset-password";
 import { authClient } from "~/lib/auth-client";
 
-export const meta: Route.MetaFunction = () => [{ title: "Choose a new password · inkit.games" }];
+export const meta: Route.MetaFunction = () => [{ title: "Choose a new password · inkit.games" }, { name: "robots", content: "noindex" }];
 
 export function loader({ request }: Route.LoaderArgs) {
   const q = new URL(request.url).searchParams;

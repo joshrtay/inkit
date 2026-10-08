@@ -2,6 +2,11 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/home.tsx"),
+  // for search engines and AI agents (lib/seo.ts); a guide's Markdown (/puzzles/<kind>.md) is served by workers/app.ts
+  route("robots.txt", "routes/robots.ts"),
+  route("sitemap.xml", "routes/sitemap.ts"),
+  route("llms.txt", "routes/llms.ts"),
+  route("llms-full.txt", "routes/llms-full.ts"),
   route("signin", "routes/signin.tsx"),
   route("signup", "routes/signup.tsx"),
   route("forgot-password", "routes/forgot-password.tsx"),

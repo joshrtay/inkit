@@ -20,7 +20,7 @@ export function GuideBody({ g, inPane = false }: { g: GuideData; inPane?: boolea
                       <figure key={k} className={`mini ${p.ok ? "ok" : "no"}${p.wide ? " wide" : ""}`}>
                         <div className="mini-frame">
                           <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: p.svg }} />
-                          <span className="badge" aria-label={p.ok ? "Right" : "Wrong"}>{p.ok ? "✓" : "✕"}</span>
+                          <span className="badge" role="img" aria-label={p.ok ? "Right" : "Wrong"}>{p.ok ? "✓" : "✕"}</span>
                         </div>
                         <figcaption>{p.note}</figcaption>
                       </figure>

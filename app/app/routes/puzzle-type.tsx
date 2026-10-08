@@ -5,7 +5,8 @@ import { and, eq } from "drizzle-orm";
 import type { Route } from "./+types/puzzle-type";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
-import { exampleGameId, guidePage, isKind } from "~/lib/guides.server";
+import { exampleGameId, guideDoc, guidePage, isKind } from "~/lib/guides.server";
+import { guideDescription, guideJsonLd, guideMdPath, guidePath, guideTitle, pageMeta } from "~/lib/seo";
 import { GuideBody } from "~/components/GuideView";
 import "~site/game-types/grid/styles.css";
 
@@ -17,11 +18,11 @@ export async function loader({ params, context }: Route.LoaderArgs) {
   const game = await getDb(context.get(cloudflareContext).env).query.games.findFirst({
     where: and(eq(schema.games.id, id), eq(schema.games.state, "published")), columns: { id: true },
   });
-  return { ...page, playId: game?.id ?? null };
+  return { ...page, playId: game?.id ?? null, jsonLd: guideJsonLd(guideDoc(params.kind)) };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData: d }) => d
-  ? [{ title: `${d.name}: how to play · inkit` }, { name: "description", content: d.summary }]
+  ? pageMeta({ title: guideTitle(d), description: guideDescription(d), path: guidePath(d.kind), type: "article", markdown: guideMdPath(d.kind), jsonLd: d.jsonLd })
   : [{ title: "Not found · inkit" }];
 
 const ink = (c: string) => ({ "--paper-ink": c }) as React.CSSProperties;

@@ -2,8 +2,9 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/terms";
 import { CONTACT, UPDATED } from "~/lib/legal";
+import { pageMeta } from "~/lib/seo";
 
-export const meta: Route.MetaFunction = () => [{ title: "Terms of service · inkit" }, { name: "description", content: "The rules for using inkit." }];
+export const meta: Route.MetaFunction = () => pageMeta({ title: "Terms of service · inkit", description: "The rules for using inkit.", path: "/terms" });
 
 export default function Terms() {
   return (

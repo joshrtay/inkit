@@ -9,8 +9,13 @@ import { exploreCollections, featuredGames, markSolved } from "~/lib/queries.ser
 import { withPictures } from "~/lib/thumbs.server";
 import { CollectionRow, GameCard } from "~/components/GameCard";
 import "~site/game-types/grid/styles.css";
+import { pageMeta } from "~/lib/seo";
 
-export const meta: Route.MetaFunction = () => [{ title: "Explore · inkit" }, { name: "description", content: "Find puzzle creators and studios to follow." }];
+export const meta: Route.MetaFunction = () => pageMeta({
+  title: "Explore logic puzzle creators and studios · inkit",
+  description: "Find creators and studios making hand-drawn logic puzzles to follow, and featured puzzles to play in your browser.",
+  path: "/explore",
+});
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

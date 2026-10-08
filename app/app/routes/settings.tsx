@@ -13,7 +13,7 @@ import { attempt, signInFirst } from "~/lib/http.server";
 import { savedTheme, setTheme, type Theme } from "~/lib/theme";
 import { Avatar } from "~/components/Avatar";
 
-export const meta: Route.MetaFunction = () => [{ title: "Settings · inkit" }];
+export const meta: Route.MetaFunction = () => [{ title: "Settings · inkit" }, { name: "robots", content: "noindex" }];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

@@ -3,8 +3,9 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/privacy";
 import { CONTACT, UPDATED } from "~/lib/legal";
+import { pageMeta } from "~/lib/seo";
 
-export const meta: Route.MetaFunction = () => [{ title: "Privacy policy · inkit" }, { name: "description", content: "What inkit collects, why, and who it's shared with." }];
+export const meta: Route.MetaFunction = () => pageMeta({ title: "Privacy policy · inkit", description: "What inkit collects, why, and who it's shared with.", path: "/privacy" });
 
 export default function Privacy() {
   return (

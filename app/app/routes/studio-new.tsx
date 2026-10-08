@@ -8,7 +8,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { createStudio } from "~/lib/collections.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 
-export const meta: Route.MetaFunction = () => [{ title: "Start a studio · inkit" }];
+export const meta: Route.MetaFunction = () => [{ title: "Start a studio · inkit" }, { name: "robots", content: "noindex" }];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   if (!(await currentCreator(context.get(cloudflareContext).env, request))) signInFirst(request);

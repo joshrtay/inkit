@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import type { Route } from "./+types/forgot-password";
 import { authClient } from "~/lib/auth-client";
 
-export const meta: Route.MetaFunction = () => [{ title: "Reset your password · inkit.games" }];
+export const meta: Route.MetaFunction = () => [{ title: "Reset your password · inkit.games" }, { name: "robots", content: "noindex" }];
 
 export default function ForgotPassword() {
   const [sentTo, setSentTo] = useState("");
