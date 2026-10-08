@@ -199,9 +199,9 @@ describe("Akari ciphers", () => {
   });
 });
 
-describe("printed colors and shares (Binairo, Abstract Art)", () => {
+describe("printed colors and shares (Binary Puzzle, Abstract Art)", () => {
   it("prints a color in a square, and the same color again takes it off", () => {
-    const s = ops.togglePaint(grid("binairo"), [0, 1], 2);
+    const s = ops.togglePaint(grid("binary-puzzle"), [0, 1], 2);
     expect(s.givens).toEqual([{ at: "cell", cell: [0, 1], kind: "color", value: 2 }]);
     expect(ops.togglePaint(s, [0, 1], 1).givens).toEqual([{ at: "cell", cell: [0, 1], kind: "color", value: 1 }]);
     expect(ops.togglePaint(s, [0, 1], 2).givens).toEqual([]);

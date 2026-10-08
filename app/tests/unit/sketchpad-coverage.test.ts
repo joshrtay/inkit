@@ -65,7 +65,7 @@ const SYNTHETIC: Record<string, GridSpec> = {
 /** What each example type (and each made-up puzzle) can't be drawn with today: nothing. (What's
  *  only drawn roughly is in the report: a palisade's diamond in pen lines, a rose as a stone, a
  *  thermometer as a line and a stone, a nonogram's numbers without its picture's colours, an inequality as a
- *  written sign, and Three Coats' stones at a fixed size with no grid to size them by.) */
+ *  written sign, and RYB's stones at a fixed size with no grid to size them by.) */
 const EXPECTED_GAPS: Record<string, string[]> = Object.fromEntries([
   ...readdirSync(GAMES, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name),
   "panes: palisade, symbol, rose, shape, bank, wall, block", "panes: inequality, difference, watchtower", "panes: pentomino and mirrored shapes",

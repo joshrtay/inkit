@@ -11,7 +11,7 @@ browser, subscribe to creators, and like puzzles.
 |---|---|
 | `app/` | The site: React Router on Cloudflare Workers, with D1 (database), R2 (sketch photos) and Cloudflare Email |
 | `src/engine/` | The grid puzzle engine: geometry, genres, rules, encoding to clingo, solving ([docs/grid-engine.md](docs/grid-engine.md)) |
-| `src/game-types/grid/` | The in-browser player (`game.ts`, `figure.ts` for Three Coats) and the still-picture renderer (`picture.ts`) with its styles |
+| `src/game-types/grid/` | The in-browser player (`game.ts`, `figure.ts` for RYB) and the still-picture renderer (`picture.ts`) with its styles |
 | `src/guides/` | The puzzle-type guides: rules with ✓/✗ pictures, origins, worked examples |
 | `src/games/` | Example puzzles per type (JSON): the guides' worked examples and the site's seed data |
 | `src/lib/` | The game interface (`game-api.ts`) and the watercolor wash filter (`ink.ts`) |
@@ -62,7 +62,7 @@ Preview and Publish. Toolbar: the puzzle type, then the type's tools. The page: 
 description, the puzzle edited in place (`components/BoardEditor.tsx`, tools per type), the drawing
 in the left margin, Claude's doubts in the right margin as a checklist pinned to the board. Undo
 and Reset sit bottom left. Drafts save themselves; publishing needs exactly one solution. Preview
-shows the real page (`/g/<id>/preview`) at desktop or phone width. Three Coats keeps its figure
+shows the real page (`/g/<id>/preview`) at desktop or phone width. RYB keeps its figure
 editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; admins a Look panel.
 
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser

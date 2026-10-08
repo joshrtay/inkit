@@ -1,4 +1,4 @@
-// The visual editor's figure mode (Three Coats): a figure of polygon pieces instead of a grid.
+// The visual editor's figure mode (RYB): a figure of polygon pieces instead of a grid.
 //   Select        click a piece, then give it dots, hide them, or delete it
 //   Draw a piece  click its corners (they snap to corners already there); click the first one to close it
 //   Move corners  drag a corner; every piece that shares it follows

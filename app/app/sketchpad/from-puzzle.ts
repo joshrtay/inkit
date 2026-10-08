@@ -97,7 +97,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
     return takes ? (c as m.SymbolColor) : undefined;
   };
 
-  // Three Coats: no grid; the figure's pieces as straight lines, scaled onto the page
+  // RYB: no grid; the figure's pieces as straight lines, scaled onto the page
   if (p.figure) {
     const pts = p.figure.flat(), x0 = Math.min(...pts.map((q) => q[0])), y0 = Math.min(...pts.map((q) => q[1]));
     const span = Math.max(Math.max(...pts.map((q) => q[0])) - x0, Math.max(...pts.map((q) => q[1])) - y0);
@@ -333,7 +333,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
       case "eraser":
         stamp({ kind: "stamp", stamp: "eraser", color: colour(gv.color, "white", "an eraser", true), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "eraser");
         break;
-      // a printed color (Binairo, Abstract Art): the square washed in it
+      // a printed color (Binary Puzzle, Abstract Art): the square washed in it
       case "color": {
         const name = colorName(p, gv.value);
         if ((m.WASHES as readonly string[]).includes(name)) d = m.washCell(d, { at: "cell", r: gv.cell[0], c: gv.cell[1] }, name as m.WashColor, true);

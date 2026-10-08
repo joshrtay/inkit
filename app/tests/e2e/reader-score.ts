@@ -64,7 +64,7 @@ const partition = (areas: string[]) => { const seen = new Map<string, number>();
 /** A rule as compared: sorted settings; a panel's plain one line is what every panel has. */
 const rulesOf = (rules: RuleSpec[] | undefined) => (rules ?? []).filter((r) => r.rule !== "panel-line" || r.symmetry).map(canonical);
 
-/** Three Coats: each source piece's matching read piece (by where its middle is, the figures scaled to fit). */
+/** RYB: each source piece's matching read piece (by where its middle is, the figures scaled to fit). */
 function pieceMap(a: number[][][], b: number[][][]): number[] | null {
   if (a.length !== b.length) return null;
   const mids = (f: number[][][]) => {
@@ -87,7 +87,7 @@ async function sameSolution(src: Puzzle, read: Puzzle, pieces: number[] | null):
     const [want] = await solve(src, 1);
     if (!want) return "error";
     let board: Board = want;
-    if (pieces) {   // Three Coats: the source's colours on the matching read pieces
+    if (pieces) {   // RYB: the source's colours on the matching read pieces
       const color = new Uint8Array(want.color.length);
       pieces.forEach((j, i) => { color[j] = want.color[i]; });
       board = { ...want, color };
@@ -112,7 +112,7 @@ export async function score(source: GridSpec, read: GridSpec | null, solveIt = t
   // givens: the same clue at the same place; a different value there is wrong, not missing + extra
   let want = givensOf(src), have = got ? givensOf(got) : (read?.givens ?? []);
   const pieces = source.figure && read?.figure ? pieceMap(source.figure.pieces, read.figure.pieces) : null;
-  if (pieces) {   // Three Coats: a piece's dots on its matching read piece
+  if (pieces) {   // RYB: a piece's dots on its matching read piece
     const back = new Map(pieces.map((j, i) => [j, i]));
     have = have.map((g) => (g.at === "cell" && g.kind === "dots" ? { ...g, cell: [0, back.get(g.cell[1]) ?? -1] } : g));
   }

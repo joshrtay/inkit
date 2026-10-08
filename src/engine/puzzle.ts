@@ -155,7 +155,7 @@ export const genres = {
     rules: [{ rule: "corner-count" }, { rule: "perfect-maze" }],
     style: { grid: "dots" },
   },
-  // Three Coats: paint every piece of a figure red, yellow or blue; a piece's dots ask for
+  // RYB: paint every piece of a figure red, yellow or blue; a piece's dots ask for
   // neighbours of their colors. A wrong color is turned away and costs a heart.
   coats: {
     marks: ["paint"],
@@ -174,9 +174,9 @@ export const genres = {
     rules: [],
     style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
-  // Binairo (Takuzu): paint every cell one of two colors; each row and column is half and half, no
+  // Binary Puzzle (sold as Binairo and Takuzu, both trademarks): paint every cell one of two colors; each row and column is half and half, no
   // three in a row are one color, and no two rows (or columns) are the same
-  binairo: {
+  "binary-puzzle": {
     marks: ["paint"],
     rules: [{ rule: "line-shares" }, { rule: "no-three-in-a-row" }, { rule: "unique-lines" }],
     style: { palette: ["#ef5a6a", "#3fb0e6"] },

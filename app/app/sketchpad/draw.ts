@@ -121,7 +121,7 @@ const lineColor = (c?: string): A => (c && LINE_COLORS[c] ? { style: `fill:${LIN
 export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "color" | "count" | "cells" | "hollow" | "rotate" | "hidden">, x: number, y: number, S: number, out: XY = { x: 0, y: -1 }): string {
   switch (s.stamp) {
     // Masyu's pearls are stones this size, and so are a panel's squares (docs/style.md); a hidden
-    // one (Three Coats' dots shown once painted) has a dashed outline
+    // one (RYB's dots shown once painted) has a dashed outline
     case "stone": return stoneSvg(s.color ?? "black", x, y, S * 0.28, s.hidden ? "pearl sp-hidden" : "pearl");
     case "star": return tag("path", { class: "star", d: starPath(x, y, S * 0.36) });
     case "rock": return tag("rect", { class: "rock wash", x: x - S / 2, y: y - S / 2, width: S, height: S });

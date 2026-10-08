@@ -95,7 +95,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "binairo" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -534,7 +534,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const mix = (o.mix ?? "squares") as (typeof PANEL_MIXES)[number];
       if (!PANEL_MIXES.includes(mix)) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}`);
       result = await makePanel(mix, rows, cols, rand);
-    } else if (genre === "binairo" || genre === "abstract-art") {
+    } else if (genre === "binary-puzzle" || genre === "abstract-art") {
       // a random painting, then printed colors until it's the only one. Abstract Art's --rules:
       // "parts=1:2" (the shares; three parts, three colors), and no-three-in-a-row, unique-lines
       const rules: RuleSpec[] = [];

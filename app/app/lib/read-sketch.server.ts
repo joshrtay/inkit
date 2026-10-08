@@ -78,7 +78,7 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   arrow pointing in is {kind: "door", role: "in"}, the one pointing out {kind: "door", role: "out"}, each
   with the cell it's beside and that cell's side. Walls drawn already (as hints) are {kind: "wall", cell, other};
   leave out walls that are clearly the solution.`,
-  coats: `coats (Three Coats): a figure split into pieces (triangles, squares, any polygons), with colored dots
+  coats: `coats (RYB, also Three Coats): a figure split into pieces (triangles, squares, any polygons), with colored dots
   in some pieces (red, yellow, blue; often written as numbers 1, 2, 3). There's no grid: give "figure", one
   polygon per piece, its corners in order as [x, y] on a 0..100 scale across the drawing (y down). Pieces
   that share an edge must use the same corner coordinates where they meet, and a corner sitting on another
@@ -110,7 +110,7 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   mirror images (often a blue and a yellow start) mean two lines drawn at once: add the rule panel-line with settings
   "symmetry left-right" (mirrored left to right), "symmetry up-down" (mirrored top to bottom) or "symmetry turn"
   (turned halfway round). Leave out a line drawn as the answer.`,
-  binairo: `binairo (Binairo / Takuzu / binary puzzle): an even-sized grid where every cell gets one of two colors (often
+  "binary-puzzle": `binary-puzzle (Binary Puzzle; sold as Binairo or Takuzu): an even-sized grid where every cell gets one of two colors (often
   written as 0 and 1, or X and O, instead): half of each in every row and column, no three alike in a row, no two rows or
   columns the same. Each cell given at the start is {kind: "color", value: 1 for the first color (red, 0, X), 2 for the
   second (blue, 1, O)}. Leave out cells filled in as the answer.`,
@@ -169,7 +169,7 @@ const GENRE_GUIDE: Record<GenreName, string> = {
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"; an Akari cipher's letter: the letter, e.g. \"A\"",
-  color: "a cell colored in at the start (binairo, abstract-art): row, col; value its color's number as the type says, e.g. \"2\"",
+  color: "a cell colored in at the start (binary-puzzle, abstract-art): row, col; value its color's number as the type says, e.g. \"2\"",
   block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
   symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black; a critter (connect-the-critters) is \"★\"; a twins-and-triplets tile is its colour and shape, e.g. \"red stone\"",
   palisade: "a palisade mark in a cell (panes: a small diamond with some of its four sides drawn thick; each thick side is one of the cell's sides that is a region border): row, col; " +
@@ -184,7 +184,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   watchtower: "a number on a corner, where grid lines cross (panes, Glimmith's Watchtower: how many regions meet there): row, col = the corner (0..rows, 0..cols); value the number, 1 to 4",
   bank: "one shape of a shape bank (panes, Glimmith's Shape Bank: shapes drawn on the rule scroll or beside the board, not in a cell): row -1, col -1; value its blocks as row,col pairs with the top-left block at 0,0, e.g. \"0,0 0,1 1,0\"",
   count: "a number on a corner, where grid lines cross (mazes): row, col = the corner (0..rows, 0..cols); value the number",
-  dots: "colored dots in a piece (Three Coats): row 0, col = the piece's index in figure; value the dot colors as digits, 1 red, 2 yellow, 3 blue, e.g. \"113\"; then \"hidden\" if they're drawn hidden (dashed outlines: they show once the piece is painted), e.g. \"2 hidden\"",
+  dots: "colored dots in a piece (RYB): row 0, col = the piece's index in figure; value the dot colors as digits, 1 red, 2 yellow, 3 blue, e.g. \"113\"; then \"hidden\" if they're drawn hidden (dashed outlines: they show once the piece is painted), e.g. \"2 hidden\"",
   pearl: "a circle in a cell (masyu): row, col; value \"white\" or \"black\"",
   first: "a letter outside the grid (easy-as-abc): row, col of the cell next to it; value its side of that cell and the letter's number (A = 1), e.g. \"left 2\"",
   skyscraper: "a number outside the grid (skyscrapers): row, col of the cell next to it; value its side of that cell and the number, e.g. \"top 3\"",
@@ -270,9 +270,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "panel-line": "one line along the grid lines from a start circle to an end, never touching itself or crossing a gap (comes with panel); " +
     "symmetry left-right / up-down / turn: two lines at once, mirror images (list it, with its symmetry, when the panel has two mirrored starts and ends)",
   "panel-symbols": "the panel's symbols (dots, squares, stars, triangles, shapes, erasers) say where the line goes (comes with panel)",
-  "line-shares": "every row and column holds its share of each color (comes with binairo and abstract-art, half and half); parts: one number per color, e.g. \"parts 1 1 1\" (a third each), \"parts 1 2\" (a third and two thirds)",
-  "no-three-in-a-row": "no three cells in a row, across or down, have the same color (comes with binairo)",
-  "unique-lines": "no two rows are colored the same, and no two columns (comes with binairo)",
+  "line-shares": "every row and column holds its share of each color (comes with binary-puzzle and abstract-art, half and half); parts: one number per color, e.g. \"parts 1 1 1\" (a third each), \"parts 1 2\" (a third and two thirds)",
+  "no-three-in-a-row": "no three cells in a row, across or down, have the same color (comes with binary-puzzle)",
+  "unique-lines": "no two rows are colored the same, and no two columns (comes with binary-puzzle)",
   "fill-in": "every number on the list fits once, across or down (comes with fill-in)",
   "number-path": "the numbers 1 to the last, each touching the next (comes with hidoku and honeycomb-paths); diagonals: touching at a corner counts (hidoku has it; list number-path without it for \"sides only\")",
   "smallest-missing": "each number is the smallest its neighbours don't have (comes with hive)",
@@ -530,7 +530,7 @@ export function toSketch(r: Reading): string {
     : { at: run.line, index: run.index, kind: "runs", value: run.runs });
   const own = new Set(((genres as Record<string, { rules: RuleSpec[] }>)[r.genre]?.rules ?? []).map(sameRule));
   const rules: RuleSpec[] = r.rules.map(({ rule, settings }) => ({ rule, ...ruleSettings(settings) }))
-    // a rule the type has anyway, as it has it (easy-as-abc's "letters count 3", Three Coats' "painted")
+    // a rule the type has anyway, as it has it (easy-as-abc's "letters count 3", RYB's "painted")
     .filter((s: RuleSpec) => !own.has(sameRule(s)))
     // a panel-line without a symmetry is what every panel has already (one line)
     .filter((s: RuleSpec) => s.rule !== "panel-line" || s.symmetry);

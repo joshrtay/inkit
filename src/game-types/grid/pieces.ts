@@ -1,4 +1,4 @@
-// The geometry of a figure's pieces (Three Coats), shared by the player (figure.ts) and still
+// The geometry of a figure's pieces (RYB), shared by the player (figure.ts) and still
 // pictures (picture.ts).
 import type { Puzzle } from "../../engine/types.ts";
 

@@ -83,7 +83,7 @@
 .grid-game .clue.entry { font-size: 20px; }
 .grid-game .clue.entry.done { fill: color-mix(in srgb, var(--paper-ink) 35%, transparent); text-decoration: line-through; }
 .grid-game .clue.entry-label { font-size: 13px; text-anchor: start; fill: color-mix(in srgb, var(--paper-ink) 60%, transparent); }
-/* paint on the grid (Binairo, Abstract Art): a printed color is its wash with a pen outline */
+/* paint on the grid (Binary Puzzle, Abstract Art): a printed color is its wash with a pen outline */
 .grid-game .paint-given { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); pointer-events: none; }
 .grid-game .xmark.cellx { stroke: color-mix(in srgb, var(--paper-ink) 60%, transparent); stroke-width: var(--pen-fine); }
 .grid-game .hint-area { fill: color-mix(in srgb, var(--wash-yellow) 25%, transparent); stroke: var(--wash-orange); stroke-width: var(--pen-fine); }
@@ -142,7 +142,7 @@
 .grid-game .walk .trail { fill: none; stroke: var(--wash-orange); stroke-width: var(--wash-stroke); stroke-linecap: round; stroke-linejoin: round; opacity: .85; filter: var(--wash); }
 .grid-game .walk .token { fill: var(--paper-red); stroke: var(--paper); stroke-width: var(--pen-medium); }
 
-/* paint puzzles (Three Coats): pale pieces painted with watercolor, pen edges, colored dots */
+/* paint puzzles (RYB): pale pieces painted with watercolor, pen edges, colored dots */
 .grid-game.figure svg.board { cursor: pointer; }
 .grid-game .piece { fill: color-mix(in srgb, var(--paper-ink) 22%, var(--paper)); stroke: none; }
 .grid-game .piece:not(.painted):hover { fill: color-mix(in srgb, var(--paper-ink) 36%, var(--paper)); }

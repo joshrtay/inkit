@@ -6,11 +6,11 @@ the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), 
 (`numberlink`), Masyu (`masyu`), Cave (`cave`), Aquarium (`aquarium`), Square Jam (`square-jam`),
 Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
-Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
+Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), RYB (`coats`), Slitherlink, Nurikabe, Panes
 and Sudoku, and Panel (`panel`: line puzzles in the style of The Witness; see "Panels" below), Hidoku
 (`hidoku`), and on the shapes below Honeycomb Paths (`honeycomb-paths`), Hive (`hive`) and
 Pythagorean Paths (`pythagorean-paths`).
-Later: Binairo (`binairo`), Abstract Art (`abstract-art`, Beast Academy's: each row and column holds its
+Later: Binary Puzzle (`binary-puzzle`), Abstract Art (`abstract-art`, Beast Academy's: each row and column holds its
 share of each of 2 or 3 colors) and Number Fill-In (`fill-in`), and Akari ciphers (letters for numbers).
 From Beast Academy (docs/beast-academy-puzzles.md), with its names except where a standard one exists: Fillomino (`fillomino`), Sum Blobs (`sum-blobs`), Polyomino Packing (`polyomino-packing`),
 Connect the Critters (`connect-the-critters`), Find the Cut Line (`find-the-cut-line`) and Twins and Triplets (`twins-and-triplets`); their
@@ -21,7 +21,7 @@ generators are in `puzzles/grid/pieces.ts`.
 **Geometry.** A grid is a graph of *cells*, *corners* and two kinds of edges:
 *borders* (between two corners, separating cells) and *links* (between two cell centers).
 Every interior border has a matching link across it. There are two geometries
-(`src/engine/geometry.ts`): the square grid, and a **figure** of polygon pieces (Three Coats,
+(`src/engine/geometry.ts`): the square grid, and a **figure** of polygon pieces (RYB,
 `figure` in the puzzle). In a figure each piece is a cell (row 0, column i), pieces sharing
 part of an edge are neighbours (a border and a link between them), and corners closer than
 1.5% of the figure's size are snapped together so hand-traced pieces meet. A figure is
@@ -52,7 +52,7 @@ Drawing and playing hexagons, lattices and number paths is `src/game-types/grid/
 | `loop` | links | empty, line, X | Simple Loop, Masyu |
 | `regions` | borders + cell colors | cut / color | Panes (Glimmith-style), Fillomino, Shikaku |
 | `digit` | cells | 1..n, pencil notes (shown as the style's `symbols`: Easy as ABC's letters, a fill-in's 0-9) | Sudoku, Number Fill-In |
-| `paint` | cells | palette color 1..n (red, yellow, blue by default) | Three Coats (a figure's pieces), Binairo and Abstract Art (a square grid's cells) |
+| `paint` | cells | palette color 1..n (red, yellow, blue by default) | RYB (a figure's pieces), Binary Puzzle and Abstract Art (a square grid's cells) |
 
 Regions come from either input: painting cells a color, or cutting borders. A region is a
 connected group of same-color cells not separated by a cut. For shading puzzles, the
@@ -74,7 +74,7 @@ nonogram's runs or a `total` beside a row or above a column, a clue outside the 
 `galaxy` centre on a point in half-cell steps (cell centres, edge midpoints, corners), a `peg` (a dot on a lattice point) and a lattice path's `lengths` (`{at: "aside"}`, as squares, drawn under the board). A nonogram's runs can instead come from its
 `picture`, which solving reveals. A number in a cell can carry a `letter` instead (an Akari cipher: each
 letter stands for a different number 0-4, found while solving; its `value` isn't used); a `color` in a
-cell is a printed paint color that stays (Binairo, Abstract Art). A fill-in's list of numbers is the
+cell is a printed paint color that stays (Binary Puzzle, Abstract Art). A fill-in's list of numbers is the
 puzzle's `entries` (strings in the style's symbols), drawn under the board grouped by length and
 crossed off as they appear (`src/game-types/grid/entry-list.ts`); its black squares are rocks, which
 digit puzzles leave empty.
@@ -157,9 +157,9 @@ puzzle can use it.
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
 | `panel-line` | A panel's line (fence marks) runs from a start circle to an end on the outside edge, never touching itself or crossing a gap; `symmetry` (`left-right`, `up-down`, `turn`) makes it two lines, mirror images that never touch, each passing the dots of its color. |
 | `panel-symbols` | Every symbol in the regions the line cuts the grid into: dots, squares, stars, triangles, shapes and erasers (see "Panels"). |
-| `line-shares` | Every row and column holds each paint color in proportion to `parts` (one per palette color; default equal: half and half). A line that can't be split evenly makes the puzzle invalid (Binairo, Abstract Art). |
-| `no-three-in-a-row` | No three cells in a row, across or down, have the same paint color (Binairo). |
-| `unique-lines` | No two rows are painted the same, and no two columns (Binairo). |
+| `line-shares` | Every row and column holds each paint color in proportion to `parts` (one per palette color; default equal: half and half). A line that can't be split evenly makes the puzzle invalid (Binary Puzzle, Abstract Art). |
+| `no-three-in-a-row` | No three cells in a row, across or down, have the same paint color (Binary Puzzle). |
+| `unique-lines` | No two rows are painted the same, and no two columns (Binary Puzzle). |
 | `fill-in` | Every entry on the list goes into one slot (a run of 2+ open cells across or down, between rocks or the edge), every slot takes one, every open cell gets a digit (Number Fill-In). |
 | `number-path` | Every open cell holds 1..N once (N: the open cells), and each number touches the next across a link; `diagonals` (squares): touching at a corner counts too (Hidoku has it; without it, sides only). |
 | `smallest-missing` | Every open cell holds the smallest positive number none of its neighbours has (its neighbours' "mex"; Hive). |
@@ -182,8 +182,9 @@ Honeycomb Paths, Connect the Critters, Find the Cut Line, Twins and Triplets). W
 several names across sites, the standard cross-site name wins (Round the Bend is Simple Loop, Picture
 Squares is Nonogram, BA's Polyominoes is Polyomino Packing, Numbercross is Number Fill-In). The one
 exception is a name an org explicitly protected, such as a registered trademark: that genre gets a
-generic name and its credit names the original (Hidato is Hidoku). Check for a registered trademark
-before adopting a name. Wyatt's own genres keep his names (Number Line Maze, Three Coats).
+generic name and its credit names the original (Hidato is Hidoku; Binairo and Takuzu are the
+Binary Puzzle). Check for a registered trademark
+before adopting a name. Wyatt's own genre keeps his name (Number Line Maze). His Three Coats was FLEB's RYB under another name, so it's called RYB (its id stays `coats`, which is live).
 Every guide (`src/guides/guides.ts`) has a `credit`: the inventor, the org or person who popularized
 it, the year if known, and a source link; it shows under the summary on `/puzzles/<kind>`. Say less
 rather than guess. Mechanics and names are shared; rules text, art and example puzzles are our own
@@ -275,7 +276,7 @@ that uses a mark gets the same behavior:
   arrow keys) from the arrow in to the arrow out (`src/game-types/grid/walk.ts`); getting out
   solves it.
 - Paint (`coats`, `src/game-types/grid/figure.ts`): pick a pot (or R / Y / B) and tap a piece.
-  With `hearts` (Three Coats has 3) a wrong color is turned away and costs a heart, and right
+  With `hearts` (RYB has 3) a wrong color is turned away and costs a heart, and right
   ones lock in; the player finds the answer with a quick paint solver (`src/engine/paint.ts`),
   which the self-test holds to the same answers as the checks. With `hearts: 0` players paint
   freely, undo and check.
@@ -324,7 +325,7 @@ Substack's post editor (see ARCHITECTURE.md). The puzzle itself is edited by:
   puzzle with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a
   maze's second door, an area painted in two pieces) stays on screen to be fixed, and a draft can
   be saved that way (publishing still needs a complete puzzle with one solution).
-- **The figure editor** (`FigureEditor.tsx`) for Three Coats: draw a piece corner by corner, drag
+- **The figure editor** (`FigureEditor.tsx`) for RYB: draw a piece corner by corner, drag
   corners, delete pieces, give a piece dots and hide them, and set the hearts.
 - **The Rules panel** (`RulesPanel.tsx`): rules beyond the type's own, with every setting. Shown for
   Panes, and to admins on any puzzle.
@@ -336,7 +337,7 @@ an entry saying where it's edited and how it's read:
 
 | Engine list | Editors | Reader |
 |---|---|---|
-| `GenreName` (`puzzle.ts`) | `TOOLS` (BoardEditor; Three Coats excepted) | `GENRE_GUIDE` |
+| `GenreName` (`puzzle.ts`) | `TOOLS` (BoardEditor; RYB excepted) | `GENRE_GUIDE` |
 | `Given["kind"]` (`types.ts`) | `CLUE_TOOLS`: the tool that places it | `CLUE_GUIDE` |
 | `RuleName` (`rules.ts`) | `RULES`, with each setting (Rules panel) | `RULE_GUIDE` |
 | `keyof GridStyle` | `STYLE` (Look panel) | |
@@ -367,6 +368,6 @@ Dailies), and a worked example shown unsolved and solved, plus a searchable list
 ## Next
 
 1. More blocks: sums and cages (Kakuro, Killer), polyomino shape clues, Masyu pearls.
-2. Number Line Maze (`maze`) and Three Coats (`coats`) are ported; the social site's seed
+2. Number Line Maze (`maze`) and Three Coats (now RYB, `coats`) are ported; the social site's seed
    converts their old instances (`app/seed/make.py`).
 3. Covers for the new genres; a feel pass on phones.

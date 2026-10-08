@@ -387,7 +387,7 @@ export function setLetter(s: Spec, cell: RC, letter: string | null): Spec {
   return withGivens(next, givensOf(next).map((g) => (at(cell)(g) && g.kind === "number" ? { ...g, value: 0, letter: l } : g)));
 }
 
-// ---- paint on the grid (Binairo, Abstract Art) ----
+// ---- paint on the grid (Binary Puzzle, Abstract Art) ----
 
 /** A printed color in a square (palette color 1..n); the same color again takes it off. */
 export function togglePaint(s: Spec, cell: RC, color: number): Spec {

@@ -14,7 +14,7 @@ export interface Mini {
   figure?: GridSpec["figure"];
   /** rules beyond (or replacing) the genre's own */
   rules?: RuleSpec[];
-  /** a style beyond the genre's (Colour Balance's three colors) */
+  /** a style beyond the genre's (Abstract Art's three colors) */
   style?: GridSpec["style"];
   /** a fill-in's list */
   entries?: string[];
@@ -43,6 +43,19 @@ export interface RuleGuide {
 
 export type Category = "Lines" | "Shading" | "Regions" | "Numbers" | "Paint";
 
+export interface Credit {
+  /** who invented it (a person, a company, a game), if known */
+  inventor?: string;
+  /** the org or person who made it popular, or whose name it goes by */
+  popularizer?: string;
+  /** when it first appeared, as far as a source says ("1989", "around 2009") */
+  year?: string;
+  /** anything else the credit must say: the original's name, how sure we are */
+  note?: string;
+  /** where this comes from */
+  source: { label: string; url: string };
+}
+
 export interface Guide {
   name: string;
   /** other names it goes by */
@@ -52,6 +65,9 @@ export interface Guide {
   summary: string;
   /** where the puzzle type comes from: who made it and when, as far as is known */
   origin: string;
+  /** who to thank: the inventor, the org or person who popularized it, and a source. Say less
+   *  rather than guess. A trademarked original name goes here too (Hidato, for Hidoku). */
+  credit: Credit;
   rules: RuleGuide[];
   /** how to play it here, in a sentence or two */
   controls: string;

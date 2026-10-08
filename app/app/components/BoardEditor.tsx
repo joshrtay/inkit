@@ -3,7 +3,7 @@
 // Claude's doubts; this draws the board, the cells the clues can't pin down (nonograms), and a pin
 // on each doubt's spot, and puts its tools in the page's toolbar.
 //
-// Every grid type has its tools here (TOOLS); Three Coats, drawn as pieces rather than a grid,
+// Every grid type has its tools here (TOOLS); RYB, drawn as pieces rather than a grid,
 // uses its own figure editor (FigureEditor). Which tool places each kind of clue is checked
 // against the engine in editor/coverage.ts. Each tool is one way of touching the board: a number
 // typed into a square, a rock toggled, a wall clicked between two squares, a thermometer dragged
@@ -81,7 +81,7 @@ const TOOL_HINTS: Record<ToolId, string> = {
 
 
 
-/** Each grid type's tools, most used first (Three Coats has its own editor). Typed against the
+/** Each grid type's tools, most used first (RYB has its own editor). Typed against the
  *  engine's genres, so a new genre needs its tools here before the build passes. */
 export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   slitherlink: ["number", "erase"],
@@ -111,7 +111,7 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   // the line's start, ends, gaps and dots, then the symbols in the cells
   panel: ["start", "end", "gap", "dot", "square", "star", "triangle", "shape", "eraser", "erase"],
   // printed colors (Abstract Art's shares and extra rules are in the toolbar)
-  binairo: ["paint", "erase"],
+  "binary-puzzle": ["paint", "erase"],
   "abstract-art": ["paint", "erase"],
   // black squares and printed digits (the list is in the toolbar)
   "fill-in": ["block", "number", "erase"],
@@ -231,7 +231,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   // Twins and Triplets: the tile placed
   const [tileAt, setTileAt] = useState(1);
   const [typing, setTyping] = useState<(Typing & { value: string }) | null>(null);
-  // Binairo, Abstract Art: the color printed in a square
+  // Binary Puzzle, Abstract Art: the color printed in a square
   const [paintColor, setPaintColor] = useState(1);
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);

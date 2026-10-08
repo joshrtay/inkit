@@ -38,7 +38,7 @@ export type Given =
   | { at: "cell"; cell: RC; kind: "triangle"; value: number; color?: SymbolColor }   // 1-3 triangles: how many of the cell's sides the line runs along (orange)
   | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean; color?: SymbolColor }   // a polyomino (its cells, top-left at 0,0); in a panel the region is made of its region's shapes (yellow; hollow ones blue); in a region puzzle (region-shape) its region is that shape
   | { at: "cell"; cell: RC; kind: "eraser"; color?: SymbolColor }           // cancels itself and a wrong symbol in its region, or another eraser (white)
-  // ---- paint on a square grid (Abstract Art, Binairo) ----
+  // ---- paint on a square grid (Abstract Art, Binary Puzzle) ----
   | { at: "cell"; cell: RC; kind: "color"; value: number };                  // a cell printed in a paint color (palette 1..n): it stays that color
 
 /** The two lines of a symmetry panel. */
@@ -78,7 +78,7 @@ export interface GridSpec {
   /** A nonogram's hidden picture: one letter per cell ("." = empty), its colors and title.
    *  Its row and column clues are worked out from it; solving reveals it in color. */
   picture?: { rows: string[]; palette: Record<string, string>; title?: string };
-  /** A figure of polygon pieces instead of a square grid (Three Coats): each piece is a cell,
+  /** A figure of polygon pieces instead of a square grid (RYB): each piece is a cell,
    *  and pieces sharing part of an edge are neighbours. "size" is then [1, number of pieces]
    *  and cell [0, i] is piece i. Any units; corners closer than 1.5% of the figure's size meet. */
   figure?: { pieces: number[][][] };

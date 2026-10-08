@@ -1,4 +1,4 @@
-// The grid player for paint puzzles (Three Coats): a figure of pieces (or a square grid's cells
+// The grid player for paint puzzles (RYB): a figure of pieces (or a square grid's cells
 // as square pieces), painted with the pots on the paper (or the keys R / Y / B, 1-9).
 //   hearts > 0   a wrong color is turned away and costs a heart; pieces painted right lock in
 //   hearts = 0   paint freely (the same color again clears), undo, and check

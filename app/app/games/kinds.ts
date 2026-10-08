@@ -27,10 +27,12 @@ export const KIND_NAMES: Record<GenreName, string> = {
   panes: "Panes",
   sudoku: "Sudoku",
   maze: "Number Line Maze",
-  coats: "Three Coats",
+  // FLEB's game (Wyatt's were called Three Coats); the id stays, as games use it
+  coats: "RYB",
   // line panels in the style of The Witness (src/engine/panel.ts)
   panel: "Panel",
-  binairo: "Binairo",
+  // a generic name: Binairo and Takuzu are trademarks
+  "binary-puzzle": "Binary Puzzle",
   // Beast Academy's: each row and column holds its share of each color
   "abstract-art": "Abstract Art",
   "fill-in": "Number Fill-In",

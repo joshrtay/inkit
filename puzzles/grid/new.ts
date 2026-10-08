@@ -15,7 +15,7 @@
 //   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
 //   node puzzles/grid/new.ts --genre panel --mix squares --size 4x4 --number 8 --name "Two Tones"   (mixes: panels.ts)
 //   node puzzles/grid/new.ts --genre akari --cipher --size 6x6 --number 3 --name "Secret Code"   (letters for numbers)
-//   node puzzles/grid/new.ts --genre binairo --size 6x6 --number 1 --name "Red and Blue"
+//   node puzzles/grid/new.ts --genre binary-puzzle --size 6x6 --number 1 --name "Red and Blue"
 //   node puzzles/grid/new.ts --genre abstract-art --size 6x6 --number 1 --name "Thirds" --rules "parts=1:1:1,no-three-in-a-row"
 //   node puzzles/grid/new.ts --genre fill-in --size 5x5 --number 1 --name "Number Fit"
 //   node puzzles/grid/new.ts --genre hidoku --size 4x4 --number 1 --name "Snake" [--moves sides]   (sides: no corners)

@@ -11150,7 +11150,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   }
  ]
 }', 'panel', 'published', (unixepoch() * 1000) + 80);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('binairo-1', 'c-wyatt', 'wyatt', 'First Tiles', 'binairo
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('binary-puzzle-1', 'c-wyatt', 'wyatt', 'First Tiles', 'binary-puzzle
 {
  "size": [
   4,
@@ -11203,8 +11203,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 2
   }
  ]
-}', 'binairo', 'published', (unixepoch() * 1000) + 81);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('binairo-2', 'c-wyatt', 'wyatt', 'Red and Blue', 'binairo
+}', 'binary-puzzle', 'published', (unixepoch() * 1000) + 81);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('binary-puzzle-2', 'c-wyatt', 'wyatt', 'Red and Blue', 'binary-puzzle
 {
  "size": [
   6,
@@ -11302,8 +11302,8 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 2
   }
  ]
-}', 'binairo', 'published', (unixepoch() * 1000) + 82);
-INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('binairo-3', 'c-wyatt', 'wyatt', 'Balancing Act', 'binairo
+}', 'binary-puzzle', 'published', (unixepoch() * 1000) + 82);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('binary-puzzle-3', 'c-wyatt', 'wyatt', 'Balancing Act', 'binary-puzzle
 {
  "size": [
   6,
@@ -11383,7 +11383,7 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
    "value": 2
   }
  ]
-}', 'binairo', 'published', (unixepoch() * 1000) + 83);
+}', 'binary-puzzle', 'published', (unixepoch() * 1000) + 83);
 INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('abstract-art-1', 'c-wyatt', 'wyatt', 'Half and Half', 'abstract-art
 {
  "size": [

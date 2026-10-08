@@ -37,6 +37,7 @@ export default function PuzzleType({ loaderData: g }: Route.ComponentProps) {
         {g.aka.length > 0 && <p className="aka">Also called {g.aka.join(", ")}</p>}
         <p className="origin">{g.origin}</p>
         <p className="lead">{g.summary}</p>
+        <p className="credit">{g.credit} <a href={g.source.url} rel="noopener noreferrer" target="_blank">{g.source.label}</a></p>
       </header>
 
       <GuideBody g={g} />

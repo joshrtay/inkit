@@ -83,7 +83,7 @@ export type Item =
   | { id: number; kind: "brush"; color: WashColor; points: Anchor[] }
   /** `color` for stones and panel symbols; `count` a triangle's; `cells` a shape's (from 0,0),
    *  `hollow` (a negative shape, drawn dashed) and `rotate` (it may turn: drawn tilted); `hidden`
-   *  a stone that isn't shown until it's painted (Three Coats' hidden dots: a dashed outline) */
+   *  a stone that isn't shown until it's painted (RYB's hidden dots: a dashed outline) */
   | { id: number; kind: "stamp"; stamp: StampKind; at: Anchor; color?: SymbolColor; count?: number; cells?: [number, number][];
       hollow?: boolean; rotate?: boolean; hidden?: boolean }
   /** a number, letter or word, handwritten; `small`: half size (corner sums, compass and border numbers) */

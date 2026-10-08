@@ -49,10 +49,10 @@ const starPath = (x: number, y: number, r: number) => Array.from({ length: 10 },
 
 export const createGrid = (config: GridClientConfig): MountGame => (root, host) => {
   const p = makePuzzle(config.spec), g = p.grid, marks = p.marks;
-  if (marks.includes("paint") && p.figure) return createFigure(p, root, host);   // painted pieces (Three Coats)
+  if (marks.includes("paint") && p.figure) return createFigure(p, root, host);   // painted pieces (RYB)
   if (isShaped(p)) return createShaped(p, root, host);               // hexagons, a lattice, a number path
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
-  // paint on the grid's cells (Binairo, Abstract Art): pick a pot and paint; printed colors stay
+  // paint on the grid's cells (Binary Puzzle, Abstract Art): pick a pot and paint; printed colors stay
   const paintGrid = marks.includes("paint");
   const tiles = tileSpec(p);   // Twins and Triplets: digits are drawn as tiles
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;

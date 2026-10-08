@@ -45,7 +45,7 @@ cut(L) :- adj(I,J,L), blocked(I), not blocked(J).
 :- cut(L), adj(I,J,L), blocked(I), blocked(J).`);
   if (p.marks.includes("paint")) {
     out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
-    // printed colors (Abstract Art, Binairo)
+    // printed colors (Abstract Art, Binary Puzzle)
     for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "color") out.push(`paint(${i},${giv.value}).`);
   }
   if (p.marks.includes("digit")) {

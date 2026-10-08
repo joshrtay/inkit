@@ -22,7 +22,7 @@ function checkSvg(className: string) {
 }
 
 /** The board's drawing (not the paper's icons), and the puzzle's own corner on it: the grid's
- *  frame, or the whole drawing (Three Coats' pieces). */
+ *  frame, or the whole drawing (RYB's pieces). */
 function boardOf(sheet: HTMLElement) {
   const board = [...sheet.querySelectorAll<SVGSVGElement>(":scope > svg")].find((s) => !s.classList.contains("celebration") && !s.classList.contains("solved-stamp"));
   const frame = board?.querySelector(".frame") ?? board;

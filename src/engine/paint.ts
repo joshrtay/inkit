@@ -1,4 +1,4 @@
-// A quick solver for paint puzzles (Three Coats), so the player knows the answer and can turn a
+// A quick solver for paint puzzles (RYB), so the player knows the answer and can turn a
 // wrong color away (hearts). Clingo proves the one solution when a puzzle is built or published;
 // this only finds it again in the browser, fast, for the rules a paint puzzle uses.
 import { colorName, dotClues } from "./rules.ts";

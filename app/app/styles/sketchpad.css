@@ -126,7 +126,7 @@
 .sp-ui .ghost { opacity: .35; }
 .sp-ui .spot { fill: color-mix(in srgb, var(--wash-yellow) 35%, transparent); }
 .sp-ui .spot-line { stroke: color-mix(in srgb, var(--wash-red) 55%, transparent); stroke-width: 6; stroke-linecap: round; }
-/* a stone that's hidden until painted (Three Coats): pale, its outline dashed */
+/* a stone that's hidden until painted (RYB): pale, its outline dashed */
 .grid-game .stone.sp-hidden .wash { fill-opacity: .3; }
 .grid-game .stone.sp-hidden .stone-line { stroke-dasharray: 3 2.5; }
 .sp-ui .outline { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 45%, transparent); stroke-width: var(--pen-fine); stroke-dasharray: 4 3; }

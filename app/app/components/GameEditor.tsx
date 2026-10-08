@@ -5,7 +5,7 @@
 // Reset sit in the bottom-left corner.
 //
 // Drafts save themselves as you go; a published game changes only when you press Update (and only
-// to a puzzle with one solution). Grid types are edited on the board (BoardEditor); Three Coats,
+// to a puzzle with one solution). Grid types are edited on the board (BoardEditor); RYB,
 // drawn as pieces, in FigureEditor. Panes (and admins, for any puzzle) also get the Rules panel;
 // admins the Look panel.
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -219,7 +219,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
               {may.feature && <LookPanel spec={loose} onChange={(s) => setSketch(specToSketch(s))} />}
             </>
           ) : (
-            // Three Coats: drawn as pieces, with its own figure editor
+            // RYB: drawn as pieces, with its own figure editor
             <FigureEditor spec={loose} set={(patch) => setSketch(specToSketch({ ...loose, ...patch }))} />
           )}
         </div>

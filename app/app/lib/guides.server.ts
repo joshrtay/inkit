@@ -6,7 +6,7 @@ import { guides, CATEGORIES } from "~site/guides/guides.ts";
 import { miniBoard, miniPuzzle } from "~site/guides/board.ts";
 import { pictureSvg } from "~site/game-types/grid/picture.ts";
 import examples from "~site/guides/examples.json";
-import type { Category } from "~site/guides/types.ts";
+import type { Category, Guide } from "~site/guides/types.ts";
 
 interface Example { name: string; file: string; spec: GridSpec; solution: Partial<Record<keyof Board, number[]>> }
 const EXAMPLES = examples as unknown as Record<string, Example>;
@@ -36,11 +36,22 @@ export function guideCard(kind: GenreName) {
 }
 
 /** Everything a type's page needs. */
+/** A guide's credit as one short line: "Invented by X (1989); popularized by Y. Note." */
+export function creditLine(c: Guide["credit"]): string {
+  const year = c.year ? ` (${c.year})` : "";
+  const parts = [
+    c.inventor && `Invented by ${c.inventor}${year}`,
+    c.popularizer && (c.inventor ? `popularized by ${c.popularizer}` : `Popularized by ${c.popularizer}${year}`),
+  ].filter(Boolean) as string[];
+  const line = parts.join("; ");
+  return [line && `${line}.`, c.note].filter(Boolean).join(" ");
+}
+
 export function guidePage(kind: GenreName) {
   const g = guides[kind], at = ORDER.indexOf(kind);
   const near = (k: GenreName | undefined) => (k ? { kind: k, name: guides[k].name } : null);
   return {
-    kind, name: g.name, aka: g.aka ?? [], category: g.category as Category, summary: g.summary, origin: g.origin, controls: g.controls, ink: g.ink,
+    kind, name: g.name, aka: g.aka ?? [], category: g.category as Category, summary: g.summary, origin: g.origin, credit: creditLine(g.credit), source: g.credit.source, controls: g.controls, ink: g.ink,
     rules: g.rules.map((r) => ({
       text: r.text,
       pictures: r.pictures.map((m) => {

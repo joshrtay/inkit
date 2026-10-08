@@ -93,7 +93,7 @@
 
 .be-color { cursor: pointer; }
 .be-color .be-pot { display: inline-block; }
-/* Binairo, Abstract Art: the color printed in a square; a fill-in's list of numbers */
+/* Binary Puzzle, Abstract Art: the color printed in a square; a fill-in's list of numbers */
 .be-paint .be-pot { display: block; width: 20px; height: 20px; cursor: inherit; }
 .be-list label { display: inline-flex; align-items: center; gap: .4rem; }
 .be-list input { width: 14rem; max-width: 60vw; }

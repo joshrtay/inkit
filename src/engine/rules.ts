@@ -42,13 +42,13 @@ const neighbours = (p: Puzzle, i: number) => p.grid.cellLinks[i].map((l) => { co
 const PAINT_NAMES: Record<string, string> = { "#ef5a6a": "red", "#f7cf3d": "yellow", "#3fb0e6": "blue",
   // the other watercolor washes (src/styles/global.css)
   "#7cc68f": "green", "#f29a38": "orange", "#a77bd6": "purple", "#f07ab8": "pink" };
-/** A paint color's name: red / yellow / blue for Three Coats' pots (or another wash's), else "color n". */
+/** A paint color's name: red / yellow / blue for RYB's pots (or another wash's), else "color n". */
 export const colorName = (p: Puzzle, c: number) => PAINT_NAMES[(p.style.palette?.[c - 1] ?? ["#ef5a6a", "#f7cf3d", "#3fb0e6"][c - 1] ?? "").toLowerCase()] ?? `color ${c}`;
 const colorList = (p: Puzzle) => {
   const names = Array.from({ length: p.style.palette?.length || 3 }, (_, k) => colorName(p, k + 1));
   return names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names.at(-1)}` : names[0];
 };
-/** color-count's settings: { red, yellow, blue } for Three Coats' pots, or { c1, c2, ... }. */
+/** color-count's settings: { red, yellow, blue } for RYB's pots, or { c1, c2, ... }. */
 const countsOf = (s: RuleSpec, p: Puzzle) => Array.from({ length: p.style.palette?.length || 3 }, (_, k) => k + 1)
   .map((c) => [c, s[colorName(p, c)] ?? s[`c${c}`]] as [number, unknown]).filter(([, n]) => typeof n === "number") as [number, number][];
 const n = (s: RuleSpec) => (typeof s.n === "number" ? s.n : 1);
@@ -329,7 +329,7 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
     },
   },
 
-  // ---- painting (Three Coats) ----
+  // ---- painting (RYB) ----
   painted: {
     describe: (_s, p) => `Paint every ${p.figure ? "piece" : "cell"} ${colorList(p)}.`,
     check(_s, p, b) {
@@ -1178,7 +1178,7 @@ pccov(I) :- pcon(K,J), pcc(K,J,I).
   "panel-line": panelLine,
   "panel-symbols": panelSymbols,
 
-  // ---- paint on a square grid (Binairo, Abstract Art) ----
+  // ---- paint on a square grid (Binary Puzzle, Abstract Art) ----
   "line-shares": {
     describe: (s, p) => `Paint every cell ${colorList(p)}. Every row and every column is ${shareWords(p, partsOf(s, p.style))}.`,
     check(s, p, b) {

@@ -233,7 +233,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     + tag("g", { class: "runs" }, out.runs) + tag("g", {}, out.corners) + tag("g", {}, out.over) + "</svg>";
 }
 
-/** A figure of pieces (Three Coats), painted or not. */
+/** A figure of pieces (RYB), painted or not. */
 function figureSvg(p: Puzzle, b: Board | null | undefined, label: string): string {
   const pieces = piecesOf(p), palette = p.style.palette?.length ? p.style.palette : PAINT;
   const xs = pieces.flat().map((q) => q[0]), ys = pieces.flat().map((q) => q[1]);

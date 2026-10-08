@@ -44,6 +44,8 @@
 .guide-hero { display: grid; gap: 8px; }
 .guide-hero h1 { font-size: 40px; }
 .guide-hero .aka { margin: 0; color: var(--muted); font-size: 15px; }
+.guide-hero .credit { margin: 0; color: var(--muted); font-size: 14px; }
+.wrap .guide-hero .credit a { color: var(--muted); text-decoration: underline; }
 .guide h2 { font-size: 22px; margin: 0 0 14px; }
 .guide-rules ol { list-style: none; counter-reset: rule; margin: 0; padding: 0; display: grid; gap: 14px; }
 .guide-rules .rule {

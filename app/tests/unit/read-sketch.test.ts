@@ -169,7 +169,7 @@ describe("a sketchpad drawing's data, sent with its picture", () => {
   });
 });
 
-describe("what the type has anyway, and Three Coats' hidden dots", () => {
+describe("what the type has anyway, and RYB's hidden dots", () => {
   it("leaves out a rule the type already has, with the same settings", () => {
     const rules = (genre: Reading["genre"], list: Reading["rules"]) => {
       const p = parseSketch(toSketch(reading({ genre, candidates: [genre], rows: 4, cols: 4, rules: list, givens: [g("first", 0, 0, "left 1")] })));
@@ -185,7 +185,7 @@ describe("what the type has anyway, and Three Coats' hidden dots", () => {
   });
 });
 
-describe("reading Binairo, Abstract Art, fill-ins and Akari ciphers", () => {
+describe("reading Binary Puzzle, Abstract Art, fill-ins and Akari ciphers", () => {
   const body = (r: Reading) => JSON.parse(toSketch(r).split("\n").slice(1).join("\n"));
   it("reads a cipher's letter on an Akari number, and printed colors", () => {
     expect(givenOf(g("number", 1, 2, "B"))).toEqual({ at: "cell", cell: [1, 2], kind: "number", value: 0, letter: "B" });

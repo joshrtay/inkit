@@ -15,7 +15,7 @@ export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo"
   | "inequality" | "difference" | "watchtower" | "bank"
   // panels: the line's start, ends, gaps and dots, then the symbols in the cells
   | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser"
-  // Binairo and Abstract Art: a printed color in a square
+  // Binary Puzzle and Abstract Art: a printed color in a square
   | "paint"
   // lattices (Pythagorean Paths): dots on the points, and the path's lengths
   | "peg" | "lengths"
@@ -27,12 +27,12 @@ export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
   rules: "Star Battle's stars; a panel's symmetry; Abstract Art's shares and extra rules; the Rules panel (Panes, and admins)",
   style: "the Look panel (admins); Abstract Art's colors (its shares)", picture: "Picture, and painting (Nonogram)",
-  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Honeycomb Paths, Hive; a lattice: Pythagorean Paths)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
+  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Honeycomb Paths, Hive; a lattice: Pythagorean Paths)", figure: "the figure editor (RYB)", hearts: "the figure editor (RYB)", areas: "the Areas tool",
   entries: "the Numbers box in the toolbar (Number Fill-In)",
 };
 
 /** Every clue kind and the tool that places it: a BoardEditor tool, Nonogram's own numbers, or
- *  Three Coats' figure editor. */
+ *  RYB's figure editor. */
 export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> = {
   number: "number", block: "block", symbol: "symbol", compass: "compass", palisade: "palisade", wall: "wall", twins: "diamond", opposites: "diamond",
   inequality: "inequality", difference: "difference", watchtower: "watchtower", bank: "bank",
@@ -165,5 +165,5 @@ export const STYLE: Record<keyof GridStyle, { label: string; type: "color" | "co
 /** Every kind of mark a player can put down (a genre picks its own; Look can override). */
 export const MARKS: Record<MarkKind, string> = {
   fence: "lines along cell edges", loop: "lines through cell centers", shade: "shading", regions: "regions", digit: "digits",
-  paint: "painting (the palette's colors: Three Coats' pieces, or squares)",
+  paint: "painting (the palette's colors: RYB's pieces, or squares)",
 };

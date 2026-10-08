@@ -268,7 +268,7 @@ Daily Puzzles (free, public):
   regions; region division with a matching rule.
 - **Averatiles** (P, 12 pp.; Practice 5B). Shapes (squares and triangles) take digits; a number is the
   average of the shapes around it, and touching shapes differ. Needs a figure of pieces like
-  Three Coats', with digits.
+  RYB's, with digits.
 - **F&M Grids** (I, 14 pp.). Factors and multiples; rules not public.
 - **Shikaku Fractions** (I, 16 pp.). Shikaku whose clues are fractions of the whole board. Our Shikaku
   with a clue label (the size is the fraction times the area).
@@ -292,7 +292,7 @@ Daily Puzzles (free, public):
 From `src/games/` and `app/app/games/kinds.ts`: Akari, Aquarium, Cave, Easy as ABC, Hitori, Irregular
 Sudoku, Masyu, Minesweeper, Nonogram, Numberlink, Nurikabe, Number Line Maze, Panel, Panes,
 Shikaku, Simple Loop, Simple Path, Skyscrapers, Slitherlink, Spiral Galaxies, Square Jam, Star
-Battle, Sudoku, Thermo Sudoku, Three Coats, Wittgenstein Briquet.
+Battle, Sudoku, Thermo Sudoku, RYB, Wittgenstein Briquet.
 
 Direct matches with BA: **Shikaku, Spiral Galaxies, Sudoku (4×4), Minesweeper**. Near misses:
 Cave (Factor Cave), Numberlink (the Link family), Simple Path and Simple Loop (Turn Mazes, Dutch

@@ -52,7 +52,7 @@ function* allBoards(p: Puzzle): Generator<Board> {
     }
   } else if (p.marks.includes("paint")) {
     const k = p.style.palette?.length || 3;
-    // printed colors stay (Abstract Art, Binairo)
+    // printed colors stay (Abstract Art, Binary Puzzle)
     const fixed = new Map<number, number>();
     for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "color") fixed.set(i, x.value);
     const free = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !fixed.has(i));
@@ -146,7 +146,7 @@ function randomSpec(): GridSpec {
   const own = process.argv[4] ? (PIECE_KINDS.includes(process.argv[4]) ? process.argv[4] : null) : rand() < 0.15 ? pick(PIECE_KINDS) : null;
   if (own) return pieceSpec(own);
   const kind = process.argv[4] ?? pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
-    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binairo", "binairo", "abstract-art", "abstract-art", "abstract-art", "fill-in", "fill-in", "fill-in",
+    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binary-puzzle", "binary-puzzle", "abstract-art", "abstract-art", "abstract-art", "fill-in", "fill-in", "fill-in",
     "hidoku", "hidoku", "honeycomb-paths", "honeycomb-paths", "hive", "hive", "pythagorean-paths", "pythagorean-paths", "pythagorean-paths"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "panel") return randomPanel();
@@ -277,10 +277,10 @@ function randomSpec(): GridSpec {
     }
     return { genre: "akari", size: [rows, cols], givens };
   }
-  if (kind === "binairo" || kind === "abstract-art") {
-    // Binairo (two colors, half and half, no three in a row, no two lines alike), or Abstract Art's
-    // shares with two or three colors, sometimes with Binairo's other rules; a few printed colors
-    const [rows, cols, parts] = kind === "binairo" ? pick([[4, 4, [1, 1]], [4, 4, [1, 1]], [2, 4, [1, 1]]] as [number, number, number[]][])
+  if (kind === "binary-puzzle" || kind === "abstract-art") {
+    // Binary Puzzle (two colors, half and half, no three in a row, no two lines alike), or Abstract Art's
+    // shares with two or three colors, sometimes with the Binary Puzzle's other rules; a few printed colors
+    const [rows, cols, parts] = kind === "binary-puzzle" ? pick([[4, 4, [1, 1]], [4, 4, [1, 1]], [2, 4, [1, 1]]] as [number, number, number[]][])
       : pick([[4, 4, [1, 1]], [2, 4, [1, 1]], [3, 3, [1, 2]], [3, 3, [1, 1, 1]], [3, 3, [2, 1]]] as [number, number, number[]][]);
     const k = parts.length, rules: NonNullable<GridSpec["rules"]> = [];
     if (kind === "abstract-art") {
@@ -288,7 +288,7 @@ function randomSpec(): GridSpec {
       if (rand() < 0.3) rules.push({ rule: "no-three-in-a-row" });
       if (rand() < 0.3) rules.push({ rule: "unique-lines" });
     }
-    const givens = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * (kind === "binairo" ? 3 : 4)))
+    const givens = shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, Math.floor(rand() * (kind === "binary-puzzle" ? 3 : 4)))
       .map((i) => ({ at: "cell" as const, cell: cellOf(i, cols), kind: "color" as const, value: 1 + Math.floor(rand() * k) }));
     return { genre: kind, size: [rows, cols], rules, givens, ...(k === 3 ? { style: { palette: ["#3fb0e6", "#f7cf3d", "#ef5a6a"] } } : {}) };
   }

@@ -13,7 +13,7 @@ better. The code is `app/app/lib/read-sketch.server.ts`.
    panel's corners and stretches of grid line are a corner's row and column (0..rows, 0..cols),
    plus "right" or "below" for a stretch of line.
 2. **The answer** is structured output (a Zod schema, `Reading`): the type and the other types the
-   same clues could be, size, clues, rules, a nonogram's picture, areas, Three Coats' pieces,
+   same clues could be, size, clues, rules, a nonogram's picture, areas, RYB's pieces,
    whether it's sure, and its doubts (each tied to a square, a line's clues, rows, columns, an
    area, or the whole puzzle). Rows and columns count from 0 everywhere; asking for 1-based
    numbers in one field made it mix the two. The schema keeps every field required and avoids
