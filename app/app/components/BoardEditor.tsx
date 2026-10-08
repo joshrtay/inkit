@@ -12,7 +12,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { genres, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
 import { solveLine } from "~site/engine/rules.ts";
-import type { Given, GridSpec, Puzzle, Side } from "~site/engine/types.ts";
+import { SYMMETRIES, type Symmetry } from "~site/engine/panel.ts";
+import { SYMBOL_COLORS, type Given, type GridSpec, type LineColor, type Puzzle, type Side, type SymbolColor } from "~site/engine/types.ts";
+import { symbolSvg } from "~site/game-types/grid/panel-draw.ts";
 import { pictureLayout, pictureSvg, type Room } from "~site/game-types/grid/picture.ts";
 import "~site/game-types/grid/styles.css";
 import type { Doubt } from "~/games/doubts";
@@ -32,6 +34,7 @@ const TOOL_LABELS: Record<ToolId, string> = {
   number: "Number", block: "Rock", wall: "Wall", pearl: "Pearl", galaxy: "Circle", thermo: "Thermometer", door: "Door",
   "outside-number": "Number outside", "outside-letter": "Letter outside", corner: "Corner number", total: "Line total",
   area: "Areas", symbol: "Symbol", compass: "Compass", diamond: "◆ / ◇", erase: "Erase",
+  start: "Start", end: "End", gap: "Gap", dot: "Dot", square: "Square", star: "Star", triangle: "Triangle", shape: "Shape", eraser: "Eraser",
 };
 
 const TOOL_HINTS: Record<ToolId, string> = {
@@ -51,7 +54,22 @@ const TOOL_HINTS: Record<ToolId, string> = {
   compass: "Click a square to set its compass numbers",
   diamond: "Click the line between two squares: ◆ same shape, ◇ different shape, none",
   erase: "Click any clue to remove it",
+  start: "Click where grid lines meet to add or remove a start circle",
+  end: "Click a corner on the outside edge to add or remove an end",
+  gap: "Click a stretch of grid line to break it, or mend it",
+  dot: "Click where grid lines meet, or halfway along a line, to add or remove a dot",
+  square: "Pick a color, then click a square to add or remove a colored square",
+  star: "Pick a color, then click a square to add or remove a star",
+  triangle: "Click a square: one triangle, two, three, none",
+  shape: "Pick a shape, then click a square to add or remove it",
+  eraser: "Click a square to add or remove an eraser",
 };
+
+/** A panel's tools: the line's start, end, gaps and dots, then the symbol its type teaches, then
+ *  the others (every symbol works in every panel), then Erase. */
+const LINE_TOOLS: ToolId[] = ["start", "end", "gap", "dot"];
+const SYMBOL_TOOLS: ToolId[] = ["square", "star", "triangle", "shape", "eraser"];
+const panelTools = (own: ToolId | null): ToolId[] => [...LINE_TOOLS, ...(own ? [own] : []), ...SYMBOL_TOOLS.filter((t) => t !== own), "erase"];
 
 /** Each grid type's tools, most used first (Three Coats has its own editor). Typed against the
  *  engine's genres, so a new genre needs its tools here before the build passes. */
@@ -80,6 +98,13 @@ export const TOOLS: Record<Exclude<GenreName, "coats">, ToolId[]> = {
   sudoku: ["number", "erase"],
   panes: ["number", "symbol", "compass", "diamond", "block", "erase"],
   maze: ["corner", "wall", "door", "erase"],
+  "panel-dots": panelTools(null),
+  "panel-squares": panelTools("square"),
+  "panel-stars": panelTools("star"),
+  "panel-triangles": panelTools("triangle"),
+  "panel-shapes": panelTools("shape"),
+  "panel-erasers": panelTools("eraser"),
+  "panel-symmetry": panelTools(null),
 };
 
 export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in TOOLS;
@@ -93,6 +118,12 @@ const AREA_HUES = (k: string) => (LETTERS.indexOf(k.toLowerCase()) * 137) % 360;
 const runsText = (v: number[] | undefined) => (v ?? [0]).join(" ");
 const parseRuns = (t: string) => { const n = t.trim().split(/[\s,]+/).filter(Boolean).map(Number).filter((x) => Number.isInteger(x) && x >= 0); return n.length ? n : [0]; };
 const sameColor = (s: string | undefined, t: string) => !!s && s.toLowerCase() === t.toLowerCase();
+const SYMMETRY_LABELS: Record<Symmetry, string> = { "left-right": "Left–right", "up-down": "Up–down", turn: "Turned" };
+const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
+/** A panel symbol drawn small, for a button. */
+const SymbolIcon = ({ x }: { x: Parameters<typeof symbolSvg>[0] }) => (
+  <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: symbolSvg(x, 16, 16, 40) }} /></span>
+);
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 
 /** A nonogram's cells that solving one line at a time can't decide (null: the clues contradict). */
@@ -140,6 +171,13 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   useEffect(() => { if (!toolList.includes(tool)) setTool(toolList[0] ?? "erase"); }, [genre]); // eslint-disable-line react-hooks/exhaustive-deps
   const [ink, setInk] = useState(() => Object.entries(spec.picture?.palette ?? {}).find(([k]) => k !== ".")?.[1] ?? "#26398f");
   const [area, setArea] = useState(() => spec.areas?.[0]?.[0] ?? "a");
+  // panels: the color squares and stars are placed in, a symmetry panel's dot color, the shape
+  const [symColor, setSymColor] = useState<Record<"square" | "star", SymbolColor>>({ square: "black", star: "orange" });
+  const [dotColor, setDotColor] = useState<LineColor | undefined>(undefined);
+  const [shapeAt, setShapeAt] = useState(0);
+  const [turns, setTurns] = useState(0);
+  const [canTurn, setCanTurn] = useState(false);
+  const [hollow, setHollow] = useState(false);
   const [typing, setTyping] = useState<(Typing & { value: string }) | null>(null);
   const [flashing, setFlashing] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -151,6 +189,9 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const [rows, cols] = spec.size, picture = spec.picture, areas = spec.areas;
   const palette = picture?.palette ?? {};
   const nonogram = genre === "nonogram";
+  const panel = genre.startsWith("panel-"), symmetry = panel ? ops.symmetryOf(spec) : null;
+  const shapeCells = Array.from({ length: turns }).reduce<RC[]>((cs) => ops.turnShape(cs), ops.SHAPES[shapeAt].cells);
+  const shapeSymbol: ops.PanelSymbol = { kind: "shape", value: shapeCells, ...(canTurn ? { rotate: true } : {}), ...(hollow ? { negative: true } : {}) };
   const letters = spec.style?.symbols ?? (genres[genre]?.style as { symbols?: string } | undefined)?.symbols ?? "ABCDEFGHI";
 
   // leave room outside the grid where clues can be added there
@@ -299,7 +340,10 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const o = outsideAt(h), cn = cornerAt(h), b = borderAt(h), pt = pointAt(h);
     const keep = (pred: (g: Given) => boolean) => { const next = ops.removeGivens(cur, pred); return next !== cur ? next : null; };
     const nearLine = Math.min(Math.abs(h.gx - Math.round(h.gx)), Math.abs(h.gy - Math.round(h.gy))) < 0.2;
-    return (cn && keep((g) => g.at === "corner" && same(g.corner, cn)))
+    const ln = ops.lineNear(cur.size, h.gx, h.gy, 0.2);
+    const corner = (c: RC) => { const next = ops.eraseCorner(cur, c); return next !== cur ? next : null; };
+    return (cn && corner(cn))
+      ?? (ln && keep((g) => ops.onLine(g, ln)))
       ?? (o && keep((g) => g.at === "edge" && same(g.cell, o.cell) && g.side === o.side))
       ?? (Math.hypot(h.gy * 2 - pt[0], h.gx * 2 - pt[1]) < 0.5 ? keep((g) => g.at === "point" && same(g.point, pt)) : null)
       ?? (b && nearLine ? keep((g) => onBorder(g, ...b)) : null)
@@ -357,6 +401,18 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       }
       case "area": if (inGrid(h) && areas) { stroke.current = { kind: "area" }; areaAt(h, false); capture(); } return;
       case "erase": { const next = erasedAt(h); if (next) change(next); return; }
+      // panels: the line's parts on corners and stretches of line, symbols in squares
+      case "start": case "end": {
+        const cn = ops.cornerNear(spec.size, h.gx, h.gy);
+        if (cn) change(tool === "start" ? ops.toggleStart(latest.current, cn) : ops.toggleEnd(latest.current, cn));
+        return;
+      }
+      case "gap": { const ln = ops.lineNear(spec.size, h.gx, h.gy, 0.4); if (ln) change(ops.toggleGap(latest.current, ln)); return; }
+      case "dot": { const at = ops.dotSpotNear(spec.size, h.gx, h.gy); if (at) change(ops.toggleDot(latest.current, at, symmetry ? dotColor : undefined)); return; }
+      case "square": case "star": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, { kind: tool, color: symColor[tool] })); return;
+      case "triangle": if (inGrid(h)) change(ops.cycleTriangle(latest.current, cell)); return;
+      case "shape": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, shapeSymbol)); return;
+      case "eraser": if (inGrid(h)) change(ops.toggleCellSymbol(latest.current, cell, { kind: "eraser" })); return;
     }
   }
   function move(evt: React.PointerEvent) {
@@ -463,6 +519,12 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           {[1, 2, 3].map((n) => <button key={n} type="button" className="be-btn" aria-pressed={stars === n} onClick={() => change(ops.setStars(spec, n))}>{n} star{n > 1 ? "s" : ""}</button>)}
         </span>
       )}
+      {symmetry && genre === "panel-symmetry" && (
+        <span className="be-group be-seg" role="group" aria-label="Mirrored">
+          {SYMMETRIES.map((m) => <button key={m} type="button" className="be-btn" aria-pressed={symmetry === m} onClick={() => change(ops.setSymmetry(spec, m))}
+            title="The two lines are mirror images this way">{SYMMETRY_LABELS[m]}</button>)}
+        </span>
+      )}
       {nonogram && picture && (
         <label className="be-group be-color" title="The color squares fill with (click a square again to clear it)">
           Color <span className="be-pot" style={{ "--c": ink } as React.CSSProperties}><input type="color" value={ink} onChange={(e) => setInk(e.target.value)} /></span>
@@ -471,6 +533,30 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       {toolList.length > 1 && (
         <span className="be-group be-seg" role="group" aria-label="Tool">
           {toolList.map((t) => <button key={t} type="button" className="be-btn" aria-pressed={tool === t} title={TOOL_HINTS[t]} onClick={() => setTool(t)}>{TOOL_LABELS[t]}</button>)}
+        </span>
+      )}
+      {(tool === "square" || tool === "star") && (
+        <span className="be-group be-swatches" role="group" aria-label={`${TOOL_LABELS[tool]} color`}>
+          {SYMBOL_COLORS.map((c) => <button key={c} type="button" className="be-swatch" aria-pressed={symColor[tool] === c} aria-label={capital(c)} title={capital(c)}
+            onClick={() => setSymColor({ ...symColor, [tool]: c })}><SymbolIcon x={{ kind: tool, color: c }} /></button>)}
+        </span>
+      )}
+      {tool === "dot" && symmetry && (
+        <span className="be-group be-seg" role="group" aria-label="Dot color">
+          {([undefined, "blue", "yellow"] as const).map((c) => <button key={c ?? "plain"} type="button" className="be-btn" aria-pressed={dotColor === c}
+            title={c ? `Passed by the ${c} line` : "Passed by either line"} onClick={() => setDotColor(c)}>{c ? capital(c) : "Plain"}</button>)}
+        </span>
+      )}
+      {tool === "shape" && (
+        <span className="be-group be-shapes" role="group" aria-label="Shape">
+          {ops.SHAPES.map((x, k) => <button key={x.name} type="button" className="be-swatch" aria-pressed={shapeAt === k} aria-label={x.name} title={x.name}
+            onClick={() => { setShapeAt(k); setTurns(0); }}><SymbolIcon x={{ kind: "shape", value: x.cells }} /></button>)}
+          <button type="button" className="be-btn be-turn" onClick={() => setTurns((turns + 1) % 4)} title="Turn the shape a quarter turn">
+            <SymbolIcon x={shapeSymbol} /> Turn</button>
+          <button type="button" className="be-btn" aria-pressed={canTurn} onClick={() => setCanTurn(!canTurn)}
+            title="The shape may be turned to fit (drawn tilted)">Can turn</button>
+          <button type="button" className="be-btn" aria-pressed={hollow} onClick={() => setHollow(!hollow)}
+            title="A hollow shape takes cells away from the others">Hollow</button>
         </span>
       )}
       {showAreas && (areas ? (
@@ -503,6 +589,13 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
       {tool === "corner" && Array.from({ length: (rows + 1) * (cols + 1) }, (_, i) => (
         <circle key={i} className="be-slot small" cx={ML + (i % (cols + 1)) * S} cy={MT + Math.floor(i / (cols + 1)) * S} r={4} />
       ))}
+      {panel && (tool === "start" || tool === "end" || tool === "dot") && Array.from({ length: (rows + 1) * (cols + 1) }, (_, i) => [Math.floor(i / (cols + 1)), i % (cols + 1)] as RC)
+        .filter((x) => tool !== "end" || ops.onEdge(spec.size, x))
+        .map(([r, c]) => <circle key={`v${r}-${c}`} className="be-slot small" cx={ML + c * S} cy={MT + r * S} r={4} />)}
+      {panel && (tool === "gap" || tool === "dot") && [
+        ...Array.from({ length: (rows + 1) * cols }, (_, i) => [Math.floor(i / cols), (i % cols) + 0.5]),
+        ...Array.from({ length: rows * (cols + 1) }, (_, i) => [Math.floor(i / (cols + 1)) + 0.5, i % (cols + 1)]),
+      ].map(([r, c]) => <circle key={`l${r}-${c}`} className="be-slot small" cx={ML + c * S} cy={MT + r * S} r={3} />)}
       {drawing && (
         <g className="be-thermo-draft">
           <polyline points={drawing.map(([r, c]) => `${ML + (c + 0.5) * S},${MT + (r + 0.5) * S}`).join(" ")} />

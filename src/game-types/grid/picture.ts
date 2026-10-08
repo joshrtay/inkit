@@ -7,6 +7,7 @@ import { regionsOf } from "../../engine/derive.ts";
 import { boxLines, symbolOf } from "../../engine/rules.ts";
 import type { Board, Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
+import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks } from "./panel-draw";
 
 const S = 48, M = 26;
 const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];
@@ -59,12 +60,17 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   const borderXY = (e: number) => g.borders[e].corners.map(cornerXY) as [[number, number], [number, number]];
   const rect = (i: number, cls: string, inset = 0, extra: A = {}) => { const [r, c] = g.rc(i); return tag("rect", { class: cls, x: X(c) + inset, y: Y(r) + inset, width: S - 2 * inset, height: S - 2 * inset, ...extra }); };
   const line = (cls: string, [[x1, y1], [x2, y2]]: [[number, number], [number, number]], extra: A = {}) => tag("line", { class: cls, x1, y1, x2, y2, ...extra });
-  const out = { tint: "", wash: "", rocks: "", grid: "", water: "", lines: "", givens: "", marks: "", runs: "", corners: "" };
+  const out = { tint: "", wash: "", rocks: "", grid: "", water: "", lines: "", givens: "", marks: "", runs: "", corners: "", over: "" };
+  const panel = p.rules.find((s) => s.rule === "panel-line"), frame = { S, X, Y };
 
   // grid, rocks, areas
   if (marks.includes("loop")) for (let i = 0; i < g.cellCount; i++) { const [r, c] = g.rc(i); if ((r + c) % 2) out.tint += rect(i, "alt"); }
   for (const i of p.blocked) out.rocks += rect(i, "rock");
-  if (p.style.grid === "dots") {
+  if (panel) {
+    // a panel: its tracks, start circles and ends; its dots and symbols go over the line
+    out.grid += panelTracks(p, frame) + tag("rect", { class: "frame panel-frame", x: X(0), y: Y(0), width: g.cols * S, height: g.rows * S });
+    out.over += panelSymbols(p, frame);
+  } else if (p.style.grid === "dots") {
     for (let v = 0; v < g.cornerCount; v++) { const [x, y] = cornerXY(v); out.grid += tag("circle", { class: "dot", cx: x, cy: y, r: 2.6 }); }
   } else {
     const boxes = p.areas ? undefined : p.rules.find((s) => s.rule === "boxes"), [bh, bw] = boxes ? boxLines(boxes, p) : [0, 0];
@@ -172,8 +178,11 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
       }
       if (digits && b.digit[i]) out.marks += text({ class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2 }, symbolOf(p, b.digit[i]));
     }
+    const tint = panel?.symmetry ? lineColors(p, b) : () => undefined;
+    if (panel) out.lines += panelInk(p, frame, b, panel.symmetry ? tint : undefined);
     for (const e of g.borders) {
-      if (marks.includes("fence") && b.fence[e.id] === 1 && !(maze && p.walls.has(e.link))) out.lines += line("mark pen", borderXY(e.id));
+      const t = tint(e.corners[0]);
+      if (marks.includes("fence") && b.fence[e.id] === 1 && !(maze && p.walls.has(e.link))) out.lines += line("mark pen", borderXY(e.id), t ? { style: `stroke:${LINE_COLORS[t]}` } : {});
       if (marks.includes("fence") && b.fence[e.id] === 2) { const [[x1, y1], [x2, y2]] = borderXY(e.id); out.marks += xMark((x1 + x2) / 2, (y1 + y2) / 2); }
       if (regionsPuzzle && e.link >= 0 && (b.cut[e.id] === 1 || colors[e.cells[0]] !== colors[e.cells[1]])) out.lines += line("mark lead", borderXY(e.id));
     }
@@ -195,7 +204,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   return `<svg class="board picture" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label.replace(/"/g, "&quot;")}" style="--ratio:${n1(W / H)}">`
     + tag("g", {}, out.tint) + tag("g", { class: "wash" }, out.wash) + tag("g", { class: "wash" }, out.rocks) + tag("g", { class: "gridlines" }, out.grid)
     + tag("g", { class: "water" }, out.water) + tag("g", {}, out.lines) + tag("g", {}, out.givens) + tag("g", { class: "marks" }, out.marks)
-    + tag("g", { class: "runs" }, out.runs) + tag("g", {}, out.corners) + "</svg>";
+    + tag("g", { class: "runs" }, out.runs) + tag("g", {}, out.corners) + tag("g", {}, out.over) + "</svg>";
 }
 
 /** A figure of pieces (Three Coats), painted or not. */

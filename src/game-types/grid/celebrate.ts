@@ -113,7 +113,8 @@ export function celebrate(root: HTMLElement, inks: string[]) {
   const N = 52, cx = W / 2, cy = H / 2;
   const from = inkSpots(board, N);
   // the colors painted on the board join the ink
-  const painted = [...board.querySelectorAll<SVGElement>(".wash, .star, circle")].map((e) => getComputedStyle(e).fill)
+  const painted = [...board.querySelectorAll<SVGElement>(".wash, .star, circle:not(.panel-start), [class^='panel-']:not(.panel-track):not(.panel-start):not(.panel-frame), .panel-shape rect, .mark.pen")]
+    .map((e) => (e.matches(".mark.pen") ? getComputedStyle(e).stroke : getComputedStyle(e).fill))
     .filter((c) => c && c !== "none" && !c.startsWith("url") && !/rgba?\(\s*(255,\s*255,\s*255|0,\s*0,\s*0)/.test(c));
   inks = [...new Set([...inks, ...painted])].slice(0, 6);
   const drops = from.map(({ x, y }, i) => {

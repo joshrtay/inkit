@@ -1,0 +1,165 @@
+{
+  "type": "grid",
+  "name": "Dot to Dot",
+  "meta": "4 \u00d7 4",
+  "grid": {
+    "size": [
+      4,
+      4
+    ],
+    "givens": [
+      {
+        "at": "corner",
+        "corner": [
+          4,
+          0
+        ],
+        "kind": "start"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          0,
+          4
+        ],
+        "kind": "end"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          3,
+          2
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          0,
+          0
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            0,
+            1
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            4,
+            2
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            1,
+            0
+          ],
+          [
+            2,
+            0
+          ]
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            4,
+            1
+          ],
+          [
+            4,
+            2
+          ]
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            0
+          ],
+          [
+            2,
+            1
+          ]
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          1,
+          1
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            3
+          ],
+          [
+            2,
+            4
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            3,
+            0
+          ],
+          [
+            3,
+            1
+          ]
+        ],
+        "kind": "gap"
+      }
+    ]
+  }
+}

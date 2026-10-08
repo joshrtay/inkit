@@ -1,0 +1,153 @@
+{
+  "type": "grid",
+  "name": "Two Tones",
+  "meta": "4 \u00d7 4",
+  "grid": {
+    "size": [
+      4,
+      4
+    ],
+    "givens": [
+      {
+        "at": "corner",
+        "corner": [
+          2,
+          2
+        ],
+        "kind": "start"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          0,
+          2
+        ],
+        "kind": "end"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          1
+        ],
+        "kind": "square",
+        "color": "black"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "square",
+        "color": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          2
+        ],
+        "kind": "square",
+        "color": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "square",
+        "color": "black"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "square",
+        "color": "white"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          0
+        ],
+        "kind": "square",
+        "color": "black"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            2
+          ],
+          [
+            3,
+            2
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            3,
+            3
+          ],
+          [
+            4,
+            3
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            3,
+            2
+          ],
+          [
+            4,
+            2
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            1,
+            4
+          ],
+          [
+            2,
+            4
+          ]
+        ],
+        "kind": "gap"
+      }
+    ]
+  }
+}

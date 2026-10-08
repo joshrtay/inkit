@@ -4,6 +4,7 @@
 // structures it needs. A puzzle's rules are blocks with settings, e.g. { rule: "size", is: 4 }.
 import type { Board, Problem, Puzzle, RuleSpec } from "./types.ts";
 import { lineGraph, regionsOf, shadedGroups, shapeKey, type Regions } from "./derive.ts";
+import { panelLine, panelSymbols } from "./panel.ts";
 
 /** A nudge for the player: what to look at, and what it gives away. */
 export interface Hint { message: string; area: number[]; cells: { cell: number; shade: 0 | 1 }[] }
@@ -824,9 +825,13 @@ cmp(R1,R2) :- ad(R1,R2).
     },
     needs: ["regions"],
   },
+
+  // ---- panels (line puzzles in the style of The Witness: panel.ts) ----
+  "panel-line": panelLine,
+  "panel-symbols": panelSymbols,
 } satisfies Record<string, Block>;
 
-/** Every rule block's name. The visual editor (app/app/components/PuzzleEditor.tsx) and the sketch
+/** Every rule block's name. The visual editor (app/app/components/BoardEditor.tsx) and the sketch
  *  reader list them all, so the build fails if a new block isn't added there too. */
 export type RuleName = keyof typeof blocks;
 export const RULE_NAMES = Object.keys(blocks) as RuleName[];

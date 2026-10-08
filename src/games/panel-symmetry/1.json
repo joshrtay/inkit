@@ -1,0 +1,106 @@
+{
+  "type": "grid",
+  "name": "Mirror Walk",
+  "meta": "4 \u00d7 5",
+  "grid": {
+    "size": [
+      4,
+      5
+    ],
+    "givens": [
+      {
+        "at": "corner",
+        "corner": [
+          4,
+          0
+        ],
+        "kind": "start",
+        "color": "blue"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          0,
+          0
+        ],
+        "kind": "end"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          4,
+          5
+        ],
+        "kind": "start",
+        "color": "yellow"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          0,
+          5
+        ],
+        "kind": "end"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          2,
+          5
+        ],
+        "kind": "hexagon",
+        "color": "yellow"
+      },
+      {
+        "at": "corner",
+        "corner": [
+          4,
+          2
+        ],
+        "kind": "hexagon"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            3
+          ],
+          [
+            3,
+            3
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            2,
+            4
+          ],
+          [
+            2,
+            5
+          ]
+        ],
+        "kind": "gap"
+      },
+      {
+        "at": "line",
+        "corners": [
+          [
+            0,
+            4
+          ],
+          [
+            0,
+            5
+          ]
+        ],
+        "kind": "gap"
+      }
+    ]
+  }
+}

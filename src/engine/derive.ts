@@ -8,14 +8,17 @@ export interface Regions {
 }
 
 /** Connected groups of cells. For a regions puzzle: same color and not cut apart. For a
- *  shading puzzle: the islands of unshaded cells. */
+ *  shading puzzle: the islands of unshaded cells. For a line puzzle (a panel): the parts the line
+ *  cuts the grid into. */
 export function regionsOf(p: Puzzle, b: Board): Regions {
   const g = p.grid;
-  const open = (i: number) => !p.blocked.has(i) && (p.marks.includes("regions") ? true : b.shade[i] !== 1);
+  const lines = linesCut(p);
+  const open = (i: number) => !p.blocked.has(i) && (p.marks.includes("regions") || lines ? true : b.shade[i] !== 1);
   const joined = (l: number) => {
     const [a, c] = g.links[l].cells;
     if (!open(a) || !open(c)) return false;
     if (p.marks.includes("regions")) return b.cut[g.links[l].border] !== 1 && b.color[a] === b.color[c];
+    if (lines) return b.fence[g.links[l].border] !== 1;
     return true;
   };
   const of = new Array<number>(g.cellCount).fill(-1);
@@ -34,6 +37,9 @@ export function regionsOf(p: Puzzle, b: Board): Regions {
   }
   return { of, cells };
 }
+
+/** Do the drawn lines cut the grid into regions? (Line puzzles: only fence marks.) */
+export const linesCut = (p: Puzzle) => p.marks.length === 1 && p.marks[0] === "fence";
 
 /** A shape's canonical form: the same for any turn or flip of it. */
 export function shapeKey(g: Grid, cells: number[]): string {

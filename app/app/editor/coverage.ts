@@ -10,12 +10,14 @@ import type { Given, GridSpec, GridStyle, MarkKind } from "~site/engine/types.ts
 
 /** The on-puzzle editor's tools (components/BoardEditor.tsx). */
 export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo" | "door" | "outside-number" | "outside-letter"
-  | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "erase";
+  | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "erase"
+  // panels: the line's start, ends, gaps and dots, then the symbols in the cells
+  | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
   genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
-  rules: "Star Battle's stars; the Rules panel (Panes, and admins)", style: "the Look panel (admins)", picture: "Picture, and painting (Nonogram)",
+  rules: "Star Battle's stars; Panel Symmetry's mirror; the Rules panel (Panes, and admins)", style: "the Look panel (admins)", picture: "Picture, and painting (Nonogram)",
   marks: "the Look panel (admins)", figure: "the figure editor (Three Coats)", hearts: "the figure editor (Three Coats)", areas: "the Areas tool",
 };
 
@@ -25,11 +27,12 @@ export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> =
   number: "number", block: "block", symbol: "symbol", compass: "compass", wall: "wall", twins: "diamond", opposites: "diamond",
   runs: "nonogram", total: "total", count: "corner", dots: "figure", pearl: "pearl", first: "outside-letter",
   skyscraper: "outside-number", thermo: "thermo", galaxy: "galaxy", door: "door",
+  start: "start", end: "end", gap: "gap", hexagon: "dot", square: "square", star: "star", triangle: "triangle", shape: "shape", eraser: "eraser",
 };
 
 export type Setting =
   | { key: string; label: string; type: "number" }
-  | { key: string; label: string; type: "choice"; choices: string[] }
+  | { key: string; label: string; type: "choice"; choices: string[]; /** what no choice means (default: "default") */ none?: string }
   | { key: string; label: string; type: "flag" }
   | { key: string; label: string; type: "pair" };
 
@@ -79,6 +82,8 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "perfect-maze": { label: "Walls make a maze between two doors", settings: [] },
   painted: { label: "Paint every piece", settings: [] },
   "neighbor-dots": { label: "Dots ask for neighbours of their color", settings: [] },
+  "panel-line": { label: "A line from a start circle to an end on the edge", settings: [{ key: "symmetry", label: "two lines, mirrored", type: "choice", choices: ["left-right", "up-down", "turn"], none: "no (one line)" }] },
+  "panel-symbols": { label: "The symbols in the cells say where the line goes", settings: [] },
   "color-count": { label: "How many of each color", settings: [{ key: "red", label: "red", type: "number" }, { key: "yellow", label: "yellow", type: "number" }, { key: "blue", label: "blue", type: "number" }] },
 };
 

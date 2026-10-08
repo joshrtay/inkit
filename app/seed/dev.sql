@@ -9686,4 +9686,1087 @@ INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, 
   }
  ]
 }', 'sudoku', 'published', (unixepoch() * 1000) + 71);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-dots-1', 'c-wyatt', 'wyatt', 'Dot to Dot', 'panel-dots
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "start"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    3,
+    2
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    0
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ]
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     3
+    ]
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     4,
+     2
+    ],
+    [
+     4,
+     3
+    ]
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     0
+    ],
+    [
+     2,
+     0
+    ]
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     4,
+     1
+    ],
+    [
+     4,
+     2
+    ]
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     0
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    1,
+    1
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     3
+    ],
+    [
+     2,
+     4
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     0
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "kind": "gap"
+  }
+ ]
+}', 'panel-dots', 'published', (unixepoch() * 1000) + 72);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-squares-1', 'c-wyatt', 'wyatt', 'Two Tones', 'panel-squares
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    2
+   ],
+   "kind": "start"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    2
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "square",
+   "color": "black"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "square",
+   "color": "white"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "square",
+   "color": "white"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "square",
+   "color": "black"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "square",
+   "color": "white"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "square",
+   "color": "black"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     3
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     2
+    ],
+    [
+     3,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     3
+    ],
+    [
+     4,
+     3
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     2
+    ],
+    [
+     4,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     4
+    ]
+   ],
+   "kind": "gap"
+  }
+ ]
+}', 'panel-squares', 'published', (unixepoch() * 1000) + 73);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-stars-1', 'c-wyatt', 'wyatt', 'Star Pairs', 'panel-stars
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "start"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "star",
+   "color": "purple"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "star",
+   "color": "purple"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    3
+   ],
+   "kind": "star",
+   "color": "orange"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "star",
+   "color": "orange"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "star",
+   "color": "orange"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "star",
+   "color": "orange"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "star",
+   "color": "orange"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "star",
+   "color": "orange"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "star",
+   "color": "purple"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "star",
+   "color": "purple"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "star",
+   "color": "green"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "star",
+   "color": "green"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     4
+    ],
+    [
+     2,
+     4
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     0,
+     0
+    ],
+    [
+     0,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     1
+    ],
+    [
+     1,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     4,
+     1
+    ],
+    [
+     4,
+     2
+    ]
+   ],
+   "kind": "gap"
+  }
+ ]
+}', 'panel-stars', 'published', (unixepoch() * 1000) + 74);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-triangles-1', 'c-wyatt', 'wyatt', 'Triangle Count', 'panel-triangles
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "start"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    2
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    3
+   ],
+   "kind": "triangle",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    3
+   ],
+   "kind": "triangle",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "triangle",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    2
+   ],
+   "kind": "triangle",
+   "value": 1
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    0
+   ],
+   "kind": "triangle",
+   "value": 3
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "triangle",
+   "value": 3
+  }
+ ]
+}', 'panel-triangles', 'published', (unixepoch() * 1000) + 75);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-shapes-1', 'c-wyatt', 'wyatt', 'Fitting In', 'panel-shapes
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "start"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    2
+   ],
+   "kind": "shape",
+   "value": [
+    [
+     0,
+     0
+    ],
+    [
+     1,
+     0
+    ],
+    [
+     1,
+     1
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    1,
+    1
+   ],
+   "kind": "shape",
+   "value": [
+    [
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "shape",
+   "value": [
+    [
+     1,
+     1
+    ],
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    1
+   ],
+   "kind": "shape",
+   "value": [
+    [
+     0,
+     0
+    ]
+   ]
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     4,
+     0
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     0,
+     3
+    ],
+    [
+     0,
+     4
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     1
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     0
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     0
+    ],
+    [
+     3,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     2
+    ],
+    [
+     1,
+     3
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     2
+    ],
+    [
+     2,
+     2
+    ]
+   ],
+   "kind": "gap"
+  }
+ ]
+}', 'panel-shapes', 'published', (unixepoch() * 1000) + 76);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-erasers-1', 'c-wyatt', 'wyatt', 'Clean Slate', 'panel-erasers
+{
+ "size": [
+  4,
+  4
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "start"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    4
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    2,
+    0
+   ],
+   "kind": "eraser"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    0
+   ],
+   "kind": "square",
+   "color": "white"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    3
+   ],
+   "kind": "square",
+   "color": "black"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    2
+   ],
+   "kind": "triangle",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    0,
+    1
+   ],
+   "kind": "triangle",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    1
+   ],
+   "kind": "square",
+   "color": "black"
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    0
+   ],
+   "kind": "triangle",
+   "value": 2
+  },
+  {
+   "at": "cell",
+   "cell": [
+    3,
+    2
+   ],
+   "kind": "triangle",
+   "value": 1
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     0
+    ],
+    [
+     2,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     1
+    ],
+    [
+     4,
+     1
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     0,
+     1
+    ],
+    [
+     0,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     2
+    ],
+    [
+     4,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     3
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     3,
+     1
+    ],
+    [
+     3,
+     2
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     1,
+     3
+    ],
+    [
+     1,
+     4
+    ]
+   ],
+   "kind": "gap"
+  }
+ ]
+}', 'panel-erasers', 'published', (unixepoch() * 1000) + 77);
+INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES ('panel-symmetry-1', 'c-wyatt', 'wyatt', 'Mirror Walk', 'panel-symmetry
+{
+ "size": [
+  4,
+  5
+ ],
+ "givens": [
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    0
+   ],
+   "kind": "start",
+   "color": "blue"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    0
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    5
+   ],
+   "kind": "start",
+   "color": "yellow"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    0,
+    5
+   ],
+   "kind": "end"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    2,
+    5
+   ],
+   "kind": "hexagon",
+   "color": "yellow"
+  },
+  {
+   "at": "corner",
+   "corner": [
+    4,
+    2
+   ],
+   "kind": "hexagon"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     3
+    ],
+    [
+     3,
+     3
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     2,
+     4
+    ],
+    [
+     2,
+     5
+    ]
+   ],
+   "kind": "gap"
+  },
+  {
+   "at": "line",
+   "corners": [
+    [
+     0,
+     4
+    ],
+    [
+     0,
+     5
+    ]
+   ],
+   "kind": "gap"
+  }
+ ]
+}', 'panel-symmetry', 'published', (unixepoch() * 1000) + 78);
 INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES ('simple-loop-5', 0, 'wyatt'), ('panes-1', 1, 'wyatt'), ('sudoku-1', 2, 'wyatt'), ('nonogram-2', 3, 'wyatt');

@@ -8,9 +8,10 @@
 //   quad(A,B,C,D)                                          2x2 blocks
 //   inarea(I,A)                                            outlined areas (when the puzzle has them)
 //   fence(B) line(L) shaded(I) cut(L) paint(I,C)           the marks (choices)
-//   open(I) member(R,I) root(R) size(R,N)                  regions ("regions" need)
+//   open(I) member(R,I) root(R) size(R,N)                  regions ("regions" need; a panel's are cut by its line)
 //   same(R1,R2) for pairs listed in cmp(R1,R2)             shapes ("shapes" need)
 import { blockFor } from "./rules.ts";
+import { linesCut } from "./derive.ts";
 import { emptyBoard, type Board, type Puzzle } from "./types.ts";
 
 export function program(p: Puzzle): string {
@@ -52,8 +53,10 @@ export function program(p: Puzzle): string {
       const [r1, c1] = g.rc(i), [r2, c2] = g.rc(j);
       if (Math.abs(r1 - r2) + Math.abs(c1 - c2) <= n - 1) out.push(`near(${i},${j}).`);
     }
+    if (linesCut(p)) for (const l of g.links) out.push(`lb(${l.id},${l.border}).`);
     out.push(p.marks.includes("regions")
       ? "open(I) :- cell(I).\nconn(I,J) :- adj(I,J,L), not cut(L)."
+      : linesCut(p) ? "open(I) :- cell(I).\nconn(I,J) :- adj(I,J,L), lb(L,B), not fence(B)."
       : "open(I) :- cell(I), not shaded(I).\nconn(I,J) :- adj(I,J,_), open(I), open(J).");
     out.push(`
 reach(I,I) :- open(I).

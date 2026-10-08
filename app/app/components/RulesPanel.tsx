@@ -34,7 +34,7 @@ export function RulesPanel({ spec, onChange, open = false }: { spec: GridSpec; o
                   {s.type === "flag" && <input type="checkbox" checked={!!r[s.key]} onChange={(e) => update(s.key, e.target.checked)} />}
                   {s.type === "choice" && (
                     <select value={String(r[s.key] ?? "")} onChange={(e) => update(s.key, e.target.value || undefined)}>
-                      <option value="">default</option>{s.choices.map((c) => <option key={c} value={c}>{c}</option>)}
+                      <option value="">{s.none ?? "default"}</option>{s.choices.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   )}
                   {s.type === "pair" && (
@@ -49,7 +49,8 @@ export function RulesPanel({ spec, onChange, open = false }: { spec: GridSpec; o
         })}
         <select value="" aria-label="Add a rule" onChange={(e) => {
           const rule = e.target.value as RuleName;
-          if (rule) setRules([...extra, rule === "size" ? { rule, is: 4 } : { rule }]);
+          // a rule the type has already starts from the type's settings (Panel Symmetry's mirror, say)
+          if (rule) setRules([...extra, presets.find((r) => r.rule === rule) ?? (rule === "size" ? { rule, is: 4 } : { rule })]);
         }}>
           <option value="">Add a rule…</option>
           {(Object.keys(RULES) as RuleName[]).map((r) => <option key={r} value={r}>{RULES[r].label}</option>)}

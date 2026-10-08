@@ -7,6 +7,8 @@ import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, Rule
 
 export interface Genre { marks: MarkKind[]; rules: RuleSpec[]; style: GridStyle; hearts?: number }
 
+const PANEL: Genre = { marks: ["fence"], rules: [{ rule: "panel-line" }, { rule: "panel-symbols" }], style: {} };
+
 export const genres = {
   slitherlink: {
     marks: ["fence"],
@@ -161,6 +163,18 @@ export const genres = {
     style: { palette: ["#ef5a6a", "#f7cf3d", "#3fb0e6"] },
     hearts: 3,
   },
+  // Panels, line puzzles in the style of The Witness (panel.ts): a line along the grid lines from a
+  // start circle to an end, cutting the grid into regions; the symbols say where it goes. Every
+  // panel type has every symbol's rule (a symbol that isn't there asks nothing), so they mix; the
+  // types are named for the symbol they teach.
+  "panel-dots": PANEL,
+  "panel-squares": PANEL,
+  "panel-stars": PANEL,
+  "panel-triangles": PANEL,
+  "panel-shapes": PANEL,
+  "panel-erasers": PANEL,
+  // two lines at once, mirror images of each other (the puzzle can say up-down or turn instead)
+  "panel-symmetry": { ...PANEL, rules: [{ rule: "panel-line", symmetry: "left-right" }, { rule: "panel-symbols" }] },
   // our region-division puzzles in the style of The Artisan of Glimmith: each puzzle lists its rules
   panes: {
     marks: ["regions"],
@@ -186,7 +200,8 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const edgeClues: Puzzle["edgeClues"] = [], thermos: number[][] = [], galaxies: [number, number][] = [];
   const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
   const rowTotals = new Map<number, number>(), colTotals = new Map<number, number>();
-  const blocked = new Set<number>(), walls = new Set<number>();
+  const blocked = new Set<number>(), walls = new Set<number>(), gaps = new Set<number>();
+  const lineGivens = new Map<number, Given[]>();
   const push = <K>(m: Map<K, Given[]>, k: K, g: Given) => m.set(k, [...(m.get(k) ?? []), g]);
   const givens = [...(spec.givens ?? []), ...pictureClues(spec)];
   for (const g of givens) {
@@ -202,7 +217,13 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
     } else if (g.at === "corner") {
       const [r, c] = g.corner;
       if (r < 0 || c < 0 || r > grid.rows || c > grid.cols) throw new Error(`corner ${r},${c} is outside the grid`);
+      if (g.kind === "end" && r > 0 && c > 0 && r < grid.rows && c < grid.cols) throw new Error(`an end goes on the outside edge (corner ${r},${c} isn't)`);
       push(cornerGivens, grid.corner(r, c), g);
+    } else if (g.at === "line") {
+      const e = lineBetween(grid, g.corners);
+      if (e < 0) throw new Error(`a ${g.kind} goes on a stretch of grid line between two neighbouring corners`);
+      push(lineGivens, e, g);
+      if (g.kind === "gap") gaps.add(e);
     } else if (g.at === "edge") {
       const e = outsideBorder(grid, g.cell, g.side);
       if (e < 0) throw new Error(`a ${g.kind === "door" ? "door" : "clue outside the grid"} goes on the outside edge (row ${g.cell[0]}, column ${g.cell[1]}, ${g.side} isn't)`);
@@ -234,13 +255,25 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
     if (roles.filter((r) => r === "in").length !== 1 || roles.filter((r) => r === "out").length !== 1)
       throw new Error(`a ${rules.some((s) => s.rule === "path") ? "path" : "maze"} needs one way in and one way out on its outside edge`);
   }
+  if (!unfinished && rules.some((s) => s.rule === "panel-line")) {
+    const lines = rules.some((s) => s.rule === "panel-line" && s.symmetry) ? 2 : 1;
+    const starts = givens.filter((x) => x.kind === "start").length, ends = givens.filter((x) => x.kind === "end").length;
+    if (starts < lines || ends < lines) throw new Error(lines === 2 ? "a symmetry panel needs two start circles and two ends" : "a panel needs a start circle and an end");
+  }
   return {
-    spec, grid, cellGivens, borderGivens, cornerGivens, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
+    spec, grid, cellGivens, borderGivens, cornerGivens, lineGivens, gaps, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
     digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? spec.size[1],
     blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
     areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style: { ...genre?.style, ...spec.style },
   };
+}
+
+/** The stretch of grid line (border) between two neighbouring corners, or -1. */
+export function lineBetween(grid: Grid, [[r1, c1], [r2, c2]]: [[number, number], [number, number]]): number {
+  if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1 || Math.min(r1, r2, c1, c2) < 0 || Math.max(r1, r2) > grid.rows || Math.max(c1, c2) > grid.cols) return -1;
+  const a = grid.corner(r1, c1), b = grid.corner(r2, c2);
+  return grid.cornerBorders[a].find((e) => grid.borders[e].corners.includes(b)) ?? -1;
 }
 
 /** The border on a cell's side, if it's on the outside edge of the grid (else -1). */

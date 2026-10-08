@@ -7,6 +7,8 @@
 //   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too
 // A maze (doors in its edge) is drawn with fence; once its walls check out, the player walks it
 // (walk.ts), and it's solved on the way out. Paint puzzles (figures of pieces) play in figure.ts.
+// A panel (panel.ts) is drawn with fence along its tracks; gaps can't be drawn over, and with
+// symmetry every stretch drawn draws its mirror image too.
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
 import type { MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
@@ -17,6 +19,8 @@ import { blockFor, boxLines, runsOf, symbolOf, type Hint } from "../../engine/ru
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
 import { createWalk } from "./walk";
+import { mirrorBorder, type Symmetry } from "../../engine/panel.ts";
+import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks } from "./panel-draw";
 import { createFigure } from "./figure";
 
 type Layer = keyof Board;
@@ -50,7 +54,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // a maze: its given walls start drawn, and neither they nor its doors can be changed
   const maze = p.rules.some((s) => s.rule === "perfect-maze");
   const givenWalls = maze ? [...p.walls].map((l) => g.links[l].border) : [];
-  const locked = new Set([...p.doors.keys(), ...givenWalls]);
+  // a panel: its gaps can't be drawn over; with symmetry the line's mirror image draws itself
+  const panel = p.rules.find((s) => s.rule === "panel-line");
+  const mirror = (panel?.symmetry as Symmetry | undefined) ?? null;
+  const locked = new Set([...p.doors.keys(), ...givenWalls, ...p.gaps]);
   const lockWalls = () => { for (const e of givenWalls) board.fence[e] = 1; for (const e of p.doors.keys()) board.fence[e] = 0; };
   lockWalls();
   const givenDigit = new Map<number, number>();
@@ -102,7 +109,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // ---- what never changes: grid, rocks, walls, clues ----
   if (marks.includes("loop")) for (let i = 0; i < g.cellCount; i++) { const [r, c] = g.rc(i); if ((r + c) % 2) cellRect(i, "alt", gTint); }
   for (const i of p.blocked) cellRect(i, "rock", gRocks);
-  if (p.style.grid === "dots") {
+  const frame = { S, X, Y };
+  if (panel) {
+    root.classList.add("panel");
+    gGrid.innerHTML = panelTracks(p, frame);
+    el("rect", { class: "frame panel-frame", x: X(0), y: Y(0), width: g.cols * S, height: g.rows * S }, gGrid);
+  } else if (p.style.grid === "dots") {
     for (let v = 0; v < g.cornerCount; v++) { const [x, y] = cornerXY(v); el("circle", { class: "dot", cx: x, cy: y, r: 2.6 }, gGrid); }
   } else {
     const boxes = p.areas ? undefined : p.rules.find((s) => s.rule === "boxes"), [bh, bw] = boxes ? boxLines(boxes, p) : [0, 0];
@@ -186,6 +198,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     if (giv.kind === "wall") continue;
     const [[x1, y1], [x2, y2]] = borderXY(e), x = (x1 + x2) / 2, y = (y1 + y2) / 2, d = 8;
     el("path", { class: `diamond ${giv.kind}`, d: `M${x} ${y - d}L${x + d} ${y}L${x} ${y + d}L${x - d} ${y}Z` }, gGivens);
+  }
+  // a panel: the line's ink at its start and end, then the dots and symbols over the line
+  const gPanelInk = el("g", {});
+  if (panel) {
+    svg.appendChild(gGivens);
+    gGivens.insertAdjacentHTML("beforeend", panelSymbols(p, frame));
   }
   // nonogram clues, right-aligned beside each row and stacked above each column; tap to tick
   const gClues = el("g", { class: "runs" });
@@ -289,9 +307,13 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         }
       }
     }
+    // a two-line panel: each line in its color
+    const tint = panel ? lineColors(p, board) : () => undefined;
+    if (panel) gPanelInk.innerHTML = panelInk(p, frame, board, mirror ? tint : undefined);
     for (const e of g.borders) {
       const [[x1, y1], [x2, y2]] = borderXY(e.id);
-      if (marks.includes("fence") && board.fence[e.id] === 1 && !locked.has(e.id)) el("line", { class: "mark pen", x1, y1, x2, y2 }, gLines);
+      const lineTint = mirror ? tint(e.corners[0]) : undefined;
+      if (marks.includes("fence") && board.fence[e.id] === 1 && !locked.has(e.id)) el("line", { class: "mark pen", x1, y1, x2, y2, ...(lineTint ? { style: `stroke:${LINE_COLORS[lineTint]}` } : {}) }, gLines);
       if (marks.includes("fence") && board.fence[e.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
       if (regionsPuzzle && e.link >= 0) {
         const [a, b] = e.cells;
@@ -394,10 +416,14 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // ---- gestures ----
   let history: Change[][] = [];
   let changes: Change[] = [];
-  const set = (layer: Layer, i: number, v: number) => {
+  const put = (layer: Layer, i: number, v: number) => {
     if (board[layer][i] === v) return;
     changes.push([layer, i, board[layer][i]]);
     board[layer][i] = v;
+  };
+  const set = (layer: Layer, i: number, v: number) => {
+    put(layer, i, v);
+    if (mirror && layer === "fence") put(layer, mirrorBorder(g, i, mirror), v);   // the mirror line draws itself
   };
   const commit = () => { if (changes.length) { history.push(changes); afterChange(); } else render(); changes = []; };
   const toBoard = (evt: PointerEvent) => {

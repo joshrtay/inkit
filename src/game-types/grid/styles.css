@@ -162,3 +162,17 @@
 @media (prefers-reduced-motion: reduce) { .solved-stamp { animation: none; } }
 /* "Solved!" is still said (for screen readers), but the check says it on screen */
 .paper-bar .status.said { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- panels (panel-draw.ts): pale tracks the ink line runs in, a start circle, ends sticking
+   out of the edge; dots and symbols over the line ---- */
+.grid-game .panel-track { stroke: color-mix(in srgb, var(--paper-ink) 15%, var(--paper, #fbfaf6)); stroke-width: 11; stroke-linecap: round; }
+.grid-game .panel-start { fill: color-mix(in srgb, var(--paper-ink) 15%, var(--paper, #fbfaf6)); }
+.grid-game .panel-start.ink { fill: var(--paper-ink); }
+.grid-game .panel-frame { fill: none; stroke: none; }
+.grid-game .panel-end { stroke-width: 5; }
+.grid-game .panel-dot { fill: var(--paper-ink); stroke: var(--paper, #fbfaf6); stroke-width: 1.5; }
+.grid-game .panel-square.white, .grid-game .panel-star.white { stroke: var(--paper-ink); stroke-width: 1.6; }
+.grid-game .panel-triangle { fill: #f2913a; }
+.grid-game .panel-shape rect { fill: #f2c23a; }
+.grid-game .panel-shape.negative rect { fill: none; stroke: #3f8fe0; stroke-width: 1.8; }
+.grid-game .panel-eraser { fill: none; stroke: var(--paper-ink); stroke-width: 3.2; stroke-linecap: round; }

@@ -1,8 +1,10 @@
 // What the on-puzzle editor does to a puzzle, as plain functions: each takes a puzzle description
 // and returns the changed one (the same object when nothing changes). BoardEditor works out what
 // was touched and calls these; tests call them directly (tests/unit/ops.test.ts).
+import { genres, type GenreName } from "~site/engine/puzzle.ts";
+import type { Symmetry } from "~site/engine/panel.ts";
 import { runsOf } from "~site/engine/rules.ts";
-import type { Given, GridSpec, Side } from "~site/engine/types.ts";
+import type { Given, GridSpec, LineColor, RuleSpec, Side, SymbolColor } from "~site/engine/types.ts";
 
 export type RC = [number, number];
 type Spec = GridSpec;
@@ -129,8 +131,14 @@ export function resize(s: Spec, rows: number, cols: number): Spec {
       const cell: RC = g.side === "bottom" ? [r - 1, g.cell[1]] : [g.cell[0], c - 1];
       return inside(cell) ? [{ ...g, cell }] : [];
     }
+    // a panel's ends stay on the bottom / right edge as it moves
+    if (g.at === "corner" && g.kind === "end") {
+      const corner: RC = [g.corner[0] === s.size[0] ? r : g.corner[0], g.corner[1] === s.size[1] ? c : g.corner[1]];
+      return corner[0] <= r && corner[1] <= c ? [{ ...g, corner }] : [];
+    }
     const ok = g.at === "cell" ? inside(g.cell) : g.at === "border" ? g.cells.every(inside)
       : g.at === "corner" ? g.corner[0] <= r && g.corner[1] <= c
+        : g.at === "line" ? g.corners.every(([y, x]) => y <= r && x <= c)
         : g.at === "edge" ? inside(g.cell)
           : g.at === "cells" ? g.cells.every(inside) : g.at === "point" ? g.point[0] < 2 * r && g.point[1] < 2 * c
             : g.index < (g.at === "row" ? r : c);
@@ -176,3 +184,146 @@ export const addAreas = (s: Spec): Spec => ({ ...s, areas: Array.from({ length: 
 
 /** Clues matching `pred`, removed (the same puzzle if none match). */
 export const removeGivens = (s: Spec, pred: (g: Given) => boolean): Spec => withGivens(s, givensOf(s).filter((g) => !pred(g)));
+
+// ---- panels (line puzzles in the style of The Witness: src/engine/panel.ts) ----
+
+type CellSymbol = Extract<Given, { at: "cell"; kind: "square" | "star" | "triangle" | "shape" | "eraser" }>;
+/** A cell symbol as the editor places it (the cell comes from where it's placed). */
+export type PanelSymbol = CellSymbol extends infer G ? (G extends { cell: RC } ? Omit<G, "at" | "cell"> : never) : never;
+
+const presetRule = (s: Spec, rule: string) => ((genres[s.genre as GenreName]?.rules ?? []) as RuleSpec[]).find((x) => x.rule === rule);
+/** A panel's symmetry: the puzzle's own panel-line rule, else its type's (null: one line). */
+export function symmetryOf(s: Spec): Symmetry | null {
+  const own = (s.rules ?? []).find((x) => x.rule === "panel-line");
+  const rule = own ?? presetRule(s, "panel-line");
+  return (rule?.symmetry as Symmetry | undefined) ?? null;
+}
+/** A panel's symmetry set (null: one line); the type's own symmetry needs no rule of the puzzle's. */
+export function setSymmetry(s: Spec, sym: Symmetry | null): Spec {
+  const preset = presetRule(s, "panel-line");
+  const others = (s.rules ?? []).filter((x) => x.rule !== "panel-line");
+  const rules = (preset?.symmetry ?? null) === sym ? others : [...others, { rule: "panel-line", ...(sym ? { symmetry: sym } : {}) }];
+  const { rules: _r, ...rest } = s;
+  return rules.length ? { ...rest, rules } : rest;
+}
+
+/** A corner's mirror image (corners run 0..rows, 0..cols). */
+export function mirrorCorner(size: [number, number], [r, c]: RC, sym: Symmetry): RC {
+  const [rows, cols] = size;
+  return sym === "left-right" ? [r, cols - c] : sym === "up-down" ? [rows - r, c] : [rows - r, cols - c];
+}
+export const onEdge = (size: [number, number], [r, c]: RC) => r === 0 || c === 0 || r === size[0] || c === size[1];
+
+const atCorner = (corner: RC, kind: Given["kind"]) => (g: Given) => g.at === "corner" && same(g.corner, corner) && g.kind === kind;
+/** A stretch of grid line, whichever way round its corners are given. */
+const sameLine = (a: [RC, RC], b: [RC, RC]) => (same(a[0], b[0]) && same(a[1], b[1])) || (same(a[0], b[1]) && same(a[1], b[0]));
+export const onLine = (g: Given, line: [RC, RC]) => g.at === "line" && sameLine(g.corners, line);
+/** Corners in reading order, so the same stretch is always written the same way. */
+const ordered = ([a, b]: [RC, RC]): [RC, RC] => (a[0] < b[0] || (a[0] === b[0] && a[1] <= b[1]) ? [a, b] : [b, a]);
+
+/** Starts or ends: a corner's on or off. With symmetry its mirror image comes and goes with it:
+ *  a start's mirror is the other color (the tapped one blue, unless it's the mirror of a blue one). */
+function toggleCornerPair(s: Spec, corner: RC, kind: "start" | "end"): Spec {
+  const gs = givensOf(s), sym = symmetryOf(s), had = gs.find(atCorner(corner, kind));
+  const mirror = sym ? mirrorCorner(s.size, corner, sym) : null;
+  const pair = mirror && !same(mirror, corner) ? [corner, mirror] : [corner];
+  if (had) return withGivens(s, gs.filter((g) => !pair.some((x) => atCorner(x, kind)(g))));
+  const rest = gs.filter((g) => !pair.some((x) => atCorner(x, kind)(g)));
+  if (kind === "end") return withGivens(s, [...rest, ...pair.map((x): Given => ({ at: "corner", corner: x, kind: "end" }))]);
+  if (!sym) return withGivens(s, [...rest, { at: "corner", corner, kind: "start" }]);
+  return withGivens(s, [...rest, ...pair.map((x, k): Given => ({ at: "corner", corner: x, kind: "start", color: k === 0 ? "blue" : "yellow" }))]);
+}
+/** A start circle on a corner, on or off (with symmetry, a blue and a yellow one, mirrored). */
+export const toggleStart = (s: Spec, corner: RC): Spec => toggleCornerPair(s, corner, "start");
+/** An end on a corner of the outside edge, on or off (mirrored, with symmetry). Not on the edge: no change. */
+export const toggleEnd = (s: Spec, corner: RC): Spec => (onEdge(s.size, corner) ? toggleCornerPair(s, corner, "end") : s);
+
+/** A gap in a stretch of grid line, on or off (it takes the place of a dot there). */
+export function toggleGap(s: Spec, line: [RC, RC]): Spec {
+  const gs = givensOf(s), had = gs.some((g) => onLine(g, line) && g.kind === "gap");
+  const rest = gs.filter((g) => !onLine(g, line));
+  return withGivens(s, had ? rest : [...rest, { at: "line", corners: ordered(line), kind: "gap" }]);
+}
+
+/** A dot on a corner or halfway along a stretch of line, in a color (or plain): a dot of another
+ *  color there is replaced, the same one removed. A dot on a line takes the place of a gap there. */
+export function toggleDot(s: Spec, where: { corner: RC } | { line: [RC, RC] }, color?: LineColor): Spec {
+  const gs = givensOf(s);
+  const here = (g: Given) => ("corner" in where ? g.at === "corner" && same(g.corner, where.corner) && g.kind === "hexagon" : onLine(g, where.line));
+  const had = gs.find((g) => here(g) && g.kind === "hexagon") as { color?: LineColor } | undefined;
+  const rest = gs.filter((g) => !here(g));
+  if (had && had.color === color) return withGivens(s, rest);
+  const dot = ("corner" in where ? { at: "corner", corner: where.corner, kind: "hexagon" } : { at: "line", corners: ordered(where.line), kind: "hexagon" }) as Given;
+  return withGivens(s, [...rest, color ? { ...dot, color } as Given : dot]);
+}
+
+/** A symbol in a cell (one per cell): placed, replacing what was there, or removed if it's the same one. */
+export function toggleCellSymbol(s: Spec, cell: RC, x: PanelSymbol): Spec {
+  const gs = givensOf(s), had = gs.find(at(cell));
+  const rest = gs.filter((g) => !at(cell)(g));
+  const placed = { at: "cell", cell, ...x } as Given;
+  const key = (g: Record<string, unknown>) => JSON.stringify([g.kind, g.color, g.value, !!g.rotate, !!g.negative]);
+  if (had && key(had) === key(x)) return withGivens(s, rest);
+  return withGivens(s, [...rest, placed]);
+}
+/** A cell's triangles: 1, 2, 3, none (replacing another symbol there). */
+export function cycleTriangle(s: Spec, cell: RC): Spec {
+  const gs = givensOf(s), had = gs.find((g) => at(cell)(g) && g.kind === "triangle");
+  const n = had && had.kind === "triangle" ? had.value + 1 : 1;
+  const rest = gs.filter((g) => !at(cell)(g));
+  return withGivens(s, n > 3 ? rest : [...rest, { at: "cell", cell, kind: "triangle", value: n }]);
+}
+
+export const squareOrStar = (kind: "square" | "star", color: SymbolColor): PanelSymbol => ({ kind, color });
+
+/** Common shapes for the Shape tool, each as cells from 0,0. */
+export const SHAPES: { name: string; cells: RC[] }[] = [
+  { name: "One square", cells: [[0, 0]] },
+  { name: "Two in a row", cells: [[0, 0], [0, 1]] },
+  { name: "Three in a row", cells: [[0, 0], [0, 1], [0, 2]] },
+  { name: "Three, bent", cells: [[0, 0], [1, 0], [1, 1]] },
+  { name: "Four in a row", cells: [[0, 0], [0, 1], [0, 2], [0, 3]] },
+  { name: "L of four", cells: [[0, 0], [1, 0], [2, 0], [2, 1]] },
+  { name: "T of four", cells: [[0, 0], [0, 1], [0, 2], [1, 1]] },
+  { name: "S of four", cells: [[0, 1], [0, 2], [1, 0], [1, 1]] },
+  { name: "Square of four", cells: [[0, 0], [0, 1], [1, 0], [1, 1]] },
+];
+/** A shape turned a quarter turn clockwise (cells from 0,0 again, in reading order). */
+export function turnShape(cells: RC[]): RC[] {
+  const t = cells.map(([r, c]) => [c, -r] as RC);
+  const r0 = Math.min(...t.map((x) => x[0])), c0 = Math.min(...t.map((x) => x[1]));
+  return t.map(([r, c]) => [r - r0, c - c0] as RC).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+}
+
+// ---- where a tap lands on a panel, in squares from the grid's top-left ----
+
+/** The corner nearest a point, if it's within `reach` squares (null otherwise, or off the grid). */
+export function cornerNear(size: [number, number], gx: number, gy: number, reach = 0.5): RC | null {
+  const r = Math.round(gy) || 0, c = Math.round(gx) || 0;   // never -0
+  return r >= 0 && c >= 0 && r <= size[0] && c <= size[1] && Math.hypot(gy - r, gx - c) <= reach ? [r, c] : null;
+}
+/** The stretch of grid line nearest a point (the outside edge included), if within `reach` squares of it. */
+export function lineNear(size: [number, number], gx: number, gy: number, reach = 0.35): [RC, RC] | null {
+  const [rows, cols] = size;
+  const cands: { d: number; line: [RC, RC] }[] = [];
+  const hr = Math.round(gy) || 0, hc = Math.floor(gx);   // a horizontal stretch along row line hr
+  if (hr >= 0 && hr <= rows && hc >= 0 && hc < cols) cands.push({ d: Math.abs(gy - hr), line: [[hr, hc], [hr, hc + 1]] });
+  const vc = Math.round(gx) || 0, vr = Math.floor(gy);   // a vertical stretch along column line vc
+  if (vc >= 0 && vc <= cols && vr >= 0 && vr < rows) cands.push({ d: Math.abs(gx - vc), line: [[vr, vc], [vr + 1, vc]] });
+  const best = cands.sort((a, b) => a.d - b.d)[0];
+  return best && best.d <= reach ? best.line : null;
+}
+/** A dot's spot: a corner if the tap is close to one, else a stretch of line. */
+export function dotSpotNear(size: [number, number], gx: number, gy: number): { corner: RC } | { line: [RC, RC] } | null {
+  const corner = cornerNear(size, gx, gy, 0.25);
+  if (corner) return { corner };
+  const line = lineNear(size, gx, gy);
+  return line ? { line } : null;
+}
+
+/** Everything on a corner, removed; with symmetry, a start's or end's mirror image goes too. */
+export function eraseCorner(s: Spec, corner: RC): Spec {
+  const gs = givensOf(s), sym = symmetryOf(s), mirror = sym ? mirrorCorner(s.size, corner, sym) : null;
+  const paired = gs.filter((g) => g.at === "corner" && same(g.corner, corner) && (g.kind === "start" || g.kind === "end")).map((g) => g.kind);
+  return withGivens(s, gs.filter((g) => !(g.at === "corner" && (same(g.corner, corner) || (mirror && same(g.corner, mirror) && paired.includes(g.kind))))));
+}

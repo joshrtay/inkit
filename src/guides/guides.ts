@@ -3,8 +3,8 @@
 // `node puzzles/grid/guides.ts` (a ✓ picture must pass its rule, a ✗ picture must break it), which
 // also solves each worked example into examples.json.
 import type { GenreName } from "../engine/puzzle.ts";
-import type { Given, Side } from "../engine/types.ts";
-import type { Category, Guide } from "./types.ts";
+import type { Given, LineColor, Side, SymbolColor } from "../engine/types.ts";
+import type { Category, Guide, RuleGuide } from "./types.ts";
 
 type RC = [number, number];
 const num = (r: number, c: number, value: number): Given => ({ at: "cell", cell: [r, c], kind: "number", value });
@@ -22,6 +22,32 @@ const dots = (i: number, value: number[]): Given => ({ at: "cell", cell: [0, i],
 const total = (at: "row" | "col", index: number, value: number): Given => ({ at, index, kind: "total", value });
 const runs = (at: "row" | "col", index: number, value: number[]): Given => ({ at, index, kind: "runs", value });
 const compass = (r: number, c: number, value: { n?: number; e?: number; s?: number; w?: number }): Given => ({ at: "cell", cell: [r, c], kind: "compass", value });
+// panels: corners are [row, col] from 0,0 at the top left; a stretch of line is its two corners
+const start = (r: number, c: number, color?: LineColor): Given => ({ at: "corner", corner: [r, c], kind: "start", ...(color ? { color } : {}) });
+const end = (r: number, c: number): Given => ({ at: "corner", corner: [r, c], kind: "end" });
+const hexAt = (r: number, c: number, color?: LineColor): Given => ({ at: "corner", corner: [r, c], kind: "hexagon", ...(color ? { color } : {}) });
+const hexOn = (a: RC, b: RC): Given => ({ at: "line", corners: [a, b], kind: "hexagon" });
+const gap = (a: RC, b: RC): Given => ({ at: "line", corners: [a, b], kind: "gap" });
+const square = (r: number, c: number, color: SymbolColor): Given => ({ at: "cell", cell: [r, c], kind: "square", color });
+const star = (r: number, c: number, color: SymbolColor): Given => ({ at: "cell", cell: [r, c], kind: "star", color });
+const triangle = (r: number, c: number, value: number): Given => ({ at: "cell", cell: [r, c], kind: "triangle", value });
+const shape = (r: number, c: number, value: RC[], opts: { rotate?: boolean; negative?: boolean } = {}): Given => ({ at: "cell", cell: [r, c], kind: "shape", value, ...opts });
+const eraser = (r: number, c: number): Given => ({ at: "cell", cell: [r, c], kind: "eraser" });
+/** A 2×2 panel's usual start (bottom left) and end (top right). */
+const corners2 = [start(2, 0), end(0, 2)];
+/** Lines around a 2×2 panel: up the left side and along the top; and a step in, cutting off the top-left cell. */
+const ROUND: RC[][] = [[[2, 0], [0, 0], [0, 2]]];
+const STEP: RC[][] = [[[2, 0], [1, 0], [1, 1], [0, 1], [0, 2]]];
+/** The line rule every panel shares. */
+const panelLine: RuleGuide = { text: "Draw one line along the grid lines, from the start circle to an end sticking out of the edge. It never touches itself and never crosses a gap.", checks: ["panel-line"], pictures: [
+  { ok: true, note: "Start to end", size: [2, 2], givens: corners2, fence: STEP },
+  { ok: false, note: "Doesn't reach the end", size: [2, 2], givens: corners2, fence: [[[2, 0], [1, 0], [1, 1]]] },
+  { ok: false, note: "Runs into itself", size: [2, 2], givens: corners2, fence: [[[2, 0], [1, 0], [1, 1], [0, 1], [0, 0], [1, 0]]] },
+  { ok: false, note: "Across a gap", size: [2, 2], givens: [...corners2, gap([0, 0], [0, 1])], fence: ROUND },
+] };
+const PANEL_ORIGIN = "These panels follow the rules of the line puzzles in Jonathan Blow's video game The Witness (2016).";
+const PANEL_CONTROLS = "Drag along the tracks from the start circle to draw the line; drag back to undo it. Tap a stretch of track to cycle line, ✕ and empty.";
+
 const squares = (n: number) => ({ pieces: Array.from({ length: n }, (_, i) => [[i * 10, 0], [i * 10 + 10, 0], [i * 10 + 10, 10], [i * 10, 10]]) });
 
 export const CATEGORIES: Category[] = ["Lines", "Shading", "Regions", "Numbers", "Paint"];
@@ -141,6 +167,122 @@ export const guides: Record<GenreName, Guide> = {
     ],
     controls: "Drag along the lines between numbers to draw walls; tap a line to cycle it. Then drag (or use the arrow keys) to walk out.",
     example: "number-line-maze/1.json",
+  },
+  "panel-dots": {
+    name: "Panel Dots", aka: ["Witness-style panels", "Hexagon panels"], category: "Lines", ink: "#26398f",
+    summary: "Draw a line from the start circle to the end that passes through every dot.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      panelLine,
+      { text: "The line passes through every dot, whether it sits on a corner or along a stretch of line.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Every dot", size: [2, 2], givens: [...corners2, hexAt(1, 0), hexOn([0, 1], [0, 2])], fence: ROUND },
+        { ok: false, note: "Misses a dot", size: [2, 2], givens: [...corners2, hexAt(1, 0), hexAt(1, 1)], fence: ROUND },
+      ] },
+    ],
+    controls: PANEL_CONTROLS,
+    example: "panel-dots/1.json",
+  },
+  "panel-squares": {
+    name: "Panel Squares", aka: ["Witness-style panels", "Color separation"], category: "Lines", ink: "#2b2b30",
+    summary: "Draw a line from start to end that keeps squares of different colors apart.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      panelLine,
+      { text: "The line (with the edge) cuts the grid into regions. Squares of different colors end up in different regions.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Kept apart", size: [2, 2], givens: [...corners2, square(0, 0, "black"), square(1, 1, "white")], fence: STEP },
+        { ok: false, note: "Same region", size: [2, 2], givens: [...corners2, square(0, 0, "black"), square(1, 1, "white")], fence: ROUND },
+        { ok: true, note: "One color may share", size: [2, 2], givens: [...corners2, square(0, 1, "black"), square(1, 1, "black"), square(0, 0, "white")], fence: STEP },
+      ] },
+    ],
+    controls: PANEL_CONTROLS,
+    example: "panel-squares/1.json",
+  },
+  "panel-stars": {
+    name: "Panel Stars", aka: ["Witness-style panels", "Star pairs"], category: "Lines", ink: "#a3343f",
+    summary: "Draw a line from start to end so every star shares its region with exactly one other symbol of its color.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      panelLine,
+      { text: "Each star's region holds exactly one other symbol of its color: another star, or a square.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Two pairs", size: [2, 2], givens: [start(1, 0), end(1, 2), star(0, 0, "orange"), star(0, 1, "orange"), star(1, 0, "purple"), star(1, 1, "purple")], fence: [[[1, 0], [1, 2]]] },
+        { ok: false, note: "No partner", size: [2, 2], givens: [start(1, 0), end(1, 2), star(0, 0, "orange"), star(0, 1, "purple"), star(1, 0, "purple"), star(1, 1, "orange")], fence: [[[1, 0], [1, 2]]] },
+        { ok: true, note: "A star and a square", size: [2, 2], givens: [start(1, 0), end(1, 2), star(0, 0, "orange"), square(0, 1, "orange")], fence: [[[1, 0], [1, 2]]] },
+        { ok: false, note: "Three of a color", size: [2, 2], givens: [...corners2, star(0, 0, "orange"), star(0, 1, "orange"), star(1, 0, "orange")], fence: ROUND },
+      ] },
+    ],
+    controls: PANEL_CONTROLS,
+    example: "panel-stars/1.json",
+  },
+  "panel-triangles": {
+    name: "Panel Triangles", aka: ["Witness-style panels"], category: "Lines", ink: "#a3343f",
+    summary: "Draw a line from start to end that runs along as many sides of each square as it has triangles.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      panelLine,
+      { text: "A square with triangles in it (1, 2 or 3) has the line along exactly that many of its four sides.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "2 sides", size: [2, 2], givens: [...corners2, triangle(0, 0, 2)], fence: STEP },
+        { ok: true, note: "3 sides", size: [2, 2], givens: [start(2, 0), end(0, 0), triangle(0, 0, 3)], fence: [[[2, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+        { ok: false, note: "Only 2 sides", size: [2, 2], givens: [...corners2, triangle(0, 0, 3)], fence: STEP },
+      ] },
+    ],
+    controls: PANEL_CONTROLS,
+    example: "panel-triangles/1.json",
+  },
+  "panel-shapes": {
+    name: "Panel Shapes", aka: ["Witness-style panels", "Tetris panels"], category: "Lines", ink: "#26398f",
+    summary: "Draw a line from start to end so every region holding shapes is exactly those shapes fitted together.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      panelLine,
+      { text: "A region with shapes in it is exactly those shapes fitted together, the way round they're drawn. Several shapes fill it between them.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Fits", size: [2, 2], givens: [start(1, 0), end(1, 2), shape(0, 0, [[0, 0], [0, 1]])], fence: [[[1, 0], [1, 2]]] },
+        { ok: false, note: "Wrong way round", size: [2, 2], givens: [start(1, 0), end(1, 2), shape(0, 0, [[0, 0], [1, 0]])], fence: [[[1, 0], [1, 2]]] },
+        { ok: true, note: "Two fill it", size: [2, 2], givens: [...corners2, shape(0, 0, [[0, 0], [0, 1]]), shape(1, 1, [[0, 0], [0, 1]])], fence: ROUND },
+      ] },
+      { text: "A tilted shape may be turned.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Turned to fit", size: [2, 2], givens: [start(1, 0), end(1, 2), shape(0, 0, [[0, 0], [1, 0]], { rotate: true })], fence: [[[1, 0], [1, 2]]] },
+      ] },
+      { text: "A hollow shape takes away: its cells cancel cells of the other shapes in its region.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "4 less 2", size: [2, 2], givens: [start(1, 0), end(1, 2), shape(0, 0, [[0, 0], [0, 1], [1, 0], [1, 1]]), shape(0, 1, [[0, 0], [0, 1]], { negative: true })], fence: [[[1, 0], [1, 2]]] },
+        { ok: false, note: "Leaves the wrong cells", size: [2, 2], givens: [start(1, 0), end(1, 2), shape(0, 0, [[0, 0], [0, 1], [1, 0], [1, 1]]), shape(0, 1, [[0, 0], [1, 0]], { negative: true })], fence: [[[1, 0], [1, 2]]] },
+      ] },
+    ],
+    controls: PANEL_CONTROLS,
+    example: "panel-shapes/1.json",
+  },
+  "panel-erasers": {
+    name: "Panel Erasers", aka: ["Witness-style panels"], category: "Lines", ink: "#2d6a45",
+    summary: "Draw a line from start to end; each eraser cancels one symbol in its region that would otherwise be wrong.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      panelLine,
+      { text: "An eraser cancels itself and one other symbol in its region.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Cancels a square", size: [2, 2], givens: [...corners2, square(0, 0, "black"), square(1, 1, "white"), eraser(0, 1)], fence: ROUND },
+      ] },
+      { text: "Only when it's needed: the region must not work without it.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: false, note: "Nothing to fix", size: [2, 2], givens: [...corners2, square(0, 0, "black"), square(1, 1, "black"), eraser(0, 1)], fence: ROUND },
+      ] },
+    ],
+    controls: PANEL_CONTROLS,
+    example: "panel-erasers/1.json",
+  },
+  "panel-symmetry": {
+    name: "Panel Symmetry", aka: ["Witness-style panels", "Mirror panels"], category: "Lines", ink: "#26398f",
+    summary: "Draw two lines at once, mirror images of each other, each from a start circle to an end.",
+    origin: PANEL_ORIGIN,
+    rules: [
+      { text: "Two lines are drawn at once, mirror images of each other, each from a start circle to an end. They never touch each other or themselves.", checks: ["panel-line"], pictures: [
+        { ok: true, note: "Mirror images", size: [2, 2], givens: [start(2, 0, "blue"), start(2, 2, "yellow"), end(0, 0), end(0, 2)], fence: [[[2, 0], [0, 0]], [[2, 2], [0, 2]]] },
+        { ok: false, note: "Not mirrored", size: [2, 2], givens: [start(2, 0, "blue"), start(2, 2, "yellow"), end(0, 0), end(0, 2)], fence: [[[2, 0], [0, 0]], [[2, 2], [1, 2], [1, 1], [0, 1], [0, 2]]] },
+        { ok: false, note: "They meet", size: [2, 2], givens: [start(2, 0, "blue"), start(2, 2, "yellow"), end(0, 0), end(0, 2)], fence: [[[2, 0], [2, 1], [1, 1], [1, 0], [0, 0]], [[2, 2], [2, 1], [1, 1], [1, 2], [0, 2]]] },
+      ] },
+      { text: "Every dot is passed by a line. A blue or yellow dot is passed by the line of its color.", checks: ["panel-line", "panel-symbols"], pictures: [
+        { ok: true, note: "Yellow dot, yellow line", size: [2, 2], givens: [start(2, 0, "blue"), start(2, 2, "yellow"), end(0, 0), end(0, 2), hexAt(1, 2, "yellow")], fence: [[[2, 0], [0, 0]], [[2, 2], [0, 2]]] },
+        { ok: false, note: "Wrong line", size: [2, 2], givens: [start(2, 0, "blue"), start(2, 2, "yellow"), end(0, 0), end(0, 2), hexAt(1, 0, "yellow")], fence: [[[2, 0], [0, 0]], [[2, 2], [0, 2]]] },
+      ] },
+    ],
+    controls: "Drag along the tracks from either start circle; its mirror image draws itself. Tap a stretch of track to cycle line, ✕ and empty.",
+    example: "panel-symmetry/1.json",
   },
 
   // ---------------- shading ----------------

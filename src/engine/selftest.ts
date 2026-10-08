@@ -2,7 +2,7 @@
 // TypeScript checks accept, and compare with every solution clingo finds. Any difference
 // means a rule's encoding and its check disagree.
 //
-//   node src/engine/selftest.ts [rounds] [seed]
+//   node src/engine/selftest.ts [rounds] [seed] [kind]   (kind: only that genre, or "panel")
 import { makePuzzle, check } from "./puzzle.ts";
 import { program, boardOf } from "./solve.ts";
 import { regionsOf } from "./derive.ts";
@@ -95,9 +95,10 @@ function randomAreas(rows: number, cols: number, k: number): string[] {
 }
 
 function randomSpec(): GridSpec {
-  const kind = pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
-    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku"]);
+  const kind = process.argv[4] ?? pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
+    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
+  if (kind === "panel") return randomPanel();
   if (kind === "simple-loop") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);
     const givens: NonNullable<GridSpec["givens"]> = [];
@@ -320,6 +321,38 @@ function randomSpec(): GridSpec {
   }
   if (!rules.length) rules.push({ rule: "size", is: 2 });
   return { genre: "panes", size: [rows, cols], rules, givens };
+}
+
+/** A small random panel: starts, ends, gaps, dots and a few symbols (fences of a 2x2 or 2x3 grid
+ *  are few enough to try them all). */
+function randomPanel(): GridSpec {
+  const [rows, cols] = pick([[2, 2], [2, 3], [2, 2]]);
+  const sym = rand() < 0.2 ? pick(["left-right", "up-down", "turn"] as const) : null;
+  const givens: NonNullable<GridSpec["givens"]> = [];
+  const corner = (): [number, number] => [Math.floor(rand() * (rows + 1)), Math.floor(rand() * (cols + 1))];
+  const edgeCorner = (): [number, number] => { const v = corner(); return rand() < 0.5 ? [pick([0, rows]), v[1]] : [v[0], pick([0, cols])]; };
+  const mirror = ([r, c]: [number, number]): [number, number] => sym === "left-right" ? [r, cols - c] : sym === "up-down" ? [rows - r, c] : [rows - r, cols - c];
+  const cell = (): [number, number] => [Math.floor(rand() * rows), Math.floor(rand() * cols)];
+  const line = (): [[number, number], [number, number]] => { const [r, c] = corner(); return rand() < 0.5 ? [[r, Math.min(c, cols - 1)], [r, Math.min(c, cols - 1) + 1]] : [[Math.min(r, rows - 1), c], [Math.min(r, rows - 1) + 1, c]]; };
+  const s1 = corner(), e1 = edgeCorner();
+  givens.push({ at: "corner", corner: s1, kind: "start", ...(sym ? { color: "blue" as const } : {}) }, { at: "corner", corner: e1, kind: "end" });
+  if (sym) givens.push({ at: "corner", corner: mirror(s1), kind: "start", color: "yellow" }, { at: "corner", corner: mirror(e1), kind: "end" });
+  else if (rand() < 0.3) givens.push({ at: "corner", corner: corner(), kind: "start" }, { at: "corner", corner: edgeCorner(), kind: "end" });
+  if (rand() < 0.4) givens.push({ at: "line", corners: line(), kind: "gap" });
+  if (rand() < 0.4) givens.push(rand() < 0.5 ? { at: "corner", corner: corner(), kind: "hexagon", ...(sym && rand() < 0.5 ? { color: pick(["blue", "yellow"] as const) } : {}) } : { at: "line", corners: line(), kind: "hexagon" });
+  const used = new Set<string>();
+  const put = (x: NonNullable<GridSpec["givens"]>[number] & { at: "cell" }) => { if (used.has(String(x.cell))) return; used.add(String(x.cell)); givens.push(x); };
+  const mix = pick(["squares", "stars", "triangles", "shapes", "erasers", "mixed"]);
+  const n = 1 + Math.floor(rand() * 3);
+  for (let k = 0; k < n; k++) {
+    const what = mix === "mixed" ? pick(["square", "star", "triangle"]) : mix === "squares" ? "square" : mix === "stars" ? pick(["star", "star", "square"]) : mix === "triangles" ? "triangle" : mix === "shapes" ? "shape" : pick(["square", "star", "triangle"]);
+    if (what === "square") put({ at: "cell", cell: cell(), kind: "square", color: pick(["black", "white"] as const) });
+    if (what === "star") put({ at: "cell", cell: cell(), kind: "star", color: pick(["orange", "black"] as const) });
+    if (what === "triangle") put({ at: "cell", cell: cell(), kind: "triangle", value: 1 + Math.floor(rand() * 3) });
+    if (what === "shape") put({ at: "cell", cell: cell(), kind: "shape", value: pick([[[0, 0]], [[0, 0], [0, 1]], [[0, 0], [1, 0]], [[0, 0], [0, 1], [1, 0]]] as [number, number][][]), rotate: rand() < 0.4, negative: rand() < 0.25 });
+  }
+  if (mix === "erasers") for (let k = 0; k < (rand() < 0.3 ? 2 : 1); k++) put({ at: "cell", cell: cell(), kind: "eraser" });
+  return { genre: sym ? "panel-symmetry" : "panel-squares", size: [rows, cols], givens, ...(sym ? { rules: [{ rule: "panel-line", symmetry: sym }] } : {}) };
 }
 
 const clingo = await import("clingo-wasm");

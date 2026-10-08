@@ -5,7 +5,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import type { Given, GridSpec, RuleSpec } from "~site/engine/types.ts";
+import { SYMBOL_COLORS, type Given, type GridSpec, type RuleSpec, type SymbolColor } from "~site/engine/types.ts";
+import { SYMMETRIES } from "~site/engine/panel.ts";
 import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
 import { RULE_NAMES, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
@@ -80,7 +81,37 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   cell {row: 0, col: the piece's index in "figure"}. Set rows to 1 and cols to the number of pieces.`,
   panes: `panes: split the grid into regions. The rules are written on the sketch (e.g. "panes: size 4, twins");
   list each one in "rules".`,
+  // panels (The Witness): what they share is PANEL_HOW, given once below the list of types
+  "panel-dots": `panel-dots (Panel Dots): a panel (see "Panels" below) whose symbols are mostly small dots (hexagons) on
+  corners or halfway along grid lines; the line must pass through every dot.`,
+  "panel-squares": `panel-squares (Panel Squares): a panel whose symbols are mostly colored squares (filled or rounded squares)
+  in the cells; the line keeps squares of different colors apart.`,
+  "panel-stars": `panel-stars (Panel Stars): a panel whose symbols are mostly colored stars (often 8-pointed suns) in the cells;
+  each star pairs with exactly one other star or square of its color in its region.`,
+  "panel-triangles": `panel-triangles (Panel Triangles): a panel whose symbols are mostly little triangles (1, 2 or 3 in a cell);
+  the line runs along that many of the cell's sides.`,
+  "panel-shapes": `panel-shapes (Panel Shapes): a panel whose symbols are mostly little block shapes (polyominoes: tetris
+  pieces, a single block, an L...) in the cells; each region is exactly its shapes fitted together.`,
+  "panel-erasers": `panel-erasers (Panel Erasers): a panel with one or two erasers (a Y-shaped mark, three short strokes
+  from a centre) among its other symbols.`,
+  "panel-symmetry": `panel-symmetry (Panel Symmetry): a panel with two start circles and two ends, mirror images of each other
+  (often colored blue and yellow): two lines are drawn at once, mirroring each other. Usually mirrored left to right;
+  if it's mirrored top to bottom, or turned halfway round, add the rule panel-line with settings "symmetry up-down" or
+  "symmetry turn".`,
 };
+
+/** How every panel type is transcribed (said once in the system prompt, and in a re-read's brief). */
+const PANEL_HOW = `Panels (every panel-* type, line puzzles in the style of The Witness): a grid of squares; a line is
+drawn along the grid lines from a start circle (a big fat dot on a corner) to an end (a short stub sticking out of the
+outside edge at a corner). "rows" and "cols" count the squares (cells), not the lines: corners run from 0 to rows
+and 0 to cols. Starts, ends and corner dots sit on corners: their row and col are the corner's (0..rows, 0..cols).
+Dots halfway along a grid line, and gaps (a break in a grid line), sit between two neighbouring corners: give the
+corner at the top / left end and which way the line goes from it ("right" or "below"). Symbols in the squares
+(squares, stars, triangles, shapes, erasers) use the cell's row and col. Every panel type allows every symbol, so
+symbols may mix; tell the types apart by the symbol most of the panel is about (an eraser makes it panel-erasers;
+two starts and two ends mirroring each other make it panel-symmetry), and list the other panel types its symbols
+would also fit as candidates. Leave out a line drawn as the answer.`;
+const isPanel = (genre: GenreName) => genre.startsWith("panel-");
 
 // how each clue kind fills a given's row, col and value (the value is always text; "" when unused)
 const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
@@ -99,6 +130,19 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   thermo: "a thermometer (thermo-sudoku): row, col of its bulb; value every cell from the bulb to the tip as row,col pairs, e.g. \"2,0 2,1 1,1\"",
   galaxy: "a galaxy circle (spiral-galaxies): row, col = its centre in half-cell steps (a cell's centre is 2r+1, 2c+1; even numbers are on lines); value \"\"",
   door: "an arrow at the outside edge (mazes, simple-path): row, col of the cell beside it; value that cell's side and in or out, e.g. \"top in\"",
+  // panels: corners are 0..rows, 0..cols; a stretch of grid line is a corner and "right" / "below"
+  start: "a start circle (panels: a big fat dot on a corner): row, col = the corner (0..rows, 0..cols); value its color, \"blue\" or \"yellow\", in panel-symmetry when the two starts are colored; else \"\"",
+  end: "an end (panels: a short stub sticking out of the outside edge at a corner): row, col = the corner it sticks out of (on the outside edge); value \"\"",
+  hexagon: "a dot the line must pass (panels: a small dot or hexagon on the grid lines): on a corner, row, col = the corner and value \"\"; " +
+    "halfway along a grid line, row, col = the corner at its top / left end and value \"right\" or \"below\"; add \"blue\" or \"yellow\" if it's colored (panel-symmetry), e.g. \"right blue\" or \"blue\"",
+  gap: "a gap (panels: a break in a grid line the line can't cross): row, col = the corner at the top / left end of that stretch of line; value \"right\" or \"below\"",
+  square: `a colored square in a cell (panels): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (an empty outline is white, plain ink black)`,
+  star: `a star (sun) in a cell (panels): row, col; value its color, one of ${SYMBOL_COLORS.join(", ")} (plain ink is black)`,
+  triangle: "little triangles in a cell (panels): row, col; value how many, 1, 2 or 3, e.g. \"2\"",
+  shape: "a block shape in a cell (panels: a polyomino drawn small, e.g. an L or a tetris piece): row, col of the cell it's in; value its blocks as row,col pairs " +
+    "with the top-left block at 0,0, then \"rotate\" if it's drawn tilted (it may be turned), and \"negative\" if it's drawn hollow / outlined (it takes away), " +
+    "e.g. \"0,0 1,0 1,1\", \"0,0 0,1 rotate\" or \"0,0 negative\"",
+  eraser: "an eraser in a cell (panels: a Y-shaped mark, three short strokes from a centre): row, col; value \"\"",
 };
 
 const RULE_GUIDE: Record<RuleName, string> = {
@@ -147,6 +191,9 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "neighbor-dots": "k dots of a color in a piece need at least k neighbours of that color (comes with coats)",
   "color-count": "exactly this many pieces of each color, when written on the sketch (red, yellow, blue)",
   "perfect-maze": "the walls make a maze: every square reachable, one way between any two (comes with maze)",
+  "panel-line": "one line along the grid lines from a start circle to an end, never touching itself or crossing a gap (comes with every panel type); " +
+    "symmetry left-right / up-down / turn: two mirrored lines (comes with panel-symmetry as left-right; list it only with \"symmetry up-down\" or \"symmetry turn\" when the panel mirrors that way)",
+  "panel-symbols": "the panel's symbols (dots, squares, stars, triangles, shapes, erasers) say where the line goes (comes with every panel type)",
 };
 
 // Every field is required (empty when unused): the API caps how many fields may be nullable or
@@ -192,7 +239,7 @@ const Reading = z.object({
     toCol: int.describe("the last column (columns, area), from 0; else the same as fromCol"),
   })).describe("anything you weren't sure of, one note per spot, for the creator to check; empty if everything was clear. " +
     "Each note is pinned on the puzzle where it says, so say exactly where: a smudged clue number is row-clue or column-clue (not the square next to it); " +
-    "a doubt about part of the picture is cell or area; a doubt about everything is whole."),
+    "a doubt about part of the picture is cell or area; a doubt about a corner or a grid line (a panel's start, end, dot or gap) is the nearest cell inside the grid; a doubt about everything is whole."),
 });
 export type Reading = z.infer<typeof Reading>;
 
@@ -211,6 +258,8 @@ and the site checks which of them have exactly one solution). Only list types th
 reading; if the type is written on the sketch, list just that one. The types:
 
 ${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
+
+${PANEL_HOW}
 
 Clues ("givens"):
 ${Object.entries(CLUE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
@@ -284,6 +333,7 @@ function typeBrief(genre: GenreName) {
     `${g.name}: ${g.summary}`,
     `Its rules:\n${g.rules.map((r) => `- ${r.text}`).join("\n")}`,
     `How to transcribe it: ${GENRE_GUIDE[genre]}`,
+    ...(isPanel(genre) ? [PANEL_HOW] : []),
   ].join("\n\n");
 }
 
@@ -359,7 +409,10 @@ export function toSketch(r: Reading): string {
   for (const run of r.runs) givens.push(r.genre === "aquarium"
     ? { at: run.line, index: run.index, kind: "total", value: run.runs[0] ?? 0 }
     : { at: run.line, index: run.index, kind: "runs", value: run.runs });
-  const rules: RuleSpec[] = r.rules.map(({ rule, settings }) => ({ rule, ...ruleSettings(settings) }));
+  const rules: RuleSpec[] = r.rules.map(({ rule, settings }) => ({ rule, ...ruleSettings(settings) }))
+    // a panel-line without a symmetry is what every panel has already; listed in a panel-symmetry
+    // it would replace the type's own (mirrored) panel-line, so it's left out
+    .filter((s: RuleSpec) => s.rule !== "panel-line" || s.symmetry);
   const figure = r.genre === "coats" && r.figure.length ? { pieces: r.figure } : undefined;
   const body: Omit<GridSpec, "genre"> = {
     size: figure ? [1, figure.pieces.length] : [r.rows, r.cols],
@@ -377,8 +430,18 @@ export function toSketch(r: Reading): string {
 const SIDES = ["top", "right", "bottom", "left"] as const;
 const num = (t: string) => { const m = t.match(/-?\d+/); return m ? Number(m[0]) : null; };
 
+/** The stretch of grid line from corner row, col towards the right or below (or left / above). */
+function lineFrom(row: number, col: number, v: string): [[number, number], [number, number]] | null {
+  if (/\b(right|across)\b/.test(v)) return [[row, col], [row, col + 1]];
+  if (/\b(below|down)\b/.test(v)) return [[row, col], [row + 1, col]];
+  if (/\bleft\b/.test(v)) return [[row, col - 1], [row, col]];
+  if (/\b(above|up)\b/.test(v)) return [[row - 1, col], [row, col]];
+  return null;
+}
+const lineColor = (v: string) => (/\bblue\b/.test(v) ? { color: "blue" as const } : /\byellow\b/.test(v) ? { color: "yellow" as const } : {});
+
 /** One given from the reader's row, col and value text (null if the value can't be read). */
-function givenOf({ kind, row, col, value }: Reading["givens"][number]): Given | null {
+export function givenOf({ kind, row, col, value }: Reading["givens"][number]): Given | null {
   const cell: [number, number] = [row, col], v = value.trim().toLowerCase();
   const side = SIDES.find((s) => v.includes(s));
   switch (kind) {
@@ -404,6 +467,30 @@ function givenOf({ kind, row, col, value }: Reading["givens"][number]): Given | 
       return cells.length > 1 ? { at: "cells", cells, kind } : null;
     }
     case "galaxy": return { at: "point", point: cell, kind };
+    // panels
+    case "start": return { at: "corner", corner: cell, kind, ...lineColor(v) };
+    case "end": return { at: "corner", corner: cell, kind };
+    case "hexagon": { const corners = lineFrom(row, col, v); return corners ? { at: "line", corners, kind, ...lineColor(v) } : { at: "corner", corner: cell, kind, ...lineColor(v) }; }
+    case "gap": { const corners = lineFrom(row, col, v); return corners ? { at: "line", corners, kind } : null; }
+    case "square": case "star": {
+      // a color the panel can't show is read as black (the creator sees it and can change it)
+      const color: SymbolColor = SYMBOL_COLORS.find((c) => new RegExp(`\\b${c}\\b`).test(v)) ?? "black";
+      return { at: "cell", cell, kind, color };
+    }
+    case "triangle": { const n = num(v) ?? ([...v].filter((c) => "▲△▴▵".includes(c)).length || null); return n !== null && n >= 1 && n <= 3 ? { at: "cell", cell, kind, value: n } : null; }
+    case "shape": {
+      const blocks = [...v.matchAll(/(-?\d+)\s*,\s*(-?\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
+      if (!blocks.length) return null;
+      // the top-left block at 0,0, whatever the reader counted from
+      const r0 = Math.min(...blocks.map((b) => b[0])), c0 = Math.min(...blocks.map((b) => b[1]));
+      const cells = [...new Map(blocks.map(([r, c]) => [`${r - r0},${c - c0}`, [r - r0, c - c0] as [number, number]])).values()];
+      return {
+        at: "cell", cell, kind, value: cells,
+        ...(/\b(rotate|rotated|rotates|tilted|turn|turns)\b/.test(v) ? { rotate: true } : {}),
+        ...(/\b(negative|hollow|outlined|blue)\b/.test(v) ? { negative: true } : {}),
+      };
+    }
+    case "eraser": return { at: "cell", cell, kind };
   }
 }
 
@@ -414,6 +501,8 @@ export function ruleSettings(text: string): Record<string, unknown> {
     const w = words[k], next = words[k + 1];
     if (w === "box") { const a = Number(words[k + 1]), b = Number(words[k + 2]); if (a > 0 && b > 0) out.box = [a, b]; k += 2; }
     else if (w === "cover") out.cover = true;
+    else if (w === "symmetry" && next && (SYMMETRIES as string[]).includes(next)) { out.symmetry = next; k++; }
+    else if ((SYMMETRIES as string[]).includes(w)) out.symmetry = w;
     else if (w === "of" && next) { out.of = next; k++; }
     else if (next !== undefined && !Number.isNaN(Number(next))) { out[w] = Number(next); k++; }
   }

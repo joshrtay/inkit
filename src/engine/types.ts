@@ -18,7 +18,23 @@ export type Given =
   | { at: "cells"; cells: RC[]; kind: "thermo" }                              // a thermometer from its bulb (first cell) to its tip
   | { at: "point"; point: RC; kind: "galaxy" }                                // a galaxy centre in half-cell units: [2r+1, 2c+1] is a cell's centre, even numbers lie on lines
   | { at: "row" | "col"; index: number; kind: "runs"; value: number[] }      // nonogram clue beside a row / above a column
-  | { at: "row" | "col"; index: number; kind: "total"; value: number };      // how many shaded cells in that row / column (Aquarium)
+  | { at: "row" | "col"; index: number; kind: "total"; value: number }      // how many shaded cells in that row / column (Aquarium)
+  // ---- panels (line puzzles in the style of The Witness: src/engine/panel.ts) ----
+  | { at: "corner"; corner: RC; kind: "start"; color?: LineColor }           // where a line starts (a big circle); its color, with two lines
+  | { at: "corner"; corner: RC; kind: "end" }                                // where a line may end: a corner on the outside edge
+  | { at: "corner"; corner: RC; kind: "hexagon"; color?: LineColor }         // a dot the line passes through (a line of that color, if colored)
+  | { at: "line"; corners: [RC, RC]; kind: "hexagon"; color?: LineColor }    // a dot halfway along a stretch of grid line: the line runs along it
+  | { at: "line"; corners: [RC, RC]; kind: "gap" }                           // a break in a grid line: the line can't run along it
+  | { at: "cell"; cell: RC; kind: "square" | "star"; color: SymbolColor }    // squares: one color per region; stars: two of a color per region
+  | { at: "cell"; cell: RC; kind: "triangle"; value: number }                // 1-3 triangles: how many of the cell's sides the line runs along
+  | { at: "cell"; cell: RC; kind: "shape"; value: RC[]; rotate?: boolean; negative?: boolean }   // a polyomino (its cells, top-left at 0,0); the region is made of its region's shapes
+  | { at: "cell"; cell: RC; kind: "eraser" };                                // cancels itself and one other symbol in its region
+
+/** The two lines of a symmetry panel. */
+export type LineColor = "blue" | "yellow";
+/** Colors of squares and stars. */
+export const SYMBOL_COLORS = ["black", "white", "red", "orange", "yellow", "green", "blue", "purple"] as const;
+export type SymbolColor = (typeof SYMBOL_COLORS)[number];
 
 /** A side of a cell. */
 export type Side = "top" | "right" | "bottom" | "left";
@@ -118,4 +134,8 @@ export interface Puzzle {
   blanks: boolean;
   /** outlined areas: each cell's area index, and each area's cells (null if none) */
   areas: { of: number[]; cells: number[][] } | null;
+  /** clues on a stretch of grid line (panels' hexagons and gaps), by border id */
+  lineGivens: Map<number, Given[]>;
+  /** the borders a panel's line can't run along */
+  gaps: Set<number>;
 }

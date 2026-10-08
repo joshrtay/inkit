@@ -7,7 +7,8 @@ the `grid-engine` branch, with twenty-five genres: Simple Loop (`simple-loop`), 
 Wittgenstein Briquet (`wittgenstein-briquet`), Hitori (`hitori`), Minesweeper (`minesweeper`),
 Spiral Galaxies (`spiral-galaxies`), Thermo Sudoku (`thermo-sudoku`), Skyscrapers (`skyscrapers`),
 Easy as ABC (`easy-as-abc`), Star Battle (`star-battle`), Akari (`akari`), Shikaku (`shikaku`), Irregular Sudoku (`irregular-sudoku`), Nonogram (`nonogram`), Number Line Maze (`maze`), Three Coats (`coats`), Slitherlink, Nurikabe, Panes
-and Sudoku.
+and Sudoku, and seven line panels in the style of The Witness (`panel-dots`, `panel-squares`, `panel-stars`,
+`panel-triangles`, `panel-shapes`, `panel-erasers`, `panel-symmetry`; see "Panels" below).
 
 ## The model
 
@@ -112,6 +113,8 @@ puzzle can use it.
 | `neighbor-dots` | k dots of a color in a piece need at least k neighbours of that color. |
 | `color-count` | Exactly this many pieces of each color (`red`, `yellow`, `blue`, or `c1`, `c2`...). |
 | `perfect-maze` | The walls make a perfect maze: the outside edge is walled except the two doors, given walls stay, every cell is reachable and there's one way between any two (the open passages form a spanning tree). |
+| `panel-line` | A panel's line (fence marks) runs from a start circle to an end on the outside edge, never touching itself or crossing a gap; `symmetry` (`left-right`, `up-down`, `turn`) makes it two lines, mirror images that never touch, each passing the dots of its color. |
+| `panel-symbols` | Every symbol in the regions the line cuts the grid into: dots, squares, stars, triangles, shapes and erasers (see "Panels"). |
 
 Genre names: use the standard name when a genre has one that's used across puzzle sites
 (Slitherlink, Nurikabe, Sudoku, Star Battle, Masyu, Akari, Shikaku, Simple Loop, Nonogram...),
@@ -119,6 +122,37 @@ Wyatt's games included. A genre with no shared name (Number Line Maze), or whose
 commercial game's (Three Coats, after FLEB's RYB), gets a name of ours.
 Mechanics are fair game; other sites' art and levels aren't ours to copy, so puzzles are Wyatt's
 (or generated).
+
+## Panels
+
+Line puzzles in the style of the panels in Jonathan Blow's The Witness (`src/engine/panel.ts`),
+which a kid can draw on paper. A line runs along the grid lines from a **start** circle (a corner)
+to an **end** (a corner on the outside edge, drawn as a stub sticking out); it never touches or
+crosses itself and never runs across a **gap** (`at: "line"` givens sit on a stretch of grid line
+between two neighbouring corners). The line cuts the cells into regions, and the symbols say
+where it can go:
+
+| Symbol | Given | Rule |
+|---|---|---|
+| Dot | `hexagon` on a corner or a line | The line passes through it (with symmetry, a colored dot by the line of that color). |
+| Square | `square`, with a color | No region holds squares of two colors. |
+| Star | `star`, with a color | Its region holds exactly one other star or square of its color. |
+| Triangle | `triangle`, 1-3 | The line runs along that many of the cell's sides. |
+| Shape | `shape`: its cells, `rotate`, `negative` | A region with shapes is exactly its shapes fitted together, as drawn (tilted ones may turn); hollow (negative) shapes cancel cells of the others: every cell of the region is covered 0 or 1 times net (the same for all), every cell outside it evenly. |
+| Eraser | `eraser` | Cancels itself and one other symbol in its region (not another eraser), only when needed: the region mustn't work with fewer erasers used. |
+
+These follow Demaine et al., "Who witnesses The Witness?" (2018), including its reading of
+erasers. Two limits keep the one-solution proof exact in clingo: at most two erasers in a panel,
+and no erasers in a panel with shapes (proving a region can't be packed is a harder problem).
+Every panel genre has both rules, so symbols mix freely; the seven types are named for the
+symbol they teach. Left out, since paper can't carry them: environmental and shadow puzzles,
+sound, colored light, reflections, and puzzles that span several panels.
+
+`npm run new -- --genre panel-<type>` (`puzzles/grid/panels.ts`) draws a random winding line,
+puts every symbol true of it on the panel, adds gaps until the line is the only one, and takes out
+what isn't needed (gaps first). Drawing: `src/game-types/grid/panel-draw.ts` (pale tracks with
+the ink line in them; the symbols over it). Playing: the line is drawn like a fence; gaps can't be
+drawn over, and with symmetry the mirror line draws itself.
 
 ## Solving and the one-solution guarantee
 
@@ -134,9 +168,9 @@ encoding. clingo (`clingo-wasm`, WebAssembly, so it runs in Node and in the brow
 build fails unless there is exactly one solution; the browser then knows the board is
 solved when every rule's check passes.
 
-`node src/engine/selftest.ts [rounds] [seed]` tries every possible board on small random
-puzzles and confirms the checks and the solver accept exactly the same ones. Run it after
-adding or changing a block.
+`node src/engine/selftest.ts [rounds] [seed] [kind]` tries every possible board on small random
+puzzles and confirms the checks and the solver accept exactly the same ones (`kind`: only that
+genre, or `panel` for random panels). Run it after adding or changing a block.
 
 ## Making puzzles
 
