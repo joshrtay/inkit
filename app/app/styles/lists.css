@@ -63,9 +63,6 @@
 .profile-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
 .profile-actions .btn, .profile-actions .create-btn { width: 100%; justify-content: center; padding: 12px; font-size: 16px; }
 .profile-actions .subscribe-form .btn { width: 100%; }
-.profile-actions .create-btn::before { content: none; }
-.profile-actions .create-btn { font-size: 16px; }
-.profile-actions .create-btn span { display: inline; }
 .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); overflow-x: auto; }
 .tabs a { padding: 12px 16px; color: var(--muted); text-decoration: none; font-weight: 700; border-bottom: 2.5px solid transparent; white-space: nowrap; }
 .wrap .tabs a { color: var(--muted); }

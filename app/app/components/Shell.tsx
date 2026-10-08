@@ -21,7 +21,7 @@ export const Icon = ({ name }: { name: keyof typeof PATHS }) => (
 
 /** Create: a new puzzle from a drawing. (Studios, shared collections, come back later.) */
 export function CreateMenu({ className = "" }: { className?: string }) {
-  return <Link className={`btn primary create-btn ${className}`} to="/new">Create</Link>;
+  return <Link className={`btn primary create-btn ${className}`} to="/new"><Icon name="plus" /><span>Create</span></Link>;
 }
 
 /** More: a menu that opens upward from the bottom of the nav, after Substack's. */

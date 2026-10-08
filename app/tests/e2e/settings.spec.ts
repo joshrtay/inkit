@@ -20,6 +20,18 @@ test("More: settings, puzzle types, sign out, and the small print", async ({ pag
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 });
 
+for (const width of [1280, 1000]) {
+  test(`More > Puzzle types opens them, from any page (${width}px wide)`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    for (const from of ["/explore", "/g/sudoku-1", `/${run.handle}`, "/settings"]) {
+      await page.goto(from);
+      await page.locator(".sidenav").getByRole("button", { name: "More" }).click();
+      await page.locator(".more-menu").getByRole("menuitem", { name: "Puzzle types" }).click();
+      await expect(page, `from ${from}`).toHaveURL(/\/puzzles$/);
+    }
+  });
+}
+
 test("profile: name and bio", async ({ page }) => {
   await page.goto("/settings");
   await page.locator(".setting", { hasText: "Profile" }).getByRole("button", { name: "Edit" }).click();
