@@ -5,6 +5,7 @@
 // Used by tests/unit/sketchpad-coverage.test.ts (can every type be drawn?) and
 // tests/e2e/reader.spec.ts (does the reader read each drawing back as the puzzle it came from?).
 import { normalShape } from "~site/engine/puzzle.ts";
+import { colorName } from "~site/engine/rules.ts";
 import type { Given, GridSpec, Puzzle, Side } from "~site/engine/types.ts";
 import { kindName } from "~/games/kinds";
 import * as m from "./model";
@@ -129,7 +130,21 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
   const mR = sides.has("right") ? 1 : 0, mB = sides.has("bottom") ? 1 : 0;
   const bankRows = p.bank.length ? 4 : 0;            // the shape bank, beside the board
   const header = 1;                                   // the type's name and its rules, written above
-  const wide = cols + mL + mR, tall = rows + mT + mB + header + bankRows;
+  // a fill-in's list, written under the board: a line per length, wrapping at the board's width
+  // (a number takes about 0.3 squares a digit, with 0.5 between numbers)
+  const listLines: { text: string; x: number }[][] = [];
+  for (const len of [...new Set(p.entries.map((e) => e.length))].sort((a, b) => a - b)) {
+    let line: { text: string; x: number }[] = [], x = 0;
+    for (const e of p.entries.filter((x) => x.length === len)) {
+      const w = 0.3 * len;
+      if (line.length && x + w > Math.max(cols, 4)) { listLines.push(line); line = []; x = 0; }
+      line.push({ text: e.map((v) => (p.style.symbols ?? "0123456789")[v - 1]).join(""), x: x + w / 2 });
+      x += w + 0.5;
+    }
+    listLines.push(line);
+  }
+  const listRows = listLines.length ? listLines.length * 0.8 + 0.4 : 0;
+  const wide = cols + mL + mR, tall = rows + mT + mB + header + bankRows + listRows;
   const S = Math.min(m.PAGE * 0.96 / wide, m.PAGE * 0.96 / tall, m.PAGE / Math.max(rows, cols));
   if (rows > 30 || cols > 30) gaps.add("more than 30 rows or columns");
   if (S < m.MIN_SQUARE) gaps.add(`no room: squares would be ${S.toFixed(1)} < ${m.MIN_SQUARE}`);
@@ -175,7 +190,8 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
   }
 
   const letters = p.style.symbols;
-  const cellText = (g0: Given) => (letters && g0.kind === "number" ? letters[g0.value - 1] : String((g0 as { value: number }).value));
+  // an Akari cipher's letter as written; a lettered puzzle's (or a fill-in's) digit as its symbol
+  const cellText = (g0: Given) => (g0.kind === "number" && g0.letter ? g0.letter : letters && g0.kind === "number" ? letters[g0.value - 1] : String((g0 as { value: number }).value));
   const blocks = new Set([...p.blocked]);
   /** the middle of the border between two cells, as a loose point */
   const borderMid = ([[r1, c1], [r2, c2]]: [number, number][]) => G((r1 + r2) / 2 + 0.5, (c1 + c2) / 2 + 0.5);
@@ -309,6 +325,13 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
       case "eraser":
         stamp({ kind: "stamp", stamp: "eraser", color: colour(gv.color, "white", "an eraser", true), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "eraser");
         break;
+      // a printed color (Binairo, Colour Balance): the square washed in it
+      case "color": {
+        const name = colorName(p, gv.value);
+        if ((m.WASHES as readonly string[]).includes(name)) d = m.washCell(d, { at: "cell", r: gv.cell[0], c: gv.cell[1] }, name as m.WashColor, true);
+        else gaps.add(`a printed ${name} (no wash of that colour)`);
+        break;
+      }
       default: gaps.add(`unknown clue kind ${(gv as Given).kind}`);
     }
   }
@@ -318,6 +341,9 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
     d = m.add(d, { kind: "stamp", stamp: "shape", cells: normalShape(cells), color: "yellow", at: m.loose(g, { x: g.x + (k * 2 + 1) * g.S, y: g.y + (rows + 2) * g.S }) });
   });
   // symmetry panels: written in the header, and the starts and dots in their lines' colours (above)
+  // a fill-in's list, under the board
+  listLines.forEach((line, k) => line.forEach(({ text: t, x }) =>
+    text(m.loose(g, { x: g.x + x * g.S, y: g.y + (rows + 0.6 + k * 0.8) * g.S }), t)));
 
   // writing that runs into other writing
   const boxes = d.items.flatMap((it) => it.kind === "text" ? [textBox(g.S * (it.small ? 0.5 : 1), m.pointOf(g, it.at).x, m.pointOf(g, it.at).y, it.text)] : []);

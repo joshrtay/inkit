@@ -10,6 +10,7 @@ import { piecesOf, roomiest } from "./pieces";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { washDefs } from "../../lib/ink.ts";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg } from "./panel-draw";
+import { entriesDone, entryList } from "./entry-list.ts";
 
 const S = 48, M = 26;
 const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];
@@ -36,7 +37,7 @@ export function pictureLayout(p: Puzzle, room0: Room = {}) {
   };
   const room = (side: "top" | "left" | "right" | "bottom") => Math.max(M, room0[side] ?? 0, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0,
     (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0, p.edgeClues.some((c) => c.side === side) ? 38 : 0,
-    side === "bottom" ? bankLayout(p, S).height : 0);
+    side === "bottom" ? bankLayout(p, S).height + entryList(p, g.cols * S).height : 0);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top");
   const MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
   return { S, ML, MT, MR, MB, W: ML + g.cols * S + MR, H: MT + g.rows * S + MB };
@@ -53,8 +54,9 @@ export interface PictureOptions {
 
 /** The puzzle as an SVG string. `b` adds the player's marks (a solution, or a mistake). */
 export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: PictureOptions = {}): string {
-  if (p.marks.includes("paint")) return figureSvg(p, b, label);
+  if (p.marks.includes("paint") && p.figure) return figureSvg(p, b, label);
   const g = p.grid, marks = p.marks, regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
+  const paint = marks.includes("paint"), palette = p.style.palette?.length ? p.style.palette : PAINT;
   const links = p.rules.some((s) => s.rule === "links"), maze = p.rules.some((s) => s.rule === "perfect-maze");
   const { ML, MT, MR, MB } = pictureLayout(p, opts.room);
   const X = (c: number) => ML + c * S, Y = (r: number) => MT + r * S;
@@ -122,7 +124,11 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     else if (giv.kind === "number") {
       if (links) out.givens += tag("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 });
       const onShade = b && b.shade[i] === 1;
-      out.givens += text({ class: p.blocked.has(i) ? "clue on-rock" : onShade ? "clue on-shade" : "clue", x, y: y + 1 }, String(giv.value));
+      out.givens += text({ class: p.blocked.has(i) ? "clue on-rock" : onShade ? "clue on-shade" : "clue", x, y: y + 1 }, giv.letter ?? String(giv.value));
+    } else if (giv.kind === "color") {
+      // a printed color: wash with a pen outline (the player's paint is wash alone)
+      out.wash += rect(i, "paint", -0.5, { style: `fill:${palette[giv.value - 1] ?? "#ccc"}` });
+      out.givens += rect(i, "paint-given", 6);
     } else if (giv.kind === "pearl") out.givens += stoneSvg(giv.value, x, y, S * 0.28, "pearl");   // pearls are stones
     else if (giv.kind === "symbol") out.givens += symbolClueSvg(giv.value, x, y);
     else if (giv.kind === "palisade") out.givens += palisadeSvg(giv.value, !!giv.opposite, x, y, S);
@@ -144,6 +150,12 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   const done = (cs: number[], k: number) => (b && cs.filter((i) => b.shade[i] === 1).length === k ? " done" : "");
   for (const [r, k] of p.rowTotals) out.runs += text({ class: `clue run total${done(Array.from({ length: g.cols }, (_, c) => g.cell(r, c)), k)}`, x: ML - 20, y: Y(r) + S / 2 + 1 }, String(k));
   for (const [c, k] of p.colTotals) out.runs += text({ class: `clue run total${done(Array.from({ length: g.rows }, (_, r) => g.cell(r, c)), k)}`, x: X(c) + S / 2, y: MT - 18 }, String(k));
+  // a fill-in's list under the board, numbers in the grid crossed off
+  if (p.entries.length) {
+    const list = entryList(p, g.cols * S), found = b ? entriesDone(p, b) : new Set<number>(), top = Y(g.rows) + bankLayout(p, S).height;
+    for (const l of list.labels) out.runs += text({ class: "clue entry-label", x: X(0) + l.x, y: top + l.y }, l.text);
+    for (const it of list.items) out.runs += text({ class: `clue entry${found.has(it.k) ? " done" : ""}`, x: X(0) + it.x, y: top + it.y }, it.text);
+  }
 
   // an editor's view: a nonogram's picture in its colors, and cells the clues can't pin down
   if (opts.picture && p.spec.picture) {
@@ -170,6 +182,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     const colors = regionsPuzzle ? glass(p, b) : [];
     for (let i = 0; i < g.cellCount; i++) {
       const [x, y] = center(i);
+      if (paint && b.color[i] && !(p.cellGivens.get(i) ?? []).some((x) => x.kind === "color")) out.wash += rect(i, "paint", -0.5, { style: `fill:${palette[b.color[i] - 1] ?? "#ccc"}` });
       if (regionsPuzzle && colors[i] > 0) out.wash += tag("rect", { x: x - S / 2 - 0.5, y: y - S / 2 - 0.5, width: S + 1, height: S + 1, fill: (p.style.palette ?? [])[colors[i] - 1] ?? "#ccc" });
       if (marks.includes("shade") && b.shade[i] === 1) {
         if (p.style.shaded === "star") out.marks += tag("path", { class: "star", d: starPath(x, y, S * 0.36) });

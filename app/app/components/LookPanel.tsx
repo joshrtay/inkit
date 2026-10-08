@@ -27,7 +27,7 @@ export function LookPanel({ spec, onChange }: { spec: GridSpec; onChange: (spec:
                   {v !== undefined && <button type="button" className="link" onClick={() => setStyle(k, undefined)}>default</button>}
                 </span>
               )}
-              {def.type === "text" && <input value={typeof v === "string" ? v : ""} maxLength={9} onChange={(e) => setStyle(k, e.target.value.toUpperCase() || undefined)} />}
+              {def.type === "text" && <input value={typeof v === "string" ? v : ""} maxLength={10} onChange={(e) => setStyle(k, e.target.value.toUpperCase() || undefined)} />}
               {def.type === "number" && <input type="number" min={0} max={30} value={v === undefined ? "" : Number(v)} onChange={(e) => setStyle(k, e.target.value === "" ? undefined : Number(e.target.value))} />}
               {def.type === "choice" && (
                 <select value={String(v ?? "")} onChange={(e) => setStyle(k, e.target.value || undefined)}>

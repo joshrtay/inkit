@@ -43,9 +43,14 @@ export function program(p: Puzzle): string {
 cut(L) :- wall(L).
 cut(L) :- adj(I,J,L), blocked(I), not blocked(J).
 :- cut(L), adj(I,J,L), blocked(I), blocked(J).`);
-  if (p.marks.includes("paint")) out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
+  if (p.marks.includes("paint")) {
+    out.push(`pc(1..${paletteSize(p)}).\n1 { paint(I,C) : pc(C) } 1 :- cell(I).`);
+    // printed colors (Colour Balance, Binairo)
+    for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "color") out.push(`paint(${i},${giv.value}).`);
+  }
   if (p.marks.includes("digit")) {
-    out.push(`d(1..${p.digits}).\n${p.blanks ? "" : "1 "}{ digit(I,D) : d(D) } 1 :- cell(I).`);
+    // no digits in black cells (a fill-in's)
+    out.push(`d(1..${p.digits}).\n${p.blanks ? "" : "1 "}{ digit(I,D) : d(D) } 1 :- cell(I), not blocked(I).`);
     for (const [i, gs] of p.cellGivens) for (const giv of gs) if (giv.kind === "number") out.push(`digit(${i},${giv.value}).`);
   }
 

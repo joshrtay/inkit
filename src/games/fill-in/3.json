@@ -1,0 +1,139 @@
+{
+  "type": "grid",
+  "name": "Crossing Numbers",
+  "meta": "6 × 6",
+  "grid": {
+    "size": [
+      6,
+      6
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          3
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          5
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          5
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          1
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          3
+        ],
+        "kind": "block"
+      }
+    ],
+    "entries": [
+      "34",
+      "96",
+      "103",
+      "650",
+      "1568",
+      "1754",
+      "2073",
+      "4517",
+      "6749",
+      "8350",
+      "9005",
+      "9126"
+    ]
+  }
+}

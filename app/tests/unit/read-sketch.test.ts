@@ -10,7 +10,7 @@ const g = (kind: ReadGiven["kind"], row: number, col: number, value = ""): ReadG
 const reading = (over: Partial<Reading>): Reading => ({
   readable: true, problem: "", genre: "panel", candidates: ["panel"], title: "",
   bounds: { left: 0, top: 0, right: 1, bottom: 1 }, rows: 3, cols: 3, rules: [], givens: [], runs: [],
-  pictureRows: [], palette: [], areas: [], figure: [], sure: true, notes: [], ...over,
+  pictureRows: [], palette: [], areas: [], figure: [], entries: [], sure: true, notes: [], ...over,
 });
 
 describe("reading panels", () => {
@@ -182,5 +182,26 @@ describe("what the type has anyway, and Three Coats' hidden dots", () => {
   it("reads dots drawn hidden", () => {
     expect(givenOf(g("dots", 0, 1, "2 hidden"))).toEqual({ at: "cell", cell: [0, 1], kind: "dots", value: [2], hidden: true });
     expect(givenOf(g("dots", 0, 1, "113"))).toEqual({ at: "cell", cell: [0, 1], kind: "dots", value: [1, 1, 3] });
+  });
+});
+
+describe("reading Binairo, Colour Balance, fill-ins and Akari ciphers", () => {
+  const body = (r: Reading) => JSON.parse(toSketch(r).split("\n").slice(1).join("\n"));
+  it("reads a cipher's letter on an Akari number, and printed colors", () => {
+    expect(givenOf(g("number", 1, 2, "B"))).toEqual({ at: "cell", cell: [1, 2], kind: "number", value: 0, letter: "B" });
+    expect(givenOf(g("color", 0, 3, "2"))).toEqual({ at: "cell", cell: [0, 3], kind: "color", value: 2 });
+    expect(givenOf(g("color", 0, 3, "7"))).toBeNull();
+  });
+  it("reads Colour Balance's shares, with three colors for three parts", () => {
+    expect(ruleSettings("parts 1 1 1")).toEqual({ parts: [1, 1, 1] });
+    expect(ruleSettings("parts 1:2")).toEqual({ parts: [1, 2] });
+    const b = body(reading({ genre: "colour-balance", candidates: ["colour-balance"], rows: 6, cols: 6, rules: [{ rule: "line-shares", settings: "parts 1 1 1" }] }));
+    expect(b.rules).toEqual([{ rule: "line-shares", parts: [1, 1, 1] }]);
+    expect(b.style.palette).toHaveLength(3);
+  });
+  it("reads a fill-in's list, and its digits 0-9 as its symbols", () => {
+    const b = body(reading({ genre: "fill-in", candidates: ["fill-in"], givens: [g("block", 0, 0), g("number", 1, 1, "0")], entries: ["12", " 305 "] }));
+    expect(b.entries).toEqual(["12", "305"]);
+    expect(b.givens).toContainEqual({ at: "cell", cell: [1, 1], kind: "number", value: 1 });
   });
 });

@@ -4,10 +4,11 @@
 //    a set of panes), 2. every clue that's true of that board goes in a pool, 3. clues
 //    that rule out the other solutions are added until only one is left, 4. clues that
 //    aren't needed are taken out again.
-import { makePuzzle, check } from "../../src/engine/puzzle.ts";
+import { makePuzzle, check, BALANCE_COLORS } from "../../src/engine/puzzle.ts";
 import { program, boardOf, solve } from "../../src/engine/solve.ts";
 import { regionsOf, shapeKey } from "../../src/engine/derive.ts";
-import type { Board, Given, GridSpec, RuleSpec } from "../../src/engine/types.ts";
+import { fillSlots } from "../../src/engine/rules.ts";
+import { emptyBoard, type Board, type Given, type GridSpec, type RuleSpec } from "../../src/engine/types.ts";
 import { makePanel, PANEL_MIXES } from "./panels.ts";
 
 export interface GenerateOptions {
@@ -22,6 +23,8 @@ export interface GenerateOptions {
   mix?: string;
   /** Star Battle: stars per row, column and area (only 1 for now) */
   stars?: number;
+  /** Akari: a cipher, with letters for its numbers */
+  cipher?: boolean;
 }
 
 /** A puzzle with exactly one solution (a panel: one line), or null if none was found in 40 tries. */
@@ -88,7 +91,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc"].includes(genre) ? [...b.digit].join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "binairo" || genre === "colour-balance" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc"].includes(genre) ? [...b.digit].join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -325,6 +328,20 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         return { at: "cell", cell: at(i), kind: "number", value: g.cellLinks[i].filter((l) => target.shade[g.links[l].cells.find((c) => c !== i)!] === 1).length };
       });
       result = await narrow(base, target, pool);
+      if (result && o.cipher) {
+        // a cipher: each number becomes a letter (one letter per number), then more letters until
+        // the lighting is the only one again; letters run A, B, C... in reading order
+        const names = shuffle(["A", "B", "C", "D", "E"]);
+        const letter = (x: Given): Given => (x.kind === "number" ? { at: "cell", cell: x.cell, kind: "number", value: 0, letter: names[x.value] } : x);
+        const numbered = new Set(result.givens!.flatMap((x) => (x.kind === "number" ? [String(x.cell)] : [])));
+        result = await narrow({ ...result, givens: result.givens!.map(letter) }, target, pool.filter((x) => x.at === "cell" && !numbered.has(String(x.cell))).map(letter));
+        if (result) {
+          const order = new Map<string, string>();
+          const key = (x: Given) => (x.at === "cell" ? x.cell[0] * cols + x.cell[1] : 0);
+          for (const x of [...result.givens!].sort((a, b) => key(a) - key(b))) if (x.kind === "number" && x.letter && !order.has(x.letter)) order.set(x.letter, "ABCDE"[order.size]);
+          result.givens = result.givens!.map((x) => (x.kind === "number" && x.letter ? { ...x, letter: order.get(x.letter)! } : x));
+        }
+      }
     } else if (genre === "shikaku") {
       // a random cut into rectangles (2 to 8 cells), then one number per rectangle, placed at random
       // until only that cut fits
@@ -472,6 +489,41 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const mix = (o.mix ?? "squares") as (typeof PANEL_MIXES)[number];
       if (!PANEL_MIXES.includes(mix)) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}`);
       result = await makePanel(mix, rows, cols, rand);
+    } else if (genre === "binairo" || genre === "colour-balance") {
+      // a random painting, then printed colors until it's the only one. Colour Balance's --rules:
+      // "parts=1:2" (the shares; three parts, three colors), and no-three-in-a-row, unique-lines
+      const rules: RuleSpec[] = [];
+      let colors = 2;
+      for (const w of (genre === "colour-balance" ? o.rules ?? "" : "").split(",").map((x) => x.trim()).filter(Boolean)) {
+        const [k, v] = w.split("=");
+        if (k === "parts") { const parts = v.split(":").map(Number); colors = parts.length; rules.push({ rule: "line-shares", parts }); }
+        else rules.push({ rule: k });
+      }
+      const base: GridSpec = { genre, size: [rows, cols], ...(rules.length ? { rules } : {}), ...(colors !== 2 ? { style: { palette: BALANCE_COLORS.slice(0, colors) } } : {}), givens: [] };
+      const target = await randomBoard(base, "");
+      if (!target) continue;
+      const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "color", value: target.color[i] }));
+      result = await narrow(base, target, pool);
+    } else if (genre === "fill-in") {
+      // black squares (the same turned halfway round), random digits (no number starting with 0), the
+      // list read off them, smallest first; then printed digits if the list alone allows another way
+      const n = rows * cols, black = new Set<number>();
+      for (let i = 0; i < n; i++) { const j = n - 1 - i; if (j < i) break; if (rand() < 0.3) { black.add(i); black.add(j); } }
+      const givens: Given[] = [...black].sort((a, b) => a - b).map((i) => ({ at: "cell", cell: at(i), kind: "block" }));
+      const p0 = makePuzzle({ genre, size: [rows, cols], givens });
+      const slots = fillSlots(p0), inSlot = new Set(slots.flat()), white = Array.from({ length: n }, (_, i) => i).filter((i) => !black.has(i));
+      // every white square in a slot, numbers of 4 digits at most, and the white squares joined up
+      if (white.some((i) => !inSlot.has(i)) || slots.length < 4 || slots.some((s) => s.length > 4)) continue;
+      const seen = new Set([white[0]]), stack = [white[0]];
+      while (stack.length) for (const j of near4(stack.pop()!)) if (!black.has(j) && !seen.has(j)) { seen.add(j); stack.push(j); }
+      if (seen.size !== white.length) continue;
+      const lead = new Set(slots.map((s) => s[0])), target = emptyBoard(p0.grid);
+      for (const i of white) target.digit[i] = lead.has(i) ? 2 + Math.floor(rand() * 9) : 1 + Math.floor(rand() * 10);
+      const entries = slots.map((s) => s.map((i) => "0123456789"[target.digit[i] - 1]).join(""));
+      if (new Set(entries).size !== entries.length) continue;
+      entries.sort((a, b) => a.length - b.length || Number(a) - Number(b));
+      const pool: Given[] = white.map((i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
+      result = await narrow({ genre, size: [rows, cols], givens, entries }, target, pool);
     } else throw new Error(`no generator for genre "${genre}"`);
   }
   return result;

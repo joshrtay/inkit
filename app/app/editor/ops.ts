@@ -1,7 +1,7 @@
 // What the on-puzzle editor does to a puzzle, as plain functions: each takes a puzzle description
 // and returns the changed one (the same object when nothing changes). BoardEditor works out what
 // was touched and calls these; tests call them directly (tests/unit/ops.test.ts).
-import { genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
+import { BALANCE_COLORS, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
 import type { Symmetry } from "~site/engine/panel.ts";
 import { runsOf } from "~site/engine/rules.ts";
 import type { Given, GridSpec, LineColor, RuleSpec, Side, SymbolColor } from "~site/engine/types.ts";
@@ -374,4 +374,79 @@ export function eraseCorner(s: Spec, corner: RC): Spec {
   const gs = givensOf(s), sym = symmetryOf(s), mirror = sym ? mirrorCorner(s.size, corner, sym) : null;
   const paired = gs.filter((g) => g.at === "corner" && same(g.corner, corner) && (g.kind === "start" || g.kind === "end")).map((g) => g.kind);
   return withGivens(s, gs.filter((g) => !(g.at === "corner" && (same(g.corner, corner) || (mirror && same(g.corner, mirror) && paired.includes(g.kind))))));
+}
+
+// ---- an Akari cipher: letters for numbers ----
+
+/** A square's cipher letter (Akari: a letter standing for a number, on a black square), or none
+ *  (null). It replaces a number there; the square stays (or becomes) black. */
+export function setLetter(s: Spec, cell: RC, letter: string | null): Spec {
+  const l = letter?.trim().toUpperCase() ?? "";
+  if (!/^[A-Z]$/.test(l)) return setNumber(s, cell, null);
+  const next = setNumber(s, cell, 0);
+  return withGivens(next, givensOf(next).map((g) => (at(cell)(g) && g.kind === "number" ? { ...g, value: 0, letter: l } : g)));
+}
+
+// ---- paint on the grid (Binairo, Colour Balance) ----
+
+/** A printed color in a square (palette color 1..n); the same color again takes it off. */
+export function togglePaint(s: Spec, cell: RC, color: number): Spec {
+  const gs = givensOf(s), had = gs.some((g) => at(cell)(g) && g.kind === "color" && g.value === color);
+  return withGivens(s, [...gs.filter((g) => !at(cell)(g)), ...(had ? [] : [{ at: "cell", cell, kind: "color", value: color } as Given])]);
+}
+/** Colour Balance's shares: its own line-shares parts, else one each of its colors. */
+export function sharesOf(s: Spec): number[] {
+  const own = (s.rules ?? []).find((x) => x.rule === "line-shares")?.parts;
+  return Array.isArray(own) ? (own as number[]) : (s.style?.palette ?? (genres[s.genre as GenreName]?.style as { palette?: string[] } | undefined)?.palette ?? ["", ""]).map(() => 1);
+}
+/** Colour Balance's shares set, e.g. [1, 1] (half and half), [1, 2] (a third and two thirds), [1, 1, 1]
+ *  (a third each): the colors follow (two or three), and printed colors past them go. */
+export function setShares(s: Spec, parts: number[]): Spec {
+  const others = (s.rules ?? []).filter((x) => x.rule !== "line-shares");
+  const rules = parts.length === 2 && parts[0] === parts[1] ? others : [...others, { rule: "line-shares", parts }];
+  const { rules: _r, style, ...rest } = s;
+  const { palette: _p, ...otherStyle } = style ?? {};
+  const nextStyle = parts.length === 2 ? otherStyle : { ...otherStyle, palette: BALANCE_COLORS.slice(0, parts.length) };
+  const next: Spec = { ...rest, ...(rules.length ? { rules } : {}), ...(Object.keys(nextStyle).length ? { style: nextStyle } : {}) };
+  return withGivens(next, givensOf(s).filter((g) => g.kind !== "color" || g.value <= parts.length));
+}
+/** A rule with no settings (Colour Balance's no-three-in-a-row, unique-lines), on or off. */
+export const hasRule = (s: Spec, rule: string) => (s.rules ?? []).some((x) => x.rule === rule);
+export function toggleRule(s: Spec, rule: string): Spec {
+  const rules = hasRule(s, rule) ? (s.rules ?? []).filter((x) => x.rule !== rule) : [...(s.rules ?? []), { rule }];
+  const { rules: _r, ...rest } = s;
+  return rules.length ? { ...rest, rules } : rest;
+}
+
+// ---- a fill-in's list ----
+
+/** A fill-in's list as typed: numbers separated by spaces or commas (anything else is left out). */
+export function setEntries(s: Spec, text: string): Spec {
+  const entries = text.split(/[\s,;]+/).filter((x) => /^\d+$/.test(x));
+  const { entries: _e, ...rest } = s;
+  if (JSON.stringify(entries) === JSON.stringify(s.entries ?? [])) return s;
+  return entries.length ? { ...rest, entries } : rest;
+}
+/** A fill-in's list read off its grid, filled in as the answer (a digit typed in every white square):
+ *  every run of two or more white squares, across and down, shortest first; the typed digits go, so
+ *  the grid is ready to solve. The same puzzle if a white square is still empty. */
+export function listFromGrid(s: Spec): Spec {
+  const [rows, cols] = s.size, gs = givensOf(s);
+  const black = (r: number, c: number) => gs.some((g) => at([r, c])(g) && g.kind === "block");
+  const digit = (r: number, c: number) => { const g = gs.find((x) => at([r, c])(x) && x.kind === "number"); return g && g.kind === "number" ? "0123456789"[g.value - 1] ?? "" : ""; };
+  const out: string[] = [];
+  let missing = false;
+  const runs = (cells: RC[]) => {
+    let cur: RC[] = [];
+    for (const x of [...cells, null]) {
+      if (x && !black(...x)) { cur.push(x); continue; }
+      if (cur.length > 1) { const n = cur.map((y) => digit(...y)).join(""); if (n.length !== cur.length) missing = true; out.push(n); }
+      cur = [];
+    }
+  };
+  for (let r = 0; r < rows; r++) runs(Array.from({ length: cols }, (_, c): RC => [r, c]));
+  for (let c = 0; c < cols; c++) runs(Array.from({ length: rows }, (_, r): RC => [r, c]));
+  if (missing || !out.length) return s;
+  out.sort((a, b) => a.length - b.length || Number(a) - Number(b));
+  return withGivens({ ...s, entries: out }, gs.filter((g) => g.kind !== "number"));
 }

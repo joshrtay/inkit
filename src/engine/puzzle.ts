@@ -2,7 +2,7 @@
 // checking a whole board against every rule.
 import { figureGrid, squareGrid, type Grid } from "./geometry.ts";
 import { regionsOf, type Regions } from "./derive.ts";
-import { blockFor } from "./rules.ts";
+import { blockFor, sharesProblem } from "./rules.ts";
 import type { Board, Given, GridSpec, GridStyle, MarkKind, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 
 /** `solutions`: how many a published puzzle may have: exactly one (most types), or any number but
@@ -174,7 +174,32 @@ export const genres = {
     rules: [],
     style: { palette: ["#e2667a", "#4f9fdc", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
+  // Binairo (Takuzu): paint every cell one of two colors; each row and column is half and half, no
+  // three in a row are one color, and no two rows (or columns) are the same
+  binairo: {
+    marks: ["paint"],
+    rules: [{ rule: "line-shares" }, { rule: "no-three-in-a-row" }, { rule: "unique-lines" }],
+    style: { palette: ["#ef5a6a", "#3fb0e6"] },
+  },
+  // Colour Balance (our name): paint every cell one of 2 or 3 colors so each row and column has its
+  // share of each (a puzzle's own line-shares: half and half, a third each, a third and two thirds);
+  // a puzzle may add no-three-in-a-row or unique-lines. The palette is the colors (2 or 3).
+  "colour-balance": {
+    marks: ["paint"],
+    rules: [{ rule: "line-shares" }],
+    style: { palette: ["#3fb0e6", "#f7cf3d"] },
+  },
+  // Number Fill-In: black cells, and across and down slots of 2 or more white cells; every number on
+  // the list goes into one slot. Digits 0-9 are the symbols 1-10.
+  "fill-in": {
+    marks: ["digit"],
+    rules: [{ rule: "fill-in" }],
+    style: { symbols: "0123456789" },
+  },
 } satisfies Record<string, Genre>;
+
+/** The colors a Colour Balance puzzle can use (its palette is the first 2 or 3). */
+export const BALANCE_COLORS = ["#3fb0e6", "#f7cf3d", "#ef5a6a"];
 
 /** Must a puzzle of this genre have exactly one solution (most), or just one or more (panels)? */
 export const needsOneSolution = (genre: string | undefined) => (genre ? (genres as Record<string, Genre>)[genre]?.solutions : undefined) !== "some";
@@ -207,6 +232,8 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
       push(cellGivens, grid.cell(...g.cell), g);
       if (g.kind === "block") blocked.add(grid.cell(...g.cell));
       if (g.kind === "palisade" && (!Number.isInteger(g.value) || g.value < 0 || g.value > 4)) throw new Error(`a palisade mark shows 0 to 4 borders (cell ${g.cell[0]},${g.cell[1]} has ${g.value})`);
+      if (g.kind === "color" && (!Number.isInteger(g.value) || g.value < 1)) throw new Error(`a printed color is a palette color, 1 or more (cell ${g.cell[0]},${g.cell[1]} has ${g.value})`);
+      if (g.kind === "number" && g.letter !== undefined && !/^[A-Z]$/.test(g.letter)) throw new Error(`a cipher letter is one capital letter (cell ${g.cell[0]},${g.cell[1]} has "${g.letter}")`);
     } else if (g.at === "border") {
       const e = grid.borderBetween(grid.cell(...g.cells[0]), grid.cell(...g.cells[1]));
       if (e < 0) throw new Error(`a ${g.kind} mark needs two neighbouring cells`);
@@ -263,12 +290,25 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
     const starts = givens.filter((x) => x.kind === "start").length, ends = givens.filter((x) => x.kind === "end").length;
     if (starts < lines || ends < lines) throw new Error(lines === 2 ? "a symmetry panel needs two start circles and two ends" : "a panel needs a start circle and an end");
   }
+  const style: GridStyle = { ...genre?.style, ...spec.style };
+  // a fill-in's digits are its symbols (0-9); its list is written in them
+  const fillIn = rules.some((s) => s.rule === "fill-in");
+  const symbols = style.symbols ?? "0123456789";
+  const entries = (spec.entries ?? []).map((e) => [...String(e)].map((ch) => {
+    const d = symbols.indexOf(ch);
+    if (d < 0) throw new Error(`"${e}" on the list can't be written with ${symbols}`);
+    return d + 1;
+  }));
+  if (!unfinished) for (const s of rules) if (s.rule === "line-shares") {
+    const problem = sharesProblem(s, style, grid.rows, grid.cols);
+    if (problem) throw new Error(problem);
+  }
   return {
     spec, grid, cellGivens, borderGivens, cornerGivens, lineGivens, gaps, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
-    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? spec.size[1],
+    digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? (fillIn ? symbols.length : spec.size[1]),
     blanks: rules.some((s) => s.rule === "letters"), edgeClues, thermos, galaxies,
     bank, areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
-    style: { ...genre?.style, ...spec.style },
+    style, entries,
   };
 }
 
@@ -344,6 +384,11 @@ export function check(p: Puzzle, b: Board): Problem[] {
   if (p.marks.includes("digit")) {
     const changed = [...p.cellGivens].filter(([i, gs]) => gs.some((g) => g.kind === "number" && b.digit[i] !== g.value)).map(([i]) => i);
     if (changed.length) out.push({ message: "The printed digits can't change.", cells: changed });
+  }
+  // a paint puzzle's printed colors stay as printed
+  if (p.marks.includes("paint")) {
+    const changed = [...p.cellGivens].filter(([i, gs]) => gs.some((g) => g.kind === "color" && b.color[i] !== g.value)).map(([i]) => i);
+    if (changed.length) out.push({ message: "The printed colors can't change.", cells: changed });
   }
   // a region puzzle's given walls are borders drawn already: different regions on either side
   if (p.marks.includes("regions") && p.walls.size) {

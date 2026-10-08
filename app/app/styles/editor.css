@@ -93,6 +93,10 @@
 
 .be-color { cursor: pointer; }
 .be-color .be-pot { display: inline-block; }
+/* Binairo, Colour Balance: the color printed in a square; a fill-in's list of numbers */
+.be-paint .be-pot { display: block; width: 20px; height: 20px; cursor: inherit; }
+.be-list label { display: inline-flex; align-items: center; gap: .4rem; }
+.be-list input { width: 14rem; max-width: 60vw; }
 
 /* panels: a color or shape to place, drawn as it will look (panel-draw.ts symbols) */
 .be-swatches, .be-shapes { gap: 3px; }

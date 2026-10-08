@@ -30,5 +30,9 @@ export const KIND_NAMES: Record<GenreName, string> = {
   coats: "Three Coats",
   // line panels in the style of The Witness (src/engine/panel.ts)
   panel: "Panel",
+  binairo: "Binairo",
+  // our name: each row and column holds its share of each color
+  "colour-balance": "Colour Balance",
+  "fill-in": "Number Fill-In",
 };
 export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;

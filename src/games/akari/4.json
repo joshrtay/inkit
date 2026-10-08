@@ -1,0 +1,177 @@
+{
+  "type": "grid",
+  "name": "Letters in the Dark",
+  "meta": "7 × 7",
+  "grid": {
+    "size": [
+      7,
+      7
+    ],
+    "givens": [
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          6,
+          6
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          6
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          2
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          4
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          3
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          4,
+          3
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          0
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          6
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          3
+        ],
+        "kind": "block"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          0,
+          0
+        ],
+        "kind": "number",
+        "value": 0,
+        "letter": "A"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          0
+        ],
+        "kind": "number",
+        "value": 0,
+        "letter": "C"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          5,
+          4
+        ],
+        "kind": "number",
+        "value": 0,
+        "letter": "B"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          2
+        ],
+        "kind": "number",
+        "value": 0,
+        "letter": "B"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          6
+        ],
+        "kind": "number",
+        "value": 0,
+        "letter": "D"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          2,
+          3
+        ],
+        "kind": "number",
+        "value": 0,
+        "letter": "C"
+      }
+    ]
+  }
+}
