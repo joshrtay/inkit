@@ -168,3 +168,24 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
 .ge-inline { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 400; }
 .ge-marks { border: 0; padding: 0; margin: 0; display: grid; gap: 4px; }
 .ge-marks legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
+
+/* the confirm dialog (components/ConfirmDialog.tsx), in place of the browser's confirm() and
+   prompt(): a panel like the menus (shell.css .menu), centred; a sheet at a phone's foot */
+.confirm {
+  padding: 0; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px var(--shadow);
+}
+.confirm::backdrop { background: color-mix(in srgb, #000 45%, transparent); }
+.confirm-box { display: grid; gap: 12px; padding: 20px 22px 18px; font: 400 15px/1.45 var(--body); }
+.confirm h2 { margin: 0; font: 800 19px/1.25 var(--body); }
+.confirm-body { color: var(--muted); }
+.confirm-body p { margin: 0; }
+.confirm-field { display: grid; gap: 6px; font-weight: 700; font-size: 14px; }
+.confirm-field textarea { width: 100%; font-size: 16px; resize: vertical; }
+.confirm-acts { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.btn.primary.danger { background: var(--red); border-color: var(--red); color: var(--panel); }
+.btn.primary.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--red) 85%, var(--ink)); }
+@media (max-width: 520px) {
+  .confirm { width: calc(100vw - 24px); margin: auto auto max(12px, env(safe-area-inset-bottom)); }
+  .confirm-acts .btn { flex: 1; padding-block: 12px; }
+}

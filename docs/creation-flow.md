@@ -29,6 +29,21 @@ The owner's answers to the first draft's open questions (October 2026):
 6. **Not designed for kids.** No kid-specific modes, wording or gates (the first draft's §1.10 is
    gone). Plain, specific wording is for everyone.
 7. **RYB (Three Coats) waits.** It stays on `FigureEditor` until every grid type is in paint.
+8. **A published puzzle can't be changed, only deleted** (October 2026: "for now, we should
+   probably make it impossible to change a published puzzle. maybe just a red delete"). Paint, the
+   publish page and RYB's editor are for drafts only: a published puzzle's `/draw`, `/publish` and
+   `/edit` go to its page, which has no Edit, and the server refuses every change to it
+   (`canChange` in `permissions.server.ts`: only a draft). Its author's one action is a red
+   **Delete** on the game page, asked in the site's confirm dialog (`components/ConfirmDialog.tsx`);
+   there's no Back to draft. The … menu is moderation only: Take down (with a note, asked in the
+   same dialog), Restore and Featured, for owners and admins. Delete is a **soft delete**: the game's
+   state becomes `deleted` (beside draft, published and hidden), which nobody can undo from the
+   site. The row stays, so the solves and likes that point at it break nothing, but every list
+   shows only published games (profile, feeds, Featured, Explore's counts, the sitemap), its page
+   answers 410 ("This puzzle was deleted"), its editors and photo 404, and it leaves the Featured
+   shelf. Chosen over a hard delete because there wasn't one, and the reads log, solves, likes and
+   Featured all refer to the game: a hard delete would need to cascade through them and lose the
+   reader's record. Only its author (while a member) or an admin can delete (`canDelete`).
 
 ## 1. Screens
 
@@ -213,12 +228,10 @@ the client can't publish a sketch that wasn't checked. After publishing the page
 - Opening a draft restores undo history only for this browser session (history isn't stored).
 - Two tabs on one draft: last write wins; the losing tab shows "Changed elsewhere: reload".
 
-### 1.11 Editing a published puzzle
-**Edit** on `/g/<id>` opens paint with the saved drawing; games published before this have none,
-so `toDrawing(spec)` makes one (and it's saved on the first change). The published puzzle doesn't
-change while you draw: Publish says **Update**, and goes to the same game page with **Update** in
-the publish bar; the update needs a passing verdict. Solves and likes stay (as today). Changing the
-type of a published puzzle is allowed but warned ("Players' progress on it will reset").
+### 1.11 A published puzzle
+It can't be changed, only deleted (decision 8). Its page has no Edit; its author gets a red
+**Delete**, which asks first in the confirm dialog. (Update, the publish page's update mode, was
+built in phase 6 and removed.)
 
 ### 1.12 Phones (screen 8)
 The sketchpad's phone layout as it is (paper on top; status, options and tools stacked at the
@@ -512,21 +525,18 @@ Risks:
   honoured only in development), so no test calls Claude.
 
 ### As built (phase 6)
-- **Every type but RYB is edited in paint**, drafts and published puzzles alike. Edit (the game page,
+- **Every type but RYB is edited in paint**, drafts only (decision 8). Edit (a draft's game page,
   the Drafts tab, /new's drafts, the AI creators' drafts an admin reviews) goes to `/g/<id>/draw`
   (`editPath` in `games/kinds.ts`); RYB to `/g/<id>/edit`, which sends every other type to paint.
   `/new/draw` redirects to `/new`.
 - **A puzzle made before paint** (no `games.drawing`) is drawn from its sketch (`paintFromSketch`:
   the whole parsed sketch, so rules on its first line, marks and hearts come too) and saved as its
-  drawing at once. A published puzzle's drawing is its next version: saving it never touches the
-  live sketch; the top bar says "Not live until you update" when they differ (`specKey`, the
-  normalised puzzle as one string).
-- **Update**: paint's Publish says Update and opens the publish page in update mode: Update in place
-  of Publish, the title and description going live with it (not saved before), "its N solves and
-  its likes stay", and a warning when the type changes. The server converts the saved drawing again;
-  `putSketch` (shared with RYB's editor) needs the browser's hash whenever the sketch is new to
-  players and leaves solves and likes alone. A game taken down can be drawn but not updated.
-- **The old editor's … menu** (Back to draft, Take down, Restore, Featured) is on the game page.
+  drawing at once.
+- **Update** (a published puzzle's drawing as its next version, put live from the publish page in
+  update mode) was built here, then removed by decision 8: a published puzzle is locked, and its
+  author can only delete it.
+- **The old editor's … menu** is on the game page, moderation only (Take down, Restore, Featured);
+  Back to draft is gone.
   **Tell Claude what's wrong** is in This puzzle's photo section: the re-read replaces the drawing
   (paint starts again from it).
 - **Parity** (`parity.spec.ts`, every example; `paint-tools.spec.ts`): all 37 types round-trip in the

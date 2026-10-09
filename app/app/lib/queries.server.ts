@@ -1,5 +1,5 @@
 // Reading games and collections for pages (permission checks are in permissions.server.ts).
-import { and, count, desc, eq, inArray, isNull, like, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
 import { schema, type Db } from "../db";
 
 /** A game card: the game plus its collection and author, for lists. */
@@ -29,9 +29,9 @@ export const featuredGames = (db: Db) => db.select(cardColumns).from(schema.feat
 
 export const newestGames = (db: Db, limit = 24) => cards(db).where(live).orderBy(desc(schema.games.publishedAt)).limit(limit);
 
-/** A collection's games, newest first (drafts and hidden games only if `all`). */
+/** A collection's games, newest first (drafts and hidden games only if `all`; deleted ones never). */
 export const collectionGames = (db: Db, collectionId: string, all: boolean) => cards(db)
-  .where(all ? eq(schema.games.collectionId, collectionId) : and(eq(schema.games.collectionId, collectionId), eq(schema.games.state, "published")))
+  .where(all ? and(eq(schema.games.collectionId, collectionId), ne(schema.games.state, "deleted")) : and(eq(schema.games.collectionId, collectionId), eq(schema.games.state, "published")))
   .orderBy(desc(schema.games.updatedAt));
 
 /** Someone's latest drafts, anywhere they've made them (not an AI creator's scheduled posts): /new's "Carry on with a draft". */

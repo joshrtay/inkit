@@ -5,8 +5,9 @@
 // the left margin and Claude's doubts in the right, as a checklist pinned to their cells. Undo and
 // Reset sit in the bottom-left corner.
 //
-// Drafts save themselves as you go; a published game changes only when you press Update (and only
-// to a puzzle with one solution). The pieces are edited in FigureEditor.
+// Only drafts: they save themselves as you go, and publish once they have one solution. A published
+// puzzle can't be changed (routes/game-edit.tsx sends it to its page, where its author can delete
+// it). The pieces are edited in FigureEditor.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Form, Link, useFetcher } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
@@ -19,13 +20,13 @@ import { passed, useLiveCheck } from "./useOneSolutionCheck";
 import { Select } from "./Select";
 import { ReadingScreen } from "./ReadingScreen";
 import { PreviewScreen } from "./PreviewScreen";
+import { useConfirm } from "./ConfirmDialog";
 
-export interface EditorGame {
-  id: string; title: string; description: string; sketch: string; state: "draft" | "published" | "hidden"; hiddenNote: string | null;
-}
-export interface EditorRights { edit: boolean; hide: boolean; takeDown: boolean; feature: boolean }
+/** A draft (a published puzzle never opens here). */
+export interface EditorGame { id: string; title: string; description: string; sketch: string }
+export interface EditorRights { edit: boolean }
 
-export function GameEditor({ game, reading, drawing, doubts, choices, may, featured, backTo, error }: {
+export function GameEditor({ game, reading, drawing, doubts, choices, may, backTo, error }: {
   game: EditorGame;
   /** Claude's latest reading of the drawing (what Reset goes back to) */
   reading: string | null;
@@ -35,14 +36,13 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   /** the game types Claude thought the drawing could be, best first */
   choices: string[];
   may: EditorRights;
-  featured: boolean;
   backTo: string;
   error?: string;
 }) {
   const saver = useFetcher<{ error?: string; done?: string }>();
   const reader = useFetcher<{ error?: string; done?: string }>();
   const ticker = useFetcher();
-  const isDraft = game.state === "draft";
+  const { confirm } = useConfirm();
 
   // the working copy, with undo
   const [sketch, setSketchNow] = useState(game.sketch);
@@ -79,19 +79,18 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   // drafts save themselves a moment after each change
   const unsaved = sketch !== game.sketch || title !== game.title || description !== game.description;
   useEffect(() => {
-    if (!isDraft || !unsaved || !may.edit || !loose) return;   // a draft saves even unfinished
+    if (!unsaved || !may.edit || !loose) return;   // a draft saves even unfinished
     const t = setTimeout(() => {
       saver.submit({ intent: "save", stay: "1", sketch, title: title.trim() || "Untitled", description }, { method: "post" });
     }, 1200);
     return () => clearTimeout(t);
-  }, [sketch, title, description, isDraft]); // eslint-disable-line react-hooks/exhaustive-deps
-  const saveStatus = !isDraft ? (unsaved ? "Not updated yet" : game.state === "hidden" ? "Taken down" : "Published")
-    : saver.state !== "idle" ? "Saving…" : saver.data?.error ? "Couldn't save" : unsaved ? (loose ? "Unsaved" : "Can't save yet") : "Saved";
+  }, [sketch, title, description]); // eslint-disable-line react-hooks/exhaustive-deps
+  const saveStatus = saver.state !== "idle" ? "Saving…" : saver.data?.error ? "Couldn't save" : unsaved ? (loose ? "Unsaved" : "Can't save yet") : "Saved";
 
   // cmd/ctrl-Z undoes
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { setPanel(null); setMenu(false); }
+      if (e.key === "Escape") setPanel(null);
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key === "z" && !(e.target as Element).closest("input, textarea")) { e.preventDefault(); undo(); }
     };
     addEventListener("keydown", onKey);
@@ -108,15 +107,17 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   const open = doubts.filter((_, i) => !ticked[i]).length;
 
   const [panel, setPanel] = useState<"preview" | "publish" | "drawing" | null>(null);
-  const [menu, setMenu] = useState(false);
-  const hasMore = game.state === "published" ? may.edit || may.takeDown || may.feature : game.state === "hidden" && may.hide;
   const rereading = reader.state !== "idle";
   const rereadKind = rereading ? String(reader.formData?.get("kind") ?? "") : "";
   const problem = saver.data?.error || reader.data?.error || error;
 
-  const changeType = (kind: string) => {
-    if (!drawing || !isDraft) return false;
-    const ok = confirm(`Read your drawing again as ${kindName(kind)}?\n\nClaude looks at it again, told which type it is. This takes up to a minute and replaces the puzzle here.`);
+  const changeType = async (kind: string) => {
+    if (!drawing) return false;
+    const ok = await confirm({
+      title: `Read your drawing again as ${kindName(kind)}?`,
+      body: <p>Claude looks at it again, told which type it is. This takes up to a minute and replaces the puzzle here.</p>,
+      action: "Read it again",
+    });
     if (ok) reader.submit({ intent: "reread", kind }, { method: "post" });
     return ok;
   };
@@ -126,7 +127,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
       <header className="studio-top">
         <div className="studio-left">
           <Link className="studio-back" to={backTo} aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
-          <span className={`save-pill${saveStatus === "Saved" || saveStatus === "Published" ? " ok" : ""}`} aria-live="polite">{saveStatus}</span>
+          <span className={`save-pill${saveStatus === "Saved" ? " ok" : ""}`} aria-live="polite">{saveStatus}</span>
         </div>
         <div className="studio-actions">
           {/* a status, not a button (except that "more than one" can point out where) */}
@@ -134,48 +135,22 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
             {passed(check.state) ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
           </span>
           <button type="button" className="btn" disabled={!play} onClick={() => setPanel("preview")}>Preview</button>
-          {may.edit && (isDraft
-            ? <button type="button" className="btn primary" onClick={() => setPanel("publish")}>Publish</button>
-            : game.state === "published" && <button type="button" className="btn primary" disabled={!unsaved} onClick={() => setPanel("publish")}>Update</button>)}
-          {hasMore && <div className="studio-more">
-            <button type="button" className="btn icon" aria-label="More" aria-expanded={menu} onClick={() => setMenu(!menu)}>⋯</button>
-            {menu && (
-              <div className="menu" role="menu">
-                {may.edit && game.state === "published" && (
-                  <Form method="post"><button role="menuitem" name="intent" value="unpublish">Back to draft</button></Form>
-                )}
-                {may.takeDown && game.state === "published" && (
-                  <Form method="post" onSubmit={(e) => {
-                    const note = prompt("Why is it being taken down? Its author sees this note.");
-                    if (!note) { e.preventDefault(); return; }
-                    (e.currentTarget.elements.namedItem("note") as HTMLInputElement).value = note;
-                  }}><input type="hidden" name="note" /><button role="menuitem" name="intent" value="hide">Take down…</button></Form>
-                )}
-                {may.hide && game.state === "hidden" && (
-                  <Form method="post"><button role="menuitem" name="intent" value="unhide">Restore</button></Form>
-                )}
-                {may.feature && game.state === "published" && (
-                  <Form method="post"><button role="menuitem" name="intent" value={featured ? "unfeature" : "feature"}>{featured ? "Remove from Featured" : "Add to Featured"}</button></Form>
-                )}
-              </div>
-            )}
-          </div>}
+          {may.edit && <button type="button" className="btn primary" onClick={() => setPanel("publish")}>Publish</button>}
         </div>
       </header>
       <div className="studio-tools">
         <div className="studio-type">
-          {genre && drawing && isDraft && may.edit ? (
+          {genre && drawing && may.edit ? (
             <Select key={genre} name="kind" label="Puzzle type" defaultValue={genre} disabled={rereading}
               options={typeOptions(choices, genre)} onChange={changeType} />
           ) : <strong>{genre ? kindName(genre) : "Puzzle"}</strong>}
         </div>
       </div>
 
-      {game.state === "hidden" && <p className="studio-banner">Taken down: {game.hiddenNote}</p>}
       {problem && <p className="studio-banner error" role="alert">{problem}</p>}
       {rereading && <ReadingScreen image={`/g/${game.id}/sketch`} as={rereadKind ? kindName(rereadKind) : undefined} />}
 
-      <main className={`studio-canvas${drawing ? " with-drawing" : ""}${doubts.length || (drawing && isDraft) ? " with-doubts" : ""}`}>
+      <main className={`studio-canvas${drawing ? " with-drawing" : ""}${doubts.length || drawing ? " with-doubts" : ""}`}>
         {drawing && (
           <button type="button" className="drawing-thumb" onClick={() => setPanel("drawing")} aria-label="Your drawing (enlarge)">
             <img src={`/g/${game.id}/sketch`} alt="" />
@@ -199,7 +174,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
           )}
         </div>
 
-        {(doubts.length > 0 || (drawing && isDraft && may.edit)) && (
+        {(doubts.length > 0 || (drawing && may.edit)) && (
           <aside className="doubts" aria-label="Claude wasn't sure about">
             {doubts.length > 0 && (
               <>
@@ -216,21 +191,25 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
                 </ul>
               </>
             )}
-            {drawing && isDraft && may.edit && <TellClaude reader={reader} />}
+            {drawing && may.edit && <TellClaude reader={reader} />}
           </aside>
         )}
       </main>
 
       <div className="studio-corner">
         <button type="button" className="btn" disabled={!history.length} onClick={undo} title="Undo (⌘Z)">↶ Undo</button>
-        <button type="button" className="btn" disabled={sketch === resetTo} onClick={() => {
-          if (confirm(reading ? "Go back to Claude's reading? You can undo this." : "Go back to how the puzzle was when you opened it? You can undo this.")) setSketch(resetTo);
+        <button type="button" className="btn" disabled={sketch === resetTo} onClick={async () => {
+          const ok = await confirm({
+            title: reading ? "Go back to Claude's reading?" : "Go back to how the puzzle was when you opened it?",
+            body: <p>You can undo this.</p>, action: "Reset",
+          });
+          if (ok) setSketch(resetTo);
         }}>Reset</button>
       </div>
 
       {panel === "preview" && (
         <PreviewScreen gameId={game.id} sketch={sketch} title={title} description={description}
-          onClose={() => setPanel(null)} onPublish={may.edit && (isDraft || unsaved) ? () => setPanel("publish") : undefined} publishLabel={isDraft ? "Publish" : "Update"} />
+          onClose={() => setPanel(null)} onPublish={may.edit ? () => setPanel("publish") : undefined} publishLabel="Publish" />
       )}
 
       {panel && panel !== "preview" && (
@@ -241,7 +220,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
             {panel === "drawing" && <img className="drawing-full" src={`/g/${game.id}/sketch`} alt="Your hand-drawn sketch" />}
             {panel === "publish" && (
               <Form method="post" className="form">
-                <h2>{isDraft ? "Publish" : "Update"}</h2>
+                <h2>Publish</h2>
                 <input type="hidden" name="sketch" value={sketch} />
                 <input type="hidden" name="checked" value={check.hash} />
                 <input type="hidden" name="title" value={title.trim()} />
@@ -249,10 +228,11 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
                 <p className="publish-what"><strong>{title.trim() || "Untitled"}</strong>{description && <span className="muted">{description}</span>}</p>
                 {!title.trim() && <p className="error">Give it a title first (at the top of the page).</p>}
                 {!passed(check.state) && <p className="error">{check.state === "checking" ? "Still checking its solutions…" : `It needs ${needsOneSolution(loose?.genre) ? "exactly one solution" : "a solution"} first (${check.state === "broken" ? check.text : check.text.toLowerCase()}).`}</p>}
+                <p className="muted">Once it&rsquo;s published, it can&rsquo;t be changed.</p>
                 {open > 0 && <p className="muted">{open === 1 ? "One of Claude's doubts isn't" : `${open} of Claude's doubts aren't`} checked yet.</p>}
                 <div className="editor-actions">
-                  <button className="btn primary" name="intent" value="publish" disabled={!passed(check.state) || !title.trim()}>{isDraft ? "Publish" : "Update"}</button>
-                  {isDraft && <><input type="hidden" name="stay" value="1" /><button className="btn" name="intent" value="save">Save draft</button></>}
+                  <button className="btn primary" name="intent" value="publish" disabled={!passed(check.state) || !title.trim()}>Publish</button>
+                  <input type="hidden" name="stay" value="1" /><button className="btn" name="intent" value="save">Save draft</button>
                 </div>
               </Form>
             )}

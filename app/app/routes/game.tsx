@@ -1,11 +1,11 @@
 // A game's permanent page: inkit.games/g/<id>.
-import { data } from "react-router";
+import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { canEdit, canHide, canView, roleIn } from "~/lib/permissions.server";
+import { canChange, canDelete, canHide, canView, roleIn } from "~/lib/permissions.server";
 import { parseSketch } from "~/games/sketch";
 import { editPath, kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
@@ -17,18 +17,25 @@ import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
 import { changeGame, isFeatured } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 
-/** The game's … menu (back to draft, take down, restore, feature): changeGame checks who may. */
-const MANAGE = new Set(["unpublish", "hide", "unhide", "feature", "unfeature"]);
+/** The game's … menu (take down, restore, feature: moderation) and Delete; changeGame checks who may. */
+const MANAGE = new Set(["hide", "unhide", "feature", "unfeature", "delete"]);
 export async function action({ params, request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const me = await currentCreator(env, request);
   if (!me) signInFirst(request);
   const db = getDb(env);
   const game = await db.query.games.findFirst({ where: eq(schema.games.id, params.id) });
-  if (!game) throw data(null, { status: 404 });
+  if (!game || game.state === "deleted") throw data(null, { status: 404 });
   const form = await request.formData();
-  if (!MANAGE.has(String(form.get("intent")))) throw data(null, { status: 400 });
-  return attempt(async () => { await changeGame(db, me, game, form); return { error: undefined }; });
+  const intent = String(form.get("intent"));
+  if (!MANAGE.has(intent)) throw data(null, { status: 400 });
+  return attempt(async () => {
+    await changeGame(db, me, game, form);
+    if (intent !== "delete") return { error: undefined };
+    // deleted: back to the profile it was on
+    const collection = await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
+    return redirect(collection ? `/${collection.slug}` : "/");
+  });
 }
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -36,6 +43,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const db = getDb(env);
   const game = await db.query.games.findFirst({ where: eq(schema.games.id, params.id) });
   if (!game) throw data(null, { status: 404 });
+  // deleted by its creator: gone for everyone (410, so search engines drop it)
+  if (game.state === "deleted") throw data(null, { status: 410 });
   const [collection, author, viewer] = await Promise.all([
     db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) }),
     db.query.creators.findFirst({ where: eq(schema.creators.id, game.authorId) }),
@@ -57,10 +66,11 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     // a puzzle that lists its own rules (Panes; a 2-star Star Battle) shows them above its type's guide
     extra: parsed.ok && parsed.spec.rules?.length ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
-    // Edit opens paint (RYB: its figure editor); the rest of what the old editor's … menu did is here
-    editTo: canEdit(game, viewer, role) ? editPath(game) : null,
+    // a draft's Edit opens paint (RYB: its figure editor); a published puzzle can't be changed
+    editTo: canChange(game, viewer, role) ? editPath(game) : null,
+    // its author's one action on it (or an admin's): Delete, after the confirm dialog
+    canDelete: canDelete(game, viewer, role),
     manage: {
-      unpublish: canEdit(game, viewer, role) && game.state === "published",
       takeDown: canHide(viewer, role) && game.authorId !== viewer?.id && game.state === "published",
       restore: canHide(viewer, role) && game.state === "hidden",
       feature: !!viewer?.isAdmin && game.state === "published",

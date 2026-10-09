@@ -5,9 +5,10 @@ import { useEffect, useId, useRef, useState } from "react";
 
 export interface Option { value: string; label: string; hint?: string }
 
-/** `onChange` runs before a new choice takes; returning false keeps the old one. */
+/** `onChange` runs before a new choice takes; returning false (or a promise of false: a confirm
+ *  dialog's answer) keeps the old one. */
 export function Select({ name, options, defaultValue, label, onChange, disabled = false }: {
-  name: string; options: Option[]; defaultValue?: string; label: string; onChange?: (value: string) => boolean | void; disabled?: boolean;
+  name: string; options: Option[]; defaultValue?: string; label: string; onChange?: (value: string) => boolean | void | Promise<boolean | void>; disabled?: boolean;
 }) {
   const [value, setValue] = useState(defaultValue ?? options[0]?.value ?? "");
   const [open, setOpen] = useState(false);
@@ -31,7 +32,13 @@ export function Select({ name, options, defaultValue, label, onChange, disabled 
     </div>
   );
 
-  const pick = (v: string) => { setOpen(false); if (v !== value && onChange?.(v) !== false) setValue(v); };
+  const pick = (v: string) => {
+    setOpen(false);
+    if (v === value) return;
+    const ok = onChange?.(v);
+    if (ok instanceof Promise) void ok.then((yes) => { if (yes !== false) setValue(v); });
+    else if (ok !== false) setValue(v);
+  };
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") { setOpen(false); return; }
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {

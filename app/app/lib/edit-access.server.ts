@@ -1,10 +1,12 @@
 // Who may open a game's editor (and its preview): its author while a member, the collection's
-// owners, and those who can take it down. Everyone else gets a 404, as if it didn't exist.
+// owners, and those who can take it down. Everyone else gets a 404, as if it didn't exist; a
+// deleted game is gone for everyone. `may.edit` is for a draft only: a published puzzle is locked
+// (its editors send it to its page).
 import { data } from "react-router";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "./auth.server";
-import { canEdit, canHide, roleIn } from "./permissions.server";
+import { canChange, canEdit, canHide, roleIn } from "./permissions.server";
 import { signInFirst } from "./http.server";
 
 export async function editAccess(request: Request, env: Env, id: string) {
@@ -12,11 +14,11 @@ export async function editAccess(request: Request, env: Env, id: string) {
   if (!me) signInFirst(request);
   const db = getDb(env);
   const game = await db.query.games.findFirst({ where: eq(schema.games.id, id) });
-  if (!game) throw data(null, { status: 404 });
+  if (!game || game.state === "deleted") throw data(null, { status: 404 });
   const role = await roleIn(db, game.collectionId, me.id);
   // taking down is moderation: a collection owner or admin hiding someone else's published game,
-  // with a note its author sees (your own game you'd just move back to draft)
-  const may = { edit: canEdit(game, me, role), hide: canHide(me, role), takeDown: canHide(me, role) && game.authorId !== me.id, feature: me.isAdmin };
-  if (!may.edit && !may.hide) throw data(null, { status: 404 });
+  // with a note its author sees (your own game you'd delete)
+  const may = { edit: canChange(game, me, role), own: canEdit(game, me, role), hide: canHide(me, role), takeDown: canHide(me, role) && game.authorId !== me.id, feature: me.isAdmin };
+  if (!may.own && !may.hide) throw data(null, { status: 404 });
   return { db, env, me, game, may };
 }

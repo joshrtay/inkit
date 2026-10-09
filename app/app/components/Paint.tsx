@@ -15,9 +15,8 @@
 //   doubts, then the rules as a checklist with each broken one's problems and its settings on it,
 //   the solution line, Your drawing, the solution) and Types (search, What type is this?, the list,
 //   each type's guide). It collapses to a strip; on a phone it's a bottom sheet.
-// - drafts save themselves (games.drawing; this browser's copy until the server has it). A published
-//   game's drawing saves the same way, as its next version: the live puzzle changes only on Update
-//   (the publish page in update mode), so the top bar says when they differ.
+// - drafts save themselves (games.drawing; this browser's copy until the server has it). Only drafts:
+//   a published puzzle can't be changed (routes/game-draw.tsx sends it to its page).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useFetcher, useNavigate } from "react-router";
 import { genres, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
@@ -28,7 +27,7 @@ import { kindName } from "~/games/kinds";
 import type { PaintSave } from "~/games/paint-save";
 import * as m from "~/sketchpad/model";
 import { kitFor } from "~/sketchpad/kit";
-import { areasOf, convert, specKey, withAreas, type Settings } from "~/sketchpad/to-puzzle";
+import { areasOf, convert, withAreas, type Settings } from "~/sketchpad/to-puzzle";
 import { checkList, differences, doubtHighlight, highlight, marksSvg, passes, solutionSvg, verdictOf, verdictStory, verdictWords, type CheckItem } from "~/sketchpad/check";
 import { checklist, type ChecklistLine, type RuleLine } from "~/sketchpad/checklist";
 import { doubtPlace, type Doubt } from "~/games/doubts";
@@ -63,12 +62,10 @@ const letter = (i: number) => String.fromCharCode(65 + (i % 26));
 const DRAWER_KEY = "inkit:paint-drawer";
 const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
 
-export function Paint({ game, saved, fresh = false, live = null, backTo, admin = false, photo = null, choices = [], opened = false, ruleLines = {} }: {
-  game: { id: string; title: string; state?: string };
+export function Paint({ game, saved, fresh = false, backTo, admin = false, photo = null, choices = [], opened = false, ruleLines = {} }: {
+  game: { id: string; title: string };
   /** the drawing was made from the game's sketch just now (a game from before paint): it's saved at once */
   fresh?: boolean;
-  /** a published game: its live puzzle (normalSpec, as JSON), which the drawing changes only on Update */
-  live?: string | null;
   /** each type's rules in its guide's words (src/guides/guides.ts), for This puzzle's checklist */
   ruleLines?: Record<string, RuleLine[]>;
   saved: PaintSave | null;
@@ -228,7 +225,6 @@ export function Paint({ game, saved, fresh = false, live = null, backTo, admin =
   const publish = () => {
     if (!genre) { needType(); return; }
     if (!passes(verdict)) { check(); return; }
-    if (game.state === "hidden") return;
     if (dirty && saver.state === "idle") save();
     setPublishing(true);
   };
@@ -236,10 +232,6 @@ export function Paint({ game, saved, fresh = false, live = null, backTo, admin =
     if (publishing && !dirty && saver.state === "idle") navigate(`/g/${game.id}/publish`);
     if (publishing && failed) setPublishing(false);
   }, [publishing, dirty, saver.state]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ---- a published game: is the drawing still the live puzzle? ----
-  const isLive = !!game.state && game.state !== "draft";
-  const changed = useMemo(() => live !== null && !!conv?.spec && specKey(conv.spec) !== live, [key, live]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- the photo, and what Claude wasn't sure of (amber, lettered) ----
   const [doubtSel, setDoubtSel] = useState<number | null>(null);
@@ -337,7 +329,7 @@ export function Paint({ game, saved, fresh = false, live = null, backTo, admin =
           </li>
         ))}</ol>
       ) : <p className="paint-quiet">Claude read everything clearly.</p>}
-      {!isLive && <TellClaude reader={reader} onSend={() => { try { localStorage.removeItem(bufferKey(game.id)); } catch { /* none kept */ } }} />}
+      <TellClaude reader={reader} onSend={() => { try { localStorage.removeItem(bufferKey(game.id)); } catch { /* none kept */ } }} />
     </section>
   );
   const thisPuzzle = (
@@ -441,7 +433,6 @@ export function Paint({ game, saved, fresh = false, live = null, backTo, admin =
           <Link className="studio-back" to={backTo} aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
           <span className="paint-title" title={title || "Untitled"}>{title || "Untitled"}</span>
           <span className={`paint-saved${saveState === "Saved" ? " ok" : failed ? " bad" : ""}`} aria-live="polite">{saveState}</span>
-          {changed && <span className="paint-live" title="Players still see the published puzzle: Update to change it">Not live until you update</span>}
           <button key={hops} type="button" className={`paint-type${genre ? "" : " unset"}${hops ? " bounce" : ""}${reminder && !genre ? " ringed" : ""}`}
             aria-expanded={drawer.open && drawer.tab === "types"} aria-controls="paint-tabpanel" onClick={() => { setAbout(null); openDrawer("types"); }}>
             <span className="paint-type-label">Type:</span><span className="paint-type-name">{genre ? typeName : "Not set"}</span>
@@ -454,9 +445,8 @@ export function Paint({ game, saved, fresh = false, live = null, backTo, admin =
           <button type="button" className={`paint-verdict-btn ${tone}`} aria-disabled={!genre || undefined} aria-pressed={drawer.open && drawer.tab === "puzzle"} onClick={check}
             data-verdict={verdict.kind} title={genre ? "This puzzle: its rules, and whether it has one solution" : "Choose a type first"}>
             <span className="paint-verdict-mark" aria-hidden="true">{mark || "✓"}</span>{words.text}</button>
-          <button type="button" className="btn primary paint-publish" aria-disabled={!passes(verdict) || game.state === "hidden" || undefined} aria-busy={publishing || undefined} onClick={publish}
-            title={game.state === "hidden" ? "It's taken down" : !genre ? "Choose a type first" : passes(verdict) ? (isLive ? "Play it, and update the published puzzle" : "Name it, play it, and publish it")
-              : `${isLive ? "Updating" : "Publishing"} needs the verdict to pass`}>{isLive ? "Update" : "Publish"}</button>
+          <button type="button" className="btn primary paint-publish" aria-disabled={!passes(verdict) || undefined} aria-busy={publishing || undefined} onClick={publish}
+            title={!genre ? "Choose a type first" : passes(verdict) ? "Name it, play it, and publish it" : "Publishing needs the verdict to pass"}>Publish</button>
         </div>
       </header>
       {ready && (

@@ -45,7 +45,7 @@ export default function Privacy() {
 
       <h2>Your choices</h2>
       <ul>
-        <li>You can change your name and profile, unpublish or take down your puzzles, and unsubscribe from anyone at any time.</li>
+        <li>You can change your name and profile, delete your puzzles, and unsubscribe from anyone at any time.</li>
         <li>To get a copy of your information or delete your account, email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. Deleting an account removes your sign-in details and drafts; puzzles you published are taken offline.</li>
         <li>Clearing your browser&rsquo;s site data removes the progress saved there.</li>
       </ul>

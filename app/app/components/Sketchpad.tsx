@@ -30,6 +30,7 @@ import { colourAllowed, TOOL_ORDER, type Kit, type Look } from "~/sketchpad/kit"
 import { paintAreas } from "~/sketchpad/to-puzzle";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
 import { SpIcon, type SpIconName } from "./SketchpadIcons";
+import { useConfirm } from "./ConfirmDialog";
 import "~site/game-types/grid/styles.css";
 
 type Tool = Kit["tools"][number];
@@ -202,6 +203,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const [zoom, setZoom] = useState(1);
   const [fit, setFit] = useState<number | null>(null);   // the paper's width that fits the workspace
   const [menu, setMenu] = useState(false);       // the … menu
+  const { confirm } = useConfirm();
   const [mod, setMod] = useState("Ctrl+");
   const toolButtons = useRef<(HTMLButtonElement | null)[]>([]);
   const svg = useRef<SVGSVGElement>(null);
@@ -701,7 +703,11 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
         {menu && (
           <span className="sp-menu" role="menu" aria-label="More">
             <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid}
-              onClick={() => { setMenu(false); if (confirm("Clear the page? (Undo brings it back.)")) { setTyping(null); edit(m.clear); } }}><SpIcon name="clear" />Clear the page</button>
+              onClick={async () => {
+                const ask = confirm({ title: "Clear the page?", body: <p>Everything on it goes. Undo brings it back.</p>, action: "Clear", danger: true });
+                setMenu(false);
+                if (await ask) { setTyping(null); edit(m.clear); }
+              }}><SpIcon name="clear" />Clear the page</button>
             <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid} onClick={() => void download()}><SpIcon name="download" />Download a picture</button>
           </span>
         )}

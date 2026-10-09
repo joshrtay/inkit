@@ -13,7 +13,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const db = getDb(env);
   const game = await db.query.games.findFirst({ where: eq(schema.games.id, params.id) });
   const collection = game && await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
-  if (!game?.sketchImage || !collection) throw data(null, { status: 404 });
+  if (!game?.sketchImage || !collection || game.state === "deleted") throw data(null, { status: 404 });
   const viewer = await currentCreator(env, request);
   const role = await roleIn(db, collection.id, viewer?.id);
   if (!canView(game, collection, viewer, role) && !canEdit(game, viewer, role) && !canHide(viewer, role)) throw data(null, { status: 404 });

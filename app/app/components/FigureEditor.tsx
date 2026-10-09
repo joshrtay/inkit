@@ -5,6 +5,7 @@
 // Pieces sharing part of an edge are neighbours (src/engine/geometry.ts, figureGrid).
 import { useRef, useState } from "react";
 import type { Given, GridSpec } from "~site/engine/types.ts";
+import { useConfirm } from "./ConfirmDialog";
 
 type Pt = [number, number];
 const DEFAULT_PALETTE = ["#ef5a6a", "#f7cf3d", "#3fb0e6"];
@@ -21,6 +22,7 @@ export function FigureEditor({ spec, set }: { spec: GridSpec; set: (patch: Parti
   const pieces = spec.figure?.pieces ?? [];
   const givens = spec.givens ?? [];
   const palette = spec.style?.palette?.length ? spec.style.palette : DEFAULT_PALETTE;
+  const { confirm } = useConfirm();
   const [tool, setTool] = useState<"select" | "draw" | "move">("select");
   const [sel, setSel] = useState(-1);
   const [drawing, setDrawing] = useState<Pt[]>([]);
@@ -99,7 +101,9 @@ export function FigureEditor({ spec, set }: { spec: GridSpec; set: (patch: Parti
           <button type="button" aria-pressed={tool === "move"} onClick={() => { setTool("move"); setDrawing([]); setSel(-1); }}>Move corners</button>
         </span>
         <span className="ge-tools">
-          <button type="button" onClick={() => { if (confirm("Replace the figure with a 3 × 3 grid of squares?")) { setPieces(squaresFigure(3, 3), []); setSel(-1); } }}>Start from squares</button>
+          <button type="button" onClick={async () => {
+            if (await confirm({ title: "Start from squares?", body: <p>The figure is replaced with a 3 &times; 3 grid of squares.</p>, action: "Replace it", danger: true })) { setPieces(squaresFigure(3, 3), []); setSel(-1); }
+          }}>Start from squares</button>
         </span>
       </div>
       <p className="hint">

@@ -7,6 +7,9 @@
 //  - A personal collection can't be deleted and has no other members.
 //  - When someone leaves, they lose edit access, but their games stay with the collection and keep their credit.
 //  - Admins can hide any game, and put any game on the Featured shelf.
+//  - A published puzzle can't be changed, only deleted (docs/creation-flow.md, decision 8): only a
+//    draft is edited. Its author (or an admin) can delete it; deleting is for good, and a deleted
+//    game is gone for everyone (a soft delete: the row stays, so its solves and likes break nothing).
 import { and, eq } from "drizzle-orm";
 import { schema, type Db } from "../db";
 import type { Role } from "../db/schema";
@@ -29,6 +32,7 @@ export async function roleIn(db: Db, collectionId: string, creatorId: string | u
 
 /** Can this person see the game? (null = signed out) */
 export function canView(game: Game, collection: Collection, viewer: Creator | null, role: Role | null) {
+  if (game.state === "deleted") return false;
   if (game.state === "published" && !collection.deletedAt) return true;
   if (!viewer) return false;
   if (viewer.isAdmin) return true;
@@ -37,13 +41,24 @@ export function canView(game: Game, collection: Collection, viewer: Creator | nu
 }
 
 /** Can this person edit the game? Its author, while still a member, or the collection's owners. */
-export function canEdit(game: Game, viewer: Creator | null, role: Role | null) {
-  if (!viewer || !role) return false;
+export function canEdit(game: Pick<Game, "authorId" | "state">, viewer: Pick<Creator, "id"> | null, role: Role | null) {
+  if (!viewer || !role || game.state === "deleted") return false;
   return role === "owner" || game.authorId === viewer.id;
 }
 
+/** Can this person change the puzzle itself (paint, RYB's editor, the publish page)? Only a draft,
+ *  by those who can edit it: a published puzzle (or one taken down) is locked. */
+export const canChange = (game: Pick<Game, "authorId" | "state">, viewer: Pick<Creator, "id"> | null, role: Role | null) =>
+  game.state === "draft" && canEdit(game, viewer, role);
+
+/** Can this person delete the game? Its author (while a member), or an admin. Not undone. */
+export function canDelete(game: Pick<Game, "authorId" | "state">, viewer: Pick<Creator, "id" | "isAdmin"> | null, role: Role | null) {
+  if (!viewer || game.state === "deleted") return false;
+  return viewer.isAdmin || (game.authorId === viewer.id && !!role);
+}
+
 /** Can this person take the game down (hide it)? The collection's owners, and admins. */
-export const canHide = (viewer: Creator | null, role: Role | null) => !!viewer && (viewer.isAdmin || role === "owner");
+export const canHide = (viewer: Pick<Creator, "isAdmin"> | null, role: Role | null) => !!viewer && (viewer.isAdmin || role === "owner");
 
 /** Can this person publish into the collection? Any member. */
 export const canPublishInto = (role: Role | null) => role === "owner" || role === "contributor";

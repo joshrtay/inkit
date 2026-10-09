@@ -1,4 +1,5 @@
-// Making and changing games: create, save, publish, back to draft, take down, restore, feature.
+// Making and changing games: create, save, publish, take down, restore, feature, delete. Only a
+// draft is changed: a published puzzle is locked, and its author's one action is Delete.
 // Every change re-checks permissions (permissions.server.ts) and re-parses the sketch here on
 // the server. Publishing also needs the editor's one-solution check (count-solutions.client.ts) to
 // have passed for this exact sketch: the form sends the sketch's hash, which the browser only
@@ -8,7 +9,7 @@ import { eq } from "drizzle-orm";
 import { schema, type Db } from "../db";
 import { looseSpec, parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
-import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
+import { canChange, canDelete, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
 import { cropTo, prepare } from "./photos.server";
 import { givenReading, IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
 import { notePublished, recordRead } from "./reads.server";
@@ -66,42 +67,46 @@ async function validated(f: Fields, publishing: boolean, draft = false): Promise
   return parsed;
 }
 
-/** A game's new sketch, title and description: saved (a draft, even unfinished), published, or a
- *  published game updated. Both editors come here (RYB's figure editor, and paint's publish page
- *  through publishDrawing), so the rules live in one place: publishing needs the browser's
- *  one-solution check for this very sketch (the `checked` hash), and a published game stays
- *  published only if its new sketch passes the check too. Solves and likes belong to the game, not
- *  its sketch, so an update keeps them. */
+/** A draft's new sketch, title and description: saved (even unfinished) or published. Both editors
+ *  come here (RYB's figure editor, and paint's publish page through publishDrawing), so the rules
+ *  live in one place: only a draft changes (a published puzzle is locked), and publishing needs the
+ *  browser's one-solution check for this very sketch (the `checked` hash). */
 async function putSketch(db: Db, game: Game, f: Fields, publish: boolean) {
-  const publishing = publish || (game.state === "published" && f.sketch !== game.sketch);
-  const parsed = await validated(f, publishing, game.state === "draft");
-  const firstPublish = publish && game.state !== "published" && !game.publishedAt;
+  if (game.state !== "draft") throw new Forbidden(LOCKED);
+  const parsed = await validated(f, publish, true);
+  const firstPublish = publish && !game.publishedAt;
   await db.update(schema.games).set({
     title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind, updatedAt: new Date(),
     // (publishing by hand takes a scheduled draft off the AI creators' queue: app/lib/ai.server.ts)
-    ...(publish && game.state !== "published" ? { state: "published" as const, publishedAt: game.publishedAt ?? new Date(), publishAt: null } : {}),
+    ...(publish ? { state: "published" as const, publishedAt: game.publishedAt ?? new Date(), publishAt: null } : {}),
   }).where(eq(schema.games.id, game.id));
   // how far the published puzzle is from what Claude read (app/lib/reads.server.ts)
   if (firstPublish && game.sketchImage) await notePublished(db, game.id, f.sketch);
 }
 
-/** The editor's buttons: save, publish, back to draft, take down, restore, feature. */
+/** Why a change to a published puzzle is refused. */
+export const LOCKED = "A published puzzle can't be changed, only deleted.";
+
+/** The editors' and the game page's buttons: save, publish, take down, restore, feature, delete. */
 export async function changeGame(db: Db, me: Creator, game: Game, form: FormData) {
   const intent = String(form.get("intent"));
   const role = await roleIn(db, game.collectionId, me.id);
+  if (game.state === "deleted") throw new Forbidden("This puzzle was deleted.");
+  // editing: only a draft, by its author or the collection's owners
+  const mayChange = () => { if (!canChange(game, me, role)) throw new Forbidden(game.state === "draft" ? "You can't edit this game." : LOCKED); };
   const set = (values: Partial<Game>) =>
     db.update(schema.games).set({ ...values, updatedAt: new Date() }).where(eq(schema.games.id, game.id));
 
   switch (intent) {
     case "save":
     case "publish": {
-      if (!canEdit(game, me, role)) throw new Forbidden("You can't edit this game.");
+      mayChange();
       await putSketch(db, game, fieldsFrom(form), intent === "publish");
       return;
     }
     case "doubt": {
       // tick off (or untick) one of Claude's doubts
-      if (!canEdit(game, me, role)) throw new Forbidden("You can't edit this game.");
+      mayChange();
       const doubts = doubtsOf(game.parseNotes);
       const i = Number(form.get("index"));
       if (!doubts[i]) return;
@@ -109,10 +114,8 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
       await set({ parseNotes: doubts });
       return;
     }
-    case "unpublish":
-      if (!canEdit(game, me, role)) throw new Forbidden("You can't edit this game.");
-      if (game.state !== "published") return;
-      await set({ state: "draft", publishAt: null });
+    case "delete":
+      await deleteGame(db, me, game, role);
       return;
     case "hide": {
       if (!canHide(me, role)) throw new Forbidden("Only the collection's owners and admins can take a game down.");
@@ -141,6 +144,16 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
     default:
       throw new Invalid("Unknown action.");
   }
+}
+
+/** Delete a game (its author while a member, or an admin): for good, as far as anyone can tell. A
+ *  soft delete: the row stays (state "deleted"), so the solves and likes that point at it break
+ *  nothing, but every page treats it as gone (lists show only published games; its page says it
+ *  was deleted). Nobody can undo it from the site. It comes off the Featured shelf. */
+export async function deleteGame(db: Db, me: Creator, game: Game, role: Awaited<ReturnType<typeof roleIn>>) {
+  if (!canDelete(game, me, role)) throw new Forbidden("Only its author can delete this puzzle.");
+  await db.update(schema.games).set({ state: "deleted", publishAt: null, updatedAt: new Date() }).where(eq(schema.games.id, game.id));
+  await db.delete(schema.featured).where(eq(schema.featured.gameId, game.id));
 }
 
 export const isFeatured = async (db: Db, gameId: string) =>
@@ -212,8 +225,7 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
 
 /** Read the drawing again, with the creator's corrections. */
 export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, form: FormData) {
-  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
-  if (game.state !== "draft") throw new Invalid("Move the game back to draft before re-reading its sketch.");
+  await mayChange(db, me, game);
   const feedback = String(form.get("feedback") ?? "").trim().slice(0, 2000);
   // the creator can also say which game type it is (then it's read again as that type)
   const kind = String(form.get("kind") ?? "");
@@ -257,19 +269,19 @@ const doubtsFrom = (reading: Reading, sketch: string): Doubt[] => [
 
 // ---- paint: a draft drawn in the browser (/g/<id>/draw) ----
 
+/** Only a draft changes, by those who can edit it (permissions.server.ts's canChange). */
+async function mayChange(db: Db, me: Creator, game: Game) {
+  if (!canChange(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden(game.state === "draft" ? "You can't edit this game." : LOCKED);
+}
+
 /** Save paint's drawing (docs/creation-flow.md §1.10): the drawing, its type and settings as they
- *  are, and for a draft the sketch converted from them here (never sent: the drawing is the source
- *  of truth). A draft saves unfinished: no type, no grid, or a puzzle that doesn't solve yet. A
- *  published game's drawing is its next version: saved without touching the live puzzle, which
- *  changes only on Update (publishDrawing). */
+ *  are, and the sketch converted from them here (never sent: the drawing is the source of truth).
+ *  A draft saves unfinished: no type, no grid, or a puzzle that doesn't solve yet. Only a draft:
+ *  a published puzzle can't be changed. */
 export async function saveDrawing(db: Db, me: Creator, game: Game, form: FormData) {
-  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
+  await mayChange(db, me, game);
   const save = readPaintSave(String(form.get("drawing") ?? ""));
   if (!save) throw new Invalid("That drawing couldn't be read.");
-  if (game.state !== "draft") {
-    await db.update(schema.games).set({ drawing: save }).where(eq(schema.games.id, game.id));
-    return;
-  }
   const { sketch, kind } = sketchOf(save);
   const title = String(form.get("title") ?? "").trim().slice(0, 120) || "Untitled";
   await db.update(schema.games).set({
@@ -277,26 +289,22 @@ export async function saveDrawing(db: Db, me: Creator, game: Game, form: FormDat
   }).where(eq(schema.games.id, game.id));
 }
 
-/** The publish page's title and description (/g/<id>/publish), saved as they change. A published
- *  game's are changed with Update instead. */
+/** The publish page's title and description (/g/<id>/publish), saved as they change (a draft's). */
 export async function saveDetails(db: Db, me: Creator, game: Game, form: FormData) {
-  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
-  if (game.state !== "draft") throw new Invalid("A published puzzle's title changes when you update it.");
+  await mayChange(db, me, game);
   const f = fieldsFrom(form);
   await db.update(schema.games).set({ title: f.title || "Untitled", description: f.description, updatedAt: new Date() }).where(eq(schema.games.id, game.id));
 }
 
-/** Publish a draft drawn in paint (docs/creation-flow.md §1.9), or update a published game from its
- *  drawing (§1.11). The sketch is converted again here from the saved drawing, never taken from the
- *  page, and goes through putSketch, as the old editor's publish and update did: it must be the
- *  very sketch the browser's solver passed (the `checked` hash: exactly one solution; a panel, at
- *  least one) whenever it's new to players. */
+/** Publish a draft drawn in paint (docs/creation-flow.md §1.9). The sketch is converted again here
+ *  from the saved drawing, never taken from the page, and goes through putSketch, as RYB's editor's
+ *  publish does: it must be the very sketch the browser's solver passed (the `checked` hash:
+ *  exactly one solution; a panel, at least one). Once published, it's locked. */
 export async function publishDrawing(db: Db, me: Creator, game: Game, form: FormData) {
-  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
-  if (game.state === "hidden") throw new Invalid("It's taken down, so it can't be updated.");
+  await mayChange(db, me, game);
   const save = readPaintSave(game.drawing);
   if (!save?.genre) throw new Invalid("Choose its puzzle type in paint first.");
   const { sketch, conversion } = sketchOf(save);
   if (!sketch || !conversion?.spec) throw new Invalid("Draw its grid in paint first.");
-  await putSketch(db, game, { ...fieldsFrom(form), sketch }, game.state === "draft");
+  await putSketch(db, game, { ...fieldsFrom(form), sketch }, true);
 }

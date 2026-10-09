@@ -1,9 +1,9 @@
 // Draw a puzzle in paint: inkit.games/g/<id>/draw (docs/creation-flow.md). The drawing is the
 // puzzle: components/Paint.tsx, with its type, This puzzle's checklist and autosave. A page of its
-// own. Every game its author can edit, but RYB (its figure editor, /g/<id>/edit): a draft, or a
-// published game, whose drawing saves as its next version while the live puzzle stays as it is
-// until Update (the publish page). A game made before paint (or a draft read from a photo) has no
-// drawing yet: its sketch is drawn in ink (paintFromSketch) and saved as its drawing.
+// own. Every draft its author can edit, but RYB's (its figure editor, /g/<id>/edit). A published
+// puzzle can't be changed, only deleted: it goes to its page. A draft made before paint (or read
+// from a photo) has no drawing yet: its sketch is drawn in ink (paintFromSketch) and saved as its
+// drawing.
 import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game-draw";
@@ -15,8 +15,6 @@ import { attempt } from "~/lib/http.server";
 import { Paint } from "~/components/Paint";
 import { paintFromSketch, readPaintSave } from "~/games/paint-save";
 import { doubtsOf } from "~/games/doubts";
-import { parseSketch } from "~/games/sketch";
-import { specKey } from "~/sketchpad/to-puzzle";
 import { guides } from "~site/guides/guides.ts";
 
 /** Each type's rules in its guide's words, for This puzzle's checklist (text only: the pictures stay here). */
@@ -31,20 +29,19 @@ export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Draw ${lo
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
+  // a published puzzle (or one taken down) is locked: its page, where its author can delete it
+  if (game.state !== "draft") throw redirect(`/g/${game.id}`);
   if (!may.edit) throw data(null, { status: 404 });
   if (game.kind === "coats") throw redirect(`/g/${game.id}/edit`);
   const collection = await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
   const drawn = readPaintSave(game.drawing);
   const saved = drawn ?? paintFromSketch(game.sketch);
-  const live = game.state !== "draft" ? parseSketch(game.sketch, game.sketchVersion) : null;
   const choices = (game.kindChoices ?? []).filter(Boolean);
   return {
-    game: { id: game.id, title: game.title, state: game.state },
+    game: { id: game.id, title: game.title },
     saved,
     // drawn from its sketch just now: saved as its drawing straight away
     fresh: !drawn && !!saved,
-    // a published game: the puzzle players have now, to say whether the drawing differs from it
-    live: live?.ok ? specKey(live.spec) : live ? "" : null,
     // a photo's: the photo, what Claude wasn't sure of, and the types it thought it could be
     photo: game.sketchImage ? {
       src: `/g/${game.id}/sketch?k=${encodeURIComponent(game.sketchImage.slice(-12))}`,
@@ -56,7 +53,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     reading: game.sketchImage && game.reading ? stamp(game.reading) : "",
     opened: new URL(request.url).searchParams.has("read"),
     admin: may.feature,
-    backTo: game.state === "draft" && collection ? `/${collection.slug}?tab=drafts` : `/g/${game.id}`,
+    backTo: collection ? `/${collection.slug}?tab=drafts` : "/new",
     ruleLines: RULE_LINES,
   };
 }
@@ -76,7 +73,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   });
 }
 
-export default function DrawGame({ loaderData: { game, saved, fresh, live, admin, backTo, photo, choices, opened, ruleLines, reading } }: Route.ComponentProps) {
+export default function DrawGame({ loaderData: { game, saved, fresh, admin, backTo, photo, choices, opened, ruleLines, reading } }: Route.ComponentProps) {
   // a new reading of the photo starts paint again, from it
-  return <Paint key={`${game.id}:${reading}`} game={game} saved={saved} fresh={fresh} live={live} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} />;
+  return <Paint key={`${game.id}:${reading}`} game={game} saved={saved} fresh={fresh} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} />;
 }

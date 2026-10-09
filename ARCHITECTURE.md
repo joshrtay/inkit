@@ -29,7 +29,8 @@ site an npm workspace, so one `npm install` in the root installs both.
 **The model** (`app/db/schema.ts`, Drizzle on D1): *creators* (handle, name, admin), *collections*
 (every creator has a personal one at their handle; studios exist but are set aside for now),
 *memberships*, *games* (a permanent `/g/<id>`, the sketch that is their "code", draft / published /
-hidden, Claude's latest reading and doubts), *subscriptions*, *likes*, *solves* (a signed-in
+hidden / deleted, Claude's latest reading and doubts; only a draft can be changed, and a published
+one only deleted, a soft delete that hides it everywhere), *subscriptions*, *likes*, *solves* (a signed-in
 player's, not the author's own: a check on the puzzle's card, counts on puzzles and profiles), and
 the *Featured* shelf.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
@@ -69,7 +70,7 @@ Publish; the type, the title and description, the figure edited in `components/F
 photo in the left margin and Claude's doubts in the right. Every other type's `/edit` goes to paint.
 
 **Paint** (`/g/<id>/draw`, `components/Paint.tsx`; [docs/creation-flow.md](docs/creation-flow.md), "v3 layout"): the
-editor for every type but RYB, drafts and published puzzles alike: a puzzle drawn in the sketchpad
+editor for every type but RYB, for drafts only (a published puzzle can't be changed): a puzzle drawn in the sketchpad
 with a puzzle type. The drawing (`games.drawing`, with its type and
 rule settings) is the source of truth; `sketchpad/to-puzzle.ts` converts it into the sketch on
 every save. Each part of the screen answers one question. The top bar: back, the title (a label),
@@ -89,11 +90,13 @@ before paint, the first time it's opened. Types with areas also paint them (the 
 squares into an area and redraws its borders). Publish goes to `/g/<id>/publish` (`routes/game-publish.tsx`), still
 in paint's top bar: the title and description edited in place on the dark page above the board, and
 the real player on the paper (saving nothing, recording no solve); the server converts the drawing
-again and publishes only the sketch the browser's solver passed. A published puzzle edited in paint
-keeps its live sketch while the drawing saves as its next version ("Not live until you update");
-Publish says **Update**, and the same page in update mode puts it live, keeping its solves and likes
-(the old editor's rules, shared in `games.server.ts`'s `putSketch`). The game page's … menu holds
-Back to draft, Take down, Restore and Featured. Published pages show the drawing as a "Drawn by"
+again and publishes only the sketch the browser's solver passed (`games.server.ts`'s `putSketch`,
+shared with RYB's editor). **A published puzzle can't be changed, only deleted**
+([docs/creation-flow.md](docs/creation-flow.md), decision 8): its `/draw`, `/publish` and `/edit`
+go to its page, which has no Edit; its author gets a red Delete (a soft delete: state `deleted`),
+and the … menu holds moderation only: Take down, Restore and Featured. Confirmations and the
+take-down note use the site's dialog (`components/ConfirmDialog.tsx`, `useConfirm()`), never the
+browser's `confirm()` or `prompt()`. Published pages show the drawing as a "Drawn by"
 thumbnail (`sketchpad/picture.ts`).
 
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser

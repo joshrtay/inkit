@@ -5,6 +5,7 @@ import "./site.css";
 import { cloudflareContext } from "./lib/context";
 import { currentCreator } from "./lib/auth.server";
 import { SideNav, TabBar } from "./components/Shell";
+import { ConfirmProvider } from "./components/ConfirmDialog";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -55,13 +56,16 @@ export default function App() {
   const bare = matches.some((m) => (m.handle as { bare?: boolean } | undefined)?.bare);
   // the editor's preview of a game page: the site's frame, but its nav goes nowhere
   const preview = matches.some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
-  if (bare) return <Outlet />;
+  // the site's confirm dialog (components/ConfirmDialog.tsx: useConfirm), for every page
+  if (bare) return <ConfirmProvider><Outlet /></ConfirmProvider>;
   return (
-    <div className="shell">
-      <div className="nav-wrap" inert={preview || undefined}><SideNav me={me} /></div>
-      <div className="page"><Outlet /></div>
-      <div className="nav-wrap" inert={preview || undefined}><TabBar me={me} /></div>
-    </div>
+    <ConfirmProvider>
+      <div className="shell">
+        <div className="nav-wrap" inert={preview || undefined}><SideNav me={me} /></div>
+        <div className="page"><Outlet /></div>
+        <div className="nav-wrap" inert={preview || undefined}><TabBar me={me} /></div>
+      </div>
+    </ConfirmProvider>
   );
 }
 
@@ -69,8 +73,9 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Something went wrong";
   let details = "Please try again.";
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "Not found" : `Error ${error.status}`;
-    details = error.status === 404 ? "There's nothing at this address." : error.statusText || details;
+    message = error.status === 404 ? "Not found" : error.status === 410 ? "Deleted" : `Error ${error.status}`;
+    // 410: a puzzle its creator deleted (routes/game.tsx)
+    details = error.status === 404 ? "There's nothing at this address." : error.status === 410 ? "This puzzle was deleted by its creator." : error.statusText || details;
   } else if (import.meta.env.DEV && error instanceof Error) {
     details = error.message;
   }

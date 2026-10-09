@@ -100,7 +100,9 @@ export const memberships = sqliteTable("memberships", {
 }, (t) => [primaryKey({ columns: [t.collectionId, t.creatorId] }), index("memberships_creator").on(t.creatorId)]);
 
 // ---- games ----
-export const GAME_STATES = ["draft", "published", "hidden"] as const;
+/** draft → published (locked: it can't be changed, only deleted); hidden = taken down by an owner or
+ *  admin; deleted = deleted by its author or an admin, gone for everyone (a soft delete, not undone). */
+export const GAME_STATES = ["draft", "published", "hidden", "deleted"] as const;
 export type GameState = (typeof GAME_STATES)[number];
 
 export const games = sqliteTable("games", {
