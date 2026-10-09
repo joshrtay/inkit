@@ -288,26 +288,44 @@ is edited on the paper or in the panel and both show the same thing.
 
 ## 4. The converter
 
-`app/app/sketchpad/convert.ts`, pure and unit-tested:
+**Built (phase 1):** `app/app/sketchpad/to-puzzle.ts`, pure and unit-tested
+(`tests/unit/to-puzzle.test.ts`):
 
 ```ts
-convert(d: Drawing, genre: GenreName, settings: RuleSettings):
-  { spec: GridSpec | null; used: Set<number>; problems: Problem[] }   // Problem: { item ids, kind, text, fixes }
+convert(d: Drawing, genre: GenreName, settings?: Settings): { spec: GridSpec | null; used: Set<number>; problems: Problem[] }
+// Settings = Pick<GridSpec, "rules" | "style" | "marks" | "hearts">: the Rules and Look panels, copied into the spec as they are
+// Problem  = { kind, text, items: number[] (item ids: the mark's anchor), cells?: [row, col][] }
+// kind: off-type | off-grid | ambiguous | grid | unsupported | incomplete | rule
+ruleHints(puzzle): { text, cells }[]      // clue-vs-clue clashes ("Two 5s in row 6")
+breaksRules(problems): boolean            // any "rule" problem: the verdict says No solution
+normalSpec(spec): GridSpec                // one form for comparing puzzles
+PROFILES: Record<GenreName, Profile | null>   // null: RYB, not in paint yet ("unsupported")
+READERS: Record<Part, Reader | null>          // Part = Given["kind"] | areas | entries | picture | box-lines | major-lines
 ```
 
-It runs on every change in the browser (fast: a pass over items), and on the server at save and
-publish. `toDrawing` (from-puzzle.ts) is its inverse.
+Both tables are typed against the engine's lists, so a new genre or clue kind fails
+`npm --prefix app run typecheck` until it has a profile or a reader. `spec` is null only with no
+grid or for RYB; otherwise it's always made, with what doesn't fit left out and flagged. The
+engine's `makePuzzle` errors become `incomplete` problems (a maze's second door), and rule hints
+become `rule` problems pointing at the clues' items and squares. Fixes ("make these pearls") are
+not in phase 1; they come with the validation UI (phase 3).
+
+It runs on every change in the browser (fast: a pass over items per reader), and on the server at
+save and publish. `toDrawing` (from-puzzle.ts) is its inverse.
 
 ### 4.1 Steps
-1. **Grid**: the grid's rows, columns and look → `size` (and `geometry` for hex / lattice).
-   No grid → no puzzle (RYB excepted).
+1. **Grid**: the grid's rows and columns → `size`; the type sets the geometry (hexagons, a
+   lattice), and a grid drawn in another look is a `grid` problem. No grid → no puzzle.
 2. **Place** each item by its anchor (cell, corner, edge, inset, ring outside the grid, loose,
-   page). Loose and page items are snapped if they're within 0.25 of a square of a place the type
-   uses; otherwise they're "not on the grid".
-3. **Map** each item through the type's **profile** (4.3) to a given, a setting, or a problem.
-4. **Lines** (pen and straight) are resolved per type (4.2).
-5. **Areas** from bold borders (flood fill) for types with areas.
-6. `makePuzzle(spec)` and the engine's checks; given-vs-given conflicts become rule hints.
+   page). Loose and page items count as on a square's centre, a corner or a line's middle within
+   0.25 of a square of it.
+3. **Read**: each part the profile lists has a reader that takes the items it understands, in one
+   fixed order (`READ_ORDER`: a door's arrow before walls, a sudoku's box lines before areas,
+   numbers before symbols). Lines are resolved first (4.2) and readers take their parts.
+4. **Areas** from the borders left (flood fill), for types with areas.
+5. **What's left**: writing above the grid is the title (ignored, not a problem); anything else is
+   `off-type` (on the grid, not this type's) or `off-grid`.
+6. `makePuzzle(spec)` and the rule hints (4.6).
 
 ### 4.2 Resolving pen lines
 Resample each stroke every ⅙ square and classify it by what it follows:
@@ -322,13 +340,30 @@ Resample each stroke every ⅙ square and classify it by what it follows:
 | none of these | "this line isn't on the grid" |
 
 A stroke that mixes (half on lines, half across squares) is split at the change and each part
-classified; a part under 1 square long is ignored as a slip. Weight matters only where the type
+classified; in a mixed stroke a part under ¾ square is ignored as a slip. A sample within 0.15 of
+a grid line is on it; a stretch on a line shorter than ¾ square between stretches across squares is
+a crossing (a thermometer turning at a corner), and a short wobble off a line between two
+stretches on it is still on it. Lines on a hexagon grid aren't read.
+
+As built: walls are any weight; areas take what box lines leave (so Sudoku: medium on the box
+lines = box lines, which the boxes setting decides and which are flagged when they're elsewhere;
+anything else along the lines = drawn areas). A nonogram's heavier line every 5 is consumed. A
+thermometer's bulb is a stone at either end (no stone, or one at both ends, is `ambiguous`); a
+border that closes nothing off is `ambiguous`; a door is a shaft from the middle of an outside
+square's side straight out, with its head (short strokes) at the tip, and without a head it's
+`ambiguous`. A stroke used in part is in `used`, and its other parts are still flagged. Weight matters only where the type
 uses two (Sudoku: medium = box lines, bold = drawn areas). Snap is on by default, so most strokes
 are already corner to corner.
 
 ### 4.3 Profiles: drawing item → clue kind
-One profile per genre, typed `Record<Exclude<GenreName, never>, Profile>` so a new genre fails the
-type check until it has one (the CLAUDE.md rule, moved from `BoardEditor`'s `TOOLS` to here).
+One profile per genre, typed `Record<GenreName, Profile | null>` so a new genre fails the type
+check until it has one (the CLAUDE.md rule, moved from `BoardEditor`'s `TOOLS` to here). As built,
+a profile is the list of parts it reads (clue kinds and `areas`, `entries`, `picture`, `box-lines`,
+`major-lines`), the grid look, and what to say about lines it has no use for. Panel reads stones
+as squares in their colour, crests as stars (orange when uncoloured); Panes reads a coloured stone
+as a rose, a ★ stamp or non-numeric writing as a symbol; Twins and Triplets reads its tiles from
+stone / crest / triangle stamps in red, yellow or blue (the `tiles` setting decides which exist);
+Abstract Art and Binary Puzzle read a wash by its colour's name against the palette.
 
 | Drawing item | Clue kind | Types |
 |---|---|---|
@@ -360,18 +395,36 @@ Text, Eraser. Panel: Grid, Stamp, Eraser. Star Battle: Grid, Pen, Eraser. Masyu:
 Eraser. Nonogram: Grid, Wash, Text, Eraser. RYB: Line, Stamp, Eraser.
 
 ### 4.5 Tests
-- **Round trip, puzzle side**: for every example (`src/games/*/*.json`) and the synthetic specs in
-  `sketchpad-coverage.test.ts`: `convert(toDrawing(spec)).spec` equals `spec` (normalised:
-  givens sorted, defaults dropped). This replaces `EXPECTED_GAPS`' role: each gap left is a failing
-  type until fixed.
-- **Round trip, drawing side**: for drawings made only of canonical items, `toDrawing(convert(d))`
-  has the same items (ids and order aside).
-- **Line resolution**: hand-written strokes (wobbly, overshooting, mixed) per row of 4.2.
-- **Problems**: one test per problem kind and per fix ("make it 3 triangles" yields a triangle).
+- **Round trip, puzzle side** (built): for every example (`src/games/*/*.json`, RYB aside) and
+  synthetic specs for clue kinds no example uses, `convert(toDrawing(spec), genre, {rules, style})`
+  gives `spec` again under `normalSpec`, with no problems, and every item but the title used. All
+  37 non-RYB example folders pass. Normalising: givens in one order, pairs of cells or corners
+  sorted where order doesn't matter (not an inequality's), shapes at 0,0, areas relettered in
+  reading order, entries and lengths sorted, a nonogram's `picture` as the runs worked out from it
+  (toDrawing writes the numbers, not the picture's washes; washes in a nonogram are read back as a
+  picture, without the colours being the original hex values).
+- **Not yet round-tripping**: RYB (no grid: closed straight-line shapes → pieces is new geometry);
+  Panes' `palisade` (no stamp: toDrawing's diamond doesn't say how many sides are marked); `dots`
+  (RYB's). These are the profile coverage test's expected gaps.
+- **Problems, lines, switching type, rule hints** (built): off-type, off-grid, title, loose
+  snapping, wrong look, no grid, RYB; resolveStroke on straight, diagonal, wobbly, overshooting and
+  mixed strokes; thermometers with no bulb, dangling borders, headless doors, misplaced box lines;
+  a Masyu read as Sudoku and as Panel, a Sudoku as Panel, an Akari as Hidoku; and the hints below.
+- **Round trip, drawing side** (to do): for drawings made only of canonical items,
+  `toDrawing(convert(d))` has the same items (ids and order aside).
 - **Reader eval**: `npm run eval` scores reads through `convert(toDrawing(reading))`, so it measures
   what the creator will see.
 - **E2E**: per type, draw the example with the mouse in paint, check the verdict, publish (as
   `editor.spec.ts` does with BoardEditor today).
+
+### 4.6 Rule hints
+`ruleHints(puzzle)` puts just the clues on a board and runs the engine's own `latin` and `boxes`
+checks on it (keeping repeats, not "fill every cell"), worded as "Two 5s in row 6", "Two 2s in a
+box" / "in an area"; plus, by hand: digits out of range ("7 is too big: the numbers here run 1 to
+4"), thermometer clues that can't rise by their distance (the engine's check only compares
+neighbours), letters repeated in a row or column (Easy as ABC), and repeats in a number path or a
+tile set. Only digit types have hints so far; shading, region and line types can add theirs (an
+Akari number larger than its open neighbours, say) in the same place.
 
 ## 5. Retired and reused
 
@@ -385,7 +438,7 @@ Eraser. Nonogram: Grid, Wash, Text, Eraser. RYB: Line, Stamp, Eraser.
 
 ## 6. Build plan
 
-1. **Converter, no UI** (largest risk first). `convert.ts` + profiles for every genre + round-trip
+1. **Converter, no UI** (largest risk first). (done: `sketchpad/to-puzzle.ts`) `convert` + profiles for every genre + round-trip
    tests green for all examples. Add the stamps/tools the round trip shows are missing (a real
    thermometer, inequality signs, palisade) instead of rough drawings.
 2. **Type mode in paint** behind a flag on `/g/<id>/draw`: Type chip, filtered tools and stamps,
