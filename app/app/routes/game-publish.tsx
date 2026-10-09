@@ -112,10 +112,10 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
           <Link className="studio-back" to={paintTo} aria-label="Back to paint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
           <span className="paint-title" title={title || "Untitled"}>{title.trim() || "Untitled"}</span>
           <span className={`paint-saved${saveState === "Saved" ? " ok" : saveState === "Couldn't save" ? " bad" : ""}`} aria-live="polite">{saveState}</span>
-          <Link className="paint-type" to={`${paintTo}?types=1`} title="Change the type in paint">
+          {/* the type is settled by now: shown, not changed here (Back to paint to change it) */}
+          <span className="paint-type locked">
             <span className="paint-type-label">Type:</span><span className="paint-type-name">{kindName(game.kind)}</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-          </Link>
+          </span>
         </div>
         <div className="studio-actions">
           <Link className="btn publish-back" to={paintTo}>

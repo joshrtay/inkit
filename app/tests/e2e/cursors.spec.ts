@@ -108,7 +108,6 @@ test("the sketchpad: each tool its own cursor; the grid grabbed and stretched", 
   const palette = page.locator(".sp-palette");
   await page.locator(".sp-tools").getByRole("button", { name: "Pen", exact: true }).click();
   expect(await cursor(palette.getByRole("button", { name: "Bold" }))).toBe("pointer");
-  expect(await cursor(palette.getByRole("button", { name: "Hide the tool options" }))).toBe("pointer");
   expect(await cursor(palette.locator(".sp-pal-label").first())).toBe("default");
   expect(await cursor(palette.locator(".sp-pal-head strong"))).toBe("default");
 });

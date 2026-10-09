@@ -83,6 +83,10 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   await expect(page).toHaveURL(new RegExp(`/g/${id}/publish$`), { timeout: 15_000 });
   await expect(page.locator(".studio-top .paint-type-name")).toHaveText("Akari");
   await expect(page.getByRole("link", { name: "Back to paint" }).first()).toHaveAttribute("href", `/g/${id}/draw`);
+  // the type is settled here: shown, but not a control
+  await expect(page.locator(".paint-type")).toContainText("Akari");
+  await expect(page.locator(".paint-type")).not.toHaveAttribute("href", /./);
+  await expect(page.getByRole("button", { name: /Type/ })).toHaveCount(0);
   // no verdict badge (paint showed it) and no "Playing your puzzle": the server still checks on Publish
   await expect(page.locator(".paint-verdict-btn, .publish-bar, [data-verdict]")).toHaveCount(0);
   await expect(page.getByText("Playing your puzzle")).toHaveCount(0);

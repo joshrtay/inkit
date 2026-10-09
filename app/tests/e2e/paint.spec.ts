@@ -213,9 +213,9 @@ test("a Panel on tracks, with a start and an end, is Solvable; its solution show
   await shot(page, "6-panel-doesnt-fit");
 });
 
-test("the palette stays put across tools and folds to a handle; the drawer folds to a strip; Type opens Types", async ({ page }) => {
+test("the palette stays put across tools and is always open; the drawer folds to a strip; Type opens Types", async ({ page }) => {
   const id = blankDraft("chrome");
-  await page.addInitScript(() => { if (!sessionStorage.getItem("keep")) { localStorage.removeItem("inkit:palette"); localStorage.removeItem("inkit:paint-drawer"); } });
+  await page.addInitScript(() => { if (!sessionStorage.getItem("keep")) { localStorage.removeItem("inkit:paint-drawer"); } });
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
   await page.getByRole("button", { name: "Add a grid" }).click();
@@ -233,28 +233,17 @@ test("the palette stays put across tools and folds to a handle; the drawer folds
   }
   expect(places.every((p) => p.x === Math.round(box0.x) && p.y === Math.round(box0.y))).toBe(true);
 
-  // folded to a handle, and kept so in this browser
-  await palette.getByRole("button", { name: "Hide the tool options" }).click();
-  await expect(palette).toBeHidden();
-  const handle = page.getByRole("button", { name: "Show the tool options" });
-  await expect(handle).toBeVisible();
-  await page.evaluate(() => sessionStorage.setItem("keep", "1"));
-  await page.reload();
-  await expect(handle).toBeVisible();
-  await expect(palette).toBeHidden();
-  await handle.click();
-  await expect(palette).toBeVisible();
-  await expect(handle).toHaveCount(0);
+  // always open: there's nothing to fold it away with
+  await expect(palette.getByRole("button", { name: /Hide the tool options/ })).toHaveCount(0);
+  await expect(palette.locator(".sp-pal-head small")).toHaveCount(0);   // no stray shortcut letter
 
   // the drawer folds to a strip of icons, and opens again
   await page.getByRole("button", { name: "Collapse the drawer" }).click();
   await expect(page.locator(".paint-drawer")).toHaveCount(0);
   const strip = page.getByRole("navigation", { name: /folded/ });
   await expect(strip).toBeVisible();
-  // both folded: the paper has the room
-  await palette.getByRole("button", { name: "Hide the tool options" }).click();
+  // the drawer folded: the paper has the room (the palette stays)
   await shot(page, "8-folded");
-  await handle.click();
   // Type opens the drawer at Types
   await page.locator(".paint-type").click();
   await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");

@@ -49,7 +49,6 @@
   .sp-status .sp-tip[data-tip]:hover::after, .sp-status .sp-tip[data-tip]:focus-visible::after { top: auto; bottom: calc(100% + 6px); }
   .sp-zoom .sp-tip:last-child:hover::after, .sp-status .sp-toggle:hover::after, .sp-status .sp-toggle:focus-visible::after { left: auto; right: 0; transform: none; }
   .sp-palette .sp-swatch.sp-tip[data-tip]:hover::after, .sp-palette .sp-stamp.sp-tip[data-tip]:hover::after { top: auto; bottom: calc(100% + 4px); }
-  .sp-palette-handle.sp-tip[data-tip]:hover::after { top: 50%; left: calc(100% + 8px); transform: translateY(-50%); }
 }
 
 /* ---- the tool palette ---- */
@@ -64,7 +63,7 @@
 
 /* ---- the palette: the chosen tool's settings, floating at the workspace's top left; it stays put
    whichever tool is chosen, and collapses to a handle (kept per browser) ---- */
-.sp-palette, .sp-palette-handle { grid-area: canvas; align-self: start; justify-self: start; z-index: 6; margin: 12px; }
+.sp-palette { grid-area: canvas; align-self: start; justify-self: start; z-index: 6; margin: 12px; }
 .sp-palette {
   width: 248px; max-height: calc(100% - 24px); overflow-y: auto; display: grid; gap: 12px; padding: 12px 12px 14px 14px;
   border-radius: 12px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 10px 28px var(--shadow);
@@ -72,8 +71,6 @@
 .sp-pal-head { display: flex; align-items: center; gap: 8px; font: 800 14.5px/1 var(--display); color: var(--ink); }
 .sp-pal-head .sp-icon { width: 18px; height: 18px; }
 .sp-pal-head small { margin-left: auto; font: 600 11.5px/1 var(--body); color: var(--muted); }
-.sp-pal-fold { min-width: 28px; height: 28px; color: var(--muted); }
-.sp-pal-fold .sp-icon { width: 17px; height: 17px; }
 .sp-pal-body { display: grid; gap: 12px; justify-items: start; }
 .sp-pal-row { display: grid; gap: 7px; justify-items: start; width: 100%; }
 .sp-pal-label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
@@ -87,13 +84,6 @@
 .sp-palette .sp-stamps { width: 100%; grid-template-columns: repeat(4, 1fr); }
 .sp-palette .sp-shapes { flex-wrap: wrap; }
 .sp-pal-doc { display: none; }
-@media (min-width: 721px) { .sp-palette.folded { display: none; } }
-.sp-palette-handle {
-  display: inline-flex; align-items: center; gap: 2px; height: 40px; padding: 0 6px 0 9px; border-radius: 10px;
-  color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 6px 18px var(--shadow);
-}
-.sp-palette-handle .sp-icon { width: 19px; height: 19px; }
-.sp-palette-handle .sp-icon + .sp-icon { width: 15px; height: 15px; color: var(--muted); }
 /* the paper keeps clear of the open palette */
 @media (min-width: 721px) { .sp-work.pal-open .grid-game.sp-canvas { padding-left: 284px; } }
 
@@ -246,13 +236,12 @@
   }
   .grid-game.sp-canvas { padding: 10px; }
   .sp-status { display: none; }
-  .sp-palette-handle { display: none; }
   .sp-palette {
     grid-area: opts; margin: 0; width: auto; max-height: none; border-radius: 0; box-shadow: none; border: 0; border-top: 1px solid var(--line);
     display: flex; align-items: center; gap: 8px; padding: 6px 8px; overflow: visible;
   }
   .sp-pal-head { flex: none; }
-  .sp-pal-head strong, .sp-pal-head small, .sp-pal-fold { display: none; }
+  .sp-pal-head strong { display: none; }
   .sp-pal-body { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; overflow-x: auto; scrollbar-width: none; }
   .sp-pal-body::-webkit-scrollbar { display: none; }
   .sp-pal-body > *, .sp-pal-row > * { flex: none; }

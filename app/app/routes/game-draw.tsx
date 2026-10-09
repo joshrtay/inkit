@@ -40,7 +40,6 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     choices,
     opened: new URL(request.url).searchParams.has("read"),
     // from the publish page's Type: the drawer opens at Types
-    types: new URL(request.url).searchParams.has("types"),
     admin: may.feature,
     backTo: collection ? `/${collection.slug}?tab=drafts` : `/g/${game.id}`,
     ruleLines: RULE_LINES,
@@ -60,6 +59,6 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   });
 }
 
-export default function DrawGame({ loaderData: { game, saved, admin, backTo, photo, choices, opened, ruleLines, types } }: Route.ComponentProps) {
-  return <Paint key={game.id} game={game} saved={saved} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} startAt={types ? "types" : undefined} />;
+export default function DrawGame({ loaderData: { game, saved, admin, backTo, photo, choices, opened, ruleLines } }: Route.ComponentProps) {
+  return <Paint key={game.id} game={game} saved={saved} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} />;
 }

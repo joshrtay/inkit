@@ -67,8 +67,6 @@ type Colour = typeof PALETTE[number];
 const paint = (c: Colour) => (c === "black" ? "var(--sumi)" : c === "white" ? "var(--shell)" : `var(--wash-${c})`);
 const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
 const SAVED = "inkit:sketchpad";
-/** Whether the palette is collapsed, in this browser. */
-export const PALETTE_KEY = "inkit:palette";
 const WASH_SCALE = 400;
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 /** Zoom, as a multiple of fitting the paper to the workspace. */
@@ -199,7 +197,6 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   const [straight, setStraight] = useState(false);   // the pen draws straight lines, as with Shift
   const [zoom, setZoom] = useState(1);
   const [fit, setFit] = useState<number | null>(null);   // the paper's width that fits the workspace
-  const [folded, setFolded] = useState(false);   // the palette, collapsed to its handle (kept per browser)
   const [menu, setMenu] = useState(false);       // the … menu
   const [mod, setMod] = useState("Ctrl+");
   const toolButtons = useRef<(HTMLButtonElement | null)[]>([]);
@@ -241,8 +238,6 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   // it); and the drawing from last time
   useEffect(() => { if (defs.current && root.current) addInk(defs.current, root.current); }, []);
   useEffect(() => { if (/Mac|iPhone|iPad/.test(navigator.platform)) setMod("⌘"); }, []);
-  useEffect(() => { try { setFolded(localStorage.getItem(PALETTE_KEY) === "folded"); } catch { /* open */ } }, []);
-  const fold = (v: boolean) => { setFolded(v); try { localStorage.setItem(PALETTE_KEY, v ? "folded" : "open"); } catch { /* this page only */ } };
   // the … menu closes on a click outside it
   useEffect(() => {
     if (!menu) return;
@@ -655,7 +650,6 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   })();
   const offNote = kit && !own(tool)
     ? <p className="sp-pal-note sp-pal-off">{typeName} doesn&rsquo;t use the {toolLabel.toLowerCase()}: what you draw is decoration, flagged and left out of the puzzle.</p> : null;
-  const toolKey = TOOLS.find((x) => x.id === tool)!.key.toUpperCase();
   // undo, redo and … (Clear, Download): in the page's header; on a phone, in the palette's strip
   const docActions = (
     <span className="sp-doc">
@@ -675,7 +669,7 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   );
 
   return (
-    <div className={`sp-work${folded ? " pal-folded" : " pal-open"}${drawer ? " has-drawer" : ""}`}>
+    <div className={`sp-work pal-open${drawer ? " has-drawer" : ""}`}>
       {actions && createPortal(docActions, actions)}
 
       {/* ---- the tools, down the left (along the bottom on a phone) ---- */}
@@ -693,16 +687,10 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
       </div>
 
       {/* ---- the palette: the chosen tool's settings, in one place (a strip above the tools on a phone) ---- */}
-      {folded && (
-        <button type="button" className="sp-palette-handle sp-tip" aria-label="Show the tool options" data-tip={`${toolLabel} options`} aria-expanded={false} onClick={() => fold(false)}>
-          <SpIcon name={tool} /><SpIcon name="unfold" />
-        </button>
-      )}
-      {/* folded, it's hidden on a wide screen; a phone's strip is always there */}
-      <section className={`sp-palette tool-${tool}${folded ? " folded" : ""}`} aria-label={`${toolLabel} options`}>
+      {/* the chosen tool's options: always open, in one place beside the tools */}
+      <section className={`sp-palette tool-${tool}`} aria-label={`${toolLabel} options`}>
         <header className="sp-pal-head">
-          <SpIcon name={tool} /><strong>{toolLabel}</strong><small aria-hidden="true">{toolKey}</small>
-          <button type="button" className="sp-btn sp-pal-fold" aria-label="Hide the tool options" aria-expanded={true} onClick={() => fold(true)}><SpIcon name="fold" /></button>
+          <SpIcon name={tool} /><strong>{toolLabel}</strong>
         </header>
         <div className="sp-pal-body">{offNote}{options}</div>
         <span className="sp-pal-doc">{docActions}</span>

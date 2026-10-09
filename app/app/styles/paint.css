@@ -19,6 +19,7 @@
   border: 1.5px solid var(--line-strong); border-radius: 9px; text-decoration: none;
 }
 .paint-type:hover { border-color: var(--ink); }
+.paint-type.locked, .paint-type.locked:hover { border-color: transparent; cursor: default; }   /* on the publish page: settled */
 .paint-type-label { color: var(--muted); font-weight: 600; }
 .paint-type-name { font: 800 14.5px/1 var(--display); }
 .paint-type-from { font: 600 12.5px/1 var(--body); color: var(--muted); }

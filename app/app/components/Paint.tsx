@@ -60,7 +60,7 @@ const letter = (i: number) => String.fromCharCode(65 + (i % 26));
 const DRAWER_KEY = "inkit:paint-drawer";
 const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
 
-export function Paint({ game, saved, backTo, admin = false, photo = null, choices = [], opened = false, ruleLines = {}, startAt }: {
+export function Paint({ game, saved, backTo, admin = false, photo = null, choices = [], opened = false, ruleLines = {} }: {
   game: { id: string; title: string };
   /** each type's rules in its guide's words (src/guides/guides.ts), for This puzzle's checklist */
   ruleLines?: Record<string, RuleLine[]>;
@@ -72,8 +72,6 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
   choices?: string[];
   /** just read from a photo: the drawer opens at This puzzle, with the photo first */
   opened?: boolean;
-  /** the drawer's tab to open at (the publish page's Type: Types) */
-  startAt?: "types";
 }) {
   const pad = useRef<SketchpadHandle | null>(null);
   const navigate = useNavigate();
@@ -140,12 +138,12 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
   const saveState = !ready ? "Saved" : saver.state !== "idle" ? "Saving…" : failed ? (typeof navigator !== "undefined" && !navigator.onLine ? "Offline, saved here" : "Couldn't save") : dirty ? "Saving…" : "Saved";
 
   // ---- the drawer: This puzzle or Types; open, or folded to its strip (on a phone: a bottom sheet, closed) ----
-  const [drawer, setDrawer] = useState<{ open: boolean; tab: "puzzle" | "types" }>({ open: true, tab: startAt ?? (saved?.genre || opened ? "puzzle" : "types") });
+  const [drawer, setDrawer] = useState<{ open: boolean; tab: "puzzle" | "types" }>({ open: true, tab: (saved?.genre || opened ? "puzzle" : "types") });
   const [about, setAbout] = useState<string | null>(null);   // a type's guide, shown in Types
   const [ask, setAsk] = useState(0);                         // What type is this?, asked from the reminder
   useEffect(() => {
-    if (isPhone()) setDrawer((d) => ({ ...d, open: !!startAt }));
-    else try { if (!startAt && localStorage.getItem(DRAWER_KEY) === "folded") setDrawer((d) => ({ ...d, open: false })); } catch { /* open */ }
+    if (isPhone()) setDrawer((d) => ({ ...d, open: false }));
+    else try { if (localStorage.getItem(DRAWER_KEY) === "folded") setDrawer((d) => ({ ...d, open: false })); } catch { /* open */ }
   }, []);
   const openDrawer = (tab: "puzzle" | "types") => setDrawer({ open: true, tab });
   const foldDrawer = (open: boolean) => {
