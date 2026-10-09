@@ -130,7 +130,7 @@ How each principle could apply to Panes and panels, and how to check it with our
   does: the propagator fixes more using A∪B than using A and B separately. Run a census over
   `src/games/panes/*.json` by rule tag to find pairs that are used too often or too rarely.
 - **Forward design (3).** This is the biggest new idea for the editors. Running the propagator
-  live in `BoardEditor` would let a creator place a clue and immediately see what it forces.
+  live in paint (the editor; `BoardEditor` when this was written) would let a creator place a clue and immediately see what it forces.
   That is Grant's "answer mode", which our one-solution check (`useOneSolutionCheck`) could
   grow into. A generator could also build forward: choose the key step first, then add clues in
   solving order (panel-design's "aim the generator at an idea").

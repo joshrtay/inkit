@@ -18,7 +18,7 @@ browser, subscribe to creators, and like puzzles.
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
 | `puzzles/ai/` | The AI creators' weekly batch: `week.ts` makes, scores (`score.ts`), titles and queues each persona's posts ([docs/ai-creators.md](docs/ai-creators.md)) |
-| `docs/` | The grid engine in depth, including how the editor must keep up with it |
+| `docs/` | The grid engine in depth, including how the editors (paint, RYB's) must keep up with it; the creation flow |
 
 The root `package.json` covers the shared code (`npm run build` type-checks it, `npm run
 selftest` checks the engine against brute force, `npm run guides`, `npm run new`) and makes the
@@ -51,7 +51,7 @@ canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts 
 D1), `/llms.txt`, `/llms-full.txt`, and each guide as Markdown at `/puzzles/<type>.md` (served by
 `workers/app.ts`). The left nav
 (`components/Shell.tsx`: Subscriptions, Explore, Profile, Create, and More at the bottom with
-Settings, Puzzle types and Sign out) frames every page except the editor.
+Settings, Puzzle types and Sign out) frames every page except the editors (paint, its publish page, RYB's editor).
 
 **Reading a drawing** (`app/lib/read-sketch.server.ts`): Claude reads the photo into a structured
 reading (type, size, clues, rules, and doubts, each tied to a square, a line's clues, rows,
@@ -62,17 +62,15 @@ the creator's corrections, or a type they chose (with that type's guide). While 
 reading screen (`components/ReadingScreen.tsx`) shows the photo being scanned, cycling words, and
 one puzzle fact.
 
-**The editor** (`/g/<id>/edit`, `components/GameEditor.tsx`): a page of its own, after Substack's
-post editor. Top bar: back, save status, the one-solution check (live, clingo in the browser),
-Preview and Publish. Toolbar: the puzzle type, then the type's tools. The page: title and
-description, the puzzle edited in place (`components/BoardEditor.tsx`, tools per type), the drawing
-in the left margin, Claude's doubts in the right margin as a checklist pinned to the board. Undo
-and Reset sit bottom left. Drafts save themselves; publishing needs exactly one solution. Preview
-shows the real page (`/g/<id>/preview`) at desktop or phone width. RYB keeps its figure
-editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; admins a Look panel.
+**RYB's editor** (`/g/<id>/edit`, `components/GameEditor.tsx`): RYB (Three Coats, a figure of
+pieces rather than a grid) is the one type paint can't draw yet, so it keeps the old editor, a page
+of its own after Substack's post editor: back, save status, the one-solution check, Preview and
+Publish; the type, the title and description, the figure edited in `components/FigureEditor.tsx`, the
+photo in the left margin and Claude's doubts in the right. Every other type's `/edit` goes to paint.
 
-**Paint** (`/g/<id>/draw`, `components/Paint.tsx`; [docs/creation-flow.md](docs/creation-flow.md), "v3 layout"): a
-draft drawn in the sketchpad with a puzzle type. The drawing (`games.drawing`, with its type and
+**Paint** (`/g/<id>/draw`, `components/Paint.tsx`; [docs/creation-flow.md](docs/creation-flow.md), "v3 layout"): the
+editor for every type but RYB, drafts and published puzzles alike: a puzzle drawn in the sketchpad
+with a puzzle type. The drawing (`games.drawing`, with its type and
 rule settings) is the source of truth; `sketchpad/to-puzzle.ts` converts it into the sketch on
 every save. Each part of the screen answers one question. The top bar: back, the title (a label),
 Type ▾ (opens the drawer at Types), undo, redo and … (Clear, Download), the verdict as the Check
@@ -86,11 +84,17 @@ line, Your drawing, and the solution (pointed at, drawn on the board); and Types
 search, "What type is this?", which tries the drawing as every type with no AI,
 `sketchpad/suggest.ts`, the list, each type's guide). A photo's reading is drawn in ink
 (`games/paint-save.ts`'s `paintFromSketch`, via `toDrawing`), with Claude's doubts as amber marks and
-the photo first in This puzzle. Publish goes to `/g/<id>/publish` (`routes/game-publish.tsx`), still
+the photo first in This puzzle (Tell Claude what's wrong reads it again); so is any puzzle made
+before paint, the first time it's opened. Types with areas also paint them (the Areas tool drags
+squares into an area and redraws its borders). Publish goes to `/g/<id>/publish` (`routes/game-publish.tsx`), still
 in paint's top bar: the title and description edited in place on the dark page above the board, and
 the real player on the paper (saving nothing, recording no solve); the server converts the drawing
-again and publishes only the sketch the browser's solver passed. Published pages show the drawing as
-a "Drawn by" thumbnail (`sketchpad/picture.ts`).
+again and publishes only the sketch the browser's solver passed. A published puzzle edited in paint
+keeps its live sketch while the drawing saves as its next version ("Not live until you update");
+Publish says **Update**, and the same page in update mode puts it live, keeping its solves and likes
+(the old editor's rules, shared in `games.server.ts`'s `putSketch`). The game page's … menu holds
+Back to draft, Take down, Restore and Featured. Published pages show the drawing as a "Drawn by"
+thumbnail (`sketchpad/picture.ts`).
 
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser
 tests, the engine self-test); see [docs/deploy.md](docs/deploy.md), which also covers rolling back.

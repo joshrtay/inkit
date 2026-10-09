@@ -1,7 +1,7 @@
 # Creation flow: paint is the editor
 
-A design for making puzzles on inkit with the sketchpad ("paint") as the one editor. Nothing here
-is built yet. Mockups (static HTML in the site's look, drawings made by the real sketchpad, picture
+A design for making puzzles on inkit with the sketchpad ("paint") as the one editor. Built in six
+phases (§6 and the "As built" notes); RYB still waits. Mockups (static HTML in the site's look, drawings made by the real sketchpad, picture
 and solver code via `make-boards.ts`) are in [creation-flow-mockups/](creation-flow-mockups/), one
 PNG per screen.
 
@@ -357,7 +357,7 @@ are already corner to corner.
 
 ### 4.3 Profiles: drawing item → clue kind
 One profile per genre, typed `Record<GenreName, Profile | null>` so a new genre fails the type
-check until it has one (the CLAUDE.md rule, moved from `BoardEditor`'s `TOOLS` to here). As built,
+check until it has one (the CLAUDE.md rule, moved from `BoardEditor`'s `TOOLS`, now gone, to here). As built,
 a profile is the list of parts it reads (clue kinds and `areas`, `entries`, `picture`, `box-lines`,
 `major-lines`), the grid look, and what to say about lines it has no use for. Panel reads stones
 as squares in their colour, crests as stars (orange when uncoloured); Panes reads a coloured stone
@@ -415,8 +415,9 @@ Eraser. Nonogram: Grid, Wash, Text, Eraser. RYB: Line, Stamp, Eraser.
   `toDrawing(convert(d))` has the same items (ids and order aside).
 - **Reader eval**: `npm run eval` scores reads through `convert(toDrawing(reading))`, so it measures
   what the creator will see.
-- **E2E**: per type, draw the example with the mouse in paint, check the verdict, publish (as
-  `editor.spec.ts` does with BoardEditor today).
+- **E2E** (built, phase 6): per type, the example opened in paint as a draft from before paint, the
+  round trip checked in the browser, an edit with the eraser that changes the verdict, undo, and the
+  publish page (`parity.spec.ts`); the old editor's tools done in paint (`paint-tools.spec.ts`).
 
 ### 4.6 Rule hints
 `ruleHints(puzzle)` puts just the clues on a board and runs the engine's own `latin` and `boxes`
@@ -431,7 +432,7 @@ Akari number larger than its open neighbours, say) in the same place.
 
 | Retired (after parity) | Reused |
 |---|---|
-| `BoardEditor.tsx`, `FigureEditor.tsx`, the editing half of `GameEditor.tsx` | `Sketchpad.tsx`, `sketchpad/model.ts`, `draw.ts`, `export.ts` |
+| `BoardEditor.tsx`, the editing half of `GameEditor.tsx` (done, phase 6; `FigureEditor.tsx` stays for RYB) | `Sketchpad.tsx`, `sketchpad/model.ts`, `draw.ts`, `export.ts` |
 | `/new/draw` (paint is `/g/<id>/draw`) and the "Upload / Draw" tabs | `from-puzzle.ts` (now product code, not only tests) |
 | Sending the drawing's PNG to the reader (paint data is converted, not read) | `ReadingScreen`, `read-sketch.server.ts`, `photos.server.ts`, doubts (`games/doubts.ts`) |
 | `editor/coverage.ts`'s per-tool tables (move to the profiles) | `useLiveCheck`, `count-solutions.client.ts` (extended to return two boards) |
@@ -453,8 +454,8 @@ Akari number larger than its open neighbours, say) in the same place.
    path**: new `/new`; reading → `toDrawing` → paint with doubts as pins; photo card; type picker
    with suggestions (photo `kindChoices`; drawing-data suggestions).
 5. (done: `routes/game-publish.tsx`, `sketchpad/picture.ts`) **Publish page** with the test-play.
-6. **Edit published puzzles in paint**; e2e parity per type; then remove BoardEditor, FigureEditor,
-   `/new/draw`.
+6. (done: see "As built (phase 6)"; FigureEditor stays for RYB) **Edit published puzzles in paint**;
+   e2e parity per type; then remove BoardEditor, FigureEditor, `/new/draw`.
 
 Risks:
 - **Fidelity**: types whose clues the sketchpad can only draw roughly (thermo, inequality,
@@ -474,7 +475,7 @@ Risks:
   types (bold borders by dragging across squares).
 
 ### As built (phases 2 and 3)
-- Drafts only: a published game's `/draw` goes to its editor until phase 6. Publish in paint saves
+- Drafts only: a published game's `/draw` went to its editor until phase 6. Publish in paint saves
   and opens the publish page (phase 5).
 - The Check panel's list is live, like the verdict chip, rather than refreshed on Check: its numbers
   then always match the pins on the paper. Check opens it and selects the first broken rule.
@@ -509,6 +510,40 @@ Risks:
   drafts drawn in paint (or with no type) open in paint from the Drafts tab, `/new` and the game page.
 - Tests: `tests/e2e/create.spec.ts` gives the photo's reading itself (the `given-reading` form field,
   honoured only in development), so no test calls Claude.
+
+### As built (phase 6)
+- **Every type but RYB is edited in paint**, drafts and published puzzles alike. Edit (the game page,
+  the Drafts tab, /new's drafts, the AI creators' drafts an admin reviews) goes to `/g/<id>/draw`
+  (`editPath` in `games/kinds.ts`); RYB to `/g/<id>/edit`, which sends every other type to paint.
+  `/new/draw` redirects to `/new`.
+- **A puzzle made before paint** (no `games.drawing`) is drawn from its sketch (`paintFromSketch`:
+  the whole parsed sketch, so rules on its first line, marks and hearts come too) and saved as its
+  drawing at once. A published puzzle's drawing is its next version: saving it never touches the
+  live sketch; the top bar says "Not live until you update" when they differ (`specKey`, the
+  normalised puzzle as one string).
+- **Update**: paint's Publish says Update and opens the publish page in update mode: Update in place
+  of Publish, the title and description going live with it (not saved before), "its N solves and
+  its likes stay", and a warning when the type changes. The server converts the saved drawing again;
+  `putSketch` (shared with RYB's editor) needs the browser's hash whenever the sketch is new to
+  players and leaves solves and likes alone. A game taken down can be drawn but not updated.
+- **The old editor's … menu** (Back to draft, Take down, Restore, Featured) is on the game page.
+  **Tell Claude what's wrong** is in This puzzle's photo section: the re-read replaces the drawing
+  (paint starts again from it).
+- **Parity** (`parity.spec.ts`, every example; `paint-tools.spec.ts`): all 37 types round-trip in the
+  browser and edit. What the old editor had that paint lacked, added: the **Areas** tool (drag from
+  a square across others to put them in its area, or New area; the borders are redrawn as bold
+  lines, `withAreas`), stamps **dragged** across squares (rocks), Fillomino's sizes and Abstract
+  Art's extra rules as optional rules on This puzzle (`OPTIONAL` in `PaintRules.tsx`), a lattice's
+  lengths as `r5` / `sqrt 5`, loose writing (a list, the lengths) edited where it is, and the Look
+  panel keeping marks. Fixed on the way: the … menu opened under the drawer.
+- **Retired**: `BoardEditor.tsx`, the editing half of `GameEditor.tsx` for grid types (it's RYB's
+  editor now), the `?publish` dialog, `/new/draw` and its sketchpad-only browser tests (their
+  checks moved to `paint.spec.ts` and `cursors.spec.ts`), most of `editor/ops.ts` (SHAPES and
+  `parseLengths` stay), `coverage.ts`'s `ToolId` and `CLUE_TOOLS` (paint's `READERS`, `MAKES` and
+  from-puzzle's typed clue switch cover clue kinds), the editor's `be-*` styles, and sending a
+  drawing's data with its picture to the reader (the reader evaluation now reads paint's downloaded
+  picture as a photo). Kept: `FigureEditor`, `PreviewScreen` and `/g/<id>/preview` (RYB's editor),
+  `RulesPanel` and `LookPanel` (paint's Advanced).
 
 ## v3 layout
 

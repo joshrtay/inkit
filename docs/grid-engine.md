@@ -307,48 +307,56 @@ what it gives away. `runs` does; others can add one.
 
 ## The visual editor
 
-On the social site (`app/`), creators never see or type a sketch: Claude reads their drawing
-(`app/app/lib/read-sketch.server.ts`), they check the reading beside the photo, and they correct it
-on the puzzle itself. So the editors must be able to express everything each game type needs, and
+On the social site (`app/`), creators never see or type a sketch: they draw the puzzle in paint, or
+Claude reads a photo of it (`app/app/lib/read-sketch.server.ts`) and paint draws the reading in ink
+for them to check against the photo and correct. So the editors must be able to express everything each game type needs, and
 the reader must know how to read it.
 
-The editor is a page of its own (`app/app/components/GameEditor.tsx`, no site nav), after
-Substack's post editor (see ARCHITECTURE.md). The puzzle itself is edited by:
-- **The on-puzzle editor** (`app/app/components/BoardEditor.tsx`), for every grid type: the puzzle
-  drawn as the player sees it, edited in place with the few tools its type needs (`TOOLS`, typed
-  against the engine's genres, so a new genre fails the build until it has tools). The tools: a
-  number typed into a square (Enter or the arrow keys move on), rocks, walls between squares,
-  pearls, galaxy circles, thermometers dragged from the bulb, doors, numbers and letters outside the
-  grid, corner numbers, line totals, outlined areas painted, symbols, compasses, ◆/◇ marks, Panes'
-  < signs, differences, watchtowers, shapes drawn on a small pad and the shape bank, and erase; nonograms paint their picture or type their numbers. Sudokus come in 4×4, 6×6, 8×8, 9×9, 12×12 and 16×16, with wide or tall boxes where they aren't square (ops.resizeSudoku; an irregular sudoku's areas start again as the standard boxes);
-  square types keep one size; Star Battle sets its stars per row, column and area. It draws the
-  puzzle with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a
-  maze's second door, an area painted in two pieces) stays on screen to be fixed, and a draft can
-  be saved that way (publishing still needs a complete puzzle with one solution).
-- **The figure editor** (`FigureEditor.tsx`) for RYB: draw a piece corner by corner, drag
-  corners, delete pieces, give a piece dots and hide them, and set the hearts.
-- **The Rules panel** (`RulesPanel.tsx`): rules beyond the type's own, with every setting. Shown for
-  Panes, and to admins on any puzzle.
-- **The Look panel** (`LookPanel.tsx`): style options and which marks the player draws. Admins only.
+The editor is **paint** (`/g/<id>/draw`, `app/app/components/Paint.tsx`; see
+[creation-flow.md](creation-flow.md)) for every type but RYB: the creator draws the puzzle in the
+sketchpad and chooses its type, and a converter makes the puzzle from the drawing.
+- **The converter** (`app/app/sketchpad/to-puzzle.ts`): each genre's profile (`PROFILES`, typed
+  against the engine's genres) lists the parts it reads, and each part has a reader (`READERS`,
+  typed against the clue kinds and the spec's own parts: areas, entries, a picture...). It builds
+  with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a maze's second
+  door, an area in two pieces) stays drawable and saves as a draft (publishing still needs a complete
+  puzzle with one solution).
+- **The way back** (`app/app/sketchpad/from-puzzle.ts`'s `toDrawing`): any puzzle drawn with paint's
+  own items, so a puzzle made before paint, or read from a photo, opens in paint. Every example
+  round-trips (`tests/unit/to-puzzle.test.ts`; in the browser, `tests/e2e/parity.spec.ts`).
+- **The tools** (`app/app/sketchpad/kit.ts`'s `MAKES`, the palette in `Sketchpad.tsx`): the grid
+  (its look set by the type: lines, tracks, hexagons, dots), the pen and lines (walls, borders,
+  doors), Areas (squares dragged into an area: the borders are redrawn), washes (colours, a
+  nonogram's picture), stamps (rocks, stones, stars, panel symbols, shapes and the shape bank,
+  thermometers, < signs, ◆/◇, palisade marks; dragged across squares), writing (numbers in squares,
+  the arrows moving on; outside the grid; small on corners, lines and a square's sides; lists and
+  lengths under the grid) and the eraser (which also breaks a panel's track).
+- **The settings** (`PaintRules.tsx`): each rule setting on its line in This puzzle's checklist (a
+  sudoku's boxes and letters, Star Battle's stars, a panel's symmetry, Hidoku's corners, Pythagorean
+  Paths' moves, Fillomino's sizes, Abstract Art's shares and extra rules...); Panes' rule list; and
+  for admins, under Advanced, the **Rules panel** (`RulesPanel.tsx`: any rule, every setting) and the
+  **Look panel** (`LookPanel.tsx`: style options and which marks the player draws).
+- **The figure editor** (`FigureEditor.tsx`, `/g/<id>/edit`) for RYB: draw a piece corner by corner,
+  drag corners, delete pieces, give a piece dots and hide them, and set the hearts.
 
-**Coverage tables** (`app/app/editor/coverage.ts` for the editors, `read-sketch.server.ts` for the
-reader) are typed against the engine's own lists, so a new name fails the type check until it has
-an entry saying where it's edited and how it's read:
+**Coverage tables** are typed against the engine's own lists, so a new name fails the type check
+until it has an entry saying where it's edited and how it's read:
 
 | Engine list | Editors | Reader |
 |---|---|---|
-| `GenreName` (`puzzle.ts`) | `TOOLS` (BoardEditor; RYB excepted) | `GENRE_GUIDE` |
-| `Given["kind"]` (`types.ts`) | `CLUE_TOOLS`: the tool that places it | `CLUE_GUIDE` |
-| `RuleName` (`rules.ts`) | `RULES`, with each setting (Rules panel) | `RULE_GUIDE` |
-| `keyof GridStyle` | `STYLE` (Look panel) | |
-| `MarkKind` | `MARKS` (Look panel) | |
-| `keyof GridSpec` | `SPEC_PARTS` | |
+| `GenreName` (`puzzle.ts`) | `PROFILES` (to-puzzle.ts; RYB: null) | `GENRE_GUIDE` |
+| `Given["kind"]` (`types.ts`) | `READERS` (to-puzzle.ts), `MAKES` (kit.ts), from-puzzle's clue switch | `CLUE_GUIDE` |
+| `RuleName` (`rules.ts`) | `RULES`, with each setting (coverage.ts: PaintRules, the Rules panel) | `RULE_GUIDE` |
+| `keyof GridStyle` | `STYLE` (coverage.ts: Look panel) | |
+| `MarkKind` | `MARKS` (coverage.ts: Look panel) | |
+| `keyof GridSpec` | `SPEC_PARTS` (coverage.ts) | |
 
 Game type names live in `app/app/games/kinds.ts` (`KIND_NAMES`).
 
 A name missing from a table fails `npm --prefix app run typecheck`. The tables can't see inside a
 rule's settings or a clue's fields, so a new setting on an existing rule, or a new field on a clue,
-has to be added by hand: a control in the editor and a line in the reader's guide.
+has to be added by hand: something in paint that makes it (a stamp's option, a setting on its rule)
+and reads it back, and a line in the reader's guide.
 
 ## Puzzle guides
 

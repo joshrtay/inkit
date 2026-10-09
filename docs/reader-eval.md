@@ -1,10 +1,13 @@
 # The reader on sketchpad drawings
 
+(The results below were made through the old /new/draw, which sent the drawing's data with its
+picture; the next run reads the picture alone, as a photo.)
+
 How well the sketch reader (`app/app/lib/read-sketch.server.ts`) reads puzzles drawn in the
-sketchpad (/new/draw). For each puzzle type its first example (`src/games/<type>/1.json`) is drawn
+sketchpad. For each puzzle type its first example (`src/games/<type>/1.json`) is drawn
 with the sketchpad's own tools (`app/app/sketchpad/from-puzzle.ts`, with the type's name and any
-extra rules written above the grid, as creators are told to), read with "Read my drawing" on the
-local site, and the draft compared with the example: the type, the size, the givens (each clue at
+extra rules written above the grid, as creators are told to), downloaded from paint as a picture and
+read as a photo on /new on the local site, and the draft compared with the example: the type, the size, the givens (each clue at
 its place: missing, extra, or a wrong value there), outlined areas, the rules and their settings,
 and whether the read puzzle has the example's solution (and only it; a panel just has to accept
 the example's line). Made by `app/tests/e2e/reader.spec.ts` (`npm --prefix app run test:reader`;
