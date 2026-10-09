@@ -5,7 +5,7 @@ import { writeFileSync } from "node:fs";
 import { AUTH_FILE, BASE_URL, q, RUN_FILE, sql, type Run } from "./db";
 
 export default async function setup() {
-  const stamp = Date.now().toString(36);
+  const stamp = Date.now().toString(36) + Math.random().toString(36).slice(2, 5);   // two runs at once get different accounts
   const handle = `e2e${stamp}`, email = `${handle}@example.test`;
   const api = await request.newContext({ baseURL: BASE_URL });
   const res = await api.post("/api/auth/sign-up/email", { data: { email, password: `pw-${stamp}-e2e-only`, name: "Editor tests", handle }, headers: { origin: BASE_URL } });

@@ -6,6 +6,8 @@ import { AUTH_FILE, BASE_URL } from "./tests/e2e/db";
 
 export default defineConfig({
   testDir: "tests/e2e",
+  // each run its own results folder, so runs side by side don't clear each other's traces
+  outputDir: process.env.CI ? "test-results" : `test-results/${process.env.E2E_RUN}`,
   globalSetup: "./tests/e2e/setup.ts",
   globalTeardown: "./tests/e2e/teardown.ts",
   // the "~/" and "~site/" paths, for specs that use the site's own code (reader.spec.ts)

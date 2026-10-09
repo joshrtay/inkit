@@ -17,10 +17,8 @@ worker-configuration.d.ts
 !.env.example
 public/_local-test/
 
-tests/e2e/.auth.json
-tests/e2e/.run.json
-tests/e2e/.reader.auth.json
-tests/e2e/.reader.run.json
+tests/e2e/.auth-*.json
+tests/e2e/.run-*.json
 test-results/
 playwright-report/
 eval/data/
