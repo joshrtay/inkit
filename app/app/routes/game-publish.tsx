@@ -30,7 +30,7 @@ import { passed, useLiveCheck } from "~/components/useOneSolutionCheck";
 
 export const handle = { bare: true };
 
-export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Publish ${loaderData?.game.title ?? "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
+export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `${loaderData?.update ? "Update" : "Publish"} ${loaderData?.game.title ?? "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);

@@ -1,14 +1,12 @@
-// Hexagons and lattices: the editor's operations (app/editor/ops.ts), the reader's conversion
+// Hexagons and lattices: lengths as written (app/editor/ops.ts), the reader's conversion
 // (app/lib/read-sketch.server.ts) and the sketchpad's Hexagons and Dots grids (app/sketchpad/model.ts).
 import { describe, expect, it } from "vitest";
-import { makePuzzle } from "~site/engine/puzzle.ts";
 import { hexGrid, latticeGrid } from "~site/engine/geometry.ts";
 import * as ops from "~/editor/ops";
 import { givenOf, ruleSettings, toSketch, type Reading } from "~/lib/read-sketch.server";
 import { parseSketch } from "~/games/sketch";
 import * as m from "~/sketchpad/model";
 import { gridSvg } from "~/sketchpad/draw";
-import type { GridSpec } from "~site/engine/types.ts";
 
 describe("the engine's hex and lattice grids", () => {
   it("a hexagon touches six others, two in its row and two in each row beside it", () => {
@@ -26,36 +24,11 @@ describe("the engine's hex and lattice grids", () => {
   });
 });
 
-describe("editing number paths and lattices", () => {
-  const hid: GridSpec = { genre: "hidoku", size: [4, 4] };
-  it("Hidoku's sides only is its own number-path rule without diagonals", () => {
-    const s = ops.setSidesOnly(hid, true);
-    expect(s.rules).toEqual([{ rule: "number-path" }]);
-    expect(ops.sidesOnly(s)).toBe(true);
-    expect(ops.setSidesOnly(s, false)).toEqual(hid);
-    expect(makePuzzle(s).rules).toEqual([{ rule: "number-path" }]);
-  });
-  const dp: GridSpec = { genre: "pythagorean-paths", size: [4, 4] };
-  it("dots go on and off a point", () => {
-    const s = ops.togglePeg(dp, [1, 2]);
-    expect(s.givens).toEqual([{ at: "cell", cell: [1, 2], kind: "peg" }]);
-    expect(ops.hasPeg(s, [1, 2])).toBe(true);
-    expect(ops.togglePeg(s, [1, 2]).givens).toEqual([]);
-  });
-  it("lengths are read as written and kept as squares", () => {
+describe("a lattice's lengths, as written", () => {
+  it("are read as written and kept as squares", () => {
     expect(ops.parseLengths("1 √2 2 √5")).toEqual([1, 2, 4, 5]);
     expect(ops.parseLengths("r8, sqrt 10; 3")).toEqual([8, 10, 9]);
     expect(ops.parseLengths("1 two")).toBeNull();
-    expect(ops.lengthsText([5, 1, 4, 2])).toBe("1 √2 2 √5");
-    const s = ops.setLengths(dp, [1, 5]);
-    expect(ops.lengthsOf(s)).toEqual([1, 5]);
-    expect(ops.lengthsOf(ops.setLengths(s, null))).toBeNull();
-  });
-  it("moves: any way, a queen's or a knight's", () => {
-    const s = ops.setMoves(dp, "queen");
-    expect(s.rules).toEqual([{ rule: "distance-path", moves: "queen" }]);
-    expect(ops.movesOf(s)).toBe("queen");
-    expect(ops.setMoves(s, null)).toEqual(dp);
   });
 });
 

@@ -33,6 +33,14 @@ export function draftOf(folder: string, state: "draft" | "published" = "draft") 
   return id;
 }
 
+/** A blank draft (as /new's Start blank makes it): no type, no sketch, no drawing; its id. */
+export function blankDraft(name: string) {
+  const id = `e2e-paint-${name}-${Date.now().toString(36)}${(n++).toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+  sql(`insert into games (id, collection_id, author_id, title, description, sketch, sketch_version, kind, parse_notes, kind_choices, state)
+    values (${q(id)}, ${q(run.collectionId)}, ${q(run.userId)}, 'Untitled', '', '', 1, '', '[]', '[]', 'draft')`);
+  return id;
+}
+
 /** A game's row: its sketch (the puzzle: the JSON after the type line), drawing and state. */
 export const row = (id: string) => sql<{ sketch: string; drawing: string | null; state: string; title: string; kind: string }>(
   `select sketch, drawing, state, title, kind from games where id = ${q(id)}`)[0];

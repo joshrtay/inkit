@@ -1,11 +1,10 @@
 // Cursors (docs/style.md, "Cursors"): on a board the cursor says what a click does (the pen for
 // lines, the brush for washes, the pointer to pick a square, the text caret to type, the eraser);
-// the sketchpad's tools each show their own; chrome gets the pointer, and a disabled button the arrow.
+// paint's tools each show their own; chrome gets the pointer, and a disabled button the arrow.
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { readFileSync } from "node:fs";
-import { RUN_FILE, sql, type Run } from "./db";
+import { sql } from "./db";
+import { blankDraft, draftOf } from "./paint-helpers";
 
-const run = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
 const published = Object.fromEntries(sql<{ kind: string; id: string }>("select kind, min(id) id from games where state = 'published' group by kind").map((r) => [r.kind, r.id]));
 
 /** The cursor an element shows, by name: a keyword, or which of global.css's drawn cursors it is. */
@@ -57,37 +56,13 @@ test("a guide's pictures are only to look at", async ({ page }) => {
   expect(await cursor(pic.locator("text").first())).toBe("default");
 });
 
-test("the editor's board shows the tool's cursor", async ({ page }) => {
-  const tool = (name: string) => page.locator(".studio-tools").getByRole("button", { name, exact: true }).click();
-  const pic = page.locator(".be-board svg.picture");
-
-  await page.goto(`/g/${run.drafts["thermo-sudoku"]}/edit`);
-  await expect(pic).toBeVisible();
-  expect(await cursor(pic)).toBe("text");   // Number: click a square and type
-  await tool("Thermometer");
-  await expect.poll(() => cursor(pic)).toBe("pen");
-  await tool("Erase");
-  await expect.poll(() => cursor(pic)).toBe("eraser");
-
-  await page.goto(`/g/${run.drafts["star-battle"]}/edit`);
-  await expect(pic).toBeVisible();
-  expect(await cursor(pic)).toBe("brush");   // Areas: paint squares into an area
-
-  await page.goto(`/g/${run.drafts.masyu}/edit`);
-  await expect(pic).toBeVisible();
-  expect(await cursor(pic)).toBe("pointer");   // Pearl: click to cycle
-});
-
-test("the sketchpad: each tool its own cursor; the grid grabbed and stretched", async ({ page }) => {
-  await page.addInitScript(() => localStorage.removeItem("inkit:sketchpad"));
-  await page.goto("/new/draw");
+test("paint: each tool its own cursor; the grid grabbed and stretched", async ({ page }) => {
+  await page.goto(`/g/${blankDraft("cursors")}/draw`);
   const paper = page.locator(".sp-board");
   await expect(paper).toBeVisible();
-  // nothing to undo or download yet: disabled buttons get the arrow
-  for (const name of ["Undo", "Download"]) {
-    await expect(page.getByRole("button", { name, exact: true })).toBeDisabled();
-    expect(await cursor(page.getByRole("button", { name, exact: true }))).toBe("default");
-  }
+  // nothing to undo yet: a disabled button gets the arrow
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  expect(await cursor(page.getByRole("button", { name: "Undo", exact: true }))).toBe("default");
   // a grid (dragged out with the Grid tool, which it starts with)
   const box = (await paper.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.1);
@@ -110,6 +85,14 @@ test("the sketchpad: each tool its own cursor; the grid grabbed and stretched", 
   expect(await cursor(palette.getByRole("button", { name: "Bold" }))).toBe("pointer");
   expect(await cursor(palette.locator(".sp-pal-label").first())).toBe("default");
   expect(await cursor(palette.locator(".sp-pal-head strong"))).toBe("default");
+});
+
+test("paint's Areas tool paints squares: the brush", async ({ page }) => {
+  await page.goto(`/g/${draftOf("star-battle")}/draw`);
+  const paper = page.locator(".sp-board");
+  await expect(paper).toBeVisible();
+  await page.locator(".sp-tools").getByRole("button", { name: "Areas", exact: true }).click();
+  await expect.poll(() => cursor(paper)).toBe("brush");
 });
 
 test("settings: the choices get the pointer", async ({ page }) => {

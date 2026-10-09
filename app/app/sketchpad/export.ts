@@ -13,7 +13,7 @@ const PROPS = [
   "stroke-dasharray", "opacity", "filter", "display", "visibility",
 ];
 
-/** `url("http://…/new/draw#pen")` → `url(#pen)`: a reference within the copy. */
+/** `url("http://…/g/<id>/draw#pen")` → `url(#pen)`: a reference within the copy. */
 const localUrl = (v: string) => v.replace(/url\(\s*["']?[^"')]*#([^"')]+)["']?\s*\)/g, "url(#$1)");
 
 /** A copy of the drawing's ink (`ink`, inside `svg`), its look written onto it, as SVG text

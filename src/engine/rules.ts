@@ -1436,8 +1436,9 @@ export function crossings(p: Puzzle): [number, number][] {
   return out;
 }
 
-/** Every rule block's name. The visual editor (app/app/components/BoardEditor.tsx) and the sketch
- *  reader list them all, so the build fails if a new block isn't added there too. */
+/** Every rule block's name. The editors' settings (app/app/editor/coverage.ts's RULES: paint's
+ *  PaintRules, the Rules panel) and the sketch reader list them all, so the build fails if a new
+ *  block isn't added there too. */
 export type RuleName = keyof typeof blocks;
 export const RULE_NAMES = Object.keys(blocks) as RuleName[];
 

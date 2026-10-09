@@ -45,13 +45,13 @@ test.describe("as a crawler", () => {
   });
 });
 
-test("a draft, seen by its author, and the editor are kept out of search results", async ({ request }) => {
+test("a draft, seen by its author, and paint are kept out of search results", async ({ request }) => {
   const run = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
   const [draft] = sql<{ id: string }>(`select id from games where collection_id = ${q(run.collectionId)} and state = 'draft' limit 1`);
   const page = await (await request.get(`/g/${draft.id}`)).text();
   expect(page).toContain('<meta name="robots" content="noindex"/>');
   expect(page).not.toContain('rel="canonical"');
   expect(page).not.toContain("application/ld+json");
-  expect(await (await request.get(`/g/${draft.id}/edit`)).text()).toContain('<meta name="robots" content="noindex"/>');
+  expect(await (await request.get(`/g/${draft.id}/draw`)).text()).toContain('<meta name="robots" content="noindex"/>');
   expect(await (await request.get("/sitemap.xml")).text()).not.toContain(`/g/${draft.id}<`);
 });

@@ -13,7 +13,7 @@ export default [
   route("reset-password", "routes/reset-password.tsx"),
   route("api/auth/*", "routes/api.auth.ts"),
   route("new", "routes/new.tsx"),
-  route("new/draw", "routes/new-draw.tsx"),
+  route("new/draw", "routes/new-draw.tsx"),   // gone: redirects to /new
   route("studios/new", "routes/studio-new.tsx"),
   route("explore", "routes/explore.tsx"),
   route("settings", "routes/settings.tsx"),

@@ -439,7 +439,8 @@ function typeBrief(genre: GenreName) {
   ].join("\n\n");
 }
 
-/** For a drawing made in the sketchpad (/new/draw): what's on it, exactly, as its data. */
+/** For a drawing made in the old sketchpad page (/new/draw, gone; its drafts kept the data for
+ *  re-reads): what's on it, exactly, as its data. */
 export function drawingBrief(drawing: string) {
   return [
     "This picture was drawn in inkit's sketchpad, not photographed, and here is exactly what is on it, as data. "

@@ -204,6 +204,17 @@ test("a photo, read (a given reading: no Claude) and drawn in ink, with its doub
   await expect(page.locator(".sp-mark.doubt")).toHaveCount(0);
   await expect.poll(() => JSON.parse(sql<{ parse_notes: string }>(`select parse_notes from games where id = ${q(id)}`)[0].parse_notes)[0].done, { timeout: 10_000 }).toBe(true);
 
+  // read again, told what's wrong (a given reading again: no Claude): the new reading replaces the drawing
+  const again = { ...reading, givens: [{ kind: "block", row: 1, col: 1, value: "" }, { kind: "number", row: 1, col: 1, value: "4" }, { kind: "block", row: 0, col: 0, value: "" }], notes: [] };
+  await page.evaluate((r) => { (window as { __inkitGivenReading?: string }).__inkitGivenReading = r; }, JSON.stringify(again));
+  await panel.getByRole("button", { name: "Tell Claude what’s wrong" }).click();
+  await panel.getByRole("textbox", { name: "What’s wrong?" }).fill("It's a 1, not a 4");
+  await panel.getByRole("button", { name: "Read it again" }).click();
+  await expect(panel.locator(".paint-photo")).toContainText("Claude read everything clearly.", { timeout: 30_000 });
+  await expect(page.locator(".sp-board text.sp-text").filter({ hasText: "4" })).toHaveCount(1);
+  await expect(page.locator(".sp-mark.doubt")).toHaveCount(0);
+  await expect.poll(() => JSON.parse(row(id).drawing!).drawing.items.filter((it: { stamp?: string }) => it.stamp === "rock").length).toBe(2);
+
   // What type is this? answers from the reading's candidates
   await page.locator(".paint-type").click();
   const picker = page.locator(".paint-drawer");

@@ -1,4 +1,4 @@
-// Can every puzzle type be drawn in the sketchpad (/new/draw)? Each example puzzle (src/games/<type>/*.json),
+// Can every puzzle type be drawn in the sketchpad (paint's)? Each example puzzle (src/games/<type>/*.json),
 // and a made-up puzzle for each clue kind no example uses, is converted into a sketchpad Drawing using
 // only the sketchpad's model (app/sketchpad/model.ts) and what its toolbar offers (Sketchpad.tsx): the
 // grid and its gaps, pen and straight lines in three weights, washes, the stamps (any shape on the 5 × 5

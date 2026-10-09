@@ -145,7 +145,7 @@ describe("robots.txt", () => {
   const txt = robotsTxt();
   it("allows everything public, keeps crawlers out of private and app routes, and names the sitemap", () => {
     expect(txt).toMatch(/User-agent: \*\nAllow: \//);
-    for (const p of ["/settings$", "/new$", "/g/*/edit", "/admin/", "/api/"]) expect(txt).toContain(`Disallow: ${p}`);
+    for (const p of ["/settings$", "/new$", "/g/*/draw", "/g/*/publish", "/g/*/edit", "/admin/", "/api/"]) expect(txt).toContain(`Disallow: ${p}`);
     expect(txt).toContain("Sitemap: https://inkit.games/sitemap.xml");
     expect(txt).not.toMatch(/Disallow: \/\s*$/m);   // never the whole site
     expect(txt).not.toMatch(/Disallow: \/puzzles|Disallow: \/g\/\*\s*$|Disallow: \/explore/m);

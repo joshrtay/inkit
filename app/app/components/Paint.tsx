@@ -460,7 +460,7 @@ export function Paint({ game, saved, fresh = false, live = null, backTo, admin =
         </div>
       </header>
       {ready && (
-        <Sketchpad key={start.key} handle={pad} initial={start.drawing} storageKey={null} onChange={setDrawing} actions={slot}
+        <Sketchpad key={start.key} handle={pad} initial={start.drawing} onChange={setDrawing} actions={slot}
           kit={kit} typeName={typeName} underlay={underlay} overlay={overlay} tip={tip} drawer={drawerNode} areas={areaTool}
           onPaper={() => setReminder(false)} filename={`${(title || "puzzle").replace(/[^\w-]+/g, "-").toLowerCase()}.png`} />
       )}
@@ -490,9 +490,13 @@ function TipBody({ item, count, onNext, onClose, onErase }: { item: CheckItem; c
 /** Asking Claude to read the photo again, saying what's wrong: the new reading replaces the drawing. */
 function TellClaude({ reader, onSend }: { reader: ReturnType<typeof useFetcher<{ ok?: boolean; error?: string; reread?: boolean }>>; onSend: () => void }) {
   const [open, setOpen] = useState(false);
+  // the browser tests' own reading (games.server.ts: development only), as /new sends it
+  const [given, setGiven] = useState("");
+  useEffect(() => { setGiven((window as { __inkitGivenReading?: string }).__inkitGivenReading ?? ""); }, [open]);
   if (!open) return <button type="button" className="paint-link" onClick={() => setOpen(true)}>Tell Claude what&rsquo;s wrong</button>;
   return (
     <reader.Form method="post" className="paint-tell" onSubmit={() => { onSend(); setOpen(false); }}>
+      {given && <input type="hidden" name="given-reading" value={given} />}
       <label><span className="paint-label">What&rsquo;s wrong?</span>
         <textarea name="feedback" rows={3} required maxLength={2000} autoFocus placeholder={'"It\'s 6 rows, not 5"'} /></label>
       <span className="paint-quiet">Claude reads your photo again with this. Its reading replaces the drawing here.</span>

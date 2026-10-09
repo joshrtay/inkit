@@ -1,8 +1,10 @@
 // The reader's evaluation on sketchpad drawings: for each puzzle type, its first example
-// (src/games/<type>/1.json) is drawn with the sketchpad's own tools (sketchpad/from-puzzle.ts), put
-// where the sketchpad keeps its drawing, and read with "Read my drawing", as a creator would. The
-// draft it makes is scored against the example (reader-score.ts), and the results go to
-// tests/e2e/reader-results.json and docs/reader-eval.md.
+// (src/games/<type>/1.json) is drawn with the sketchpad's own tools (sketchpad/from-puzzle.ts), opened
+// in paint (a blank draft, the drawing in this browser's copy of it), downloaded as a picture
+// (… > Download a picture), and that picture read as a photo on /new, as a creator would. The draft
+// it makes is scored against the example (reader-score.ts), and the results go to
+// tests/e2e/reader-results.json and docs/reader-eval.md. (Until paint, /new/draw sent the picture
+// with the drawing's data; a photo has only the picture.)
 //
 // It calls Claude for every type, so it costs money (about $0.05-0.20 a type): it only runs with
 // READER_EVAL=1 (`npm run test:reader`), never in the normal browser tests. READER_TYPES=akari,cave
@@ -15,6 +17,7 @@ import type { GridSpec } from "~site/engine/types.ts";
 import { FOLDER_GENRE, specOf, toDrawing } from "~/sketchpad/from-puzzle";
 import { looseSpec, parseSketch } from "~/games/sketch";
 import { q, RUN_FILE, sql, type Run } from "./db";
+import { blankDraft } from "./paint-helpers";
 import { score, type Score } from "./reader-score";
 
 const GAMES = new URL("../../../src/games/", import.meta.url).pathname;
@@ -52,17 +55,23 @@ test.describe("the reader reads sketchpad drawings", () => {
       const source: GridSpec = specOf(genre, JSON.parse(readFileSync(`${GAMES}${folder}/${file}`, "utf8")));
       const { drawing } = toDrawing(makePuzzle(source), genre);
 
-      // the drawing where the sketchpad keeps it, so the page opens with it
-      await page.addInitScript((d) => { if (location.pathname === "/new/draw") localStorage.setItem("inkit:sketchpad", d); }, JSON.stringify(drawing));
-      await page.goto("/new/draw");
+      // the drawing as this browser's copy of a blank draft, so paint opens with it; then its picture
+      const blank = blankDraft(`reader-${folder}`);
+      await page.addInitScript(([key, d]) => localStorage.setItem(key, d),
+        [`inkit:draw:${blank}`, JSON.stringify({ drawing, genre: null, settings: {}, title: "Untitled", dirty: true })] as const);
+      await page.goto(`/g/${blank}/draw`);
       if (drawing.grid) await expect(page.locator(".sp-board")).toHaveAttribute("data-grid", `${drawing.grid.rows}x${drawing.grid.cols}`);
       else await expect(page.locator(".sp-board .sp-ink > *").first()).toBeAttached();
-      const button = page.getByRole("button", { name: "Read my drawing" });
-      await expect(button).toBeEnabled();
-      await button.click();
+      const download = page.waitForEvent("download");
+      await page.locator(".studio-top").getByRole("button", { name: "More" }).click();
+      await page.getByRole("menuitem", { name: "Download a picture" }).click();
+      const picture = await (await download).path();
+      // read as a photo, on /new
+      await page.goto("/new");
+      await page.locator('input[type="file"]').setInputFiles(picture!);
       const done = await Promise.race([
-        page.waitForURL(/\/g\/[^/]+\/edit$/, { timeout: 200_000 }).then(() => "read"),
-        page.locator(".sp-error").waitFor({ timeout: 200_000 }).then(() => "error"),
+        page.waitForURL(/\/g\/[^/]+\/(draw\?read=1|edit)$/, { timeout: 200_000 }).then(() => "read"),
+        page.locator(".new-way .error").waitFor({ timeout: 200_000 }).then(() => "error"),
       ]);
 
       const result: Result = { type: folder, genre, date: run.date, looks: [], cost: 0 };
@@ -77,7 +86,7 @@ test.describe("the reader reads sketchpad drawings", () => {
         const spec = parsed.ok ? parsed.spec : looseSpec(game.sketch);
         result.score = await score(source, spec);
       } else {
-        result.error = (await page.locator(".sp-error").textContent()) ?? "error";
+        result.error = (await page.locator(".new-way .error").textContent()) ?? "error";
         // a failed read is still recorded, with what it cost
         const [read] = sql<{ attempts: string }>(`select attempts from reads where game_id is null and creator_id = ${q(me())} order by created_at desc limit 1`);
         result.looks = JSON.parse(read?.attempts ?? "[]");
@@ -145,10 +154,10 @@ function report(all: Results) {
   return `# The reader on sketchpad drawings
 
 How well the sketch reader (\`app/app/lib/read-sketch.server.ts\`) reads puzzles drawn in the
-sketchpad (/new/draw). For each puzzle type its first example (\`src/games/<type>/1.json\`) is drawn
+sketchpad. For each puzzle type its first example (\`src/games/<type>/1.json\`) is drawn
 with the sketchpad's own tools (\`app/app/sketchpad/from-puzzle.ts\`, with the type's name and any
-extra rules written above the grid, as creators are told to), read with "Read my drawing" on the
-local site, and the draft compared with the example: the type, the size, the givens (each clue at
+extra rules written above the grid, as creators are told to), downloaded from paint as a picture and
+read as a photo on /new on the local site, and the draft compared with the example: the type, the size, the givens (each clue at
 its place: missing, extra, or a wrong value there), outlined areas, the rules and their settings,
 and whether the read puzzle has the example's solution (and only it; a panel just has to accept
 the example's line). Made by \`app/tests/e2e/reader.spec.ts\` (\`npm --prefix app run test:reader\`;

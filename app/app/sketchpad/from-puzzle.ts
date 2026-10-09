@@ -1,9 +1,10 @@
-// Any engine puzzle drawn with the sketchpad's own tools (/new/draw): a grid and its gaps, pen and
+// Any engine puzzle drawn with the sketchpad's own tools (paint's): a grid and its gaps, pen and
 // straight lines in three weights, washes, the stamps and text, as a creator would draw it, with the
 // type's name (and any rules beyond the type's own) written above the grid, as creators are told to
 // ("Writing the type at the top of the sketch helps", /new). Pure: no DOM, no files.
-// Used by tests/unit/sketchpad-coverage.test.ts (can every type be drawn?) and
-// tests/e2e/reader.spec.ts (does the reader read each drawing back as the puzzle it came from?).
+// Paint opens a puzzle made before paint, or read from a photo, through it (games/paint-save.ts's
+// paintFromSketch). Also used by tests/unit/sketchpad-coverage.test.ts (can every type be drawn?)
+// and tests/e2e/reader.spec.ts (does the reader read each drawing back as the puzzle it came from?).
 import { normalShape } from "~site/engine/puzzle.ts";
 import { colorName, tileOf, tileSpec } from "~site/engine/rules.ts";
 import type { Given, GridSpec, Puzzle, Side } from "~site/engine/types.ts";
@@ -333,7 +334,8 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
         text(G(rows + 0.7, cols / 2), words.join("  "));
         break;
       }
-      default: gaps.add(`unknown clue kind ${(gv as Given).kind}`);
+      // every clue kind is drawn: a new one fails the type check here until it is (CLAUDE.md)
+      default: { const unknown: never = gv; gaps.add(`unknown clue kind ${(unknown as Given).kind}`); }
     }
   }
   // the shape bank: shapes off the grid, below it

@@ -202,7 +202,7 @@ export function profileJsonLd(p: { slug: string; title: string; description: str
 
 /** Never crawled: accounts, editing, the API and admin endpoints. Anchored (`$`, a trailing `/`),
  *  as robots rules match prefixes and a creator's handle could start with "new" or "api". */
-export const PRIVATE_PATHS = ["/settings$", "/new$", "/new/", "/studios/new$", "/g/*/edit", "/g/*/preview", "/g/*/like", "/g/*/solve", "/g/*/sketch",
+export const PRIVATE_PATHS = ["/settings$", "/new$", "/new/", "/studios/new$", "/g/*/draw", "/g/*/publish", "/g/*/edit", "/g/*/preview", "/g/*/like", "/g/*/solve", "/g/*/sketch",
   "/*/settings$", "/admin/", "/api/", "/signin$", "/signup$", "/forgot-password$", "/reset-password$"];
 
 /** Crawlers the owner wants in by name, AI ones included (a named group overrides `*`, so each

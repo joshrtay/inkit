@@ -159,13 +159,6 @@ async function imageFrom(form: FormData) {
   return { bytes: new Uint8Array(await file.arrayBuffer()), type: file.type as (typeof IMAGE_TYPES)[number] };
 }
 
-/** A sketchpad drawing's data sent with its picture (/new/draw), if it's sound JSON of a sensible size. */
-function drawingFrom(form: FormData): string | undefined {
-  const v = form.get("drawing");
-  if (typeof v !== "string" || !v || v.length > 200_000) return undefined;
-  try { const o = JSON.parse(v); return o && typeof o === "object" && Array.isArray(o.items) ? JSON.stringify(o) : undefined; } catch { return undefined; }
-}
-
 /** A blank draft for paint (/new's Start blank): no type, no sketch, no drawing yet. Returns its id. */
 export async function createBlank(db: Db, me: Creator, form: FormData) {
   const collectionId = String(form.get("collection") ?? "");
@@ -182,7 +175,6 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   const collectionId = String(form.get("collection") ?? "");
   if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
   const image = await imageFrom(form);
-  const drawing = drawingFrom(form);
   // upright and without its metadata; it's only kept once read, and only the puzzle's part of it
   // (photos.server.ts), so a read that fails keeps no photo
   let photo;
@@ -197,7 +189,7 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   try {
     read = typeof given === "string" && given
       ? (log.push({ reader: "quick", model: "given (tests)", effort: "", ms: 0 }), givenReading(given))
-      : await readSketch(env, { data: toBase64(photo.bytes), type: photo.type }, { log, drawing });
+      : await readSketch(env, { data: toBase64(photo.bytes), type: photo.type }, { log });
   } catch (e) {
     await recordRead(db, { ...record, imageKey: null, gameId: null, error: (e as Error).message });
     throw e;
@@ -206,7 +198,6 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   const kept = await cropTo(env, photo, reading.bounds);
   const key = `sketches/${id}/${crypto.randomUUID()}.jpeg`;
   await env.MEDIA.put(key, kept.bytes, { httpMetadata: { contentType: kept.type } });
-  if (drawing) await env.MEDIA.put(`${key}.drawing.json`, drawing, { httpMetadata: { contentType: "application/json" } });   // for re-reads
   await db.insert(schema.games).values({
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
     title: reading.title || "Untitled",   // a title written on the sketch; set in the editor otherwise
@@ -240,6 +231,7 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
     read = typeof given === "string" && given
       ? (log.push({ reader: "careful", model: "given (tests)", effort: "", ms: 0 }), givenReading(given))
       : await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
+        // a draft drawn in the old sketchpad (/new/draw, gone) kept its drawing's data beside the picture
         { previous: { sketch: game.sketch, feedback, genre }, log, drawing: await (await env.MEDIA.get(`${game.sketchImage}.drawing.json`))?.text() });
   } catch (e) {
     await recordRead(db, { ...record, error: (e as Error).message });

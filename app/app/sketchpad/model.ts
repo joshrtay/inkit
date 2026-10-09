@@ -1,6 +1,6 @@
-// The sketchpad's drawing (routes/new-draw.tsx): a grid, and what's drawn on and around it, kept as
-// objects rather than pixels, so it can be undone, erased a piece at a time and, one day, read
-// straight into a puzzle without the photo. Everything on the grid is kept in the grid's own
+// The sketchpad's drawing (paint, components/Paint.tsx): a grid, and what's drawn on and around it,
+// kept as objects rather than pixels, so it can be undone, erased a piece at a time, and read
+// straight into a puzzle without a photo (to-puzzle.ts). Everything on the grid is kept in the grid's own
 // squares: a cell, a corner, the middle of a line, or a loose point in squares from its top-left
 // corner. So moving or resizing the grid carries it along, and a converter can read "a black
 // stone in row 2, column 3" off it directly. What's off the grid is kept in page units.

@@ -86,7 +86,9 @@ test("the old editor's address: paint for every type but RYB, which keeps its fi
 
 test("drafts open in paint from the profile's Drafts and from /new", async ({ page }) => {
   const id = draftOf("masyu");
-  await page.goto(`/${run.handle}?tab=drafts`);
+  // the profile by its slug now (settings.spec.ts moves the handle and back)
+  const [{ slug }] = sql<{ slug: string }>(`select slug from collections where id = ${q(run.collectionId)}`);
+  await page.goto(`/${slug}?tab=drafts`);
   await expect(page.locator(`a[href="/g/${id}/draw"]`)).toBeVisible();
   await page.goto("/new");
   await expect(page.locator(`a[href="/g/${id}/draw"]`)).toBeVisible();

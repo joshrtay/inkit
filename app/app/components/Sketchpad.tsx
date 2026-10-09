@@ -1,11 +1,13 @@
-// The sketchpad (/new/draw): draw a puzzle in the browser instead of on paper, in the boards' own
-// look, and send it to the reader as a picture, as if it were a photo. The drawing is kept as
-// objects (sketchpad/model.ts: a grid, and pen lines, washes, stamps and writing placed on it), so
-// it undoes and erases a piece at a time; draw.ts draws it, export.ts makes the picture.
+// The sketchpad, paint's paper and tools (components/Paint.tsx, /g/<id>/draw): draw a puzzle in the
+// browser instead of on paper, in the boards' own look. The drawing is kept as objects
+// (sketchpad/model.ts: a grid, and pen lines, washes, stamps and writing placed on it), so it undoes
+// and erases a piece at a time; draw.ts draws it, export.ts makes its picture (Download).
 //
 // The tools, general to specific: a grid (drag a rectangle; then its rows and columns), the pen
-// (freehand; Shift or the straight-line lock for a straight line), straight lines, wash, stamps (the
-// real stones and symbols, any shape from the shape pad), writing (normal, or small on corners and lines),
+// (freehand; Shift or the straight-line lock for a straight line), straight lines, Areas (squares
+// dragged into an area, for a type with areas: the page redraws its borders), wash, stamps (the
+// real stones and symbols, any shape from the shape pad; a drag from a square stamps the squares it
+// crosses), writing (normal, or small on corners and lines; loose writing tapped is edited in place),
 // and the eraser (which also breaks a grid line: a panel's gap). The grid is a magnet: with Snap on, line ends go
 // to its corners, stamps to its squares or points, washes fill whole squares. Mouse, pen and touch
 // (pointer events).
@@ -68,7 +70,6 @@ const PALETTE = [...m.WASHES, "black", "white"] as const;
 type Colour = typeof PALETTE[number];
 const paint = (c: Colour) => (c === "black" ? "var(--sumi)" : c === "white" ? "var(--shell)" : `var(--wash-${c})`);
 const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
-const SAVED = "inkit:sketchpad";
 const WASH_SCALE = 400;
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 /** Zoom, as a multiple of fitting the paper to the workspace. */
@@ -142,27 +143,21 @@ type Gesture =
 const LOOK_WORDS: Record<Look, string> = { lines: "with lines", tracks: "on tracks", hex: "on hexagons", dots: "on dots" };
 
 export interface SketchpadHandle {
-  /** the drawing as a PNG (about 1600px across) */
-  png(): Promise<Blob>;
-  /** the drawing as data (model.ts objects()), as JSON: sent to the reader with the picture */
-  data(): string;
   /** whether anything's drawn */
   empty: boolean;
   /** a change to the drawing from outside (one undo step) */
   edit(f: (d: Drawing) => Drawing): void;
 }
 
-export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAVED, kit = null, typeName = "", overlay = "", underlay = "", tip, drawer, onPaper, areas = null, filename = "puzzle-drawing.png" }: {
-  /** set to the sketchpad's exporter (the page's Download and Read buttons use it) */
+export function Sketchpad({ handle, onChange, actions, initial, kit = null, typeName = "", overlay = "", underlay = "", tip, drawer, onPaper, areas = null, filename = "puzzle-drawing.png" }: {
+  /** set to the sketchpad's handle: the page changes the drawing through it */
   handle: React.MutableRefObject<SketchpadHandle | null>;
   /** after every change */
   onChange?: (d: Drawing) => void;
   /** where in the page's header undo, redo and clear go */
   actions?: HTMLElement | null;
-  /** the drawing to start from (undefined: this browser's last, from `storageKey`) */
+  /** the drawing to start from (the page keeps it) */
   initial?: Drawing;
-  /** where this browser keeps the drawing (null: the page keeps it) */
-  storageKey?: string | null;
   /** the puzzle type's tools, stamps, colours and grid look (null: no type, every tool) */
   kit?: Kit | null;
   /** the type's name, for what's flagged as not its */
@@ -268,24 +263,11 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const [loaded, setLoaded] = useState(false);
-  useEffect(() => {
-    if (initial === undefined && storageKey) {
-      try { const saved = m.revive(JSON.parse(localStorage.getItem(storageKey) ?? "null")); if (saved) setHistory(m.start(saved)); } catch { /* nothing saved */ }
-    }
-    setLoaded(true);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (!loaded) return;   // not over the saved drawing before it's read
-    if (storageKey) try { localStorage.setItem(storageKey, JSON.stringify(history.now)); } catch { /* private mode: not kept */ }
-    onChange?.(history.now);
-  }, [history.now, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { onChange?.(history.now); }, [history.now]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const latest = useRef(history.now);
   latest.current = history.now;
   handle.current = {
-    png: () => exportPng(svg.current!, latest.current),
-    data: () => JSON.stringify(m.objects(latest.current)),
     empty: !history.now.grid && !history.now.items.length,
     edit: (f) => edit(f),
   };

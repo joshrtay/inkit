@@ -1,101 +1,10 @@
-// Draw a new game here instead of on paper: inkit.games/new/draw. It goes in the creator's profile
-// (or, from a studio's link, ?in=<collection slug>, that studio).
-// The sketchpad (components/Sketchpad.tsx) makes a picture of the drawing, which goes to the
-// reader exactly as a photo does on /new: Claude reads it into a draft, then the editor.
-import { useRef, useState } from "react";
-import { Link, redirect, useNavigation, useSubmit } from "react-router";
+// The old sketchpad page (inkit.games/new/draw) is gone: /new starts a blank page in paint, which
+// converts the drawing itself instead of sending its picture to the reader. Old links land on /new
+// (with a studio's ?in= kept).
+import { redirect } from "react-router";
 import type { Route } from "./+types/new-draw";
-import { cloudflareContext } from "~/lib/context";
-import { getDb } from "~/db";
-import { currentCreator } from "~/lib/auth.server";
-import { createFromDrawing, publishTargets } from "~/lib/games.server";
-import { attempt, signInFirst } from "~/lib/http.server";
-import { ReadingScreen } from "~/components/ReadingScreen";
-import { Sketchpad, type SketchpadHandle } from "~/components/Sketchpad";
-import { GuidePane } from "~/components/GuidePane";
 
-export const meta: Route.MetaFunction = () => [{ title: "Draw a puzzle · inkit" }, { name: "robots", content: "noindex" }];
-// a page of its own, like the editor: the whole width for the paper
-export const handle = { bare: true };
-
-// as /new's: where it goes, and making the game from the picture
-export async function loader({ request, context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const me = await currentCreator(env, request);
-  if (!me) signInFirst(request);
-  const targets = await publishTargets(getDb(env), me.id);
+export function loader({ request }: Route.LoaderArgs) {
   const want = new URL(request.url).searchParams.get("in");
-  return { targets, collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id, slug: want };
-}
-
-export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const me = await currentCreator(env, request);
-  if (!me) signInFirst(request);
-  const form = await request.formData();
-  return attempt(async () => redirect(`/g/${await createFromDrawing(getDb(env), env, me, form)}/edit`));
-}
-
-export default function DrawGame({ loaderData: { collection, slug }, actionData }: Route.ComponentProps) {
-  const submit = useSubmit();
-  const nav = useNavigation();
-  const busy = nav.state !== "idle";
-  const reading = nav.state === "submitting" || (nav.state === "loading" && !!nav.formData);
-  const pad = useRef<SketchpadHandle | null>(null);
-  const [slot, setSlot] = useState<HTMLElement | null>(null);
-  const [guide, setGuide] = useState(false);   // the puzzle types, slid in from the right   // the header's place for undo, redo and clear
-  const [empty, setEmpty] = useState(true);
-  const [preview, setPreview] = useState<string>();
-  const [problem, setProblem] = useState<string>();
-  const error = problem ?? (actionData && "error" in actionData ? actionData.error : undefined);
-
-  /** The drawing as a PNG, or a message saying why not. */
-  const picture = async () => {
-    setProblem(undefined);
-    try { return await pad.current!.png(); } catch (e) { setProblem((e as Error).message); return null; }
-  };
-  const download = async () => {
-    const png = await picture();
-    if (!png) return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(png);
-    a.download = "puzzle-drawing.png";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
-  };
-  const read = async () => {
-    const png = await picture();
-    if (!png || !collection) return;
-    setPreview(URL.createObjectURL(png));
-    const data = new FormData();
-    data.set("collection", collection);
-    data.set("image", png, "sketch.png");
-    data.set("drawing", pad.current!.data());   // what's drawn, exactly: the reader reads it with the picture
-    submit(data, { method: "post", encType: "multipart/form-data" });
-  };
-
-  return (
-    <div className="studio sp-studio">
-      <header className="studio-top">
-        <div className="studio-left">
-          <Link className="studio-back" to={slug ? `/new?in=${encodeURIComponent(slug)}` : "/new"} aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
-          <strong className="sp-title">Draw a puzzle</strong>
-        </div>
-        <div className="studio-actions">
-          <span ref={setSlot} className="sp-doc-slot" />
-          <button type="button" className="btn rules-toggle sp-head-btn" aria-pressed={guide} aria-label="Puzzle types" onClick={() => setGuide(!guide)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">{["M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z", "M4 21V5", "M8 7h7", "M8 11h5"].map((d) => <path key={d} d={d} />)}</svg>
-            <span>Puzzle types</span></button>
-          <button type="button" className="btn sp-head-btn" disabled={empty} onClick={download} title="Save the drawing as a picture" aria-label="Download">
-            <svg viewBox="0 0 24 24" aria-hidden="true">{["M12 4v11", "m7 10 5 5 5-5", "M5 20h14"].map((d) => <path key={d} d={d} />)}</svg>
-            <span>Download</span></button>
-          <button type="button" className="btn primary" disabled={empty || busy || !collection} onClick={read} title="Claude reads the drawing as it would a photo; then you check it in the editor">Read my drawing</button>
-        </div>
-      </header>
-      <Sketchpad handle={pad} onChange={(d) => setEmpty(!d.grid && !d.items.length)} actions={slot} />
-      {error && <p className="sp-error" role="alert">{error}</p>}
-      <GuidePane side open={guide} onClose={() => setGuide(false)} />
-      {reading && <ReadingScreen image={preview} />}
-    </div>
-  );
+  return redirect(want ? `/new?in=${encodeURIComponent(want)}` : "/new");
 }

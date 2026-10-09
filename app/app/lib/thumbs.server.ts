@@ -30,7 +30,11 @@ export function withPictures(games: GameCard[]): Thumbed[] {
 export async function draftPictures(db: Db, games: GameCard[]): Promise<Thumbed[]> {
   const cards = withPictures(games);
   const ids = cards.filter((g) => g.state !== "published").map((g) => g.id);
-  const rows = ids.length ? await db.select({ id: schema.games.id, drawing: schema.games.drawing }).from(schema.games).where(inArray(schema.games.id, ids)) : [];
+  // D1 binds at most 100 values a query: the ids go in batches
+  const rows = [];
+  for (let i = 0; i < ids.length; i += 90) {
+    rows.push(...await db.select({ id: schema.games.id, drawing: schema.games.drawing }).from(schema.games).where(inArray(schema.games.id, ids.slice(i, i + 90))));
+  }
   const drawings = new Map(rows.map((r) => [r.id, r.drawing]));
   return cards.map((g) => {
     if (g.state === "published") return g;

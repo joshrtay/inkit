@@ -1,46 +1,23 @@
 // What the editors can change, checked against everything the engine can express. Each table is
-// typed against one of the engine's own lists (GridSpec's fields, clue kinds, rule blocks, style
-// options, marks), so the type check fails until a new name has an entry here, and the entry says
-// where creators (or admins) edit it.
+// typed against one of the engine's own lists (GridSpec's fields, rule blocks, style options,
+// marks), so the type check fails until a new name has an entry here, and the entry says where
+// creators (or admins) edit it. Genres and clue kinds are paint's: its converter's profiles and
+// readers (sketchpad/to-puzzle.ts's PROFILES, READERS), the tools that make each part
+// (sketchpad/kit.ts's MAKES) and the drawing of each clue (sketchpad/from-puzzle.ts).
 //
-//   ** Whenever the engine gains something, add it to these tables, to the editor that edits it,
-//   ** and to the sketch reader (app/lib/read-sketch.server.ts). See docs/grid-engine.md.
+//   ** Whenever the engine gains something, add it to these tables, to paint (or RYB's figure
+//   ** editor), and to the sketch reader (app/lib/read-sketch.server.ts). See docs/grid-engine.md.
 import type { RuleName } from "~site/engine/rules.ts";
-import type { Given, GridSpec, GridStyle, MarkKind, RuleSpec } from "~site/engine/types.ts";
-
-/** The on-puzzle editor's tools (components/BoardEditor.tsx). */
-export type ToolId = "number" | "block" | "wall" | "pearl" | "galaxy" | "thermo" | "door" | "outside-number" | "outside-letter"
-  | "corner" | "total" | "area" | "symbol" | "compass" | "diamond" | "palisade" | "erase"
-  // Panes: a sign or a number on a border, a watchtower on a corner, the shape bank
-  | "inequality" | "difference" | "watchtower" | "bank"
-  // panels: the line's start, ends, gaps and dots, then the symbols in the cells
-  | "start" | "end" | "gap" | "dot" | "square" | "star" | "triangle" | "shape" | "eraser"
-  // Binary Puzzle and Abstract Art: a printed color in a square
-  | "paint"
-  // lattices (Pythagorean Paths): dots on the points, and the path's lengths
-  | "peg" | "lengths"
-  // Twins and Triplets: a tile in a square (a number given, drawn as its tile)
-  | "tile";
+import type { GridSpec, GridStyle, MarkKind, RuleSpec } from "~site/engine/types.ts";
 
 /** Every part of a puzzle description, and where it's edited. */
 export const SPEC_PARTS: Record<keyof GridSpec, string> = {
-  genre: "the puzzle type menu (a re-read as that type)", size: "Rows / Columns (or Size)", givens: "the type's tools on the board",
-  rules: "Star Battle's stars; a panel's symmetry; Abstract Art's shares and extra rules; the Rules panel (Panes, and admins)",
-  style: "the Look panel (admins); Abstract Art's colors (its shares)", picture: "Picture, and painting (Nonogram)",
-  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Honeycomb Paths, Hive; a lattice: Pythagorean Paths)", figure: "the figure editor (RYB)", hearts: "the figure editor (RYB)", areas: "the Areas tool",
-  entries: "the Numbers box in the toolbar (Number Fill-In)",
-};
-
-/** Every clue kind and the tool that places it: a BoardEditor tool, Nonogram's own numbers, or
- *  RYB's figure editor. */
-export const CLUE_TOOLS: Record<Given["kind"], ToolId | "nonogram" | "figure"> = {
-  number: "number", block: "block", symbol: "symbol", compass: "compass", palisade: "palisade", wall: "wall", twins: "diamond", opposites: "diamond",
-  inequality: "inequality", difference: "difference", watchtower: "watchtower", bank: "bank",
-  runs: "nonogram", total: "total", count: "corner", dots: "figure", pearl: "pearl", first: "outside-letter",
-  skyscraper: "outside-number", thermo: "thermo", galaxy: "galaxy", door: "door",
-  start: "start", end: "end", gap: "gap", hexagon: "dot", square: "square", star: "star", triangle: "triangle", shape: "shape", eraser: "eraser",
-  color: "paint",
-  peg: "peg", lengths: "lengths",
+  genre: "paint's Type (RYB: the type menu, a re-read as that type)", size: "the grid's rows and columns (paint's Grid tool)", givens: "what's drawn: the type's tools and stamps",
+  rules: "the settings on This puzzle's rules (PaintRules: Star Battle's stars, a panel's symmetry, Fillomino's sizes...); Panes' rule list; Advanced (admins)",
+  style: "the Look panel (admins, under Advanced); a sudoku's Writes (letters)", picture: "washes on a nonogram's squares",
+  marks: "the Look panel (admins)", geometry: "the puzzle type (hexagons: Honeycomb Paths, Hive; a lattice: Pythagorean Paths)", figure: "the figure editor (RYB)", hearts: "the figure editor (RYB)",
+  areas: "borders drawn with the pen, or squares dragged with the Areas tool",
+  entries: "the list written under the grid (Number Fill-In)",
 };
 
 export type Setting =

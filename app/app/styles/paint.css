@@ -56,6 +56,8 @@
 
 /* ---- the drawer: This puzzle / Types; folded, a strip of icons ---- */
 .paint-drawer, .paint-strip, .paint .studio-top { cursor: default; }
+/* the top bar over the drawer, so its … menu (Clear, Download) opens on top of it */
+.paint .studio-top { position: relative; z-index: 20; }
 .paint-drawer, .paint-strip { grid-area: drawer; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); z-index: 7; }
 .paint-drawer { width: 372px; display: flex; flex-direction: column; }
 .paint-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 6px 0 8px; border-bottom: 1px solid var(--line); flex: none; }

@@ -4,21 +4,14 @@
 // PAINT_SHOTS=<folder> also saves a screenshot of each main state there.
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { q, RUN_FILE, sql, type Run } from "./db";
+import { q, sql } from "./db";
+import { blankDraft } from "./paint-helpers";
 
-const run = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
 const PAGE = 560;   // the sketchpad's page, in its own units (sketchpad/model.ts)
 const shot = async (page: Page, name: string) => {
   if (process.env.PAINT_SHOTS) await page.screenshot({ path: `${process.env.PAINT_SHOTS}/${name}.png` });
 };
 
-/** A blank draft: no type, no sketch, no drawing. */
-function blankDraft(name: string) {
-  const id = `e2e-paint-${name}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
-  sql(`insert into games (id, collection_id, author_id, title, description, sketch, sketch_version, kind, parse_notes, kind_choices, state)
-    values (${q(id)}, ${q(run.collectionId)}, ${q(run.userId)}, 'Untitled', '', '', 1, '', '[]', '[]', 'draft')`);
-  return id;
-}
 const saved = (id: string) => sql<{ drawing: string | null; kind: string; sketch: string; title: string }>(`select drawing, kind, sketch, title from games where id = ${q(id)}`)[0];
 
 async function at(page: Page, x: number, y: number) {
@@ -289,4 +282,92 @@ test("a phone: the drawer as a bottom sheet with its handle, the palette a strip
   await expect(page.locator(".paint-drawer")).toHaveCount(0);
   await expect(page.locator(".paint-tip")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+// ---- the sketchpad's own (it was /new/draw before paint) ----
+
+test("a grid, a stone and a number; undo and redo by key; the drawing downloaded as a PNG", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`/g/${blankDraft("png")}/draw`);
+  const board = page.locator(".sp-board");
+  await expect(board).toBeVisible();
+  // with no type, every stamp, in one list (many belong to several types)
+  await tool(page, "Stamp");
+  await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(18);
+
+  // a grid: 336 units across is 7 squares of a board's 48; then one row fewer
+  await tool(page, "Grid");
+  await drag(page, [60, 60], [396, 396]);
+  await expect(board).toHaveAttribute("data-grid", "7x7");
+  await page.getByRole("button", { name: "Fewer rows" }).click();
+  await expect(board).toHaveAttribute("data-grid", "6x7");
+
+  // a black stone, snapped to the middle of the top-left square
+  await tool(page, "Stamp");
+  await page.getByRole("button", { name: "Stone", exact: true }).click();
+  await tap(page, 60 + 48 * 0.3, 60 + 48 * 0.7);
+  await expect(board.locator(".sp-ink .stone")).toHaveCount(1);
+  const stone = board.locator(".sp-ink .stone circle").first();
+  expect(Number(await stone.getAttribute("cx"))).toBeCloseTo(84, 0);
+  expect(Number(await stone.getAttribute("cy"))).toBeCloseTo(84, 0);
+
+  // a number in the square below and to the right of it; undo takes it away, redo brings it back
+  await tool(page, "Text");
+  await write(page, 1, 1, "5");
+  await expect(board.locator("text.sp-text")).toHaveText("5");
+  await page.keyboard.press("ControlOrMeta+z");
+  await expect(board.locator("text.sp-text")).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+Shift+z");
+  await expect(board.locator("text.sp-text")).toHaveText("5");
+
+  // the picture: a 1600px PNG on paper, with the stone's ink where the stone is
+  const download = page.waitForEvent("download");
+  await page.locator(".studio-top").getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Download a picture" }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe("untitled.png");
+  const png = readFileSync((await file.path())!);
+  expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1600, 1600]);
+  const shades = await page.evaluate(async (data) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${data}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    const k = img.width / 560, light = (x: number, y: number) => { const [r, g, b] = ctx.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data; return (r + g + b) / 3; };
+    return { stone: light(84, 84), paper: light(500, 500) };
+  }, png.toString("base64"));
+  expect(shades.stone).toBeLessThan(110);
+  expect(shades.paper).toBeGreaterThan(230);
+  expect(errors).toEqual([]);
+});
+
+test("the tool rail: arrow keys and letters; zoom", async ({ page }) => {
+  await page.goto(`/g/${blankDraft("keys")}/draw`);
+  const rail = page.getByRole("toolbar", { name: "Tools" });
+  const pen = rail.getByRole("button", { name: "Pen", exact: true });
+  // (again until the page has hydrated and the rail listens for its arrow keys)
+  await expect(async () => {
+    await rail.getByRole("button", { name: "Grid", exact: true }).focus();
+    await page.keyboard.press("ArrowDown");
+    await expect(pen).toBeFocused({ timeout: 500 });
+  }).toPass();
+  await page.keyboard.press("Enter");
+  await expect(pen).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Bold" })).toHaveAttribute("aria-pressed", "true");
+  // a letter picks a tool
+  await page.keyboard.press("w");
+  await expect(rail.getByRole("button", { name: "Wash", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // zoom: Cmd/Ctrl + and 0, and the paper grows and comes back
+  const board = page.locator(".sp-board");
+  const w0 = (await board.boundingBox())!.width;
+  await page.keyboard.press("ControlOrMeta+=");
+  await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("125%");
+  expect((await board.boundingBox())!.width).toBeGreaterThan(w0 * 1.2);
+  await page.keyboard.press("ControlOrMeta+0");
+  await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("100%");
 });

@@ -42,7 +42,7 @@ evaluation (`npm run eval`): [../docs/reader.md](../docs/reader.md).
   big win), scoped to one draft, never able to publish. An "Open in Claude" button on the edit
   page opens their AI with the draft's address in the prompt; the page updates as it edits.
   Then **WebMCP** (the same actions offered by the page itself to in-browser agents) once
-  browsers support it. Build after the on-puzzle editor, whose actions these mirror.
+  browsers support it. Its actions would mirror paint's (a drawing changed, converted, checked).
 - **Style in the editor**: choose a puzzle's look (ink, paper, colors) on the edit page, seen live
   in Preview, which already shows the puzzle as its page will.
 - **Prompt caching for the sketch reader**: the system prompt (every puzzle type, clue and rule) is
