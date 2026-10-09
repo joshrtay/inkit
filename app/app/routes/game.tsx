@@ -11,6 +11,8 @@ import { kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { likesOf, solvesOf } from "~/lib/queries.server";
 import { GamePageView } from "~/components/GamePageView";
+import { readPaintSave } from "~/games/paint-save";
+import { drawingSvg } from "~/sketchpad/picture";
 import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -40,10 +42,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     extra: parsed.ok && parsed.spec.rules?.length ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
     editable: canEdit(game, viewer, role) || canHide(viewer, role),
+    editTo: game.state === "draft" && (game.drawing || !game.kind) ? `/g/${game.id}/draw` : `/g/${game.id}/edit`,
     likes: await likesOf(db, game.id, viewer?.id),
     solves: await solvesOf(db, game.id, viewer?.id),
     signedIn: !!viewer,
     dates: { created: game.createdAt.getTime(), published: game.publishedAt?.getTime() ?? null },
+    // the creator's drawing beside the engine's picture (docs/creation-flow.md, decision 2)
+    drawnBy: (() => { const save = readPaintSave(game.drawing); return save ? drawingSvg(save.drawing, `${game.title}, as drawn by @${author.handle}`) || null : null; })(),
   };
 }
 
