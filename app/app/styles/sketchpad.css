@@ -139,11 +139,11 @@
 }
 .sp-paper > svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
 /* each tool's cursor matches its icon, as in a paint app (docs/style.md, "Cursors"): the pen, the
-   wash's brush, the stamp, the text caret, the eraser; the line and a new grid are aimed with the
+   wash's brush (the Areas tool's too: it paints squares into an area), the stamp, the text caret, the eraser; the line and a new grid are aimed with the
    crosshair. With the grid tool, the grid itself can be grabbed and moved, and its corner handle
    stretched (both catch the pointer only for the cursor: Sketchpad finds them by where you press). */
 .sp-paper.tool-pen > svg { cursor: var(--cursor-pen); }
-.sp-paper.tool-wash > svg { cursor: var(--cursor-brush); }
+.sp-paper.tool-wash > svg, .sp-paper.tool-region > svg { cursor: var(--cursor-brush); }
 .sp-paper.tool-stamp > svg { cursor: var(--cursor-stamp); }
 .sp-paper.tool-text > svg { cursor: text; }
 .sp-paper.tool-erase > svg { cursor: var(--cursor-eraser); }

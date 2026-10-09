@@ -13,7 +13,7 @@ import { createBlank, createFromDrawing, publishTargets } from "~/lib/games.serv
 import { latestDrafts } from "~/lib/queries.server";
 import { draftPictures } from "~/lib/thumbs.server";
 import { attempt, signInFirst } from "~/lib/http.server";
-import { kindName } from "~/games/kinds";
+import { editPath, kindName } from "~/games/kinds";
 import { edited } from "~/components/GameCard";
 import { ReadingScreen } from "~/components/ReadingScreen";
 import "~site/game-types/grid/styles.css";
@@ -121,7 +121,7 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
           <ul>
             {drafts.map((g) => (
               <li key={g.id}>
-                <Link to={`/g/${g.id}/${g.paint ? "draw" : "edit"}`} className="new-draft">
+                <Link to={editPath(g)} className="new-draft">
                   {g.picture ? <span className="grid-game pic" dangerouslySetInnerHTML={{ __html: g.picture }} /> : <span className="pic none" />}
                   <span><strong>{g.title || "Untitled"}</strong><small>{kindName(g.kind)} · edited <time suppressHydrationWarning>{edited(g.updatedAt)}</time></small></span>
                 </Link>

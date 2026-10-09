@@ -3,7 +3,7 @@
 // route shows it, and the editor's Preview shows the same thing. (A draft drawn in paint is
 // published from its own page in paint's chrome: routes/game-publish.tsx.)
 import { useEffect, useState } from "react";
-import { Link, useFetcher, useLocation, useNavigate } from "react-router";
+import { Form, Link, useFetcher, useLocation, useNavigate } from "react-router";
 import type { Playable } from "~/games/layout";
 import { GameBoard } from "./GameBoard";
 import { GuidePane } from "./GuidePane";
@@ -18,15 +18,18 @@ export interface GamePageProps {
   summary: string;
   extra: string[];
   errors: string[];
-  editable: boolean;
   likes: { count: number; liked: boolean };
   /** how many players have solved it, and whether this one has (signed in) */
   solves: { count: number; solved: boolean };
   signedIn: boolean;
   /** shown in the editor's preview: nothing is saved, and links don't leave the editor */
   preview?: boolean;
-  /** where Edit goes (a draft drawn in paint: paint) */
-  editTo?: string;
+  /** where Edit goes (paint; RYB, its figure editor): none for those who can't edit it */
+  editTo?: string | null;
+  /** the … menu: what this viewer may do to the game beyond editing it */
+  manage?: { unpublish: boolean; takeDown: boolean; restore: boolean; feature: boolean; featured: boolean };
+  /** the … menu's last action went wrong */
+  error?: string;
   /** the creator's drawing (paint's, as drawn: sketchpad/picture.ts) */
   drawnBy?: string | null;
 }
@@ -36,7 +39,7 @@ const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "lo
 
 const RULES_OPEN = "inkit:rules-open";
 
-export function GamePageView({ game, collection, author, play, summary, extra, errors, editable, likes, solves, signedIn, preview = false, drawnBy = null, editTo }: GamePageProps) {
+export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, drawnBy = null, editTo = null, manage, error }: GamePageProps) {
   // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
   const [rulesOpen, setRulesOpen] = useState(false);
   // back: to wherever the player came from on this site, or else this creator's page
@@ -77,9 +80,11 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
         {solved.solved && <span className="solved-mark" title="You've solved this">✓ Solved</span>}
         {(game.state === "published" || preview) && <LikeButton gameId={game.id} count={likes.count} liked={likes.liked} signedIn={signedIn || preview} disabled={preview} />}
         <button className="btn rules-toggle" type="button" aria-pressed={rulesOpen} onClick={() => toggleRules(!rulesOpen)}>How to play</button>
-        {editable && !preview && <Link className="btn" to={editTo ?? `/g/${game.id}/edit`}>Edit</Link>}
+        {editTo && !preview && <Link className="btn" to={editTo}>Edit</Link>}
+        {manage && !preview && <ManageMenu manage={manage} />}
         {!preview && game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}
         {!preview && game.state === "hidden" && <span className="state hidden">Taken down{game.hiddenNote ? `: ${game.hiddenNote}` : "."}</span>}
+        {error && <p className="error" role="alert">{error}</p>}
       </header>
 
       <div className={drawnBy ? "game-body with-aside" : "game-body"}>
@@ -103,6 +108,38 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       )}
     </main>
     <GuidePane key={game.kind} start={game.kind} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra} />
+    </div>
+  );
+}
+
+/** The game's … menu: back to draft (its author), take down (a collection's owners and admins, with
+ *  a note its author sees), restore, and the Featured shelf (admins). Shown only with something in it. */
+function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => { if (!(e.target as Element).closest(".game-more")) setOpen(false); };
+    addEventListener("pointerdown", away);
+    return () => removeEventListener("pointerdown", away);
+  }, [open]);
+  if (!manage.unpublish && !manage.takeDown && !manage.restore && !manage.feature) return null;
+  return (
+    <div className="game-more">
+      <button type="button" className="btn icon" aria-label="More for this puzzle" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
+      {open && (
+        <div className="menu" role="menu">
+          {manage.unpublish && <Form method="post"><button role="menuitem" name="intent" value="unpublish">Back to draft</button></Form>}
+          {manage.takeDown && (
+            <Form method="post" onSubmit={(e) => {
+              const note = prompt("Why is it being taken down? Its author sees this note.");
+              if (!note) { e.preventDefault(); return; }
+              (e.currentTarget.elements.namedItem("note") as HTMLInputElement).value = note;
+            }}><input type="hidden" name="note" /><button role="menuitem" name="intent" value="hide">Take down…</button></Form>
+          )}
+          {manage.restore && <Form method="post"><button role="menuitem" name="intent" value="unhide">Restore</button></Form>}
+          {manage.feature && <Form method="post"><button role="menuitem" name="intent" value={manage.featured ? "unfeature" : "feature"}>{manage.featured ? "Remove from Featured" : "Add to Featured"}</button></Form>}
+        </div>
+      )}
     </div>
   );
 }

@@ -66,6 +66,25 @@ async function validated(f: Fields, publishing: boolean, draft = false): Promise
   return parsed;
 }
 
+/** A game's new sketch, title and description: saved (a draft, even unfinished), published, or a
+ *  published game updated. Both editors come here (RYB's figure editor, and paint's publish page
+ *  through publishDrawing), so the rules live in one place: publishing needs the browser's
+ *  one-solution check for this very sketch (the `checked` hash), and a published game stays
+ *  published only if its new sketch passes the check too. Solves and likes belong to the game, not
+ *  its sketch, so an update keeps them. */
+async function putSketch(db: Db, game: Game, f: Fields, publish: boolean) {
+  const publishing = publish || (game.state === "published" && f.sketch !== game.sketch);
+  const parsed = await validated(f, publishing, game.state === "draft");
+  const firstPublish = publish && game.state !== "published" && !game.publishedAt;
+  await db.update(schema.games).set({
+    title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind, updatedAt: new Date(),
+    // (publishing by hand takes a scheduled draft off the AI creators' queue: app/lib/ai.server.ts)
+    ...(publish && game.state !== "published" ? { state: "published" as const, publishedAt: game.publishedAt ?? new Date(), publishAt: null } : {}),
+  }).where(eq(schema.games.id, game.id));
+  // how far the published puzzle is from what Claude read (app/lib/reads.server.ts)
+  if (firstPublish && game.sketchImage) await notePublished(db, game.id, f.sketch);
+}
+
 /** The editor's buttons: save, publish, back to draft, take down, restore, feature. */
 export async function changeGame(db: Db, me: Creator, game: Game, form: FormData) {
   const intent = String(form.get("intent"));
@@ -77,18 +96,7 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
     case "save":
     case "publish": {
       if (!canEdit(game, me, role)) throw new Forbidden("You can't edit this game.");
-      const f = fieldsFrom(form);
-      // A published game stays published only if its new sketch passes the check too.
-      const publishing = intent === "publish" || (game.state === "published" && f.sketch !== game.sketch);
-      const parsed = await validated(f, publishing, game.state === "draft");
-      const firstPublish = intent === "publish" && game.state !== "published" && !game.publishedAt;
-      await set({
-        title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
-        // (publishing by hand takes a scheduled draft off the AI creators' queue: app/lib/ai.server.ts)
-        ...(intent === "publish" && game.state !== "published" ? { state: "published", publishedAt: game.publishedAt ?? new Date(), publishAt: null } : {}),
-      });
-      // how far the published puzzle is from what Claude read (app/lib/reads.server.ts)
-      if (firstPublish && game.sketchImage) await notePublished(db, game.id, f.sketch);
+      await putSketch(db, game, fieldsFrom(form), intent === "publish");
       return;
     }
     case "doubt": {
@@ -226,9 +234,13 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
   const log: Attempt[] = [];
   const record = { gameId: game.id, creatorId: me.id, kind: "reread" as const, imageKey: game.sketchImage, feedback, chosenKind: genre, attempts: log };
   let read;
+  // the browser tests give the reading themselves, as for a new photo (createFromDrawing)
+  const given = import.meta.env.DEV ? form.get("given-reading") : null;
   try {
-    read = await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
-      { previous: { sketch: game.sketch, feedback, genre }, log, drawing: await (await env.MEDIA.get(`${game.sketchImage}.drawing.json`))?.text() });
+    read = typeof given === "string" && given
+      ? (log.push({ reader: "careful", model: "given (tests)", effort: "", ms: 0 }), givenReading(given))
+      : await readSketch(env, { data: toBase64(new Uint8Array(await stored.arrayBuffer())), type },
+        { previous: { sketch: game.sketch, feedback, genre }, log, drawing: await (await env.MEDIA.get(`${game.sketchImage}.drawing.json`))?.text() });
   } catch (e) {
     await recordRead(db, { ...record, error: (e as Error).message });
     throw e;
@@ -238,6 +250,8 @@ export async function rereadDrawing(db: Db, env: Env, me: Creator, game: Game, f
   await db.update(schema.games).set({
     sketch, kind: reading.genre, sketchVersion: SKETCH_VERSION,
     reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading), updatedAt: new Date(),
+    // paint draws the new reading in ink, in place of the old drawing (as for a new photo)
+    drawing: paintFromSketch(sketch),
   }).where(eq(schema.games.id, game.id));
 }
 
@@ -252,13 +266,18 @@ const doubtsFrom = (reading: Reading, sketch: string): Doubt[] => [
 // ---- paint: a draft drawn in the browser (/g/<id>/draw) ----
 
 /** Save paint's drawing (docs/creation-flow.md §1.10): the drawing, its type and settings as they
- *  are, and the sketch converted from them here (never sent: the drawing is the source of truth).
- *  A draft saves unfinished: no type, no grid, or a puzzle that doesn't solve yet. */
+ *  are, and for a draft the sketch converted from them here (never sent: the drawing is the source
+ *  of truth). A draft saves unfinished: no type, no grid, or a puzzle that doesn't solve yet. A
+ *  published game's drawing is its next version: saved without touching the live puzzle, which
+ *  changes only on Update (publishDrawing). */
 export async function saveDrawing(db: Db, me: Creator, game: Game, form: FormData) {
   if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
-  if (game.state !== "draft") throw new Invalid("Only drafts are drawn in paint for now.");
   const save = readPaintSave(String(form.get("drawing") ?? ""));
   if (!save) throw new Invalid("That drawing couldn't be read.");
+  if (game.state !== "draft") {
+    await db.update(schema.games).set({ drawing: save }).where(eq(schema.games.id, game.id));
+    return;
+  }
   const { sketch, kind } = sketchOf(save);
   const title = String(form.get("title") ?? "").trim().slice(0, 120) || "Untitled";
   await db.update(schema.games).set({
@@ -266,31 +285,26 @@ export async function saveDrawing(db: Db, me: Creator, game: Game, form: FormDat
   }).where(eq(schema.games.id, game.id));
 }
 
-/** The publish page's title and description (/g/<id>/publish), saved as they change. */
+/** The publish page's title and description (/g/<id>/publish), saved as they change. A published
+ *  game's are changed with Update instead. */
 export async function saveDetails(db: Db, me: Creator, game: Game, form: FormData) {
   if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
-  if (game.state !== "draft") throw new Invalid("Only drafts are changed here.");
+  if (game.state !== "draft") throw new Invalid("A published puzzle's title changes when you update it.");
   const f = fieldsFrom(form);
   await db.update(schema.games).set({ title: f.title || "Untitled", description: f.description, updatedAt: new Date() }).where(eq(schema.games.id, game.id));
 }
 
-/** Publish a draft drawn in paint (docs/creation-flow.md §1.9). The sketch is converted again here
- *  from the saved drawing, never taken from the page, and it must be the very sketch the browser's
- *  solver passed (the `checked` hash: exactly one solution; a panel, at least one), as the editor's
- *  publish requires. */
+/** Publish a draft drawn in paint (docs/creation-flow.md §1.9), or update a published game from its
+ *  drawing (§1.11). The sketch is converted again here from the saved drawing, never taken from the
+ *  page, and goes through putSketch, as the old editor's publish and update did: it must be the
+ *  very sketch the browser's solver passed (the `checked` hash: exactly one solution; a panel, at
+ *  least one) whenever it's new to players. */
 export async function publishDrawing(db: Db, me: Creator, game: Game, form: FormData) {
   if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
-  if (game.state !== "draft") throw new Invalid("It's published already.");
+  if (game.state === "hidden") throw new Invalid("It's taken down, so it can't be updated.");
   const save = readPaintSave(game.drawing);
   if (!save?.genre) throw new Invalid("Choose its puzzle type in paint first.");
   const { sketch, conversion } = sketchOf(save);
   if (!sketch || !conversion?.spec) throw new Invalid("Draw its grid in paint first.");
-  const f = { ...fieldsFrom(form), sketch };
-  const parsed = await validated(f, true);
-  const firstPublish = !game.publishedAt;
-  await db.update(schema.games).set({
-    title: f.title, description: f.description, sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
-    state: "published", publishedAt: game.publishedAt ?? new Date(), publishAt: null, updatedAt: new Date(),
-  }).where(eq(schema.games.id, game.id));
-  if (firstPublish && game.sketchImage) await notePublished(db, game.id, sketch);
+  await putSketch(db, game, { ...fieldsFrom(form), sketch }, game.state === "draft");
 }

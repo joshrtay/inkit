@@ -159,3 +159,8 @@
 .new-draft .pic.none { border: 1.5px dashed var(--line-strong); background: none; }
 .new-draft strong { display: block; font: 800 16px/1.25 var(--display); }
 .new-draft small { display: block; color: var(--muted); font-size: 13px; }
+
+/* the game's … menu (back to draft, take down, restore, Featured) */
+.game-more { position: relative; align-self: center; }
+.game-more .menu { right: 0; left: auto; min-width: 210px; }
+.game-more form { display: contents; }

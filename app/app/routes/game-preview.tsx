@@ -50,7 +50,7 @@ export default function GamePreview({ loaderData: { game, collection, author, li
   const parsed = useMemo(() => parseSketch(live.sketch), [live.sketch]);
   const play = useMemo(() => (parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null), [parsed]);
   return (
-    <GamePageView key={live.sketch} preview play={play} editable={false} likes={likes} solves={solves} signedIn
+    <GamePageView key={live.sketch} preview play={play} likes={likes} solves={solves} signedIn
       summary={parsed.ok ? parsed.summary : kindName(game.kind)}
       extra={parsed.ok && parsed.spec.rules?.length ? parsed.rules : []} errors={parsed.ok ? [] : parsed.errors}
       game={{ id: game.id, title: live.title.trim() || "Untitled", description: live.description, kind: parsed.ok ? parsed.kind : game.kind, state: "published", hiddenNote: null, when: game.when }}

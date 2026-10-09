@@ -20,6 +20,7 @@ import { blockFor, colorName, standardBox, symbolOf, TILE_COLORS, TILE_KINDS, ti
 import { regionsOf } from "~site/engine/derive.ts";
 import { emptyBoard, type Given, type GridSpec, type GridStyle, type Puzzle, type RuleSpec, type Side } from "~site/engine/types.ts";
 import { kindName } from "~/games/kinds";
+import { parseLengths } from "~/editor/ops";
 import * as m from "./model";
 
 // ---- what comes out ----
@@ -338,12 +339,6 @@ function numberOf(cx: Ctx, text: string): Given | null {
 /** Numbers written in one place, separated by spaces or commas ("1 2", "3,1"). */
 const numbersIn = (t: string) => t.split(/[\s,]+/).filter(Boolean);
 
-/** A list's word as a length ("√5" is 5, "2" is 4). */
-function lengthOf(w: string): number | null {
-  const root = /^√(\d+)$/.exec(w);
-  if (root) return Number(root[1]);
-  return INT.test(w) ? Number(w) ** 2 : null;
-}
 
 /** Where the type's colours go: wash names against its palette. */
 function paletteNames(cx: Ctx): string[] {
@@ -480,11 +475,11 @@ export const READERS: Record<Part, Reader | null> = {
   // shapes off the grid: the shape bank
   bank: (cx) => { for (const s of cx.stamps("shape")) if (!cx.gridCell(s.at) && s.cells?.length) cx.give({ at: "aside", kind: "bank", value: normalShape(s.cells) }, s.id); },
   peg: (cx) => { for (const { s, cell } of cellStamps(cx, "stone")) if ((s.color ?? "black") === "black") cx.give({ at: "cell", cell, kind: "peg" }, s.id); },
+  // the lengths as the old editor took them: 2 (a square's side), √5, r5 or sqrt 5
   lengths: (cx) => {
-    const ts = belowTexts(cx), words = ts.flatMap((t) => numbersIn(t.text));
-    const value = words.map(lengthOf);
-    if (!ts.length || value.some((v) => v === null)) return;
-    cx.give({ at: "aside", kind: "lengths", value: value as number[] }, ...ts.map((t) => t.id));
+    const ts = belowTexts(cx), value = ts.length ? parseLengths(ts.map((t) => t.text).join(" ")) : null;
+    if (!value) return;
+    cx.give({ at: "aside", kind: "lengths", value }, ...ts.map((t) => t.id));
   },
   // an arrow across the outside edge: its shaft from the edge outward, its head where it points
   door: (cx) => {
@@ -870,4 +865,61 @@ export function normalSpec(spec: GridSpec, genre = spec.genre): GridSpec {
   for (const k of ["rules", "entries", "marks"] as const) if (Array.isArray(s[k]) && !s[k]!.length) delete s[k];
   if (s.style && !Object.keys(s.style).length) delete s.style;
   return s;
+}
+
+/** A puzzle as one string, the same for two that mean the same (normalSpec, keys in order). */
+export const specKey = (spec: GridSpec) => keyOf(normalSpec(spec));
+
+// ---- areas, painted (paint's Areas tool) ----
+
+/** The areas a drawing makes as this type, a letter per square (one area when it has no borders
+ *  yet); null when the type has no areas. */
+export function areasOf(d: m.Drawing, genre: GenreName, settings: Settings = {}): string[] | null {
+  const g = d.grid;
+  if (!g || g.shape === "hex" || !PROFILES[genre]?.reads.includes("areas")) return null;
+  return convert(d, genre, settings).spec?.areas ?? Array.from({ length: g.rows }, () => "a".repeat(g.cols));
+}
+
+/** The drawing with these areas: the strokes that only follow grid lines (the old borders) go, and a
+ *  bold line runs along each stretch between two areas, as from-puzzle.ts draws them. A sudoku's
+ *  box lines (medium) stay: the boxes setting reads them. */
+export function withAreas(d: m.Drawing, areas: string[], genre: GenreName): m.Drawing {
+  const g = d.grid;
+  if (!g) return d;
+  const { rows, cols } = g, boxLines = PROFILES[genre]?.reads.includes("box-lines");
+  const at = (a: m.Anchor): P => { const p = m.pointOf(g, a); return { r: (p.y - g.y) / g.S, c: (p.x - g.x) / g.S }; };
+  const borders = d.items.filter((it): it is Stroke => (it.kind === "pen" || it.kind === "line") && !(boxLines && it.weight === "medium")
+    && resolveStroke((it.kind === "pen" ? it.points : [it.from, it.to]).map(at), rows, cols).every((p) => p.kind === "edges"));
+  let out = m.remove(d, borders.map((it) => it.id));
+  const line = (r1: number, c1: number, r2: number, c2: number) => {
+    out = m.add(out, { kind: "line", weight: "bold", from: { at: "corner", r: r1, c: c1 }, to: { at: "corner", r: r2, c: c2 } });
+  };
+  const of = (r: number, c: number) => areas[r]?.[c];
+  // along each grid line inside the grid, a line for each run of squares whose areas differ across it
+  for (let r = 1; r < rows; r++) {
+    let from = -1;
+    for (let c = 0; c <= cols; c++) {
+      const differ = c < cols && of(r - 1, c) !== of(r, c);
+      if (differ && from < 0) from = c;
+      if (!differ && from >= 0) { line(r, from, r, c); from = -1; }
+    }
+  }
+  for (let c = 1; c < cols; c++) {
+    let from = -1;
+    for (let r = 0; r <= rows; r++) {
+      const differ = r < rows && of(r, c - 1) !== of(r, c);
+      if (differ && from < 0) from = r;
+      if (!differ && from >= 0) { line(from, c, r, c); from = -1; }
+    }
+  }
+  return out;
+}
+
+/** Areas with these squares moved into one area: `into`'s (a square's letter), or a new one. */
+export function paintAreas(areas: string[], cells: [number, number][], into: string | null): string[] {
+  const used = new Set(areas.join(""));
+  const letter = into ?? [..."abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"].find((x) => !used.has(x)) ?? areas[cells[0][0]][cells[0][1]];
+  const rows = areas.map((row) => [...row]);
+  for (const [r, c] of cells) if (rows[r]?.[c] !== undefined) rows[r][c] = letter;
+  return rows.map((row) => row.join(""));
 }

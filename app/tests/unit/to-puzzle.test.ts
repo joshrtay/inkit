@@ -7,7 +7,7 @@ import { GENRE_NAMES, makePuzzle, type GenreName } from "~site/engine/puzzle.ts"
 import type { Given, GridSpec } from "~site/engine/types.ts";
 import * as m from "~/sketchpad/model";
 import { FOLDER_GENRE, specOf, toDrawing } from "~/sketchpad/from-puzzle";
-import { breaksRules, convert, normalSpec, PROFILES, READERS, resolveStroke, type Problem } from "~/sketchpad/to-puzzle";
+import { areasOf, breaksRules, convert, normalSpec, paintAreas, PROFILES, READERS, resolveStroke, withAreas, type Problem } from "~/sketchpad/to-puzzle";
 
 const GAMES = new URL("../../../src/games/", import.meta.url).pathname;
 const folders = readdirSync(GAMES, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name).sort();
@@ -256,5 +256,44 @@ describe("rule hints", () => {
     const abc = convert(drawing(4, 4, [text(cell(0, 0), "A"), text(cell(3, 0), "A")]), "easy-as-abc");
     expect(abc.problems.map((p) => p.text)).toEqual(["Two As in column 1"]);
     expect(convert(drawing(4, 4, [text(cell(0, 0), "2"), text(cell(0, 1), "2")]), "nurikabe").problems).toEqual([]);
+  });
+});
+
+describe("areas, painted (paint's Areas tool)", () => {
+  const spec = specOf("star-battle", JSON.parse(readFileSync(new URL("../../../src/games/star-battle/1.json", import.meta.url), "utf8")));
+  const drawing = () => toDrawing(makePuzzle(spec), "star-battle").drawing;
+  it("reads a drawing's areas, and one area for a grid with no borders", () => {
+    expect(normalSpec({ ...spec, areas: areasOf(drawing(), "star-battle")! }).areas).toEqual(normalSpec(spec).areas);
+    const bare = m.setGrid(m.EMPTY, { x: 40, y: 40, rows: 3, cols: 4, S: 40 });
+    expect(areasOf(bare, "star-battle")).toEqual(["aaaa", "aaaa", "aaaa"]);
+    expect(areasOf(bare, "sudoku")).toEqual(["aaaa", "aaaa", "aaaa"]);
+    expect(areasOf(bare, "akari")).toBeNull();
+  });
+  it("redraws the borders for new areas, and the converter reads them back", () => {
+    const areas = paintAreas(spec.areas!, [[0, 0], [1, 0]], null);
+    const d = withAreas(drawing(), areas, "star-battle");
+    expect(normalSpec({ ...spec, areas: convert(d, "star-battle").spec!.areas }).areas).toEqual(normalSpec({ ...spec, areas }).areas);
+    // the old borders went: only the new bold lines are left
+    expect(d.items.filter((it) => it.kind === "line" || it.kind === "pen").every((it) => it.kind === "line" && it.weight === "bold")).toBe(true);
+  });
+  it("moves squares into a square's area, or a new one", () => {
+    expect(paintAreas(["aab", "abb"], [[0, 2], [1, 2]], "a")).toEqual(["aaa", "aba"]);
+    expect(paintAreas(["aab", "abb"], [[1, 1]], null)).toEqual(["aab", "acb"]);
+  });
+  it("keeps a sudoku's box lines (medium) when it redraws an Irregular Sudoku's areas", () => {
+    let d = m.setGrid(m.EMPTY, { x: 40, y: 40, rows: 4, cols: 4, S: 40 });
+    d = m.add(d, { kind: "line", weight: "medium", from: { at: "corner", r: 2, c: 0 }, to: { at: "corner", r: 2, c: 4 } });
+    const out = withAreas(d, ["aabb", "aabb", "ccdd", "ccdd"], "irregular-sudoku");
+    expect(out.items.filter((it) => it.kind === "line" && it.weight === "medium")).toHaveLength(1);
+    expect(out.items.filter((it) => it.kind === "line" && it.weight === "bold")).toHaveLength(2);
+  });
+});
+
+describe("a lattice's lengths, written as the old editor took them", () => {
+  it("reads √5, r5 and sqrt 5 alike", () => {
+    let d = m.setGrid(m.EMPTY, { x: 40, y: 40, rows: 4, cols: 4, S: 40 });
+    d = m.setGrid(d, m.setLook(d.grid!, "dots"));
+    d = m.add(d, { kind: "text", at: { at: "grid", r: 4.8, c: 2 }, text: "1 √2 r5 sqrt 10 2" });
+    expect(convert(d, "pythagorean-paths").spec!.givens).toContainEqual({ at: "aside", kind: "lengths", value: [1, 2, 5, 10, 4] });
   });
 });

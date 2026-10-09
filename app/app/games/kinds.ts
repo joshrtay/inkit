@@ -53,3 +53,7 @@ export const KIND_NAMES: Record<GenreName, string> = {
 };
 /** A type's name; a draft with no type yet (paint: the type is chosen as it's drawn) says so. */
 export const kindName = (id: string) => (id ? (KIND_NAMES as Record<string, string>)[id] ?? id : "No type yet");
+
+/** Where a game is edited: paint (/g/<id>/draw) for every type but RYB, which keeps its figure
+ *  editor (/g/<id>/edit) until paint can draw pieces (docs/creation-flow.md, decision 7). */
+export const editPath = (game: { id: string; kind: string }) => `/g/${game.id}/${game.kind === "coats" ? "edit" : "draw"}`;

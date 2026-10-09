@@ -1,25 +1,20 @@
-// A game's editor: a page of its own, after Substack's post editor. Along the top: back, whether
+// RYB's editor (Three Coats: a figure of pieces, which paint can't draw yet; every other type is
+// edited in paint, components/Paint.tsx): a page of its own, after Substack's post editor. Along the top: back, whether
 // it's saved, the puzzle type, then whether it has one solution, Preview and Publish. Under that,
 // the type's tools; then the puzzle itself, edited in place. The drawing it was read from sits in
 // the left margin and Claude's doubts in the right, as a checklist pinned to their cells. Undo and
 // Reset sit in the bottom-left corner.
 //
 // Drafts save themselves as you go; a published game changes only when you press Update (and only
-// to a puzzle with one solution). Grid types are edited on the board (BoardEditor); RYB,
-// drawn as pieces, in FigureEditor. Panes (and admins, for any puzzle) also get the Rules panel;
-// admins the Look panel.
+// to a puzzle with one solution). The pieces are edited in FigureEditor.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Form, Link, useFetcher, useSearchParams } from "react-router";
+import { Form, Link, useFetcher } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { doubtPlace, type Doubt } from "~/games/doubts";
 import { KIND_NAMES, kindName } from "~/games/kinds";
-import type { GridSpec } from "~site/engine/types.ts";
 import { needsOneSolution } from "~site/engine/puzzle.ts";
 import { FigureEditor } from "./FigureEditor";
-import { RulesPanel } from "./RulesPanel";
-import { LookPanel } from "./LookPanel";
-import { BoardEditor, hasBoardEditor } from "./BoardEditor";
 import { passed, useLiveCheck } from "./useOneSolutionCheck";
 import { Select } from "./Select";
 import { ReadingScreen } from "./ReadingScreen";
@@ -76,7 +71,6 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   const loose = useMemo(() => looseSpec(sketch), [sketch]);
   const check = useLiveCheck(sketch, play?.spec ?? null, parsed.ok ? "" : parsed.errors[0]);
   const genre = loose?.genre;
-  const onBoard = hasBoardEditor(genre);
 
   // the title and description, written above the puzzle
   const [title, setTitle] = useState(game.title);
@@ -107,18 +101,13 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
   // Claude's doubts, ticked off one at a time
   const [ticked, setTicked] = useState(() => doubts.map((d) => !!d.done));
   useEffect(() => setTicked(doubts.map((d) => !!d.done)), [doubts]);
-  const [hover, setHover] = useState<number | null>(null);
   const tick = (i: number, done: boolean) => {
     setTicked((t) => t.map((v, j) => (j === i ? done : v)));
     if (may.edit) ticker.submit({ intent: "doubt", index: String(i), done: done ? "1" : "0" }, { method: "post" });
   };
   const open = doubts.filter((_, i) => !ticked[i]).length;
 
-  const [tools, setTools] = useState<HTMLElement | null>(null);
-  const [flash, setFlash] = useState(0);
-  // paint's Publish comes here with ?publish (until the publish step of its own: docs/creation-flow.md §1.9)
-  const [params] = useSearchParams();
-  const [panel, setPanel] = useState<"preview" | "publish" | "drawing" | null>(params.has("publish") && game.state === "draft" ? "publish" : null);
+  const [panel, setPanel] = useState<"preview" | "publish" | "drawing" | null>(null);
   const [menu, setMenu] = useState(false);
   const hasMore = game.state === "published" ? may.edit || may.takeDown || may.feature : game.state === "hidden" && may.hide;
   const rereading = reader.state !== "idle";
@@ -141,13 +130,9 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
         </div>
         <div className="studio-actions">
           {/* a status, not a button (except that "more than one" can point out where) */}
-          {check.state === "many" ? (
-            <button type="button" className="check-chip many" title="Show the cells the clues can't pin down" onClick={() => setFlash((n) => n + 1)}>✕ {check.text}</button>
-          ) : (
-            <span className={`check-chip ${check.state}`} role="status" title={check.state === "broken" ? check.text : undefined}>
-              {passed(check.state) ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
-            </span>
-          )}
+          <span className={`check-chip ${check.state}`} role="status" title={check.state === "broken" ? check.text : undefined}>
+            {passed(check.state) ? "✓ " : check.state === "checking" ? "" : "✕ "}{check.state === "broken" ? "Can't be played" : check.text}
+          </span>
           <button type="button" className="btn" disabled={!play} onClick={() => setPanel("preview")}>Preview</button>
           {may.edit && (isDraft
             ? <button type="button" className="btn primary" onClick={() => setPanel("publish")}>Publish</button>
@@ -184,8 +169,6 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
               options={typeOptions(choices, genre)} onChange={changeType} />
           ) : <strong>{genre ? kindName(genre) : "Puzzle"}</strong>}
         </div>
-        <span className="tool-sep" aria-hidden="true" />
-        <div className="studio-tools-slot" ref={setTools} />
       </div>
 
       {game.state === "hidden" && <p className="studio-banner">Taken down: {game.hiddenNote}</p>}
@@ -211,17 +194,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
         <div className={`studio-board${rereading ? " busy" : ""}`}>
           {!loose ? (
             <div className="problems"><p>This puzzle can&rsquo;t be played yet:</p><ul>{(parsed.ok ? [] : parsed.errors).map((p) => <li key={p}>{p}</li>)}</ul></div>
-          ) : onBoard ? (
-            <>
-              <BoardEditor spec={loose} tools={tools} ambiguous={check.state === "many"} flash={flash}
-                onChange={(s: GridSpec, continuing?: boolean) => setSketch(specToSketch(s), continuing)}
-                pins={doubts.flatMap(({ text: _t, done: _d, ...at }, i) => (ticked[i] ? [] : [{ ...at, n: i + 1, active: hover === i }]))} />
-              {/* Panes puzzles mix rules: they're set below the board; admins can change any puzzle's rules and look */}
-              {(genre === "panes" || may.feature) && <RulesPanel spec={loose} open={genre === "panes"} onChange={(s) => setSketch(specToSketch(s))} />}
-              {may.feature && <LookPanel spec={loose} onChange={(s) => setSketch(specToSketch(s))} />}
-            </>
           ) : (
-            // RYB: drawn as pieces, with its own figure editor
             <FigureEditor spec={loose} set={(patch) => setSketch(specToSketch({ ...loose, ...patch }))} />
           )}
         </div>
@@ -233,7 +206,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
                 <h2>Claude wasn&rsquo;t sure <span className="muted">{doubts.length - open} of {doubts.length} checked</span></h2>
                 <ul>
                   {doubts.map((d, i) => (
-                    <li key={i} className={ticked[i] ? "done" : ""} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+                    <li key={i} className={ticked[i] ? "done" : ""}>
                       <label>
                         <input type="checkbox" checked={ticked[i]} onChange={(e) => tick(i, e.target.checked)} />
                         <span><b>{i + 1}{doubtPlace(d) && ` · ${doubtPlace(d)}`}</b> {d.text}</span>

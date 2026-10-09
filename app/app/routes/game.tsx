@@ -7,13 +7,29 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { canEdit, canHide, canView, roleIn } from "~/lib/permissions.server";
 import { parseSketch } from "~/games/sketch";
-import { kindName } from "~/games/kinds";
+import { editPath, kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { likesOf, solvesOf } from "~/lib/queries.server";
 import { GamePageView } from "~/components/GamePageView";
 import { readPaintSave } from "~/games/paint-save";
 import { drawingSvg } from "~/sketchpad/picture";
 import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
+import { changeGame, isFeatured } from "~/lib/games.server";
+import { attempt, signInFirst } from "~/lib/http.server";
+
+/** The game's … menu (back to draft, take down, restore, feature): changeGame checks who may. */
+const MANAGE = new Set(["unpublish", "hide", "unhide", "feature", "unfeature"]);
+export async function action({ params, request, context }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
+  const me = await currentCreator(env, request);
+  if (!me) signInFirst(request);
+  const db = getDb(env);
+  const game = await db.query.games.findFirst({ where: eq(schema.games.id, params.id) });
+  if (!game) throw data(null, { status: 404 });
+  const form = await request.formData();
+  if (!MANAGE.has(String(form.get("intent")))) throw data(null, { status: 400 });
+  return attempt(async () => { await changeGame(db, me, game, form); return { error: undefined }; });
+}
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -41,8 +57,15 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     // a puzzle that lists its own rules (Panes; a 2-star Star Battle) shows them above its type's guide
     extra: parsed.ok && parsed.spec.rules?.length ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
-    editable: canEdit(game, viewer, role) || canHide(viewer, role),
-    editTo: game.state === "draft" && (game.drawing || !game.kind) ? `/g/${game.id}/draw` : `/g/${game.id}/edit`,
+    // Edit opens paint (RYB: its figure editor); the rest of what the old editor's … menu did is here
+    editTo: canEdit(game, viewer, role) ? editPath(game) : null,
+    manage: {
+      unpublish: canEdit(game, viewer, role) && game.state === "published",
+      takeDown: canHide(viewer, role) && game.authorId !== viewer?.id && game.state === "published",
+      restore: canHide(viewer, role) && game.state === "hidden",
+      feature: !!viewer?.isAdmin && game.state === "published",
+      featured: await isFeatured(db, game.id),
+    },
     likes: await likesOf(db, game.id, viewer?.id),
     solves: await solvesOf(db, game.id, viewer?.id),
     signedIn: !!viewer,
@@ -65,6 +88,6 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   });
 };
 
-export default function Game({ loaderData }: Route.ComponentProps) {
-  return <GamePageView {...loaderData} />;
+export default function Game({ loaderData, actionData }: Route.ComponentProps) {
+  return <GamePageView {...loaderData} error={actionData?.error} />;
 }

@@ -2,7 +2,7 @@ import { Form, Link } from "react-router";
 import type { Thumbed } from "~/lib/thumbs.server";
 import type { CollectionCard } from "~/lib/queries.server";
 import { doubtsOf } from "~/games/doubts";
-import { kindName } from "~/games/kinds";
+import { editPath, kindName } from "~/games/kinds";
 import { Avatar } from "./Avatar";
 import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
@@ -11,14 +11,14 @@ const Picture = ({ svg, className }: { svg: string | null; className: string }) 
   svg ? <span className={`grid-game pic ${className}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <span className={`pic ${className} none`} />;
 
 /** A game in a grid: its puzzle, title, type, who made it, and its state if it isn't public. */
-/** `draft`: a card in your Drafts: it opens paint (a draft drawn there, or with no type yet) or the
- *  editor, and says when you last edited it and how many of Claude's doubts are left to check. */
+/** `draft`: a card in your Drafts: it opens paint (RYB: its figure editor; a game taken down: its
+ *  page), and says when you last edited it and how many of Claude's doubts are left to check. */
 export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boolean }) {
   if (draft) {
     const left = doubtsOf(game.parseNotes).filter((d) => !d.done).length;
     return (
       <li>
-        <Link className="game-card" to={`/g/${game.id}/${game.paint && game.state === "draft" ? "draw" : "edit"}`}>
+        <Link className="game-card" to={game.state === "hidden" ? `/g/${game.id}` : editPath(game)}>
           <Picture svg={game.picture} className="thumb" />
           <span className="game-card-text">
             <span className={`kind${game.kind ? "" : " unset"}`}>{kindName(game.kind)}</span>

@@ -6,7 +6,8 @@ import { GENRE_NAMES, makePuzzle, type GenreName } from "~site/engine/puzzle.ts"
 import * as m from "~/sketchpad/model";
 import { toDrawing } from "~/sketchpad/from-puzzle";
 import { convert, PROFILES, type Conversion, type Settings } from "~/sketchpad/to-puzzle";
-import { looseSpec, specToSketch } from "./sketch";
+import { looseSpec, parseSketch, specToSketch } from "./sketch";
+import type { GridSpec } from "~site/engine/types.ts";
 
 export interface PaintSave { drawing: m.Drawing; genre: GenreName | null; settings: Settings }
 
@@ -26,6 +27,8 @@ export function readPaintSave(v: unknown): PaintSave | null {
   const settings: Settings = {
     ...(Array.isArray(s.rules) ? { rules: s.rules as Settings["rules"] } : {}),
     ...(s.style && typeof s.style === "object" ? { style: s.style as Settings["style"] } : {}),
+    ...(Array.isArray(s.marks) ? { marks: s.marks as Settings["marks"] } : {}),
+    ...(typeof s.hearts === "number" ? { hearts: s.hearts } : {}),
   };
   return { drawing, genre: isGenre(o.genre) ? o.genre : null, settings };
 }
@@ -40,10 +43,17 @@ export function sketchOf(save: PaintSave): { sketch: string; kind: string; conve
 /** A sketch drawn in paint's ink (from-puzzle.ts's toDrawing): a photo's reading, or a draft made
  *  before paint. Null for a type paint can't draw (RYB) or a sketch that isn't a puzzle. */
 export function paintFromSketch(sketch: string): PaintSave | null {
-  const spec = looseSpec(sketch), genre = spec?.genre as GenreName | undefined;
+  // the whole sketch when it parses (rules written on its first line too), else as much as can be made out
+  const parsed = parseSketch(sketch);
+  const spec = parsed.ok ? parsed.spec : looseSpec(sketch), genre = spec?.genre as GenreName | undefined;
   if (!spec || !genre || !PROFILES[genre]) return null;
   try {
-    return { drawing: toDrawing(makePuzzle(spec, { unfinished: true }), genre).drawing, genre,
-      settings: { ...(spec.rules ? { rules: spec.rules } : {}), ...(spec.style ? { style: spec.style } : {}) } };
+    return { drawing: toDrawing(makePuzzle(spec, { unfinished: true }), genre).drawing, genre, settings: settingsOf(spec) };
   } catch { return null; }
 }
+
+/** What of a puzzle isn't drawn: its rule settings and its look (the Rules and Look panels). */
+export const settingsOf = (spec: GridSpec): Settings => ({
+  ...(spec.rules?.length ? { rules: spec.rules } : {}), ...(spec.style ? { style: spec.style } : {}),
+  ...(spec.marks ? { marks: spec.marks } : {}), ...(spec.hearts !== undefined ? { hearts: spec.hearts } : {}),
+});

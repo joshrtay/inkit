@@ -21,8 +21,8 @@ describe("a type's kit", () => {
   it("Sudoku: the grid, text and the eraser; no stamps; lines", () => {
     expect(kitFor("sudoku")).toEqual({ tools: ["grid", "text", "erase"], stamps: [], colours: {}, look: "lines" });
   });
-  it("Irregular Sudoku draws its areas with the pen", () => {
-    expect(kitFor("irregular-sudoku")!.tools).toEqual(["grid", "pen", "line", "text", "erase"]);
+  it("Irregular Sudoku draws its areas with the pen, or paints them (Areas)", () => {
+    expect(kitFor("irregular-sudoku")!.tools).toEqual(["grid", "pen", "line", "region", "text", "erase"]);
   });
   it("Panel: stamps on tracks, its symbols only, starts and dots in its lines' colours", () => {
     const k = kitFor("panel")!;

@@ -13,6 +13,12 @@ import { RulesPanel, SettingField } from "./RulesPanel";
 import { LookPanel } from "./LookPanel";
 
 const SUDOKUS = new Set<GenreName>(["sudoku", "thermo-sudoku", "irregular-sudoku"]);
+/** Rules a type's puzzles may add (not its own): offered beside its own, as the old editor's toolbar
+ *  did. One with settings is on while any is set; one without, a switch. */
+const OPTIONAL: Partial<Record<GenreName, RuleName[]>> = {
+  fillomino: ["allowed-sizes"],
+  "abstract-art": ["no-three-in-a-row", "unique-lines"],
+};
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 /** A rule's setting as paint shows it: a choice as a segmented control, a flag as a switch, the rest as the editor's fields. */
@@ -47,8 +53,12 @@ function useRuleSettings({ genre, settings, size, onChange }: Props) {
     const next: RuleSpec = { ...base, [key]: v };
     if (v === undefined) delete next[key];
     const same = preset && JSON.stringify(Object.entries(next).sort()) === JSON.stringify(Object.entries(preset).sort());
-    setRules([...own.filter((r) => r.rule !== name), ...(same ? [] : [next])]);
+    // an optional rule with nothing set is off
+    const off = !preset && Object.keys(next).length === 1;
+    setRules([...own.filter((r) => r.rule !== name), ...(same || off ? [] : [next])]);
   };
+  /** An optional rule without settings, on or off. */
+  const toggleRule = (name: string, on: boolean) => setRules([...own.filter((r) => r.rule !== name), ...(on ? [{ rule: name }] : [])]);
   const setStyle = (k: string, v: unknown) => {
     const style = { ...settings.style, [k]: v } as Record<string, unknown>;
     if (v === undefined) delete style[k];
@@ -62,7 +72,8 @@ function useRuleSettings({ genre, settings, size, onChange }: Props) {
   const box = (ruleOf("boxes")?.box as [number, number] | undefined) ?? (n ? standardBox(n) : null);
   const writes = SUDOKUS.has(genre) && n > 0 && n <= LETTERS.length;
   const settable = presets.filter((r) => r.rule !== "boxes" && RULES[r.rule as RuleName]?.settings.length);
-  return { ruleOf, setRule, setStyle, setRules, n, boxes, box, writes, settable };
+  const optional = OPTIONAL[genre] ?? [];
+  return { ruleOf, setRule, toggleRule, setStyle, setRules, n, boxes, box, writes, settable, optional };
 }
 
 /** The engine rules of this type that have settings (each shown on its line in the checklist). */
@@ -73,6 +84,7 @@ export function settingRules(genre: GenreName, size: [number, number] | null): s
   if (SUDOKUS.has(genre) && genre !== "irregular-sudoku" && n && Array.from({ length: n }, (_, a) => a + 1).filter((a) => a > 1 && a < n && n % a === 0).length > 1) out.push("boxes");
   if (SUDOKUS.has(genre) && n > 0 && n <= LETTERS.length) out.push("latin");
   for (const r of presets) if (r.rule !== "boxes" && RULES[r.rule as RuleName]?.settings.length) out.push(r.rule);
+  out.push(...(OPTIONAL[genre] ?? []));
   return [...new Set(out)];
 }
 
@@ -101,6 +113,10 @@ export function RuleSettings(props: Props & { rules: string[] }) {
       <Field key={`${r.rule}.${s.key}`} s={s}
         value={k.ruleOf(r.rule)?.[s.key]} onChange={(v) => k.setRule(r.rule, s.key, v)} />
     )))}
+    {k.optional.filter((r) => rules.includes(r)).flatMap((r) => RULES[r].settings.length
+      ? RULES[r].settings.map((s) => <Field key={`${r}.${s.key}`} s={{ ...s, label: `${RULES[r].label}: ${s.label}` }} value={k.ruleOf(r)?.[s.key]} onChange={(v) => k.setRule(r, s.key, v)} />)
+      : [<label key={r} className="paint-switch"><span>{RULES[r].label}</span>
+        <input type="checkbox" role="switch" checked={!!k.ruleOf(r)} onChange={(e) => k.toggleRule(r, e.target.checked)} /></label>])}
   </>;
 }
 
@@ -116,7 +132,11 @@ export function MoreSettings(props: Props & { admin?: boolean }) {
       <details className="paint-advanced">
         <summary>Advanced</summary>
         {genre !== "panes" && <RulesPanel spec={spec} onChange={(s) => k.setRules(s.rules ?? [])} />}
-        <LookPanel spec={spec} onChange={(s) => { const { rules: _r, style, ...rest } = s; void rest; const { style: _o, ...keep } = settings; onChange(style ? { ...keep, style } : keep); }} />
+        {/* the look: the style and what the player draws (the rules stay the checklist's) */}
+        <LookPanel spec={spec} onChange={(s) => {
+          const { style: _o, marks: _m, ...keep } = settings;
+          onChange({ ...keep, ...(s.style ? { style: s.style } : {}), ...(s.marks ? { marks: s.marks } : {}) });
+        }} />
       </details>
     )}
   </>;

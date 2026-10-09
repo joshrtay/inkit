@@ -14,8 +14,6 @@ export interface Thumbed extends Omit<GameCard, "sketch" | "sketchVersion"> {
   picture: string | null;
   /** the viewer has solved it */
   solved?: boolean;
-  /** a draft drawn in paint (or with no type yet): it opens in paint, not the old editor */
-  paint?: boolean;
 }
 
 /** Game cards with a picture of each puzzle (and without their sketches, which stay on the server). */
@@ -28,8 +26,7 @@ export function withPictures(games: GameCard[]): Thumbed[] {
   });
 }
 
-/** Drafts for a list: as withPictures, and which are paint's, with the drawing as the picture of
- *  one that isn't a puzzle yet. */
+/** Drafts for a list: as withPictures, with the drawing as the picture of one that isn't a puzzle yet. */
 export async function draftPictures(db: Db, games: GameCard[]): Promise<Thumbed[]> {
   const cards = withPictures(games);
   const ids = cards.filter((g) => g.state !== "published").map((g) => g.id);
@@ -38,7 +35,6 @@ export async function draftPictures(db: Db, games: GameCard[]): Promise<Thumbed[
   return cards.map((g) => {
     if (g.state === "published") return g;
     const save = drawings.get(g.id) ? readPaintSave(drawings.get(g.id)) : null;
-    const paint = !!save || !g.kind;
-    return { ...g, paint, picture: g.picture ?? (save ? drawingSvg(save.drawing, g.title) || null : null) };
+    return { ...g, picture: g.picture ?? (save ? drawingSvg(save.drawing, g.title) || null : null) };
   });
 }

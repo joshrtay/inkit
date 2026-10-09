@@ -1,8 +1,10 @@
-// Edit a game, and change its state: inkit.games/g/<id>/edit. A page of its own (no site nav),
-// like Substack's post editor: see GameEditor.
+// Edit an RYB game (Three Coats, drawn as pieces): inkit.games/g/<id>/edit. A page of its own (no
+// site nav), like Substack's post editor: see GameEditor. Every other type is edited in paint
+// (/g/<id>/draw), so this sends them there; RYB waits for paint to draw pieces (docs/creation-flow.md,
+// decision 7).
 // Its author (while a member) and the collection's owners can edit; owners and admins can
 // take it down; admins can feature it.
-import { redirect } from "react-router";
+import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game-edit";
 import { cloudflareContext } from "~/lib/context";
@@ -19,6 +21,7 @@ export const handle = { bare: true };
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
+  if (game.kind !== "coats") throw may.edit ? redirect(`/g/${game.id}/draw`) : data(null, { status: 404 });
   const collection = await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
   return {
     game: { id: game.id, title: game.title, description: game.description, sketch: game.sketch, state: game.state, hiddenNote: game.hiddenNote },

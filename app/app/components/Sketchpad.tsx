@@ -25,6 +25,7 @@ import { gridSvg, itemSvg, penVars, stampSvg } from "~/sketchpad/draw";
 import { exportPng } from "~/sketchpad/export";
 import { SHAPES, type RC } from "~/editor/ops";
 import { colourAllowed, TOOL_ORDER, type Kit, type Look } from "~/sketchpad/kit";
+import { paintAreas } from "~/sketchpad/to-puzzle";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
 import { SpIcon, type SpIconName } from "./SketchpadIcons";
 import "~site/game-types/grid/styles.css";
@@ -35,6 +36,7 @@ const TOOLS: { id: Tool; label: string; key: string; hint: string; group: number
   { id: "grid", label: "Grid", key: "g", group: 0, hint: "Drag a rectangle for a grid; drag the grid to move it, its corner to resize it" },
   { id: "pen", label: "Pen", key: "p", group: 1, hint: "Draw freehand (hold Shift for a straight line)" },
   { id: "line", label: "Line", key: "l", group: 1, hint: "Drag a straight line; it keeps level or upright near the axes" },
+  { id: "region", label: "Areas", key: "a", group: 1, hint: "Drag from a square across others to put them in its area (with New area, in an area of their own); the borders follow" },
   { id: "wash", label: "Wash", key: "w", group: 2, hint: "Tap or drag across squares to wash them (again to clear); brush off the grid" },
   { id: "stamp", label: "Stamp", key: "s", group: 2, hint: "Tap where the stamp goes (again to take it off)" },
   { id: "text", label: "Text", key: "t", group: 2, hint: "Tap a square and type a number or letter (Enter to finish, arrows to move on); small text goes on corners, lines and a square's sides" },
@@ -127,6 +129,10 @@ type Gesture =
   | { kind: "line"; from: XY }
   | { kind: "wash"; on: boolean; last: XY }
   | { kind: "brush"; points: XY[] }
+  /** a stamp tapped, then dragged across squares: each square gets it (on), or loses it */
+  | { kind: "stamps"; on: boolean; seen: string[]; last: XY }
+  /** squares dragged into an area: the first square's (letter), or a new one (null) */
+  | { kind: "region"; letter: string | null; cells: [number, number][]; areas: string[]; last: XY }
   /** a thermometer, dragged from its bulb through the squares */
   | { kind: "thermo"; cells: [number, number][] }
   /** rubbing out: things (not gaps), or breaking grid lines (along level or upright ones), or mending them */
@@ -146,7 +152,7 @@ export interface SketchpadHandle {
   edit(f: (d: Drawing) => Drawing): void;
 }
 
-export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAVED, kit = null, typeName = "", overlay = "", underlay = "", tip, drawer, onPaper, filename = "puzzle-drawing.png" }: {
+export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAVED, kit = null, typeName = "", overlay = "", underlay = "", tip, drawer, onPaper, areas = null, filename = "puzzle-drawing.png" }: {
   /** set to the sketchpad's exporter (the page's Download and Read buttons use it) */
   handle: React.MutableRefObject<SketchpadHandle | null>;
   /** after every change */
@@ -173,6 +179,8 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   filename?: string;
   /** a press on the paper (before the tool acts), at a page point */
   onPaper?: (p: XY) => void;
+  /** the type's areas (to-puzzle.ts's areasOf / withAreas), for the Areas tool: none, no Areas tool */
+  areas?: { of(d: Drawing): string[] | null; set(d: Drawing, areas: string[]): Drawing } | null;
 }) {
   const [history, setHistory] = useState(() => m.start(initial ?? m.EMPTY));
   const [draft, setDraft] = useState<Drawing | null>(null);   // the drawing during a gesture
@@ -190,6 +198,7 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   const [flip, setFlip] = useState(false);   // an inequality pointing right or down
   const [sides, setSides] = useState(2);     // a palisade's inked sides
   const [opposite, setOpposite] = useState(false);
+  const [newArea, setNewArea] = useState(false);   // the Areas tool makes an area of its own
   const [small, setSmall] = useState(false);
   const [hover, setHover] = useState<XY | null>(null);
   const [typing, setTyping] = useState<{ at: Anchor; value: string; small: boolean } | null>(null);
@@ -210,7 +219,9 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   const [everything, setEverything] = useState(false);
   const own = (t: Tool) => !kit || kit.tools.includes(t);
   const ownStamp = (k: StampKind) => !kit || kit.stamps.includes(k);
-  const tools = !kit ? TOOLS : [...TOOLS.filter((x) => own(x.id)), ...(everything ? TOOLS.filter((x) => !own(x.id)) : [])];
+  // the Areas tool needs the type's areas to paint
+  const usable = TOOLS.filter((x) => x.id !== "region" || areas);
+  const tools = !kit ? usable : [...usable.filter((x) => own(x.id)), ...(everything ? usable.filter((x) => !own(x.id)) : [])];
   const stamps = !kit ? STAMPS : [...STAMPS.filter((x) => ownStamp(x.id)), ...(everything ? STAMPS.filter((x) => !ownStamp(x.id)) : [])];
   const notOurs = `Not part of ${typeName || "this type"}`;
   // a tool or stamp the type doesn't use, once it's hidden, gives way to the type's first
@@ -336,6 +347,14 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
         else { begin({ kind: "pen", points: [p] }); show(m.add(base, { kind: "pen", weight, points: m.penStroke(bg, [p], false) })); }
         break;
       case "line": begin({ kind: "line", from: p }); break;
+      case "region": {
+        const cell = m.cellAt(bg, p), now = areas?.of(base);
+        if (!cell || !now) break;
+        const gg: Gesture = { kind: "region", letter: newArea ? null : now[cell.r][cell.c], cells: [[cell.r, cell.c]], areas: now, last: p };
+        begin(gg);
+        show(painted(base, gg));
+        break;
+      }
       case "wash": {
         const cell = snapping ? m.cellAt(bg, p) : null;
         if (cell) {
@@ -351,11 +370,17 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
           if (cell) { begin({ kind: "thermo", cells: [[cell.r, cell.c]] }); show(base); }
           break;
         }
-        const s = current(m.stampAnchor(bg, p, stampKind, snapping)); edit((dd) => m.stamp(dd, s)); break;
+        const at = m.stampAnchor(bg, p, stampKind, snapping), next = m.stamp(base, current(at));
+        // in a square, a drag carries on: across squares, stamping them (or, if the tap took it off, clearing them)
+        begin({ kind: "stamps", on: next.items.length >= base.items.length, seen: at.at === "cell" ? [`${at.r},${at.c}`] : [], last: p });
+        show(next);
+        break;
       }
       case "text": {
         e.preventDefault();
-        const at = m.textAnchor(bg, p, small, snapping), there = m.textAt(base, at);
+        // loose writing tapped is edited where it is (a list under the grid, say); else a new place
+        const hit = m.hit(base, p, reachOf(e), (x) => x.kind === "text" && (x.at.at === "grid" || x.at.at === "page"));
+        const at = hit?.kind === "text" ? hit.at : m.textAnchor(bg, p, small, snapping), there = m.textAt(base, at);
         setTyping({ at, value: there?.text ?? "", small: there ? !!there.small : small });
         break;
       }
@@ -389,6 +414,29 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
         break;
       }
       case "line": show(m.add(base, { kind: "line", weight, ...m.straightLine(base.grid, gg.from, p, snapping) })); break;
+      case "stamps": {
+        if (!gg.seen.length) break;   // not in a square: a stamp, not a drag
+        let next = now;
+        for (const q of m.along(gg.last, p, S / 4)) {
+          const at = m.stampAnchor(base.grid, q, stampKind, snapping);
+          if (at.at !== "cell" || gg.seen.includes(`${at.r},${at.c}`)) continue;
+          gg.seen.push(`${at.r},${at.c}`);
+          const t = m.stamp(next, current(at)), took = t.items.length < next.items.length;
+          if (took !== gg.on) next = t;   // stamping on: not where it's already; clearing: only where it is
+        }
+        gg.last = p;
+        show(next);
+        break;
+      }
+      case "region": {
+        for (const q of m.along(gg.last, p, S / 4)) {
+          const cell = m.cellAt(base.grid, q);
+          if (cell && !gg.cells.some(([r, c]) => r === cell.r && c === cell.c)) gg.cells.push([cell.r, cell.c]);
+        }
+        gg.last = p;
+        show(painted(base, gg));
+        break;
+      }
       case "wash": {
         // every square the pointer passed over since last time, however quick the drag
         let next = now;
@@ -451,6 +499,12 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
     }
     setDraft(null);
     change(next);
+  }
+
+  /** The drawing with the squares dragged into their area (and its borders redrawn); as it was if nothing moved. */
+  function painted(base: Drawing, gg: Extract<Gesture, { kind: "region" }>): Drawing {
+    const next = paintAreas(gg.areas, gg.cells, gg.letter);
+    return next.join("/") === gg.areas.join("/") || !areas ? base : areas.set(base, next);
   }
 
   // ---- writing ----
@@ -580,6 +634,11 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
         <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
           <SpIcon name="straight" /><span>Straight</span></button></>;
       case "line": return row("Weight", weights);
+      case "region": return <>
+        <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={newArea} onClick={() => setNewArea(!newArea)} data-tip="The squares you drag make an area of their own">
+          <SpIcon name="region" /><span>New area</span></button>
+        <p className="sp-pal-note">{newArea ? "Drag across squares: they make a new area." : "Drag from a square across others: they join its area."} The borders are drawn for you.</p>
+      </>;
       case "wash": return row(<>Colour · {capital(colour)}</>, swatches("Wash colour"));
       case "text": return row("Size", (
         <span className="sp-seg" role="group" aria-label="Text size">

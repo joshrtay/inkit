@@ -7,6 +7,9 @@
 // collection picker: it goes where the draft is (the creator's profile, or a ?in= studio).
 // The server converts the saved drawing again and publishes only the sketch the browser's solver
 // passed (games.server.ts's publishDrawing).
+// A published game's drawing comes here to update it ("update" mode, docs/creation-flow.md §1.11):
+// the same page with Update in place of Publish. Its title and description go live with the update
+// (nothing changes for players before), and its solves and likes stay.
 import { useEffect, useRef, useState } from "react";
 import { data, Link, redirect, useFetcher } from "react-router";
 import { eq } from "drizzle-orm";
@@ -15,6 +18,7 @@ import { cloudflareContext } from "~/lib/context";
 import { schema } from "~/db";
 import { editAccess as load } from "~/lib/edit-access.server";
 import { publishDrawing, saveDetails } from "~/lib/games.server";
+import { solvesOf } from "~/lib/queries.server";
 import { attempt } from "~/lib/http.server";
 import { readPaintSave, sketchOf } from "~/games/paint-save";
 import { parseSketch } from "~/games/sketch";
@@ -31,7 +35,7 @@ export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Publish $
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
   if (!may.edit) throw data(null, { status: 404 });
-  if (game.state !== "draft") throw redirect(`/g/${game.id}`);
+  if (game.state === "hidden") throw redirect(`/g/${game.id}`);
   // a draft that isn't a puzzle yet (no type, no grid) is finished in paint first
   const save = readPaintSave(game.drawing);
   const made = save && sketchOf(save);
@@ -41,6 +45,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const misfits = made.conversion?.problems.filter((p) => p.kind === "off-type" || p.kind === "off-grid").length ?? 0;
   return {
     game: { id: game.id, title: game.title === "Untitled" ? "" : game.title, description: game.description, kind: made.kind },
+    // a published game: Update, and what it changes for players
+    update: game.state === "published" ? { kind: game.kind, same: made.sketch === game.sketch, solves: (await solvesOf(db, game.id, undefined)).count } : null,
     author: { handle: author?.handle ?? "" },
     sketch: made.sketch,
     play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
@@ -57,7 +63,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   const intent = String(form.get("intent"));
   return attempt(async () => {
     if (intent === "details") { await saveDetails(db, me, game, form); return { ok: true, error: undefined }; }
-    if (intent !== "publish") throw new Response(null, { status: 400 });
+    if (intent !== "publish" && intent !== "update") throw new Response(null, { status: 400 });
     await publishDrawing(db, me, game, form);
     return redirect(`/g/${game.id}`);
   });
@@ -66,7 +72,7 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 const SAVE_AFTER = 800;
 
 export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
-  const { game, play } = d;
+  const { game, play, update } = d;
   const [title, setTitle] = useState(game.title);
   const [description, setDescription] = useState(game.description);
   const [tried, setTried] = useState(false);   // Publish pressed with no title
@@ -81,6 +87,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
   useEffect(() => {
     const now = title.trim() + "\n" + description.trim();
     if (now === last.current) { setPending(false); return; }
+    if (update) { setPending(true); return; }   // a published game's go live with Update
     setPending(true);
     const t = setTimeout(() => {
       last.current = now;
@@ -96,14 +103,15 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
   const busy = publisher.state !== "idle";
   const publish = () => {
     if (!title.trim()) { setTried(true); titleBox.current?.focus(); return; }
-    publisher.submit({ intent: "publish", title: title.trim(), description, checked: check.hash }, { method: "post" });
+    publisher.submit({ intent: update ? "update" : "publish", title: title.trim(), description, checked: check.hash }, { method: "post" });
   };
   const failed = !ok && check.state !== "checking";
   const warn = [
     d.warnings.doubts ? `${d.warnings.doubts} of Claude's doubts not checked` : "",
     d.warnings.misfits ? `${d.warnings.misfits} thing${d.warnings.misfits === 1 ? "" : "s"} left out (they don't fit)` : "",
+    update && update.kind !== game.kind ? "Its type changes: players' progress on it resets" : "",
   ].filter(Boolean);
-  const saveState = details.state !== "idle" || pending ? "Saving…" : details.data?.error ? "Couldn't save" : "Saved";
+  const saveState = update ? (pending || !update.same ? "Not live yet" : "Live") : details.state !== "idle" || pending ? "Saving…" : details.data?.error ? "Couldn't save" : "Saved";
 
   return (
     <div className="studio sp-studio paint publish">
@@ -111,7 +119,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
         <div className="studio-left">
           <Link className="studio-back" to={paintTo} aria-label="Back to paint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
           <span className="paint-title" title={title || "Untitled"}>{title.trim() || "Untitled"}</span>
-          <span className={`paint-saved${saveState === "Saved" ? " ok" : saveState === "Couldn't save" ? " bad" : ""}`} aria-live="polite">{saveState}</span>
+          <span className={`paint-saved${saveState === "Saved" || saveState === "Live" ? " ok" : saveState === "Couldn't save" ? " bad" : ""}`} aria-live="polite">{saveState}</span>
           {/* the type is settled by now: shown, not changed here (Back to paint to change it) */}
           <span className="paint-type locked">
             <span className="paint-type-label">Type:</span><span className="paint-type-name">{kindName(game.kind)}</span>
@@ -122,7 +130,8 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.7 18.5z" /><path d="M13.8 7l3.2 3.2" /></svg>
             <span>Back to paint</span></Link>
           <button type="button" className="btn primary paint-publish" disabled={!ok || busy} onClick={publish}
-            title={ok ? "Publish it: everyone can play it" : check.state === "checking" ? "The solver is checking it" : "It needs to pass the check in paint first"}>{busy ? "Publishing…" : "Publish"}</button>
+            title={ok ? (update ? "Update it: players get this version" : "Publish it: everyone can play it") : check.state === "checking" ? "The solver is checking it" : "It needs to pass the check in paint first"}>
+            {update ? (busy ? "Updating…" : "Update") : busy ? "Publishing…" : "Publish"}</button>
         </div>
       </header>
       <main className="publish-stage">
@@ -133,8 +142,10 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
           {tried && !title.trim() && <p id="title-needed" className="error publish-needed" role="alert">Give it a title</p>}
           <textarea className="publish-desc" aria-label="Description" value={description} maxLength={2000} rows={1} placeholder="Add a line about it"
             onChange={(e) => setDescription(e.target.value)} />
-          <p className="publish-meta">{d.summary} · by @{d.author.handle} · not published yet</p>
-          {failed && <p className="error publish-error" role="alert">It needs {play?.spec.genre === "panel" ? "at least one solution" : "exactly one solution"} to be published. Back to paint to fix it.</p>}
+          <p className="publish-meta">{d.summary} · by @{d.author.handle} · {update
+            ? `published${update.same ? "" : ": this version isn't live yet"}${update.solves ? ` · its ${update.solves} solve${update.solves === 1 ? "" : "s"} and its likes stay` : ""}`
+            : "not published yet"}</p>
+          {failed && <p className="error publish-error" role="alert">It needs {play?.spec.genre === "panel" ? "at least one solution" : "exactly one solution"} to be {update ? "updated" : "published"}. Back to paint to fix it.</p>}
           {warn.length > 0 && <p className="publish-warn">{warn.join(" · ")}</p>}
           {(publisher.data?.error || details.data?.error) && <p className="error" role="alert">{publisher.data?.error ?? details.data?.error}</p>}
         </div>

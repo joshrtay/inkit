@@ -8,7 +8,7 @@ import type { GenreName } from "~site/engine/puzzle.ts";
 import { PROFILES, type Part } from "./to-puzzle";
 import type { StampKind, SymbolColor } from "./model";
 
-export type Tool = "grid" | "pen" | "line" | "wash" | "stamp" | "text" | "erase";
+export type Tool = "grid" | "pen" | "line" | "region" | "wash" | "stamp" | "text" | "erase";
 export type Look = "lines" | "tracks" | "hex" | "dots";
 
 export interface Kit {
@@ -29,14 +29,16 @@ const MAKES: Record<Part, { tools?: Tool[]; stamps?: StampKind[] }> = {
   start: { stamps: ["start"] }, end: { stamps: ["end"] }, hexagon: { stamps: ["hoshi"] }, galaxy: { stamps: ["galaxy"] },
   twins: { stamps: ["diamond"] }, opposites: { stamps: ["open-diamond"] }, bank: { stamps: ["shape"] },
   inequality: { stamps: ["inequality"] }, palisade: { stamps: ["palisade"] }, thermo: { stamps: ["thermo"] },
-  wall: { tools: ["pen", "line"] }, areas: { tools: ["pen", "line"] }, door: { tools: ["pen", "line"] },
+  wall: { tools: ["pen", "line"] }, door: { tools: ["pen", "line"] },
+  // areas: their borders drawn, or squares dragged into an area (the Areas tool redraws the borders)
+  areas: { tools: ["pen", "line", "region"] },
   "box-lines": {},              // a sudoku's boxes are drawn with its grid (the Rules panel sets their shape)
   "major-lines": {}, gap: {},   // a nonogram's every-5 lines are the type's own; a gap is the eraser's
   color: { tools: ["wash"] }, picture: { tools: ["wash"] },
   dots: {},                     // RYB's: not in paint yet
 };
 /** The rail's order. */
-export const TOOL_ORDER: Tool[] = ["grid", "pen", "line", "wash", "stamp", "text", "erase"];
+export const TOOL_ORDER: Tool[] = ["grid", "pen", "line", "region", "wash", "stamp", "text", "erase"];
 
 /** Colours a stamp is limited to by its type. */
 const COLOURS: Partial<Record<GenreName, Partial<Record<StampKind, SymbolColor[]>>>> = {
@@ -59,7 +61,7 @@ export function kitFor(genre: GenreName): Kit | null {
   // Twins and Triplets' numbers are tiles: stones, crests and triangles, not writing
   if (genre === "twins-and-triplets") { tools.delete("text"); ["stone", "crest", "triangle"].forEach((s) => stamps.add(s as StampKind)); }
   // a sudoku's areas are its boxes, which come with the grid; only Irregular Sudoku draws its own
-  if (genre === "sudoku" || genre === "thermo-sudoku") { tools.delete("pen"); tools.delete("line"); }
+  if (genre === "sudoku" || genre === "thermo-sudoku") { tools.delete("pen"); tools.delete("line"); tools.delete("region"); }
   if (stamps.size) tools.add("stamp");
   return { tools: TOOL_ORDER.filter((t) => tools.has(t)), stamps: [...stamps], colours: COLOURS[genre] ?? {}, look: profile.look ?? "lines" };
 }

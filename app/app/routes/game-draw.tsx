@@ -1,17 +1,22 @@
-// Draw a draft in paint: inkit.games/g/<id>/draw (docs/creation-flow.md). The drawing is the
-// puzzle: components/Paint.tsx, with its type, This puzzle's checklist and autosave. A page of its own, like the
-// editor. For drafts its author can edit; a published game is changed in the editor for now.
+// Draw a puzzle in paint: inkit.games/g/<id>/draw (docs/creation-flow.md). The drawing is the
+// puzzle: components/Paint.tsx, with its type, This puzzle's checklist and autosave. A page of its
+// own. Every game its author can edit, but RYB (its figure editor, /g/<id>/edit): a draft, or a
+// published game, whose drawing saves as its next version while the live puzzle stays as it is
+// until Update (the publish page). A game made before paint (or a draft read from a photo) has no
+// drawing yet: its sketch is drawn in ink (paintFromSketch) and saved as its drawing.
 import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/game-draw";
 import { cloudflareContext } from "~/lib/context";
 import { schema } from "~/db";
-import { changeGame, saveDrawing } from "~/lib/games.server";
+import { changeGame, rereadDrawing, saveDrawing } from "~/lib/games.server";
 import { editAccess as load } from "~/lib/edit-access.server";
 import { attempt } from "~/lib/http.server";
 import { Paint } from "~/components/Paint";
 import { paintFromSketch, readPaintSave } from "~/games/paint-save";
 import { doubtsOf } from "~/games/doubts";
+import { parseSketch } from "~/games/sketch";
+import { specKey } from "~/sketchpad/to-puzzle";
 import { guides } from "~site/guides/guides.ts";
 
 /** Each type's rules in its guide's words, for This puzzle's checklist (text only: the pictures stay here). */
@@ -19,18 +24,27 @@ const RULE_LINES = Object.fromEntries(Object.entries(guides).map(([k, g]) => [k,
 
 export const handle = { bare: true };
 
+/** A short fingerprint of a text (djb2). */
+const stamp = (t: string) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
+
 export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Draw ${loaderData?.game.title ?? "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
   if (!may.edit) throw data(null, { status: 404 });
-  if (game.state !== "draft") throw redirect(`/g/${game.id}/edit`);
+  if (game.kind === "coats") throw redirect(`/g/${game.id}/edit`);
   const collection = await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
-  const saved = readPaintSave(game.drawing) ?? paintFromSketch(game.sketch);
+  const drawn = readPaintSave(game.drawing);
+  const saved = drawn ?? paintFromSketch(game.sketch);
+  const live = game.state !== "draft" ? parseSketch(game.sketch, game.sketchVersion) : null;
   const choices = (game.kindChoices ?? []).filter(Boolean);
   return {
-    game: { id: game.id, title: game.title },
+    game: { id: game.id, title: game.title, state: game.state },
     saved,
+    // drawn from its sketch just now: saved as its drawing straight away
+    fresh: !drawn && !!saved,
+    // a published game: the puzzle players have now, to say whether the drawing differs from it
+    live: live?.ok ? specKey(live.spec) : live ? "" : null,
     // a photo's: the photo, what Claude wasn't sure of, and the types it thought it could be
     photo: game.sketchImage ? {
       src: `/g/${game.id}/sketch?k=${encodeURIComponent(game.sketchImage.slice(-12))}`,
@@ -38,27 +52,31 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       readAs: choices[0] ?? "",
     } : null,
     choices,
+    // which reading of the photo this is (a re-read starts paint again)
+    reading: game.sketchImage && game.reading ? stamp(game.reading) : "",
     opened: new URL(request.url).searchParams.has("read"),
-    // from the publish page's Type: the drawer opens at Types
     admin: may.feature,
-    backTo: collection ? `/${collection.slug}?tab=drafts` : `/g/${game.id}`,
+    backTo: game.state === "draft" && collection ? `/${collection.slug}?tab=drafts` : `/g/${game.id}`,
     ruleLines: RULE_LINES,
   };
 }
 
 export async function action({ params, request, context }: Route.ActionArgs) {
-  const { db, me, game } = await load(request, context.get(cloudflareContext).env, params.id);
+  const { db, env, me, game } = await load(request, context.get(cloudflareContext).env, params.id);
   const form = await request.formData();
   return attempt(async () => {
     const intent = String(form.get("intent"));
     // a doubt ticked off (or not): as the editor does
     if (intent === "doubt") { await changeGame(db, me, game, form); return { ok: true, error: undefined }; }
+    // the photo read again, with what's wrong: its reading replaces the drawing
+    if (intent === "reread") { await rereadDrawing(db, env, me, game, form); return { ok: true, error: undefined, reread: true }; }
     if (intent !== "save") throw new Response(null, { status: 400 });
     await saveDrawing(db, me, game, form);
     return { ok: true, error: undefined };
   });
 }
 
-export default function DrawGame({ loaderData: { game, saved, admin, backTo, photo, choices, opened, ruleLines } }: Route.ComponentProps) {
-  return <Paint key={game.id} game={game} saved={saved} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} />;
+export default function DrawGame({ loaderData: { game, saved, fresh, live, admin, backTo, photo, choices, opened, ruleLines, reading } }: Route.ComponentProps) {
+  // a new reading of the photo starts paint again, from it
+  return <Paint key={`${game.id}:${reading}`} game={game} saved={saved} fresh={fresh} live={live} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} />;
 }
