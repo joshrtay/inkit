@@ -449,9 +449,10 @@ Akari number larger than its open neighbours, say) in the same place.
    not yet: the notes layer, "Keep as a note", translations like "make these pearls")
    **Validation**: overlay marks, notes, To check popover, fixes; rule hints from given conflicts;
    "show a difference".
-4. **Start and photo path**: new `/new`; reading → `toDrawing` → paint with doubts as pins; photo
-   card; type picker with suggestions (photo `kindChoices`; drawing-data suggestions).
-5. **Publish page** with the test-play.
+4. (done: `routes/new.tsx`, `sketchpad/suggest.ts`, the panel's Photo section) **Start and photo
+   path**: new `/new`; reading → `toDrawing` → paint with doubts as pins; photo card; type picker
+   with suggestions (photo `kindChoices`; drawing-data suggestions).
+5. (done: `routes/game-publish.tsx`, `sketchpad/picture.ts`) **Publish page** with the test-play.
 6. **Edit published puzzles in paint**; e2e parity per type; then remove BoardEditor, FigureEditor,
    `/new/draw`.
 
@@ -474,7 +475,7 @@ Risks:
 
 ### As built (phases 2 and 3)
 - Drafts only: a published game's `/draw` goes to its editor until phase 6. Publish in paint saves
-  and opens the editor's publish dialog (`/g/<id>/edit?publish`) until the publish page (phase 5).
+  and opens the publish page (phase 5).
 - The Check panel's list is live, like the verdict chip, rather than refreshed on Check: its numbers
   then always match the pins on the paper. Check opens it and selects the first broken rule.
 - "Several solutions" lists every square where the solver's two solutions differ, each a
@@ -482,7 +483,32 @@ Risks:
 - A sudoku's box lines come with its grid (drawn from the Rules panel's box shape), so Sudoku's
   rail is Grid, Text, Eraser; Irregular Sudoku keeps the pen for its areas.
 - Switching type isn't an undo step of its own (the grid's change of look is).
-- "What type is this?" waits for phase 4 (the reminder offers Choose a type only).
+
+### As built (phases 4 and 5)
+- `/new`: Start from a sketch, Start blank, and the three latest drafts. Start blank makes the draft
+  (no type, no sketch, no drawing) and opens paint; a photo is read as before and its sketch drawn
+  in ink (`paintFromSketch`), saved as the draft's drawing with the type it was read as (also when
+  the reader wasn't sure of the type: its candidates answer What type is this?), then paint opens
+  with the panel at the photo (`?read=1`). A failed read stays on `/new` with the error. Lay it
+  over, Read again and Trace over aren't built yet.
+- Doubts are lettered (A, B…) amber marks, so they don't share numbers with Check's list; each has
+  its tip and a tick ("It's right", or the checkbox), saved as the editor's ticks are. One-tap
+  answers ("2" / "3") aren't built.
+- What type is this? for a drawing tries every type paint makes in its own grid look, ranks them
+  (everything used first, then the verdict, exactly one first, then the fewest problems) and
+  solves the best 8 in turn, 12 seconds at most, with Cancel. No call to Claude. It's in the
+  picker and in the "choose a type first" reminder.
+- The publish page: no collection picker; the draft stays where `/new` made it (the profile, or
+  the `?in=` studio). The test-play's host saves nothing (not even to `sessionStorage`). Publish
+  is the editor's rule: the server converts the saved drawing again and checks its hash against
+  the one the browser's solver passed. Doubts left and things that don't fit warn in the bar.
+- The description sits beside the board, under the "Drawn by" thumbnail, on the publish page and
+  on a published page that has a drawing (open question 1, for now); games without a drawing keep
+  it under the board. The thumbnail enlarges on a click.
+- Drafts with no type show "No type yet" (`kindName("")`), with their drawing as the card's picture;
+  drafts drawn in paint (or with no type) open in paint from the Drafts tab, `/new` and the game page.
+- Tests: `tests/e2e/create.spec.ts` gives the photo's reading itself (the `given-reading` form field,
+  honoured only in development), so no test calls Claude.
 
 ## 7. Open questions
 

@@ -42,7 +42,8 @@ givens, areas, picture, rules). The engine checks and plays it. Creators never s
 
 **Pages**: Subscriptions (the home feed), Explore (creators), Puzzle types (`/puzzles`, the
 guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Subscriptions), games at
-`/g/<id>`, Create (`/new`), Settings (`/settings`: profile, email, password, handle, appearance),
+`/g/<id>`, Create (`/new`: start from a photo or a blank page, or carry on with a draft; both
+open paint), Settings (`/settings`: profile, email, password, handle, appearance),
 sign-in (Better Auth: email + password, Google), privacy and terms.
 **For search engines and agents** (`app/lib/seo.ts`, pure and unit-tested): every public page's
 canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts and editors are
@@ -74,7 +75,14 @@ editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; ad
 draft drawn in the sketchpad with a puzzle type. The drawing (`games.drawing`, with its type and
 rule settings) is the source of truth; `sketchpad/to-puzzle.ts` converts it into the sketch on
 every save. The type filters the tools (`sketchpad/kit.ts`); the verdict is live (clingo in the
-browser) and Check lists and marks what's wrong (`sketchpad/check.ts`).
+browser) and Check lists and marks what's wrong (`sketchpad/check.ts`). A photo's reading is
+drawn in ink (`games/paint-save.ts`'s `paintFromSketch`, via `toDrawing`), with Claude's doubts as
+amber marks and the photo in the panel. "What type is this?" tries the drawing as every type, no
+AI (`sketchpad/suggest.ts`). Publish goes to `/g/<id>/publish` (`routes/game-publish.tsx`): the
+draft's own game page (`GamePageView`) with the title and description edited in place, the real
+player (saving nothing, recording no solve), the verdict and Publish; the server converts the
+drawing again and publishes only the sketch the browser's solver passed. Published pages show the
+drawing as a "Drawn by" thumbnail (`sketchpad/picture.ts`).
 
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser
 tests, the engine self-test); see [docs/deploy.md](docs/deploy.md), which also covers rolling back.
