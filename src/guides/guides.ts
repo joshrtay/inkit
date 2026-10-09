@@ -921,7 +921,7 @@ export const guides: Record<GenreName, Guide> = {
     name: "Twins and Triplets", category: "Numbers", ink: "#2b2b30",
     summary: "Place every tile so that tiles side by side share a colour or a shape.",
     origin: "A tile-placing puzzle from Beast Academy's online Puzzle Lab.",
-    credit: { popularizer: "Beast Academy (Art of Problem Solving)", note: "Beast Academy doesn't state its rules in words; ours are inferred from its puzzles.", source: { label: "Beast Academy Online", url: "https://beastacademy.com/online" } },
+    credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Online", url: "https://beastacademy.com/online" } },
     rules: [
       { text: "There's one tile of every shape in every colour. Place each tile once, one in every open square; some are placed already.", checks: ["tiles"], pictures: [
         { ok: true, note: "All six", size: [1, 6], digits: ["124365"] },

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { SYMBOL_COLORS, type Given, type GridSpec, type RuleSpec, type SymbolColor } from "~site/engine/types.ts";
 import { SYMMETRIES } from "~site/engine/panel.ts";
 import { BALANCE_COLORS, GENRE_NAMES, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
+import { isListed } from "~/games/kinds";
 import { RULE_NAMES, TILE_COLORS, tileColors, tileKinds, type RuleName } from "~site/engine/rules.ts";
 import { guides } from "~site/guides/guides.ts";
 import { parseSketch } from "../games/sketch";
@@ -349,7 +350,7 @@ list in "candidates" every type the same reading could be, most likely first (th
 and the site checks which of them have exactly one solution). Only list types that use this exact
 reading; if the type is written on the sketch, list just that one. The types:
 
-${Object.values(GENRE_GUIDE).map((g) => `- ${g}`).join("\n")}
+${Object.entries(GENRE_GUIDE).filter(([k]) => isListed(k)).map(([, g]) => `- ${g}`).join("\n")}
 
 Clues ("givens"):
 ${Object.entries(CLUE_GUIDE).map(([k, v]) => `- ${k}: ${v}`).join("\n")}

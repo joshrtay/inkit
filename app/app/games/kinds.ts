@@ -57,3 +57,12 @@ export const kindName = (id: string) => (id ? (KIND_NAMES as Record<string, stri
 /** Where a game is edited: paint (/g/<id>/draw) for every type but RYB, which keeps its figure
  *  editor (/g/<id>/edit) until paint can draw pieces (docs/creation-flow.md, decision 7). */
 export const editPath = (game: { id: string; kind: string }) => `/g/${game.id}/${game.kind === "coats" ? "edit" : "draw"}`;
+
+/** Types still being worked out (their rules or implementation aren't right yet): the engine, its
+ *  tests and examples keep them, but they aren't offered anywhere on the site (the puzzle types,
+ *  paint's type list, What type is this?, the reader, the sitemap and llms.txt). The local test
+ *  database still seeds their examples, so the parity tests cover them. */
+export const WIP_KINDS: readonly GenreName[] = [
+  "twins-and-triplets",   // its rules and play aren't right yet
+];
+export const isListed = (k: string) => !(WIP_KINDS as readonly string[]).includes(k);

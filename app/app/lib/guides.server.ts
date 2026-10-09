@@ -9,15 +9,17 @@ import examples from "~site/guides/examples.json";
 import type { Category, Guide } from "~site/guides/types.ts";
 import { symbolOf } from "~site/engine/rules.ts";
 import type { GuideDoc } from "./seo";
+import { isListed } from "~/games/kinds";
 
 interface Example { name: string; file: string; spec: GridSpec; solution: Partial<Record<keyof Board, number[]>> }
 const EXAMPLES = examples as unknown as Record<string, Example>;
 
-/** The guides in browsing order: by category, then name. */
+/** The guides in browsing order: by category, then name (types still in progress left out). */
 export const ORDER: GenreName[] = CATEGORIES.flatMap((c) =>
-  GENRE_NAMES.filter((k) => guides[k].category === c).sort((a, b) => guides[a].name.localeCompare(guides[b].name)));
+  GENRE_NAMES.filter((k) => guides[k].category === c && isListed(k)).sort((a, b) => guides[a].name.localeCompare(guides[b].name)));
 
-export const isKind = (k: string): k is GenreName => (GENRE_NAMES as string[]).includes(k);
+/** A type with a page on the site (not one still in progress). */
+export const isKind = (k: string): k is GenreName => (GENRE_NAMES as string[]).includes(k) && isListed(k);
 
 /** The example's game on this site: instance files become "<genre>-<n>" when seeded. */
 export const exampleGameId = (kind: GenreName) => `${kind}-${EXAMPLES[kind].file.match(/(\d+)\.json$/)![1]}`;

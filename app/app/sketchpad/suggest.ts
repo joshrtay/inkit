@@ -7,6 +7,7 @@ import { needsOneSolution, type GenreName } from "~site/engine/puzzle.ts";
 import { kitFor } from "./kit";
 import * as m from "./model";
 import { convert, PROFILES, type Conversion, type Settings } from "./to-puzzle";
+import { isListed } from "~/games/kinds";
 
 /** The drawing as one type: converted in that type's grid look, as choosing the type would. */
 export interface Fit {
@@ -21,7 +22,7 @@ export interface Fit {
 }
 
 /** The genres paint can make, in the engine's order. */
-export const PAINT_GENRES = (Object.keys(PROFILES) as GenreName[]).filter((g) => PROFILES[g]);
+export const PAINT_GENRES = (Object.keys(PROFILES) as GenreName[]).filter((g) => PROFILES[g] && isListed(g));   // not types still in progress
 
 /** The drawing in a type's grid look (a panel's tracks, a honeycomb's hexagons). */
 export function inLookOf(d: m.Drawing, genre: GenreName): m.Drawing {

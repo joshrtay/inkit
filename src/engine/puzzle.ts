@@ -241,7 +241,7 @@ export const genres = {
     rules: [{ rule: "region-count", is: 2 }, { rule: "symmetric-regions" }],
     style: { palette: ["#4f9fdc", "#e2667a", "#f2c23a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
-  // Twins and Triplets (Beast Academy's; its rules here are inferred from puzzles): place a set of tiles,
+  // Twins and Triplets (Beast Academy's): place a set of tiles,
   // every shape in every colour once, one per open cell, so tiles side by side share a colour or a
   // shape. Tiles are digits (rules.ts tileOf); given ones are placed already.
   "twins-and-triplets": {
