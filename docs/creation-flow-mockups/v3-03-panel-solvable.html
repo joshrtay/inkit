@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Panel, solvable</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- A panel, solvable (the solver's first solution: v3-make-boards.ts). The creator also wrote a 3 in
+     a square: panels have no numbers, so it's flagged and left out (it doesn't change the verdict).
+     The pointer is over the solution at the foot of the checklist, so it's drawn on the board
+     (check.ts's solutionSvg). The Stamp palette has the triangles, with their count and colour. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Stones and Crests<small>Saved</small></span>
+      <button class="v3-type" title="The puzzle type: opens Types in the drawer">
+        <span class="pic grid-game" data-board="thumbs.panel.svg" data-shown="40"></span>
+        <span class="lbl">Type:</span><b>Panel</b><span data-icon="chevron"></span>
+      </button>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-docbar">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="more" aria-label="More: Clear, Download…"></button>
+      </span>
+      <button class="v3-verdict ok" aria-pressed="true" title="The verdict: opens This puzzle"><span class="mark">✓</span>Solvable</button>
+      <button class="btn primary" title="Publish: play it, name it">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser (and gaps in the tracks)"></button>
+      <button class="sp-btn sp-all"><span>⋯</span><span>All tools</span></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="v3-palette" style="--notch: 66px">
+        <header><span data-icon="stamp"></span>Stamp<small>S</small></header>
+        <div class="row"><span>Panel's symbols</span>
+          <div class="sp-stamps">
+            <button class="sp-stamp grid-game" title="Start"><span class="be-icon" data-board="stamps.start"></span></button>
+            <button class="sp-stamp grid-game" title="End"><span class="be-icon" data-board="stamps.end"></span></button>
+            <button class="sp-stamp grid-game" title="Hoshi dot"><span class="be-icon" data-board="stamps.hoshi"></span></button>
+            <button class="sp-stamp grid-game" title="Stone"><span class="be-icon" data-board="stamps.stone"></span></button>
+            <button class="sp-stamp grid-game" title="Crest"><span class="be-icon" data-board="stamps.crest"></span></button>
+            <button class="sp-stamp grid-game" aria-pressed="true" title="Triangles"><span class="be-icon" data-board="stamps.triangle"></span></button>
+            <button class="sp-stamp grid-game" title="Shape"><span class="be-icon" data-board="stamps.shape"></span></button>
+            <button class="sp-stamp grid-game" title="Eraser symbol"><span class="be-icon" data-board="stamps.eraser"></span></button>
+          </div></div>
+        <div class="row"><span>Triangles</span>
+          <span class="sp-seg"><button class="sp-btn sp-num">1</button><button class="sp-btn sp-num" aria-pressed="true">2</button><button class="sp-btn sp-num">3</button></span></div>
+        <div class="row"><span>Colour · Orange</span>
+          <div class="sp-swatches">
+            <button class="sp-swatch"><span style="background:var(--sumi)"></span></button>
+            <button class="sp-swatch"><span style="background:var(--shell)"></span></button>
+            <button class="sp-swatch"><span style="background:var(--wash-red)"></span></button>
+            <button class="sp-swatch" aria-pressed="true"><span style="background:var(--wash-orange)"></span></button>
+            <button class="sp-swatch"><span style="background:var(--wash-yellow)"></span></button>
+            <button class="sp-swatch"><span style="background:var(--wash-green)"></span></button>
+            <button class="sp-swatch"><span style="background:var(--wash-blue)"></span></button>
+            <button class="sp-swatch"><span style="background:var(--wash-purple)"></span></button>
+          </div></div>
+        <p class="note">The line touches this square's sides as many times as it has triangles.</p>
+      </div>
+      <div class="sp-paper tool-stamp">
+        <div data-board="panel.svgSolution"></div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square to stamp it (again to take it off)</span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-drawer">
+      <div class="v3-tabs" role="tablist">
+        <button class="v3-tab" role="tab" aria-selected="true"><span data-icon3="checklist"></span>This puzzle<span class="dot ok"></span></button>
+        <button class="v3-tab" role="tab" aria-selected="false"><span data-icon3="types"></span>Types</button>
+        <span class="grow"></span>
+        <button class="sp-btn" aria-label="Collapse the drawer" data-icon3="collapse"></button>
+      </div>
+      <div class="v3-body">
+        <div class="v3-head"><h2>Panel<small>· 4 × 4</small></h2><span class="v3-pill ok">✓ Solvable</span></div>
+        <p class="v3-sub">Any line that obeys the symbols solves a panel, so one is enough.</p>
+
+        <h3 class="v3-h3">Your drawing <span>1 left out</span></h3>
+        <ul class="v3-checks">
+          <li class="v3-check warn"><span class="st">!</span>
+            <span class="txt">Everything on the page is part of the puzzle.<small>Left out until fixed; it doesn't change the verdict.</small></span>
+            <div class="more"><button class="v3-prob misfit"><span class="n">1</span><span>Writing (“3”) isn't part of Panel</span><span class="go">Row 4</span></button></div>
+          </li>
+        </ul>
+
+        <h3 class="v3-h3">Rules <span>for the symbols you used</span></h3>
+        <ul class="v3-checks">
+          <li class="v3-check ok"><span class="st">✓</span>
+            <span class="txt">One line from the start circle to an end, never touching itself or crossing a gap.</span>
+            <div class="more"><div class="v3-set">Lines <span class="sp-seg"><button class="sp-btn" aria-pressed="true">One</button><button class="sp-btn">Mirrored</button><button class="sp-btn">Turned</button></span></div></div>
+          </li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">Dots: the line passes through every dot.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">Squares: different colours, different regions.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">Stars: one other symbol of its colour in its region.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">Triangles: the line runs along that many sides.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">At least one solution</span></li>
+        </ul>
+
+        <div class="v3-sol">
+          <h3 class="v3-h3" style="margin-bottom:4px">A solution <span>Another</span></h3>
+          <div class="pic grid-game hover" data-board="panel.solution" data-shown="300"></div>
+          <div class="cap"><span>Pointing at it draws it on the board.</span></div>
+        </div>
+        <div class="v3-foot"><button class="v3-link"><span data-icon="book"></span>More about Panel</button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<svg id="cur" style="position:absolute; width:26px; height:26px; z-index:60" viewBox="0 0 24 24"><path d="M5 3l14 8-6.5 1.5L10 19z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>
+<script>addEventListener("load", () => { const b = document.querySelector(".v3-body"); b.scrollTop = b.scrollHeight; const r = document.querySelector(".v3-sol .pic").getBoundingClientRect(), c = document.getElementById("cur"); c.style.left = r.left + r.width * 0.62 + "px"; c.style.top = r.top + r.height * 0.55 + "px"; });</script>
+</body>
+</html>

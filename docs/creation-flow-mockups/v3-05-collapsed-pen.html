@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Drawer collapsed, Pen</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- Honeycomb Paths with the drawer collapsed to its strip, so the paper has the room. The pen isn't
+     one of Honeycomb Paths' tools: All tools shows it below the red divider, and its palette says
+     what it draws is decoration. The flourish under the honeycomb is flagged and left out
+     (v3-make-boards.ts: convert); the verdict stays One solution. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Bee Line<small>Saved</small></span>
+      <button class="v3-type" title="The puzzle type: opens Types in the drawer">
+        <span class="pic grid-game" data-board="thumbs.honeycomb-paths.svg" data-shown="40"></span>
+        <span class="lbl">Type:</span><b>Honeycomb Paths</b><span data-icon="chevron"></span>
+      </button>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-docbar">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="more" aria-label="More: Clear, Download…"></button>
+      </span>
+      <button class="v3-verdict ok" title="The verdict: opens This puzzle"><span class="mark">✓</span>One solution</button>
+      <button class="btn primary" title="Publish: play it, name it">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp"></button>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+      <span class="sp-sep sp-sep-off"></span>
+      <button class="sp-btn sp-tool sp-off" data-icon="pen" aria-label="Pen: not Honeycomb Paths'" aria-pressed="true" style="opacity:1"></button>
+      <button class="sp-btn sp-tool sp-off" data-icon="line" aria-label="Line"></button>
+      <button class="sp-btn sp-tool sp-off" data-icon="wash" aria-label="Wash"></button>
+      <button class="sp-btn sp-all" aria-pressed="true"><span>⋯</span><span>Fewer</span></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="v3-palette" style="top: 216px; --notch: 22px">
+        <header><span data-icon="pen"></span>Pen<small>P</small></header>
+        <div class="row"><span>Weight</span>
+          <span class="sp-seg">
+            <button class="sp-btn sp-weight"><svg viewBox="0 0 30 14"><line x1="4" y1="7" x2="26" y2="7" style="stroke-width:1.6"/></svg></button>
+            <button class="sp-btn sp-weight" aria-pressed="true"><svg viewBox="0 0 30 14"><line x1="4" y1="7" x2="26" y2="7" style="stroke-width:2.6"/></svg></button>
+            <button class="sp-btn sp-weight"><svg viewBox="0 0 30 14"><line x1="4" y1="7" x2="26" y2="7" style="stroke-width:5.5"/></svg></button>
+          </span></div>
+        <button class="sp-btn sp-toggle" style="justify-self:start"><span data-icon3="straight"></span><span>Straight</span></button>
+        <p class="note off">Honeycomb Paths doesn’t use the pen: what you draw is decoration, flagged and left out of the puzzle.</p>
+      </div>
+      <div class="sp-paper tool-pen">
+        <div data-board="honey.svg"></div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Draw freehand; hold Shift for a straight line</span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">110%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-strip" aria-label="The drawer, collapsed">
+      <button class="sp-btn" aria-label="Open the drawer" title="Open the drawer" data-icon3="expand"></button>
+      <span class="sep"></span>
+      <button class="sp-btn" aria-label="This puzzle: one solution, 1 left out" title="This puzzle: One solution · 1 thing left out"><span data-icon3="checklist"></span><span class="badge ok">✓</span></button>
+      <button class="sp-btn" aria-label="Doesn't fit: 1" title="1 thing doesn't fit"><span data-icon="warn"></span><span class="badge warn">1</span></button>
+      <span class="sep"></span>
+      <button class="sp-btn" aria-label="Types" title="Types" data-icon3="types"></button>
+      <button class="sp-btn" aria-label="More about Honeycomb Paths" title="More about Honeycomb Paths" data-icon="book"></button>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

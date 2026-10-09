@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Publish C: checklist step</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="v3-player.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+<script>
+// Step 1 ticks when the player reports the solve (the host's solved(): nothing recorded), and
+// Publish wakes once all three are done.
+document.addEventListener("mk-solved", () => {
+  const s = document.getElementById("step1");
+  s.classList.add("done"); s.classList.remove("now");
+  s.querySelector(".num").textContent = "✓";
+  s.querySelector("h2").insertAdjacentHTML("beforeend", '<span class="done-tag">Solved · not counted</span>');
+  document.getElementById("left").textContent = "All done: it goes to your profile.";
+  const p = document.getElementById("pub"); p.classList.remove("v3-off"); p.removeAttribute("aria-disabled");
+  document.getElementById("step4").classList.add("now");
+});
+</script>
+</head>
+<body>
+<!-- Option C, a checklist step: a focused page that walks the creator through the last of making
+     the puzzle. Step 1 is the real player (v3-player.js); the screenshot was taken after the creator
+     filled the last square, so the player's own solve report ticked the step. -->
+<div class="sp-studio v3">
+  <header class="v3-pub-top">
+    <button class="btn v3-back"><span data-icon="back"></span>Back to paint</button>
+    <span class="grow"></span>
+    <span class="v3-type" style="pointer-events:none"><span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="40"></span><span class="lbl">Type:</span><b>Sudoku</b></span>
+    <button class="v3-verdict ok" title="The verdict"><span class="mark">✓</span>One solution</button>
+  </header>
+  <main class="v3-steps-page">
+    <div class="v3-steps">
+      <h1>Ready to publish?</h1>
+      <p class="lede">Four last steps. Nothing here changes the puzzle: for that, go back to paint.</p>
+
+      <section class="v3-step open now" id="step1">
+        <span class="num">1</span>
+        <h2>Play it through <small>as players will; your solve isn't counted</small></h2>
+        <div class="body"><div class="row">
+          <div class="v3-player" data-play="almost"></div>
+          <div class="side">
+            <span>Solving it yourself is the last check: does it feel the way you meant?</span>
+            <span>The solver already says it has <b style="color:var(--good)">exactly one solution</b>.</span>
+          </div>
+        </div></div>
+      </section>
+
+      <section class="v3-step done">
+        <span class="num">✓</span>
+        <h2>Name it</h2>
+        <div class="body"><span class="v3-in title-in">Six by Six</span></div>
+      </section>
+
+      <section class="v3-step done">
+        <span class="num">✓</span>
+        <h2>Describe it <small>a line or two for the card</small></h2>
+        <div class="body"><span class="v3-in focus desc-in">A gentle 6 × 6 to start the week. The 6 in the bottom row is the key.<span class="v3-caret"></span></span></div>
+      </section>
+
+      <section class="v3-step" id="step4">
+        <span class="num">4</span>
+        <h2>Publish</h2>
+        <div class="body pubrow">
+          <button class="btn primary v3-off" id="pub" aria-disabled="true">Publish Six by Six</button>
+          <span class="muted" id="left">1 step left: play it through.</span>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

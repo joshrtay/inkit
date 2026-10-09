@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Phone</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- The broken Sudoku on a phone, twice: drawing (the palette a strip above the tool bar, the
+     drawer's handle above that), and with the verdict tapped (the drawer as a bottom sheet, the same
+     two tabs). -->
+<div class="v3-phones">
+  <figure>
+    <div class="mk-phone"><div class="mk-phone-screen sp-studio paint v3">
+      <div class="v3p">
+        <div class="v3p-top">
+          <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+          <button class="v3-type"><span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="30"></span><b>Sudoku</b><span data-icon="chevron"></span></button>
+          <span class="grow"></span>
+          <button class="v3-verdict bad"><span class="mark">✕</span>No solution</button>
+          <button class="btn primary v3-off">Publish</button>
+        </div>
+        <div class="v3p-canvas grid-game sketchpad">
+          <div class="sp-paper tool-text"><div data-board="sudokuBroken.svg"></div></div>
+        </div>
+        <div class="paint-tip rule" style="margin:0 10px 8px; position:relative">
+          <strong>1 · Two 5s in row 6</strong>
+          <p style="margin:2px 0 0">Each row holds 1 to 6 once, so one of these is wrong.</p>
+        </div>
+        <div class="v3p-peek"><span data-icon3="checklist"></span><span class="grow">This puzzle · <span style="color:var(--red)">2 broken rules</span></span><span data-icon="chevron" style="transform:rotate(180deg)"></span></div>
+        <div class="v3p-palette">
+          <span data-icon="text"></span>
+          <span class="sp-seg"><button class="sp-btn" aria-pressed="true">Normal</button><button class="sp-btn sp-small-btn">Small</button></span>
+          <span class="grow"></span><span class="sep"></span>
+          <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+          <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+          <button class="sp-btn" data-icon="more" aria-label="More"></button>
+        </div>
+        <div class="v3p-tools">
+          <button class="sp-btn sp-tool" data-icon="grid"></button>
+          <button class="sp-btn sp-tool" data-icon="text" aria-pressed="true"></button>
+          <button class="sp-btn sp-tool" data-icon="erase"></button>
+          <button class="sp-btn sp-tool" style="font:800 11px/1 var(--body); color:var(--muted)">⋯ All</button>
+        </div>
+      </div>
+    </div></div>
+    <figcaption>Drawing: the palette is the strip above the tools (with undo and redo); the drawer's handle sits above it.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="mk-phone"><div class="mk-phone-screen sp-studio paint v3">
+      <div class="v3p">
+        <div class="v3p-top">
+          <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+          <button class="v3-type"><span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="30"></span><b>Sudoku</b><span data-icon="chevron"></span></button>
+          <span class="grow"></span>
+          <button class="v3-verdict bad" aria-pressed="true"><span class="mark">✕</span>No solution</button>
+          <button class="btn primary v3-off">Publish</button>
+        </div>
+        <div class="v3p-canvas grid-game sketchpad" style="place-items:start center">
+          <div class="sp-paper tool-text" style="width:52%; margin:4px auto 0"><div data-board="sudokuBroken.svg"></div></div>
+        </div>
+        <div class="v3p-sheet">
+          <div class="v3-tabs" role="tablist">
+            <button class="v3-tab" role="tab" aria-selected="true"><span data-icon3="checklist"></span>This puzzle<span class="dot"></span></button>
+            <button class="v3-tab" role="tab" aria-selected="false"><span data-icon3="types"></span>Types</button>
+            <span class="grow"></span>
+            <button class="sp-btn" aria-label="Close" data-icon="close"></button>
+          </div>
+          <div class="v3-body">
+            <div class="v3-head"><h2>Sudoku<small>· 6 × 6</small></h2><span class="v3-pill bad">✕ No solution</span></div>
+            <ul class="v3-checks">
+              <li class="v3-check bad"><span class="st">✕</span>
+                <span class="txt">Every row and every column has each digit once.</span>
+                <div class="more"><button class="v3-prob" aria-pressed="true"><span class="n">1</span><span>Two 5s in row 6</span><span class="go">Row 6</span></button></div>
+              </li>
+              <li class="v3-check bad"><span class="st">✕</span>
+                <span class="txt">Every box (heavy lines) has each digit once.</span>
+                <div class="more">
+                  <div class="v3-set">Box shape <span class="sp-seg"><button class="sp-btn" aria-pressed="true">2 × 3</button><button class="sp-btn">3 × 2</button></span></div>
+                  <button class="v3-prob"><span class="n">2</span><span>Two 3s in a box</span><span class="go">Top right</span></button></div>
+              </li>
+              <li class="v3-check wait"><span class="st">–</span><span class="txt">Exactly one solution</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <figcaption>The verdict tapped: the drawer as a bottom sheet, with the same two tabs. A problem tapped scrolls the paper to it.</figcaption>
+  </figure>
+</div>
+</body>
+</html>

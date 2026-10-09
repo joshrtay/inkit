@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Started from a sketch</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- Just read from a photo: an Akari, drawn in ink (v3-make-boards.ts: toDrawing, doubtHighlight,
+     marksSvg). The photo and the reader's doubts come first in the checklist, as more things to
+     check; doubt A is selected and pointed at. A smudge the reader kept is flagged and left out.
+     The solver: exactly one solution. The Stamp palette has Akari's one stamp, which takes no colour. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Night Shift<small>Saved</small></span>
+      <button class="v3-type" title="The puzzle type, read from the photo: opens Types in the drawer">
+        <span class="pic grid-game" data-board="thumbs.akari.svg" data-shown="40"></span>
+        <span class="lbl">Type:</span><b>Akari</b><span class="lbl" style="font-size:12px">· from the photo</span><span data-icon="chevron"></span>
+      </button>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-docbar">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo" disabled></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="more" aria-label="More: Clear, Download…"></button>
+      </span>
+      <button class="v3-verdict ok" aria-pressed="true" title="The verdict: opens This puzzle"><span class="mark">✓</span>One solution</button>
+      <button class="btn primary" title="Publish: play it, name it">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp" aria-pressed="true"></button>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+      <button class="sp-btn sp-all"><span>⋯</span><span>All tools</span></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="v3-palette" style="--notch: 66px">
+        <header><span data-icon="stamp"></span>Stamp<small>S</small></header>
+        <div class="row"><span>Akari's stamp</span>
+          <div class="sp-stamps"><button class="sp-stamp grid-game" aria-pressed="true" title="Black square"><span class="be-icon" data-board="stamps.rock"></span></button></div></div>
+        <p class="note">A <b>black square</b>; a number on it is written with Text. It takes no colour in Akari.</p>
+      </div>
+      <div class="sp-paper tool-stamp">
+        <div data-board="photo.svg"></div>
+        <div class="sp-paper-tip" data-at="485.8,400.6" style="transform: translate(-82%, calc(-100% - 12px))">
+          <div class="paint-tip doubt">
+            <button type="button" class="paint-tip-x" aria-label="Close">×</button>
+            <strong>Claude wasn’t sure</strong>
+            <p>Is this a 0 or a 1? The pen skipped.</p>
+            <div class="paint-tip-foot"><span>A of 3</span><button type="button" class="btn">It’s right</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square to stamp it (again to take it off)</span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-drawer">
+      <div class="v3-tabs" role="tablist">
+        <button class="v3-tab" role="tab" aria-selected="true"><span data-icon3="checklist"></span>This puzzle<span class="dot ok"></span></button>
+        <button class="v3-tab" role="tab" aria-selected="false"><span data-icon3="types"></span>Types</button>
+        <span class="grow"></span>
+        <button class="sp-btn" aria-label="Collapse the drawer" data-icon3="collapse"></button>
+      </div>
+      <div class="v3-body">
+        <div class="v3-head"><h2>Akari<small>· 8 × 8</small></h2><span class="v3-pill ok">✓ One solution</span></div>
+
+        <div class="v3-photo">
+          <div class="mk-photo"><div class="grid-game" data-board="photo.printed" data-shown="80"></div></div>
+          <div><b>From your photo</b><p>Read as Akari, 8 × 8. Check what Claude wasn’t sure of against the paper.</p>
+            <div class="acts"><button class="v3-mini">Lay it over</button><button class="v3-mini">Read again</button></div></div>
+        </div>
+
+        <h3 class="v3-h3">To check <span>0 of 3 checked</span></h3>
+        <ul class="v3-checks">
+          <li class="v3-check doubt"><span class="st">?</span>
+            <span class="txt">What Claude read matches your paper.<small>Tick each once you’ve looked; they don’t change the verdict.</small></span>
+            <div class="more">
+              <button class="v3-prob doubt" aria-pressed="true"><span class="n">A</span><span>Is this a 0 or a 1? The pen skipped.</span><span class="tick"></span></button>
+              <button class="v3-prob doubt"><span class="n">B</span><span>Is this square black, or a shadow on the paper?</span><span class="tick"></span></button>
+              <button class="v3-prob doubt"><span class="n">C</span><span>Row 1 was creased; check its black squares.</span><span class="tick"></span></button>
+            </div>
+          </li>
+          <li class="v3-check warn"><span class="st">!</span>
+            <span class="txt">Everything on the page is part of the puzzle.</span>
+            <div class="more"><button class="v3-prob misfit"><span class="n">1</span><span>This line isn’t on the grid</span><span class="go">Erase</span></button></div>
+          </li>
+        </ul>
+
+        <h3 class="v3-h3">Rules</h3>
+        <ul class="v3-checks">
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">A bulb lights its row and column, up to a black cell. Every white cell must be lit.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">No bulb may shine on another bulb.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">A number on a black cell says how many bulbs are right beside it.</span></li>
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">Exactly one solution</span></li>
+        </ul>
+        <div class="v3-sol">
+          <div class="pic grid-game" data-board="photo.solution" data-shown="300"></div>
+          <div class="cap"><span>Pointing at it draws it on the board.</span></div>
+        </div>
+        <div class="v3-foot"><button class="v3-link"><span data-icon="book"></span>More about Akari</button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

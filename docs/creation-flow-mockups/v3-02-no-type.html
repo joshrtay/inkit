@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · No type yet</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- A sudoku drawn before a type is set. Check and Publish are greyed; the creator clicked Check: it
+     says "Choose a type first", the Type button bounces, and the drawer turns to Types. With no type
+     every tool is on the rail, and the Grid palette still offers the grid's look. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Untitled<small>Saved</small></span>
+      <span style="position:relative; margin-left:14px">
+        <button class="v3-type unset bounce" aria-expanded="true" title="The puzzle type: opens Types in the drawer">
+          <span class="pic">?</span><span class="lbl">Type:</span><b>Not set</b><span data-icon="chevron"></span>
+        </button>
+        <span class="v3-hops" style="left:-16px; top:8px"><i style="width:10px"></i><i style="width:7px; margin-left:3px"></i></span>
+        <span class="v3-hops" style="right:-18px; top:8px"><i style="width:10px"></i><i style="width:7px"></i></span>
+      </span>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-docbar">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="more" aria-label="More: Clear, Download…"></button>
+      </span>
+      <button class="v3-verdict off" aria-disabled="true" title="Choose a type first"><span data-icon="check"></span>Check</button>
+      <button class="btn primary v3-off" aria-disabled="true" title="Choose a type first">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="pen" aria-label="Pen"></button>
+      <button class="sp-btn sp-tool" data-icon="line" aria-label="Line"></button>
+      <button class="sp-btn sp-tool" data-icon="wash" aria-label="Wash"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp"></button>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="v3-palette" style="--notch: 10px">
+        <header><span data-icon="grid"></span>Grid<small>G</small></header>
+        <div class="row"><span>Size</span>
+          <span class="pad-row">
+            <span class="sp-field"><span class="sp-label">Rows</span><span class="sp-stepper"><button class="sp-btn">−</button><output>6</output><button class="sp-btn">+</button></span></span>
+            <span class="sp-field"><span class="sp-label">Cols</span><span class="sp-stepper"><button class="sp-btn">−</button><output>6</output><button class="sp-btn">+</button></span></span>
+          </span></div>
+        <div class="row"><span>Look</span>
+          <span class="sp-seg"><button class="sp-btn sp-text-btn" aria-pressed="true">Lines</button><button class="sp-btn sp-text-btn">Tracks</button><button class="sp-btn sp-text-btn">Hexagons</button><button class="sp-btn sp-text-btn">Dots</button></span></div>
+        <p class="note">Once the puzzle has a type, the type decides the look.</p>
+        <button class="sp-btn sp-text-btn" style="justify-self:start">Remove grid</button>
+      </div>
+      <div class="sp-paper tool-grid">
+        <div data-board="sudokuNoType.svg"></div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Drag the grid to move it, its corner to resize; or drag out a new one</span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-drawer">
+      <div class="v3-tabs" role="tablist">
+        <button class="v3-tab" role="tab" aria-selected="false"><span data-icon3="checklist"></span>This puzzle</button>
+        <button class="v3-tab" role="tab" aria-selected="true"><span data-icon3="types"></span>Types</button>
+        <span class="grow"></span>
+        <button class="sp-btn" aria-label="Collapse the drawer" data-icon3="collapse"></button>
+      </div>
+      <div class="v3-body">
+        <div class="v3-remind"><span class="ic">!</span><span><b>Choose a type first</b>Check and Publish need to know what kind of puzzle this is: its rules decide what counts as a solution.</span></div>
+        <div class="v3-search"><span data-icon="search"></span>Search, like “Light Up”</div>
+        <button class="v3-ask"><span data-icon="sparkle"></span>What type is this?</button>
+        <h3 class="v3-h3">All types <span>Now: not set</span></h3>
+        <ul class="v3-types">
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="52"></span>
+            <span><strong>Sudoku</strong><span class="s">Fill the grid so every row, column and box has each digit once.</span></span>
+            <button class="use">Choose</button></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.irregular-sudoku.svg" data-shown="52"></span>
+            <span><strong>Irregular Sudoku</strong><span class="s">A sudoku whose boxes are odd shapes.</span></span><span class="about">More ›</span></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.thermo-sudoku.svg" data-shown="52"></span>
+            <span><strong>Thermo Sudoku</strong><span class="s">Digits rise along each thermometer.</span></span><span class="about">More ›</span></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.akari.svg" data-shown="52"></span>
+            <span><strong>Akari</strong><span class="s">Place light bulbs so every white cell is lit.</span></span><span class="about">More ›</span></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.nurikabe.svg" data-shown="52"></span>
+            <span><strong>Nurikabe</strong><span class="s">Shade a winding wall around numbered islands.</span></span><span class="about">More ›</span></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.masyu.svg" data-shown="52"></span>
+            <span><strong>Masyu</strong><span class="s">One loop through cell centres, by the pearls.</span></span><span class="about">More ›</span></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.star-battle.svg" data-shown="52"></span>
+            <span><strong>Star Battle</strong><span class="s">One star per row, column and area; never touching.</span></span><span class="about">More ›</span></li>
+        </ul>
+        <div class="v3-foot"><span class="muted">You can change the type any time; nothing you drew is lost.</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+<div class="mk-anno" style="left:96px; bottom:60px">Clicking the greyed Check or Publish bounces Type twice (0.6 s, a yellow ring while the reminder shows) and turns the drawer to Types, which opens with “Choose a type first”. No separate reminder popover over the canvas.</div>
+</body>
+</html>

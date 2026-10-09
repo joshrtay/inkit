@@ -510,6 +510,89 @@ Risks:
 - Tests: `tests/e2e/create.spec.ts` gives the photo's reading itself (the `given-reading` form field,
   honoured only in development), so no test calls Claude.
 
+## v3 layout
+
+A reorganised paint, agreed with the owner (October 2026). Mockups: `creation-flow-mockups/v3-*.png`
+(the older ones are kept for comparison). Their drawings, marks, problems, verdicts, solutions and
+suggestions come from the real code (`v3-make-boards.ts` → `v3-boards.js`); the publish options
+play in the real player (`v3-player-entry.ts` → `v3-player.js`, `src/game-types/grid/game.ts`).
+
+**Principle: each part of the screen answers one question.**
+
+| Part | Question | What's there |
+|---|---|---|
+| Top bar | What is this puzzle? | back, the title (a label: it's set on the publish step), **Type: Sudoku ▾**; undo, redo, **…** (Clear, Download), the **verdict button**, **Publish** |
+| Left of the canvas | How do I make it? | the tool rail (the type's tools; All tools) and the **palette card** docked beside the selected tool |
+| Canvas | The drawing | the drawing, its problems' marks, one tip with a pointer |
+| Right drawer | Is it right, and what are the rules? | **This puzzle** and **Types** tabs; collapses to a strip of icons |
+| Status line | How am I viewing it? | the tool's hint, Snap, zoom; nothing else |
+
+Decisions:
+- **The verdict is the Check button**: "✓ One solution", "✕ No solution", "• Checking…", "Several
+  solutions", panels "✓ Solvable", coloured to match. It opens This puzzle. Publish is enabled only
+  when the verdict passes. The status line's verdict chip and grid facts go.
+- **Type ▾ opens the drawer at Types** (no dropdown, no ⓘ). With no type, the verdict button reads
+  "Check" and it and Publish are greyed (`aria-disabled`); clicking either bounces Type and turns the
+  drawer to Types, which opens with "Choose a type first". The reminder lives in the drawer rather
+  than over the canvas (screen v3-02).
+- **The palette card replaces the options bar and the right Stamps/Colour panel**, and shows only
+  what the tool needs: Pen weights and Straight; Stamp the type's stamps, its colours, a triangle's
+  count, the shape pad; Wash its colour; Text Normal/Small; Grid rows, columns and, before a type is
+  set, the look (Lines/Tracks/Hexagons/Dots). It sits beside its tool on the rail (moving down with
+  it), so the canvas gets the options bar's height back. A tool from All tools that the type can't
+  use says so in its card (v3-05).
+- **This puzzle is the rules as a checklist.** A header ("Sudoku · 6 × 6", the verdict), then:
+  *To check* first when there is any (from a sketch: the photo with Lay it over and Read again, the
+  reader's doubts, amber and lettered, each with a tick; things that don't fit, red), then *Rules*:
+  the guide's rule lines (`guides.ts`, each with its `checks`), ✓ or ✕, each broken one with its
+  problems under it as links that select the mark on the canvas, and its settings on it (box shape on
+  the box rule, Writes 1–6 / A–F on the row-and-column rule, a panel's one or two lines on the line
+  rule, Hidoku's corners on its path rule). Panels list only the symbol rules they use. The last rule
+  is **Exactly one solution** (panels: At least one), "–" until the other rules hold. When solvable
+  the solution sits at the foot; pointing at it draws it on the board (no switch).
+  Buildable as is: `ruleHints` already runs the `latin` and `boxes` blocks, so each problem can carry
+  its rule's name and land under the guide line whose `checks` include it.
+- **Types**: search, What type is this? (the ranked cards, as `suggest.ts` makes them now), the type
+  list; each type has "More about …", which shows its guide (pictures, worked example) in the drawer
+  with a way back.
+- **Collapsed**, the drawer is a strip: open, This puzzle (with the verdict as a badge), what's left
+  to check (a count), Types, the guide.
+- **Phones**: the drawer is a bottom sheet with the same tabs, opened by the verdict or by its handle
+  ("This puzzle · 2 broken rules") above the palette; the palette is a strip above the tool bar, and
+  takes undo, redo and … (the top bar keeps back, Type, the verdict and Publish). No status line:
+  pinch to zoom.
+
+| v3 screen | Mockup |
+|---|---|
+| Sudoku, a broken rule: This puzzle, the problem pointed at, the Text palette | `v3-01-sudoku-broken.png` |
+| No type: Types open with the reminder, Check and Publish greyed, Type's bounce, the Grid palette with its looks | `v3-02-no-type.png` |
+| Panel, solvable: the checklist, the solution drawn on the board while pointed at, the Stamp palette | `v3-03-panel-solvable.png` |
+| From a sketch: the photo and doubts first, amber marks, one doubt's tip | `v3-04-from-sketch.png` |
+| The drawer collapsed to its strip; the Pen (not the type's) in Honeycomb Paths | `v3-05-collapsed-pen.png` |
+| Types: What type is this? with the real ranked suggestions | `v3-06-what-type.png` |
+| Phone: drawing, and the sheet open on This puzzle | `v3-07-phone.png` |
+
+### The publish step: three options
+
+The last mockup of the publish page looked like the published game page, so it didn't read as a step
+in making the puzzle. All three options keep the real player (a host that saves nothing and records
+no solve), the title and description edited in place, the verdict, Back to paint, and no collection
+picker.
+
+| Option | Mockup | In short |
+|---|---|---|
+| A, studio proof | `v3-08a-publish-proof.png` | Still paint: same top bar, Type and verdict; the canvas switches to play mode ("Playing your puzzle"); a proof sheet with crop marks carries the title and description, written in the board's hand, above the board |
+| B, preview card | `v3-08b-publish-card.png` | A split: the card as it will appear in feeds (picture, type, title, description, by) edited in place, beside the board to play through |
+| C, checklist step | `v3-08c-publish-steps.png` | A focused page: 1 Play it through, 2 Name it, 3 Describe it, 4 Publish; the player's own solve ticks step 1, and Publish wakes when all are done |
+
+**Recommended: A.** It is plainly a step of making: the creator never leaves paint's chrome, the
+verdict and Type stay where they were, and Back to paint is a mode switch, not a page away. Naming
+on the proof sheet keeps title and description in place without looking like the published page.
+It's also the least new UI (paint's top bar, the drawer strip, the player). Worth borrowing: B's
+card as a small "How it will look" preview in the drawer, and C's "played it through" tick as a
+hint (not a gate: C makes solving your own puzzle a condition of publishing, which the verdict
+already covers).
+
 ## 7. Open questions
 
 The first draft's seven are answered (Decisions, at the top). Left from this revision:

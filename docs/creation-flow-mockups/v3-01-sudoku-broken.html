@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Sudoku, a broken rule</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- Sudoku 6 × 6 with two broken rules (v3-make-boards.ts: convert, checkList, highlight, marksSvg; the
+     solver finds no solution). The creator pressed the verdict: the drawer opened on This puzzle, the
+     first problem is selected, and it's pointed at on the paper. Text is the tool in hand. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Six by Six<small>Saved</small></span>
+      <button class="v3-type" title="The puzzle type: opens Types in the drawer">
+        <span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="40"></span>
+        <span class="lbl">Type:</span><b>Sudoku</b><span data-icon="chevron"></span>
+      </button>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-docbar">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="more" aria-label="More: Clear, Download…"></button>
+      </span>
+      <button class="v3-verdict bad" aria-pressed="true" title="The verdict: opens This puzzle"><span class="mark">✕</span>No solution</button>
+      <button class="btn primary v3-off" aria-disabled="true" title="Publishing needs exactly one solution">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+      <button class="sp-btn sp-all"><span>⋯</span><span>All tools</span></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="v3-palette" style="--notch: 66px">
+        <header><span data-icon="text"></span>Text<small>T</small></header>
+        <div class="row"><span>Size</span>
+          <span class="sp-seg"><button class="sp-btn" aria-pressed="true">Normal</button><button class="sp-btn sp-small-btn">Small</button></span></div>
+        <p class="note">A square takes a digit, <b>1 to 6</b>. Type it; Enter or the arrows move on. Small writes on a corner or a line.</p>
+      </div>
+      <div class="sp-paper tool-text">
+        <div data-board="sudokuBroken.svg"></div>
+        <div class="sp-paper-tip" data-at="395.2,436.6">
+          <div class="paint-tip rule">
+            <button type="button" class="paint-tip-x" aria-label="Close">×</button>
+            <strong>Two 5s in row 6</strong>
+            <p>Each row holds 1 to 6 once, so one of these is wrong. Change or erase one of them.</p>
+            <div class="paint-tip-foot"><span>1 of 2</span><button type="button" class="btn">Next</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square and type a digit</span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-drawer">
+      <div class="v3-tabs" role="tablist">
+        <button class="v3-tab" role="tab" aria-selected="true"><span data-icon3="checklist"></span>This puzzle<span class="dot"></span></button>
+        <button class="v3-tab" role="tab" aria-selected="false"><span data-icon3="types"></span>Types</button>
+        <span class="grow"></span>
+        <button class="sp-btn" aria-label="Collapse the drawer" data-icon3="collapse"></button>
+      </div>
+      <div class="v3-body">
+        <div class="v3-head"><h2>Sudoku<small>· 6 × 6</small></h2><span class="v3-pill bad">✕ No solution</span></div>
+        <p class="v3-sub">2 rules are broken already, so nothing can solve it. Fix them and this updates.</p>
+
+        <h3 class="v3-h3">Rules <span>2 of 3 broken</span></h3>
+        <ul class="v3-checks">
+          <li class="v3-check bad"><span class="st">✕</span>
+            <span class="txt">Every row and every column has each digit once.</span>
+            <div class="more">
+              <div class="v3-set">Writes <span class="sp-seg"><button class="sp-btn" aria-pressed="true">1–6</button><button class="sp-btn">A–F</button></span></div>
+              <button class="v3-prob" aria-pressed="true"><span class="n">1</span><span>Two 5s in row 6</span><span class="go">Row 6</span></button>
+            </div>
+          </li>
+          <li class="v3-check bad"><span class="st">✕</span>
+            <span class="txt">Every box (heavy lines) has each digit once.</span>
+            <div class="more">
+              <div class="v3-set">Box shape <span class="sp-seg">
+                <button class="sp-btn" aria-pressed="true"><span class="mk-boxes" style="grid-template-columns:repeat(3,4px)"><i></i><i></i><i></i><i></i><i></i><i></i></span>2 × 3</button>
+                <button class="sp-btn"><span class="mk-boxes" style="grid-template-columns:repeat(2,4px)"><i></i><i></i><i></i><i></i><i></i><i></i></span>3 × 2</button></span></div>
+              <button class="v3-prob"><span class="n">2</span><span>Two 3s in a box</span><span class="go">Top right</span></button>
+            </div>
+          </li>
+          <li class="v3-check wait"><span class="st">–</span>
+            <span class="txt">Exactly one solution<small>The solver looks once every rule holds.</small></span>
+          </li>
+        </ul>
+
+        <h3 class="v3-h3">Your drawing</h3>
+        <ul class="v3-checks">
+          <li class="v3-check ok"><span class="st">✓</span><span class="txt">Everything on the page is part of the puzzle.</span></li>
+        </ul>
+
+        <div class="v3-foot"><button class="v3-link"><span data-icon="book"></span>More about Sudoku</button><span class="muted">Size 6 × 6, from the grid</span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

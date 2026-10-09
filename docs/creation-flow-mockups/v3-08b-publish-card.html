@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Publish B: preview card</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="v3-player.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- Option B, a preview card: on the left the puzzle's card as it will appear in feeds and on the
+     profile (GameCard's parts: the picture, its type, title, description, by), edited in place; on
+     the right the real player (v3-player.js) to play it through. The card's picture is the engine's
+     (picture.ts), as the card will show it. -->
+<div class="sp-studio v3" style="height:100dvh; display:flex; flex-direction:column">
+  <header class="v3-pub-top">
+    <button class="btn v3-back"><span data-icon="back"></span>Back to paint</button>
+    <span class="v3-title" style="margin-left:6px">Publish<small style="margin-left:10px">Saved</small></span>
+    <span class="grow"></span>
+    <span class="v3-type" style="pointer-events:none"><span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="40"></span><span class="lbl">Type:</span><b>Sudoku</b></span>
+    <button class="v3-verdict ok" title="The verdict"><span class="mark">✓</span>One solution</button>
+    <button class="btn primary">Publish</button>
+  </header>
+
+  <div class="v3-split">
+    <section class="feed">
+      <div class="v3-label"><span data-icon3="feed"></span>How players will see it</div>
+      <p class="v3-sub" style="margin:-8px 0 0">In feeds, in search and on your profile, with the board beside it.</p>
+      <div class="v3-cards">
+        <div class="game-card me">
+          <span class="grid-game pic thumb" data-board="publish.card" data-shown="240"></span>
+          <span class="game-card-text">
+            <span class="kind">Sudoku</span>
+            <strong><span class="v3-in focus">Six by Six<span class="v3-caret"></span></span></strong>
+            <span class="desc"><span class="v3-in">A gentle 6 × 6 to start the week. The 6 in the bottom row is the key.</span></span>
+            <span class="by">by @josh</span>
+          </span>
+        </div>
+      </div>
+      <p class="v3-sub" style="margin:0">Click the title or the description to change them. They save as you type.</p>
+    </section>
+
+    <section class="board">
+      <div class="v3-label" style="justify-self:stretch"><span data-icon="play"></span>Play it through <span>· as players will; your solve isn't counted</span></div>
+      <div class="v3-player" data-play></div>
+      <div class="v3-checkline"><span class="ok">✓ Exactly one solution</span><span>Changed your mind? Back to paint; nothing here is lost.</span></div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

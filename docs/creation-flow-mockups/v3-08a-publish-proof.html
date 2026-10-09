@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · Publish A: studio proof</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="v3-player.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+</head>
+<body>
+<!-- Option A, a studio proof: still paint (the same top bar, Type and the verdict), with the canvas
+     switched into play mode. The board is the real player (v3-player.js, src/game-types/grid/game.ts)
+     with a host that saves nothing and records no solve; the creator has played most of it. The
+     title and description are written on the proof sheet above the board, in place. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Six by Six<small>Saved</small></span>
+      <button class="v3-type" title="The puzzle type">
+        <span class="pic grid-game" data-board="thumbs.sudoku.svg" data-shown="40"></span>
+        <span class="lbl">Type:</span><b>Sudoku</b><span data-icon="chevron"></span>
+      </button>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-mode"><span data-icon="play"></span>Playing your puzzle</span>
+      <button class="btn v3-back"><span data-icon3="pencil"></span>Back to paint</button>
+      <span class="v3-docbar" style="border-right:0; padding-right:0"></span>
+      <button class="v3-verdict ok" title="The verdict"><span class="mark">✓</span>One solution</button>
+      <button class="btn primary">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work" style="grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'canvas side' 'status side';">
+    <div class="v3-proof-wrap">
+      <div class="v3-proof">
+        <span class="crop tl"></span><span class="crop tr"></span><span class="crop bl"></span><span class="crop br"></span>
+        <div class="slug"><span>Proof · not published yet</span><span>Your solve isn't counted</span></div>
+        <h1><span class="v3-in paper focus">Six by Six<span class="v3-caret"></span></span></h1>
+        <span class="desc"><span class="v3-in paper">A gentle 6 × 6 to start the week. The 6 in the bottom row is the key.</span></span>
+        <div class="meta">Sudoku · 6 × 6 · by @josh</div>
+        <div class="v3-player" data-play></div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Play it as players will: tap a square, then a digit. Back to paint to change it.</span>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-strip" aria-label="The drawer, collapsed">
+      <button class="sp-btn" aria-label="Open the drawer" data-icon3="expand"></button>
+      <span class="sep"></span>
+      <button class="sp-btn" aria-label="This puzzle: one solution" title="This puzzle: One solution"><span data-icon3="checklist"></span><span class="badge ok">✓</span></button>
+      <span class="sep"></span>
+      <button class="sp-btn" aria-label="How to play Sudoku" title="How to play Sudoku" data-icon="book"></button>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

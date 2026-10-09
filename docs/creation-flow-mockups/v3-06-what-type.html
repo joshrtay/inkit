@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 · What type is this?</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800;900&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../app/app/styles/paint.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<link rel="stylesheet" href="v3.css">
+<script src="v3-boards.js"></script>
+<script src="mockup.js"></script>
+<script src="v3.js"></script>
+<script>
+// the ranked suggestions, as suggest.ts ranks them and the solver judged them (v3-make-boards.ts)
+document.addEventListener("DOMContentLoaded", () => {
+  const list = document.getElementById("sugs");
+  list.innerHTML = window.BOARDS.suggest.map((s, i) => `
+    <div class="v3-sug${i === 0 ? " on" : ""}">${i === 0 ? '<span class="rank">Best fit</span>' : ""}
+      <span class="pic grid-game">${s.picture}</span>
+      <span class="t"><strong>${s.name}<span class="v3-pill ${s.said === "one" || s.said === "solvable" ? "ok" : "wait"}">${s.said === "one" ? "✓ " : ""}${s.words}</span></strong>
+        <span class="fits${s.wontFit ? " bad" : ""}">${s.wontFit ? "" : "✓ "}${s.fits}</span>
+        <span>${s.about}</span>
+        <span class="acts">${i === 0 ? `<button class="v3-mini go">Make it ${s.name}</button>` : `<button class="v3-mini">Make it ${s.name}</button>`}<button class="v3-link" style="font-size:12.5px">More about ${s.name} ›</button></span>
+      </span>
+    </div>`).join("");
+}, { once: true });
+</script>
+</head>
+<body>
+<!-- A drawing with no type yet: numbers in a grid. The creator asked "What type is this?" in the
+     Types tab: every type paint makes is tried in its own grid look, ranked (everything used first,
+     then the verdict), and the best are solved (suggest.ts; no call to Claude). The real top three. -->
+<div class="studio sp-studio paint v3">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <span class="v3-title">Islands<small>Saved</small></span>
+      <button class="v3-type unset" aria-expanded="true" title="The puzzle type: opens Types in the drawer">
+        <span class="pic">?</span><span class="lbl">Type:</span><b>Not set</b><span data-icon="chevron"></span>
+      </button>
+    </div>
+    <div class="studio-actions">
+      <span class="v3-docbar">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="more" aria-label="More: Clear, Download…"></button>
+      </span>
+      <button class="v3-verdict off" aria-disabled="true" title="Choose a type first"><span data-icon="check"></span>Check</button>
+      <button class="btn primary v3-off" aria-disabled="true" title="Choose a type first">Publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="pen" aria-label="Pen"></button>
+      <button class="sp-btn sp-tool" data-icon="line" aria-label="Line"></button>
+      <button class="sp-btn sp-tool" data-icon="wash" aria-label="Wash"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp"></button>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="v3-palette" style="top: 216px; --notch: 54px">
+        <header><span data-icon="text"></span>Text<small>T</small></header>
+        <div class="row"><span>Size</span>
+          <span class="sp-seg"><button class="sp-btn" aria-pressed="true">Normal</button><button class="sp-btn sp-small-btn">Small</button></span></div>
+        <p class="note">Normal writes in a square; Small on a corner, a line, or a square's side.</p>
+      </div>
+      <div class="sp-paper tool-text">
+        <div data-board="unknown.svg"></div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square and type</span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="v3-drawer" style="width:420px">
+      <div class="v3-tabs" role="tablist">
+        <button class="v3-tab" role="tab" aria-selected="false"><span data-icon3="checklist"></span>This puzzle</button>
+        <button class="v3-tab" role="tab" aria-selected="true"><span data-icon3="types"></span>Types</button>
+        <span class="grow"></span>
+        <button class="sp-btn" aria-label="Collapse the drawer" data-icon3="collapse"></button>
+      </div>
+      <div class="v3-body">
+        <div class="v3-search"><span data-icon="search"></span>Search, like “Light Up”</div>
+        <h3 class="v3-h3">What type is this? <span>Your drawing, tried as each type</span></h3>
+        <div class="v3-sugs" id="sugs"></div>
+        <p class="v3-sub" style="margin:0">The verdicts are the solver's, on what you've drawn so far. You can change the type any time; nothing you drew is lost.</p>
+        <h3 class="v3-h3">All types</h3>
+        <ul class="v3-types">
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.shikaku.svg" data-shown="52"></span>
+            <span><strong>Shikaku</strong><span class="s">Divide the grid into rectangles, each with one number.</span></span><span class="about">More ›</span></li>
+          <li class="v3-ty"><span class="pic grid-game" data-board="thumbs.fillomino.svg" data-shown="52"></span>
+            <span><strong>Fillomino</strong><span class="s">Split the grid into regions of the sizes written.</span></span><span class="about">More ›</span></li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
