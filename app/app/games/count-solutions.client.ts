@@ -33,7 +33,7 @@ export async function findSolutions(spec: GridSpec): Promise<Found> {
   const run = clingo.run(program(p), 2, ["--project=show"]);
   running = run;
   let res;
-  try { res = await run; } finally { if (running === run) running = null; }
+  try { res = await run; } catch (e) { if (stale) return { error: "stopped" }; throw e; } finally { if (running === run) running = null; }
   if (stale) return { error: "stopped" };
   if (res.Result === "ERROR") return { error: `The solver failed: ${"Error" in res ? res.Error : "unknown error"}` };
   const answers = ("Call" in res ? res.Call?.[0]?.Witnesses ?? [] : []).map((w) => w.Value);
@@ -43,4 +43,12 @@ export async function findSolutions(spec: GridSpec): Promise<Found> {
     if (problems.length) return { error: `The solver and the rules disagree (${problems[0].message}). This is a bug; please report it.` };
   }
   return { solutions: Math.min(answers.length, 2) as 0 | 1 | 2, boards };
+}
+
+/** Stop the run under way, if any (its caller gets "stopped"): "What type is this?"'s Cancel. */
+export async function stopSolving() {
+  if (!running) return;
+  stale = true;
+  const clingo = await import("clingo-wasm");
+  await clingo.restart().catch(() => undefined);
 }

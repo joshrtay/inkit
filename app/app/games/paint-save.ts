@@ -2,10 +2,11 @@
 // puzzle type (or none yet) and its rule settings. The game's sketch is always converted from it
 // (sketchpad/to-puzzle.ts), here, on the server as in the browser, so nobody saves a sketch by hand.
 // Pure: safe on both sides.
-import { GENRE_NAMES, type GenreName } from "~site/engine/puzzle.ts";
+import { GENRE_NAMES, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
 import * as m from "~/sketchpad/model";
-import { convert, type Conversion, type Settings } from "~/sketchpad/to-puzzle";
-import { specToSketch } from "./sketch";
+import { toDrawing } from "~/sketchpad/from-puzzle";
+import { convert, PROFILES, type Conversion, type Settings } from "~/sketchpad/to-puzzle";
+import { looseSpec, specToSketch } from "./sketch";
 
 export interface PaintSave { drawing: m.Drawing; genre: GenreName | null; settings: Settings }
 
@@ -34,4 +35,15 @@ export function sketchOf(save: PaintSave): { sketch: string; kind: string; conve
   if (!save.genre) return { sketch: "", kind: "", conversion: null };
   const conversion = convert(save.drawing, save.genre, save.settings);
   return { sketch: conversion.spec ? specToSketch(conversion.spec) : "", kind: save.genre, conversion };
+}
+
+/** A sketch drawn in paint's ink (from-puzzle.ts's toDrawing): a photo's reading, or a draft made
+ *  before paint. Null for a type paint can't draw (RYB) or a sketch that isn't a puzzle. */
+export function paintFromSketch(sketch: string): PaintSave | null {
+  const spec = looseSpec(sketch), genre = spec?.genre as GenreName | undefined;
+  if (!spec || !genre || !PROFILES[genre]) return null;
+  try {
+    return { drawing: toDrawing(makePuzzle(spec, { unfinished: true }), genre).drawing, genre,
+      settings: { ...(spec.rules ? { rules: spec.rules } : {}), ...(spec.style ? { style: spec.style } : {}) } };
+  } catch { return null; }
 }

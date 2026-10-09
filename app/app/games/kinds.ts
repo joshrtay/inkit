@@ -51,4 +51,5 @@ export const KIND_NAMES: Record<GenreName, string> = {
   "find-the-cut-line": "Find the Cut Line",
   "twins-and-triplets": "Twins and Triplets",
 };
-export const kindName = (id: string) => (KIND_NAMES as Record<string, string>)[id] ?? id;
+/** A type's name; a draft with no type yet (paint: the type is chosen as it's drawn) says so. */
+export const kindName = (id: string) => (id ? (KIND_NAMES as Record<string, string>)[id] ?? id : "No type yet");

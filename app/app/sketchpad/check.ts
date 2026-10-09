@@ -16,6 +16,7 @@ import type { Board, Puzzle } from "~site/engine/types.ts";
 import { kindName } from "~/games/kinds";
 import * as m from "./model";
 import type { Conversion, Problem } from "./to-puzzle";
+import type { Doubt } from "~/games/doubts";
 
 // ---- the verdict ----
 
@@ -217,6 +218,11 @@ export function highlight(d: m.Drawing, item: Pick<CheckItem, "kind" | "items" |
   const cells = g && (!ofItems || !boxes.length) ? item.cells : [];
   const rings = g ? cells.map(([r, c]) => ringOf(g, r, c)) : [];
   const join = g && rings.length > 1 ? cells.map(([r, c]) => m.pointOf(g, { at: "cell", r, c })) : [];
+  return framed(rings, boxes, join);
+}
+
+/** The pin, tip and bounds of a mark made of these rings and boxes. */
+function framed(rings: m.XY[][], boxes: Highlight["boxes"], join: m.XY[]): Highlight {
   const xs = [...rings.flat().map((p) => p.x), ...boxes.flatMap((b) => [b.x, b.x + b.w])];
   const ys = [...rings.flat().map((p) => p.y), ...boxes.flatMap((b) => [b.y, b.y + b.h])];
   if (!xs.length) return { rings, boxes, join, pin: null, tip: null, bounds: null };
@@ -230,9 +236,30 @@ export function highlight(d: m.Drawing, item: Pick<CheckItem, "kind" | "items" |
   return { rings, boxes, join, pin, tip, bounds };
 }
 
+/** Where one of the photo reader's doubts (games/doubts.ts) is on the paper: its square ringed, or
+ *  a box round the rows, columns, block of squares or line of clues it's about. The whole puzzle
+ *  has no mark. */
+export function doubtHighlight(d: m.Drawing, doubt: Doubt): Highlight {
+  const g = d.grid;
+  if (!g || doubt.place === "whole" || !doubt.place) return { rings: [], boxes: [], join: [], pin: null, tip: null, bounds: null };
+  const S = g.S, span = m.gridSpan(g), W = span.w * S, H = span.h * S, inset = Math.min(3, S * 0.06);
+  const r0 = doubt.row ?? 0, r1 = doubt.row2 ?? r0, c0 = doubt.col ?? 0, c1 = doubt.col2 ?? c0;
+  const rect = (x: number, y: number, w: number, h: number) => ({ x: x + inset, y: y + inset, w: w - 2 * inset, h: h - 2 * inset });
+  const room = (v: number) => Math.max(S, Math.min(3 * S, v - 4));   // the clues beside the grid
+  switch (doubt.place) {
+    case "cell": return framed([ringOf(g, r0, c0)], [], []);
+    case "row-clue": return framed([], [rect(g.x - room(g.x), g.y + r0 * S, room(g.x), S)], []);
+    case "column-clue": return framed([], [rect(g.x + c0 * S, g.y - room(g.y), S, room(g.y))], []);
+    case "rows": return framed([], [rect(g.x, g.y + r0 * S, W, (r1 - r0 + 1) * S)], []);
+    case "columns": return framed([], [rect(g.x + c0 * S, g.y, (c1 - c0 + 1) * S, H)], []);
+    case "area": return framed([], [rect(g.x + c0 * S, g.y + r0 * S, (c1 - c0 + 1) * S, (r1 - r0 + 1) * S)], []);
+  }
+}
+
 /** The marks as SVG (the paper's overlay, never exported): `tone` "error" (orange rings, dotted
- *  join) or "misfit" (red dashed boxes); `n` the pin's number; `selected` draws it strongly. */
-export function marksSvg(h: Highlight, tone: "error" | "misfit", n: number, selected: boolean, values?: [string, string]): string {
+ *  join), "misfit" (red dashed boxes) or "doubt" (amber, the photo reader's); `n` the pin's label;
+ *  `selected` draws it strongly. */
+export function marksSvg(h: Highlight, tone: "error" | "misfit" | "doubt", n: number | string, selected: boolean, values?: [string, string]): string {
   const f = (v: number) => Math.round(v * 10) / 10;
   const cls = `sp-mark ${tone}${selected ? " selected" : ""}`;
   let out = "";
