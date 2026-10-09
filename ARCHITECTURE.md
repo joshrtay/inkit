@@ -70,6 +70,12 @@ and Reset sit bottom left. Drafts save themselves; publishing needs exactly one 
 shows the real page (`/g/<id>/preview`) at desktop or phone width. RYB keeps its figure
 editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; admins a Look panel.
 
+**Paint** (`/g/<id>/draw`, `components/Paint.tsx`; [docs/creation-flow.md](docs/creation-flow.md)): a
+draft drawn in the sketchpad with a puzzle type. The drawing (`games.drawing`, with its type and
+rule settings) is the source of truth; `sketchpad/to-puzzle.ts` converts it into the sketch on
+every save. The type filters the tools (`sketchpad/kit.ts`); the verdict is live (clingo in the
+browser) and Check lists and marks what's wrong (`sketchpad/check.ts`).
+
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser
 tests, the engine self-test); see [docs/deploy.md](docs/deploy.md), which also covers rolling back.
 The Worker serves inkit.games, and redirects wyattsgames.com (Wyatt's old site) to his profile.

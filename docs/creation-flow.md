@@ -442,9 +442,12 @@ Akari number larger than its open neighbours, say) in the same place.
 1. **Converter, no UI** (largest risk first). (done: `sketchpad/to-puzzle.ts`) `convert` + profiles for every genre + round-trip
    tests green for all examples. Add the stamps/tools the round trip shows are missing (a real
    thermometer, inequality signs, palisade) instead of rough drawings.
-2. **Type mode in paint** behind a flag on `/g/<id>/draw`: Type chip, filtered tools and stamps,
+2. (done: `routes/game-draw.tsx`, `components/Paint.tsx`, `sketchpad/kit.ts`, `games/paint-save.ts`,
+   migration `0008_game_drawing`) **Type mode in paint** on `/g/<id>/draw`: Type chip, filtered tools and stamps,
    Rules panel, live convert + verdict chip. Server autosave (`games.drawing`, migration).
-3. **Validation**: overlay marks, notes, To check popover, fixes; rule hints from given conflicts;
+3. (done, in part: `sketchpad/check.ts`, the Check panel, marks and tips, "show a difference";
+   not yet: the notes layer, "Keep as a note", translations like "make these pearls")
+   **Validation**: overlay marks, notes, To check popover, fixes; rule hints from given conflicts;
    "show a difference".
 4. **Start and photo path**: new `/new`; reading → `toDrawing` → paint with doubts as pins; photo
    card; type picker with suggestions (photo `kindChoices`; drawing-data suggestions).
@@ -468,6 +471,18 @@ Risks:
 - **Losing BoardEditor features** people rely on (typing numbers with arrow keys, area painting):
   paint's Text already moves with arrows; areas need a quick "paint regions" mode for Star Battle-like
   types (bold borders by dragging across squares).
+
+### As built (phases 2 and 3)
+- Drafts only: a published game's `/draw` goes to its editor until phase 6. Publish in paint saves
+  and opens the editor's publish dialog (`/g/<id>/edit?publish`) until the publish page (phase 5).
+- The Check panel's list is live, like the verdict chip, rather than refreshed on Check: its numbers
+  then always match the pins on the paper. Check opens it and selects the first broken rule.
+- "Several solutions" lists every square where the solver's two solutions differ, each a
+  difference with both values pencilled; for shading and lines, the squares that differ as one.
+- A sudoku's box lines come with its grid (drawn from the Rules panel's box shape), so Sudoku's
+  rail is Grid, Text, Eraser; Irregular Sudoku keeps the pen for its areas.
+- Switching type isn't an undo step of its own (the grid's change of look is).
+- "What type is this?" waits for phase 4 (the reminder offers Choose a type only).
 
 ## 7. Open questions
 
