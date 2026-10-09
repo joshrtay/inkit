@@ -54,15 +54,15 @@ export function verdictOf(genre: GenreName | null, conv: Conversion | null, key:
 /** The verdict passes: the puzzle can be published (one solution; panels at least one). */
 export const passes = (v: Verdict) => v.kind === "one" || v.kind === "solvable";
 
-/** The chip's words and tone. */
+/** The Check button's words and tone: the verdict ("Check" with no type to check against). */
 export function verdictWords(v: Verdict): { text: string; tone: "ok" | "bad" | "wait" | "none" } {
   switch (v.kind) {
-    case "no-type": return { text: "No type yet, so nothing to check", tone: "none" };
-    case "no-grid": return { text: "Draw a grid first", tone: "none" };
-    case "unsupported": return { text: v.text, tone: "none" };
+    case "no-type": return { text: "Check", tone: "none" };
+    case "no-grid": return { text: "No grid yet", tone: "none" };
+    case "unsupported": return { text: "Not in paint yet", tone: "none" };
     case "incomplete": return { text: "Not a puzzle yet", tone: "bad" };
     case "checking": return { text: "Checking…", tone: "wait" };
-    case "broken": return { text: `No solution · ${v.rules === 1 ? "1 broken rule" : `${v.rules} broken rules`}`, tone: "bad" };
+    case "broken": return { text: "No solution", tone: "bad" };
     case "none": return { text: "No solution", tone: "bad" };
     case "several": return { text: "Several solutions", tone: "bad" };
     case "one": return { text: "One solution", tone: "ok" };
@@ -127,6 +127,8 @@ export interface CheckItem {
   items: number[];
   cells: [number, number][];
   values?: [string, string];
+  /** a broken rule's engine rule ("latin"…), when known */
+  rule?: string;
 }
 
 const ORDER: Record<ItemKind, number> = { rule: 0, difference: 1, fix: 2, misfit: 3 };
@@ -159,7 +161,7 @@ export function checkList(conv: Conversion | null, opts: { digits?: string; diff
       : p.kind === "ambiguous" ? "It's read the likelier way for now. Make it clear to be sure."
       : p.kind === "grid" ? "The type sets the grid's look: change it with the Grid tool."
       : "The puzzle needs this before it can be checked.";
-    return { kind, place: kind === "misfit" ? (p.kind === "off-grid" ? "Not on the grid" : "Doesn't fit") : placeOf(p.text, cells), text: p.text, tip, items: p.items, cells };
+    return { kind, place: kind === "misfit" ? (p.kind === "off-grid" ? "Not on the grid" : "Doesn't fit") : placeOf(p.text, cells), text: p.text, tip, items: p.items, cells, ...(p.rule ? { rule: p.rule } : {}) };
   });
   (opts.differences ?? []).forEach((d) => raw.push({
     kind: "difference", place: placeOf("", d.cells), cells: d.cells, items: [], values: d.values,

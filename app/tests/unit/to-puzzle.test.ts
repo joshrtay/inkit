@@ -239,7 +239,7 @@ describe("rule hints", () => {
   it("two 5s in row 6, pointing at both", () => {
     const d = drawing(6, 6, [text(cell(5, 0), "5"), text(cell(5, 4), "5"), text(cell(0, 0), "1")]);
     const out = convert(d, "sudoku");
-    expect(out.problems).toEqual([{ kind: "rule", text: "Two 5s in row 6", items: [1, 2], cells: [[5, 0], [5, 4]] }]);
+    expect(out.problems).toEqual([{ kind: "rule", text: "Two 5s in row 6", items: [1, 2], cells: [[5, 0], [5, 4]], rule: "latin" }]);
     expect(breaksRules(out.problems)).toBe(true);
   });
 
@@ -249,7 +249,7 @@ describe("rule hints", () => {
     const big = convert(drawing(4, 4, [text(cell(0, 0), "7")]), "sudoku");
     expect(big.problems.map((p) => p.text)).toEqual(["7 is too big: the numbers here run 1 to 4"]);
     const thermo = convert(drawing(4, 4, [{ kind: "stamp", stamp: "stone", at: cell(0, 0) }, pen("bold", [0.5, 0.5], [0.5, 2.5]), text(cell(0, 0), "3"), text(cell(0, 2), "1")]), "thermo-sudoku");
-    expect(thermo.problems).toEqual([{ kind: "rule", text: "These can't rise along the thermometer", items: [3, 4], cells: [[0, 0], [0, 2]] }]);
+    expect(thermo.problems).toEqual([{ kind: "rule", text: "These can't rise along the thermometer", items: [3, 4], cells: [[0, 0], [0, 2]], rule: "thermo" }]);
   });
 
   it("letters in Easy as ABC; nothing for types without digits", () => {

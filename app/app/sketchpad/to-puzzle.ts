@@ -39,6 +39,8 @@ export interface Problem {
   text: string;
   items: number[];
   cells?: [number, number][];
+  /** a broken rule's engine rule ("latin", "boxes"…), so Check can hang it under the guide's line for it */
+  rule?: string;
 }
 
 /** The type's settings that aren't drawn: the Rules panel (a puzzle's own rules) and the Look
@@ -163,8 +165,8 @@ class Ctx {
     this.out.push({ given, items });
     for (const id of items) if (this.strokes.has(id)) this.used.add(id); else this.take(id);
   }
-  problem(kind: Problem["kind"], text: string, items: number[], cells?: [number, number][]) {
-    this.problems.push({ kind, text, items, ...(cells ? { cells } : {}) });
+  problem(kind: Problem["kind"], text: string, items: number[], cells?: [number, number][], rule?: string) {
+    this.problems.push({ kind, text, items, ...(cells ? { cells } : {}), ...(rule ? { rule } : {}) });
   }
 
   /** The free items of a kind. */
@@ -745,9 +747,10 @@ const COUNT_WORDS = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", 
 /** Clues that break a rule as given, found with the engine's own checks on a board holding just the
  *  clues ("Two 5s in row 6"). Digit puzzles: repeats in a row, column or box, digits out of range,
  *  thermometers that don't rise, a number path's repeats. Each with the squares involved. */
-export function ruleHints(p: Puzzle): { text: string; cells: number[] }[] {
+export function ruleHints(p: Puzzle): { text: string; cells: number[]; rule?: string }[] {
   if (!p.marks.includes("digit")) return [];
-  const g = p.grid, b = emptyBoard(g), out: { text: string; cells: number[] }[] = [];
+  const g = p.grid, b = emptyBoard(g), out: { text: string; cells: number[]; rule?: string }[] = [];
+  let rule: string | undefined;   // the rule being checked, for each hint it finds
   const show = (d: number) => symbolOf(p, d);
   const big: number[] = [];
   for (const [i, gs] of p.cellGivens) for (const gv of gs) if (gv.kind === "number") {
@@ -761,7 +764,7 @@ export function ruleHints(p: Puzzle): { text: string; cells: number[] }[] {
   const repeats = (cells: number[], where: string) => {
     const by = new Map<number, number[]>();
     for (const i of cells) if (b.digit[i]) by.set(b.digit[i], [...(by.get(b.digit[i]) ?? []), i]);
-    for (const [d, cs] of by) if (cs.length > 1) out.push({ text: `${COUNT_WORDS[cs.length] ?? cs.length} ${show(d)}s ${where}`, cells: cs });
+    for (const [d, cs] of by) if (cs.length > 1) out.push({ text: `${COUNT_WORDS[cs.length] ?? cs.length} ${show(d)}s ${where}`, cells: cs, ...(rule ? { rule } : {}) });
   };
   const lineOf = (cells: number[]) => {
     const rcs = cells.map((i) => g.rc(i));
@@ -769,6 +772,7 @@ export function ruleHints(p: Puzzle): { text: string; cells: number[] }[] {
   };
   const regions = () => regionsOf(p, b);
   for (const s of p.rules) {
+    rule = s.rule;
     if (s.rule === "latin" || s.rule === "boxes") {
       for (const pr of blockFor(s).check(s, p, b, regions)) {
         if (!pr.cells?.length || pr.cells.some((i) => !b.digit[i])) continue;   // "fill every cell": not a clash
@@ -779,7 +783,7 @@ export function ruleHints(p: Puzzle): { text: string; cells: number[] }[] {
       for (const t of p.thermos) {
         const bad = new Set<number>();
         t.forEach((i, k) => t.forEach((j, l) => { if (k < l && b.digit[i] && b.digit[j] && b.digit[j] - b.digit[i] < l - k) { bad.add(i); bad.add(j); } }));
-        if (bad.size) out.push({ text: "These can't rise along the thermometer", cells: t.filter((i) => bad.has(i)) });
+        if (bad.size) out.push({ text: "These can't rise along the thermometer", cells: t.filter((i) => bad.has(i)), rule: "thermo" });
       }
     } else if (s.rule === "letters") {
       // each letter once a row and column: the same as latin's repeats
@@ -824,7 +828,7 @@ export function convert(d: m.Drawing, genre: GenreName, settings: Settings = {})
     for (const h of ruleHints(puzzle)) {
       const cells = h.cells.map((i) => g.rc(i));
       const items = cx.out.filter((x) => x.given.at === "cell" && cells.some(([r, c]) => r === (x.given as { cell: number[] }).cell[0] && c === (x.given as { cell: number[] }).cell[1])).flatMap((x) => x.items);
-      cx.problem("rule", h.text, items, cells);
+      cx.problem("rule", h.text, items, cells, h.rule);
     }
   }
   return { spec, used: cx.used, problems: cx.problems };

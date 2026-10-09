@@ -48,7 +48,7 @@ describe("the verdict", () => {
   const key = JSON.stringify(conv.spec);
   it("no type: nothing to check", () => {
     expect(verdictOf(null, null, "", null)).toEqual({ kind: "no-type" });
-    expect(verdictWords({ kind: "no-type" }).text).toBe("No type yet, so nothing to check");
+    expect(verdictWords({ kind: "no-type" }).text).toBe("Check");
   });
   it("waits for the solver's answer for this very puzzle", () => {
     expect(verdictOf("sudoku", conv, key, null).kind).toBe("checking");
@@ -63,7 +63,7 @@ describe("the verdict", () => {
     const bad = convert(sudoku([[5, 0, "5"], [5, 4, "5"]]), "sudoku");
     const v = verdictOf("sudoku", bad, JSON.stringify(bad.spec), null);
     expect(v).toEqual({ kind: "broken", rules: 1 });
-    expect(verdictWords(v)).toEqual({ text: "No solution · 1 broken rule", tone: "bad" });
+    expect(verdictWords(v)).toEqual({ text: "No solution", tone: "bad" });
     expect(passes(v)).toBe(false);
   });
   it("panels pass with several solutions: Solvable", () => {
