@@ -70,7 +70,9 @@ export const solutionLine = (genre: GenreName) => (needsOneSolution(genre) ? "Ex
 /** The checklist for a puzzle of this type, from its guide lines, Check's list and the verdict. */
 export function checklist(genre: GenreName, lines: RuleLine[], spec: GridSpec | null, list: CheckItem[], verdict: Verdict): Checklist {
   const shown = lines.filter((l) => usesLine(genre, l.text, spec, l.checks));
-  const rules: ChecklistLine[] = shown.map((l) => ({ text: l.text, checks: l.checks, mark: spec ? "ok" : "none", items: [] }));
+  // before Check nothing has been checked, so no line claims to hold (a tick would be a promise)
+  const unchecked = verdict.kind === "unchecked";
+  const rules: ChecklistLine[] = shown.map((l) => ({ text: l.text, checks: l.checks, mark: spec && !unchecked ? "ok" : "none", items: [] }));
   // each broken rule under the first line about it (or the first line, if none says)
   for (const x of list.filter((i) => i.kind === "rule")) {
     const at = rules.find((l) => x.rule && l.checks.includes(x.rule)) ?? rules[0];
@@ -81,7 +83,7 @@ export function checklist(genre: GenreName, lines: RuleLine[], spec: GridSpec | 
   if (!rules.length) final.items.unshift(...list.filter((i) => i.kind === "rule"));
   const misfits = list.filter((i) => i.kind === "misfit" || i.kind === "fix");
   const drawing: ChecklistLine = {
-    text: "Everything on the page is part of the puzzle.", checks: [], items: misfits, mark: misfits.length ? "bad" : "ok",
+    text: "Everything on the page is part of the puzzle.", checks: [], items: misfits, mark: misfits.length ? "bad" : unchecked ? "none" : "ok",
     ...(misfits.some((i) => i.kind === "misfit") ? { note: "What doesn't fit is left out until it's fixed; it doesn't change the verdict." } : {}),
   };
   const all = [...rules, final];

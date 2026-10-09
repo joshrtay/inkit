@@ -365,7 +365,6 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
           <span className={`paint-pill ${tone}`} role="status" data-verdict={verdict.kind}>{mark && <>{mark} </>}{verdict.kind === "unchecked" ? "Not checked yet" : words.text}</span>
         </header>
         <p className="paint-sub">{story.text}</p>
-        {verdict.kind === "unchecked" && <button type="button" className="btn primary paint-choose" onClick={check}>Check</button>}
         {lines && <>
           <h3 className="paint-h3">Rules<span>{lines.broken ? `${lines.broken} of ${lines.rules.length} broken` : genre === "panel" ? "for the symbols you used" : ""}</span></h3>
           <ol className="paint-checklist" aria-label="Rules">{lines.rules.map(line)}</ol>
