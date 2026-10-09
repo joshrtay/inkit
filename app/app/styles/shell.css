@@ -12,7 +12,7 @@
 .nav-items { display: grid; gap: 4px; }
 .nav-item {
   display: flex; align-items: center; gap: 14px; padding: 11px 12px; border-radius: 12px; width: 100%;
-  font: 600 17px/1 var(--body); color: var(--muted); text-decoration: none; background: none; border: 0; cursor: pointer; text-align: left;
+  font: 600 17px/1 var(--body); color: var(--muted); text-decoration: none; background: none; border: 0; text-align: left;
 }
 .nav-item:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .nav-item.active { color: var(--ink); font-weight: 800; }
@@ -27,7 +27,7 @@
   background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px var(--shadow);
 }
 .menu.up { top: auto; bottom: calc(100% + 6px); }
-.menu a, .menu button { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; background: none; border: 0; font: 600 15px/1.2 var(--body); text-align: left; cursor: pointer; }
+.menu a, .menu button { display: grid; gap: 2px; padding: 10px 12px; border-radius: 8px; color: var(--ink); text-decoration: none; background: none; border: 0; font: 600 15px/1.2 var(--body); text-align: left; }
 .menu a span { font-weight: 400; font-size: 13px; color: var(--muted); }
 .menu a:hover, .menu button:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
 /* More (signed in), after Substack's: places, then the small print */

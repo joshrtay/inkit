@@ -64,3 +64,38 @@ the two media: a wash fill with a pen outline.
 
 Puzzle text is handwritten (`--hand`, Kalam). Printed digits and clues are the pen's ink;
 digits the player enters are a lighter, bluer ink. Site chrome (menus, buttons) is Nunito.
+
+## Cursors
+
+The cursor says what a click will do. Most of the site is chrome, where that's a pointer or
+nothing; on a board it's the tool in your hand.
+
+- **Chrome**: links and buttons (and anything that acts like one: options, tabs, summaries, a
+  label around a box to tick) get the pointer; a disabled one the plain arrow. `not-allowed` only
+  where something is blocked for a reason worth saying. Labels and pictures that are only to look
+  at get the arrow, never the text caret. These are set once, weightless, in `global.css`; don't
+  repeat `cursor: pointer` on a button's class.
+- **Boards** never show the hand while you draw on them. The player sets it from the puzzle's
+  marks (`data-marks` on `.grid-game`):
+
+  | Click does | Cursor | Where |
+  |---|---|---|
+  | draws a line in pen (fence, loop, cut, a panel's line, a wall, a thermometer) | `--cursor-pen` | player, editor's Wall and Thermometer |
+  | paints a square in watercolour (shading, glass, paint, rocks, areas) | `--cursor-brush` | player, editor's Rock, Areas and Color, RYB |
+  | picks a square or cycles a clue (a digit's square, a pearl, a symbol) | `pointer` | player's digit puzzles, most editor tools |
+  | opens a box to type a number in | `text` | editor's number tools |
+  | rubs out | `--cursor-eraser` | editor's Erase, the sketchpad's Eraser |
+  | nothing (solved, a still picture) | `default` | |
+
+- **Dragging** something whole is `grab`, `grabbing` while held; a handle that stretches gets the
+  resize arrow along its direction (`nwse-resize` for a corner). Aim at a point (a new grid, a
+  straight line, a piece's corners) with the `crosshair`.
+- **The sketchpad**: each tool's cursor matches its icon, as in a paint app: pen, brush (Wash),
+  stamp, text, eraser; Line and a new grid the crosshair.
+- **Custom cursors** are few: the pen, the brush, the eraser and the stamp, the sketchpad's own
+  icons as 24-pixel SVGs in the pen's ink with a white edge (so they show on paper and on the dark
+  page), the eraser's and brush's business ends in a wash colour. They're CSS variables in
+  `global.css` (`--cursor-pen` …), each with its hotspot where it marks and a keyword after it.
+  Don't add one where a keyword says it.
+- Cursors only show with a mouse or a stylus that hovers; touch is unaffected, so a cursor is never
+  the only sign of what a tool does (the hint line says it in words).

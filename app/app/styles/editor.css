@@ -6,11 +6,20 @@
 .be-group { display: inline-flex; align-items: center; gap: .35rem; }
 .be-size b { min-width: 1.5em; text-align: center; }
 .be-size b + .be-btn + * { margin-left: .5rem; }
-.be-btn { font: inherit; padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--line, #8884); background: var(--panel); color: inherit; cursor: pointer; }
-.be-btn:disabled { opacity: .45; cursor: default; }
-.be-pot { position: relative; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--line, #8886); background: var(--c); cursor: pointer; padding: 0; }
-.be-pot input[type="color"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.be-btn { font: inherit; padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--line, #8884); background: var(--panel); color: inherit; }
+.be-btn:disabled { opacity: .45; }
+.be-pot { position: relative; width: 1.8rem; height: 1.8rem; border-radius: 50%; border: 2px solid var(--line, #8886); background: var(--c); padding: 0; }
+.be-pot input[type="color"] { position: absolute; inset: 0; opacity: 0; }
 .be-board { position: relative; touch-action: none; user-select: none; }
+/* the board's cursor is the tool's (docs/style.md, "Cursors"): most tools place or cycle a clue
+   with a click; the ones that draw a line get the pen, the ones that paint squares the brush, the
+   ones that open a box to type in the text caret, and Erase the eraser */
+.be-board .grid-game svg.picture { cursor: pointer; }
+.be-board:is([data-tool="wall"], [data-tool="thermo"]) .grid-game svg.picture { cursor: var(--cursor-pen); }
+.be-board:is([data-tool="block"], [data-tool="area"], [data-tool="paint"]) .grid-game svg.picture { cursor: var(--cursor-brush); }
+.be-board:is([data-tool="number"], [data-tool="outside-number"], [data-tool="outside-letter"], [data-tool="corner"], [data-tool="total"],
+  [data-tool="difference"], [data-tool="watchtower"]) .grid-game svg.picture { cursor: text; }
+.be-board[data-tool="erase"] .grid-game svg.picture { cursor: var(--cursor-eraser); }
 
 .be-board .grid-game.pic svg { width: 100%; height: auto; max-height: 70vh; display: block; }
 .be-clue { position: absolute; transform: translate(-50%, -110%); background: var(--panel); border: 1px solid var(--line, #8886); border-radius: 8px; padding: .4rem .5rem; box-shadow: 0 6px 20px #0004; z-index: 2; }
@@ -36,9 +45,9 @@
 .studio-more form { display: contents; }
 .btn.icon { padding-inline: 10px; font-size: 18px; line-height: 1; }
 .check-chip { font: 700 14px/1 var(--body); padding: 0 6px; border: 0; background: none; color: var(--muted); white-space: nowrap; cursor: default; }
+button.check-chip { cursor: pointer; }
 .check-chip.one, .check-chip.some { color: var(--good); }
 .check-chip.none, .check-chip.broken, .check-chip.many { color: var(--red); }
-.check-chip.many { cursor: pointer; }
 .check-chip.many:hover { text-decoration: underline; }
 .studio-tools { position: sticky; top: 56px; z-index: 4; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px 14px; border-block: 1px solid var(--line); padding: 8px 16px; background: var(--bg); }
 .studio-tools .be-tools { justify-content: center; }
@@ -55,7 +64,7 @@
 .doubts h2 { font-size: 15px; margin: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
 .doubts h2 .muted { font: 400 12px/1 var(--body); }
 .doubts ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.doubts li label { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; padding: 8px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, #e0a100 50%, transparent); background: color-mix(in srgb, #e0a100 10%, transparent); cursor: pointer; line-height: 1.35; }
+.doubts li label { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: start; padding: 8px 10px; border-radius: 8px; border: 1px solid color-mix(in srgb, #e0a100 50%, transparent); background: color-mix(in srgb, #e0a100 10%, transparent); line-height: 1.35; }
 .doubts li label b { display: block; font-size: 12px; }
 .doubts li input { margin-top: 2px; accent-color: var(--good); }
 .doubts li.done label { border-color: var(--line); background: none; color: var(--muted); }
@@ -66,7 +75,7 @@
 .studio-dialog { position: fixed; inset: 0; z-index: 30; background: color-mix(in srgb, #000 55%, transparent); display: grid; place-items: center; padding: 16px; }
 .studio-sheet { position: relative; background: var(--panel); border-radius: 12px; padding: 22px; width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow: auto; }
 .studio-sheet.drawing { width: auto; padding: 10px; background: #fff; }
-.studio-sheet .pane-close { position: absolute; top: 8px; right: 10px; display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); cursor: pointer; }
+.studio-sheet .pane-close { position: absolute; top: 8px; right: 10px; display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); }
 .drawing-full { display: block; max-width: calc(100vw - 52px); max-height: calc(100dvh - 52px); }
 .board-editor.flashing .grid-game .undecided { animation: undecided-flash .4s ease-in-out 3 alternate; }
 @keyframes undecided-flash { to { fill-opacity: .75; } }
@@ -91,16 +100,15 @@
 .studio-title input::placeholder, .studio-title textarea::placeholder { color: color-mix(in srgb, var(--muted) 60%, transparent); }
 .publish-what { display: grid; gap: 2px; margin: 0; }
 
-.be-color { cursor: pointer; }
 .be-color .be-pot { display: inline-block; }
 /* Binary Puzzle, Abstract Art: the color printed in a square; a fill-in's list of numbers */
-.be-paint .be-pot { display: block; width: 20px; height: 20px; cursor: inherit; }
+.be-paint .be-pot { display: block; width: 20px; height: 20px; }
 .be-list label { display: inline-flex; align-items: center; gap: .4rem; }
 .be-list input { width: 14rem; max-width: 60vw; }
 
 /* panels: a color or shape to place, drawn as it will look (panel-draw.ts symbols) */
 .be-swatches, .be-shapes { gap: 3px; }
-.be-swatch { width: 30px; height: 30px; padding: 0; border-radius: 8px; border: 2px solid transparent; background: var(--paper, #fbfaf6); cursor: pointer; display: grid; place-items: center; }
+.be-swatch { width: 30px; height: 30px; padding: 0; border-radius: 8px; border: 2px solid transparent; background: var(--paper, #fbfaf6); display: grid; place-items: center; }
 .be-swatch[aria-pressed="true"] { border-color: var(--ink); }
 .be-icon { display: inline-grid; width: 26px; height: 26px; vertical-align: middle; }
 .be-icon svg { width: 100%; height: 100%; }
@@ -154,12 +162,11 @@
 
 /* likes (LikeButton.tsx) */
 .like-form { display: inline-flex; }
-.like-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--muted); font: 700 14px/1 var(--body); cursor: pointer; text-decoration: none; transition: color .15s, border-color .15s; }
+.like-btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--muted); font: 700 14px/1 var(--body); text-decoration: none; transition: color .15s, border-color .15s; }
 .like-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .like-btn:hover:not(:disabled) { color: #e5484d; border-color: color-mix(in srgb, #e5484d 50%, transparent); }
 .like-btn.liked { color: #e5484d; }
 .like-btn.liked svg { fill: currentColor; animation: like-pop .3s ease; }
-.like-btn:disabled { cursor: default; }
 @keyframes like-pop { 50% { transform: scale(1.3); } }
 @media (prefers-reduced-motion: reduce) { .like-btn.liked svg { animation: none; } }
 /* the heart sits at the foot of the text column (outside the link: a form can't go inside one) */
@@ -177,7 +184,7 @@
 .be-overlay .be-doubt { fill: color-mix(in srgb, #e0a100 14%, transparent); stroke: #e0a100; stroke-width: 2.5; stroke-dasharray: 6 4; }
 .be-hint { margin: 8px 0 0; font-size: 13px; color: var(--muted); text-align: center; }
 .be-areas { gap: 4px; }
-.be-area { width: 30px; height: 30px; border-radius: 8px; border: 2px solid transparent; background: hsl(var(--h) 75% 55% / .45); color: var(--ink); font: 800 13px/1 var(--body); cursor: pointer; display: grid; place-items: center; }
+.be-area { width: 30px; height: 30px; border-radius: 8px; border: 2px solid transparent; background: hsl(var(--h) 75% 55% / .45); color: var(--ink); font: 800 13px/1 var(--body); display: grid; place-items: center; }
 .be-area[aria-pressed="true"] { border-color: var(--ink); }
 .be-area.new { border-style: dashed; border-color: var(--ink); }
 .be-overlay .be-guides line { stroke: color-mix(in srgb, #26398f 22%, transparent); stroke-width: 1.5; stroke-dasharray: 4 5; }
@@ -205,6 +212,6 @@
 .be-board .grid-game.pic { padding: 0; }
 /* Panes' shape pad: draw a Polyomino clue or a shape for the bank */
 .be-pad { display: inline-grid; grid-template-columns: repeat(5, 9px); gap: 1px; padding: 2px; border-radius: 6px; background: color-mix(in srgb, var(--ink) 12%, transparent); }
-.be-pad-cell { width: 9px; height: 9px; padding: 0; border: 0; border-radius: 1px; background: var(--paper, #fbfaf6); cursor: pointer; }
+.be-pad-cell { width: 9px; height: 9px; padding: 0; border: 0; border-radius: 1px; background: var(--paper, #fbfaf6); }
 .be-pad-cell[aria-pressed="true"] { background: var(--ink); }
 .be-note { font-size: .8rem; opacity: .7; align-self: center; }

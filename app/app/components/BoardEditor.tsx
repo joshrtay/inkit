@@ -828,7 +828,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   return (
     <div className={`board-editor${flashing ? " flashing" : ""}`}>
       {tools && createPortal(toolbar, tools)}
-      <div className="be-board" ref={box} data-layout={lay ? JSON.stringify({ ...lay, rows, cols }) : undefined}
+      <div className="be-board" ref={box} data-tool={tool} data-layout={lay ? JSON.stringify({ ...lay, rows, cols }) : undefined}
         onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
         {svg ? <div className="grid-game pic" dangerouslySetInnerHTML={{ __html: svg }} /> : <p className="error">{problem}</p>}
         {overlay}

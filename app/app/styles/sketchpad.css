@@ -25,11 +25,11 @@
 /* ---- buttons in the chrome ---- */
 .sp-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 32px; height: 32px; padding: 0 6px;
-  font: 600 13px/1 var(--body); color: var(--ink); background: none; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
+  font: 600 13px/1 var(--body); color: var(--ink); background: none; border: 1px solid transparent; border-radius: 6px;
 }
 .sp-btn:hover:not(:disabled) { background: var(--sp-hover); }
 .sp-btn[aria-pressed="true"] { background: var(--sp-on); border-color: color-mix(in srgb, var(--ink) 45%, transparent); }
-.sp-btn:disabled { opacity: .38; cursor: default; }
+.sp-btn:disabled { opacity: .38; }
 .sp-btn:focus-visible, .sp-swatch:focus-visible, .sp-stamp:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
 .sp-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .sp-btn[aria-pressed="true"] .sp-icon { stroke-width: 2.1; }
@@ -90,7 +90,7 @@
 .sp-thumb .be-icon { width: 24px; height: 24px; }
 /* the shape pad: 5 × 5 squares, the shape's in its colour */
 .sp-pad { display: inline-grid; grid-template-columns: repeat(5, 9px); grid-auto-rows: 9px; gap: 1px; padding: 2px; border: 1px solid var(--line-strong); border-radius: 5px; background: var(--line); }
-.sp-pad-cell { width: 9px; height: 9px; padding: 0; border: 0; border-radius: 1px; background: var(--paper); cursor: pointer; }
+.sp-pad-cell { width: 9px; height: 9px; padding: 0; border: 0; border-radius: 1px; background: var(--paper); }
 .sp-pad-cell:hover { background: color-mix(in srgb, var(--paper) 70%, var(--sp-pad-on)); }
 .sp-pad-cell[aria-pressed="true"] { background: var(--sp-pad-on); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--paper-ink) 55%, transparent); }
 .sp-pad-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; position: relative; z-index: 1; }
@@ -109,9 +109,18 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 2px 4px var(--shadow), 0 14px 32px -10px var(--shadow);
 }
 .sp-paper > svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
-.sp-paper.tool-erase > svg { cursor: cell; }
-.sp-paper.tool-grid > svg { cursor: copy; }
+/* each tool's cursor matches its icon, as in a paint app (docs/style.md, "Cursors"): the pen, the
+   wash's brush, the stamp, the text caret, the eraser; the line and a new grid are aimed with the
+   crosshair. With the grid tool, the grid itself can be grabbed and moved, and its corner handle
+   stretched (both catch the pointer only for the cursor: Sketchpad finds them by where you press). */
+.sp-paper.tool-pen > svg { cursor: var(--cursor-pen); }
+.sp-paper.tool-wash > svg { cursor: var(--cursor-brush); }
+.sp-paper.tool-stamp > svg { cursor: var(--cursor-stamp); }
 .sp-paper.tool-text > svg { cursor: text; }
+.sp-paper.tool-erase > svg { cursor: var(--cursor-eraser); }
+.sp-ui .grid-hit { fill: transparent; pointer-events: all; cursor: grab; }
+.sp-ui .handle { pointer-events: all; cursor: nwse-resize; }
+.sp-paper.tool-grid > svg:has(.grid-hit:active), .sp-ui .grid-hit:active { cursor: grabbing; }
 .sp-paper > svg.sp-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
 
 /* the ink: the boards' pen wobble over all of it */
@@ -170,18 +179,17 @@
 .sp-current-text { display: grid; gap: 3px; font-size: 12.5px; color: var(--muted); }
 .sp-current-text b { font-size: 15px; color: var(--ink); }
 .sp-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 6px; }
-.sp-swatch { aspect-ratio: 1; padding: 3px; border-radius: 50%; border: 2px solid transparent; background: none; cursor: pointer; display: grid; }
+.sp-swatch { aspect-ratio: 1; padding: 3px; border-radius: 50%; border: 2px solid transparent; background: none; display: grid; }
 .sp-swatch { position: relative; }
 .sp-swatch > span { border-radius: 50%; box-shadow: 0 0 0 1px color-mix(in srgb, var(--line-strong) 70%, transparent), inset -2px -3px 0 rgba(0, 0, 0, .1); }
 .sp-swatch:hover:not(:disabled) { border-color: var(--line-strong); }
 .sp-swatch[aria-pressed="true"] { border-color: var(--ink); }
 /* a colour the current stamp can't have: faded and struck through */
-.sp-swatch:disabled { cursor: default; }
 .sp-swatch:disabled > span { opacity: .3; }
 .sp-swatch:disabled::after { content: ""; position: absolute; left: 50%; top: 12%; bottom: 12%; width: 1.5px; background: var(--muted); transform: rotate(45deg); }
 .sp-stamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; }
 .sp-stamp {
-  aspect-ratio: 1; display: grid; place-items: center; padding: 0; cursor: pointer;
+  aspect-ratio: 1; display: grid; place-items: center; padding: 0;
   background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
 }
 .sp-stamp:hover { border-color: var(--line-strong); }

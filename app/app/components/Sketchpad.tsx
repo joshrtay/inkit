@@ -553,6 +553,7 @@ export function Sketchpad({ handle, onChange, actions }: {
               <g dangerouslySetInnerHTML={{ __html: ghost }} />
               {preview && <rect className="outline" x={preview.x} y={preview.y} width={preview.cols * preview.S} height={preview.rows * preview.S} />}
               {preview && <g className="ghost" dangerouslySetInnerHTML={{ __html: gridSvg(preview) }} />}
+              {tool === "grid" && g && <rect className="grid-hit" x={g.x} y={g.y} width={m.gridSpan(g).w * g.S} height={m.gridSpan(g).h * g.S} />}
               {tool === "grid" && g && <circle className="handle" cx={m.handleOf(g).x} cy={m.handleOf(g).y} r={7} />}
             </g>
           </svg>

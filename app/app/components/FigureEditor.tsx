@@ -110,7 +110,7 @@ export function FigureEditor({ spec, set }: { spec: GridSpec; set: (patch: Parti
       </p>
 
       <svg ref={svgRef} className="ge-grid fe-figure" viewBox={box.join(" ")} onClick={click} onPointerDown={down} onPointerMove={move} onPointerUp={up}
-        role="img" aria-label="Figure editor" style={{ cursor: tool === "draw" ? "crosshair" : tool === "move" ? "move" : "pointer" }}>
+        role="img" aria-label="Figure editor" data-tool={tool}>
         {pieces.map((p, i) => (
           <polygon key={i} points={pts(p)} className={i === sel ? "fe-piece sel" : "fe-piece"} strokeWidth={unit * 0.6}
             onClick={() => tool === "select" && setSel(i === sel ? -1 : i)} />
