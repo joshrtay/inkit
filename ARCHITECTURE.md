@@ -71,18 +71,26 @@ and Reset sit bottom left. Drafts save themselves; publishing needs exactly one 
 shows the real page (`/g/<id>/preview`) at desktop or phone width. RYB keeps its figure
 editor (`components/FigureEditor.tsx`); Panes, and admins, get a Rules panel; admins a Look panel.
 
-**Paint** (`/g/<id>/draw`, `components/Paint.tsx`; [docs/creation-flow.md](docs/creation-flow.md)): a
+**Paint** (`/g/<id>/draw`, `components/Paint.tsx`; [docs/creation-flow.md](docs/creation-flow.md), "v3 layout"): a
 draft drawn in the sketchpad with a puzzle type. The drawing (`games.drawing`, with its type and
 rule settings) is the source of truth; `sketchpad/to-puzzle.ts` converts it into the sketch on
-every save. The type filters the tools (`sketchpad/kit.ts`); the verdict is live (clingo in the
-browser) and Check lists and marks what's wrong (`sketchpad/check.ts`). A photo's reading is
-drawn in ink (`games/paint-save.ts`'s `paintFromSketch`, via `toDrawing`), with Claude's doubts as
-amber marks and the photo in the panel. "What type is this?" tries the drawing as every type, no
-AI (`sketchpad/suggest.ts`). Publish goes to `/g/<id>/publish` (`routes/game-publish.tsx`): the
-draft's own game page (`GamePageView`) with the title and description edited in place, the real
-player (saving nothing, recording no solve), the verdict and Publish; the server converts the
-drawing again and publishes only the sketch the browser's solver passed. Published pages show the
-drawing as a "Drawn by" thumbnail (`sketchpad/picture.ts`).
+every save. Each part of the screen answers one question. The top bar: back, the title (a label),
+Type ▾ (opens the drawer at Types), undo, redo and … (Clear, Download), the verdict as the Check
+button (live, clingo in the browser; it opens This puzzle) and Publish, enabled when the verdict
+passes. The tool rail and the palette (`Sketchpad.tsx`: the chosen tool's settings, in one fixed
+place at the workspace's top left, foldable) filter by type (`sketchpad/kit.ts`). The drawer on
+the right (a bottom sheet on a phone; folds to a strip): This puzzle, the type's rules from its
+guide as a checklist (`sketchpad/checklist.ts`) with each broken rule's problems under it
+(`sketchpad/check.ts`'s list and marks) and its settings on it (`PaintRules.tsx`), the solution
+line, Your drawing, and the solution (pointed at, drawn on the board); and Types (`TypePicker.tsx`:
+search, "What type is this?", which tries the drawing as every type with no AI,
+`sketchpad/suggest.ts`, the list, each type's guide). A photo's reading is drawn in ink
+(`games/paint-save.ts`'s `paintFromSketch`, via `toDrawing`), with Claude's doubts as amber marks and
+the photo first in This puzzle. Publish goes to `/g/<id>/publish` (`routes/game-publish.tsx`), still
+in paint's top bar: the title and description edited in place on the dark page above the board, and
+the real player on the paper (saving nothing, recording no solve); the server converts the drawing
+again and publishes only the sketch the browser's solver passed. Published pages show the drawing as
+a "Drawn by" thumbnail (`sketchpad/picture.ts`).
 
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser
 tests, the engine self-test); see [docs/deploy.md](docs/deploy.md), which also covers rolling back.

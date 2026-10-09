@@ -572,6 +572,29 @@ Decisions:
 | Types: What type is this? with the real ranked suggestions | `v3-06-what-type.png` |
 | Phone: drawing, and the sheet open on This puzzle | `v3-07-phone.png` |
 
+### As built (v3)
+- The palette doesn't move with the tool (the owner's change from the mockup): it floats in one
+  fixed place at the workspace's top left, beside the rail, its header naming the tool. Hide folds
+  it to a handle, kept per browser (`inkit:palette`); on a phone it's the strip above the tools,
+  with undo, redo and …. The drawer's fold is kept too (`inkit:paint-drawer`).
+- The checklist (`sketchpad/checklist.ts`, unit-tested) takes the guide's lines, which the draw
+  route sends as text. A line shows when it applies: a panel's symbol lines only for symbols it
+  has (and Symmetry with two lines), lines about rules a puzzle may add (Panes', Fillomino's sizes)
+  only when it has them, an Akari's cipher line only with letters. A broken rule hangs under the
+  first line whose `checks` include its engine rule (`Problem.rule`, from `ruleHints`), else the
+  first line; "Several solutions"' differences under the solution line; what doesn't fit, and what
+  needs fixing first, under Your drawing.
+- Settings sit on the first line whose `checks` include their rule (box shape on `boxes`, Writes on
+  `latin`); any left over follow the rules. Panes' rule list and admins' Advanced come after.
+- Hovering (or focusing) the solution draws it on the board; a tap toggles it. "Show a difference"
+  went: the differences are links under the solution line.
+- Types: Type ▾ and the strip's guide open it; "More about …" shows the guide in the drawer, with
+  "Make it …" and a link to the full page. The reminder sits at its top, with What type is this?.
+- The publish page dropped the verdict badge, "Playing your puzzle" and the "Drawn by" thumbnail (it
+  didn't fit the dark heading cleanly); Publish wakes when the solver here passes, and the server
+  still checks the hash. Its Type goes back to paint with Types open (`?types=1`).
+- `GamePageView` no longer has a draft mode.
+
 ### The publish step: three options
 
 The last mockup of the publish page looked like the published game page, so it didn't read as a step
@@ -585,6 +608,7 @@ picker.
 | B, preview card | `v3-08b-publish-card.png` | A split: the card as it will appear in feeds (picture, type, title, description, by) edited in place, beside the board to play through |
 | C, checklist step | `v3-08c-publish-steps.png` | A focused page: 1 Play it through, 2 Name it, 3 Describe it, 4 Publish; the player's own solve ticks step 1, and Publish wakes when all are done |
 
+**Built: A**, with the owner's changes (see "As built (v3)").
 **Recommended: A.** It is plainly a step of making: the creator never leaves paint's chrome, the
 verdict and Type stay where they were, and Back to paint is a mode switch, not a page away. Naming
 on the proof sheet keeps title and description in place without looking like the published page.

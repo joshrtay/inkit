@@ -36,12 +36,20 @@ async function write(page: Page, r: number, c: number, text: string) {
 async function drawAkari(page: Page) {
   await drag(page, [60, 60], [204, 204]);
   await expect(page.locator(".sp-board")).toHaveAttribute("data-grid", "3x3");
+  await tool(page, "Stamp");
   await page.getByRole("button", { name: "Shaded square", exact: true }).click();
   await tap(page, ...sq(1, 1));
   await tool(page, "Text");
   await write(page, 1, 1, "4");
 }
-const chip = (page: Page) => page.locator(".paint-chip").first();
+/** The Check button, which shows the verdict (docs/creation-flow.md, "v3 layout"). */
+const chip = (page: Page) => page.locator(".paint-verdict-btn");
+/** Type ▾ opens the drawer at Types; a type from its list. */
+async function chooseType(page: Page, name: RegExp) {
+  await page.locator(".paint-type").click();
+  await page.locator(".paint-type-list").getByRole("button", { name }).first().click();
+  await expect(page.getByRole("tab", { name: "This puzzle" })).toHaveAttribute("aria-selected", "true");
+}
 const idOf = (page: Page) => /\/g\/([^/]+)\//.exec(page.url())![1];
 const row = (id: string) => sql<{ state: string; kind: string; title: string; description: string; sketch: string; drawing: string | null; sketch_image: string | null }>(
   `select state, kind, title, description, sketch, drawing, sketch_image from games where id = ${q(id)}`)[0];
@@ -66,30 +74,41 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
 
-  await page.locator(".paint-type").click();
-  await page.getByRole("dialog", { name: "Puzzle type" }).getByRole("button", { name: /^Akari/ }).first().click();
+  await chooseType(page, /^Akari/);
   await drawAkari(page);
   await expect(chip(page)).toHaveText(/One solution/, { timeout: 15_000 });
 
-  // Publish: saved first, then the draft's own game page
+  // Publish: saved first, then the publish page, still in paint's chrome
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/g/${id}/publish$`), { timeout: 15_000 });
-  const bar = page.locator(".publish-bar");
-  await expect(bar).toContainText("Exactly one solution", { timeout: 15_000 });
-  await expect(bar).toContainText("your solve isn't counted");
-  await expect(page.locator(".game-head")).toContainText("not published yet");
-  await expect(page.locator(".drawn-by svg.sp-drawing")).toBeVisible();
+  await expect(page.locator(".studio-top .paint-type-name")).toHaveText("Akari");
   await expect(page.getByRole("link", { name: "Back to paint" }).first()).toHaveAttribute("href", `/g/${id}/draw`);
+  // no verdict badge (paint showed it) and no "Playing your puzzle": the server still checks on Publish
+  await expect(page.locator(".paint-verdict-btn, .publish-bar, [data-verdict]")).toHaveCount(0);
+  await expect(page.getByText("Playing your puzzle")).toHaveCount(0);
+  await expect(page.locator(".publish-note")).toContainText("your solve isn’t counted");
+  await expect(page.locator(".publish-meta")).toHaveText(`Akari · 3 × 3 · by @${run.handle} · not published yet`);
   await expect(page.locator("select")).toHaveCount(0);   // no collection picker
+  const publish = page.locator(".studio-top").getByRole("button", { name: "Publish" });
+  await expect(publish).toBeEnabled({ timeout: 15_000 });
+
+  // the title and description: edited in place on the dark page above the board, not on the paper
+  const title = page.getByRole("textbox", { name: "Title" });
+  const description = page.getByRole("textbox", { name: "Description" });
+  await expect(title).toHaveAttribute("placeholder", "Name your puzzle");
+  await expect(description).toHaveAttribute("placeholder", "Add a line about it");
+  await expect(page.locator(".publish-head").getByRole("textbox")).toHaveCount(2);
+  await expect(page.locator(".sheet").getByRole("textbox")).toHaveCount(0);
+  expect((await title.boundingBox())!.y).toBeLessThan((await page.locator(".sheet").boundingBox())!.y);
+  await shot(page, "07-publish-empty");
 
   // an empty title: Publish asks for one
-  const title = page.getByRole("textbox", { name: "Title" });
   await expect(title).toHaveValue("");
-  await bar.getByRole("button", { name: "Publish" }).click();
+  await publish.click();
   await expect(page.getByRole("alert").filter({ hasText: "Give it a title" })).toBeVisible();
   await expect(title).toBeFocused();
   await title.fill("Night Light");
-  await page.getByRole("textbox", { name: "Description" }).fill("Four lights round one square.");
+  await description.fill("Four lights round one square.");
   await expect.poll(() => row(id).description, { timeout: 10_000 }).toBe("Four lights round one square.");
   expect(row(id).title).toBe("Night Light");
 
@@ -101,7 +120,7 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   await shot(page, "07-publish");
   expect(sql(`select 1 from solves where game_id = ${q(id)}`)).toHaveLength(0);   // the creator's solve isn't counted
 
-  await bar.getByRole("button", { name: "Publish" }).click();
+  await publish.click();
   await expect(page).toHaveURL(new RegExp(`/g/${id}$`), { timeout: 15_000 });
   expect(row(id)).toMatchObject({ state: "published", kind: "akari", title: "Night Light" });
   expect(row(id).sketch.startsWith("akari\n")).toBe(true);
@@ -127,8 +146,7 @@ test("the server won't publish a sketch the solver didn't pass", async ({ page }
   // not a puzzle yet: the publish page sends it back to paint
   await page.goto(`/g/${id}/publish`);
   await expect(page).toHaveURL(new RegExp(`/g/${id}/draw$`));
-  await page.locator(".paint-type").click();
-  await page.getByRole("dialog", { name: "Puzzle type" }).getByRole("button", { name: /^Akari/ }).first().click();
+  await chooseType(page, /^Akari/);
   await drawAkari(page);
   await expect(page.locator(".paint-saved")).toHaveText("Saved", { timeout: 15_000 });
   await expect.poll(() => row(id).kind, { timeout: 10_000 }).toBe("akari");
@@ -160,13 +178,14 @@ test("a photo, read (a given reading: no Claude) and drawn in ink, with its doub
   expect(saved.sketch_image).toBeTruthy();
   expect(JSON.parse(saved.drawing!).genre).toBe("akari");
 
-  // the type read from the photo; the drawing as read; the panel open at the photo and the doubt
+  // the type read from the photo; the drawing as read; This puzzle open with the photo and its doubt first
   await expect(page.locator(".paint-type-name")).toHaveText("Akari");
-  await expect(page.locator(".paint-type-label")).toHaveText("Type · read from the photo");
+  await expect(page.locator(".paint-type-from")).toHaveText("· from the photo");
   await expect(page.locator(".sp-board text.sp-text").filter({ hasText: "4" })).toHaveCount(1);
-  const panel = page.getByRole("region", { name: "Check" });
+  const panel = page.locator(".paint-drawer");
+  await expect(page.getByRole("tab", { name: "This puzzle" })).toHaveAttribute("aria-selected", "true");
   await expect(panel.locator(".paint-photo img")).toBeVisible();
-  await expect(panel.locator(".paint-photo summary")).toContainText("Claude read it as Akari, 3 × 3");
+  await expect(panel.locator(".paint-photo")).toContainText("Claude read it as Akari, 3 × 3");
   const doubt = panel.getByRole("button", { name: /looks like a 4 or a 1/ });
   await expect(doubt).toBeVisible();
   await expect(page.locator(".sp-mark.doubt")).toHaveCount(1);
@@ -183,7 +202,7 @@ test("a photo, read (a given reading: no Claude) and drawn in ink, with its doub
 
   // What type is this? answers from the reading's candidates
   await page.locator(".paint-type").click();
-  const picker = page.getByRole("dialog", { name: "Puzzle type" });
+  const picker = page.locator(".paint-drawer");
   await picker.getByRole("button", { name: "What type is this?" }).click();
   await expect(picker.locator(".paint-suggest-card")).toHaveCount(2);
   await expect(picker.locator(".paint-suggest-card").first()).toContainText("Akari");
@@ -199,12 +218,12 @@ test("What type is this? on a drawing: tried as every type, no AI, the best firs
   page.on("request", (r) => { if (r.method() === "POST") requests.push(r.url()); });
   await expect(page.locator(".sp-board")).toBeVisible();
   await drawAkari(page);   // no type: every tool
-  await expect(chip(page)).toHaveText("No type yet, so nothing to check");
+  await expect(chip(page)).toHaveText(/Check/);
 
   // from the reminder: What type is this?
-  await page.getByRole("button", { name: "Check", exact: true }).click({ force: true });
-  await page.getByRole("alertdialog").getByRole("button", { name: "What type is this?" }).click();
-  const picker = page.getByRole("dialog", { name: "Puzzle type" });
+  await chip(page).click({ force: true });
+  await page.getByRole("alert").filter({ hasText: "Choose a type first" }).getByRole("button", { name: "What type is this?" }).click();
+  const picker = page.locator(".paint-drawer");
   await expect(picker.locator(".paint-suggest-card")).toHaveCount(3);
   await expect(picker.locator(".paint-suggest")).toHaveAttribute("aria-busy", "false", { timeout: 30_000 });
   const best = picker.locator(".paint-suggest-card").first();
@@ -217,7 +236,7 @@ test("What type is this? on a drawing: tried as every type, no AI, the best firs
   expect(requests.filter((u) => !/\/draw(\?|$)/.test(new URL(u).pathname + new URL(u).search))).toEqual([]);
 
   await picker.getByRole("button", { name: "Make it Akari" }).click();
-  await expect(picker).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "This puzzle" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".paint-type-name")).toHaveText("Akari");
   await expect(chip(page)).toHaveText(/One solution/, { timeout: 15_000 });
 });
