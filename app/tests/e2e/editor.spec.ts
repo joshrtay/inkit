@@ -77,10 +77,39 @@ test("numbers: type, Enter moves on, arrows move", async ({ page }) => {
   await eventually("sudoku", (s) => has(s.givens, { cell: [0, 0], value: 3 }) && has(s.givens, { cell: [0, 1], value: 4 }) && has(s.givens, { cell: [0, 2], value: 2 }));
 });
 
-test("sudoku sizes", async ({ page }) => {
+/** Where the board's heavy box lines are: after which rows (h) and columns (v). */
+const boxLinesOnBoard = (page: Page) => page.locator(".be-board").evaluate((board) => {
+  const l = JSON.parse((board as HTMLElement).dataset.layout!), h = new Set<number>(), v = new Set<number>();
+  for (const e of board.querySelectorAll(".grid-game svg line.gridline.major")) {
+    const [x1, y1, y2] = ["x1", "y1", "y2"].map((a) => Number(e.getAttribute(a)));
+    if (Math.abs(y1 - y2) < 1) h.add(Math.round((y1 - l.MT) / l.S)); else v.add(Math.round((x1 - l.ML) / l.S));
+  }
+  return { rows: l.rows as number, h: [...h].sort((a, b) => a - b), v: [...v].sort((a, b) => a - b) };
+});
+const every = (step: number, n: number) => Array.from({ length: n / step - 1 }, (_, k) => (k + 1) * step);
+
+test("sudoku sizes: each with its standard boxes, wider than tall", async ({ page }) => {
   await open(page, "sudoku");
+  for (const [n, h, w] of [[6, 2, 3], [8, 2, 4], [9, 3, 3], [12, 3, 4], [16, 4, 4], [4, 2, 2]]) {
+    await tool(page, `${n}×${n}`);
+    await expect.poll(() => boxLinesOnBoard(page)).toEqual({ rows: n, h: every(h, n), v: every(w, n) });
+  }
+  await eventually("sudoku", (s) => s.size[0] === 4 && s.size[1] === 4);
   await tool(page, "6×6");
-  await eventually("sudoku", (s) => s.size[0] === 6 && s.size[1] === 6);
+  await page.locator(".studio-tools").getByRole("button", { name: "Tall 3×2" }).click();
+  await expect.poll(() => boxLinesOnBoard(page)).toEqual({ rows: 6, h: [3], v: [2, 4] });
+  await eventually("sudoku", (s) => JSON.stringify(s.rules?.find((r) => r.rule === "boxes")?.box) === "[3,2]");
+  await tool(page, "9×9");
+  await expect.poll(() => boxLinesOnBoard(page)).toEqual({ rows: 9, h: [3, 6], v: [3, 6] });
+  await eventually("sudoku", (s) => s.size[0] === 9 && !s.rules?.some((r) => r.rule === "boxes"));
+});
+
+test("irregular sudoku: a new size starts from the standard boxes; a prime size from rows", async ({ page }) => {
+  await open(page, "irregular-sudoku");
+  await page.getByRole("button", { name: "Bigger" }).click();
+  await eventually("irregular-sudoku", (s) => s.size[0] === 7 && s.areas?.[0] === "aaaaaaa" && s.areas?.[6] === "ggggggg");
+  await page.getByRole("button", { name: "Bigger" }).click();
+  await eventually("irregular-sudoku", (s) => s.size[0] === 8 && s.areas?.[0] === "aaaabbbb" && s.areas?.[7] === "gggghhhh");
 });
 
 test("rocks: a drag paints them; Akari numbers sit on black squares", async ({ page }) => {

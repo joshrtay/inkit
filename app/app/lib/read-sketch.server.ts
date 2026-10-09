@@ -70,7 +70,7 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   shaded picture, give it as "picture" (one letter per cell, "." for empty, a color per letter: the colors
   drawn, or a dark ink color for plain shading), and check it against the numbers; note any row or column
   where they disagree. If there's no picture, give the numbers as "runs".`,
-  sudoku: `sudoku: the printed digits: {kind: "number", value}. The grid is 4x4, 6x6 or 9x9.`,
+  sudoku: `sudoku: the printed digits: {kind: "number", value}. The grid is square: 4x4, 6x6, 8x8, 9x9, 12x12 or 16x16.`,
   maze: `maze (Number Line Maze): numbers sit where the grid lines cross (often drawn as numbers in little
   circles, joined by faint or dotted lines); the squares between them are the cells, so "rows" and "cols"
   count squares: one fewer than the numbers down and across. Each number is {kind: "count", value} with
@@ -217,7 +217,7 @@ const RULE_GUIDE: Record<RuleName, string> = {
   sides: "a number counts the loop's sides around it (comes with slitherlink)",
   runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
   latin: "each digit once per row and column (comes with sudoku)",
-  boxes: "each digit once per box (comes with sudoku); box: [rows, cols] if the boxes aren't the usual size",
+  boxes: "each digit once per box (comes with sudoku); box: [rows, cols] only if the boxes aren't the usual shape (the usual is the squarest, wider than tall: 2x3 in a 6x6, 2x4 in an 8x8, 3x4 in a 12x12), e.g. [3, 2] for tall boxes in a 6x6",
   "shaded-per-line": "n shaded cells (stars) in every row and column (comes with star-battle, n 1)",
   "shaded-per-area": "n shaded cells (stars) in every outlined area (comes with star-battle, n 1)",
   "no-touch": "shaded cells (stars) never touch, not even diagonally (comes with star-battle)",

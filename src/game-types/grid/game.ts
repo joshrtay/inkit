@@ -18,7 +18,7 @@ import { addInk } from "../../lib/ink";
 import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
-import { blockFor, boxLines, colorName, fillSlots, runsOf, symbolOf, tileOf, tileSpec, type Hint } from "../../engine/rules.ts";
+import { blockFor, boxesOf, boxLines, colorName, fillSlots, runsOf, symbolOf, tileOf, tileSpec, type Hint } from "../../engine/rules.ts";
 import { entriesDone, entryList } from "./entry-list";
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
@@ -49,6 +49,7 @@ const starPath = (x: number, y: number, r: number) => Array.from({ length: 10 },
 
 export const createGrid = (config: GridClientConfig): MountGame => (root, host) => {
   const p = makePuzzle(config.spec), g = p.grid, marks = p.marks;
+  root.dataset.marks = marks.join(" ");   // the board's cursor says what a click does (styles.css)
   if (marks.includes("paint") && p.figure) return createFigure(p, root, host);   // painted pieces (RYB)
   if (isShaped(p)) return createShaped(p, root, host);               // hexagons, a lattice, a number path
   const regionsPuzzle = marks.includes("regions"), digits = marks.includes("digit");
@@ -281,12 +282,13 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     return reg.of.map((k) => pick[k] ?? 0);
   }
   const xMark = (x: number, y: number, d = 5, cls = "xmark") => el("path", { class: cls, d: `M${x - d} ${y - d}L${x + d} ${y + d}M${x + d} ${y - d}L${x - d} ${y + d}` }, gMarks);
+  const boxRule = p.rules.find((s) => s.rule === "boxes"), boxGroups = boxRule ? boxesOf(boxRule, p) : [];
   const peers = (i: number) => {
     if (i < 0) return new Set<number>();
     if (slots.length) return new Set(slots.filter((s) => s.includes(i)).flat());   // a fill-in: the numbers through it
-    const [r, c] = g.rc(i), boxes = p.rules.find((s) => s.rule === "boxes"), [bh, bw] = boxes ? boxLines(boxes, p) : [g.rows, g.cols];
-    const out = new Set<number>();
-    for (let j = 0; j < g.cellCount; j++) { const [r2, c2] = g.rc(j); if (r2 === r || c2 === c || (Math.floor(r2 / bh) === Math.floor(r / bh) && Math.floor(c2 / bw) === Math.floor(c / bw))) out.add(j); }
+    const [r, c] = g.rc(i), out = new Set<number>();
+    for (let j = 0; j < g.cellCount; j++) { const [r2, c2] = g.rc(j); if (r2 === r || c2 === c) out.add(j); }
+    for (const cells of boxGroups) if (cells.includes(i)) for (const j of cells) out.add(j);   // its box (or outlined area)
     return out;
   };
 

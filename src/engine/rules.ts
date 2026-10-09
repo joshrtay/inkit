@@ -470,13 +470,17 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
     asp: () => ":- digit(I,D), digit(J,D), row(I,R), row(J,R), I < J.\n:- digit(I,D), digit(J,D), col(I,C), col(J,C), I < J.",
   },
   boxes: {
-    describe: (s, p) => { if (p.areas) return "Each outlined area has every digit once."; const [h, w] = boxSize(s, p); return `Each ${h}×${w} box (heavy lines) has every digit once.`; },
+    describe: (s, p) => {
+      if (p.areas) return "Each outlined area has every digit once.";
+      const box = boxSize(s, p);
+      return box ? `Each ${box[0]}×${box[1]} box (heavy lines) has every digit once.` : `No boxes: a ${p.grid.rows}×${p.grid.cols} grid can't be cut into boxes of ${p.digits}, so only rows and columns count.`;
+    },
     check(s, p, b) {
       return boxesOf(s, p).map((cells) => duplicates(cells, b)).filter((d) => d.length)
         .map((cells) => ({ message: `A digit repeats in ${p.areas ? "an area" : "a box"}.`, cells }));
     },
-    asp: (s, p) => boxesOf(s, p).map((cells, k) => cells.map((i) => `box(${i},${k}).`).join(" ")).join("\n")
-      + "\n:- digit(I,D), digit(J,D), box(I,B), box(J,B), I < J.",
+    asp: (s, p) => { const boxes = boxesOf(s, p); return boxes.length ? boxes.map((cells, k) => cells.map((i) => `box(${i},${k}).`).join(" ")).join("\n")
+      + "\n:- digit(I,D), digit(J,D), box(I,B), box(J,B), I < J." : ""; },
   },
 
   // ---- shading ----
@@ -1476,23 +1480,37 @@ export function solveLine(clue: number[], known: number[]): number[] | null {
 function duplicates(cells: number[], b: Board) {
   return cells.filter((i) => b.digit[i] && cells.some((j) => j !== i && b.digit[j] === b.digit[i]));
 }
-const boxSize = (s: RuleSpec, p: Puzzle): [number, number] => {
-  if (Array.isArray(s.box)) return s.box as [number, number];
-  // the squarest boxes: 9 -> 3x3, 6 -> 2x3, 4 -> 2x2, 16 -> 4x4, 12 -> 3x4, 25 -> 5x5
-  const n = p.digits, h = Array.from({ length: Math.floor(Math.sqrt(n)) }, (_, k) => Math.floor(Math.sqrt(n)) - k).find((x) => n % x === 0) ?? 1;
-  return [h, n / h];
-};
-function boxesOf(s: RuleSpec, p: Puzzle): number[][] {
+/** A sudoku's standard box for n digits: the squarest h × w = n, wider than tall (4 -> 2×2, 6 -> 2×3,
+ *  8 -> 2×4, 9 -> 3×3, 10 -> 2×5, 12 -> 3×4, 15 -> 3×5, 16 -> 4×4); null when there is none (a prime n). */
+export function standardBox(n: number): [number, number] | null {
+  let h = Math.floor(Math.sqrt(n));
+  while (h > 1 && n % h) h--;
+  return h > 1 ? [h, n / h] : null;
+}
+/** A sudoku's box, [rows, columns]: the rule's own `box` when it fits the grid (tall boxes, say),
+ *  else the standard one; null when the grid has no boxes (not square, or a prime size). */
+export function boxSize(s: RuleSpec, p: Puzzle): [number, number] | null {
+  const n = p.digits, g = p.grid;
+  if (g.rows !== n || g.cols !== n) return null;
+  const own = Array.isArray(s.box) ? (s.box as [number, number]) : null;
+  if (own && own[0] * own[1] === n && own[0] > 1 && own[1] > 1) return [own[0], own[1]];
+  return standardBox(n);
+}
+/** The boxes' cells (an irregular sudoku's outlined areas); none when the grid has no boxes. */
+export function boxesOf(s: RuleSpec, p: Puzzle): number[][] {
   if (p.areas) return p.areas.cells;   // irregular: the outlined areas are the boxes
-  const [h, w] = boxSize(s, p), g = p.grid, out: number[][] = [];
+  const box = boxSize(s, p), g = p.grid, out: number[][] = [];
+  if (!box) return out;
+  const [h, w] = box;
   for (let br = 0; br < g.rows; br += h) for (let bc = 0; bc < g.cols; bc += w) {
     const cells: number[] = [];
-    for (let r = br; r < br + h && r < g.rows; r++) for (let c = bc; c < bc + w && c < g.cols; c++) cells.push(g.cell(r, c));
+    for (let r = br; r < br + h; r++) for (let c = bc; c < bc + w; c++) cells.push(g.cell(r, c));
     out.push(cells);
   }
   return out;
 }
-export const boxLines = (s: RuleSpec, p: Puzzle) => boxSize(s, p);
+/** Where the heavy box lines go: every h rows and every w columns ([0, 0]: none). */
+export const boxLines = (s: RuleSpec, p: Puzzle): [number, number] => boxSize(s, p) ?? [0, 0];
 
 function sizeOk(n: number, s: RuleSpec) {
   return (s.is === undefined || n === s.is) && (s.min === undefined || n >= (s.min as number)) && (s.max === undefined || n <= (s.max as number));

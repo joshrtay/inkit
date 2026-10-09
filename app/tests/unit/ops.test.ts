@@ -2,6 +2,8 @@
 import { describe, expect, it } from "vitest";
 import type { GridSpec } from "~site/engine/types.ts";
 import * as ops from "~/editor/ops";
+import { makePuzzle } from "~site/engine/puzzle.ts";
+import { boxLines, boxesOf } from "~site/engine/rules.ts";
 
 const grid = (genre: string, size: [number, number] = [4, 4], extra: Partial<GridSpec> = {}): GridSpec => ({ genre, size, givens: [], ...extra });
 
@@ -263,5 +265,51 @@ describe("a type's own settings (Fillomino, Sum Blobs, Find the Cut Line, Connec
     const s = ops.toggleTile(grid("twins-and-triplets", [1, 6]), [0, 2], 4);
     expect(s.givens).toEqual([{ at: "cell", cell: [0, 2], kind: "number", value: 4 }]);
     expect(ops.toggleTile(s, [0, 2], 4).givens).toEqual([]);
+  });
+});
+
+describe("sudoku sizes and boxes", () => {
+  const boxRule = (s: GridSpec) => (s.rules ?? []).find((x) => x.rule === "boxes")?.box;
+  it("gives each size its standard box, wider than tall", () => {
+    const want: Record<number, [number, number] | null> = { 4: [2, 2], 5: null, 6: [2, 3], 7: null, 8: [2, 4], 9: [3, 3], 10: [2, 5], 12: [3, 4], 15: [3, 5], 16: [4, 4], 25: [5, 5] };
+    for (const [n, box] of Object.entries(want)) expect(ops.sudokuBox(ops.resizeSudoku(grid("sudoku"), Number(n)))).toEqual(box);
+  });
+  it("has no boxes when the grid isn't square, and says so", () => {
+    const s = grid("sudoku", [6, 9]);
+    expect(ops.sudokuBox(s)).toBeNull();
+    expect(ops.sudokuNote(s)).toMatch(/square/);
+    expect(ops.sudokuNote(grid("sudoku", [7, 7]))).toMatch(/Latin square/);
+    expect(ops.sudokuNote(grid("sudoku", [9, 9]))).toBeNull();
+  });
+  it("drops a box setting that no longer fits when the size changes (a 6×6's 2×3 in a 9×9)", () => {
+    const read = grid("sudoku", [6, 9], { rules: [{ rule: "boxes", box: [2, 3] }] });
+    const nine = ops.resizeSudoku(read, 9);
+    expect(nine.size).toEqual([9, 9]);
+    expect(boxRule(nine)).toBeUndefined();
+    expect(ops.sudokuBox(nine)).toEqual([3, 3]);
+  });
+  it("turns boxes tall and back, and keeps them tall across sizes that have a choice", () => {
+    const six = ops.resizeSudoku(grid("thermo-sudoku"), 6);
+    expect(ops.tallBoxes(six)).toBe(false);
+    const tall = ops.setTallBoxes(six, true);
+    expect(ops.sudokuBox(tall)).toEqual([3, 2]);
+    expect(ops.sudokuBox(ops.resizeSudoku(tall, 8))).toEqual([4, 2]);
+    expect(ops.sudokuBox(ops.resizeSudoku(tall, 9))).toEqual([3, 3]);
+    expect(ops.setTallBoxes(tall, false).rules).toBeUndefined();
+    expect(ops.setTallBoxes(ops.resizeSudoku(six, 9), true).rules).toBeUndefined();   // square boxes: no choice
+  });
+  it("starts an irregular sudoku's areas again as the standard boxes", () => {
+    const s = ops.resizeSudoku(grid("irregular-sudoku", [6, 6], { areas: ["aaabbb", "aaabbb", "cccddd", "cccddd", "eeefff", "eeefff"] }), 8);
+    expect(s.areas).toEqual(["aaaabbbb", "aaaabbbb", "ccccdddd", "ccccdddd", "eeeeffff", "eeeeffff", "gggghhhh", "gggghhhh"]);
+    expect(ops.boxAreas(5)).toEqual(["aaaaa", "bbbbb", "ccccc", "ddddd", "eeeee"]);
+  });
+  it("agrees with the engine (the player, pictures and solver) at every size and shape", () => {
+    for (const genre of ["sudoku", "thermo-sudoku"]) for (const n of [3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 16]) for (const tall of [false, true]) {
+      const s = ops.setTallBoxes(ops.resizeSudoku(grid(genre), n), tall), p = makePuzzle(s), rule = p.rules.find((x) => x.rule === "boxes")!;
+      expect(boxLines(rule, p)).toEqual(ops.sudokuBox(s) ?? [0, 0]);
+      expect(boxesOf(rule, p).length).toBe(ops.sudokuBox(s) ? n : 0);
+    }
+    const odd = makePuzzle(grid("sudoku", [6, 9], { rules: [{ rule: "boxes", box: [2, 3] }] }));
+    expect(boxLines(odd.rules.find((x) => x.rule === "boxes")!, odd)).toEqual([0, 0]);
   });
 });

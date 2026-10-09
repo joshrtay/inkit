@@ -135,7 +135,10 @@ export const hasBoardEditor = (genre: string | undefined) => !!genre && genre in
 
 /** Types whose grid is always square (and the sizes a sudoku comes in). */
 const SQUARE = new Set(["sudoku", "irregular-sudoku", "thermo-sudoku", "skyscrapers", "easy-as-abc", "star-battle"]);
-const SUDOKU_SIZES: Record<string, number[]> = { sudoku: [4, 6, 9], "thermo-sudoku": [4, 6, 9] };
+// each with standard boxes (ops.sudokuBox): 4, 9 and 16 square, 6 and 8 two rows, 12 3×4 (other
+// sizes, read from a drawing, keep theirs: 10 2×5, 15 3×5, a prime size none)
+const SUDOKU_SIZES: Record<string, number[]> = { sudoku: [4, 6, 8, 9, 12, 16], "thermo-sudoku": [4, 6, 8, 9, 12, 16] };
+const SUDOKUS = new Set(["sudoku", "thermo-sudoku", "irregular-sudoku"]);
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 const AREA_HUES = (k: string) => (LETTERS.indexOf(k.toLowerCase()) * 137) % 360;
@@ -548,7 +551,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
     const next = ops.paintArea(latest.current, [h.r, h.c], area);
     if (next !== latest.current) change(next, continuing);
   }
-  const resizeTo = (r: number, c: number) => change(ops.resize(spec, r, c));
+  const resizeTo = (r: number, c: number) => change(SUDOKUS.has(genre) ? ops.resizeSudoku(spec, Math.max(2, Math.min(30, r))) : ops.resize(spec, r, c));
   const areaLetters = [...new Set((areas ?? []).join(""))].sort();
   const newArea = () => { const k = [...LETTERS].find((l) => !areaLetters.includes(l)); if (k) { setArea(k); setTool("area"); } };
   const addAreas = () => { change(ops.addAreas(spec)); setArea("b"); setTool("area"); };
@@ -612,7 +615,7 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
   const placed = pins.flatMap((p) => { const t = target(p); return t ? [{ p, ...t }] : []; });
 
   // ---- the toolbar: general to specific (what the player gets, the size, then the tools) ----
-  const sizes = SUDOKU_SIZES[genre];
+  const sizes = SUDOKU_SIZES[genre], sudokuBox = ops.sudokuBox(spec), sudokuNote = ops.sudokuNote(spec);
   const shares = ops.sharesOf(spec), paints = puzzle?.style.palette ?? ["#ef5a6a", "#f7cf3d", "#3fb0e6"];
   const showAreas = toolList.includes("area") && (tool === "area" || toolList.length === 1);
   const toolbar = (
@@ -637,6 +640,13 @@ export function BoardEditor({ spec, onChange, tools, ambiguous, flash = 0, pins 
           <span className="be-group be-size">Columns <button type="button" className="be-btn" onClick={() => resizeTo(rows, cols - 1)} aria-label="Fewer columns">−</button><b>{cols}</b><button type="button" className="be-btn" onClick={() => resizeTo(rows, cols + 1)} aria-label="More columns">+</button></span>
         </>
       )}
+      {sudokuBox && sudokuBox[0] !== sudokuBox[1] && (
+        <span className="be-group be-seg" role="group" aria-label="Box shape">
+          {[false, true].map((tall) => <button key={String(tall)} type="button" className="be-btn" aria-pressed={ops.tallBoxes(spec) === tall} onClick={() => change(ops.setTallBoxes(spec, tall))}
+            title={tall ? "Boxes taller than wide (rare)" : "Boxes wider than tall (the usual)"}>{tall ? `Tall ${Math.max(...sudokuBox)}×${Math.min(...sudokuBox)}` : `Wide ${Math.min(...sudokuBox)}×${Math.max(...sudokuBox)}`}</button>)}
+        </span>
+      )}
+      {sudokuNote && <span className="be-group be-note" role="note">{sudokuNote}</span>}
       {genre === "hidoku" && (
         <span className="be-group be-seg" role="group" aria-label="How numbers touch">
           {[false, true].map((on) => <button key={String(on)} type="button" className="be-btn" aria-pressed={ops.sidesOnly(spec) === on} onClick={() => change(ops.setSidesOnly(spec, on))}

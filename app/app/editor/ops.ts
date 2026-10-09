@@ -3,7 +3,7 @@
 // was touched and calls these; tests call them directly (tests/unit/ops.test.ts).
 import { BALANCE_COLORS, genres, normalShape, type GenreName } from "~site/engine/puzzle.ts";
 import type { Symmetry } from "~site/engine/panel.ts";
-import { runsOf } from "~site/engine/rules.ts";
+import { runsOf, standardBox } from "~site/engine/rules.ts";
 import type { Given, GridSpec, LineColor, RuleSpec, Side, SymbolColor } from "~site/engine/types.ts";
 
 export type RC = [number, number];
@@ -198,6 +198,54 @@ export function resize(s: Spec, rows: number, cols: number): Spec {
     ...(pic ? { picture: { ...pic, rows: Array.from({ length: r }, (_, y) => (pic.rows[y] ?? "").padEnd(c, ".").slice(0, c)) } } : {}),
     ...(ar ? { areas: Array.from({ length: r }, (_, y) => { const row = ar[Math.min(y, ar.length - 1)]; return row.padEnd(c, row.at(-1)).slice(0, c); }) } : {}),
   };
+}
+
+// ---- sudoku sizes and boxes (the engine's boxSize: the standard box, wider than tall, unless the
+// boxes rule says otherwise; a prime size has none) ----
+
+const BOXED = new Set(["sudoku", "thermo-sudoku"]);
+/** The puzzle's own box setting, when it has one. */
+const ownBox = (s: Spec) => (s.rules ?? []).find((x) => x.rule === "boxes")?.box as [number, number] | undefined;
+/** A sudoku's boxes, [rows, columns], as the engine draws them; null when there are none (an
+ *  irregular sudoku's are its areas; a grid that isn't square, or a prime size, has none). */
+export function sudokuBox(s: Spec): [number, number] | null {
+  const [rows, cols] = s.size, own = ownBox(s);
+  if (!BOXED.has(s.genre ?? "") || rows !== cols) return null;
+  if (own && own[0] * own[1] === rows && own[0] > 1 && own[1] > 1) return [own[0], own[1]];
+  return standardBox(rows);
+}
+/** Whether the boxes stand tall (3 rows × 2 columns rather than the usual 2 × 3). */
+export const tallBoxes = (s: Spec) => { const b = sudokuBox(s); return !!b && b[0] > b[1]; };
+/** Boxes wider than tall (the standard) or taller than wide; square boxes have no choice. */
+export function setTallBoxes(s: Spec, tall: boolean): Spec {
+  const std = standardBox(s.size[0]);
+  if (!BOXED.has(s.genre ?? "") || !std || std[0] === std[1] || tallBoxes(s) === tall) return s;
+  return setRuleSetting(s, "boxes", "box", tall ? [std[1], std[0]] : undefined);
+}
+/** An n × n sudoku's areas laid out as its standard boxes (an irregular sudoku's starting point,
+ *  to reshape); with no boxes (a prime n), one area per row. */
+export function boxAreas(n: number): string[] {
+  const [h, w] = standardBox(n) ?? [1, n];
+  return Array.from({ length: n }, (_, r) => Array.from({ length: n }, (_, c) => "abcdefghijklmnopqrstuvwxyz"[Math.floor(r / h) * (n / w) + Math.floor(c / w)] ?? "z").join(""));
+}
+/** A sudoku made n × n: the box setting follows (tall boxes stay tall; one that no longer fits goes),
+ *  and an irregular sudoku's areas start again as the standard boxes. */
+export function resizeSudoku(s: Spec, n: number): Spec {
+  const tall = tallBoxes(s);
+  let next = resize(s, n, n);
+  if (ownBox(next)) next = setRuleSetting(next, "boxes", "box", undefined);
+  if (tall) next = setTallBoxes(next, true);
+  if (s.genre === "irregular-sudoku") next = { ...next, areas: boxAreas(n) };
+  return next;
+}
+/** What a sudoku's size means for its boxes, when it isn't the usual (null): no boxes at a prime
+ *  size, or a grid that isn't square. */
+export function sudokuNote(s: Spec): string | null {
+  const [rows, cols] = s.size;
+  if (!BOXED.has(s.genre ?? "")) return null;
+  if (rows !== cols) return `A sudoku is square: pick a size (this one is ${rows}×${cols}, so it has no boxes).`;
+  if (!standardBox(rows)) return `${rows} can't be split into equal boxes, so a ${rows}×${rows} sudoku has none: it plays as a Latin square (each digit once per row and column).`;
+  return null;
 }
 
 /** A nonogram drawn as a picture (its numbers follow it): an empty one to paint. */

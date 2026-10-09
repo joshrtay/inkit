@@ -149,7 +149,7 @@ puzzle can use it.
 | `cell-borders` | A `palisade` clue shows how many of its cell's four sides are region borders (0-4), and with two whether they're `opposite` or at a corner, turned any way; the grid's edge and holes count (Glimmith's Palisade). |
 | `runs` | Each row's and column's runs of shaded cells match its numbers (nonograms). Offers a hint: a line whose numbers alone give cells away. |
 | `latin` | Every cell holds a digit 1..n; each row and column has each digit once. |
-| `boxes` | Each box (`box: [h, w]`, or sized from the grid; the outlined areas if the puzzle has them) has each digit once. |
+| `boxes` | Each box has each digit once: the outlined areas if the puzzle has them, else `box: [h, w]` when h × w is the size, else the standard box (the squarest, wider than tall: 6 → 2×3, 8 → 2×4, 10 → 2×5, 12 → 3×4, 15 → 3×5, 16 → 4×4). A grid that isn't square, or a prime size, has no boxes (a Latin square). |
 | `corner-count` | A number on a corner counts the fence lines (walls) touching it; the outside edge counts. |
 | `painted` | Every cell (piece) gets a paint color. |
 | `neighbor-dots` | k dots of a color in a piece need at least k neighbours of that color. |
@@ -320,7 +320,7 @@ Substack's post editor (see ARCHITECTURE.md). The puzzle itself is edited by:
   number typed into a square (Enter or the arrow keys move on), rocks, walls between squares,
   pearls, galaxy circles, thermometers dragged from the bulb, doors, numbers and letters outside the
   grid, corner numbers, line totals, outlined areas painted, symbols, compasses, ◆/◇ marks, Panes'
-  < signs, differences, watchtowers, shapes drawn on a small pad and the shape bank, and erase; nonograms paint their picture or type their numbers. Sudokus come in 4×4, 6×6 and 9×9;
+  < signs, differences, watchtowers, shapes drawn on a small pad and the shape bank, and erase; nonograms paint their picture or type their numbers. Sudokus come in 4×4, 6×6, 8×8, 9×9, 12×12 and 16×16, with wide or tall boxes where they aren't square (ops.resizeSudoku; an irregular sudoku's areas start again as the standard boxes);
   square types keep one size; Star Battle sets its stars per row, column and area. It draws the
   puzzle with `makePuzzle(spec, { unfinished: true })`, so a puzzle still missing something (a
   maze's second door, an area painted in two pieces) stays on screen to be fixed, and a draft can
