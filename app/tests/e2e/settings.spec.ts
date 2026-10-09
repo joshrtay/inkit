@@ -16,7 +16,7 @@ test("More: settings, sign out, and the small print, opening over Puzzle types",
   expect(b.y - (t.y + t.height)).toBeLessThan(20);
   await more.click();
   const menu = page.locator(".more-menu");
-  await expect(menu.getByRole("menuitem")).toHaveText(["Settings", "Sign out"]);
+  await expect(menu.getByRole("menuitem")).toHaveText(["Settings", "Report a bug", "Sign out"]);
   // the menu opens over the Puzzle types link, not above it
   const mb = (await menu.boundingBox())!;
   expect(mb.y).toBeLessThan(t.y);
