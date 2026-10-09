@@ -9,7 +9,7 @@
 // drawn as pieces, in FigureEditor. Panes (and admins, for any puzzle) also get the Rules panel;
 // admins the Look panel.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Form, Link, useFetcher } from "react-router";
+import { Form, Link, useFetcher, useSearchParams } from "react-router";
 import { looseSpec, parseSketch, specToSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { doubtPlace, type Doubt } from "~/games/doubts";
@@ -116,7 +116,9 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, featu
 
   const [tools, setTools] = useState<HTMLElement | null>(null);
   const [flash, setFlash] = useState(0);
-  const [panel, setPanel] = useState<"preview" | "publish" | "drawing" | null>(null);
+  // paint's Publish comes here with ?publish (until the publish step of its own: docs/creation-flow.md §1.9)
+  const [params] = useSearchParams();
+  const [panel, setPanel] = useState<"preview" | "publish" | "drawing" | null>(params.has("publish") && game.state === "draft" ? "publish" : null);
   const [menu, setMenu] = useState(false);
   const hasMore = game.state === "published" ? may.edit || may.takeDown || may.feature : game.state === "hidden" && may.hide;
   const rereading = reader.state !== "idle";

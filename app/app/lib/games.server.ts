@@ -22,6 +22,7 @@ type Game = typeof schema.games.$inferSelect;
 import { Invalid } from "./errors.server";
 import { doubtFromNote, doubtsOf, type Doubt } from "../games/doubts";
 import { GENRE_NAMES, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
+import { readPaintSave, sketchOf } from "../games/paint-save";
 export { Invalid };
 
 export async function sketchHash(sketch: string) {
@@ -228,3 +229,20 @@ const doubtsFrom = (reading: Reading, sketch: string): Doubt[] => [
   ...sketchProblems(sketch).map((text) => ({ text, place: "whole" as const })),
 ];
 
+
+// ---- paint: a draft drawn in the browser (/g/<id>/draw) ----
+
+/** Save paint's drawing (docs/creation-flow.md §1.10): the drawing, its type and settings as they
+ *  are, and the sketch converted from them here (never sent: the drawing is the source of truth).
+ *  A draft saves unfinished: no type, no grid, or a puzzle that doesn't solve yet. */
+export async function saveDrawing(db: Db, me: Creator, game: Game, form: FormData) {
+  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
+  if (game.state !== "draft") throw new Invalid("Only drafts are drawn in paint for now.");
+  const save = readPaintSave(String(form.get("drawing") ?? ""));
+  if (!save) throw new Invalid("That drawing couldn't be read.");
+  const { sketch, kind } = sketchOf(save);
+  const title = String(form.get("title") ?? "").trim().slice(0, 120) || "Untitled";
+  await db.update(schema.games).set({
+    drawing: save, sketch, kind, sketchVersion: SKETCH_VERSION, title, updatedAt: new Date(),
+  }).where(eq(schema.games.id, game.id));
+}

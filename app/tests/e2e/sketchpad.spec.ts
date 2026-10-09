@@ -214,7 +214,7 @@ test("the stamps are one list, and the puzzle types open beside the paper", asyn
   await page.goto("/new/draw");
   // many stamps belong to several types, so they aren't grouped by type
   await expect(page.locator(".sp-side h3")).toHaveCount(0);
-  await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(15);
+  await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(18);
   const types = page.locator(".studio-top").getByRole("button", { name: "Puzzle types" });
   await types.click();
   await expect(types).toHaveAttribute("aria-pressed", "true");

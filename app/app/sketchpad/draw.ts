@@ -163,7 +163,7 @@ export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "co
     case "inequality": { const k = s.flip ? 1 : -1; return inequalitySvg(x, y, S, edge === "left" ? { x: k, y: 0 } : { x: 0, y: k }); }
     case "palisade": return palisadeSvg(s.count ?? 2, !!s.opposite, x, y, S);
     // the button's picture: a short thermometer
-    case "thermo": return thermoSvg([{ x: x - S * 0.22, y: y + S * 0.22 }, { x: x + S * 0.28, y: y - S * 0.28 }], S * 0.55);
+    case "thermo": return thermoSvg([{ x: x - S * 0.2, y: y + S * 0.2 }, { x: x + S * 0.24, y: y - S * 0.24 }], S * 0.45).replace('class="thermo"', `class="thermo" style="stroke-width:${f1(S * 0.2)}"`);
   }
 }
 

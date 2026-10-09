@@ -4,7 +4,30 @@ import { genres, type GenreName } from "~site/engine/puzzle.ts";
 import type { RuleName } from "~site/engine/rules.ts";
 import type { GridSpec, RuleSpec } from "~site/engine/types.ts";
 import { KIND_NAMES } from "~/games/kinds";
-import { RULES } from "~/editor/coverage";
+import { RULES, type Setting } from "~/editor/coverage";
+
+/** One of a rule's settings, as the editor's Rules panel and paint's (components/PaintRules.tsx) edit it. */
+export function SettingField({ setting: s, value, onChange }: { setting: Setting; value: unknown; onChange: (v: unknown) => void }) {
+  return (
+    <label className="setting">{s.label}
+      {s.type === "number" && <input type="number" min={0} max={99} value={value === undefined ? "" : Number(value)}
+        onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))} />}
+      {s.type === "flag" && <input type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} />}
+      {s.type === "choice" && (
+        <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value || undefined)}>
+          <option value="">{s.none ?? "default"}</option>{s.choices.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      )}
+      {(s.type === "pair" || s.type === "list") && (
+        <input placeholder={s.type === "pair" ? "e.g. 2 3" : "e.g. 1 2"} defaultValue={Array.isArray(value) ? (value as number[]).join(" ") : ""}
+          onBlur={(e) => {
+            const p = e.target.value.trim().split(/[\s×x,:]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
+            onChange((s.type === "pair" ? p.length === 2 : p.length > 0) ? p : undefined);
+          }} />
+      )}
+    </label>
+  );
+}
 
 export function RulesPanel({ spec, onChange, open = false }: { spec: GridSpec; onChange: (spec: GridSpec) => void; open?: boolean }) {
   const genre = (spec.genre ?? "simple-loop") as GenreName;
@@ -27,25 +50,7 @@ export function RulesPanel({ spec, onChange, open = false }: { spec: GridSpec; o
           return (
             <span key={i} className="chip">
               {def?.label ?? r.rule}
-              {def?.settings.map((s) => (
-                <label key={s.key} className="setting">{s.label}
-                  {s.type === "number" && <input type="number" min={0} max={99} value={r[s.key] === undefined ? "" : Number(r[s.key])}
-                    onChange={(e) => update(s.key, e.target.value === "" ? undefined : Number(e.target.value))} />}
-                  {s.type === "flag" && <input type="checkbox" checked={!!r[s.key]} onChange={(e) => update(s.key, e.target.checked)} />}
-                  {s.type === "choice" && (
-                    <select value={String(r[s.key] ?? "")} onChange={(e) => update(s.key, e.target.value || undefined)}>
-                      <option value="">{s.none ?? "default"}</option>{s.choices.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  )}
-                  {(s.type === "pair" || s.type === "list") && (
-                    <input placeholder={s.type === "pair" ? "e.g. 2 3" : "e.g. 1 2"} defaultValue={Array.isArray(r[s.key]) ? (r[s.key] as number[]).join(" ") : ""}
-                      onBlur={(e) => {
-                        const p = e.target.value.trim().split(/[\s×x,:]+/).map(Number).filter((n) => Number.isInteger(n) && n > 0);
-                        update(s.key, (s.type === "pair" ? p.length === 2 : p.length > 0) ? p : undefined);
-                      }} />
-                  )}
-                </label>
-              ))}
+              {def?.settings.map((s) => <SettingField key={s.key} setting={s} value={r[s.key]} onChange={(v) => update(s.key, v)} />)}
               <button type="button" aria-label={`Remove ${def?.label ?? r.rule}`} onClick={() => setRules(extra.filter((_, j) => j !== i))}>×</button>
             </span>
           );

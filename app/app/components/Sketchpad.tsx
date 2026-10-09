@@ -16,18 +16,19 @@
 // chosen tool's own settings along the top; Colour and Stamps on the right (a bottom sheet on a
 // phone), the one place to choose either; and a status line under the paper for the hint and the
 // workspace (the grid's size, Snap, zoom with Cmd/Ctrl + − 0).
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { addInk } from "~site/lib/ink.ts";
 import * as m from "~/sketchpad/model";
 import { gridSvg, itemSvg, penVars, stampSvg } from "~/sketchpad/draw";
 import { exportPng } from "~/sketchpad/export";
 import { SHAPES, type RC } from "~/editor/ops";
+import { colourAllowed, TOOL_ORDER, type Kit, type Look } from "~/sketchpad/kit";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
 import { SpIcon, type SpIconName } from "./SketchpadIcons";
 import "~site/game-types/grid/styles.css";
 
-type Tool = "grid" | "pen" | "line" | "wash" | "stamp" | "text" | "erase";
+type Tool = Kit["tools"][number];
 /** The tools, in the palette's groups (a thin line between groups). */
 const TOOLS: { id: Tool; label: string; key: string; hint: string; group: number }[] = [
   { id: "grid", label: "Grid", key: "g", group: 0, hint: "Drag a rectangle for a grid; drag the grid to move it, its corner to resize it" },
@@ -130,6 +131,9 @@ type Gesture =
   /** rubbing out: things (not gaps), or breaking grid lines (along level or upright ones), or mending them */
   | { kind: "erase"; last: XY; mode: "items" | "gap" | "mend"; side?: m.EdgeAt["side"] };
 
+/** How the type's look is said ("Panel is played on tracks"). */
+const LOOK_WORDS: Record<Look, string> = { lines: "with lines", tracks: "on tracks", hex: "on hexagons", dots: "on dots" };
+
 export interface SketchpadHandle {
   /** the drawing as a PNG (about 1600px across) */
   png(): Promise<Blob>;
@@ -137,17 +141,41 @@ export interface SketchpadHandle {
   data(): string;
   /** whether anything's drawn */
   empty: boolean;
+  /** a change to the drawing from outside (one undo step) */
+  edit(f: (d: Drawing) => Drawing): void;
 }
 
-export function Sketchpad({ handle, onChange, actions }: {
+export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAVED, kit = null, typeName = "", overlay = "", underlay = "", tip, panel, chips, side: sideExtra, onPaper }: {
   /** set to the sketchpad's exporter (the page's Download and Read buttons use it) */
   handle: React.MutableRefObject<SketchpadHandle | null>;
   /** after every change */
   onChange?: (d: Drawing) => void;
   /** where in the page's header undo, redo and clear go */
   actions?: HTMLElement | null;
+  /** the drawing to start from (undefined: this browser's last, from `storageKey`) */
+  initial?: Drawing;
+  /** where this browser keeps the drawing (null: the page keeps it) */
+  storageKey?: string | null;
+  /** the puzzle type's tools, stamps, colours and grid look (null: no type, every tool) */
+  kit?: Kit | null;
+  /** the type's name, for what's flagged as not its */
+  typeName?: string;
+  /** marks on the paper (SVG markup in page units; never exported) */
+  overlay?: string;
+  /** drawn with the grid, as ink (a sudoku's box lines) */
+  underlay?: string;
+  /** a tip on the paper, pointing at a page point */
+  tip?: { at: XY; below?: boolean; node: ReactNode } | null;
+  /** a panel over the workspace's left side */
+  panel?: ReactNode;
+  /** chips in the status line */
+  chips?: ReactNode;
+  /** more sections in the side panel, after Colour and Stamps */
+  side?: ReactNode;
+  /** a press on the paper (before the tool acts), at a page point */
+  onPaper?: (p: XY) => void;
 }) {
-  const [history, setHistory] = useState(() => m.start());
+  const [history, setHistory] = useState(() => m.start(initial ?? m.EMPTY));
   const [draft, setDraft] = useState<Drawing | null>(null);   // the drawing during a gesture
   const [tool, setTool] = useState<Tool>("grid");
   const [snapping, setSnapping] = useState(true);
@@ -180,6 +208,21 @@ export function Sketchpad({ handle, onChange, actions }: {
   /** the gesture under way: what it started from, and the drawing it's made so far */
   const gesture = useRef<{ g: Gesture; base: Drawing; now?: Drawing } | null>(null);
 
+  // ---- the type's kit: its tools and stamps, and the rest behind "All tools" ----
+  const [everything, setEverything] = useState(false);
+  const own = (t: Tool) => !kit || kit.tools.includes(t);
+  const ownStamp = (k: StampKind) => !kit || kit.stamps.includes(k);
+  const tools = !kit ? TOOLS : [...TOOLS.filter((x) => own(x.id)), ...(everything ? TOOLS.filter((x) => !own(x.id)) : [])];
+  const stamps = !kit ? STAMPS : [...STAMPS.filter((x) => ownStamp(x.id)), ...(everything ? STAMPS.filter((x) => !ownStamp(x.id)) : [])];
+  const notOurs = `Not part of ${typeName || "this type"}`;
+  // a tool or stamp the type doesn't use, once it's hidden, gives way to the type's first
+  useEffect(() => {
+    if (!tools.some((x) => x.id === tool)) { setTool(tools.find((x) => x.id !== "grid" && x.id !== "erase")?.id ?? "grid"); setTyping(null); }
+    if (stamps.length && !stamps.some((x) => x.id === stampKind)) setStampKind(stamps[0].id);
+  }, [kit, everything]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** a new grid in the type's look */
+  const inLook = (grid: Grid | null) => (grid && kit && m.lookOf(grid) !== kit.look ? m.setLook(grid, kit.look) : grid);
+
   const d = draft ?? history.now;
   const g = d.grid, S = m.squareOf(d);
   const cells = m.normalCells(pad);
@@ -201,18 +244,24 @@ export function Sketchpad({ handle, onChange, actions }: {
   useEffect(() => {
     const el = root.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => setFit(Math.max(220, Math.floor(Math.min(el.clientWidth, el.clientHeight) - 40))));
+    // the room inside the workspace's padding (a panel over its left side pads it)
+    const ro = new ResizeObserver(() => {
+      const cs = getComputedStyle(el), w = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 40;
+      setFit(Math.max(220, Math.floor(Math.min(w, el.clientHeight) - 40)));
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    try { const saved = m.revive(JSON.parse(localStorage.getItem(SAVED) ?? "null")); if (saved) setHistory(m.start(saved)); } catch { /* nothing saved */ }
+    if (initial === undefined && storageKey) {
+      try { const saved = m.revive(JSON.parse(localStorage.getItem(storageKey) ?? "null")); if (saved) setHistory(m.start(saved)); } catch { /* nothing saved */ }
+    }
     setLoaded(true);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!loaded) return;   // not over the saved drawing before it's read
-    try { localStorage.setItem(SAVED, JSON.stringify(history.now)); } catch { /* private mode: not kept */ }
+    if (storageKey) try { localStorage.setItem(storageKey, JSON.stringify(history.now)); } catch { /* private mode: not kept */ }
     onChange?.(history.now);
   }, [history.now, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -222,6 +271,7 @@ export function Sketchpad({ handle, onChange, actions }: {
     png: () => exportPng(svg.current!, latest.current),
     data: () => JSON.stringify(m.objects(latest.current)),
     empty: !history.now.grid && !history.now.items.length,
+    edit: (f) => edit(f),
   };
 
   const change = (next: Drawing) => setHistory((h) => m.commit(h, next));
@@ -232,6 +282,8 @@ export function Sketchpad({ handle, onChange, actions }: {
   const redo = () => { setTyping(null); setHistory(m.redo); };
 
   // ---- keys: undo and redo, and a letter for each tool ----
+  const toolsNow = useRef(tools);
+  toolsNow.current = tools;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -244,7 +296,7 @@ export function Sketchpad({ handle, onChange, actions }: {
       if (mod && e.key === "0") { e.preventDefault(); setZoom(1); return; }
       if (e.key === "Escape") { setSheet(false); return; }
       if (mod || e.altKey) return;
-      const to = TOOLS.find((x) => x.key === e.key.toLowerCase());
+      const to = toolsNow.current.find((x) => x.key === e.key.toLowerCase());
       if (to) { setTool(to.id); setTyping(null); }
     };
     window.addEventListener("keydown", onKey);
@@ -265,6 +317,7 @@ export function Sketchpad({ handle, onChange, actions }: {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (typing) { commitTyping(); if (tool !== "text") return; }
     const p = toPage(e), base = history.now, bg = base.grid;
+    onPaper?.(p);
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a pointer that's already gone */ }
     const begin = (gg: Gesture) => { gesture.current = { g: gg, base }; };
     switch (tool) {
@@ -320,7 +373,7 @@ export function Sketchpad({ handle, onChange, actions }: {
     if (!gs) return;
     const { g: gg, base } = gs, now = gs.now ?? base;
     switch (gg.kind) {
-      case "grid-new": setPreview(m.gridFromDrag(gg.from, p)); break;
+      case "grid-new": setPreview(inLook(m.gridFromDrag(gg.from, p))); break;
       case "grid-move": show(m.setGrid(base, m.moveGrid(gg.grid, p.x - gg.from.x, p.y - gg.from.y))); break;
       case "grid-stretch": show(m.setGrid(base, m.stretchGrid(gg.grid, p))); break;
       case "pen": {
@@ -377,7 +430,7 @@ export function Sketchpad({ handle, onChange, actions }: {
     let next = gs.now ?? base;
     switch (gg.kind) {
       case "grid-new": {
-        const grid = m.gridFromDrag(gg.from, p);
+        const grid = inLook(m.gridFromDrag(gg.from, p));
         next = grid ? m.setGrid(base, grid) : base;
         setPreview(null);
         break;
@@ -409,7 +462,7 @@ export function Sketchpad({ handle, onChange, actions }: {
 
   // ---- the grid's rows and columns ----
   const resize = (rows: number, cols: number) => edit((dd) => (dd.grid ? m.setGrid(dd, m.resizeGrid(dd.grid, rows, cols)) : dd));
-  const addGrid = () => edit((dd) => m.setGrid(dd, { x: 64, y: 64, rows: 6, cols: 6, S: 72 }));
+  const addGrid = () => edit((dd) => m.setGrid(dd, inLook({ x: 64, y: 64, rows: 6, cols: 6, S: 72 })!));
 
   // ---- what's drawn ----
   const layers = useMemo(() => m.LAYERS.map((kinds) => d.items.filter((it) => kinds.includes(it.kind))), [d]);
@@ -447,7 +500,9 @@ export function Sketchpad({ handle, onChange, actions }: {
   const colourFor = forStamp ? `${STAMP_LABEL[stampKind]} colour` : "Wash colour";
   const allowed = (c: Colour) => (!forStamp ? (m.WASHES as readonly string[]).includes(c)
     : LINE_STAMPS.has(stampKind) ? c === "black" || c === "blue" || c === "yellow"
-    : c !== "pink" && (stampKind === "stone" || stampKind === "eraser" || c !== "black"));
+    : c !== "pink" && (stampKind === "stone" || stampKind === "eraser" || c !== "black")) && (!forStamp || everything || colourAllowed(kit, stampKind, c));
+  // the Colour section only where the type has something coloured to make
+  const hasColour = !kit || everything || kit.tools.includes("wash") || kit.stamps.some((k) => COLORED.has(k));
   const pickColour = (c: Colour) => { if (forStamp) setColors({ ...colors, [stampKind]: c as SymbolColor }); else setWash(c as WashColor); };
 
   // ---- the side panel: always there on a wide screen, a bottom sheet on a phone ----
@@ -456,7 +511,7 @@ export function Sketchpad({ handle, onChange, actions }: {
 
   // ---- the tool palette: a toolbar, arrows move along it ----
   const onToolKey = (e: React.KeyboardEvent) => {
-    const k = toolButtons.current.findIndex((b) => b === document.activeElement), n = TOOLS.length;
+    const k = toolButtons.current.findIndex((b) => b === document.activeElement), n = tools.length;
     if (k < 0) return;
     const to = e.key === "ArrowDown" || e.key === "ArrowRight" ? (k + 1) % n : e.key === "ArrowUp" || e.key === "ArrowLeft" ? (k + n - 1) % n
       : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
@@ -490,8 +545,9 @@ export function Sketchpad({ handle, onChange, actions }: {
           {tool === "grid" && (g ? <>
             {stepper("Rows", g.rows, (n) => resize(n, g.cols))}
             {stepper("Columns", g.cols, (n) => resize(g.rows, n))}
-            <span className="sp-seg sp-tip" role="group" aria-label="Grid look" data-tip="Pen lines, a panel's wide tracks, a honeycomb, or a lattice of points">
+            <span className="sp-seg sp-tip" role="group" aria-label="Grid look" data-tip={kit ? `The type sets the look: ${typeName} is played ${LOOK_WORDS[kit.look]}` : "Pen lines, a panel's wide tracks, a honeycomb, or a lattice of points"}>
               {([["Lines", "lines"], ["Tracks", "tracks"], ["Hexagons", "hex"], ["Dots", "dots"]] as const).map(([name, look]) => <button key={name} type="button" className="sp-btn sp-text-btn" aria-pressed={m.lookOf(g) === look}
+                disabled={!!kit && kit.look !== look && m.lookOf(g) !== look}
                 onClick={() => edit((dd) => (dd.grid ? m.setGrid(dd, m.setLook(dd.grid, look)) : dd))}>{name}</button>)}
             </span>
             <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
@@ -572,12 +628,16 @@ export function Sketchpad({ handle, onChange, actions }: {
 
       {/* ---- the tools, down the left (along the bottom on a phone) ---- */}
       <div className="sp-tools" role="toolbar" aria-label="Tools" aria-orientation="vertical" onKeyDown={onToolKey}>
-        {TOOLS.map((x, k) => <Fragment key={x.id}>
-          {k > 0 && TOOLS[k - 1].group !== x.group && <span className="sp-sep" aria-hidden="true" />}
-          <button ref={(el) => { toolButtons.current[k] = el; }} type="button" className="sp-btn sp-tool sp-tip" aria-label={x.label}
-            aria-keyshortcuts={x.key.toUpperCase()} aria-pressed={tool === x.id} tabIndex={tool === x.id ? 0 : -1} data-tip={`${x.label} (${x.key.toUpperCase()})`}
+        {tools.map((x, k) => <Fragment key={x.id}>
+          {k > 0 && (own(tools[k - 1].id) !== own(x.id) ? <span className="sp-sep sp-sep-off" aria-hidden="true" /> : tools[k - 1].group !== x.group && <span className="sp-sep" aria-hidden="true" />)}
+          <button ref={(el) => { toolButtons.current[k] = el; }} type="button" className={`sp-btn sp-tool sp-tip${own(x.id) ? "" : " sp-off"}`} aria-label={x.label}
+            aria-keyshortcuts={x.key.toUpperCase()} aria-pressed={tool === x.id} tabIndex={tool === x.id ? 0 : -1}
+            data-tip={own(x.id) ? `${x.label} (${x.key.toUpperCase()})` : `${x.label}: ${notOurs.toLowerCase()}`}
             onClick={() => { setTool(x.id); setTyping(null); }}><SpIcon name={x.id} /></button>
         </Fragment>)}
+        {kit && <button type="button" className="sp-btn sp-all sp-tip" aria-pressed={everything} onClick={() => setEverything(!everything)}
+          data-tip={everything ? `Only ${typeName}'s tools` : "Every tool, for decoration or drawing ahead: what the type can't use is flagged"}>
+          <span aria-hidden="true">⋯</span><span>{everything ? "Fewer" : "All tools"}</span></button>}
       </div>
 
       {/* ---- the paper, on the workspace ---- */}
@@ -591,12 +651,13 @@ export function Sketchpad({ handle, onChange, actions }: {
             data-items={d.items.length} data-grid={g ? `${g.rows}x${g.cols}` : ""}>
             <g className="sp-ink">
               <g dangerouslySetInnerHTML={{ __html: layers[0].map(markup).join("") }} />
-              {g && <g dangerouslySetInnerHTML={{ __html: gridSvg(g, gaps) }} />}
+              {g && <g dangerouslySetInnerHTML={{ __html: gridSvg(g, gaps) + underlay }} />}
               <g dangerouslySetInnerHTML={{ __html: layers[1].map(markup).join("") }} />
               <g dangerouslySetInnerHTML={{ __html: layers[2].map(markup).join("") }} />
               <g data-export="skip" dangerouslySetInnerHTML={{ __html: layers[3].map(markup).join("") }} />
             </g>
             <g className="sp-ui" data-export="skip">
+              {overlay && <g className="sp-marks" dangerouslySetInnerHTML={{ __html: overlay }} />}
               <g dangerouslySetInnerHTML={{ __html: ghost }} />
               {preview && <rect className="outline" x={preview.x} y={preview.y} width={preview.cols * preview.S} height={preview.rows * preview.S} />}
               {preview && <g className="ghost" dangerouslySetInnerHTML={{ __html: gridSvg(preview) }} />}
@@ -604,6 +665,9 @@ export function Sketchpad({ handle, onChange, actions }: {
               {tool === "grid" && g && <circle className="handle" cx={m.handleOf(g).x} cy={m.handleOf(g).y} r={7} />}
             </g>
           </svg>
+          {tip && (
+            <div className={`sp-paper-tip${tip.below ? " below" : ""}`} role="note" style={{ left: `${(tip.at.x / m.PAGE) * 100}%`, top: `${(tip.at.y / m.PAGE) * 100}%` }}>{tip.node}</div>
+          )}
           {typing && typingAt && (
             <input ref={typed} className={`sp-typing${typing.small ? " small" : ""}`} aria-label="Text" value={typing.value} maxLength={12}
               style={{ left: `${(typingAt.x / m.PAGE) * 100}%`, top: `${(typingAt.y / m.PAGE) * 100}%`, width: `${Math.max(2.2, typing.value.length + 1.2)}em` }}
@@ -625,7 +689,8 @@ export function Sketchpad({ handle, onChange, actions }: {
       {/* ---- the status line ---- */}
       <div className="sp-status">
         <span className="sp-status-hint" aria-live="polite">{toolHint}</span>
-        <span className="sp-status-facts">{g ? `${g.rows} × ${g.cols} grid` : "No grid"}</span>
+        <span className="sp-status-facts">{g ? `${g.rows} × ${g.cols} ${g.shape === "hex" ? "hexagons" : g.tracks ? "tracks" : "grid"}` : "No grid"}</span>
+        {chips}
         {snapToggle}
         <span className="sp-zoom" role="group" aria-label="Zoom">
           <IconButton icon="zoomOut" label="Zoom out" tip={`Zoom out (${mod}−)`} onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} />
@@ -635,13 +700,14 @@ export function Sketchpad({ handle, onChange, actions }: {
       </div>
 
       {/* ---- Colour and Stamps, on the right (a bottom sheet on a phone) ---- */}
+      {panel}
       {sheet && <div className="sp-scrim" aria-hidden="true" onClick={() => setSheet(false)} />}
       <aside ref={side} className={`sp-side${sheet ? " open" : ""}`} aria-label="Colour and stamps">
         <div className="sp-sheet-head">
           <strong>Colour and stamps</strong>
           <IconButton icon="close" label="Close" onClick={() => setSheet(false)} />
         </div>
-        <section id="sp-colour" className="sp-panel" aria-labelledby="sp-colour-h">
+        {hasColour && <section id="sp-colour" className="sp-panel" aria-labelledby="sp-colour-h">
           <h2 id="sp-colour-h" className="sp-panel-h">Colour</h2>
           <div className="sp-current">
             <span className="sp-fg" style={{ background: paint(colour) }} aria-hidden="true" />
@@ -652,16 +718,19 @@ export function Sketchpad({ handle, onChange, actions }: {
               aria-pressed={colour === c} disabled={!allowed(c)} onClick={() => { pickColour(c); if (phone()) setSheet(false); }}>
               <span style={{ background: paint(c) }} /></button>)}
           </div>
-        </section>
+        </section>}
         <section id="sp-stamps" className="sp-panel" aria-labelledby="sp-stamps-h">
           <h2 id="sp-stamps-h" className="sp-panel-h">Stamps</h2>
+          {!stamps.length && <p className="sp-panel-note">{typeName} has no stamps: its clues are {own("text") ? "written with Text" : "drawn with the pen"}.</p>}
           <div className="sp-stamps" role="group" aria-label="Stamps">
-            {STAMPS.map((st) => <button key={st.id} type="button" className="sp-stamp sp-tip" aria-label={st.label} data-tip={st.tip ?? st.label}
+            {stamps.map((st) => <button key={st.id} type="button" className={`sp-stamp sp-tip${ownStamp(st.id) ? "" : " sp-off"}`} aria-label={st.label}
+              data-tip={ownStamp(st.id) ? st.tip ?? st.label : `${st.label}: ${notOurs.toLowerCase()}`}
               aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
               <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
             </button>)}
           </div>
         </section>
+        {sideExtra}
       </aside>
     </div>
   );

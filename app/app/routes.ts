@@ -23,6 +23,7 @@ export default [
   route("puzzles/:kind", "routes/puzzle-type.tsx"),
   route("g/:id", "routes/game.tsx"),
   route("g/:id/edit", "routes/game-edit.tsx"),
+  route("g/:id/draw", "routes/game-draw.tsx"),
   route("g/:id/preview", "routes/game-preview.tsx"),
   route("g/:id/like", "routes/game-like.ts"),
   route("g/:id/solve", "routes/game-solve.ts"),

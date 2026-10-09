@@ -127,6 +127,10 @@ export const games = sqliteTable("games", {
   reading: text("reading"),
   /** The game types Claude thought the drawing could be, best first (the creator picks one). */
   kindChoices: text("kind_choices", { mode: "json" }).$type<string[]>(),
+  /** The paint drawing it's made from (docs/creation-flow.md), as JSON: the drawing, its type and
+   *  its rule settings (app/games/paint-save.ts). The source of truth once it has one: `sketch` is
+   *  converted from it on every save. */
+  drawing: text("drawing", { mode: "json" }).$type<unknown>(),
   state: text("state", { enum: GAME_STATES }).notNull().default("draft"),
   /** Why it was hidden, and by whom (an admin or a collection owner). */
   hiddenNote: text("hidden_note"),

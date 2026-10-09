@@ -1,0 +1,212 @@
+/* Paint as a game's editor (/g/<id>/draw: components/Paint.tsx), on top of the sketchpad's layout
+   (sketchpad.css): the top bar's title, Type button, its picker and reminder, Check and Publish;
+   the verdict chip; the Check panel over the workspace's left side; the marks on the paper and the
+   tip beside the selected one; the Rules panel on the right. */
+
+.paint .studio-left { min-width: 0; gap: 8px; }
+.paint-title {
+  font: 800 17px/1.2 var(--display); color: var(--ink); background: none; border: 0; border-bottom: 1.5px dashed transparent;
+  padding: 3px 2px; min-width: 4em; max-width: 26ch; outline: none;
+}
+.paint-title:hover { border-bottom-color: var(--line-strong); }
+.paint-title:focus { border-bottom-color: var(--ink); }
+
+/* ---- the Type button, its bounce, the reminder and the picker ---- */
+.paint-type-wrap { position: relative; }
+.paint-type {
+  display: inline-grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  padding: 3px 10px 4px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel); color: var(--ink); text-align: left;
+}
+.paint-type:hover { background: color-mix(in srgb, var(--ink) 6%, var(--panel)); }
+.paint-type-label { grid-column: 1; font: 600 10.5px/1.1 var(--body); color: var(--muted); }
+.paint-type-name { grid-column: 1; font: 800 14.5px/1.15 var(--display); }
+.paint-type svg { grid-column: 2; grid-row: 1 / 3; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.paint-type.unset { border-style: dashed; }
+.paint-type.unset .paint-type-name { color: var(--muted); }
+.paint-type.ringed { box-shadow: 0 0 0 3px color-mix(in srgb, var(--wash-yellow) 75%, transparent); border-color: var(--wash-yellow); }
+/* two hops, a small one then a smaller one (about 0.6 s); without motion, the ring alone */
+.paint-type.bounce { animation: paint-hop .6s cubic-bezier(.3, .6, .4, 1) both; }
+@keyframes paint-hop {
+  0% { transform: translateY(0); } 25% { transform: translateY(-9px); } 50% { transform: translateY(0); }
+  70% { transform: translateY(-4px); } 85%, 100% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .paint-type.bounce { animation: none; } }
+
+.paint-reminder {
+  position: absolute; z-index: 45; top: calc(100% + 10px); left: 0; width: min(360px, calc(100vw - 24px));
+  padding: 14px 16px; border-radius: 10px; background: var(--panel); color: var(--ink);
+  border: 1.5px solid var(--wash-yellow); box-shadow: 0 10px 30px var(--shadow);
+}
+.paint-reminder::before {
+  content: ""; position: absolute; top: -7px; left: 30px; width: 12px; height: 12px; transform: rotate(45deg);
+  background: var(--panel); border-left: 1.5px solid var(--wash-yellow); border-top: 1.5px solid var(--wash-yellow);
+}
+.paint-reminder strong { font: 800 16px/1.2 var(--display); }
+.paint-reminder p { margin: 6px 0 12px; font-size: 14px; line-height: 1.45; color: var(--muted); }
+
+.guide-pane.paint-picker {
+  position: absolute; z-index: 45; top: calc(100% + 8px); left: 0; width: min(420px, calc(100vw - 24px)); height: auto; max-height: min(70dvh, 640px);
+  padding: 16px; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 14px 36px var(--shadow); transform: none; inset: auto;
+  top: calc(100% + 8px); left: 0;
+}
+.paint-picker .pane-close { display: block; font-size: 24px; line-height: 1; background: none; border: 0; color: var(--muted); }
+.paint-picker .pane-list button[aria-pressed="true"] { background: var(--panel); border-color: var(--ink); }
+.paint-picker .pane-list button:disabled { opacity: .5; }
+.paint-unset { font: 800 22px/1 var(--display); color: var(--muted); border: 1.5px dashed var(--line-strong); border-radius: 8px; }
+.paint-picker-foot { margin: 0; font-size: 12.5px; }
+
+.paint-saved { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.paint-saved::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.paint-saved.ok::before { background: var(--good); }
+.paint-saved.bad { color: var(--red); }
+.paint-saved.bad::before { background: var(--red); }
+
+/* Check and Publish look disabled until a type is set, but still take a click (aria-disabled) */
+.paint-check-btn { display: inline-flex; align-items: center; gap: 6px; }
+.paint-check-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.paint .btn[aria-disabled="true"] { opacity: .45; }
+.paint .btn[aria-disabled="true"]:hover { background: var(--panel); }
+.paint .btn.primary[aria-disabled="true"]:hover { background: var(--ink); }
+
+/* ---- the status line's chips ---- */
+.paint-chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 11px; white-space: nowrap;
+  font: 700 12.5px/1 var(--body); border-radius: 999px; border: 1.5px solid var(--line-strong); background: none; color: var(--muted);
+}
+.paint-chip.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 70%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.paint-chip.bad { color: var(--red); border-color: color-mix(in srgb, var(--red) 70%, transparent); background: color-mix(in srgb, var(--red) 9%, transparent); }
+.paint-chip.wait, .paint-chip.none { border-style: dashed; }
+.paint-chip.todo { color: #a86a00; border-color: color-mix(in srgb, var(--wash-yellow) 80%, #a86a00); background: color-mix(in srgb, var(--wash-yellow) 14%, transparent); }
+.paint-count {
+  display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
+  font: 800 11px/1 var(--body); color: #3a2a00; background: var(--wash-yellow);
+}
+
+/* ---- the Check panel, over the workspace's left side, and its tab ---- */
+.paint-check, .paint-check-tab { grid-area: canvas; z-index: 6; align-self: start; justify-self: start; margin: 14px; }
+.paint-check {
+  width: min(330px, calc(100% - 28px)); max-height: calc(100% - 28px); display: flex; flex-direction: column;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px var(--shadow);
+}
+.paint-check-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--line); }
+.paint-check-head svg, .paint-check-tab svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.paint-check-head strong { flex: 1; font: 800 15px/1 var(--display); }
+.paint-check-head .sp-btn { font-size: 20px; }
+.paint-check-body { overflow-y: auto; padding: 12px 14px 16px; display: grid; gap: 14px; }
+.paint-check-tab {
+  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 12px; border-radius: 999px;
+  font: 800 14px/1 var(--display); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 6px 18px var(--shadow);
+}
+.paint-verdict { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px; border-radius: 10px; border: 1.5px solid var(--line-strong); }
+.paint-verdict > span:last-child { display: grid; gap: 3px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
+.paint-verdict strong { font: 800 16px/1.2 var(--display); color: var(--ink); }
+.paint-verdict-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font: 800 16px/1 var(--body); color: #fff; background: var(--muted); }
+.paint-verdict.ok { border-color: color-mix(in srgb, var(--good) 60%, transparent); background: color-mix(in srgb, var(--good) 9%, transparent); }
+.paint-verdict.ok strong { color: var(--good); }
+.paint-verdict.ok .paint-verdict-mark { background: var(--good); }
+.paint-verdict.bad { border-color: color-mix(in srgb, var(--red) 60%, transparent); background: color-mix(in srgb, var(--red) 8%, transparent); }
+.paint-verdict.bad strong { color: var(--red); }
+.paint-verdict.bad .paint-verdict-mark { background: var(--red); }
+.paint-verdict.wait { border-style: dashed; }
+.grid-game.paint-solution { background: var(--paper); border-radius: 8px; padding: 6px; }
+.paint-solution svg { display: block; width: 100%; height: auto; }
+.paint-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.paint-switch input { appearance: none; flex: none; width: 36px; height: 20px; border-radius: 10px; background: var(--line-strong); position: relative; transition: background .15s; }
+.paint-switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); transition: transform .15s; }
+.paint-switch input:checked { background: var(--ink); }
+.paint-switch input:checked::after { transform: translateX(16px); }
+.paint-diff { justify-self: start; }
+.paint-group h3 { display: flex; justify-content: space-between; margin: 0 0 8px; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.paint-group h3 span { letter-spacing: 0; text-transform: none; font-weight: 600; }
+.paint-group ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.paint-quiet { margin: 0; font-size: 13.5px; color: var(--muted); }
+.paint-item {
+  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; width: 100%; padding: 8px 10px; text-align: left;
+  font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-left: 3px solid transparent; border-radius: 8px;
+}
+.paint-item:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.paint-item[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-orange) 16%, var(--panel)); border-left-color: var(--wash-orange); }
+.paint-item.misfit[aria-pressed="true"], .paint-item.fix[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-red) 12%, var(--panel)); border-left-color: var(--wash-red); }
+.paint-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 800 12px/1 var(--body); color: #fff; background: var(--wash-orange); }
+.paint-item.misfit .paint-n, .paint-item.fix .paint-n { background: var(--wash-red); }
+.paint-place { display: block; font-size: 12px; color: var(--muted); }
+.paint-text { display: block; font-size: 14px; line-height: 1.35; }
+
+/* ---- the marks on the paper (never exported): orange rings for errors, red dashed for what doesn't fit ---- */
+.sp-mark .sp-mark-ring { fill: color-mix(in srgb, var(--wash-orange) 18%, transparent); stroke: var(--wash-orange); stroke-width: 2.5; stroke-linejoin: round; }
+.sp-mark .sp-mark-join { fill: none; stroke: var(--wash-orange); stroke-width: 1.6; stroke-dasharray: 1.5 4; stroke-linecap: round; }
+.sp-mark .sp-mark-box { fill: color-mix(in srgb, var(--wash-red) 12%, transparent); stroke: #d23f55; stroke-width: 1.8; stroke-dasharray: 5 3.5; }
+.sp-mark.misfit .sp-mark-ring { fill: color-mix(in srgb, var(--wash-red) 12%, transparent); stroke: #d23f55; stroke-dasharray: 5 3.5; stroke-width: 1.8; }
+.sp-mark-pin circle { fill: var(--wash-orange); stroke: var(--paper); stroke-width: 2; }
+.sp-mark.misfit .sp-mark-pin circle { fill: #e04a5f; }
+.sp-mark-pin text { font: 800 10px/1 var(--body); fill: #fff; text-anchor: middle; dominant-baseline: central; }
+.sp-mark-values { font: 700 13px/1 var(--hand); fill: var(--wash-orange); text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--paper); stroke-width: 3px; }
+.sp-mark { opacity: .8; }
+.sp-mark.selected { opacity: 1; }
+.sp-mark.selected .sp-mark-ring { stroke-width: 3.5; }
+/* with one selected, the others fade to thin dashed rings */
+.has-selection .sp-mark:not(.selected) { opacity: .45; }
+.has-selection .sp-mark:not(.selected) .sp-mark-ring { fill: none; stroke-dasharray: 3 3; stroke-width: 1.5; }
+/* a solution drawn over the paper: digits pencilled, shading washed, lines in blue */
+.sp-solution .sp-sol-shade { fill: color-mix(in srgb, var(--wash-blue) 30%, transparent); }
+.sp-solution .sp-sol-digit { font-family: var(--hand); fill: color-mix(in srgb, var(--wash-blue) 75%, var(--paper-ink)); text-anchor: middle; dominant-baseline: central; opacity: .8; }
+.sp-solution .sp-sol-line { stroke: color-mix(in srgb, var(--wash-blue) 75%, transparent); stroke-width: 5; stroke-linecap: round; }
+
+/* the tip beside a selected item, pointing at it */
+.sp-paper-tip { position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 12px)); width: max-content; max-width: min(300px, 70vw); pointer-events: auto; }
+.sp-paper-tip.below { transform: translate(-50%, 12px); }
+.sp-paper-tip::after {
+  content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg);
+  background: var(--panel); border-right: 1.5px solid var(--wash-orange); border-bottom: 1.5px solid var(--wash-orange);
+}
+.sp-paper-tip.below::after { bottom: auto; top: -6px; border: 0; border-left: 1.5px solid var(--wash-orange); border-top: 1.5px solid var(--wash-orange); }
+.paint-tip { position: relative; padding: 12px 14px; border-radius: 10px; background: var(--panel); color: var(--ink); border: 1.5px solid var(--wash-orange); box-shadow: 0 10px 26px var(--shadow); font-family: var(--body); }
+.paint-tip.misfit, .paint-tip.fix { border-color: #e04a5f; }
+.paint-tip strong { display: block; padding-right: 18px; font: 800 15px/1.25 var(--display); color: #c76a00; }
+.paint-tip.misfit strong, .paint-tip.fix strong { color: var(--red); }
+.paint-tip p { margin: 4px 0 8px; font-size: 13.5px; line-height: 1.45; }
+.paint-tip-foot { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.paint-tip-foot span { flex: 1; }
+.paint-tip-foot .btn { padding: 4px 10px; font-size: 13px; }
+.paint-tip-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; font-size: 18px; line-height: 1; color: var(--muted); background: none; border: 0; border-radius: 50%; }
+
+/* ---- the Rules panel ---- */
+.paint-rules { display: grid; gap: 12px; }
+.paint-rules-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.paint-rules-head .sp-panel-h { margin: 0; }
+.paint-guide-link { font-weight: 700; }
+.paint-always { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+.paint-always b { color: var(--ink); }
+.paint-field { display: grid; gap: 6px; font-size: 13.5px; }
+.paint-label { color: var(--muted); font-size: 13px; }
+.paint-field .sp-seg { justify-self: start; flex-wrap: wrap; }
+.paint-field .ge-rules, .paint-field.ge-rules { display: block; }
+.paint-field .setting { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+.paint-field .setting input:not([type="checkbox"]), .paint-field .setting select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 8px; }
+.paint-rules .ge-section > summary { cursor: pointer; font-weight: 700; }
+.paint-advanced > summary { font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.sp-panel-note { margin: 0 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+
+/* the type's tools first; All tools adds the rest, flagged as not the type's */
+.sp-all { margin-top: auto; flex-direction: column; gap: 1px; width: 52px; height: auto; padding: 5px 2px; font-size: 10.5px; border: 1px dashed var(--line-strong); }
+.sp-all > span:first-child { font-size: 16px; line-height: .8; }
+.sp-off { opacity: .55; }
+.sp-tool.sp-off { border: 1px dashed color-mix(in srgb, #d23f55 60%, transparent); }
+.sp-stamp.sp-off { border-style: dashed; border-color: color-mix(in srgb, #d23f55 60%, transparent); }
+.sp-sep-off { background: #d23f55; opacity: .5; }
+
+@media (max-width: 1000px) { .paint-howto span, .paint-saved { display: none; } }
+/* a phone: back, Type (its name), undo, redo, Check and Publish; the title is edited on the game page */
+@media (max-width: 720px) {
+  .paint-title, .paint-type-label, .paint-saved, .paint-howto, .paint .sp-doc button[aria-label="Clear"] { display: none; }
+  .paint-type { grid-template-rows: auto; padding: 6px 8px; }
+  .paint-check-btn span { display: none; }
+  .paint-check { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0; width: auto; max-height: 60dvh; border-radius: 16px 16px 0 0; z-index: 38; }
+  .paint-check-tab { margin: 10px; }
+  .sp-all { margin-top: 0; width: auto; height: 44px; flex-direction: row; padding: 0 8px; }
+  .sp-status-hint { display: none; }
+  .sp-paper-tip { position: fixed; left: 12px !important; right: 12px; top: auto !important; bottom: 210px; transform: none; max-width: none; width: auto; }
+  .sp-paper-tip::after { display: none; }
+}
+/* with the Check panel open, the paper moves over to make room beside it */
+@media (min-width: 721px) { .sp-work:has(> .paint-check) .grid-game.sp-canvas { padding-left: 364px; } }
