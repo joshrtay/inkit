@@ -190,8 +190,9 @@ shell, the back button (to paint), `GamePageView`'s head and the real player (`G
 - The head's meta line says "not published yet" and a **Draft** tag; **How to play** and **Back to
   paint** sit where the published page has How to play and Edit.
 - A **publish bar** under the head: the verdict ("Exactly one solution", from the last Check, re-run
-  if the drawing changed), "Play it here as players will; your solve isn't counted", **Publish to**
-  (personal or a studio) and **Publish**.
+  if the drawing changed), "Play it here as players will; your solve isn't counted", and **Publish**.
+  There is no collection picker: the puzzle goes to the creator's profile, or to the studio a
+  `?in=` link carried.
 - The player is the real one, with a host that saves to `sessionStorage` and never records a solve.
 - The **Drawn by** thumbnail (decision 2) is shown as it will be published.
 
