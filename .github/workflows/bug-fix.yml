@@ -176,6 +176,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write   # to start the tests on the branch (below)
     outputs:
       passes: ${{ steps.guard.outputs.passes }}
     steps:
@@ -191,6 +192,15 @@ jobs:
         run: |
           git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
           node .github/bug-fix/guard.mjs "origin/${{ github.event.repository.default_branch }}" "origin/$BRANCH"
+      # A PR opened with this workflow's token doesn't start other workflows (GitHub's guard against
+      # loops), but a dispatch does: run the site's tests on the branch, so the PR shows them and the
+      # ruleset's required "test" check can pass. The deploy job only ever runs for main.
+      - if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ needs.fix.outputs.branch }}
+          REPO: ${{ github.repository }}
+        run: gh workflow run deploy-inkit.yml --repo "$REPO" --ref "$BRANCH"
       - if: failure() && steps.guard.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}

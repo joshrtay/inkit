@@ -131,14 +131,12 @@ nothing else.
    - `BUG_BUNDLE_TOKEN`: the same value as the Worker's.
 3. **The label**: create `ai-fix`. The issues are labelled `bug-report`, which GitHub creates on
    first use.
-4. **Branch protection on `main`** (Settings → Branches, or a ruleset):
-   - require a pull request with 1 approval, and **Require review from Code Owners**
-     (`.github/CODEOWNERS` names the owner for everything);
-   - require the *Test and deploy inkit.games* `test` check;
-   - block force pushes and deletions;
-   - don't allow bypassing, and leave auto-merge off (Settings → General).
-
-   This matters: the fix job's token can push branches, so protection is what keeps `main` safe.
+4. **A ruleset on `main`** (Settings → Rules → Rulesets; set up 2026-10-09 as "main"):
+   - bypass: **Repository admin** only (the owner keeps pushing to main, which deploys);
+   - for everyone else, including the fix workflow's token: a pull request with 1 approval and
+     **Require review from Code Owners** (`.github/CODEOWNERS` names the owner for everything),
+     and the **`test`** status check must pass;
+   - deletion and force pushes blocked; auto-merge off (Settings → General).
 5. **Actions settings** (Settings → Actions → General): keep *Workflow permissions* at "Read
    repository contents" (the workflow asks for what it needs per job). Don't allow Actions to
    approve pull requests.
@@ -151,8 +149,10 @@ nothing else.
 1. Open `/admin/bugs`, then the report.
 2. Watch the replay and read the verdict. Dismiss it, mark it a duplicate, or **Send to GitHub**.
 3. On the issue, add `ai-fix` to have the fixer try. Wait for the audit comment and the draft PR.
-4. Review the PR as untrusted code: read the test first. Run CI on the branch, try it
-   (`gh pr checkout <n> && npm --prefix app run dev`), then mark it ready and merge, or close it.
+4. Review the PR as untrusted code: read the test first. The fix workflow starts the site's tests
+   on the branch itself (a PR opened with its token can't), so the PR shows them; the ruleset
+   requires them to pass. Try it (`gh pr checkout <n> && npm --prefix app run dev`), then mark it
+   ready and merge, or close it.
 
 ## Safeguards, in one place
 
