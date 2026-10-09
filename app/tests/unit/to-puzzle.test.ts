@@ -70,6 +70,9 @@ describe("round trip: every example", () => {
       cell: side === "top" ? C(0, i) : side === "bottom" ? C(3, i) : side === "left" ? C(i, 0) : C(i, 3) })) },
     { genre: "spiral-galaxies", size: [3, 3], givens: [{ at: "point", point: C(1, 1), kind: "galaxy" }, { at: "point", point: C(2, 2), kind: "galaxy" }, { at: "point", point: C(3, 4), kind: "galaxy" }, { at: "point", point: C(4, 5), kind: "galaxy" }] },
     { genre: "thermo-sudoku", size: [4, 4], givens: [{ at: "cells", cells: [C(3, 3), C(2, 2), C(1, 2), C(0, 2)], kind: "thermo" }] },
+    { genre: "panes", size: [4, 4], rules: [{ rule: "cell-borders" }], givens: [
+      { at: "cell", cell: C(0, 0), kind: "palisade", value: 2, opposite: true }, { at: "cell", cell: C(1, 1), kind: "palisade", value: 2 },
+      { at: "cell", cell: C(2, 2), kind: "palisade", value: 0 }, { at: "cell", cell: C(3, 3), kind: "palisade", value: 4 }, { at: "cell", cell: C(0, 3), kind: "palisade", value: 3 }] },
     { genre: "easy-as-abc", size: [4, 4], givens: [{ at: "cell", cell: C(1, 1), kind: "number", value: 2 }, { at: "edge", cell: C(0, 1), side: "top", kind: "first", value: 3 }] },
   ];
   for (const spec of SYNTHETIC) {
@@ -86,7 +89,7 @@ describe("profiles", () => {
     expect(Object.keys(PROFILES).sort()).toEqual([...GENRE_NAMES].sort());
     expect(GENRE_NAMES.filter((g) => !PROFILES[g])).toEqual(["coats"]);
     const missing = GENRE_NAMES.flatMap((g) => (PROFILES[g]?.reads ?? []).filter((p) => !READERS[p]));
-    expect([...new Set(missing)]).toEqual(["palisade"]);
+    expect([...new Set(missing)]).toEqual([]);
   });
 });
 

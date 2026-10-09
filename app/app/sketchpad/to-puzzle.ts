@@ -432,7 +432,13 @@ export const READERS: Record<Part, Reader | null> = {
       }
     }
   },
-  palisade: null,   // no stamp yet: toDrawing's diamond doesn't say how many sides are marked
+  // the palisade stamp: how many of the square's sides are borders, and whether two are opposite
+  palisade: (cx) => {
+    for (const { s, cell } of cellStamps(cx, "palisade")) {
+      const value = Math.max(0, Math.min(4, s.count ?? 2));
+      cx.give({ at: "cell", cell, kind: "palisade", value, ...(value === 2 && s.opposite ? { opposite: true } : {}) }, s.id);
+    }
+  },
   pearl: (cx) => {
     for (const { s, cell } of cellStamps(cx, "stone")) {
       const c = s.color ?? "black";
@@ -451,6 +457,13 @@ export const READERS: Record<Part, Reader | null> = {
   opposites: (cx) => { for (const s of cx.stamps("open-diamond")) { const e = cx.edge(s.at); if (e && cx.interior(e)) cx.give({ at: "border", cells: cx.edgeCells(e), kind: "opposites" }, s.id); } },
   // < > across an upright line, ∧ ∨ across a level one: pointing at the smaller region
   inequality: (cx) => {
+    // the stamp: its point toward the line's first square (left, above), or its second when flipped
+    for (const s of cx.stamps("inequality")) {
+      const e = cx.edge(s.at);
+      if (!e || !cx.interior(e)) continue;
+      const [a, b] = cx.edgeCells(e);
+      cx.give({ at: "border", cells: s.flip ? [b, a] : [a, b], kind: "inequality" }, s.id);
+    }
     for (const { t, e } of edgeTexts(cx)) {
       const sign = t.text.trim(), [a, b] = cx.edgeCells(e);
       if (!cx.interior(e)) continue;
@@ -514,8 +527,12 @@ export const READERS: Record<Part, Reader | null> = {
     for (const { t, side, cell } of ringTexts(cx)) { const k = symbols.indexOf(t.text.trim()); if (k >= 0 && t.text.trim().length === 1) cx.give({ at: "edge", cell, side, kind: "first", value: k + 1 }, t.id); }
   },
   skyscraper: (cx) => { for (const { t, side, cell } of ringTexts(cx)) if (INT.test(t.text.trim())) cx.give({ at: "edge", cell, side, kind: "skyscraper", value: Number(t.text.trim()) }, t.id); },
-  // a line through square centres, from the bulb (a stone at one end)
+  // the thermometer tool's; or a line through square centres, from the bulb (a stone at one end)
   thermo: (cx) => {
+    for (const t of cx.each("thermo")) {
+      if (t.cells.length < 2 || !t.cells.every(([r, c]) => cx.inside(r, c))) continue;
+      cx.give({ at: "cells", cells: t.cells.map(([r, c]) => [r, c] as [number, number]), kind: "thermo" }, t.id);
+    }
     for (const { s, part } of cx.parts("centres")) {
       if (!part.cells.every(([r, c]) => cx.inside(r, c))) continue;
       const bulbAt = (cell: [number, number]) => cellStamps(cx, "stone").find((x) => x.cell[0] === cell[0] && x.cell[1] === cell[1]);
@@ -671,6 +688,7 @@ const lineColor = (c: m.SymbolColor | undefined) => (c === "blue" || c === "yell
 const STAMP_WORDS: Record<m.StampKind, string> = {
   stone: "A stone", star: "A star", rock: "A shaded square", x: "An X", dot: "A dot", galaxy: "A circle", diamond: "A ◆", "open-diamond": "A ◇",
   hoshi: "A dot on the line", start: "A start", end: "An end", crest: "A crest", triangle: "A triangle", shape: "A shape", eraser: "An eraser",
+  inequality: "A < sign", palisade: "A palisade mark", thermo: "A thermometer",
 };
 function words(it: m.Item): string {
   switch (it.kind) {
@@ -679,6 +697,7 @@ function words(it: m.Item): string {
     case "wash": case "brush": return "A wash";
     case "gap": return "A gap in a line";
     case "pen": case "line": return "A line";
+    case "thermo": return "A thermometer";
   }
 }
 
@@ -691,7 +710,7 @@ function onGrid(cx: Ctx, it: m.Item): boolean {
   };
   switch (it.kind) {
     case "text": case "stamp": return near(it.at);
-    case "wash": case "gap": return true;
+    case "wash": case "gap": case "thermo": return true;
     case "brush": case "pen": return it.points.some(near);
     case "line": return near(it.from) && near(it.to);
   }
@@ -715,7 +734,8 @@ function leftovers(cx: Ctx) {
     if (it.kind === "text" && it.at.at === "cell" && !cx.inside(it.at.r, it.at.c)) { cx.problem("off-type", `${name} has no clues outside the grid`, [it.id]); continue; }
     if (it.kind === "stamp" && it.stamp === "shape" && !cx.gridCell(it.at) && !cx.profile.reads.includes("bank")) { cx.problem("off-type", `${name} has no shape bank`, [it.id]); continue; }
     const cell = it.kind === "text" || it.kind === "stamp" || it.kind === "wash" ? cx.gridCell(it.at) : null;
-    cx.problem("off-type", `${words(it)} isn't part of ${name}`, [it.id], cell ? [cell] : undefined);
+    const cells = it.kind === "thermo" ? it.cells.filter(([r, c]) => cx.inside(r, c)) : cell ? [cell] : undefined;
+    cx.problem("off-type", `${words(it)} isn't part of ${name}`, [it.id], cells?.length ? cells : undefined);
   }
 }
 

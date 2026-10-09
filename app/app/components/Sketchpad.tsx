@@ -51,6 +51,9 @@ const STAMPS: { id: StampKind; label: string; tip?: string }[] = [
   { id: "diamond", label: "Filled diamond", tip: "Filled diamond, on a line (twins)" }, { id: "open-diamond", label: "Empty diamond", tip: "Empty diamond, on a line (opposites)" },
   { id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
   { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" },
+  { id: "thermo", label: "Thermometer", tip: "Thermometer: drag from the bulb through the squares" },
+  { id: "inequality", label: "Inequality", tip: "A < sign on a line, pointing at the smaller side" },
+  { id: "palisade", label: "Palisade mark", tip: "Palisade: how many of the square's sides are borders" },
 ];
 const STAMP_LABEL = Object.fromEntries(STAMPS.map((s) => [s.id, s.label])) as Record<StampKind, string>;
 const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape", "eraser", "start", "hoshi"]);
@@ -72,7 +75,7 @@ const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
   <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: stampSvg(s, 16, 16, ICON_SIZE[s.stamp] ?? 40) }} /></span>
 );
 /** The square a stamp's button draws it in (a shaded square fills it; the rest sit in it). */
-const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44 };
+const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44, inequality: 60, palisade: 60, thermo: 44 };
 /** The shape pad's size, in squares. */
 const PAD = 5;
 const cellsKey = (cells: RC[]) => JSON.stringify(m.normalCells(cells));
@@ -122,6 +125,8 @@ type Gesture =
   | { kind: "line"; from: XY }
   | { kind: "wash"; on: boolean; last: XY }
   | { kind: "brush"; points: XY[] }
+  /** a thermometer, dragged from its bulb through the squares */
+  | { kind: "thermo"; cells: [number, number][] }
   /** rubbing out: things (not gaps), or breaking grid lines (along level or upright ones), or mending them */
   | { kind: "erase"; last: XY; mode: "items" | "gap" | "mend"; side?: m.EdgeAt["side"] };
 
@@ -155,6 +160,9 @@ export function Sketchpad({ handle, onChange, actions }: {
   const [hollow, setHollow] = useState(false);
   const [mayTurn, setMayTurn] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [flip, setFlip] = useState(false);   // an inequality pointing right or down
+  const [sides, setSides] = useState(2);     // a palisade's inked sides
+  const [opposite, setOpposite] = useState(false);
   const [small, setSmall] = useState(false);
   const [hover, setHover] = useState<XY | null>(null);
   const [typing, setTyping] = useState<{ at: Anchor; value: string; small: boolean } | null>(null);
@@ -181,6 +189,8 @@ export function Sketchpad({ handle, onChange, actions }: {
     ...(stampKind === "triangle" ? { count } : {}),
     ...(stampKind === "shape" ? { cells, ...(hollow ? { hollow } : {}), ...(mayTurn ? { rotate: true } : {}) } : {}),
     ...(stampKind === "stone" && hidden ? { hidden } : {}),
+    ...(stampKind === "inequality" && flip ? { flip } : {}),
+    ...(stampKind === "palisade" ? { count: sides, ...(sides === 2 && opposite ? { opposite } : {}) } : {}),
   });
 
   // the watercolour filter (in a hidden SVG of its own, so React's never has to make room for
@@ -277,7 +287,14 @@ export function Sketchpad({ handle, onChange, actions }: {
         } else begin({ kind: "brush", points: [p] });
         break;
       }
-      case "stamp": { const s = current(m.stampAnchor(bg, p, stampKind, snapping)); edit((dd) => m.stamp(dd, s)); break; }
+      case "stamp": {
+        if (stampKind === "thermo") {
+          const cell = m.cellAt(bg, p);
+          if (cell) { begin({ kind: "thermo", cells: [[cell.r, cell.c]] }); show(base); }
+          break;
+        }
+        const s = current(m.stampAnchor(bg, p, stampKind, snapping)); edit((dd) => m.stamp(dd, s)); break;
+      }
       case "text": {
         e.preventDefault();
         const at = m.textAnchor(bg, p, small, snapping), there = m.textAt(base, at);
@@ -328,6 +345,15 @@ export function Sketchpad({ handle, onChange, actions }: {
         show(m.add(base, { kind: "brush", color: wash, points: m.penStroke(base.grid, gg.points, false) }));
         break;
       }
+      case "thermo": {
+        // the squares passed through, each next to the last (near a square's middle, so a diagonal isn't taken by accident)
+        for (const q of m.along(m.pointOf(base.grid, { at: "cell", r: gg.cells[gg.cells.length - 1][0], c: gg.cells[gg.cells.length - 1][1] }), p, S / 4)) {
+          const cell = m.cellAt(base.grid, q), mid = cell && m.pointOf(base.grid, cell);
+          if (cell && mid && Math.hypot(mid.x - q.x, mid.y - q.y) < S * 0.38) gg.cells = m.thermoStep(gg.cells, cell.r, cell.c);
+        }
+        show(gg.cells.length > 1 ? m.add(base, { kind: "thermo", cells: gg.cells }) : base);
+        break;
+      }
       case "erase": {
         let next = now;
         const reach = reachOf(e);
@@ -358,6 +384,7 @@ export function Sketchpad({ handle, onChange, actions }: {
       }
       case "pen": next = m.add(base, { kind: "pen", weight, points: m.penStroke(base.grid, gg.points, snapping) }); break;
       case "brush": next = m.add(base, { kind: "brush", color: wash, points: m.penStroke(base.grid, gg.points, false) }); break;
+      case "thermo": next = m.thermo(base, gg.cells); break;
       case "line": {
         const line = m.straightLine(base.grid, gg.from, p, snapping), a = m.pointOf(base.grid, line.from), b = m.pointOf(base.grid, line.to);
         next = Math.hypot(a.x - b.x, a.y - b.y) < 2 ? base : m.add(base, { kind: "line", weight, ...line });
@@ -390,7 +417,12 @@ export function Sketchpad({ handle, onChange, actions }: {
   const markup = (it: m.Item) => itemSvg(d, it);
   const ghost = (() => {
     if (!hover || gesture.current || typing) return "";
-    if (tool === "stamp") { const at = m.stampAnchor(g, hover, stampKind, snapping), q = m.pointOf(g, at); return `<g class="ghost">${stampSvg(current(at), q.x, q.y, S, m.outward(g, at))}</g>`; }
+    if (tool === "stamp" && stampKind === "thermo") {
+      const at = m.cellAt(g, hover);
+      if (at) { const q = m.pointOf(g, at); return `<circle class="spot" cx="${q.x}" cy="${q.y}" r="${S * 0.36}"/>`; }
+      return "";
+    }
+    if (tool === "stamp") { const at = m.stampAnchor(g, hover, stampKind, snapping), q = m.pointOf(g, at); return `<g class="ghost">${stampSvg(current(at), q.x, q.y, S, m.outward(g, at), at.at === "edge" ? at.side : undefined)}</g>`; }
     if (tool === "text" && small && snapping && g) {
       const q = m.pointOf(g, m.textAnchor(g, hover, true, true));
       return `<circle class="spot" cx="${q.x}" cy="${q.y}" r="${Math.max(5, S * 0.16)}"/>`;
@@ -490,6 +522,21 @@ export function Sketchpad({ handle, onChange, actions }: {
               <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
                 <StampIcon s={{ stamp: "stone", color: colors.stone, hidden: true }} /><span>Hidden</span></button>
             )}
+            {stampKind === "inequality" && (
+              <span className="sp-seg" role="group" aria-label="Points at">
+                <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={!flip} onClick={() => setFlip(false)} data-tip="Points left or up">&lt; ∧</button>
+                <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={flip} onClick={() => setFlip(true)} data-tip="Points right or down">&gt; ∨</button>
+              </span>
+            )}
+            {stampKind === "palisade" && <>
+              <span className="sp-label">Borders</span>
+              <span className="sp-seg" role="group" aria-label="Borders">
+                {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={sides === n} onClick={() => setSides(n)}>{n}</button>)}
+              </span>
+              {sides === 2 && <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="The two borders opposite, not at a corner">
+                <StampIcon s={{ stamp: "palisade", count: 2, opposite: true }} /><span>Opposite</span></button>}
+            </>}
+            {stampKind === "thermo" && <span className="sp-label">Drag from the bulb through the squares; tap a bulb to take its thermometer off</span>}
             {stampKind === "triangle" && (
               <span className="sp-seg" role="group" aria-label="How many">
                 {[1, 2, 3].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}

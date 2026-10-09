@@ -404,8 +404,9 @@ Eraser. Nonogram: Grid, Wash, Text, Eraser. RYB: Line, Stamp, Eraser.
   (toDrawing writes the numbers, not the picture's washes; washes in a nonogram are read back as a
   picture, without the colours being the original hex values).
 - **Not yet round-tripping**: RYB (no grid: closed straight-line shapes → pieces is new geometry);
-  Panes' `palisade` (no stamp: toDrawing's diamond doesn't say how many sides are marked); `dots`
-  (RYB's). These are the profile coverage test's expected gaps.
+  `dots` (RYB's). Thermometers, inequality signs and palisade marks have their own sketchpad items
+  now (the Thermometer stamp, dragged from the bulb; the Inequality stamp on a line, with which way
+  it points; the Palisade stamp with its inked sides), drawn as the boards draw them.
 - **Problems, lines, switching type, rule hints** (built): off-type, off-grid, title, loose
   snapping, wrong look, no grid, RYB; resolveStroke on straight, diagonal, wobbly, overshooting and
   mixed strokes; thermometers with no bulb, dangling borders, headless doors, misplaced box lines;

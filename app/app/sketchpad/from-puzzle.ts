@@ -204,10 +204,6 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
   const borderLine = ([[r1, c1], [r2, c2]]: [number, number][]): [m.Anchor, m.Anchor] => r1 === r2
     ? [{ at: "corner", r: r1, c: Math.max(c1, c2) }, { at: "corner", r: r1 + 1, c: Math.max(c1, c2) }]
     : [{ at: "corner", r: Math.max(r1, r2), c: c1 }, { at: "corner", r: Math.max(r1, r2), c: c1 + 1 }];
-  const diamond = (r: number, c: number, h: number, weight: m.Weight) => {
-    const pts = [G(r - h, c), G(r, c + h), G(r + h, c), G(r, c - h)];
-    pts.forEach((a, k) => line(a, pts[(k + 1) % 4], weight));
-  };
   const shapeOk = (cells: [number, number][], what: string) => {
     const n = normalShape(cells), h = Math.max(...n.map((x) => x[0])) + 1, w = Math.max(...n.map((x) => x[1])) + 1;
     if (h > PAD || w > PAD) gaps.add(`${what} bigger than the ${PAD} × ${PAD} shape pad`);
@@ -249,20 +245,17 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
         for (const spot of ["n", "e", "s", "w"] as const) if (v[spot] !== undefined) small({ at: "inset", r, c, spot }, String(v[spot]));
         break;
       }
-      case "palisade": {
-        // a small diamond, its marked sides in medium pen, the rest fine
-        rough.add("palisade: a small diamond of fine and medium lines");
-        diamond(gv.cell[0] + 0.5, gv.cell[1] + 0.5, 0.3, "fine");
+      case "palisade":
+        stamp({ kind: "stamp", stamp: "palisade", count: gv.value, ...(gv.value === 2 && gv.opposite ? { opposite: true } : {}), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "palisade");
         break;
-      }
       case "dots": break;   // figures only (above)
       case "wall": { const [a, b] = borderLine(gv.cells); line(a, b, "bold"); break; }
       case "twins": stamp({ kind: "stamp", stamp: "diamond", at: borderEdge(gv.cells) }, "twins"); break;
       case "opposites": stamp({ kind: "stamp", stamp: "open-diamond", at: borderEdge(gv.cells) }, "opposites"); break;
       case "inequality": {
-        const [[r1, c1], [r2]] = gv.cells;
-        rough.add("an inequality sign written as small text on a grid line");
-        small(borderEdge(gv.cells), r1 === r2 ? (c1 < gv.cells[1][1] ? "<" : ">") : (r1 < r2 ? "∧" : "∨"));
+        // the stamp on the line between them, pointing at the first (the smaller); flipped when that's right or below
+        const [[r1, c1], [r2, c2]] = gv.cells;
+        stamp({ kind: "stamp", stamp: "inequality", ...(r1 > r2 || c1 > c2 ? { flip: true } : {}), at: borderEdge(gv.cells) }, "inequality");
         break;
       }
       case "difference": small(borderEdge(gv.cells), String(gv.value)); break;
@@ -283,14 +276,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
         text({ at: "cell", r: r + o[0], c: c + o[1] }, gv.kind === "first" ? (letters ?? "ABCDEFGHIJ")[gv.value - 1] : String(gv.value));
         break;
       }
-      case "thermo": {
-        rough.add("a thermometer: a bold line and a white stone, not the board's wide pale tube");
-        const [b0, ...rest] = gv.cells;
-        stamp({ kind: "stamp", stamp: "stone", color: "white", at: { at: "cell", r: b0[0], c: b0[1] } }, "thermo bulb");
-        d = m.add(d, { kind: "pen", weight: "bold", points: gv.cells.map(([r, c]) => ({ at: "cell", r, c }) as m.Anchor) });
-        void rest;
-        break;
-      }
+      case "thermo": d = m.add(d, { kind: "thermo", cells: gv.cells.map(([r, c]) => [r, c] as [number, number]) }); break;
       case "galaxy": {
         const [y, x] = gv.point, at: m.Anchor = y % 2 && x % 2 ? { at: "cell", r: (y - 1) / 2, c: (x - 1) / 2 }
           : !(y % 2) && !(x % 2) ? { at: "corner", r: y / 2, c: x / 2 }

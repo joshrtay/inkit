@@ -301,3 +301,20 @@ describe("a quick drag", () => {
     expect(m.along({ x: 0, y: 0 }, { x: 0, y: 0 }, 4)).toEqual([{ x: 0, y: 0 }]);
   });
 });
+
+describe("thermometers", () => {
+  it("are dragged square by square from the bulb, back steps undo, a bulb tapped takes one off", async () => {
+    const m = await import("~/sketchpad/model");
+    let cells: [number, number][] = [[3, 0]];
+    cells = m.thermoStep(cells, 2, 1);   // diagonal: next to it
+    cells = m.thermoStep(cells, 0, 1);   // two away: skipped
+    cells = m.thermoStep(cells, 1, 1);
+    cells = m.thermoStep(cells, 2, 1);   // back: the last comes off
+    expect(cells).toEqual([[3, 0], [2, 1]]);
+    let d = m.thermo(m.EMPTY, [[3, 0], [2, 1], [1, 1]]);
+    expect(d.items).toEqual([{ id: 1, kind: "thermo", cells: [[3, 0], [2, 1], [1, 1]] }]);
+    expect(m.thermo(d, [[3, 0]]).items).toEqual([]);
+    d = m.thermo(d, [[2, 2]]);
+    expect(d.items).toHaveLength(1);
+  });
+});

@@ -3,6 +3,7 @@
 // the player uses (panel-draw.ts), so a stone here is the stone a player sees. The classes are
 // styles.css's (under .grid-game) and sketchpad.css's (.sp-*).
 import { ensoPath, LINE_COLORS, stoneSvg, symbolSvg } from "~site/game-types/grid/panel-draw.ts";
+import { palisadeSvg } from "~site/game-types/grid/region-clues.ts";
 import { HEX_SIDE, hexGrid } from "~site/engine/geometry.ts";
 import { CELL, gapsOf, outward, pointOf, sameAnchor, squareOf, type Anchor, type Drawing, type EdgeAt, type Grid, type Item, type XY, smoothPath } from "./model";
 
@@ -117,8 +118,25 @@ export function penVars(S: number): Record<string, string> {
 
 const lineColor = (c?: string): A => (c && LINE_COLORS[c] ? { style: `fill:${LINE_COLORS[c]}` } : {});
 
-/** One stamp, around (x, y), sized to a square of `S`. Also draws the toolbar's buttons. */
-export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "color" | "count" | "cells" | "hollow" | "rotate" | "hidden">, x: number, y: number, S: number, out: XY = { x: 0, y: -1 }): string {
+/** A thermometer through these points, as the boards draw one (picture.ts): a wide pale tube, and
+ *  its bulb at the first. */
+export function thermoSvg(pts: XY[], S: number): string {
+  return tag("polyline", { class: "thermo", points: pts.map((p) => `${f1(p.x)},${f1(p.y)}`).join(" ") })
+    + (pts[0] ? tag("circle", { class: "thermo-bulb", cx: pts[0].x, cy: pts[0].y, r: S * 0.36 }) : "");
+}
+
+/** Panes' < on a line, as the boards draw it (region-clues.ts): a small circle on the line with
+ *  the sign in it, its point toward the smaller side. `toward`: which way it points. */
+function inequalitySvg(x: number, y: number, S: number, toward: XY): string {
+  const rad = S * 0.21, d = rad * 0.5, { x: dx, y: dy } = toward;
+  const tip = [x + dx * d, y + dy * d], back = [x - dx * d, y - dy * d];
+  return tag("g", { class: "border-clue inequality" }, tag("circle", { cx: x, cy: y, r: rad })
+    + tag("path", { d: `M${f1(back[0] - dy * d)} ${f1(back[1] - dx * d)}L${f1(tip[0])} ${f1(tip[1])}L${f1(back[0] + dy * d)} ${f1(back[1] + dx * d)}` }));
+}
+
+/** One stamp, around (x, y), sized to a square of `S`. Also draws the toolbar's buttons. `edge`:
+ *  the grid line it's on (an inequality points across it). */
+export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "color" | "count" | "cells" | "hollow" | "rotate" | "hidden" | "flip" | "opposite">, x: number, y: number, S: number, out: XY = { x: 0, y: -1 }, edge: EdgeAt["side"] = "left"): string {
   switch (s.stamp) {
     // Masyu's pearls are stones this size, and so are a panel's squares (docs/style.md); a hidden
     // one (RYB's dots shown once painted) has a dashed outline
@@ -141,6 +159,11 @@ export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "co
     case "triangle": return symbolSvg({ kind: "triangle", value: s.count ?? 1, color: s.color ?? "orange" }, x, y, S);
     case "shape": return symbolSvg({ kind: "shape", value: s.cells ?? [[0, 0]], color: s.color ?? (s.hollow ? "blue" : "yellow"), negative: !!s.hollow, rotate: !!s.rotate }, x, y, S);
     case "eraser": return symbolSvg({ kind: "eraser", color: s.color }, x, y, S);
+    // on an upright line, < points left (the first square); on a level one, ∧ points up
+    case "inequality": { const k = s.flip ? 1 : -1; return inequalitySvg(x, y, S, edge === "left" ? { x: k, y: 0 } : { x: 0, y: k }); }
+    case "palisade": return palisadeSvg(s.count ?? 2, !!s.opposite, x, y, S);
+    // the button's picture: a short thermometer
+    case "thermo": return thermoSvg([{ x: x - S * 0.22, y: y + S * 0.22 }, { x: x + S * 0.28, y: y - S * 0.28 }], S * 0.55);
   }
 }
 
@@ -157,13 +180,14 @@ export function itemSvg(d: Drawing, it: Item): string {
       // on a panel's tracks, an end is a short track out of the edge, as the player draws it
       if (it.stamp === "rock" && onHex(g, it.at)) return tag("polygon", { class: "rock wash", points: hexPoints(p.x, p.y, S) });
       if (it.stamp === "end" && g?.tracks) return tag("line", { class: "panel-track", x1: p.x, y1: p.y, x2: p.x + out.x * S * 0.3, y2: p.y + out.y * S * 0.3, style: `stroke-width:${f1(S * 0.25)}` });
-      return stampSvg(it, p.x, p.y, S, out);
+      return stampSvg(it, p.x, p.y, S, out, it.at.at === "edge" ? it.at.side : undefined);
     }
     case "text": {
       const p = at(it.at), size = textSize(d, it.small);
       return tag("text", { class: `clue sp-text${it.small ? " small" : ""}${onDark(d, it) ? " on-rock" : ""}`, x: p.x, y: p.y + size * 0.06, style: `font-size:${f1(size)}px` }, esc(it.text));
     }
     case "gap": return "";   // the grid leaves it out (gridSvg)
+    case "thermo": return thermoSvg(it.cells.map(([r, c]) => at({ at: "cell", r, c })), S);
   }
 }
 

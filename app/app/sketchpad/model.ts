@@ -69,6 +69,10 @@ export const STAMP_SNAP = {
   diamond: ["edge"], "open-diamond": ["edge"],
   hoshi: ["corner", "edge"], start: ["corner"], end: ["corner"],
   crest: ["cell"], triangle: ["cell"], shape: ["cell"], eraser: ["cell"],
+  // Panes: a < sign on a line (pointing at the smaller side), a palisade mark in a square
+  inequality: ["edge"], palisade: ["cell"],
+  // a thermometer: dragged from its bulb through the squares (a "thermo" item, not a stamp)
+  thermo: ["cell"],
 } satisfies Record<string, Snap[]>;
 export type StampKind = keyof typeof STAMP_SNAP;
 
@@ -81,11 +85,15 @@ export type Item =
   | { id: number; kind: "wash"; color: WashColor; at: CellAt }
   /** a freehand brush of wash */
   | { id: number; kind: "brush"; color: WashColor; points: Anchor[] }
-  /** `color` for stones and panel symbols; `count` a triangle's; `cells` a shape's (from 0,0),
-   *  `hollow` (a negative shape, drawn dashed) and `rotate` (it may turn: drawn tilted); `hidden`
-   *  a stone that isn't shown until it's painted (RYB's hidden dots: a dashed outline) */
+  /** `color` for stones and panel symbols; `count` a triangle's, or a palisade's inked sides (0-4);
+   *  `cells` a shape's (from 0,0), `hollow` (a negative shape, drawn dashed) and `rotate` (it may
+   *  turn: drawn tilted); `hidden` a stone that isn't shown until it's painted (RYB's hidden dots: a
+   *  dashed outline); `flip` an inequality pointing at the line's second square (right or below)
+   *  rather than its first; `opposite` a palisade's two inked sides opposite, not at a corner */
   | { id: number; kind: "stamp"; stamp: StampKind; at: Anchor; color?: SymbolColor; count?: number; cells?: [number, number][];
-      hollow?: boolean; rotate?: boolean; hidden?: boolean }
+      hollow?: boolean; rotate?: boolean; hidden?: boolean; flip?: boolean; opposite?: boolean }
+  /** a thermometer: the squares it runs through, from its bulb, drawn as the boards draw one */
+  | { id: number; kind: "thermo"; cells: [number, number][] }
   /** a number, letter or word, handwritten; `small`: half size (corner sums, compass and border numbers) */
   | { id: number; kind: "text"; at: Anchor; text: string; small?: boolean }
   /** a break in a grid line (a panel's gap): the line between two corners, left out */
@@ -361,7 +369,7 @@ export function removeGrid(d: Drawing): Drawing {
     switch (it.kind) {
       case "pen": case "brush": return [{ ...it, points: it.points.map(keep) }];
       case "line": return [{ ...it, from: keep(it.from), to: keep(it.to) }];
-      case "wash": case "gap": return [];   // a washed square, a gap in a line: the grid's
+      case "wash": case "gap": case "thermo": return [];   // a washed square, a gap in a line, a thermometer: the grid's
       case "stamp": case "text": return [{ ...it, at: keep(it.at) }];
     }
   });
@@ -381,7 +389,8 @@ export function remove(d: Drawing, ids: Iterable<number>): Drawing {
 export const clear = (d: Drawing): Drawing => (d.items.length || d.grid ? { ...EMPTY, next: d.next } : d);
 
 const sameStamp = (a: Stamp, b: Stamp) => a.stamp === b.stamp && a.color === b.color && a.count === b.count
-  && JSON.stringify(a.cells) === JSON.stringify(b.cells) && !a.hollow === !b.hollow && !a.rotate === !b.rotate && !a.hidden === !b.hidden;
+  && JSON.stringify(a.cells) === JSON.stringify(b.cells) && !a.hollow === !b.hollow && !a.rotate === !b.rotate && !a.hidden === !b.hidden
+  && !a.flip === !b.flip && !a.opposite === !b.opposite;
 
 /** Stamp something: the same stamp tapped again comes off; a different one in the same place
  *  (a square holds one stamp, as a point does) takes its spot. */
@@ -426,7 +435,7 @@ export const textAt = (d: Drawing, at: Anchor) =>
 // ---- what's under a point (the eraser) ----
 
 /** The layers, bottom to top (draw.ts draws them in this order; the grid goes over the washes). */
-export const LAYERS: Item["kind"][][] = [["gap", "wash", "brush"], ["pen", "line"], ["stamp"], ["text"]];
+export const LAYERS: Item["kind"][][] = [["gap", "wash", "brush", "thermo"], ["pen", "line"], ["stamp"], ["text"]];
 const layerOf = (k: Item["kind"]) => LAYERS.findIndex((l) => l.includes(k));
 
 function segDist(p: XY, a: XY, b: XY) {
@@ -447,6 +456,7 @@ export function distanceTo(d: Drawing, it: Item, p: XY): number {
     case "stamp": return Math.max(0, dist(p, at(it.at)) - S * 0.3);
     case "text": return Math.max(0, dist(p, at(it.at)) - S * (it.small ? 0.15 : 0.3));
     case "gap": { const [a, b] = edgeEnds(it.at); return segDist(p, at(a), at(b)); }
+    case "thermo": return Math.max(0, pathDist(p, it.cells.map(([r, c]) => at({ at: "cell", r, c }))) - S * 0.2);
   }
 }
 
@@ -461,6 +471,26 @@ export function hit(d: Drawing, p: XY, reach = 8, only?: (it: Item) => boolean):
     if (!best || layer > best.layer || (layer === best.layer && dd <= best.d)) best = { it, layer, d: dd };
   }
   return best?.it ?? null;
+}
+
+/** A thermometer through these squares, from its bulb: two or more, each next to the last (a side
+ *  or a corner), none twice. Tapping a bulb with one square takes that thermometer off. */
+export function thermo(d: Drawing, cells: [number, number][]): Drawing {
+  if (cells.length === 1) {
+    const there = d.items.find((it) => it.kind === "thermo" && it.cells[0][0] === cells[0][0] && it.cells[0][1] === cells[0][1]);
+    return there ? remove(d, [there.id]) : d;
+  }
+  return cells.length < 2 ? d : add(d, { kind: "thermo", cells });
+}
+/** The next square of a thermometer being dragged: added if it's next to the last; going back
+ *  onto the one before takes the last off. */
+export function thermoStep(cells: [number, number][], r: number, c: number): [number, number][] {
+  const last = cells[cells.length - 1];
+  if (!last || (last[0] === r && last[1] === c)) return cells;
+  const prev = cells[cells.length - 2];
+  if (prev && prev[0] === r && prev[1] === c) return cells.slice(0, -1);
+  if (Math.max(Math.abs(last[0] - r), Math.abs(last[1] - c)) !== 1 || cells.some(([y, x]) => y === r && x === c)) return cells;
+  return [...cells, [r, c]];
 }
 
 // ---- undo ----
