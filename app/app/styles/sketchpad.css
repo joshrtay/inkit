@@ -148,6 +148,10 @@
 .sp-status-hint { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sp-status-facts { white-space: nowrap; }
 .sp-status .sp-toggle { height: 26px; font-size: 12.5px; }
+/* Puzzle types (the rules, slid in from the right: GuidePane) and Download: an icon and a name; on a phone, the icon */
+.sp-head-btn { display: inline-flex; align-items: center; gap: 7px; }
+.sp-head-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 720px) { .sp-head-btn span { display: none; } .sp-head-btn { padding: 0 8px; } }
 /* undo, redo and clear, in the page's header beside Download */
 .sp-doc-slot, .sp-doc { display: inline-flex; align-items: center; gap: 2px; }
 .sp-doc { padding-right: 8px; margin-right: 4px; border-right: 1px solid var(--line); }
@@ -175,8 +179,6 @@
 .sp-swatch:disabled { cursor: default; }
 .sp-swatch:disabled > span { opacity: .3; }
 .sp-swatch:disabled::after { content: ""; position: absolute; left: 50%; top: 12%; bottom: 12%; width: 1.5px; background: var(--muted); transform: rotate(45deg); }
-.sp-stamp-group + .sp-stamp-group { margin-top: 12px; }
-.sp-stamp-group h3 { margin: 0 0 6px; font: 700 12.5px/1 var(--body); color: var(--muted); }
 .sp-stamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 6px; }
 .sp-stamp {
   aspect-ratio: 1; display: grid; place-items: center; padding: 0; cursor: pointer;

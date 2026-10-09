@@ -42,15 +42,17 @@ const TOOLS: { id: Tool; label: string; key: string; hint: string; group: number
 const WEIGHTS: { id: Weight; label: string; width: number }[] = [
   { id: "fine", label: "Fine", width: 1.6 }, { id: "medium", label: "Medium", width: 2.6 }, { id: "bold", label: "Bold", width: 5.5 }];
 /** The stamps, grouped for the picker. */
-const STAMP_GROUPS: { name: string; stamps: { id: StampKind; label: string; tip?: string }[] }[] = [
+/** The stamps, in one list (many are shared between puzzle types, so they aren't grouped by type):
+ *  stones, then marks, then the line puzzles' symbols. */
+const STAMPS: { id: StampKind; label: string; tip?: string }[] = [
   // a panel's squares are stones too (docs/style.md), so the stone, in any colour, draws them
-  { name: "Stones", stamps: [{ id: "stone", label: "Stone", tip: "Stone (pearls, a panel's squares, paint dots)" }] },
-  { name: "Marks", stamps: [{ id: "star", label: "Star" }, { id: "rock", label: "Shaded square" }, { id: "galaxy", label: "Circle" }, { id: "x", label: "X" }, { id: "dot", label: "Dot" },
-    { id: "diamond", label: "Filled diamond", tip: "Filled diamond, on a line (twins)" }, { id: "open-diamond", label: "Empty diamond", tip: "Empty diamond, on a line (opposites)" }] },
-  { name: "Panel symbols", stamps: [{ id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
-    { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" }] },
+  { id: "stone", label: "Stone", tip: "Stone (pearls, a panel's squares, paint dots)" },
+  { id: "star", label: "Star" }, { id: "rock", label: "Shaded square" }, { id: "galaxy", label: "Circle" }, { id: "x", label: "X" }, { id: "dot", label: "Dot" },
+  { id: "diamond", label: "Filled diamond", tip: "Filled diamond, on a line (twins)" }, { id: "open-diamond", label: "Empty diamond", tip: "Empty diamond, on a line (opposites)" },
+  { id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
+  { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" },
 ];
-const STAMP_LABEL = Object.fromEntries(STAMP_GROUPS.flatMap((g) => g.stamps.map((s) => [s.id, s.label]))) as Record<StampKind, string>;
+const STAMP_LABEL = Object.fromEntries(STAMPS.map((s) => [s.id, s.label])) as Record<StampKind, string>;
 const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape", "eraser", "start", "hoshi"]);
 /** A symmetry panel's starts and dots: ink, or one of its two lines' colours. */
 const LINE_STAMPS = new Set<StampKind>(["start", "hoshi"]);
@@ -605,17 +607,12 @@ export function Sketchpad({ handle, onChange, actions }: {
         </section>
         <section id="sp-stamps" className="sp-panel" aria-labelledby="sp-stamps-h">
           <h2 id="sp-stamps-h" className="sp-panel-h">Stamps</h2>
-          {STAMP_GROUPS.map((grp) => (
-            <div key={grp.name} className="sp-stamp-group" role="group" aria-label={grp.name}>
-              <h3 aria-hidden="true">{grp.name}</h3>
-              <div className="sp-stamps">
-                {grp.stamps.map((st) => <button key={st.id} type="button" className="sp-stamp sp-tip" aria-label={st.label} data-tip={st.tip ?? st.label}
-                  aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
-                  <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
-                </button>)}
-              </div>
-            </div>
-          ))}
+          <div className="sp-stamps" role="group" aria-label="Stamps">
+            {STAMPS.map((st) => <button key={st.id} type="button" className="sp-stamp sp-tip" aria-label={st.label} data-tip={st.tip ?? st.label}
+              aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
+              <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
+            </button>)}
+          </div>
         </section>
       </aside>
     </div>

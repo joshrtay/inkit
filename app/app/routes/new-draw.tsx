@@ -12,6 +12,7 @@ import { createFromDrawing, publishTargets } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { ReadingScreen } from "~/components/ReadingScreen";
 import { Sketchpad, type SketchpadHandle } from "~/components/Sketchpad";
+import { GuidePane } from "~/components/GuidePane";
 
 export const meta: Route.MetaFunction = () => [{ title: "Draw a puzzle · inkit" }, { name: "robots", content: "noindex" }];
 // a page of its own, like the editor: the whole width for the paper
@@ -41,7 +42,8 @@ export default function DrawGame({ loaderData: { collection, slug }, actionData 
   const busy = nav.state !== "idle";
   const reading = nav.state === "submitting" || (nav.state === "loading" && !!nav.formData);
   const pad = useRef<SketchpadHandle | null>(null);
-  const [slot, setSlot] = useState<HTMLElement | null>(null);   // the header's place for undo, redo and clear
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  const [guide, setGuide] = useState(false);   // the puzzle types, slid in from the right   // the header's place for undo, redo and clear
   const [empty, setEmpty] = useState(true);
   const [preview, setPreview] = useState<string>();
   const [problem, setProblem] = useState<string>();
@@ -81,12 +83,18 @@ export default function DrawGame({ loaderData: { collection, slug }, actionData 
         </div>
         <div className="studio-actions">
           <span ref={setSlot} className="sp-doc-slot" />
-          <button type="button" className="btn" disabled={empty} onClick={download} title="Save the drawing as a picture">Download</button>
+          <button type="button" className="btn rules-toggle sp-head-btn" aria-pressed={guide} aria-label="Puzzle types" onClick={() => setGuide(!guide)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">{["M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z", "M4 21V5", "M8 7h7", "M8 11h5"].map((d) => <path key={d} d={d} />)}</svg>
+            <span>Puzzle types</span></button>
+          <button type="button" className="btn sp-head-btn" disabled={empty} onClick={download} title="Save the drawing as a picture" aria-label="Download">
+            <svg viewBox="0 0 24 24" aria-hidden="true">{["M12 4v11", "m7 10 5 5 5-5", "M5 20h14"].map((d) => <path key={d} d={d} />)}</svg>
+            <span>Download</span></button>
           <button type="button" className="btn primary" disabled={empty || busy || !collection} onClick={read} title="Claude reads the drawing as it would a photo; then you check it in the editor">Read my drawing</button>
         </div>
       </header>
       <Sketchpad handle={pad} onChange={(d) => setEmpty(!d.grid && !d.items.length)} actions={slot} />
       {error && <p className="sp-error" role="alert">{error}</p>}
+      <GuidePane side open={guide} onClose={() => setGuide(false)} />
       {reading && <ReadingScreen image={preview} />}
     </div>
   );

@@ -209,3 +209,26 @@ test("a panel: gaps in the grid's lines, a hollow pentomino from the pad, colour
   expect((await data()).find((it: { kind: string }) => it.kind === "text")).toMatchObject({ small: true, at: { at: "corner", r: 3, c: 3 } });
   expect(errors).toEqual([]);
 });
+
+test("the stamps are one list, and the puzzle types open beside the paper", async ({ page }) => {
+  await page.goto("/new/draw");
+  // many stamps belong to several types, so they aren't grouped by type
+  await expect(page.locator(".sp-side h3")).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(15);
+  const types = page.locator(".studio-top").getByRole("button", { name: "Puzzle types" });
+  await types.click();
+  await expect(types).toHaveAttribute("aria-pressed", "true");
+  const pane = page.getByRole("complementary", { name: "Puzzle types" });
+  await expect(pane.getByRole("searchbox", { name: "Search puzzle types" })).toBeVisible();
+  await page.waitForTimeout(400);   // it slides in
+  await page.screenshot({ path: "/private/tmp/claude-501/-Users-josh-Claude-wyattsgames/b29a2b55-fc14-4134-9793-8110f7fb5aae/scratchpad/draw-guide.png" });
+  await pane.getByRole("button", { name: "Close" }).click();
+  await expect(types).toHaveAttribute("aria-pressed", "false");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await types.click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: "/private/tmp/claude-501/-Users-josh-Claude-wyattsgames/b29a2b55-fc14-4134-9793-8110f7fb5aae/scratchpad/draw-guide-phone.png" });
+  await pane.getByRole("button", { name: "Close" }).click();
+  await page.waitForTimeout(400);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
