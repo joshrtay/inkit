@@ -29,10 +29,9 @@ test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => { if (!sessionStorage.getItem("keep")) localStorage.removeItem("inkit:sketchpad"); });
 });
 
-test("/new offers drawing it here", async ({ page }) => {
-  await page.goto("/new");
-  await page.getByRole("link", { name: "Draw it here" }).click();
-  await expect(page).toHaveURL(/\/new\/draw$/);
+// /new starts in paint now (create.spec.ts); /new/draw stays until paint has every type (docs/creation-flow.md §6)
+test("/new/draw still opens the sketchpad", async ({ page }) => {
+  await page.goto("/new/draw");
   await expect(page.locator(".sp-board")).toBeVisible();
 });
 

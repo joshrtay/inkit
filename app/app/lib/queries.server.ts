@@ -34,6 +34,11 @@ export const collectionGames = (db: Db, collectionId: string, all: boolean) => c
   .where(all ? eq(schema.games.collectionId, collectionId) : and(eq(schema.games.collectionId, collectionId), eq(schema.games.state, "published")))
   .orderBy(desc(schema.games.updatedAt));
 
+/** Someone's latest drafts, anywhere they've made them (not an AI creator's scheduled posts): /new's "Carry on with a draft". */
+export const latestDrafts = (db: Db, authorId: string, limit = 3) => cards(db)
+  .where(and(eq(schema.games.authorId, authorId), eq(schema.games.state, "draft"), isNull(schema.games.publishAt), isNull(schema.collections.deletedAt)))
+  .orderBy(desc(schema.games.updatedAt)).limit(limit);
+
 export const collectionBySlug = (db: Db, slug: string) =>
   db.query.collections.findFirst({ where: eq(schema.collections.slug, slug) });
 

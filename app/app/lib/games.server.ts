@@ -10,7 +10,7 @@ import { looseSpec, parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { newId } from "./names.server";
 import { canEdit, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
 import { cropTo, prepare } from "./photos.server";
-import { IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
+import { givenReading, IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
 import { notePublished, recordRead } from "./reads.server";
 
 /** The game types a reading could be, its own first (at most 4). */
@@ -22,7 +22,7 @@ type Game = typeof schema.games.$inferSelect;
 import { Invalid } from "./errors.server";
 import { doubtFromNote, doubtsOf, type Doubt } from "../games/doubts";
 import { GENRE_NAMES, makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
-import { readPaintSave, sketchOf } from "../games/paint-save";
+import { paintFromSketch, readPaintSave, sketchOf } from "../games/paint-save";
 export { Invalid };
 
 export async function sketchHash(sketch: string) {
@@ -158,6 +158,17 @@ function drawingFrom(form: FormData): string | undefined {
   try { const o = JSON.parse(v); return o && typeof o === "object" && Array.isArray(o.items) ? JSON.stringify(o) : undefined; } catch { return undefined; }
 }
 
+/** A blank draft for paint (/new's Start blank): no type, no sketch, no drawing yet. Returns its id. */
+export async function createBlank(db: Db, me: Creator, form: FormData) {
+  const collectionId = String(form.get("collection") ?? "");
+  if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
+  const id = newId();
+  await db.insert(schema.games).values({
+    id, collectionId, authorId: me.id, sketch: "", sketchVersion: SKETCH_VERSION, kind: "", state: "draft", title: "Untitled", parseNotes: [], kindChoices: [],
+  });
+  return id;
+}
+
 /** Upload a drawing: Claude reads it, and it becomes a draft to confirm. Returns the game's id. */
 export async function createFromDrawing(db: Db, env: Env, me: Creator, form: FormData) {
   const collectionId = String(form.get("collection") ?? "");
@@ -172,8 +183,13 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   const log: Attempt[] = [];
   const record = { creatorId: me.id, kind: "upload" as const, attempts: log };
   let read;
+  // the browser tests give the reading themselves (tests/e2e/create.spec.ts), so they never call
+  // Claude; only while the site runs in development
+  const given = import.meta.env.DEV ? form.get("given-reading") : null;
   try {
-    read = await readSketch(env, { data: toBase64(photo.bytes), type: photo.type }, { log, drawing });
+    read = typeof given === "string" && given
+      ? (log.push({ reader: "quick", model: "given (tests)", effort: "", ms: 0 }), givenReading(given))
+      : await readSketch(env, { data: toBase64(photo.bytes), type: photo.type }, { log, drawing });
   } catch (e) {
     await recordRead(db, { ...record, imageKey: null, gameId: null, error: (e as Error).message });
     throw e;
@@ -187,6 +203,9 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
     id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: reading.genre, state: "draft",
     title: reading.title || "Untitled",   // a title written on the sketch; set in the editor otherwise
     sketchImage: key, reading: sketch, parseNotes: doubtsFrom(reading, sketch), kindChoices: choicesOf(reading),
+    // drawn in paint's ink, with the type it was read as (docs/creation-flow.md §1.4); the sketch
+    // stays the reading's until paint saves its own
+    drawing: paintFromSketch(sketch),
   });
   await recordRead(db, { ...record, imageKey: key, gameId: id, result: { reading, sketch, puzzleKind: reading.genre, model: log.at(-1)!.model } });
   return id;
@@ -245,4 +264,33 @@ export async function saveDrawing(db: Db, me: Creator, game: Game, form: FormDat
   await db.update(schema.games).set({
     drawing: save, sketch, kind, sketchVersion: SKETCH_VERSION, title, updatedAt: new Date(),
   }).where(eq(schema.games.id, game.id));
+}
+
+/** The publish page's title and description (/g/<id>/publish), saved as they change. */
+export async function saveDetails(db: Db, me: Creator, game: Game, form: FormData) {
+  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
+  if (game.state !== "draft") throw new Invalid("Only drafts are changed here.");
+  const f = fieldsFrom(form);
+  await db.update(schema.games).set({ title: f.title || "Untitled", description: f.description, updatedAt: new Date() }).where(eq(schema.games.id, game.id));
+}
+
+/** Publish a draft drawn in paint (docs/creation-flow.md §1.9). The sketch is converted again here
+ *  from the saved drawing, never taken from the page, and it must be the very sketch the browser's
+ *  solver passed (the `checked` hash: exactly one solution; a panel, at least one), as the editor's
+ *  publish requires. */
+export async function publishDrawing(db: Db, me: Creator, game: Game, form: FormData) {
+  if (!canEdit(game, me, await roleIn(db, game.collectionId, me.id))) throw new Forbidden("You can't edit this game.");
+  if (game.state !== "draft") throw new Invalid("It's published already.");
+  const save = readPaintSave(game.drawing);
+  if (!save?.genre) throw new Invalid("Choose its puzzle type in paint first.");
+  const { sketch, conversion } = sketchOf(save);
+  if (!sketch || !conversion?.spec) throw new Invalid("Draw its grid in paint first.");
+  const f = { ...fieldsFrom(form), sketch };
+  const parsed = await validated(f, true);
+  const firstPublish = !game.publishedAt;
+  await db.update(schema.games).set({
+    title: f.title, description: f.description, sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind,
+    state: "published", publishedAt: game.publishedAt ?? new Date(), publishAt: null, updatedAt: new Date(),
+  }).where(eq(schema.games.id, game.id));
+  if (firstPublish && game.sketchImage) await notePublished(db, game.id, sketch);
 }

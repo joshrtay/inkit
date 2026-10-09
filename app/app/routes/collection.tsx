@@ -10,7 +10,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { roleIn } from "~/lib/permissions.server";
 import { signInFirst } from "~/lib/http.server";
 import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, markSolved, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
-import { withPictures } from "~/lib/thumbs.server";
+import { draftPictures, withPictures } from "~/lib/thumbs.server";
 import { pageMeta, profileJsonLd } from "~/lib/seo";
 import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard";
 import { Avatar } from "~/components/Avatar";
@@ -55,7 +55,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     persona: person?.isAi ? aiProfile(person.handle) : null,
     members,
     games: await markSolved(db, viewer?.id, withPictures(published)),
-    drafts: canSeeDrafts ? withPictures(drafts) : null,
+    drafts: canSeeDrafts ? await draftPictures(db, drafts) : null,
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
     subscribers, subscribed, solves, role,
     me: viewer?.handle ?? null,

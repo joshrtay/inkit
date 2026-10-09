@@ -420,6 +420,14 @@ export async function readSketch(env: Env, image: { data: string; type: ImageTyp
   return { ...careful, reader: "careful" as Reader };
 }
 
+/** A reading given as JSON instead of read by Claude: for the browser tests only (games.server.ts
+ *  takes it only when the site runs in development, `import.meta.env.DEV`), so they spend nothing. */
+export function givenReading(json: string) {
+  const reading = Reading.parse(JSON.parse(json));
+  if (!reading.readable) throw new Invalid(reading.problem || "That doesn't look like a puzzle Claude can read.");
+  return { reading, sketch: toSketch(reading), reader: "quick" as Reader };
+}
+
 /** Everything about one game type, for a reader told which type the drawing is. */
 function typeBrief(genre: GenreName) {
   const g = guides[genre];

@@ -210,3 +210,49 @@
 }
 /* with the Check panel open, the paper moves over to make room beside it */
 @media (min-width: 721px) { .sp-work:has(> .paint-check) .grid-game.sp-canvas { padding-left: 364px; } }
+
+/* ---- a photo's doubts (amber, lettered): in the panel's Photo section and on the paper ---- */
+.paint-photo { display: grid; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.paint-photo > summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; cursor: pointer; font: 800 12px/1.3 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.paint-photo > summary .muted { letter-spacing: 0; text-transform: none; font-weight: 600; }
+.paint-photo-img { display: block; border-radius: 8px; overflow: hidden; background: var(--sp-workspace); }
+.paint-photo-img img { display: block; width: 100%; max-height: 240px; object-fit: contain; }
+.paint-doubts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px; }
+.paint-doubts li.done .paint-text { text-decoration: line-through; color: var(--muted); }
+.paint-item.doubt .paint-n { background: #d99a00; }
+.paint-item.doubt[aria-pressed="true"] { background: color-mix(in srgb, #d99a00 14%, var(--panel)); border-left-color: #d99a00; }
+.paint-item.doubt:disabled { cursor: default; }
+.paint-tick { display: grid; place-items: center; width: 32px; height: 36px; cursor: pointer; }
+.paint-tick input { width: 17px; height: 17px; accent-color: var(--good); }
+.sp-mark.doubt .sp-mark-ring, .sp-mark.doubt .sp-mark-box { fill: color-mix(in srgb, #f2b705 12%, transparent); stroke: #d99a00; stroke-width: 2.2; stroke-dasharray: none; }
+.sp-mark.doubt .sp-mark-pin circle { fill: #d99a00; }
+.paint-tip.doubt { border-color: #d99a00; }
+.paint-tip.doubt strong { color: #a86f00; }
+.paint-reminder-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---- What type is this? (the picker widens to show its cards) ---- */
+.paint-ask { justify-self: start; gap: 6px; }
+.paint-ask svg, .paint-best::before { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.paint-all-h { margin: 4px 0 0; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.guide-pane.paint-picker.asking { width: min(860px, calc(100vw - 24px)); max-height: min(86dvh, 860px); }
+.paint-suggest { display: grid; gap: 12px; }
+.paint-suggest > p { margin: 0; font-size: 14px; line-height: 1.45; }
+.paint-suggest-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.paint-suggest-card {
+  position: relative; display: grid; grid-template-rows: auto 1fr; width: 100%; height: 100%; padding: 0; text-align: left; overflow: hidden;
+  font: inherit; color: var(--ink); background: var(--panel); border: 1.5px solid var(--line-strong); border-radius: 12px;
+}
+.paint-suggest-card[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 30%, transparent); }
+.paint-suggest-card .pic { display: grid; place-items: center; height: 150px; padding: 12px; background: var(--paper); }
+.paint-suggest-card .pic svg { height: 100%; width: auto; max-width: 100%; }
+.paint-suggest-text { display: grid; align-content: start; gap: 6px; padding: 10px 12px 12px; font-size: 13px; line-height: 1.4; }
+.paint-suggest-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.paint-suggest-head strong { font: 800 16px/1.2 var(--display); }
+.paint-said { flex: none; padding: 3px 8px; border-radius: 999px; font: 700 12px/1 var(--body); background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--muted); }
+.paint-said.ok { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.paint-said.bad { color: var(--ink); }
+.paint-fits { color: var(--good); font-weight: 600; }
+.paint-fits.bad { color: var(--red); }
+.paint-best { position: absolute; top: 8px; left: 8px; z-index: 1; display: inline-flex; gap: 4px; padding: 4px 9px; border-radius: 999px; font: 700 12px/1 var(--body); color: var(--panel); background: var(--ink); }
+.paint-suggest-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.paint-suggest-foot .muted { flex: 1 1 220px; font-size: 13px; }
