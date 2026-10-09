@@ -3,3 +3,5 @@
  *  Email Routing on inkit.games forwarding to a real inbox) before relying on it. */
 export const CONTACT = "hello@inkit.games";
 export const UPDATED = "October 7, 2026";
+/** The privacy policy changed on its own since (bug reports). */
+export const PRIVACY_UPDATED = "October 9, 2026";

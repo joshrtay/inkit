@@ -5,7 +5,7 @@ import { AUTH_FILE, q, RUN_FILE, sql, type Run } from "./db";
 export default async function teardown() {
   if (!existsSync(RUN_FILE)) return;
   const { userId, collectionId } = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
-  sql(`delete from reads where creator_id = ${q(userId)}; delete from likes where creator_id = ${q(userId)}; delete from solves where creator_id = ${q(userId)};
+  sql(`delete from bug_reports where creator_id = ${q(userId)}; delete from reads where creator_id = ${q(userId)}; delete from likes where creator_id = ${q(userId)}; delete from solves where creator_id = ${q(userId)};
     delete from games where author_id = ${q(userId)}; delete from memberships where creator_id = ${q(userId)};
     delete from collections where id = ${q(collectionId)}; delete from sessions where user_id = ${q(userId)};
     delete from accounts where user_id = ${q(userId)}; delete from creators where id = ${q(userId)}`);

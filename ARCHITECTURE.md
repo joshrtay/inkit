@@ -18,6 +18,7 @@ browser, subscribe to creators, and like puzzles.
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
 | `puzzles/ai/` | The AI creators' weekly batch: `week.ts` makes, scores (`score.ts`), titles and queues each persona's posts ([docs/ai-creators.md](docs/ai-creators.md)) |
+| `.github/bug-fix/` | The AI bug fixer's gate, guard and prompt, run by `.github/workflows/bug-fix.yml` ([docs/bug-pipeline.md](docs/bug-pipeline.md)) |
 | `docs/` | The grid engine in depth, including how the editors (paint, RYB's) must keep up with it; the creation flow |
 
 The root `package.json` covers the shared code (`npm run build` type-checks it, `npm run
@@ -98,6 +99,17 @@ and the … menu holds moderation only: Take down, Restore and Featured. Confirm
 take-down note use the site's dialog (`components/ConfirmDialog.tsx`, `useConfirm()`), never the
 browser's `confirm()` or `prompt()`. Published pages show the drawing as a "Drawn by"
 thumbnail (`sketchpad/picture.ts`).
+
+**Bug reports** ([docs/bug-pipeline.md](docs/bug-pipeline.md)): for signed-in people the browser
+keeps the last two minutes as an rrweb recording in memory (`lib/bugs/capture.ts`; inputs masked,
+private pages skipped, off in Settings), with recent console errors and failed fetches. "Report a
+bug" (More menu, paint's … menu; `components/BugReport.tsx`) sends it only on Send, with the page's
+state (`lib/bugs/state.ts`: route, build SHA, the puzzle). `POST /bugs` stores the row in D1
+(`bug_reports`) and the files in R2 (`bugs/<id>/`), and a gatekeeper Claude call with no tools
+(`lib/bugs/gatekeeper.server.ts`) returns a verdict and a neutral restatement. Admins review them at
+`/admin/bugs` (with the replay) and can file a GitHub issue that holds no user text; the owner's
+`ai-fix` label on it runs `.github/workflows/bug-fix.yml`, which opens a draft PR behind a path and
+size guard.
 
 **Deploying**: pushes to `main` deploy once GitHub's tests pass (type checks, unit and browser
 tests, the engine self-test); see [docs/deploy.md](docs/deploy.md), which also covers rolling back.

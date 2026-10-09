@@ -6,6 +6,7 @@ import { cloudflareContext } from "./lib/context";
 import { currentCreator } from "./lib/auth.server";
 import { SideNav, TabBar } from "./components/Shell";
 import { ConfirmProvider } from "./components/ConfirmDialog";
+import { BugReportHost } from "./components/BugReport";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -57,7 +58,7 @@ export default function App() {
   // the editor's preview of a game page: the site's frame, but its nav goes nowhere
   const preview = matches.some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
   // the site's confirm dialog (components/ConfirmDialog.tsx: useConfirm), for every page
-  if (bare) return <ConfirmProvider><Outlet /></ConfirmProvider>;
+  if (bare) return <ConfirmProvider><Outlet /><BugReportHost /></ConfirmProvider>;
   return (
     <ConfirmProvider>
       <div className="shell">
@@ -65,6 +66,8 @@ export default function App() {
         <div className="page"><Outlet /></div>
         <div className="nav-wrap" inert={preview || undefined}><TabBar me={me} /></div>
       </div>
+      {/* "Report a bug" (docs/bug-pipeline.md): its dialog, and the capture for signed-in people */}
+      <BugReportHost />
     </ConfirmProvider>
   );
 }

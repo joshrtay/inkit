@@ -2,7 +2,7 @@
 // it stores in app/db/schema.ts, and who processes it: Cloudflare, Google, Anthropic).
 import { Link } from "react-router";
 import type { Route } from "./+types/privacy";
-import { CONTACT, UPDATED } from "~/lib/legal";
+import { CONTACT, PRIVACY_UPDATED } from "~/lib/legal";
 import { pageMeta } from "~/lib/seo";
 
 export const meta: Route.MetaFunction = () => pageMeta({ title: "Privacy policy · inkit", description: "What inkit collects, why, and who it's shared with.", path: "/privacy" });
@@ -11,7 +11,7 @@ export default function Privacy() {
   return (
     <main className="wrap doc">
       <h1>Privacy policy</h1>
-      <p className="muted">Last updated {UPDATED}</p>
+      <p className="muted">Last updated {PRIVACY_UPDATED}</p>
       <p className="lead">inkit (inkit.games) is a site for making and playing hand-drawn logic puzzles. This explains what we collect, why, and what you can do about it. We don&rsquo;t sell your information or show ads.</p>
 
       <h2>What we collect</h2>
@@ -20,6 +20,7 @@ export default function Privacy() {
         <li><strong>What you make:</strong> your puzzles, their titles and descriptions, the photos of drawings you upload (we keep only the part of each photo that shows the puzzle, without its location or other camera details), the studios you belong to, and who you subscribe to. Published puzzles, your profile, your subscriptions and your subscriber count are public.</li>
         <li><strong>Signing in:</strong> while you&rsquo;re signed in we keep a session, with the IP address and browser it came from, so we can keep you signed in and spot misuse.</li>
         <li><strong>In your browser:</strong> your progress on puzzles and settings like the light or dark theme are saved in your own browser (local storage). They stay on your device; we don&rsquo;t receive them.</li>
+        <li><strong>Bug reports:</strong> while you&rsquo;re signed in, your browser keeps a recording of the last two minutes of the page you&rsquo;re on, in memory only: what was on screen, clicks and scrolling, with anything you type hidden and settings and sign-in pages left out. It never leaves your browser unless you choose &ldquo;Report a bug&rdquo; and leave &ldquo;Include a recording&rdquo; ticked. A report holds what you write, that recording, a screenshot if you add one, and details of the page (its address, the puzzle on it, your browser, screen size and recent errors). We keep reports on our own servers (Cloudflare) and use them only to fix the site; Claude (see Anthropic below) reads what you write to sort reports, and a public summary in our own words, never your words or the recording, may go on our code&rsquo;s GitHub page. You can turn the recording off in Settings.</li>
         <li><strong>Server logs:</strong> our host keeps short-lived technical logs of requests (such as IP address, page and time) to run and protect the site.</li>
       </ul>
 
@@ -36,7 +37,7 @@ export default function Privacy() {
       <ul>
         <li><strong>Cloudflare</strong> hosts the site, its database and uploaded photos, and sends our emails.</li>
         <li><strong>Google</strong>, if you choose to sign in with Google.</li>
-        <li><strong>Anthropic</strong> (the company behind Claude): when you upload a drawing, the photo, and any corrections you type, are sent to Anthropic&rsquo;s API so Claude can read the puzzle. Anthropic processes it under its commercial terms; it doesn&rsquo;t use API data to train its models.</li>
+        <li><strong>Anthropic</strong> (the company behind Claude): when you upload a drawing, the photo, and any corrections you type, are sent to Anthropic&rsquo;s API so Claude can read the puzzle; when you report a bug, what you write and the page&rsquo;s details are sent so Claude can sort the report. Anthropic processes it under its commercial terms; it doesn&rsquo;t use API data to train its models.</li>
       </ul>
       <p>We share information with others only when the law requires it, or to protect people and the site.</p>
 

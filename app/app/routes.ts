@@ -35,6 +35,12 @@ export default [
   route("admin/reads/:id", "routes/admin-read.ts"),
   route("admin/reads/:id/photo", "routes/admin-read-photo.ts"),
   route("admin/ai/schedule", "routes/admin-ai-schedule.ts"),
+  // bug reports (docs/bug-pipeline.md): sent from "Report a bug", reviewed by admins
+  route("bugs", "routes/bugs.ts"),
+  route("admin/bugs", "routes/admin-bugs.tsx"),
+  route("admin/bugs/:id", "routes/admin-bug.tsx"),
+  route("admin/bugs/:id/bundle", "routes/admin-bug-bundle.ts"),
+  route("admin/bugs/:id/files/:file", "routes/admin-bug-file.ts"),
   route(":slug/settings", "routes/collection-settings.tsx"),
   // Collections live at the top level (inkit.games/<slug>), so this route comes last.
   route(":slug", "routes/collection.tsx"),

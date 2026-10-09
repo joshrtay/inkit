@@ -6,6 +6,7 @@
 //   memberships  who belongs to which collection, as owner or contributor
 //   games        one game each: its sketch (the "code"), details and state
 //   featured     the site's Featured shelf, curated by admins
+//   bug_reports  "Report a bug": the report, the gatekeeper's verdict; its files are in R2 (docs/bug-pipeline.md)
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
@@ -211,3 +212,28 @@ export const featured = sqliteTable("featured", {
   featuredBy: text("featured_by").notNull().references(() => creators.id),
   createdAt: created(),
 }, (t) => [index("featured_position").on(t.position)]);
+
+// ---- bug reports (docs/bug-pipeline.md): the row; the replay, screenshot and state are in R2 under bugs/<id>/ ----
+export const BUG_STATES = ["new", "reviewed", "quarantined", "dismissed", "duplicate", "sent"] as const;
+export type BugState = (typeof BUG_STATES)[number];
+export const bugReports = sqliteTable("bug_reports", {
+  id: text("id").primaryKey(),
+  creatorId: text("creator_id").notNull().references(() => creators.id),
+  createdAt: created(),
+  /** what the reporter typed: never leaves the site (not to GitHub, not to the fixer) */
+  what: text("what").notNull(),
+  expected: text("expected").notNull().default(""),
+  state: text("state", { enum: BUG_STATES }).notNull().default("new"),
+  /** the gatekeeper's structured answer (app/lib/bugs/gatekeeper.server.ts), or why there isn't one */
+  verdict: text("verdict", { mode: "json" }).$type<unknown>(),
+  verdictError: text("verdict_error"),
+  /** the build (commit) the reporter's browser ran, the page and the game it was on */
+  version: text("version").notNull().default(""),
+  route: text("route").notNull().default(""),
+  gameId: text("game_id"),
+  hasReplay: integer("has_replay", { mode: "boolean" }).notNull().default(false),
+  hasScreenshot: integer("has_screenshot", { mode: "boolean" }).notNull().default(false),
+  duplicateOf: text("duplicate_of"),
+  issueNumber: integer("issue_number"),
+  issueUrl: text("issue_url"),
+}, (t) => [index("bug_reports_creator").on(t.creatorId, t.createdAt), index("bug_reports_created").on(t.createdAt)]);

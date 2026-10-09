@@ -12,3 +12,6 @@ __pycache__/
 # local Claude Code settings
 .claude/settings.local.json
 .claude/worktrees/
+
+# the bug-fix workflow's copy of a report's bundle (.github/workflows/bug-fix.yml): never committed
+/bug/

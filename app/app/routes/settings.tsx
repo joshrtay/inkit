@@ -11,6 +11,8 @@ import { authClient } from "~/lib/auth-client";
 import { changeHandle, changeProfile } from "~/lib/account.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { savedTheme, setTheme, type Theme } from "~/lib/theme";
+import { recordingAllowed, setRecordingAllowed } from "~/lib/bugs/capture";
+import { openBugReport } from "~/components/BugReport";
 import { Avatar } from "~/components/Avatar";
 
 export const meta: Route.MetaFunction = () => [{ title: "Settings · inkit" }, { name: "robots", content: "noindex" }];
@@ -55,7 +57,7 @@ export default function Settings({ loaderData: d, actionData }: Route.ComponentP
   const edit = (row: Row) => { setEditing(editing === row ? null : row); setNote(""); };
 
   return (
-    <main className="wrap narrow settings-page">
+    <main className="wrap narrow settings-page" data-private>
       <h1>Settings</h1>
       {note && <p className="good" role="status">{note}</p>}
 
@@ -99,9 +101,15 @@ export default function Settings({ loaderData: d, actionData }: Route.ComponentP
         <Appearance />
       </section>
 
+      <section aria-labelledby="bug-reports">
+        <h2 id="bug-reports">Bug reports</h2>
+        <Recording />
+      </section>
+
       {/* phones have no More menu, so its other places are here too */}
       <footer className="settings-foot">
         <button className="btn" type="button" onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>
+        <button className="btn" type="button" onClick={openBugReport}>Report a bug</button>
         <Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link>
       </footer>
     </main>
@@ -184,6 +192,21 @@ function PasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: () =
         <button className="btn" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  );
+}
+
+/** Whether this browser keeps the last two minutes' recording for bug reports (lib/bugs/capture.ts). */
+function Recording() {
+  const [on, set] = useState(true);
+  useEffect(() => set(recordingAllowed()), []);
+  return (
+    <div className="settings-card">
+      <label className="bug-setting">
+        <input type="checkbox" checked={on} onChange={(e) => { set(e.target.checked); setRecordingAllowed(e.target.checked); }} />
+        <span>Keep a recording for bug reports
+          <small>While you use inkit, this browser keeps the last two minutes of the page in memory, so a bug report can show what happened. It&rsquo;s sent only if you report a bug and leave its box ticked; what you type is hidden, and settings pages are never recorded.</small></span>
+      </label>
+    </div>
   );
 }
 

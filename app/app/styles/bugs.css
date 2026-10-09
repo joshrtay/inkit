@@ -1,0 +1,31 @@
+/* "Report a bug" (components/BugReport.tsx: the confirm dialog's look, base.css .confirm) and the
+   admin pages for reports (routes/admin-bugs.tsx, admin-bug.tsx). */
+.bug-dialog { width: min(500px, calc(100vw - 32px)); }
+.bug-optional { font-weight: 400; color: var(--muted); }
+.bug-check, .bug-setting { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; font-weight: 700; font-size: 14px; }
+.bug-check input, .bug-setting input { margin: 3px 0 0; width: 18px; height: 18px; }
+.bug-check small, .bug-setting small { display: block; font-weight: 400; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.bug-setting { padding: 16px 0; font-size: 15px; }
+.bug-note { margin: 0; font-size: 13px; color: var(--muted); }
+
+.bug-admin { max-width: 1160px; }
+.bug-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.bug-table th, .bug-table td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.bug-table th { color: var(--muted); font-weight: 700; }
+.bug-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.bug-tag { display: inline-block; padding: 1px 8px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 12px; white-space: nowrap; }
+.bug-tag.sev-high, .bug-tag.flag { border-color: var(--red); color: var(--red); }
+.bug-state { font-weight: 700; }
+.bug-state.quarantined { color: var(--red); }
+.bug-section { margin: 28px 0; }
+.bug-section h2 { font-size: 18px; margin: 0 0 10px; }
+.bug-text { margin: 0 0 12px; padding: 10px 14px; border-left: 3px solid var(--line-strong); background: color-mix(in srgb, var(--panel) 60%, transparent); white-space: pre-wrap; }
+.bug-action-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.bug-dup { display: flex; gap: 6px; }
+.bug-dup input { width: 140px; }
+.bug-issue { margin-top: 14px; }
+.bug-issue pre, .bug-log { max-height: 420px; overflow: auto; padding: 10px 12px; font: 12px/1.45 var(--mono); white-space: pre-wrap; word-break: break-word;
+  background: color-mix(in srgb, var(--panel) 70%, transparent); border: 1px solid var(--line); border-radius: 8px; }
+.bug-shot { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.bug-replay .rr-player { box-shadow: 0 4px 16px var(--shadow); }
+@media (max-width: 720px) { .bug-table thead { display: none; } .bug-table td { display: block; border: 0; padding: 2px 0; } .bug-table tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); } }

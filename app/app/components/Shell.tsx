@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { authClient } from "~/lib/auth-client";
 import { Avatar } from "./Avatar";
+import { ReportBugItem } from "./BugReport";
 
 export interface Me { id: string; handle: string; name: string; isAdmin: boolean }
 
@@ -44,6 +45,7 @@ function MoreMenu() {
       {open && (
         <div className="menu up more-menu" role="menu">
           <Link role="menuitem" to="/settings">Settings</Link>
+          <ReportBugItem onClick={() => setOpen(false)} />
           <button role="menuitem" type="button" onClick={async () => { await authClient.signOut(); location.href = "/"; }}>Sign out</button>
           <div className="menu-legal"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div>
         </div>

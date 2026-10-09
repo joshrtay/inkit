@@ -1,0 +1,240 @@
+# The AI bug fixer (docs/bug-pipeline.md). Runs ONLY when the owner (or a maintainer) adds the label
+# `ai-fix` to an issue the site filed from a bug report. Never on issues being opened or commented
+# on: anyone can open an issue on a public repo.
+#
+#   gate   checks the label, who added it, the issue's report marker and the daily cap
+#   fix    fetches the report's bundle (our own data: the gatekeeper's restatement, the page's state
+#          and console log; never the reporter's words or the replay), runs claude-code-action to
+#          write a failing test and the fix, checks the diff, pushes a branch and opens a DRAFT PR
+#   check  in a fresh job, from the default branch (which the agent can't change), checks the
+#          pushed branch again; a branch that breaks the rules is closed and deleted
+#   audit  comments a summary on the issue
+#
+# Needs, in the repo's settings: the secrets ANTHROPIC_API_KEY and BUG_BUNDLE_TOKEN (the same as the
+# Worker's BUG_BUNDLE_TOKEN), the label `ai-fix`, and branch protection on main (docs/bug-pipeline.md).
+# No deploy secrets here. It never merges.
+name: AI bug fix
+
+on:
+  issues:
+    types: [labeled]
+
+permissions: {}
+
+concurrency:
+  group: bug-fix-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: github.event.label.name == 'ai-fix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      ok: ${{ steps.gate.outputs.ok }}
+      report: ${{ steps.gate.outputs.report }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/bug-fix
+          persist-credentials: false
+      - id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          SENDER: ${{ github.event.sender.login }}
+          OWNER: ${{ github.repository_owner }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: node .github/bug-fix/gate.mjs
+
+  fix:
+    needs: gate
+    if: needs.gate.outputs.ok == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pushed: ${{ steps.push.outputs.pushed }}
+      branch: ${{ steps.push.outputs.branch }}
+      pr: ${{ steps.push.outputs.pr }}
+      guard: ${{ steps.guard.outputs.passes }}
+      files: ${{ steps.guard.outputs.files }}
+      lines: ${{ steps.guard.outputs.lines }}
+      turns: ${{ steps.usage.outputs.turns }}
+      cost: ${{ steps.usage.outputs.cost }}
+    env:
+      ISSUE: ${{ github.event.issue.number }}
+      REPORT: ${{ needs.gate.outputs.report }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false   # no token in git's config for the agent to push with
+      # the guard as it is now, before the agent can touch the working tree
+      - run: cp -r .github/bug-fix "$RUNNER_TEMP/bug-fix"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      # the same local site as CI's tests: .dev.vars from the example (no real secrets), seeded D1
+      - name: Local site for tests
+        run: cp .dev.vars.example .dev.vars && npm run db:migrate && python3 seed/make.py && npm run db:seed && npx playwright install --with-deps chromium
+        working-directory: app
+      - name: Fetch the report's bundle
+        env:
+          BUG_BUNDLE_TOKEN: ${{ secrets.BUG_BUNDLE_TOKEN }}
+        run: |
+          mkdir -p bug
+          curl -fsS --max-time 30 -H "authorization: Bearer $BUG_BUNDLE_TOKEN" "https://inkit.games/admin/bugs/$REPORT/bundle" -o bug/bundle.json
+          echo "bundle: $(wc -c < bug/bundle.json) bytes"
+      - name: Branch
+        run: |
+          git checkout -b "ai-fix/issue-$ISSUE-${{ github.run_id }}"
+          git config user.name "inkit bug fixer"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - id: prompt
+        run: |
+          {
+            echo 'prompt<<INKIT_PROMPT_END'
+            sed -e "s/{{ISSUE}}/$ISSUE/g" -e "s/{{REPORT}}/$REPORT/g" "$RUNNER_TEMP/bug-fix/prompt.md"
+            echo 'INKIT_PROMPT_END'
+          } >> "$GITHUB_OUTPUT"
+      - id: claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: "1"
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.prompt.outputs.prompt }}
+          # the transcript stays out of the public log
+          show_full_output: false
+          claude_args: >-
+            --model claude-sonnet-5-5
+            --max-turns 60
+            --max-budget-usd 10
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(npm run:*),Bash(npm test:*),Bash(npm --prefix app run:*),Bash(npm --prefix app test:*),Bash(npx playwright test:*),Bash(npx vitest:*),Bash(git add:*),Bash(git commit:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git show:*)"
+            --disallowedTools "WebFetch,WebSearch,Bash(git push:*),Bash(curl:*),Bash(wget:*),Bash(gh:*)"
+      - id: usage
+        if: always() && steps.claude.outputs.execution_file != ''
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            let r = {};
+            try { const all = JSON.parse(fs.readFileSync(process.env.EXECUTION_FILE, "utf8")); r = [].concat(all).reverse().find((m) => m.type === "result") || {}; } catch {}
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `turns=${Number(r.num_turns) || 0}\ncost=${(Number(r.total_cost_usd) || 0).toFixed(2)}\n`);
+          '
+      - id: guard
+        run: node "$RUNNER_TEMP/bug-fix/guard.mjs" origin/main HEAD
+      - id: push
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="$(git rev-parse --abbrev-ref HEAD)"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.https://github.com/.extraheader=$auth" push origin "HEAD:refs/heads/$branch"
+          {
+            echo "Fixes #$ISSUE (bug report \`$REPORT\`). Written by the AI fixer (.github/workflows/bug-fix.yml) from the gatekeeper's restatement and the page's recorded state; the reporter's own words never reached it."
+            echo
+            echo "**Review it as untrusted code.** Read the test first: it should fail without the fix."
+            echo
+            echo "### Commits"
+            git log --format='- %s' origin/main..HEAD | sed 's/@/@\xe2\x80\x8b/g'
+            echo
+            echo "### Files"
+            git diff --stat origin/main...HEAD | tail -n 20 | sed 's/^/    /'
+            echo
+            echo "### Try it"
+            echo
+            echo "    gh pr checkout <this PR> && npm --prefix app run dev"
+            echo
+            echo "CI doesn't start on its own for a PR opened by a workflow: run *Test and deploy inkit.games* on this branch (Actions → Run workflow), or push to it."
+          } > "$RUNNER_TEMP/pr-body.md"
+          pr="$(gh pr create --draft --base main --head "$branch" --title "Fix bug report $REPORT (#$ISSUE)" --body-file "$RUNNER_TEMP/pr-body.md")"
+          echo "pr=$pr" >> "$GITHUB_OUTPUT"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+  check:
+    needs: [gate, fix]
+    if: needs.fix.outputs.pushed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      passes: ${{ steps.guard.outputs.passes }}
+    steps:
+      # the default branch's guard, which nothing the agent did can have changed
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: guard
+        env:
+          BRANCH: ${{ needs.fix.outputs.branch }}
+        run: |
+          git fetch --no-tags origin "refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+          node .github/bug-fix/guard.mjs "origin/${{ github.event.repository.default_branch }}" "origin/$BRANCH"
+      - if: failure() && steps.guard.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ needs.fix.outputs.pr }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh pr close "$PR" --repo "$REPO" --delete-branch --comment "Closed by the bug-fix check: the branch breaks the path or size rules (.github/bug-fix/guard.mjs). See the run's log."
+
+  audit:
+    needs: [gate, fix, check]
+    if: always() && needs.gate.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ github.event.issue.number }}
+          SENDER: ${{ github.event.sender.login }}
+          GATE: ${{ needs.gate.outputs.ok }}
+          REASON: ${{ needs.gate.outputs.reason }}
+          FIX: ${{ needs.fix.result }}
+          PR: ${{ needs.fix.outputs.pr }}
+          GUARD: ${{ needs.fix.outputs.guard }}
+          CHECK: ${{ needs.check.result }}
+          FILES: ${{ needs.fix.outputs.files }}
+          LINES: ${{ needs.fix.outputs.lines }}
+          TURNS: ${{ needs.fix.outputs.turns }}
+          COST: ${{ needs.fix.outputs.cost }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "**AI bug fix: audit** ([run]($RUN))"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Label added by | $SENDER |"
+            echo "| Gate | ${GATE:-false}: $REASON |"
+            echo "| Fixer | ${FIX} (turns: ${TURNS:-0}, cost: \$${COST:-0}) |"
+            echo "| Diff | ${FILES:-0} files, ${LINES:-0} lines; guard: ${GUARD:-n/a}; check: ${CHECK} |"
+            echo "| Draft PR | ${PR:-none} |"
+            echo
+            echo "_Never merged automatically: the owner reviews and merges._"
+          } > "$RUNNER_TEMP/audit.md"
+          gh issue comment "$ISSUE" --repo "$REPO" --body-file "$RUNNER_TEMP/audit.md"

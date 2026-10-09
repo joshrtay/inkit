@@ -31,6 +31,7 @@ import { paintAreas } from "~/sketchpad/to-puzzle";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
 import { SpIcon, type SpIconName } from "./SketchpadIcons";
 import { useConfirm } from "./ConfirmDialog";
+import { ReportBugItem } from "./BugReport";
 import "~site/game-types/grid/styles.css";
 
 type Tool = Kit["tools"][number];
@@ -709,6 +710,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
                 if (await ask) { setTyping(null); edit(m.clear); }
               }}><SpIcon name="clear" />Clear the page</button>
             <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid} onClick={() => void download()}><SpIcon name="download" />Download a picture</button>
+            <ReportBugItem onClick={() => setMenu(false)} />
           </span>
         )}
       </span>

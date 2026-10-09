@@ -40,7 +40,8 @@
 	}
 	/**
 	 * Secrets (never committed): BETTER_AUTH_SECRET, ANTHROPIC_API_KEY, and optionally
-	 * GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET. Locally they come from .dev.vars; in production
+	 * GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET; for bug reports (docs/bug-pipeline.md),
+	 * GITHUB_ISSUES_TOKEN and BUG_BUNDLE_TOKEN. Locally they come from .dev.vars; in production
 	 * set them with `npx wrangler secret put <NAME>`.
 	 */
 }

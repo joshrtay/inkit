@@ -19,3 +19,11 @@ export async function requireAdmin(env: Env, request: Request) {
   if ((await currentCreator(env, request))?.isAdmin) return;
   throw data(null, { status: 404 });
 }
+
+/** An admin, or a request carrying `token` (a narrower secret, such as BUG_BUNDLE_TOKEN, that opens
+ *  one endpoint and nothing else). */
+export async function requireAdminOr(env: Env, request: Request, token: string | undefined) {
+  const given = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  if (given && token && token.length >= 32 && sameSecret(given, token)) return;
+  await requireAdmin(env, request);
+}
