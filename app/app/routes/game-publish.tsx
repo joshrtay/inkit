@@ -22,13 +22,13 @@ import { readPaintSave, sketchOf } from "~/games/paint-save";
 import { parseSketch } from "~/games/sketch";
 import { layoutOf } from "~/games/layout-of";
 import { doubtsOf } from "~/games/doubts";
-import { kindName } from "~/games/kinds";
+import { draftName, kindName } from "~/games/kinds";
 import { GameBoard } from "~/components/GameBoard";
 import { passed, useLiveCheck } from "~/components/useOneSolutionCheck";
 
 export const handle = { bare: true };
 
-export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Publish ${loaderData?.game.title ?? "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
+export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Publish ${loaderData ? draftName(loaderData.game.title, loaderData.game.kind, loaderData.play?.spec.size) : "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
@@ -112,7 +112,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
       <header className="studio-top">
         <div className="studio-left">
           <Link className="studio-back" to={paintTo} aria-label="Back to paint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
-          <span className="paint-title" title={title || "Untitled"}>{title.trim() || "Untitled"}</span>
+          <span className="paint-title" title={draftName(title, game.kind, play?.spec.size)}>{draftName(title, game.kind, play?.spec.size)}</span>
           <span className={`paint-saved${saveState === "Saved" ? " ok" : saveState === "Couldn't save" ? " bad" : ""}`} aria-live="polite">{saveState}</span>
           {/* the type is settled by now: shown, not changed here (Back to paint to change it) */}
           <span className="paint-type locked">

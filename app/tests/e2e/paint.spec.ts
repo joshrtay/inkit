@@ -7,7 +7,6 @@ import { readFileSync } from "node:fs";
 import { q, sql } from "./db";
 import { blankDraft } from "./paint-helpers";
 
-const PAGE = 560;   // the sketchpad's page, in its own units (sketchpad/model.ts)
 const shot = async (page: Page, name: string) => {
   if (process.env.PAINT_SHOTS) await page.screenshot({ path: `${process.env.PAINT_SHOTS}/${name}.png` });
 };
@@ -15,8 +14,11 @@ const shot = async (page: Page, name: string) => {
 const saved = (id: string) => sql<{ drawing: string | null; kind: string; sketch: string; title: string }>(`select drawing, kind, sketch, title from games where id = ${q(id)}`)[0];
 
 async function at(page: Page, x: number, y: number) {
-  const box = (await page.locator(".sp-board").boundingBox())!;
-  return { x: box.x + (x / PAGE) * box.width, y: box.y + (y / PAGE) * box.height };
+  // the page point through the sketchpad's view (pans and zooms: sketchpad/view.ts), in the window's pixels
+  return page.locator(".sp-board").evaluate((svg: SVGSVGElement, p) => {
+    const t = svg.getScreenCTM()!;
+    return { x: t.a * p.x + t.c * p.y + t.e, y: t.b * p.x + t.d * p.y + t.f };
+  }, { x, y });
 }
 async function tap(page: Page, x: number, y: number) { const p = await at(page, x, y); await page.mouse.click(p.x, p.y); }
 async function drag(page: Page, [x0, y0]: [number, number], [x1, y1]: [number, number]) {
@@ -36,13 +38,17 @@ async function write(page: Page, r: number, c: number, text: string) {
 /** The drawer's tabs and the verdict button (docs/creation-flow.md, "v3 layout"). */
 const tab = (page: Page, name: "This puzzle" | "Types") => page.getByRole("tab", { name });
 const verdict = (page: Page) => page.locator(".paint-verdict-btn");
-async function chooseType(page: Page, name: RegExp) {
+/** Type ▾, then a type's ✓ ("Use …") in the list. */
+async function chooseType(page: Page, name: string) {
   await page.locator(".paint-type").click();
   await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
-  const list = page.locator(".paint-type-list");
-  await expect(list.getByRole("button", { name }).first()).toBeVisible();
-  await list.getByRole("button", { name }).first().click();
-  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
+  const use = page.locator(".paint-type-list").getByRole("button", { name: `Use ${name}`, exact: true });
+  await expect(use).toBeVisible();
+  await use.click();
+  // the type is applied; the drawer stays at Types and nothing is checked yet
+  await expect(page.locator(".paint-type-name")).toHaveText(name);
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  await expect(verdict(page)).toHaveAttribute("data-verdict", "unchecked");
 }
 /** A problem in This puzzle: a link that points at the canvas. */
 const problem = (page: Page, name: RegExp) => page.locator(".paint-drawer").getByRole("button", { name });
@@ -65,13 +71,15 @@ test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all s
   await expect(page.locator(".sp-board")).toHaveAttribute("data-grid", "6x6");
   await shot(page, "1-no-type");
 
-  await chooseType(page, /^Sudoku/);
+  await chooseType(page, "Sudoku");
   await expect(page.locator(".paint-type-name")).toHaveText("Sudoku");
   await expect(verdict(page)).not.toHaveAttribute("aria-disabled", "true");
   // the type's tools only, and All tools for the rest
   await expect(page.locator(".sp-tools .sp-tool")).toHaveCount(3);
   await expect(page.locator(".sp-tools").getByRole("button", { name: "Pen", exact: true })).toHaveCount(0);
-  // This puzzle: the guide's rules as a checklist, with the solution line last
+  // This puzzle: the guide's rules as a checklist, with the solution line last; not checked yet
+  await tab(page, "This puzzle").click();
+  await expect(page.locator(".paint-pill")).toHaveText("Not checked yet");
   const rules = page.getByRole("list", { name: "Rules" });
   await expect(rules.locator(".paint-line")).toHaveCount(3);
   await expect(rules.locator(".paint-line").first()).toContainText("Every row and every column has each digit once.");
@@ -79,14 +87,18 @@ test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all s
   // the box rule carries its setting
   await expect(rules.locator(".paint-line").nth(1).getByRole("group", { name: "Box shape" })).toBeVisible();
 
-  // a conflicting digit: No solution at once, the rule crossed with its problem under it
+  // a conflicting digit: nothing marked, no verdict, until Check
   await tool(page, "Text");
   await write(page, 0, 3, "2");
   await write(page, 5, 0, "5");
   await write(page, 5, 4, "5");
+  await expect(page.locator(".sp-mark")).toHaveCount(0);
+  await expect(verdict(page)).toHaveAttribute("data-verdict", "unchecked");
+  await expect(publish).not.toHaveAttribute("aria-disabled", "true");
+  // Check: No solution at once, the rule crossed with its problem under it
+  await verdict(page).click();
   await expect(verdict(page)).toHaveText(/No solution/);
   await expect(publish).toHaveAttribute("aria-disabled", "true");
-  await verdict(page).click();
   await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".paint-pill")).toContainText("No solution");
   const latin = rules.locator(".paint-line").first();
@@ -128,8 +140,49 @@ test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all s
   await page.reload();
   await expect(page.locator(".paint-type-name")).toHaveText("Sudoku");
   await expect(page.locator(".sp-board text.sp-text")).toHaveCount(3);
+  // a new visit: not checked until Check
+  await expect(verdict(page)).toHaveAttribute("data-verdict", "unchecked");
+  await verdict(page).click();
   await expect(verdict(page)).toHaveText(/Several solutions/, { timeout: 15_000 });
   expect(errors).toEqual([]);
+});
+
+test("choosing a type checks nothing; Check runs the solver, shows the verdict and opens This puzzle; a new type resets it", async ({ page }) => {
+  let workers = 0;
+  page.on("worker", () => { workers++; });
+  const id = blankDraft("check-later");
+  await page.goto(`/g/${id}/draw`);
+  await expect(page.locator(".sp-board")).toBeVisible();
+  await drag(page, [60, 60], [204, 204]);   // 3 × 3
+  await chooseType(page, "Sudoku");
+  await expect(verdict(page)).toContainText("Check");
+  await page.waitForTimeout(1500);   // longer than the solver's wait after a change
+  expect(workers).toBe(0);
+  await expect(verdict(page)).toHaveAttribute("data-verdict", "unchecked");
+  await verdict(page).click();
+  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
+  await expect(verdict(page)).not.toHaveAttribute("data-verdict", /^(unchecked|checking)$/, { timeout: 30_000 });
+  await expect(page.locator(".paint-pill")).not.toHaveText("Not checked yet");
+  // live from now on: a change is checked again
+  await tool(page, "Text");
+  await write(page, 0, 0, "1");
+  await expect(verdict(page)).not.toHaveAttribute("data-verdict", /^(unchecked|checking)$/, { timeout: 30_000 });
+  // a new type: back to Check
+  await chooseType(page, "Akari");
+  await expect(verdict(page)).toHaveAttribute("data-verdict", "unchecked");
+  await expect(page.locator(".sp-mark")).toHaveCount(0);
+});
+
+test("Publish with a type but no check: it checks first, then opens This puzzle when it doesn't pass", async ({ page }) => {
+  const id = blankDraft("publish-check");
+  await page.goto(`/g/${id}/draw`);
+  await expect(page.locator(".sp-board")).toBeVisible();
+  await drag(page, [60, 60], [252, 252]);   // an empty 4 × 4: several solutions
+  await chooseType(page, "Sudoku");
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(verdict(page)).toHaveText(/Several solutions/, { timeout: 30_000 });
+  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
+  await expect(page).toHaveURL(/\/draw$/);
 });
 
 test("Check and Publish without a type: the reminder in Types, and the Type button bounces", async ({ page }) => {
@@ -162,7 +215,7 @@ test("a Panel on tracks, with a start and an end, is Solvable; its solution show
   await expect(page.locator(".sp-board")).toBeVisible();
   await drag(page, [60, 60], [252, 252]);   // 4 × 4
   await expect(page.locator(".sp-board")).toHaveAttribute("data-grid", "4x4");
-  await chooseType(page, /^Panel/);
+  await chooseType(page, "Panel");
   // the grid takes the panel's look: tracks
   await expect.poll(() => page.locator(".sp-board .panel-track").count()).toBeGreaterThan(0);
   await expect(page.locator(".sp-tools .sp-tool")).toHaveCount(3);
@@ -176,6 +229,7 @@ test("a Panel on tracks, with a start and an end, is Solvable; its solution show
   await palette.getByRole("button", { name: "Stone", exact: true }).click();
   await expect(palette.getByRole("group", { name: "Stone colour" })).toBeVisible();
   await tap(page, ...sq(1, 1));
+  await verdict(page).click();
   await expect(verdict(page)).toHaveText(/Solvable/, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Publish", exact: true })).not.toHaveAttribute("aria-disabled", "true");
   await verdict(page).click();
@@ -241,12 +295,29 @@ test("the palette stays put across tools and is always open; the drawer folds to
   await page.locator(".paint-type").click();
   await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
   await expect(page.locator(".paint-type")).toHaveAttribute("aria-expanded", "true");
-  await page.locator(".paint-type-list").getByRole("button", { name: /^Akari/ }).first().click();
-  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
-  // More about: the type's guide in the drawer, with a way back
-  await page.locator(".paint-drawer").getByRole("button", { name: "More about Akari" }).click();
+  // a row is for browsing: clicked, it shows the type's guide and chooses nothing
+  await page.locator(".paint-type-list").getByRole("button", { name: "Akari: more about it" }).click();
+  const about = page.getByRole("region", { name: "About Akari" });
+  await expect(about.getByRole("heading", { name: "Akari" })).toBeVisible();
+  await expect(page.locator(".paint-type-name")).toHaveText("Not set");
   await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("region", { name: "About Akari" }).getByRole("heading", { name: "Akari" })).toBeVisible();
+  await shot(page, "9-about-type");
+  // back to the list; its ✓ chooses it
+  await page.getByRole("button", { name: "← All types" }).click();
+  await page.locator(".paint-type-list").getByRole("button", { name: "Use Akari", exact: true }).click();
+  await expect(page.locator(".paint-type-name")).toHaveText("Akari");
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");   // the drawer stays put
+  // the ✓ shows the type in use
+  await page.locator(".paint-type").click();
+  await expect(page.locator(".paint-type-list").getByRole("button", { name: "Akari: in use" })).toHaveAttribute("aria-pressed", "true");
+  // on a guide, "Use …" chooses: Nurikabe's, from its row
+  await page.locator(".paint-type-list").getByRole("button", { name: "Nurikabe: more about it" }).click();
+  await page.getByRole("region", { name: "About Nurikabe" }).getByRole("button", { name: "Use Nurikabe" }).click();
+  await expect(page.locator(".paint-type-name")).toHaveText("Nurikabe");
+  // More about (This puzzle's foot): the guide, the type in use, and a way back
+  await tab(page, "This puzzle").click();
+  await page.locator(".paint-drawer").getByRole("button", { name: "More about Nurikabe" }).click();
+  await expect(page.getByRole("region", { name: "About Nurikabe" })).toContainText("In use");
   await page.getByRole("button", { name: "← All types" }).click();
   await expect(page.locator(".paint-type-list")).toBeVisible();
   // the strip's This puzzle opens it there
@@ -262,7 +333,7 @@ test("a phone: the drawer as a bottom sheet with its handle, the palette a strip
   await expect(page.locator(".sp-board")).toBeVisible();
   await expect(page.locator(".paint-drawer")).toHaveCount(0);
   await drag(page, [60, 60], [348, 348]);
-  await chooseType(page, /^Sudoku/);
+  await chooseType(page, "Sudoku");
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.locator(".paint-drawer")).toHaveCount(0);
   await tool(page, "Text");
@@ -270,8 +341,12 @@ test("a phone: the drawer as a bottom sheet with its handle, the palette a strip
   await expect(page.locator(".sp-palette").getByRole("button", { name: "Undo" })).toBeVisible();
   await write(page, 5, 0, "5");
   await write(page, 5, 4, "5");
-  await expect(page.locator(".paint-sheet-handle")).toContainText("1 broken rule");
+  await expect(page.locator(".paint-sheet-handle")).toContainText("Check");
   await shot(page, "7-phone");
+  await verdict(page).click();
+  await expect(page.locator(".paint-drawer")).toBeVisible();
+  await page.locator(".paint-drawer-close").click();
+  await expect(page.locator(".paint-sheet-handle")).toContainText("1 broken rule");
   await verdict(page).click();
   await expect(page.locator(".paint-drawer")).toBeVisible();
   await expect(problem(page, /Two 5s in row 6/)).toHaveAttribute("aria-pressed", "true");
@@ -321,7 +396,8 @@ test("a grid, a stone and a number; undo and redo by key; the drawing downloaded
   await page.keyboard.press("ControlOrMeta+Shift+z");
   await expect(board.locator("text.sp-text")).toHaveText("5");
 
-  // the picture: a 1600px PNG on paper, with the stone's ink where the stone is
+  // the picture: a PNG 1600px across on paper, cropped to the drawing (the 7 × 6 grid at (60, 60)
+  // with a margin of 12 units: view.ts's fitBox), with the stone's ink where the stone is
   const download = page.waitForEvent("download");
   await page.locator(".studio-top").getByRole("button", { name: "More" }).click();
   await page.getByRole("menuitem", { name: "Download a picture" }).click();
@@ -329,8 +405,9 @@ test("a grid, a stone and a number; undo and redo by key; the drawing downloaded
   expect(file.suggestedFilename()).toBe("untitled.png");
   const png = readFileSync((await file.path())!);
   expect(png.subarray(0, 8)).toEqual(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1600, 1600]);
-  const shades = await page.evaluate(async (data) => {
+  const box = { x: 48, y: 48, w: 360, h: 312 };
+  expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1600, Math.round(1600 * box.h / box.w)]);
+  const shades = await page.evaluate(async ({ data, box }) => {
     const img = new Image();
     img.src = `data:image/png;base64,${data}`;
     await img.decode();
@@ -338,9 +415,10 @@ test("a grid, a stone and a number; undo and redo by key; the drawing downloaded
     c.width = img.width; c.height = img.height;
     const ctx = c.getContext("2d")!;
     ctx.drawImage(img, 0, 0);
-    const k = img.width / 560, light = (x: number, y: number) => { const [r, g, b] = ctx.getImageData(Math.round(x * k), Math.round(y * k), 1, 1).data; return (r + g + b) / 3; };
-    return { stone: light(84, 84), paper: light(500, 500) };
-  }, png.toString("base64"));
+    const k = img.width / box.w, light = (x: number, y: number) => { const [r, g, b] = ctx.getImageData(Math.round((x - box.x) * k), Math.round((y - box.y) * k), 1, 1).data; return (r + g + b) / 3; };
+    // the stone, and an empty square's middle (row 5, column 6)
+    return { stone: light(84, 84), paper: light(324, 276) };
+  }, { data: png.toString("base64"), box }).then((x) => x);
   expect(shades.stone).toBeLessThan(110);
   expect(shades.paper).toBeGreaterThan(230);
   expect(errors).toEqual([]);
@@ -362,12 +440,14 @@ test("the tool rail: arrow keys and letters; zoom", async ({ page }) => {
   // a letter picks a tool
   await page.keyboard.press("w");
   await expect(rail.getByRole("button", { name: "Wash", exact: true })).toHaveAttribute("aria-pressed", "true");
-  // zoom: Cmd/Ctrl + and 0, and the paper grows and comes back
-  const board = page.locator(".sp-board");
-  const w0 = (await board.boundingBox())!.width;
+  // zoom: Cmd/Ctrl + zooms in a step, 0 fits again
+  const board = page.locator(".sp-board"), fit = page.getByRole("button", { name: "Zoom to fit" });
+  const k = async () => Number((await board.getAttribute("data-view"))!.split(",")[2]);
+  const k0 = await k(), shown = await fit.textContent();
+  expect(shown).toBe(`${Math.round(k0 * 100)}%`);
   await page.keyboard.press("ControlOrMeta+=");
-  await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("125%");
-  expect((await board.boundingBox())!.width).toBeGreaterThan(w0 * 1.2);
+  await expect.poll(k).toBeCloseTo(k0 * 1.25, 3);
   await page.keyboard.press("ControlOrMeta+0");
-  await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("100%");
+  await expect.poll(k).toBeCloseTo(k0, 3);
+  await expect(fit).toHaveText(shown!);
 });

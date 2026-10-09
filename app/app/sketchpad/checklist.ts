@@ -98,6 +98,7 @@ function finalMark(v: Verdict): { mark: Mark; note?: string } {
     case "error": return { mark: "bad", note: v.text };
     case "incomplete": return { mark: "none", note: v.text };
     case "broken": return { mark: "none", note: "The solver looks once every rule holds." };
+    case "unchecked": return { mark: "none", note: "Press Check to run the solver." };
     default: return { mark: "none" };
   }
 }

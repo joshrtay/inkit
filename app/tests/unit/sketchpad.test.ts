@@ -84,12 +84,13 @@ describe("the grid", () => {
     expect(m.gridFromDrag({ x: 10, y: 10 }, { x: 12, y: 300 })).toBeNull();
     expect(m.gridFromDrag({ x: 0, y: 0 }, { x: 200, y: 100 }, 3, 3)).toMatchObject({ rows: 3, cols: 3, S: 100 / 3 });
   });
-  it("stays on the page when it grows or moves", () => {
+  it("grows and moves anywhere on the open paper, its squares kept", () => {
     const big = m.resizeGrid(grid, 4, 20);
-    expect(big.S * big.cols).toBeLessThanOrEqual(m.PAGE);
-    expect(big.x + big.cols * big.S).toBeLessThanOrEqual(m.PAGE + 1e-9);
-    const moved = m.moveGrid(grid, 1000, -1000);
-    expect(moved).toMatchObject({ x: m.PAGE - 200, y: 0 });
+    expect(big).toMatchObject({ rows: 4, cols: 20, S: grid.S, x: grid.x, y: grid.y });
+    expect(m.moveGrid(grid, 1000, -1000)).toMatchObject({ x: grid.x + 1000, y: grid.y - 1000, S: grid.S });
+    // a drag past the first page is a grid there, not one squeezed onto it
+    expect(m.gridFromDrag({ x: -100, y: 500 }, { x: 140, y: 740 })).toMatchObject({ x: -100, y: 500, rows: 5, cols: 5, S: 48 });
+    expect(m.stretchGrid(grid, { x: grid.x + 1, y: grid.y + 1 }).S).toBe(m.MIN_SQUARE);
   });
   it("carries what's on it when it moves", () => {
     let d = m.stamp(withGrid, { kind: "stamp", stamp: "stone", color: "black", at: { at: "cell", r: 1, c: 1 } });

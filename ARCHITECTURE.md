@@ -74,17 +74,24 @@ photo in the left margin and Claude's doubts in the right. Every other type's `/
 editor for every type but RYB, for drafts only (a published puzzle can't be changed): a puzzle drawn in the sketchpad
 with a puzzle type. The drawing (`games.drawing`, with its type and
 rule settings) is the source of truth; `sketchpad/to-puzzle.ts` converts it into the sketch on
-every save. Each part of the screen answers one question. The top bar: back, the title (a label),
-Type ▾ (opens the drawer at Types), undo, redo and … (Clear, Download), the verdict as the Check
-button (live, clingo in the browser; it opens This puzzle) and Publish, enabled when the verdict
-passes. The tool rail and the palette (`Sketchpad.tsx`: the chosen tool's settings, in one fixed
-place at the workspace's top left, foldable) filter by type (`sketchpad/kit.ts`). The drawer on
+every save. Each part of the screen answers one question. The top bar: back, Type ▾ (opens the
+drawer at Types) and the save state (no title: it's named on the publish page), undo, redo and …
+(Clear, Download), the Check button and Publish. Check is pressed, not automatic: choosing a type
+checks nothing and marks nothing on the paper (but a photo's doubts); pressed, the solver (clingo
+in the browser) runs, the verdict shows on the button, the problems are marked, and it stays live
+until the type changes. Publish checks first if need be, and goes on when the verdict passes. The
+tool rail and the palette (`Sketchpad.tsx`: the chosen tool's settings, floating over the
+workspace's top left) filter by type (`sketchpad/kit.ts`). The workspace is open paper
+(`sketchpad/view.ts`): it pans and zooms (wheel, Space or the middle button, two fingers, pinch),
+and Fit shows the puzzle itself, clear of the palette. Tooltips (`data-tip`) are one layer for the
+whole site, in the top layer (`components/Tooltips.tsx`, placed by `lib/place.ts`). The drawer on
 the right (a bottom sheet on a phone; folds to a strip): This puzzle, the type's rules from its
 guide as a checklist (`sketchpad/checklist.ts`) with each broken rule's problems under it
 (`sketchpad/check.ts`'s list and marks) and its settings on it (`PaintRules.tsx`), the solution
 line, Your drawing, and the solution (pointed at, drawn on the board); and Types (`TypePicker.tsx`:
 search, "What type is this?", which tries the drawing as every type with no AI,
-`sketchpad/suggest.ts`, the list, each type's guide). A photo's reading is drawn in ink
+`sketchpad/suggest.ts`, the list, each type's guide; a type clicked shows its guide, its ✓ or
+"Use …" chooses it). A draft with no title is called by its type and size (`games/kinds.ts`'s `draftName`). A photo's reading is drawn in ink
 (`games/paint-save.ts`'s `paintFromSketch`, via `toDrawing`), with Claude's doubts as amber marks and
 the photo first in This puzzle (Tell Claude what's wrong reads it again); so is any puzzle made
 before paint, the first time it's opened. Types with areas also paint them (the Areas tool drags

@@ -27,15 +27,18 @@ export type Verdict =
   | { kind: "no-type" } | { kind: "no-grid" } | { kind: "unsupported"; text: string }
   | { kind: "incomplete"; text: string }
   | { kind: "checking" }
+  /** a type, but Check not pressed yet: the solver waits for it (it's often too early) */
+  | { kind: "unchecked" }
   | { kind: "broken"; rules: number }
   | { kind: "none" } | { kind: "several" } | { kind: "one" } | { kind: "solvable" }
   | { kind: "error"; text: string };
 
-/** The verdict: no type, no grid, a type paint can't make, a puzzle missing something, rules
- *  already broken (at once, without the solver: decision 5), or the solver's answer once it's in
- *  for this very puzzle (`key`), else Checking…. */
-export function verdictOf(genre: GenreName | null, conv: Conversion | null, key: string, solved: Solved | null): Verdict {
+/** The verdict: no type, not checked yet (Check not pressed: `checked` false), no grid, a type
+ *  paint can't make, a puzzle missing something, rules already broken (at once, without the
+ *  solver: decision 5), or the solver's answer once it's in for this very puzzle (`key`), else Checking…. */
+export function verdictOf(genre: GenreName | null, conv: Conversion | null, key: string, solved: Solved | null, checked = true): Verdict {
   if (!genre) return { kind: "no-type" };
+  if (!checked) return { kind: "unchecked" };
   if (!conv) return { kind: "checking" };
   const unsupported = conv.problems.find((p) => p.kind === "unsupported");
   if (unsupported) return { kind: "unsupported", text: unsupported.text };
@@ -57,7 +60,7 @@ export const passes = (v: Verdict) => v.kind === "one" || v.kind === "solvable";
 /** The Check button's words and tone: the verdict ("Check" with no type to check against). */
 export function verdictWords(v: Verdict): { text: string; tone: "ok" | "bad" | "wait" | "none" } {
   switch (v.kind) {
-    case "no-type": return { text: "Check", tone: "none" };
+    case "no-type": case "unchecked": return { text: "Check", tone: "none" };
     case "no-grid": return { text: "No grid yet", tone: "none" };
     case "unsupported": return { text: "Not in paint yet", tone: "none" };
     case "incomplete": return { text: "Not a puzzle yet", tone: "bad" };
@@ -76,6 +79,7 @@ export function verdictStory(v: Verdict, genre: GenreName | null): { title: stri
   const name = genre ? kindName(genre) : "";
   switch (v.kind) {
     case "no-type": return { title: "No type yet", text: "Choose a puzzle type: its rules decide what counts as a solution." };
+    case "unchecked": return { title: "Not checked yet", text: "Press Check when it's ready: the solver looks for its solutions, and keeps looking as you draw." };
     case "no-grid": return { title: "No grid yet", text: "Draw a grid with the Grid tool: the puzzle is read off it." };
     case "unsupported": return { title: "Not in paint yet", text: v.text };
     case "incomplete": return { title: "Not a puzzle yet", text: v.text };

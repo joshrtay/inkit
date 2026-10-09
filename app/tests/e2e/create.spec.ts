@@ -8,14 +8,16 @@ import { readFileSync } from "node:fs";
 import { q, RUN_FILE, sql, type Run } from "./db";
 
 const run = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
-const PAGE = 560;   // the sketchpad's page, in its own units (sketchpad/model.ts)
 const shot = async (page: Page, name: string) => {
   if (process.env.CREATE_SHOTS) await page.screenshot({ path: `${process.env.CREATE_SHOTS}/${name}.png` });
 };
 
 async function at(page: Page, x: number, y: number) {
-  const box = (await page.locator(".sp-board").boundingBox())!;
-  return { x: box.x + (x / PAGE) * box.width, y: box.y + (y / PAGE) * box.height };
+  // the page point through the sketchpad's view (pans and zooms: sketchpad/view.ts), in the window's pixels
+  return page.locator(".sp-board").evaluate((svg: SVGSVGElement, p) => {
+    const t = svg.getScreenCTM()!;
+    return { x: t.a * p.x + t.c * p.y + t.e, y: t.b * p.x + t.d * p.y + t.f };
+  }, { x, y });
 }
 async function tap(page: Page, x: number, y: number) { const p = await at(page, x, y); await page.mouse.click(p.x, p.y); }
 async function drag(page: Page, [x0, y0]: [number, number], [x1, y1]: [number, number]) {
@@ -44,11 +46,11 @@ async function drawAkari(page: Page) {
 }
 /** The Check button, which shows the verdict (docs/creation-flow.md, "v3 layout"). */
 const chip = (page: Page) => page.locator(".paint-verdict-btn");
-/** Type ▾ opens the drawer at Types; a type from its list. */
-async function chooseType(page: Page, name: RegExp) {
+/** Type ▾ opens the drawer at Types; a type from its list, by its ✓. */
+async function chooseType(page: Page, name: string) {
   await page.locator(".paint-type").click();
-  await page.locator(".paint-type-list").getByRole("button", { name }).first().click();
-  await expect(page.getByRole("tab", { name: "This puzzle" })).toHaveAttribute("aria-selected", "true");
+  await page.locator(".paint-type-list").getByRole("button", { name: `Use ${name}`, exact: true }).click();
+  await expect(page.locator(".paint-type-name")).toHaveText(name);
 }
 const idOf = (page: Page) => /\/g\/([^/]+)\//.exec(page.url())![1];
 const row = (id: string) => sql<{ state: string; kind: string; title: string; description: string; sketch: string; drawing: string | null; sketch_image: string | null }>(
@@ -74,8 +76,9 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
 
-  await chooseType(page, /^Akari/);
+  await chooseType(page, "Akari");
   await drawAkari(page);
+  await chip(page).click();
   await expect(chip(page)).toHaveText(/One solution/, { timeout: 15_000 });
 
   // Publish: saved first, then the publish page, still in paint's chrome
@@ -150,7 +153,7 @@ test("the server won't publish a sketch the solver didn't pass", async ({ page }
   // not a puzzle yet: the publish page sends it back to paint
   await page.goto(`/g/${id}/publish`);
   await expect(page).toHaveURL(new RegExp(`/g/${id}/draw$`));
-  await chooseType(page, /^Akari/);
+  await chooseType(page, "Akari");
   await drawAkari(page);
   await expect(page.locator(".paint-saved")).toHaveText("Saved", { timeout: 15_000 });
   await expect.poll(() => row(id).kind, { timeout: 10_000 }).toBe("akari");
@@ -196,6 +199,9 @@ test("a photo, read (a given reading: no Claude) and drawn in ink, with its doub
   await doubt.click();
   await expect(page.locator(".sp-mark.doubt.selected .sp-mark-ring")).toHaveCount(1);
   await expect(page.locator(".paint-tip.doubt")).toContainText("looks like a 4 or a 1");
+  // the doubts show from the start; the verdict waits for Check
+  await expect(chip(page)).toHaveAttribute("data-verdict", "unchecked");
+  await chip(page).click();
   await expect(chip(page)).toHaveText(/One solution/, { timeout: 15_000 });
   await shot(page, "02-paint-from-photo");
 
@@ -250,8 +256,18 @@ test("What type is this? on a drawing: tried as every type, no AI, the best firs
   // nothing was sent anywhere to suggest it (only the drawing's own autosave)
   expect(requests.filter((u) => !/\/draw(\?|$)/.test(new URL(u).pathname + new URL(u).search))).toEqual([]);
 
-  await picker.getByRole("button", { name: "Make it Akari" }).click();
-  await expect(page.getByRole("tab", { name: "This puzzle" })).toHaveAttribute("aria-selected", "true");
+  // a card opens its guide (choosing nothing); its ✓ uses it
+  await best.click();
+  await expect(picker.getByRole("region", { name: "About Akari" })).toBeVisible();
+  await expect(page.locator(".paint-type-name")).toHaveText("Not set");
+  await picker.getByRole("button", { name: "← All types" }).click();
+  await expect(picker.locator(".paint-suggest-card")).toHaveCount(3);
+  await picker.locator(".paint-suggest-item").first().getByRole("button", { name: "Use Akari" }).click();
   await expect(page.locator(".paint-type-name")).toHaveText("Akari");
+  // chosen, not checked: the drawer stays at Types until Check
+  await expect(page.getByRole("tab", { name: "Types" })).toHaveAttribute("aria-selected", "true");
+  await expect(chip(page)).toHaveAttribute("data-verdict", "unchecked");
+  await chip(page).click();
+  await expect(page.getByRole("tab", { name: "This puzzle" })).toHaveAttribute("aria-selected", "true");
   await expect(chip(page)).toHaveText(/One solution/, { timeout: 15_000 });
 });

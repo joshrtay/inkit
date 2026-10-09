@@ -37,20 +37,6 @@
 .sp-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .sp-btn[aria-pressed="true"] .sp-icon { stroke-width: 2.1; }
 
-/* tooltips: the button's name and shortcut (the accessible name stays its aria-label) */
-@media (hover: hover) {
-  .sp-tip { position: relative; }
-  .sp-tip[data-tip]:hover::after, .sp-tip[data-tip]:focus-visible::after {
-    content: attr(data-tip); position: absolute; z-index: 30; top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
-    padding: 5px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
-    font: 600 12px/1.2 var(--body); color: var(--panel); background: var(--ink); box-shadow: 0 4px 12px var(--shadow);
-  }
-  .sp-tools .sp-tip[data-tip]:hover::after, .sp-tools .sp-tip[data-tip]:focus-visible::after { top: 50%; left: calc(100% + 8px); transform: translateY(-50%); }
-  .sp-status .sp-tip[data-tip]:hover::after, .sp-status .sp-tip[data-tip]:focus-visible::after { top: auto; bottom: calc(100% + 6px); }
-  .sp-zoom .sp-tip:last-child:hover::after, .sp-status .sp-toggle:hover::after, .sp-status .sp-toggle:focus-visible::after { left: auto; right: 0; transform: none; }
-  .sp-palette .sp-swatch.sp-tip[data-tip]:hover::after, .sp-palette .sp-stamp.sp-tip[data-tip]:hover::after { top: auto; bottom: calc(100% + 4px); }
-}
-
 /* ---- the tool palette ---- */
 .sp-tools {
   grid-area: tools; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 7px;
@@ -84,14 +70,14 @@
 .sp-palette .sp-stamps { width: 100%; grid-template-columns: repeat(4, 1fr); }
 .sp-palette .sp-shapes { flex-wrap: wrap; }
 .sp-pal-doc { display: none; }
-/* the paper keeps clear of the open palette */
-@media (min-width: 721px) { .sp-work.pal-open .grid-game.sp-canvas { padding-left: 284px; } }
+/* the palette floats over the paper: it takes no room from it (Fit keeps the puzzle clear of it) */
 
 /* the … menu (Clear, Download) */
 .sp-menu-wrap { position: relative; display: inline-flex; }
+/* (in the top layer, placed by Sketchpad: fixed, beside its button) */
 .sp-menu {
-  position: absolute; z-index: 50; right: 0; top: calc(100% + 6px); width: 210px; padding: 6px; border-radius: 10px; background: var(--panel);
-  border: 1px solid var(--line-strong); box-shadow: 0 14px 36px var(--shadow); display: grid; gap: 1px;
+  position: fixed; inset: auto; left: 0; top: 0; margin: 0; z-index: 50; width: 210px; padding: 6px; border-radius: 10px; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line-strong); box-shadow: 0 14px 36px var(--shadow); display: grid; gap: 1px; overflow: visible;
 }
 .sp-menu button { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 0; border-radius: 6px; background: none; color: var(--ink); font: 600 14px/1 var(--body); text-align: left; }
 .sp-menu button:hover:not(:disabled) { background: var(--sp-hover); }
@@ -126,18 +112,25 @@
 .sp-pad-cell:focus-visible { outline: 2px solid var(--ink); outline-offset: 0; position: relative; z-index: 1; }
 .sp-small-btn { font-size: 11px; }
 
-/* ---- the workspace and the paper on it, fitted to it (Sketchpad sets the width) ---- */
+/* ---- the workspace: open paper, edge to edge (no page edge: the drawing goes anywhere, and what's
+   exported is cropped to it). Its grain is the site's paper texture faded nearly white, as on
+   the page behind the boards, moving and scaling with the view (Sketchpad sets --grain-*), so the
+   paper slides under the camera. It stays paper in the dark theme, a lit sheet under the dark
+   chrome. A faint inner shadow keeps the chrome's edges. ---- */
 .grid-game.sp-canvas {
-  grid-area: canvas; display: flex; overflow: auto; min-width: 0; min-height: 0; padding: 20px;
-  background: var(--sp-workspace);
-  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--shadow) 60%, transparent);
+  grid-area: canvas; position: relative; overflow: hidden; min-width: 0; min-height: 0; padding: 0;
+  color: var(--paper-ink);
+  background:
+    linear-gradient(color-mix(in srgb, var(--paper) 72%, transparent), color-mix(in srgb, var(--paper) 72%, transparent)),
+    url("/paper.svg") var(--grain-x, 0) var(--grain-y, 0) / var(--grain, 512px) var(--grain, 512px),
+    var(--paper);
+  box-shadow: inset 0 1px 4px color-mix(in srgb, var(--shadow) 70%, transparent), inset 1px 0 3px color-mix(in srgb, var(--shadow) 40%, transparent);
 }
-.sp-paper {
-  position: relative; flex: none; margin: auto; width: min(100%, 560px);
-  background: var(--paper); color: var(--paper-ink); border-radius: 2px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 2px 4px var(--shadow), 0 14px 32px -10px var(--shadow);
-}
-.sp-paper > svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+.sp-paper { position: absolute; inset: 0; }
+.sp-paper > svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; cursor: crosshair; }
+/* Space held, or the middle button: the paper is grabbed and moved */
+.sp-paper.pan > svg, .sp-paper.pan > svg * { cursor: grab !important; }
+.sp-paper.pan > svg:active, .sp-paper.pan > svg:active * { cursor: grabbing !important; }
 /* each tool's cursor matches its icon, as in a paint app (docs/style.md, "Cursors"): the pen, the
    wash's brush (the Areas tool's too: it paints squares into an area), the stamp, the text caret, the eraser; the line and a new grid are aimed with the
    crosshair. With the grid tool, the grid itself can be grabbed and moved, and its corner handle
@@ -234,7 +227,6 @@
     grid-template-rows: minmax(0, 1fr) auto auto auto;
     grid-template-areas: "canvas" "drawer" "opts" "tools";
   }
-  .grid-game.sp-canvas { padding: 10px; }
   .sp-status { display: none; }
   .sp-palette {
     grid-area: opts; margin: 0; width: auto; max-height: none; border-radius: 0; box-shadow: none; border: 0; border-top: 1px solid var(--line);
@@ -257,7 +249,6 @@
   .sp-palette .sp-shapes { flex-wrap: nowrap; }
   .sp-pal-doc { display: inline-flex; flex: none; padding-left: 6px; border-left: 1px solid var(--line); }
   .sp-pal-doc .sp-doc { border: 0; padding: 0; margin: 0; }
-  .sp-pal-doc .sp-menu { top: auto; bottom: calc(100% + 6px); }
   .sp-tools {
     flex-direction: row; justify-content: space-between; gap: 2px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     overflow-x: auto; scrollbar-width: none; border-right: 0; border-top: 1px solid var(--line);

@@ -6,6 +6,7 @@ import { cloudflareContext } from "./lib/context";
 import { currentCreator } from "./lib/auth.server";
 import { SideNav, TabBar } from "./components/Shell";
 import { ConfirmProvider } from "./components/ConfirmDialog";
+import { TooltipLayer } from "./components/Tooltips";
 import { BugReportHost } from "./components/BugReport";
 
 export const links: Route.LinksFunction = () => [
@@ -58,7 +59,8 @@ export default function App() {
   // the editor's preview of a game page: the site's frame, but its nav goes nowhere
   const preview = matches.some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
   // the site's confirm dialog (components/ConfirmDialog.tsx: useConfirm), for every page
-  if (bare) return <ConfirmProvider><Outlet /><BugReportHost /></ConfirmProvider>;
+  // and its one tooltip layer (components/Tooltips.tsx: every data-tip)
+  if (bare) return <ConfirmProvider><Outlet /><TooltipLayer /><BugReportHost /></ConfirmProvider>;
   return (
     <ConfirmProvider>
       <div className="shell">
@@ -66,6 +68,7 @@ export default function App() {
         <div className="page"><Outlet /></div>
         <div className="nav-wrap" inert={preview || undefined}><TabBar me={me} /></div>
       </div>
+      <TooltipLayer />
       {/* "Report a bug" (docs/bug-pipeline.md): its dialog, and the capture for signed-in people */}
       <BugReportHost />
     </ConfirmProvider>

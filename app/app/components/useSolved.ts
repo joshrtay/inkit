@@ -19,6 +19,6 @@ export function useSolved(spec: GridSpec | null, key: string): Solved | null {
       setSolved("error" in r ? { key, error: r.error } : { key, solutions: r.solutions, boards: r.boards });
     }, 400);
     return () => { live = false; clearTimeout(t); };
-  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, !!spec]); // eslint-disable-line react-hooks/exhaustive-deps
   return solved;
 }

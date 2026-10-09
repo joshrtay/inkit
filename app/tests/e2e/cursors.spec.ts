@@ -63,11 +63,12 @@ test("paint: each tool its own cursor; the grid grabbed and stretched", async ({
   // nothing to undo yet: a disabled button gets the arrow
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
   expect(await cursor(page.getByRole("button", { name: "Undo", exact: true }))).toBe("default");
-  // a grid (dragged out with the Grid tool, which it starts with)
+  // a grid (dragged out with the Grid tool, which it starts with), clear of the palette floating
+  // over the paper's left side
   const box = (await paper.boundingBox())!;
-  await page.mouse.move(box.x + box.width * 0.1, box.y + box.height * 0.1);
+  await page.mouse.move(box.x + box.width * 0.45, box.y + box.height * 0.2);
   await page.mouse.down();
-  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height * 0.7, { steps: 6 });
+  await page.mouse.move(box.x + box.width * 0.85, box.y + box.height * 0.7, { steps: 6 });
   await page.mouse.up();
   await expect(paper).not.toHaveAttribute("data-grid", "");
   expect(await cursor(paper)).toBe("crosshair");

@@ -51,6 +51,9 @@ for (const x of examples) {
     // the drawing made from the sketch is the same puzzle again
     const original = specKey(x.spec);
     await expect.poll(() => puzzleKey(page)).toBe(original);
+    // nothing's checked until Check
+    await expect(verdict(page)).toHaveAttribute("data-verdict", "unchecked");
+    await verdict(page).click();
     await expect(verdict(page)).toHaveAttribute("data-verdict", /^(one|solvable)$/, { timeout: 30_000 });
     // opening it saved its drawing (a game from before paint has none)
     await expect.poll(() => sql<{ drawing: string | null }>(`select drawing from games where id = ${q(x.id)}`)[0].drawing !== null, { timeout: 15_000 }).toBe(true);

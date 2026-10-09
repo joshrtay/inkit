@@ -52,6 +52,10 @@ describe("the verdict", () => {
   });
   it("waits for the solver's answer for this very puzzle", () => {
     expect(verdictOf("sudoku", conv, key, null).kind).toBe("checking");
+    // before Check is pressed: no verdict, the button just says Check
+    expect(verdictOf("sudoku", conv, key, null, false)).toEqual({ kind: "unchecked" });
+    expect(verdictWords({ kind: "unchecked" })).toEqual({ text: "Check", tone: "none" });
+    expect(passes({ kind: "unchecked" })).toBe(false);
     const stale: Solved = { key: "another", solutions: 1, boards: [] };
     expect(verdictOf("sudoku", conv, key, stale).kind).toBe("checking");
     expect(verdictOf("sudoku", conv, key, { key, solutions: 1, boards: [] }).kind).toBe("one");

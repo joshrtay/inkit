@@ -12,6 +12,8 @@ import type { GameCard } from "./queries.server";
 
 export interface Thumbed extends Omit<GameCard, "sketch" | "sketchVersion"> {
   picture: string | null;
+  /** its rows and columns, if it has a grid (a draft's name before it has a title: games/kinds.ts's draftName) */
+  size: [number, number] | null;
   /** the viewer has solved it */
   solved?: boolean;
 }
@@ -22,7 +24,7 @@ export function withPictures(games: GameCard[]): Thumbed[] {
     const parsed = parseSketch(sketch, sketchVersion);
     let picture: string | null = null;
     try { if (parsed.ok) picture = pictureSvg(makePuzzle(parsed.spec), null, g.title); } catch { /* listed without a picture */ }
-    return { ...g, picture };
+    return { ...g, picture, size: parsed.ok && !parsed.spec.figure ? parsed.spec.size : null };
   });
 }
 
@@ -39,6 +41,7 @@ export async function draftPictures(db: Db, games: GameCard[]): Promise<Thumbed[
   return cards.map((g) => {
     if (g.state === "published") return g;
     const save = drawings.get(g.id) ? readPaintSave(drawings.get(g.id)) : null;
-    return { ...g, picture: g.picture ?? (save ? drawingSvg(save.drawing, g.title) || null : null) };
+    const grid = save?.drawing.grid;
+    return { ...g, picture: g.picture ?? (save ? drawingSvg(save.drawing, g.title) || null : null), size: g.size ?? (grid ? [grid.rows, grid.cols] : null) };
   });
 }

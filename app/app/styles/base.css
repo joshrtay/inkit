@@ -189,3 +189,12 @@ select, textarea { font: 400 15px/1.35 var(--body); color: var(--ink); backgroun
   .confirm { width: calc(100vw - 24px); margin: auto auto max(12px, env(safe-area-inset-bottom)); }
   .confirm-acts .btn { flex: 1; padding-block: 12px; }
 }
+
+/* the tooltip (components/Tooltips.tsx): one, in the top layer, beside the button it names */
+.tip-layer {
+  position: fixed; inset: auto; left: 0; top: 0; margin: 0; z-index: 2147483000; width: max-content; max-width: min(280px, calc(100vw - 12px));
+  padding: 5px 8px; border: 0; border-radius: 6px; overflow: visible;
+  font: 600 12px/1.2 var(--body); color: var(--panel); background: var(--ink); box-shadow: 0 4px 12px var(--shadow);
+}
+.tip-layer:not([data-open]) { display: none; }
+.tip-layer:popover-open:not([data-open]) { display: none; }

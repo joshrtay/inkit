@@ -8,7 +8,9 @@
 // Pure: no DOM. draw.ts turns it into SVG; export.ts turns that into the picture the reader gets.
 import { HEX_SIDE } from "~site/engine/geometry.ts";
 
-/** The page is PAGE × PAGE units: about a board's own scale, so the pen weights look the same. */
+/** The page: PAGE × PAGE units, about a board's own scale, so the pen weights look the same. The
+ *  paper is open past it in every direction (the sketchpad's view, view.ts, goes anywhere): PAGE is
+ *  the first sheet, what a blank drawing shows and where a drawing made from a sketch is laid out. */
 export const PAGE = 560;
 /** A square as the boards draw it (picture.ts): the size of a stamp with no grid to size it by. */
 export const CELL = 48;
@@ -312,18 +314,17 @@ export function toggleCell(cells: Cells, r: number, c: number): Cells {
 /** A grid over a dragged rectangle, its rows and columns given or worked out from the drag (squares
  *  about a board's size), its squares square. Null: the drag is too small to be a grid. */
 export function gridFromDrag(a: XY, b: XY, rows?: number, cols?: number): Grid | null {
-  const x0 = clamp(Math.min(a.x, b.x), 0, PAGE), y0 = clamp(Math.min(a.y, b.y), 0, PAGE);
-  const w = clamp(Math.max(a.x, b.x), 0, PAGE) - x0, h = clamp(Math.max(a.y, b.y), 0, PAGE) - y0;
+  const x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
+  const w = Math.max(a.x, b.x) - x0, h = Math.max(a.y, b.y) - y0;
   if (w < MIN_SQUARE || h < MIN_SQUARE) return null;
   const nc = cols ?? clamp(Math.round(w / CELL), 1, MAX_LINES), nr = rows ?? clamp(Math.round(h / CELL), 1, MAX_LINES);
   const S = Math.max(MIN_SQUARE, Math.min(w / nc, h / nr));
   return fit({ x: x0, y: y0, rows: nr, cols: nc, S });
 }
 
-/** The grid kept on the page: squares made smaller if it can't fit, then moved onto it. */
+/** The grid as it may be: squares no smaller than MIN_SQUARE. (It goes anywhere: the paper is open.) */
 function fit(g: Grid): Grid {
-  const { w, h } = gridSpan(g), S = Math.min(g.S, PAGE / w, PAGE / h);
-  return { ...g, S, x: clamp(g.x, 0, PAGE - w * S), y: clamp(g.y, 0, PAGE - h * S) };
+  return g.S >= MIN_SQUARE ? g : { ...g, S: MIN_SQUARE };
 }
 /** The grid drawn another way: lines, a panel's tracks, hexagons or a lattice of points. */
 export const setLook = (g: Grid, look: "lines" | "tracks" | GridShape): Grid => {
@@ -332,7 +333,7 @@ export const setLook = (g: Grid, look: "lines" | "tracks" | GridShape): Grid => 
 };
 export const lookOf = (g: Grid): "lines" | "tracks" | GridShape => g.shape ?? (g.tracks ? "tracks" : "lines");
 
-/** More or fewer rows and columns, squares the same size (smaller if it would leave the page). */
+/** More or fewer rows and columns, squares the same size. */
 export const resizeGrid = (g: Grid, rows: number, cols: number): Grid =>
   fit({ ...g, rows: clamp(rows, 1, MAX_LINES), cols: clamp(cols, 1, MAX_LINES) });
 export const moveGrid = (g: Grid, dx: number, dy: number): Grid => fit({ ...g, x: g.x + dx, y: g.y + dy });

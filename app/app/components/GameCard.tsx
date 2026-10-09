@@ -2,7 +2,7 @@ import { Form, Link } from "react-router";
 import type { Thumbed } from "~/lib/thumbs.server";
 import type { CollectionCard } from "~/lib/queries.server";
 import { doubtsOf } from "~/games/doubts";
-import { editPath, kindName } from "~/games/kinds";
+import { draftName, editPath, kindName } from "~/games/kinds";
 import { Avatar } from "./Avatar";
 import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
@@ -22,7 +22,7 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
           <Picture svg={game.picture} className="thumb" />
           <span className="game-card-text">
             <span className={`kind${game.kind ? "" : " unset"}`}>{kindName(game.kind)}</span>
-            <strong>{game.title || "Untitled"}</strong>
+            <strong>{draftName(game.title, game.kind, game.size)}</strong>
             <span className="by">
               {game.publishAt ? <>Goes up {scheduled(game.publishAt)}</> : <>Edited <time suppressHydrationWarning>{edited(game.updatedAt)}</time></>}
               {game.authorHandle && game.collectionSlug !== game.authorHandle && <> · by @{game.authorHandle}</>}

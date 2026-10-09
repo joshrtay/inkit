@@ -81,7 +81,6 @@
 .paint-badge { position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; display: grid; place-items: center; font: 900 10px/1 var(--body); color: #fff; background: var(--muted); }
 .paint-badge.ok { background: var(--good); }
 .paint-badge.bad, .paint-badge.warn { background: var(--red); }
-@media (hover: hover) { .paint-strip .sp-tip[data-tip]:hover::after { top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); } }
 .paint-sheet-handle, .paint-scrim { display: none; }
 
 /* This puzzle */
@@ -169,6 +168,7 @@
 .paint-ask .sp-icon { width: 18px; height: 18px; }
 .paint-type-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .paint-type-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-radius: 10px; border: 1px solid transparent; }
+.paint-type-list li.muted { display: block; padding: 8px; }
 .paint-type-list li:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
 .paint-type-list li.on { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
 .paint-ty { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 11px; align-items: center; padding: 7px 8px; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; }
@@ -177,8 +177,18 @@
 .paint-ty .pic svg { width: 100%; height: 100%; }
 .paint-ty strong { display: block; font: 800 14.5px/1.2 var(--display); }
 .paint-ty .muted { display: block; font-size: 12.5px; line-height: 1.35; margin-top: 2px; }
-.paint-ty-more { padding: 6px 10px; font: 700 12px/1 var(--body); color: var(--muted); background: none; border: 0; white-space: nowrap; }
-.paint-ty-more:hover { color: var(--ink); }
+/* a type's ✓: browsing (the row: its guide) and choosing (this) are apart */
+.paint-use {
+  display: grid; place-items: center; flex: none; width: 34px; height: 34px; margin-right: 8px; padding: 0; border-radius: 50%;
+  color: var(--muted); background: var(--panel); border: 1.5px solid var(--line-strong);
+}
+.paint-use svg, .paint-in-use svg, .paint-use-this svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.paint-use:hover:not(:disabled) { color: var(--ink); border-color: var(--ink); }
+.paint-use[aria-pressed="true"] { color: var(--panel); background: var(--good); border-color: var(--good); }
+.paint-use:disabled { opacity: .35; }
+.paint-use:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.paint-in-use { display: inline-flex; align-items: center; gap: 6px; font: 800 13.5px/1 var(--body); color: var(--good); }
+.paint-use-this { display: inline-flex; align-items: center; gap: 6px; }
 .paint-unset { font: 800 22px/1 var(--display); color: var(--muted); border: 1.5px dashed var(--line-strong); border-radius: 8px; background: none !important; }
 .paint-picker-foot { margin: 0; font-size: 12.5px; }
 .paint-about { display: grid; gap: 12px; }
@@ -217,14 +227,15 @@
 .sp-solution .sp-sol-digit { font-family: var(--hand); fill: color-mix(in srgb, var(--wash-blue) 75%, var(--paper-ink)); text-anchor: middle; dominant-baseline: central; opacity: .8; }
 .sp-solution .sp-sol-line { stroke: color-mix(in srgb, var(--wash-blue) 75%, transparent); stroke-width: 5; stroke-linecap: round; }
 
-/* the tip beside a selected item, pointing at it */
-.sp-paper-tip { position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 12px)); width: max-content; max-width: min(300px, 70vw); pointer-events: auto; }
-.sp-paper-tip.below { transform: translate(-50%, 12px); }
+/* the tip beside a selected item, pointing at it (Sketchpad places it: above, or flipped below or
+   beside, kept on the workspace; --arrow is where along its edge the item is) */
+.sp-paper-tip { position: absolute; left: 0; top: 0; z-index: 5; width: max-content; max-width: min(300px, 70vw); pointer-events: auto; }
 .sp-paper-tip::after {
-  content: ""; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg);
+  content: ""; position: absolute; left: var(--arrow, 50%); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; transform: rotate(45deg);
   background: var(--panel); border-right: 1.5px solid var(--wash-orange); border-bottom: 1.5px solid var(--wash-orange);
 }
-.sp-paper-tip.below::after { bottom: auto; top: -6px; border: 0; border-left: 1.5px solid var(--wash-orange); border-top: 1.5px solid var(--wash-orange); }
+.sp-paper-tip[data-side="bottom"]::after { bottom: auto; top: -6px; border: 0; border-left: 1.5px solid var(--wash-orange); border-top: 1.5px solid var(--wash-orange); }
+.sp-paper-tip[data-side="left"]::after, .sp-paper-tip[data-side="right"]::after { display: none; }
 .paint-tip { position: relative; padding: 12px 14px; border-radius: 10px; background: var(--panel); color: var(--ink); border: 1.5px solid var(--wash-orange); box-shadow: 0 10px 26px var(--shadow); font-family: var(--body); }
 .paint-tip.misfit, .paint-tip.fix { border-color: #e04a5f; }
 .paint-tip strong { display: block; padding-right: 18px; font: 800 15px/1.25 var(--display); color: #c76a00; }
@@ -282,7 +293,7 @@
   .paint-drawer-close { display: inline-flex; }
   .paint-scrim { display: block; position: fixed; inset: 0; z-index: 39; background: color-mix(in srgb, #000 40%, transparent); }
   .sp-all { margin-top: 0; width: auto; height: 44px; flex-direction: row; padding: 0 8px; }
-  .sp-paper-tip { position: fixed; left: 12px !important; right: 12px; top: auto !important; bottom: 190px; transform: none; max-width: none; width: auto; }
+  .sp-paper-tip { position: fixed; left: 12px !important; right: 12px; top: auto !important; bottom: 190px; max-width: none; width: auto; }
   .sp-paper-tip::after { display: none; }
 }
 
@@ -294,10 +305,13 @@
   position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); width: 100%; height: 100%; padding: 0; text-align: left; overflow: hidden;
   font: inherit; color: var(--ink); background: var(--panel); border: 1.5px solid var(--line-strong); border-radius: 12px;
 }
-.paint-suggest-card[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 30%, transparent); }
+.paint-suggest-card:hover { border-color: var(--ink); }
+.paint-suggest-card[aria-current="true"] { border-color: var(--good); }
+.paint-suggest-item { position: relative; }
+.paint-suggest-item > .paint-use { position: absolute; right: 2px; bottom: 10px; }
 .paint-suggest-card .pic { display: grid; place-items: center; height: 100%; min-height: 96px; padding: 8px; background: var(--paper); }
 .paint-suggest-card .pic svg { width: 100%; height: auto; max-height: 80px; }
-.paint-suggest-text { display: grid; align-content: start; gap: 6px; padding: 10px 12px 12px; font-size: 13px; line-height: 1.4; }
+.paint-suggest-text { display: grid; align-content: start; gap: 6px; padding: 10px 46px 12px 12px; font-size: 13px; line-height: 1.4; }
 .paint-suggest-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .paint-suggest-head strong { font: 800 16px/1.2 var(--display); }
 .paint-said { flex: none; padding: 3px 8px; border-radius: 999px; font: 700 12px/1 var(--body); background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--muted); }

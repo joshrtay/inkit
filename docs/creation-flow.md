@@ -639,6 +639,25 @@ Decisions:
   didn't fit the dark heading cleanly); Publish wakes when the solver here passes, and the server
   still checks the hash. Its Type goes back to paint with Types open (`?types=1`).
 - `GamePageView` no longer has a draft mode.
+- October 2026, the owner's second pass:
+  - The top bar has no title (it's named on the publish page); the save state sits after Type.
+    Untitled drafts are called by type and size everywhere ("Sudoku · 6 × 6"; "New puzzle" with no type).
+  - Browsing and choosing a type are apart, in every type list: a row (or a What type is this? card)
+    opens the type's guide; its ✓ ("Use this type"), or "Use Sudoku" on the guide, chooses it. The
+    drawer stays where it was. (GuidePane's list only browses.)
+  - Choosing a type doesn't check: the button reads "Check" until it's pressed, and nothing is marked
+    on the paper but a photo's doubts. Pressed, the solver runs, the verdict shows, This puzzle opens,
+    and it all stays live until the type changes. Publish with no check yet checks, then goes on if it
+    passes, else opens This puzzle.
+  - The workspace is open paper, edge to edge, rather than a 560-unit page on a dark desk: the paper
+    texture slides and scales with the view, and there's no page edge to bump into (a page that grew
+    to the content would only add an edge that means nothing; export crops to the drawing anyway).
+    It pans (wheel, Space or middle-button drag, two fingers) and zooms (Ctrl/Cmd + wheel, pinch, the
+    buttons); Fit shows the puzzle's own bounds clear of the palette, and a new grid is fitted. The
+    palette floats over it. The drawing keeps its page units (`PAGE` is now just the first sheet: a
+    blank drawing's view and where sketches are laid out); grids are no longer squeezed onto it.
+  - Tooltips are one layer for the site (`components/Tooltips.tsx`), in the browser's top layer, so
+    no container hides them; so is the … menu, and the paper's tip is placed to stay on the workspace.
 
 ### The publish step: three options
 

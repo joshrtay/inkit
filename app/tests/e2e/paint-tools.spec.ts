@@ -198,6 +198,7 @@ test("settings from the old toolbar: Hidoku's corners, Fillomino's sizes, Abstra
   await sizes.fill("1 2 3 4 5");
   await sizes.blur();
   await eventually(fo, (s) => has(s.rules, { rule: "allowed-sizes", sizes: [1, 2, 3, 4, 5] }));
+  await verdict(page).click();
   await expect(verdict(page)).toHaveAttribute("data-verdict", "one", { timeout: 30_000 });
 
   const aa = draftOf("abstract-art");

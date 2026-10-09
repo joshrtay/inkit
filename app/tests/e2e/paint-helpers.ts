@@ -59,8 +59,11 @@ export const P = (g: m.Grid, a: m.Anchor) => m.pointOf(g, a);
 export const cell = (g: m.Grid, r: number, c: number) => P(g, { at: "cell", r, c });
 
 async function screen(page: Page, p: m.XY) {
-  const box = (await page.locator(".sp-board").boundingBox())!;
-  return { x: box.x + (p.x / m.PAGE) * box.width, y: box.y + (p.y / m.PAGE) * box.height };
+  // the page point through the sketchpad's view (pans and zooms: sketchpad/view.ts), in the window's pixels
+  return page.locator(".sp-board").evaluate((svg: SVGSVGElement, p) => {
+    const t = svg.getScreenCTM()!;
+    return { x: t.a * p.x + t.c * p.y + t.e, y: t.b * p.x + t.d * p.y + t.f };
+  }, p);
 }
 export async function tap(page: Page, p: m.XY) { const s = await screen(page, p); await page.mouse.click(s.x, s.y); }
 export async function drag(page: Page, points: m.XY[]) {

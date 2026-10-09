@@ -1,13 +1,15 @@
 // Paint's Types tab (docs/creation-flow.md, "v3 layout"), in the right drawer that the Type button
 // opens: every puzzle type in the guide pane's list style (its example's picture, its name and what
-// it is), searchable, and "Not set"; each with "More", its guide shown in the drawer. The type can
-// be changed any time; nothing drawn is lost.
+// it is), searchable, and "Not set". Browsing and choosing are apart, everywhere a type is listed:
+// a type clicked shows its guide in the drawer (as GuidePane's list does); choosing it takes its ✓
+// ("Use this type"), or "Use Sudoku" on its guide. The type can be changed any time; nothing drawn
+// is lost.
 //
 // What type is this? (on demand only, never by itself): for a photo, the types its reading could be
 // (games.kind_choices), at once; for a drawing, no AI: the drawing converted as every type paint
 // makes, the best fits checked by the solver in turn (sketchpad/suggest.ts), within a time budget
 // and with a Cancel. The top three show as cards: the drawing as that type, the solver's verdict,
-// and how much of it fits.
+// and how much of it fits; like the list, a card opens its guide and its ✓ uses it.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher } from "react-router";
 import { makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
@@ -52,7 +54,6 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
 
   // ---- What type is this? ----
   const [asked, setAsked] = useState<Asked | null>(null);
-  const [pick, setPick] = useState<GenreName | null>(null);
   const run = useRef(0);
   const stop = async () => {
     run.current++;
@@ -68,7 +69,6 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
     const show = (state: Asked["state"]) => {
       const ranked = rankSuggestions(found, photo);
       setAsked({ state, list: ranked, photo });
-      setPick((p) => p ?? ranked[0]?.fit.genre ?? null);
     };
     show("checking");
     const { findSolutions, stopSolving } = await import("~/games/count-solutions.client");
@@ -98,7 +98,9 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
 
   const name = (k: string) => list.data?.types.find((t) => t.kind === k)?.name ?? kindName(k);
 
-  if (about) return <AboutType kind={about} current={current} onBack={() => onAbout(null)} onChoose={(k) => { onAbout(null); onChoose(k); }} />;
+  /** A type used: the drawer stays where it is (the list, the cards, or the guide, now "In use"). */
+  const use = (k: GenreName | null) => onChoose(k);
+  if (about) return <AboutType kind={about} current={current} onBack={() => onAbout(null)} onChoose={use} />;
   return (
     <div className={`paint-types${asked ? " asking" : ""}`} ref={box}>
       {head}
@@ -118,8 +120,9 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
           {!top.length ? <p className="paint-quiet">Nothing fits yet: draw a grid and some clues, then ask again.</p> : (
             <ul className="paint-suggest-cards">
               {top.map(({ fit, said }, i) => (
-                <li key={fit.genre}>
-                  <button type="button" className="paint-suggest-card" aria-pressed={pick === fit.genre} onClick={() => setPick(fit.genre)} data-genre={fit.genre}>
+                <li key={fit.genre} className="paint-suggest-item">
+                  <button type="button" className="paint-suggest-card" aria-current={current === fit.genre || undefined} onClick={() => onAbout(fit.genre)} data-genre={fit.genre}
+                    aria-label={`${kindName(fit.genre)}: more about it`}>
                     {i === 0 && asked.state !== "checking" && <span className="paint-best">Best fit</span>}
                     <span className="grid-game pic" dangerouslySetInnerHTML={{ __html: pictures.get(fit.genre) ?? "" }} />
                     <span className="paint-suggest-text">
@@ -128,6 +131,7 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
                       <span className={`paint-fits${fit.wontFit ? " bad" : ""}`}>{fit.wontFit ? "" : "✓ "}{fitWords(fit)}</span>
                     </span>
                   </button>
+                  <UseButton name={kindName(fit.genre)} on={current === fit.genre} onUse={() => use(fit.genre)} />
                 </li>
               ))}
             </ul>
@@ -136,7 +140,6 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
             <span className="muted">{asked.state === "checking" ? "The solver is checking each…" : asked.state === "stopped" ? "Stopped: some weren't checked." : "The verdicts are the solver's, on what you've drawn so far."}</span>
             {asked.state === "checking" && <button type="button" className="btn" onClick={() => void stop()}>Cancel</button>}
             <button type="button" className="btn" onClick={() => { void stop(); setAsked(null); }}>Not now</button>
-            <button type="button" className="btn primary" disabled={!pick} onClick={() => { void stop(); if (pick) { setAsked(null); onChoose(pick); } }}>{pick ? `Make it ${kindName(pick)}` : "Make it"}</button>
           </div>
         </section>
       )}
@@ -144,21 +147,23 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
       <ul className="paint-type-list">
         {!q && (
           <li className={current === null ? "on" : ""}>
-            <button type="button" className="paint-ty" aria-pressed={current === null} onClick={() => onChoose(null)}>
+            {/* no guide to show: the row is the choice */}
+            <button type="button" className="paint-ty" aria-current={current === null || undefined} onClick={() => use(null)}>
               <span className="pic paint-unset" aria-hidden="true">?</span>
               <span><strong>Not set</strong><span className="muted">Plain paint, every tool: choose a type when you know it</span></span>
             </button>
+            <UseButton name="no type" on={current === null} onUse={() => use(null)} />
           </li>
         )}
         {!list.data ? <li className="muted">Loading…</li> : types.map((t) => {
           const inPaint = !!PROFILES[t.kind as GenreName];
           return (
             <li key={t.kind} className={current === t.kind ? "on" : ""}>
-              <button type="button" className="paint-ty" aria-pressed={current === t.kind} disabled={!inPaint} onClick={() => onChoose(t.kind as GenreName)}>
+              <button type="button" className="paint-ty" aria-current={current === t.kind || undefined} aria-label={`${t.name}: more about it`} onClick={() => onAbout(t.kind)}>
                 <span className="grid-game pic" style={{ "--paper-ink": t.ink } as React.CSSProperties} dangerouslySetInnerHTML={{ __html: t.thumb }} />
                 <span><strong>{t.name}</strong><span className="muted">{inPaint ? t.summary : "Not made in paint yet: it keeps its own editor"}</span></span>
               </button>
-              <button type="button" className="paint-ty-more" aria-label={`More about ${t.name}`} onClick={() => onAbout(t.kind)}>More ›</button>
+              <UseButton name={t.name} on={current === t.kind} disabled={!inPaint} onUse={() => use(t.kind as GenreName)} />
             </li>
           );
         })}
@@ -166,6 +171,16 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
       </ul>
       <p className="paint-picker-foot muted">You can change the type any time; nothing you drew is lost.</p>
     </div>
+  );
+}
+
+/** A type's ✓: use it (pressed: it's the type now). */
+function UseButton({ name, on, disabled = false, onUse }: { name: string; on: boolean; disabled?: boolean; onUse: () => void }) {
+  return (
+    <button type="button" className="paint-use" aria-pressed={on} disabled={disabled} onClick={onUse}
+      aria-label={on ? `${name}: in use` : `Use ${name}`} data-tip={disabled ? "Not made in paint yet" : on ? "In use" : "Use this type"} data-tip-side="left">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+    </button>
   );
 }
 
@@ -180,7 +195,10 @@ function AboutType({ kind, current, onBack, onChoose }: { kind: string; current:
     <div className="paint-about" aria-label={`About ${g?.name ?? kindName(kind)}`} role="region">
       <div className="paint-about-head">
         <button type="button" className="link pane-back" onClick={onBack}>← All types</button>
-        {current !== kind && inPaint && <button type="button" className="btn primary" onClick={() => onChoose(kind as GenreName)}>Make it {g?.name ?? kindName(kind)}</button>}
+        {!inPaint ? <span className="muted">Not made in paint yet</span>
+          : current === kind ? <span className="paint-in-use"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>In use</span>
+          : <button type="button" className="btn primary paint-use-this" onClick={() => onChoose(kind as GenreName)}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Use {g?.name ?? kindName(kind)}</button>}
       </div>
       {g ? (
         <div className="pane-guide" style={{ "--paper-ink": g.ink } as React.CSSProperties}>

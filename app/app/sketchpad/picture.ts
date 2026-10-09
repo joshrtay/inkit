@@ -3,20 +3,17 @@
 // sketchpad's own look), cropped to what's on the page. Pure: no DOM, so the server draws it.
 // Wrap it in `.grid-game` (the boards' pen and wash styles).
 import { washDefs } from "~site/lib/ink.ts";
-import { boxOf } from "./check";
+import { inkBounds } from "./view";
 import { gridSvg, itemSvg, penVars } from "./draw";
 import * as m from "./model";
 
-/** Where the drawing's ink is on the page: the grid and every item, with a margin; null if blank. */
+/** Where the drawing's ink is on the page: the grid and every item, with a margin, squared; null if blank. */
 export function drawingBounds(d: m.Drawing): { x: number; y: number; w: number; h: number } | null {
-  const boxes = d.items.filter((it) => it.kind !== "gap").map((it) => boxOf(d, it));
-  if (d.grid) { const span = m.gridSpan(d.grid); boxes.push({ x: d.grid.x, y: d.grid.y, w: span.w * d.grid.S, h: span.h * d.grid.S }); }
-  if (!boxes.length) return null;
-  const x0 = Math.min(...boxes.map((b) => b.x)), y0 = Math.min(...boxes.map((b) => b.y));
-  const x1 = Math.max(...boxes.map((b) => b.x + b.w)), y1 = Math.max(...boxes.map((b) => b.y + b.h));
+  const b = inkBounds(d);
+  if (!b) return null;
   const pad = Math.max(8, m.squareOf(d) * 0.3);
   // square, so thumbnails line up
-  const side = Math.max(x1 - x0, y1 - y0) + 2 * pad, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const side = Math.max(b.w, b.h) + 2 * pad, cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   return { x: cx - side / 2, y: cy - side / 2, w: side, h: side };
 }
 

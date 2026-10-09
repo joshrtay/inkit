@@ -5,6 +5,7 @@
 // writing is drawn onto the canvas afterwards, in the handwriting font the page has loaded.
 import { pointOf, type Drawing } from "./model";
 import { onDark, textSize } from "./draw";
+import { fitBox, type Box } from "./view";
 
 const NS = "http://www.w3.org/2000/svg";
 /** The look of an element, as styles.css and sketchpad.css set it. */
@@ -17,8 +18,8 @@ const PROPS = [
 const localUrl = (v: string) => v.replace(/url\(\s*["']?[^"')]*#([^"')]+)["']?\s*\)/g, "url(#$1)");
 
 /** A copy of the drawing's ink (`ink`, inside `svg`), its look written onto it, as SVG text
- *  `size` pixels across. Elements marked `data-export="skip"` are left out (the writing). */
-export function standalone(svg: SVGSVGElement, size: number): string {
+ *  `size` pixels across showing `box` (page units). Elements marked `data-export="skip"` are left out (the writing). */
+export function standalone(svg: SVGSVGElement, size: number, box: Box): string {
   const copy = svg.cloneNode(true) as SVGSVGElement;
   const live = [svg, ...svg.querySelectorAll<SVGElement>("*")], copies = [copy, ...copy.querySelectorAll<SVGElement>("*")];
   const used = new Set<string>();
@@ -42,8 +43,9 @@ export function standalone(svg: SVGSVGElement, size: number): string {
   }
   copy.insertBefore(defs, copy.firstChild);
   copy.setAttribute("xmlns", NS);
+  copy.setAttribute("viewBox", `${box.x} ${box.y} ${box.w} ${box.h}`);
   copy.setAttribute("width", String(size));
-  copy.setAttribute("height", String(size));
+  copy.setAttribute("height", String(Math.round(size * box.h / box.w)));
   copy.removeAttribute("style");
   return new XMLSerializer().serializeToString(copy);
 }
@@ -52,13 +54,14 @@ function load(src: string): Promise<HTMLImageElement> {
   return new Promise((ok, fail) => { const img = new Image(); img.onload = () => ok(img); img.onerror = () => fail(new Error("The drawing couldn't be drawn")); img.src = src; });
 }
 
-/** The drawing as a PNG, `size` pixels across: the paper, the ink, then the writing. `svg` is the
- *  sketchpad's SVG (a square page); its writing is the drawing's text items. */
+/** The drawing as a PNG, `size` pixels across: the paper, the ink, then the writing; what's drawn
+ *  with a margin (view.ts's fitBox: the first page when blank), wherever on the open paper it is.
+ *  `svg` is the sketchpad's SVG; its writing is the drawing's text items. */
 export async function exportPng(svg: SVGSVGElement, d: Drawing, size = 1600): Promise<Blob> {
-  const vb = svg.viewBox.baseVal, k = size / vb.width;
-  const img = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(standalone(svg, size))}`);
+  const box = fitBox(d), k = size / box.w;
+  const img = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(standalone(svg, size, box))}`);
   const canvas = document.createElement("canvas");
-  canvas.width = size; canvas.height = Math.round(vb.height * k);
+  canvas.width = size; canvas.height = Math.round(box.h * k);
   const ctx = canvas.getContext("2d")!;
   const root = svg.closest<HTMLElement>(".grid-game") ?? svg;
   const css = getComputedStyle(root);
@@ -80,7 +83,7 @@ export async function exportPng(svg: SVGSVGElement, d: Drawing, size = 1600): Pr
     const p = pointOf(d.grid, it.at), size = textSize(d, it.small);
     ctx.font = fontAt(size * k);
     ctx.fillStyle = onDark(d, it) ? paper : ink;
-    ctx.fillText(it.text, p.x * k, (p.y + size * 0.06) * k);
+    ctx.fillText(it.text, (p.x - box.x) * k, (p.y - box.y + size * 0.06) * k);
   }
   return new Promise((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("The drawing couldn't be saved"))), "image/png"));
 }

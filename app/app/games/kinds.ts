@@ -54,6 +54,15 @@ export const KIND_NAMES: Record<GenreName, string> = {
 /** A type's name; a draft with no type yet (paint: the type is chosen as it's drawn) says so. */
 export const kindName = (id: string) => (id ? (KIND_NAMES as Record<string, string>)[id] ?? id : "No type yet");
 
+/** What a draft is called before it's named (the title is set on the publish page): its title if it
+ *  has one, else its type and size ("Sudoku · 6 × 6"), else "New puzzle". "Untitled" is what the
+ *  server stores for no title. */
+export const draftName = (title: string | null | undefined, kind: string, size?: readonly [number, number] | null) => {
+  const t = title?.trim();
+  if (t && t !== "Untitled") return t;
+  return kind ? `${kindName(kind)}${size ? ` · ${size[0]} × ${size[1]}` : ""}` : "New puzzle";
+};
+
 /** Where a game is edited: paint (/g/<id>/draw) for every type but RYB, which keeps its figure
  *  editor (/g/<id>/edit) until paint can draw pieces (docs/creation-flow.md, decision 7). */
 export const editPath = (game: { id: string; kind: string }) => `/g/${game.id}/${game.kind === "coats" ? "edit" : "draw"}`;

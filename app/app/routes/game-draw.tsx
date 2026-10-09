@@ -15,6 +15,7 @@ import { attempt } from "~/lib/http.server";
 import { Paint } from "~/components/Paint";
 import { paintFromSketch, readPaintSave } from "~/games/paint-save";
 import { doubtsOf } from "~/games/doubts";
+import { draftName } from "~/games/kinds";
 import { guides } from "~site/guides/guides.ts";
 
 /** Each type's rules in its guide's words, for This puzzle's checklist (text only: the pictures stay here). */
@@ -25,7 +26,7 @@ export const handle = { bare: true };
 /** A short fingerprint of a text (djb2). */
 const stamp = (t: string) => { let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 
-export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Draw ${loaderData?.game.title ?? "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
+export const meta: Route.MetaFunction = ({ loaderData }) => [{ title: `Draw ${loaderData?.game.name ?? "a puzzle"} · inkit` }, { name: "robots", content: "noindex" }];
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { db, game, may } = await load(request, context.get(cloudflareContext).env, params.id);
@@ -38,7 +39,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const saved = drawn ?? paintFromSketch(game.sketch);
   const choices = (game.kindChoices ?? []).filter(Boolean);
   return {
-    game: { id: game.id, title: game.title },
+    // what it's called until it's named on the publish page (games/kinds.ts)
+    game: { id: game.id, title: game.title, name: draftName(game.title, saved?.genre ?? game.kind, saved?.drawing.grid ? [saved.drawing.grid.rows, saved.drawing.grid.cols] : null) },
     saved,
     // drawn from its sketch just now: saved as its drawing straight away
     fresh: !drawn && !!saved,

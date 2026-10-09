@@ -15,19 +15,26 @@
 // The chrome is a paint app's, each part with one job and nothing in two places (docs/creation-flow.md,
 // "v3 layout"): the page's header holds what acts on the whole drawing (undo, redo, and … with Clear
 // and Download: the page gives a slot for them); the tools in a rail on the left (a bottom bar on a
-// phone); the palette, in one fixed place at the top left of the workspace, with only the chosen
-// tool's settings (Stamp's stamps and colours, Wash's colour, the pen's weights …), collapsible to a
-// handle (a strip above the tools on a phone); the page's own drawer on the right (`drawer`); and a
-// status line under the paper for the hint, Snap and zoom (Cmd/Ctrl + − 0).
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+// phone); the palette, floating in one fixed place over the workspace's top left, with only the
+// chosen tool's settings (Stamp's stamps and colours, Wash's colour, the pen's weights …) (a strip
+// above the tools on a phone); the page's own drawer on the right (`drawer`); and a status line
+// under the paper for the hint, Snap and zoom (Cmd/Ctrl + − 0).
+//
+// The workspace is open paper (sketchpad/view.ts): it pans (the wheel; a drag with Space held or
+// the middle button; two fingers) and zooms (Ctrl or Cmd with the wheel, a pinch, the buttons); Fit
+// shows the puzzle itself as big as the room beside the palette allows, and a new grid is fitted
+// as it's made. The drawing keeps its page units, so drawings saved before still open as they were.
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { addInk } from "~site/lib/ink.ts";
 import * as m from "~/sketchpad/model";
-import { gridSvg, itemSvg, penVars, stampSvg } from "~/sketchpad/draw";
+import { gridSvg, itemSvg, penVars, stampSvg, textSize } from "~/sketchpad/draw";
 import { exportPng } from "~/sketchpad/export";
 import { SHAPES, type RC } from "~/editor/ops";
 import { colourAllowed, TOOL_ORDER, type Kit, type Look } from "~/sketchpad/kit";
 import { paintAreas } from "~/sketchpad/to-puzzle";
+import * as cam from "~/sketchpad/view";
+import { place, rectOf } from "~/lib/place";
 import type { Anchor, Drawing, Grid, StampKind, SymbolColor, WashColor, Weight, XY } from "~/sketchpad/model";
 import { SpIcon, type SpIconName } from "./SketchpadIcons";
 import { useConfirm } from "./ConfirmDialog";
@@ -74,8 +81,10 @@ const paint = (c: Colour) => (c === "black" ? "var(--sumi)" : c === "white" ? "v
 const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
 const WASH_SCALE = 400;
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
-/** Zoom, as a multiple of fitting the paper to the workspace. */
-const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+/** A zoom button's step. */
+const ZOOM_STEP = 1.25;
+/** The paper's texture (public/paper.svg), its tile in page units. */
+const GRAIN = 512;
 
 /** A stamp drawn small, for a button. */
 const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
@@ -92,7 +101,7 @@ function IconButton({ icon, label, tip, pressed, className = "", ...rest }: {
   icon: SpIconName; label: string; tip?: string; pressed?: boolean; className?: string;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "className">) {
   return (
-    <button type="button" className={`sp-btn sp-tip ${className}`} aria-label={label} data-tip={tip ?? label}
+    <button type="button" className={`sp-btn ${className}`} aria-label={label} data-tip={tip ?? label}
       aria-pressed={pressed} {...rest}><SpIcon name={icon} /></button>
   );
 }
@@ -112,7 +121,7 @@ function ShapePad({ cells, color, onChange }: { cells: RC[]; color: string; onCh
     refs.current[r * PAD + c]?.focus();
   };
   return (
-    <span className="sp-pad sp-tip" role="group" aria-label="Shape pad" data-tip="Tap squares to make any shape" onKeyDown={onKey} style={{ "--sp-pad-on": color } as React.CSSProperties}>
+    <span className="sp-pad" role="group" aria-label="Shape pad" data-tip="Tap squares to make any shape" onKeyDown={onKey} style={{ "--sp-pad-on": color } as React.CSSProperties}>
       {Array.from({ length: PAD * PAD }, (_, k) => {
         const r = Math.floor(k / PAD), c = k % PAD;
         return <button key={k} ref={(el) => { refs.current[k] = el; }} type="button" className="sp-pad-cell" tabIndex={k === focus ? 0 : -1}
@@ -168,8 +177,8 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   overlay?: string;
   /** drawn with the grid, as ink (a sudoku's box lines) */
   underlay?: string;
-  /** a tip on the paper, pointing at a page point */
-  tip?: { at: XY; below?: boolean; node: ReactNode } | null;
+  /** a tip on the paper, pointing at a page point, beside the box (page units) of what it's about */
+  tip?: { at: XY; box?: { x0: number; y0: number; x1: number; y1: number } | null; node: ReactNode } | null;
   /** the page's drawer, on the right (a bottom sheet and its handle on a phone) */
   drawer?: ReactNode;
   /** the … menu's Download: the picture's file name */
@@ -201,12 +210,27 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const [typing, setTyping] = useState<{ at: Anchor; value: string; small: boolean } | null>(null);
   const [preview, setPreview] = useState<Grid | null>(null);   // a grid being dragged out
   const [straight, setStraight] = useState(false);   // the pen draws straight lines, as with Shift
-  const [zoom, setZoom] = useState(1);
-  const [fit, setFit] = useState<number | null>(null);   // the paper's width that fits the workspace
-  const [menu, setMenu] = useState(false);       // the … menu
+  // ---- the view: which part of the open paper shows, and how big (sketchpad/view.ts) ----
+  const [view, setViewState] = useState<cam.View | null>(null);   // null until the workspace is measured
+  const [size, setSize] = useState({ w: 0, h: 0 });                 // the workspace, in pixels
+  const viewNow = useRef<cam.View | null>(null);
+  /** the view is Fit's (so it fits again when the workspace changes size) */
+  const fitted = useRef(true);
+  const setView = (v: cam.View, fit = false) => { viewNow.current = v; fitted.current = fit; setViewState(v); };
+  const [panReady, setPanReady] = useState(false);   // Space held: a drag pans
+  const spaceHeld = useRef(false);
+  /** a drag that pans (Space or the middle button), or two fingers moving and pinching */
+  const panning = useRef<{ from: XY; start: cam.View } | null>(null);
+  const touches = useRef(new Map<number, XY>());
+  const pinching = useRef<{ start: cam.View; mid: XY; dist: number } | null>(null);
+  // the … menu, open under the header's … or over the phone strip's (it's drawn in the top layer)
+  const [menu, setMenu] = useState<"head" | "strip" | null>(null);
+  const menuRef = useRef<HTMLSpanElement>(null);
   const { confirm } = useConfirm();
   const [mod, setMod] = useState("Ctrl+");
   const toolButtons = useRef<(HTMLButtonElement | null)[]>([]);
+  const paletteRef = useRef<HTMLElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const svg = useRef<SVGSVGElement>(null);
   const defs = useRef<SVGSVGElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -247,24 +271,76 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   // it); and the drawing from last time
   useEffect(() => { if (defs.current && root.current) addInk(defs.current, root.current); }, []);
   useEffect(() => { if (/Mac|iPhone|iPad/.test(navigator.platform)) setMod("⌘"); }, []);
+  // the … menu, in the top layer (over the drawer, the palette and the sheet), placed under its
+  // button (over it at a phone's foot), kept on screen
+  useLayoutEffect(() => {
+    const el = menuRef.current, button = el?.parentElement?.querySelector("button");
+    if (!el || !button) return;
+    try { el.showPopover?.(); } catch { /* shown */ }
+    const at = place(rectOf(button.getBoundingClientRect()), { w: el.offsetWidth, h: el.offsetHeight },
+      { x: 0, y: 0, w: document.documentElement.clientWidth, h: document.documentElement.clientHeight }, "bottom", { gap: 6, align: "end" });
+    el.style.left = `${Math.round(at.x)}px`;
+    el.style.top = `${Math.round(at.y)}px`;
+  }, [menu]);
   // the … menu closes on a click outside it
   useEffect(() => {
     if (!menu) return;
-    const away = (e: PointerEvent) => { if (!(e.target as Element).closest(".sp-menu-wrap")) setMenu(false); };
+    const away = (e: PointerEvent) => { if (!(e.target as Element).closest(".sp-menu-wrap")) setMenu(null); };
     addEventListener("pointerdown", away);
     return () => removeEventListener("pointerdown", away);
   }, [menu]);
-  // the paper fits the workspace (zoom 1), whatever the window's size
+  // the workspace's size: the first time, the drawing is fitted; after, a fitted view fits again,
+  // and one the creator moved keeps its middle where it was
   useEffect(() => {
     const el = root.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    // the room inside the workspace's padding (a panel over its left side pads it)
+    let last = { w: 0, h: 0 };
     const ro = new ResizeObserver(() => {
-      const cs = getComputedStyle(el), w = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 40;
-      setFit(Math.max(220, Math.floor(Math.min(w, el.clientHeight) - 40)));
+      const now = { w: el.clientWidth, h: el.clientHeight };
+      if (now.w === last.w && now.h === last.h) return;
+      const v = viewNow.current;
+      if (!v || fitted.current) fitTo(latest.current, now);
+      else setView({ ...v, x: v.x - (now.w - last.w) / 2 / v.k, y: v.y - (now.h - last.h) / 2 / v.k });
+      last = now;
+      setSize(now);
     });
     ro.observe(el);
     return () => ro.disconnect();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // the wheel pans; with Ctrl or Cmd (a trackpad's pinch too) it zooms at the pointer
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      const v = viewNow.current;
+      if (!v) return;
+      e.preventDefault();
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? el.clientHeight : 1;
+      const r = el.getBoundingClientRect();
+      if (e.ctrlKey || e.metaKey) setView(cam.zoomAt(v, v.k * Math.exp(-e.deltaY * unit * 0.0025), e.clientX - r.left, e.clientY - r.top));
+      else setView(cam.panBy(v, -(e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX) * unit, -(e.shiftKey && !e.deltaX ? 0 : e.deltaY) * unit));
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Space held: a drag pans, whatever the tool: with the pointer over the paper (else not while
+  // typing, or on a button Space presses)
+  const overPaper = useRef(false);
+  useEffect(() => {
+    const free = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest?.("input, textarea, select, [contenteditable]")) return false;
+      return overPaper.current || t === document.body || !!t.closest?.(".sp-canvas");
+    };
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== "Space" || !free(e)) return;
+      e.preventDefault();
+      if (!spaceHeld.current) { spaceHeld.current = true; setPanReady(true); }
+    };
+    const up = (e: KeyboardEvent) => { if (e.code === "Space") { spaceHeld.current = false; setPanReady(false); } };
+    const away = () => { spaceHeld.current = false; setPanReady(false); };
+    addEventListener("keydown", down); addEventListener("keyup", up); addEventListener("blur", away);
+    return () => { removeEventListener("keydown", down); removeEventListener("keyup", up); removeEventListener("blur", away); };
   }, []);
   useEffect(() => { onChange?.(history.now); }, [history.now]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -278,7 +354,28 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const change = (next: Drawing) => setHistory((h) => m.commit(h, next));
   /** A change made to the drawing as it is when it lands (not as this render saw it). */
   const edit = (f: (d: Drawing) => Drawing) => setHistory((h) => m.commit(h, f(h.now)));
-  const zoomBy = (step: 1 | -1) => setZoom((z) => ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, ZOOMS.indexOf(z) + step))] ?? 1);
+  /** The room the drawing fits into: the workspace, with a small margin; and the palette, where it
+   *  floats over it (in the workspace's pixels), for Fit to keep clear of. */
+  const roomOf = (sz: { w: number; h: number }): cam.Room => ({ ...sz, left: 8, top: 8, right: 8, bottom: 8 });
+  const paletteOver = (): cam.Box | null => {
+    const el = root.current, pal = paletteRef.current;
+    if (!el || !pal) return null;
+    const a = el.getBoundingClientRect(), b = pal.getBoundingClientRect();
+    const over = b.width > 0 && b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top;
+    // its column, top to bottom: it grows and shrinks with the tool, and shouldn't cover the puzzle when it does
+    return over ? { x: b.left - a.left, y: 0, w: b.width + (b.top - a.top), h: a.height } : null;
+  };
+  /** Fit: the puzzle (the grid and what's drawn, with a margin) as big as the room allows, clear of the palette. */
+  function fitTo(dd: Drawing, sz = { w: root.current?.clientWidth ?? 0, h: root.current?.clientHeight ?? 0 }) {
+    if (!sz.w || !sz.h) return;
+    setView(cam.fitClear(cam.fitBox(dd), roomOf(sz), paletteOver()), true);
+  }
+  const zoomBy = (step: 1 | -1) => {
+    const v = viewNow.current;
+    if (!v) return;
+    const cx = size.w / 2, cy = size.h / 2;
+    setView(cam.zoomAt(v, step > 0 ? v.k * ZOOM_STEP : v.k / ZOOM_STEP, cx, cy));
+  };
   const undo = () => { setTyping(null); setHistory(m.undo); };
   const redo = () => { setTyping(null); setHistory(m.redo); };
 
@@ -294,8 +391,8 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomBy(1); return; }
       if (mod && (e.key === "-" || e.key === "_")) { e.preventDefault(); zoomBy(-1); return; }
-      if (mod && e.key === "0") { e.preventDefault(); setZoom(1); return; }
-      if (e.key === "Escape") { setMenu(false); return; }
+      if (mod && e.key === "0") { e.preventDefault(); fitTo(latest.current); return; }
+      if (e.key === "Escape") { setMenu(null); return; }
       if (mod || e.altKey) return;
       const to = toolsNow.current.find((x) => x.key === e.key.toLowerCase());
       if (to) { setTool(to.id); setTyping(null); }
@@ -304,17 +401,44 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
     return () => window.removeEventListener("keydown", onKey);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Where a pointer is on the page. */
-  const toPage = (e: { clientX: number; clientY: number }): XY => {
-    const r = svg.current!.getBoundingClientRect();
-    return { x: ((e.clientX - r.left) * m.PAGE) / r.width, y: ((e.clientY - r.top) * m.PAGE) / r.height };
+  /** Where a pointer is in the workspace (pixels from its top-left), and on the page. */
+  const toLocal = (e: { clientX: number; clientY: number }): XY => {
+    const r = root.current!.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
-  const reachOf = (e: React.PointerEvent) => (e.pointerType === "touch" ? 14 : 8);
+  const toPage = (e: { clientX: number; clientY: number }): XY => {
+    const q = toLocal(e), v = viewNow.current;
+    return v ? cam.toPage(v, q.x, q.y) : q;
+  };
+  /** How near counts as on something: a few screen pixels, in page units. */
+  const reachOf = (e: React.PointerEvent) => (e.pointerType === "touch" ? 14 : 8) / (viewNow.current?.k ?? 1);
+  /** Two fingers' middle and how far apart they are. */
+  const fingers = () => {
+    const [a, b] = [...touches.current.values()];
+    return { mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist: Math.hypot(a.x - b.x, a.y - b.y) };
+  };
+  /** The gesture under way, dropped (two fingers came down: they move the view instead). */
+  const dropGesture = () => { gesture.current = null; setDraft(null); setPreview(null); };
 
   // ---- drawing with the pointer ----
   /** The gesture's drawing so far, on screen. */
   const show = (next: Drawing) => { if (gesture.current) gesture.current.now = next; setDraft(next); };
   function down(e: React.PointerEvent<SVGSVGElement>) {
+    // two fingers move and pinch the view (what the first began is dropped)
+    if (e.pointerType === "touch") {
+      touches.current.set(e.pointerId, toLocal(e));
+      if (touches.current.size >= 2) {
+        dropGesture();
+        if (touches.current.size === 2 && viewNow.current) pinching.current = { start: viewNow.current, ...fingers() };
+        return;
+      }
+    }
+    // a drag with Space held, or with the middle button: the paper follows
+    if ((e.button === 1 || (spaceHeld.current && e.button === 0)) && viewNow.current) {
+      panning.current = { from: { x: e.clientX, y: e.clientY }, start: viewNow.current };
+      try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* gone */ }
+      return;
+    }
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (typing) { commitTyping(); if (tool !== "text") return; }
     const p = toPage(e), base = history.now, bg = base.grid;
@@ -382,6 +506,11 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   }
 
   function move(e: React.PointerEvent<SVGSVGElement>) {
+    if (e.pointerType === "touch" && touches.current.has(e.pointerId)) touches.current.set(e.pointerId, toLocal(e));
+    const pin = pinching.current;
+    if (pin) { if (touches.current.size >= 2) setView(cam.pinch(pin.start, pin, fingers())); return; }
+    const pan = panning.current;
+    if (pan) { setView(cam.panBy(pan.start, e.clientX - pan.from.x, e.clientY - pan.from.y)); return; }
     const p = toPage(e);
     setHover(p);
     const gs = gesture.current;
@@ -461,6 +590,9 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   }
 
   function up(e: React.PointerEvent<SVGSVGElement>) {
+    touches.current.delete(e.pointerId);
+    if (pinching.current) { if (touches.current.size < 2) pinching.current = null; return; }
+    if (panning.current) { panning.current = null; return; }
     const gs = gesture.current;
     gesture.current = null;
     if (!gs) return;
@@ -471,6 +603,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
         const grid = inLook(m.gridFromDrag(gg.from, p));
         next = grid ? m.setGrid(base, grid) : base;
         setPreview(null);
+        if (grid) fitTo(next);   // a new grid: the view fits it
         break;
       }
       case "pen": next = m.add(base, { kind: "pen", weight, points: m.penStroke(base.grid, gg.points, snapping) }); break;
@@ -506,7 +639,14 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
 
   // ---- the grid's rows and columns ----
   const resize = (rows: number, cols: number) => edit((dd) => (dd.grid ? m.setGrid(dd, m.resizeGrid(dd.grid, rows, cols)) : dd));
-  const addGrid = () => edit((dd) => m.setGrid(dd, inLook({ x: 64, y: 64, rows: 6, cols: 6, S: 72 })!));
+  /** A 6 × 6 grid in the middle of the view, fitted. */
+  const addGrid = () => {
+    const v = viewNow.current, pal = paletteOver(), S = 72;
+    const left = pal ? pal.x + pal.w : 0, mid = v ? cam.toPage(v, (left + size.w) / 2, size.h / 2) : { x: m.PAGE / 2, y: m.PAGE / 2 };
+    const next = m.setGrid(history.now, inLook({ x: Math.round(mid.x - 3 * S), y: Math.round(mid.y - 3 * S), rows: 6, cols: 6, S })!);
+    change(next);
+    fitTo(next);
+  };
 
   // ---- what's drawn ----
   const layers = useMemo(() => m.LAYERS.map((kinds) => d.items.filter((it) => kinds.includes(it.kind))), [d]);
@@ -535,6 +675,31 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
     }
     return "";
   })();
+  // ---- on the workspace, in pixels: the box being typed in, the paper's grain, the tip ----
+  const typingScreen = typingAt && view ? cam.toScreen(view, typingAt) : null;
+  const typingPx = typing ? Math.max(11, textSize(d, typing.small) * (view?.k ?? 1)) : undefined;
+  const grain = view ? {
+    "--grain-x": `${(-view.x * view.k).toFixed(1)}px`, "--grain-y": `${(-view.y * view.k).toFixed(1)}px`, "--grain": `${Math.max(96, GRAIN * view.k).toFixed(1)}px`,
+  } as React.CSSProperties : undefined;
+  // the tip beside what it's about: above it if there's room, else below or beside, kept on the workspace
+  const tipKey = tip ? `${tip.at.x},${tip.at.y}` : "";
+  useLayoutEffect(() => {
+    const el = tipRef.current, v = view;
+    if (!el || !tip || !v || !size.w) return;
+    const b = tip.box, a = b ? cam.toScreen(v, { x: b.x0, y: b.y0 }) : cam.toScreen(v, tip.at), z = b ? cam.toScreen(v, { x: b.x1, y: b.y1 }) : a;
+    const at = place({ x: a.x, y: a.y, w: z.x - a.x, h: z.y - a.y }, { w: el.offsetWidth, h: el.offsetHeight }, { x: 0, y: 0, w: size.w, h: size.h }, "top", { gap: 12, margin: 10 });
+    el.style.left = `${Math.round(at.x)}px`;
+    el.style.top = `${Math.round(at.y)}px`;
+    el.dataset.side = at.side;
+    el.style.setProperty("--arrow", `${Math.round(at.arrow)}px`);
+  });
+  // a tip about something out of view: the view moves to it
+  useEffect(() => {
+    const v = viewNow.current;
+    if (!tip || !v || !size.w) return;
+    const q = cam.toScreen(v, tip.at);
+    if (q.x < 0 || q.y < 0 || q.x > size.w || q.y > size.h) setView({ ...v, x: tip.at.x - size.w / 2 / v.k, y: tip.at.y - size.h / 2 / v.k });
+  }, [tipKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const toolHint = TOOLS.find((x) => x.id === tool)!.hint;
   const toolLabel = TOOLS.find((x) => x.id === tool)!.label;
 
@@ -549,7 +714,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
 
   const pickStamp = (k: StampKind) => { setStampKind(k); setTool("stamp"); setTyping(null); };
   const download = async () => {
-    setMenu(false);
+    setMenu(null);
     const png = await exportPng(svg.current!, latest.current);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(png);
@@ -571,7 +736,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const shift = mod === "⌘" ? "⇧⌘" : "Ctrl+Shift+";
 
   const snapToggle = (
-    <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={snapping} onClick={() => setSnapping(!snapping)}
+    <button type="button" className="sp-btn sp-toggle" aria-pressed={snapping} onClick={() => setSnapping(!snapping)}
       data-tip="Snap to the grid: line ends to its corners, stamps to its squares and points, washes fill squares"><SpIcon name="magnet" /><span>Snap</span></button>
   );
   const stepper = (name: string, value: number, set: (n: number) => void) => (
@@ -585,8 +750,8 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   );
 
   const swatches = (label: string) => (
-    <div className="sp-swatches" role="group" aria-label={label}>
-      {PALETTE.map((c) => <button key={c} type="button" className="sp-swatch sp-tip" aria-label={capital(c)} data-tip={capital(c)}
+    <div className="sp-swatches" role="group" aria-label={label} data-tip-side="top">
+      {PALETTE.map((c) => <button key={c} type="button" className="sp-swatch" aria-label={capital(c)} data-tip={capital(c)}
         aria-pressed={colour === c} disabled={!allowed(c)} onClick={() => pickColour(c)}>
         <span style={{ background: paint(c) }} /></button>)}
     </div>
@@ -594,7 +759,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const row = (label: ReactNode, body: ReactNode, key?: string) => <div className="sp-pal-row" key={key}><span className="sp-pal-label">{label}</span>{body}</div>;
   const weights = (
     <span className="sp-seg" role="group" aria-label="Pen weight">
-      {WEIGHTS.map((w) => <button key={w.id} type="button" className="sp-btn sp-weight sp-tip" aria-label={w.label} data-tip={`${w.label} pen`} aria-pressed={weight === w.id} onClick={() => setWeight(w.id)}>
+      {WEIGHTS.map((w) => <button key={w.id} type="button" className="sp-btn sp-weight" aria-label={w.label} data-tip={`${w.label} pen`} aria-pressed={weight === w.id} onClick={() => setWeight(w.id)}>
         <svg viewBox="0 0 30 14" aria-hidden="true"><line x1="4" y1="7" x2="26" y2="7" style={{ strokeWidth: w.width }} /></svg>
       </button>)}
     </span>
@@ -610,33 +775,33 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
               onClick={() => edit((dd) => (dd.grid ? m.setGrid(dd, m.setLook(dd.grid, look)) : dd))}>{name}</button>)}
           </span>
         )) : <p className="sp-pal-note">{typeName} is played {LOOK_WORDS[kit.look]}: the type sets the look.</p>}
-        <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
+        <button type="button" className="sp-btn sp-text-btn" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
       </> : <>
         <p className="sp-pal-note">Drag a rectangle on the paper, or start with one.</p>
-        <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the page (or drag one out)">Add a grid</button>
+        <button type="button" className="sp-btn sp-text-btn" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the view (or drag one out)">Add a grid</button>
       </>;
       case "pen": return <>{row("Weight", weights)}
-        <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
+        <button type="button" className="sp-btn sp-toggle" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
           <SpIcon name="straight" /><span>Straight</span></button></>;
       case "line": return row("Weight", weights);
       case "region": return <>
-        <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={newArea} onClick={() => setNewArea(!newArea)} data-tip="The squares you drag make an area of their own">
+        <button type="button" className="sp-btn sp-toggle" aria-pressed={newArea} onClick={() => setNewArea(!newArea)} data-tip="The squares you drag make an area of their own">
           <SpIcon name="region" /><span>New area</span></button>
         <p className="sp-pal-note">{newArea ? "Drag across squares: they make a new area." : "Drag from a square across others: they join its area."} The borders are drawn for you.</p>
       </>;
       case "wash": return row(<>Colour · {capital(colour)}</>, swatches("Wash colour"));
       case "text": return row("Size", (
         <span className="sp-seg" role="group" aria-label="Text size">
-          <button type="button" className="sp-btn sp-tip" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal: a clue in a square">Normal</button>
-          <button type="button" className="sp-btn sp-tip sp-small-btn" aria-pressed={small} onClick={() => setSmall(true)}
+          <button type="button" className="sp-btn" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal: a clue in a square">Normal</button>
+          <button type="button" className="sp-btn sp-small-btn" aria-pressed={small} onClick={() => setSmall(true)}
             data-tip="Small: on a corner, a line, or a square's side or corner">Small</button>
         </span>
       ));
       case "stamp": return <>
         {!stamps.length ? <p className="sp-pal-note">{typeName} has no stamps: its clues are {own("text") ? "written with Text" : "drawn with the pen"}.</p>
           : row(kit ? `${typeName}'s ${stamps.length === 1 ? "stamp" : "stamps"}` : "Stamps", (
-            <div className="sp-stamps" role="group" aria-label="Stamps">
-              {stamps.map((st) => <button key={st.id} type="button" className={`sp-stamp sp-tip${ownStamp(st.id) ? "" : " sp-off"}`} aria-label={st.label}
+            <div className="sp-stamps" role="group" aria-label="Stamps" data-tip-side="top">
+              {stamps.map((st) => <button key={st.id} type="button" className={`sp-stamp${ownStamp(st.id) ? "" : " sp-off"}`} aria-label={st.label}
                 data-tip={ownStamp(st.id) ? st.tip ?? st.label : `${st.label}: ${notOurs.toLowerCase()}`}
                 aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
                 <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
@@ -649,13 +814,13 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
           </span>
         ))}
         {stampKind === "stone" && (
-          <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
+          <button type="button" className="sp-btn sp-toggle" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
             <StampIcon s={{ stamp: "stone", color: colors.stone, hidden: true }} /><span>Hidden</span></button>
         )}
         {stampKind === "inequality" && row("Points", (
           <span className="sp-seg" role="group" aria-label="Points at">
-            <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={!flip} onClick={() => setFlip(false)} data-tip="Points left or up">&lt; ∧</button>
-            <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={flip} onClick={() => setFlip(true)} data-tip="Points right or down">&gt; ∨</button>
+            <button type="button" className="sp-btn sp-num" aria-pressed={!flip} onClick={() => setFlip(false)} data-tip="Points left or up">&lt; ∧</button>
+            <button type="button" className="sp-btn sp-num" aria-pressed={flip} onClick={() => setFlip(true)} data-tip="Points right or down">&gt; ∨</button>
           </span>
         ))}
         {stampKind === "palisade" && <>
@@ -664,13 +829,13 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
               {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={sides === n} onClick={() => setSides(n)}>{n}</button>)}
             </span>
           ))}
-          {sides === 2 && <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="The two borders opposite, not at a corner">
+          {sides === 2 && <button type="button" className="sp-btn sp-toggle" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="The two borders opposite, not at a corner">
             <StampIcon s={{ stamp: "palisade", count: 2, opposite: true }} /><span>Opposite</span></button>}
         </>}
         {stampKind === "thermo" && <p className="sp-pal-note">Drag from the bulb through the squares; tap a bulb to take its thermometer off.</p>}
         {stampKind === "shape" && row("Shape", <>
           <span className="sp-shapes" role="group" aria-label="Shape">
-            {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb sp-tip" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}
+            {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}
               onClick={() => setPad(x.cells)}><StampIcon s={{ stamp: "shape", cells: x.cells, color: colors.shape }} /></button>)}
           </span>
           <span className="sp-pal-inline">
@@ -681,9 +846,9 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
             </span>
           </span>
           <span className="sp-pal-inline">
-            <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape, outlined">
+            <button type="button" className="sp-btn sp-toggle" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape, outlined">
               <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, hollow: true }} /><span>Hollow</span></button>
-            <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={mayTurn} onClick={() => setMayTurn(!mayTurn)} data-tip="May turn: drawn tilted">
+            <button type="button" className="sp-btn sp-toggle" aria-pressed={mayTurn} onClick={() => setMayTurn(!mayTurn)} data-tip="May turn: drawn tilted">
               <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, rotate: true }} /><span>May turn</span></button>
           </span>
         </>)}
@@ -695,22 +860,22 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const offNote = kit && !own(tool)
     ? <p className="sp-pal-note sp-pal-off">{typeName} doesn&rsquo;t use the {toolLabel.toLowerCase()}: what you draw is decoration, flagged and left out of the puzzle.</p> : null;
   // undo, redo and … (Clear, Download): in the page's header; on a phone, in the palette's strip
-  const docActions = (
+  const docActions = (where: "head" | "strip") => (
     <span className="sp-doc">
       <IconButton icon="undo" label="Undo" tip={`Undo (${mod}Z)`} onClick={undo} disabled={!history.past.length} />
       <IconButton icon="redo" label="Redo" tip={`Redo (${shift}Z)`} onClick={redo} disabled={!history.future.length} />
       <span className="sp-menu-wrap">
-        <IconButton icon="more" label="More" tip="Clear, Download" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} />
-        {menu && (
-          <span className="sp-menu" role="menu" aria-label="More">
+        <IconButton icon="more" label="More" tip="Clear, Download" aria-haspopup="menu" aria-expanded={menu === where} onClick={() => setMenu(menu === where ? null : where)} />
+        {menu === where && (
+          <span ref={menuRef} className="sp-menu" role="menu" aria-label="More" popover="manual">
             <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid}
               onClick={async () => {
                 const ask = confirm({ title: "Clear the page?", body: <p>Everything on it goes. Undo brings it back.</p>, action: "Clear", danger: true });
-                setMenu(false);
+                setMenu(null);
                 if (await ask) { setTyping(null); edit(m.clear); }
               }}><SpIcon name="clear" />Clear the page</button>
             <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid} onClick={() => void download()}><SpIcon name="download" />Download a picture</button>
-            <ReportBugItem onClick={() => setMenu(false)} />
+            <ReportBugItem onClick={() => setMenu(null)} />
           </span>
         )}
       </span>
@@ -719,41 +884,45 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
 
   return (
     <div className={`sp-work pal-open${drawer ? " has-drawer" : ""}`}>
-      {actions && createPortal(docActions, actions)}
+      {actions && createPortal(docActions("head"), actions)}
 
       {/* ---- the tools, down the left (along the bottom on a phone) ---- */}
-      <div className="sp-tools" role="toolbar" aria-label="Tools" aria-orientation="vertical" onKeyDown={onToolKey}>
+      <div className="sp-tools" role="toolbar" aria-label="Tools" aria-orientation="vertical" onKeyDown={onToolKey} data-tip-side="right">
         {tools.map((x, k) => <Fragment key={x.id}>
           {k > 0 && (own(tools[k - 1].id) !== own(x.id) ? <span className="sp-sep sp-sep-off" aria-hidden="true" /> : tools[k - 1].group !== x.group && <span className="sp-sep" aria-hidden="true" />)}
-          <button ref={(el) => { toolButtons.current[k] = el; }} type="button" className={`sp-btn sp-tool sp-tip${own(x.id) ? "" : " sp-off"}`} aria-label={x.label}
+          <button ref={(el) => { toolButtons.current[k] = el; }} type="button" className={`sp-btn sp-tool${own(x.id) ? "" : " sp-off"}`} aria-label={x.label}
             aria-keyshortcuts={x.key.toUpperCase()} aria-pressed={tool === x.id} tabIndex={tool === x.id ? 0 : -1}
             data-tip={own(x.id) ? `${x.label} (${x.key.toUpperCase()})` : `${x.label}: ${notOurs.toLowerCase()}`}
             onClick={() => { setTool(x.id); setTyping(null); }}><SpIcon name={x.id} /></button>
         </Fragment>)}
-        {kit && <button type="button" className="sp-btn sp-all sp-tip" aria-pressed={everything} onClick={() => setEverything(!everything)}
+        {kit && <button type="button" className="sp-btn sp-all" aria-pressed={everything} onClick={() => setEverything(!everything)}
           data-tip={everything ? `Only ${typeName}'s tools` : "Every tool, for decoration or drawing ahead: what the type can't use is flagged"}>
           <span aria-hidden="true">⋯</span><span>{everything ? "Fewer" : "All tools"}</span></button>}
       </div>
 
-      {/* ---- the palette: the chosen tool's settings, in one place (a strip above the tools on a phone) ---- */}
-      {/* the chosen tool's options: always open, in one place beside the tools */}
-      <section className={`sp-palette tool-${tool}`} aria-label={`${toolLabel} options`}>
+      {/* ---- the palette: the chosen tool's settings, always open, floating over the workspace's top
+           left (a strip above the tools on a phone) ---- */}
+      <section ref={paletteRef} className={`sp-palette tool-${tool}`} aria-label={`${toolLabel} options`}>
         <header className="sp-pal-head">
           <SpIcon name={tool} /><strong>{toolLabel}</strong>
         </header>
         <div className="sp-pal-body">{offNote}{options}</div>
-        <span className="sp-pal-doc">{docActions}</span>
+        <span className="sp-pal-doc">{docActions("strip")}</span>
       </section>
 
-      {/* ---- the paper, on the workspace ---- */}
-      <div className="grid-game sketchpad sp-canvas" ref={root}>
-        <div className={`sp-paper tool-${tool}`} style={fit ? { width: Math.round(fit * zoom) } : undefined}>
+      {/* ---- the paper: the whole workspace, open in every direction ---- */}
+      <div className="grid-game sketchpad sp-canvas" ref={root} style={grain}
+        onPointerEnter={(e) => { if (e.pointerType !== "touch") overPaper.current = true; }} onPointerLeave={() => { overPaper.current = false; }}>
+        <div className={`sp-paper tool-${tool}${panReady || panning.current ? " pan" : ""}`}>
           {/* the wash filter, made for a board about WASH_SCALE units across (a 7 × 7 board's), so a
               stamp's watercolour comes out as it does on the board */}
           <svg className="sp-defs" viewBox={`0 0 ${WASH_SCALE} ${WASH_SCALE}`} ref={defs} aria-hidden="true" />
-          <svg ref={svg} className="sp-board" viewBox={`0 0 ${m.PAGE} ${m.PAGE}`} role="img" aria-label="Your drawing" style={penVars(S) as React.CSSProperties}
+          <svg ref={svg} className="sp-board" viewBox={view ? cam.viewBox(view, size.w, size.h) : `0 0 ${m.PAGE} ${m.PAGE}`} preserveAspectRatio="xMinYMin meet"
+            role="img" aria-label="Your drawing" style={penVars(S) as React.CSSProperties}
             onMouseDown={(e) => e.preventDefault()} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} onPointerLeave={() => setHover(null)}
-            data-items={d.items.length} data-grid={g ? `${g.rows}x${g.cols}` : ""}>
+            onAuxClick={(e) => e.preventDefault()}
+            data-items={d.items.length} data-grid={g ? `${g.rows}x${g.cols}` : ""}
+            data-grid-box={g ? [g.x, g.y, m.gridSpan(g).w * g.S, m.gridSpan(g).h * g.S].map((v) => Math.round(v * 10) / 10).join(",") : ""} data-view={view ? `${view.x.toFixed(1)},${view.y.toFixed(1)},${view.k.toFixed(4)}` : ""}>
             <g className="sp-ink">
               <g dangerouslySetInnerHTML={{ __html: layers[0].map(markup).join("") }} />
               {g && <g dangerouslySetInnerHTML={{ __html: gridSvg(g, gaps) + underlay }} />}
@@ -767,15 +936,15 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
               {preview && <rect className="outline" x={preview.x} y={preview.y} width={preview.cols * preview.S} height={preview.rows * preview.S} />}
               {preview && <g className="ghost" dangerouslySetInnerHTML={{ __html: gridSvg(preview) }} />}
               {tool === "grid" && g && <rect className="grid-hit" x={g.x} y={g.y} width={m.gridSpan(g).w * g.S} height={m.gridSpan(g).h * g.S} />}
-              {tool === "grid" && g && <circle className="handle" cx={m.handleOf(g).x} cy={m.handleOf(g).y} r={7} />}
+              {tool === "grid" && g && <circle className="handle" cx={m.handleOf(g).x} cy={m.handleOf(g).y} r={7 / (view?.k ?? 1)} />}
             </g>
           </svg>
-          {tip && (
-            <div className={`sp-paper-tip${tip.below ? " below" : ""}`} role="note" style={{ left: `${(tip.at.x / m.PAGE) * 100}%`, top: `${(tip.at.y / m.PAGE) * 100}%` }}>{tip.node}</div>
+          {tip && view && (
+            <div ref={tipRef} className="sp-paper-tip" role="note">{tip.node}</div>
           )}
-          {typing && typingAt && (
+          {typing && typingAt && typingScreen && (
             <input ref={typed} className={`sp-typing${typing.small ? " small" : ""}`} aria-label="Text" value={typing.value} maxLength={12}
-              style={{ left: `${(typingAt.x / m.PAGE) * 100}%`, top: `${(typingAt.y / m.PAGE) * 100}%`, width: `${Math.max(2.2, typing.value.length + 1.2)}em` }}
+              style={{ left: typingScreen!.x, top: typingScreen!.y, width: `${Math.max(2.2, typing.value.length + 1.2)}em`, fontSize: typingPx }}
               onChange={(e) => setTyping({ ...typing, value: e.target.value })}
               onBlur={() => commitTyping()}
               onKeyDown={(e) => {
@@ -792,13 +961,13 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
       </div>
 
       {/* ---- the status line: how it's viewed ---- */}
-      <div className="sp-status">
+      <div className="sp-status" data-tip-side="top">
         <span className="sp-status-hint" aria-live="polite">{toolHint}</span>
         {snapToggle}
         <span className="sp-zoom" role="group" aria-label="Zoom">
-          <IconButton icon="zoomOut" label="Zoom out" tip={`Zoom out (${mod}−)`} onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} />
-          <button type="button" className="sp-btn sp-zoom-fit sp-tip" aria-label="Zoom to fit" data-tip={`Fit the page (${mod}0)`} onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button>
-          <IconButton icon="zoomIn" label="Zoom in" tip={`Zoom in (${mod}+)`} onClick={() => zoomBy(1)} disabled={zoom >= ZOOMS[ZOOMS.length - 1]} />
+          <IconButton icon="zoomOut" label="Zoom out" tip={`Zoom out (${mod}−)`} onClick={() => zoomBy(-1)} disabled={!view || view.k <= cam.MIN_K} />
+          <button type="button" className="sp-btn sp-zoom-fit" aria-label="Zoom to fit" data-tip={`Fit the puzzle (${mod}0)`} onClick={() => fitTo(latest.current)}>{view ? Math.round(view.k * 100) : 100}%</button>
+          <IconButton icon="zoomIn" label="Zoom in" tip={`Zoom in (${mod}+)`} onClick={() => zoomBy(1)} disabled={!view || view.k >= cam.MAX_K} />
         </span>
       </div>
 
