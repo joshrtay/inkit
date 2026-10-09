@@ -12,15 +12,14 @@
 <script src="boards.js"></script>
 <script src="mockup.js"></script>
 <script>
-// Sudoku, 6 × 6: the creator is typing a 5 into row 6 (not yet committed: the hint previews it),
-// and the solver's last verdict, several solutions, shows one square where two solutions differ.
-MK.overlays.sudoku = (q) => {
-  const S = q.S, cell = (r, c, cls) => `<rect class="${cls}" x="${q.x(c) + 3}" y="${q.y(r) + 3}" width="${S - 6}" height="${S - 6}" rx="6"/>`;
-  return cell(0, 0, "diff") + `<text class="diff-text" x="${q.x(0) + S - 14}" y="${q.y(0) + 13}">4/3</text>`
-    + `<circle class="hint" cx="${q.cx(0)}" cy="${q.cy(5)}" r="${S * 0.36}"/>`
-    + `<path class="hint-line" d="M${q.cx(0) + S * 0.36} ${q.cy(5)}H${q.cx(4) - S * 0.42}"/>`
-    + cell(5, 4, "typing") + `<text class="typing-text" x="${q.cx(4) - 2}" y="${q.cy(5) + 1}">5</text><line class="caret" x1="${q.cx(4) + 9}" y1="${q.cy(5) - 13}" x2="${q.cx(4) + 9}" y2="${q.cy(5) + 13}"/>`
-    + `<rect class="hint" x="${q.x(4) + 1}" y="${q.y(5) + 1}" width="${S - 2}" height="${S - 2}" rx="7" style="fill:none"/>`;
+// Sudoku, 6 × 6, after Check: two rules are broken (the solver finds no solution: make-boards.ts).
+// The creator selected the first error in the panel: its squares are ringed and joined, with a tip.
+MK.overlays.sudokuBroken = (q) => {
+  const S = q.S, cell = (r, c, cls) => `<rect class="${cls}" x="${q.x(c) + 4}" y="${q.y(r) + 4}" width="${S - 8}" height="${S - 8}" rx="8"/>`;
+  const pin = (r, c, n, cls, dy = 6) => `<g class="pin ${cls}"><circle cx="${q.x(c) + S - 6}" cy="${q.y(r) + dy}" r="10"/><text x="${q.x(c) + S - 6}" y="${q.y(r) + dy + 0.5}">${n}</text></g>`;
+  return cell(1, 3, "err-dim") + cell(0, 5, "err-dim") + pin(0, 5, 2, "hint")
+    + `<path class="hint-line" d="M${q.cx(0) + S * 0.42} ${q.cy(5)}H${q.cx(4) - S * 0.42}"/>`
+    + cell(5, 0, "err") + cell(5, 4, "err") + pin(5, 4, 1, "hint", S - 6);
 };
 </script>
 </head>
@@ -30,6 +29,10 @@ MK.overlays.sudoku = (q) => {
     <div class="studio-left">
       <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
       <button class="mk-name">Six by Six</button>
+      <button class="mk-type" title="The puzzle type: change it any time">
+        <span class="mk-type-pic grid-game" data-board="thumbs.sudoku" data-shown="40"></span>
+        <span><small>Type</small><b>Sudoku</b></span><span data-icon="chevron"></span>
+      </button>
       <span class="mk-saved">Saved</span>
     </div>
     <div class="studio-actions">
@@ -38,12 +41,9 @@ MK.overlays.sudoku = (q) => {
         <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
         <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
       </span>
-      <button class="mk-type" title="The puzzle type: change it any time">
-        <span class="mk-type-pic grid-game" data-board="thumbs.sudoku" data-shown="40"></span>
-        <span><small>Type</small><b>Sudoku</b></span><span data-icon="chevron"></span>
-      </button>
       <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
-      <button class="btn primary">Check &amp; publish</button>
+      <button class="btn sp-head-btn mk-head-btn" aria-pressed="true" style="background:var(--ink); color:var(--panel)"><span data-icon="check"></span><span>Check</span></button>
+      <button class="btn primary">Publish</button>
     </div>
   </header>
 
@@ -64,17 +64,34 @@ MK.overlays.sudoku = (q) => {
       <button class="sp-btn sp-tool" data-icon="text" aria-label="Text" aria-pressed="true"></button>
       <span class="sp-sep"></span>
       <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+      <button class="mk-alltools" title="Show every tool: what this type can't use is flagged"><span data-icon="more"></span>All tools</button>
     </div>
 
-    <div class="grid-game sketchpad sp-canvas">
-      <div class="sp-paper tool-text" style="width:600px">
-        <div data-board="sudoku"></div>
-        <div class="mk-note diff left" style="right:calc(100% + 14px); left:auto; top:40px; width:220px">
-          <b>Several solutions</b>This square can be a 4 or a 3, and the rest still works. Add a clue that settles it.
-          <div class="mk-acts"><button class="mk-act">Next difference</button><button class="mk-act quiet">Hide</button></div>
+    <div class="grid-game sketchpad sp-canvas" style="position:relative">
+      <div class="mk-cp">
+        <header><span data-icon="check"></span><span class="grow">Check</span>
+          <button class="sp-btn" aria-label="Minimise" title="Minimise to a tab"><span style="font:800 18px/1 var(--body); margin-top:-6px">&minus;</span></button></header>
+        <div class="body">
+          <section>
+            <div class="mk-big none"><span class="ic" data-icon="close"></span><span><b>No solution</b>Two rules are broken, so nothing can solve it. Fix them and the verdict updates.</span></div>
+          </section>
+          <section>
+            <h3>Broken rules <span>2</span></h3>
+            <div class="mk-item on"><span class="mk-n hint">1</span><div><b>Row 6</b>Two 5s in row 6
+              <div class="mk-acts"><button class="mk-act quiet">Next error</button></div></div></div>
+            <div class="mk-item"><span class="mk-n hint">2</span><div><b>Top-right box</b>Two 3s in one box</div></div>
+          </section>
+          <section>
+            <h3>To check <span>nothing</span></h3>
+            <p class="mk-always">Everything on the page is part of the puzzle.</p>
+          </section>
         </div>
-        <div class="mk-note hint below" style="left:368px; top:559px; transform:translateY(8px)">
-          <b>Two 5s in row 6</b>Each row holds 1 to 6 once.
+      </div>
+      <div class="sp-paper tool-text" style="width:560px; margin:auto auto auto 380px; position:relative">
+        <div data-board="sudokuBroken"></div>
+        <div class="mk-tip" style="left:352px; top:318px">
+          <b>Two 5s in row 6</b>Each row holds 1 to 6 once, so one of these 5s is wrong.
+          <small>Change or erase one of them. Selected in the panel: 1 of 2.</small>
         </div>
       </div>
     </div>
@@ -82,8 +99,7 @@ MK.overlays.sudoku = (q) => {
     <div class="sp-status">
       <span class="sp-status-hint">Tap a square and type a digit</span>
       <span class="sp-status-facts">6 × 6 grid · boxes 2 × 3</span>
-      <button class="mk-verdict many"><span data-icon="warn"></span>Several solutions · <u>show a difference</u></button>
-      <button class="mk-checks"><b>1</b>rule hint</button>
+      <button class="mk-verdict none"><span data-icon="warn"></span>No solution · <u>2 broken rules</u></button>
       <span class="mk-sep"></span>
       <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
       <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>

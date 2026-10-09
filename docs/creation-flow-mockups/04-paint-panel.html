@@ -21,15 +21,6 @@ MK.overlays.panel = (q) => {
     + `<g class="pin fit"><circle cx="${q.x(4) - 10}" cy="${q.y(3) + 10}" r="10"/><text x="${q.x(4) - 10}" y="${q.y(3) + 10.5}">1</text></g>`;
 };
 </script>
-<style>
-  .mk-sol { position: absolute; right: 18px; top: 18px; z-index: 4; width: 230px; padding: 8px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 12px 30px var(--shadow); }
-  .mk-sol header { display: flex; justify-content: space-between; align-items: center; font: 700 12.5px/1 var(--body); color: var(--good); padding: 2px 2px 8px 4px; }
-  .mk-sol header .sp-btn { height: 24px; min-width: 24px; color: var(--muted); }
-  .mk-sol header .sp-icon { width: 15px; height: 15px; }
-  .mk-sol .grid-game { background: var(--paper); border-radius: 6px; padding: 6px; }
-  .mk-sol svg { display: block; width: 100%; height: auto; filter: url(#pen); }
-  .mk-sol p { margin: 8px 4px 2px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
-</style>
 </head>
 <body>
 <div class="studio sp-studio">
@@ -37,6 +28,10 @@ MK.overlays.panel = (q) => {
     <div class="studio-left">
       <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
       <button class="mk-name">Stones and Crests</button>
+      <button class="mk-type">
+        <span class="mk-type-pic grid-game" data-board="thumbs.panel2" data-shown="40"></span>
+        <span><small>Type</small><b>Panel</b></span><span data-icon="chevron"></span>
+      </button>
       <span class="mk-saved">Saved</span>
     </div>
     <div class="studio-actions">
@@ -45,12 +40,9 @@ MK.overlays.panel = (q) => {
         <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
         <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
       </span>
-      <button class="mk-type">
-        <span class="mk-type-pic grid-game" data-board="thumbs.panel2" data-shown="40"></span>
-        <span><small>Type</small><b>Panel</b></span><span data-icon="chevron"></span>
-      </button>
       <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
-      <button class="btn primary">Check &amp; publish</button>
+      <button class="btn sp-head-btn mk-head-btn" aria-pressed="true" style="background:var(--ink); color:var(--panel)"><span data-icon="check"></span><span>Check</span></button>
+      <button class="btn primary">Publish</button>
     </div>
   </header>
 
@@ -71,27 +63,34 @@ MK.overlays.panel = (q) => {
       <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp" aria-pressed="true"></button>
       <span class="sp-sep"></span>
       <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser (and gaps in the tracks)"></button>
+      <button class="mk-alltools" title="Show every tool: what this type can't use is flagged"><span data-icon="more"></span>All tools</button>
     </div>
 
     <div class="grid-game sketchpad sp-canvas" style="position:relative">
-      <div class="sp-paper tool-stamp" style="width:600px">
-        <div data-board="panel"></div>
-        <div class="mk-note fit below" style="left:400px; top:540px; width:236px">
-          <b>Panels have no numbers</b>Did you mean three triangles?
-          <div class="mk-acts"><button class="mk-act go">Make it 3 triangles</button><button class="mk-act">Erase</button></div>
+      <div class="mk-cp">
+        <header><span data-icon="check"></span><span class="grow">Check</span><button class="sp-btn" aria-label="Minimise" title="Minimise to a tab"><span style="font:800 18px/1 var(--body); margin-top:-6px">&minus;</span></button></header>
+        <div class="body">
+          <section>
+            <div class="mk-big one"><span class="ic" data-icon="check"></span><span><b>Solvable</b>Any line that obeys the symbols solves a panel, so one is enough. Here is the first the solver found.</span></div>
+            <div class="sol grid-game" data-board="panel.solution" data-shown="270"></div>
+            <div class="sol-acts"><span class="mk-switch" style="gap:8px"><i></i><span>Draw it on the board</span></span><button class="mk-act quiet">Another</button></div>
+          </section>
+          <section>
+            <h3>To check <span>1</span></h3>
+            <div class="mk-item"><span class="mk-n fit">1</span><div><b>Doesn't fit · row 4, column 4</b>Panels have no numbers. Left out of the puzzle until fixed.
+              <div class="mk-acts"><button class="mk-act go">Make it 3 triangles</button><button class="mk-act">Erase</button></div></div></div>
+          </section>
         </div>
       </div>
-      <div class="mk-sol">
-        <header><span>✓ Solvable · one way through</span><button class="sp-btn" data-icon="close" aria-label="Hide"></button></header>
-        <div class="grid-game" data-board="panel.solution" data-shown="220"></div>
-        <p>Any line that obeys the symbols solves a panel, so it only needs one. This is the first the solver found.</p>
+      <div class="sp-paper tool-stamp" style="width:560px; margin:auto auto auto 380px; position:relative">
+        <div data-board="panel"></div>
       </div>
     </div>
 
     <div class="sp-status">
       <span class="sp-status-hint">Tap a square to stamp it (again to take it off)</span>
       <span class="sp-status-facts">4 × 4 tracks</span>
-      <button class="mk-verdict some"><span data-icon="check"></span>Solvable · <u>hide the line</u></button>
+      <button class="mk-verdict some"><span data-icon="check"></span>Solvable</button>
       <button class="mk-checks"><b>1</b>to check</button>
       <span class="mk-sep"></span>
       <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>

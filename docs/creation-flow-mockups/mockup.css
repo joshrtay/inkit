@@ -247,3 +247,110 @@ body { min-height: 100dvh; }
 .mk-phone-page { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--bg); }
 .mk-phone { width: 390px; height: 844px; border-radius: 46px; padding: 12px; background: #111; box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 0 2px #333; }
 .mk-phone-screen { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }
+
+/* ======== revision 2 (the owner's decisions): one panel, Check and Publish, the game page ======== */
+
+/* the top bar: back · title · type on the left; Check and Publish on the right */
+.studio-left .mk-type { margin-left: 6px; }
+.mk-head-btn { display: inline-flex; align-items: center; gap: 7px; }
+.mk-head-btn .sp-icon { width: 18px; height: 18px; }
+/* greyed until a type is chosen; still clickable, to say why */
+.btn.mk-off { opacity: .42; filter: saturate(.3); cursor: not-allowed; }
+/* the type button's bounce (shown in the mockup with motion marks and a note) */
+@keyframes mk-bounce { 0%, 100% { transform: translateY(0); } 25% { transform: translateY(-7px); } 50% { transform: translateY(0); } 70% { transform: translateY(-3px); } }
+.mk-type.bounce { position: relative; border-color: var(--wash-yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--wash-yellow) 35%, transparent); transform: translateY(-5px); }
+.mk-type.bounce::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -12px; height: 5px; border-radius: 50%; background: color-mix(in srgb, #000 45%, transparent); filter: blur(2px); }
+.mk-motion { position: absolute; display: grid; gap: 3px; }
+.mk-motion i { display: block; height: 2px; border-radius: 1px; background: var(--wash-yellow); opacity: .8; }
+/* the reminder, hanging from the type button */
+.mk-remind {
+  position: absolute; z-index: 40; width: 300px; padding: 10px 12px 12px; border-radius: 10px; background: var(--panel);
+  border: 1.5px solid var(--wash-yellow); box-shadow: 0 12px 30px var(--shadow); font-size: 13.5px; line-height: 1.4; color: var(--muted);
+}
+.mk-remind b { display: block; color: var(--ink); font-size: 14.5px; margin-bottom: 2px; }
+.mk-remind::before { content: ""; position: absolute; left: 34px; top: -7px; width: 12px; height: 12px; background: var(--panel); border: inherit; border-width: 1.5px 0 0 1.5px; transform: rotate(45deg); }
+.mk-remind .mk-acts { margin-top: 9px; }
+/* a mockup annotation (not part of the design): says what a still picture can't show */
+.mk-anno {
+  position: absolute; z-index: 50; max-width: 250px; padding: 8px 10px; border-radius: 6px; font: 600 12.5px/1.35 var(--body);
+  color: #2a1f00; background: #ffe66d; box-shadow: 0 6px 16px rgba(0,0,0,.4); transform: rotate(-1.5deg);
+}
+.mk-anno::before { content: "Mockup note"; display: block; font: 800 10.5px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; opacity: .65; }
+.mk-frame { position: absolute; z-index: 49; border: 2px dashed #ffe66d; border-radius: 12px; pointer-events: none; }
+
+/* the tool rail's escape: every tool, for this drawing */
+.mk-alltools { margin-top: auto; display: grid; place-items: center; gap: 2px; width: 44px; padding: 6px 0; border-radius: 8px; border: 1px dashed var(--line-strong); background: none; color: var(--muted); font: 700 10.5px/1.1 var(--body); text-align: center; }
+.mk-alltools .sp-icon { width: 18px; height: 18px; }
+
+/* ---- the one panel: the photo, what to check, and Check's results; it minimises to a tab ---- */
+.mk-cp {
+  position: absolute; z-index: 5; left: 14px; top: 14px; bottom: 14px; width: 318px; display: flex; flex-direction: column; overflow: hidden;
+  border-radius: 12px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 14px 40px var(--shadow);
+}
+.mk-cp > header { display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 14px; border-bottom: 1px solid var(--line); font: 800 14px/1 var(--body); }
+.mk-cp > header .grow { flex: 1; }
+.mk-cp > header .sp-btn { height: 28px; min-width: 28px; }
+.mk-cp > header .sp-icon { width: 16px; height: 16px; }
+.mk-cp .body { overflow: auto; flex: 1; }
+.mk-cp section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.mk-cp section:last-child { border-bottom: 0; }
+.mk-cp h3 { margin: 0 0 8px; font: 800 11.5px/1 var(--body); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+.mk-cp h3 span { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.mk-cp .mk-photo { aspect-ratio: 16 / 11; }
+.mk-cp .mk-photo .grid-game { width: 52%; }
+.mk-cp .photo-acts { display: flex; gap: 6px; margin-top: 8px; }
+.mk-cp .photo-acts .mk-act { flex: 1; text-align: center; padding: 6px 4px; }
+.mk-cp .mk-item { padding: 8px 6px; }
+.mk-cp .mk-item.on { background: color-mix(in srgb, var(--wash-orange) 14%, transparent); box-shadow: inset 3px 0 0 #d9751b; }
+.mk-cp .mk-item.err .mk-n { background: var(--red); color: #fff; }
+/* the verdict, big, at the top of Check's results */
+.mk-big { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; padding: 10px; border-radius: 10px; font-size: 13px; line-height: 1.35; color: var(--muted); }
+.mk-big b { display: block; font-size: 15.5px; }
+.mk-big .ic { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; color: var(--panel); }
+.mk-big .ic .sp-icon { width: 18px; height: 18px; stroke-width: 2.6; }
+.mk-big.none { background: color-mix(in srgb, var(--red) 10%, transparent); border: 1px solid color-mix(in srgb, var(--red) 45%, transparent); }
+.mk-big.none b { color: var(--red); } .mk-big.none .ic { background: var(--red); }
+.mk-big.one { background: color-mix(in srgb, var(--good) 11%, transparent); border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); }
+.mk-big.one b { color: var(--good); } .mk-big.one .ic { background: var(--good); }
+.mk-cp .sol { margin-top: 10px; background: var(--paper); border-radius: 8px; padding: 8px; }
+.mk-cp .sol svg { display: block; width: 100%; height: auto; filter: url(#pen); }
+.mk-cp .sol-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+.mk-cp .stale { font-size: 12px; color: var(--muted); margin: 8px 2px 0; }
+/* minimised: a tab on the workspace's left edge */
+.mk-cp-tab {
+  position: absolute; z-index: 5; left: 14px; top: 14px; display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px 0 8px;
+  border-radius: 999px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 8px 22px var(--shadow); font: 700 13px/1 var(--body); color: var(--ink);
+}
+.mk-cp-tab .sp-icon { width: 17px; height: 17px; }
+.mk-cp-tab .th { width: 26px; height: 22px; border-radius: 4px; background: linear-gradient(160deg, #c9c2b3, #a59d8c); }
+.mk-cp-tab b { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 10px; background: #e0a100; color: #1f1e1c; font-size: 11.5px; }
+.mk-cp-tab .ok { color: var(--good); }
+
+/* the selected error's tip on the paper, with a pointer */
+.mk-tip { position: absolute; z-index: 4; width: 250px; padding: 9px 12px 11px; border-radius: 10px; background: var(--panel); border: 1.5px solid #d9751b; box-shadow: 0 10px 26px var(--shadow); font: 600 13px/1.4 var(--body); color: var(--ink); }
+.mk-tip b { display: block; color: #d9751b; font-size: 14px; margin-bottom: 2px; }
+.mk-tip small { display: block; margin-top: 6px; color: var(--muted); font-weight: 600; }
+.mk-tip::before { content: ""; position: absolute; width: 12px; height: 12px; background: var(--panel); border: inherit; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); left: 40px; bottom: -8px; }
+.mk-ui .err { fill: color-mix(in srgb, var(--wash-orange) 22%, transparent); stroke: #d9751b; stroke-width: 3; }
+.mk-ui .err-dim { fill: none; stroke: #d9751b; stroke-width: 1.6; stroke-dasharray: 4 4; opacity: .7; }
+.mk-ui .pointer { fill: none; stroke: #d9751b; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---- the draft's game page: the real /g/<id> layout, title and description edited in place ---- */
+.mk-gp .game-head h1 { font-size: 22px; }
+.mk-edit { border: 0; border-bottom: 1.5px dashed var(--line-strong); background: none; color: inherit; padding: 0 2px 1px; }
+.mk-edit:hover, .mk-edit.focus { border-bottom-color: var(--ink); }
+.mk-edit.focus { border-bottom-style: solid; }
+.game-desc.mk-edit { display: block; max-width: 64ch; min-height: 1.4em; }
+.game-desc.mk-edit.empty { color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.state.draft { background: color-mix(in srgb, #e0a100 22%, transparent); }
+.mk-gp-body { display: grid; grid-template-columns: minmax(0, 1fr) 190px; gap: 24px; align-items: start; }
+.mk-side { display: grid; gap: 14px; position: sticky; top: 16px; }
+.mk-drawn { display: grid; gap: 6px; padding: 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); font-size: 12.5px; color: var(--muted); text-decoration: none; }
+.mk-drawn .th { background: var(--paper); border-radius: 6px; overflow: hidden; aspect-ratio: 1; }
+.mk-drawn .th svg { width: 100%; height: 100%; display: block; }
+.mk-drawn b { color: var(--ink); }
+.mk-pubbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.mk-pubbar .grow { flex: 1; }
+.mk-pubbar .ok { display: inline-flex; align-items: center; gap: 6px; color: var(--good); font-weight: 800; font-size: 14px; }
+.mk-pubbar .ok .sp-icon { width: 17px; height: 17px; stroke-width: 2.6; }
+.mk-pubbar .muted { font-size: 13px; }

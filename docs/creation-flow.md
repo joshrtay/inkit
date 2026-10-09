@@ -6,146 +6,227 @@ and solver code via `make-boards.ts`) are in [creation-flow-mockups/](creation-f
 PNG per screen.
 
 **The idea in one line.** A creator starts from a photo or a blank page, draws in paint, sets the
-puzzle type whenever they know it, and from then on paint only offers that type's tools, checks the
-drawing as they go, and says how many solutions it has. A deterministic converter turns the drawing
-into the puzzle. AI only reads photos and suggests types.
+puzzle type whenever they know it, and from then on paint only offers that type's tools. **Check**
+says whether the drawing is a puzzle (the solution, or what's wrong), and **Publish** puts it on
+its own game page. A deterministic converter turns the drawing into the puzzle. AI only reads
+photos and, when asked, suggests a type.
+
+## Decisions
+
+The owner's answers to the first draft's open questions (October 2026):
+
+1. **The saved drawing is the source of truth.** `games.sketch` is always the converter's output,
+   re-made from the drawing on save and publish; nobody edits a sketch by hand any more (admins
+   included: a hand edit would be overwritten by the next save).
+2. **A published puzzle's page shows the engine's picture for play**, with the creator's drawing
+   beside it as a small **"Drawn by @handle"** thumbnail (the drawing as drawn, minus the notes
+   layer, which stays private). Clicking it enlarges it.
+3. **Type suggestions are on demand only**: the **What type is this?** button in the type picker
+   and in the "choose a type first" reminder. Nothing is suggested automatically.
+4. **Strictly the type's tools**, with an **All tools** escape at the foot of the tool rail. What
+   the type can't use, however it got there, is flagged "doesn't fit" and left out of the puzzle.
+5. **A broken rule makes the verdict "No solution" at once**, while the digit is still being typed.
+6. **Not designed for kids.** No kid-specific modes, wording or gates (the first draft's §1.10 is
+   gone). Plain, specific wording is for everyone.
+7. **RYB (Three Coats) waits.** It stays on `FigureEditor` until every grid type is in paint.
 
 ## 1. Screens
 
 | # | Screen | Mockup |
 |---|---|---|
 | 1 | Start (`/new`) | `01-start.png` |
-| 2 | Paint, just read from a photo | `02-paint-from-photo.png` |
-| 3 | Paint, type mode: Sudoku | `03-paint-sudoku.png` |
-| 4 | Paint, type mode: Panel | `04-paint-panel.png` |
-| 5 | Paint, type mode: Honeycomb Paths (hexagons) | `05-paint-honeycomb.png` |
-| 6 | "What type is this?" | `06-type-picker.png` |
-| 7 | Check & publish | `07-publish.png` |
+| 2 | Paint, just read from a photo: the panel with the photo and what to check | `02-paint-from-photo.png` |
+| 3 | Paint, Sudoku: Check found broken rules; one selected, with its tip | `03-paint-sudoku.png` |
+| 4 | Paint, Panel: Check found it solvable and shows a solution | `04-paint-panel.png` |
+| 5 | Paint, Honeycomb Paths (hexagons), the panel minimised to a tab | `05-paint-honeycomb.png` |
+| 6 | "What type is this?" (after the creator asked) | `06-type-picker.png` |
+| 7 | Play and publish: the draft's own game page | `07-publish.png` |
 | 8 | Paint on a phone | `08-phone-paint.png` |
+| 9 | No type yet: Check and Publish greyed, the reminder, the Type button's bounce | `09-needs-type.png` |
 
-### 1.1 Start (`/new`)
-Two cards: **Start from a sketch** (choose or take a photo) and **Start blank** (an empty page).
-Under them an optional **Puzzle type** select ("Not sure yet" by default), sent with either choice,
-and **Carry on with a draft** (the three latest drafts; the rest are on the profile's Drafts tab).
-`?in=<studio>` keeps working as now.
+### 1.1 The flow
+
+```
+/new ──photo──▶ reading ──▶ paint (/g/<id>/draw) ◀──────────── Back to paint ─┐
+     └─blank──────────────▶   draw · choose Type · Check (panel) ── Publish ──▶ /g/<id>/publish
+                                                                               (the draft's game page:
+                                                                                play it, title, description,
+                                                                                Publish) ──▶ /g/<id>
+```
+
+Paint is where the puzzle is made and checked; the game page is where it is played, named and
+published. There are no forms in between.
+
+### 1.2 Start (`/new`)
+Two cards: **Start from a sketch** (choose or take a photo) and **Start blank** (an empty page),
+and under them **Carry on with a draft** (the three latest drafts; the rest are on the profile's
+Drafts tab). There is no puzzle-type selector: the type is chosen in paint. `?in=<studio>` keeps
+working as now.
 
 - Either choice creates the draft game straight away (state `draft`, no sketch yet) and goes to
   **`/g/<id>/draw`**, so there is one URL per puzzle from the first second and autosave has
   somewhere to go.
 - **Photo**: shrink in the browser (as today), upload, show `ReadingScreen` while Claude reads,
-  then land in paint with the reading drawn (1.2).
+  then land in paint with the reading drawn (1.4).
 
-### 1.2 Paint, just read from a photo
+### 1.3 Paint: the layout
+- **Top bar.** Left: back · title (edited in place, as the editor's title is today) · **Type**
+  button (the type's picture and name, or a dashed "Not set") · save state. Right: undo, redo,
+  clear · How to play (the guide pane at this type; "Puzzle types" when no type is set) ·
+  **Check** · **Publish** (primary). Check and Publish are separate buttons.
+- **Tool rail** (left): the type's tools only (table in §4.4); **All tools** at its foot (1.6).
+- **Options bar** (top): the chosen tool's settings, type-aware (Text in Sudoku writes "Digits
+  1–6" or **Notes**; notes are drawn in a lighter hand and never go in the puzzle).
+- **The panel** (over the workspace's left side): one panel for **the photo, what to check, and
+  Check's results** (1.5). It minimises to a small tab ("✓ Check 1") at the workspace's top-left
+  corner, and a click on the tab restores it. It opens by itself after a photo is read and when
+  Check is pressed; otherwise it stays as the creator left it.
+- **Right side**, one job per section: **Stamps** (the type's only; a line saying so if it has
+  none), **Colour** (only if the type's stamps take one, and only its colours), **Rules**
+  ("Always: …" from `describe()`, then the type's settings, §3).
+- **Status line** (bottom): hint · grid facts · **verdict chip** (live; a click is the same as
+  Check) · **to-check chip** · Snap · zoom.
+- **Grid**: the type fixes the look (Panel → Tracks, Honeycomb → Hexagons, Pythagorean → Dots);
+  other looks are disabled with a one-line reason. Size limits from the engine are enforced by
+  the steppers.
+
+### 1.4 Paint, just read from a photo (screen 2)
 The reader's result goes through the existing pipeline (reading → sketch → `makePuzzle`) and then
 `from-puzzle.ts`'s `toDrawing` draws it in ink. What the creator wrote on the paper (title, type)
-is drawn as written.
+is drawn as written; the type it names is set and labelled "read from the photo" in the Type button
+until the creator touches it.
 
-- A **strip** at the top of the workspace says what happened: "Claude read your photo as Akari,
-  8 × 8 and drew it in ink. 3 things to check." It closes for good.
-- **Your photo** is a floating reference card on the workspace (header button **Photo** toggles
-  it): look, **lay it over the drawing** (50% opacity, aligned to the grid), **Read again**
-  (careful reader, as today's re-read), **Trace over** (photo under the paper, drawing tools on top:
-  the fallback when a read is poor).
-- Each **doubt** is a numbered amber pin on its square, line or row (doubts already carry a place:
-  `games/doubts.ts`). The list is the **To check** popover from the status line; each doubt offers
-  its likely answers as one-tap buttons ("2" / "3", "Shaded" / "A smudge: erase"), plus "Something
-  else" (selects the item with the right tool). Answering applies the edit and ticks the doubt.
-- The type comes from the reading and is labelled "read from the photo" until the creator touches it.
+The panel opens with two parts:
+- **Your photo**: the photo, with **Lay it over** (50% opacity over the drawing, aligned to the
+  grid), **Read again** (careful reader, as today's re-read) and **Trace over** (photo under the
+  paper, drawing tools on top: the fallback when a read is poor).
+- **To check**: each **doubt** (`games/doubts.ts`; they already carry a place) with its likely
+  answers as one-tap buttons ("2" / "3", "Shaded" / "A smudge: erase") plus "Something else"
+  (selects the item with the right tool); things that **don't fit** with Erase / Keep as a note.
+  Answering applies the edit and ticks the item. Each item has a numbered pin on the paper.
 
 Edge cases:
 - **Read fails** (no puzzle found, API error): stay on the start screen with the error and two ways
   on: "Try another photo" or "Trace it yourself" (a blank page with the photo under it).
-- **Read is unsure of the type** (low confidence, or `kindChoices` with no clear winner): draw what
-  was read with no type set, and open the type picker (1.6) with Claude's choices as suggestions.
-- **Partial read** (some regions unreadable): draw what was read; each gap is a doubt with no
-  one-tap answer ("Couldn't read this row").
+- **Read is unsure of the type**: draw what was read with no type set. The reading's `kindChoices`
+  are kept, so **What type is this?** answers at once without another call; nothing opens by itself.
+- **Partial read**: draw what was read; each gap is a doubt with no one-tap answer ("Couldn't read
+  this row").
 - **Something the drawing can't hold** (`from-puzzle` reports `gaps`): drawn as close as it can,
-  listed as doubts. (The converter work in §4 aims to make this list empty.)
+  listed in To check. (The converter work in §4 aims to make this list empty.)
 
-### 1.3 Paint, type mode
-Set from the header's **Type** chip at any time. Once set (screens 3 to 5):
+### 1.5 Check (screens 3 and 4)
+**Check** (top bar, or the verdict chip) runs the solver on the converted drawing and opens the
+panel at its results. With a photo, the photo part folds to a one-line header above them.
 
-- **Tools** (left rail): only the type's (table in §4.4). Sudoku: Grid, Text, Eraser.
-- **Grid**: the type fixes the look (Panel → Tracks, Honeycomb → Hexagons, Pythagorean → Dots);
-  the other looks are disabled with a one-line reason in the options bar. Size limits from the
-  engine (e.g. Sudoku sizes with a box shape) are enforced by the steppers.
-- **Options bar**: unchanged job (the chosen tool's settings), now type-aware: Text in Sudoku
-  writes "Digits 1–6" or **Notes** (notes are drawn in a lighter hand and never go in the puzzle).
-- **Right panel**, one job per section:
-  - **Stamps**: only the type's stamps (Panel: start, end, hoshi, stone, crest, triangle, shape,
-    eraser symbol; Akari: shaded square). Hidden if the type has none (with one line saying so).
-  - **Colour**: only if the type's stamps take a colour, and only the colours the type allows.
-  - **Rules**: "Always: …" (the genre's built-in rules, from `describe()`), then the type's
-    settings and lists (§3).
-- **Status line** (bottom): hint · grid facts · **verdict chip** · **to-check chip** · Snap · zoom.
-- **Header**: back · name (editable in place) · save state | undo, redo, clear · Type chip ·
-  How to play (the guide pane, opened at this type) · **Check & publish**.
+- **Solvable** (screen 4): the verdict (green: "One solution"; panels: "Solvable") and **the
+  solution as a preview** in the panel, drawn in the type's picture. A switch, **Draw it on the
+  board**, lays it over the paper in a light wash (digits pencilled, lines and shading in blue);
+  it never becomes part of the drawing. Panels add **Another** (the next solution the solver finds).
+- **No solution** (screen 3): the verdict in red and **the list of errors**: each broken rule
+  ("Two 5s in row 6", "Two 3s in one box"), numbered. Selecting one **highlights it on the canvas**
+  (its squares ringed and joined, the others dimmed to dashed rings), with a **pointer and a tip**
+  on the paper explaining it ("Each row holds 1 to 6 once, so one of these 5s is wrong. Change or
+  erase one of them."). **Next error** steps through; Escape clears the selection.
+- **Several solutions**: the verdict in red and, as its one "error", **a difference**: one square
+  where two solutions differ, ringed, with both values pencilled ("4/3") and the tip "This square
+  can be a 4 or a 3, and the rest still works. Add a clue that settles it." Next difference cycles.
+  For line and region types the difference is drawn as the two solutions' lines or borders in two
+  washes.
+- **To check** sits under the results in the same panel (doubts and things that don't fit). They
+  never change the verdict: what doesn't fit is left out of the puzzle.
+- The results stay until the drawing changes; then the verdict chip updates live (clingo in a
+  worker, 400 ms debounce, as `useLiveCheck`) and the panel says "Changed since Check" with a
+  **Check again** button. The panel's error list refreshes on Check, not on every stroke, so it
+  doesn't jump while the creator works.
 
-### 1.4 Switching type mid-drawing
-- Picking a type never deletes anything. The converter re-runs; items the new type can't use are
-  marked **doesn't fit** (red dashed outline, pin) and listed in To check with **Erase** and, where
-  one exists, a **translation** ("Make these 3 stones pearls"). One button erases all that don't fit.
-- What carries over automatically: the grid and every item's square; Rules settings with the same
-  meaning (size, allowed sizes, symmetry). The grid's look changes to the type's (hex ↔ square keeps
-  each item's row and column; a hex layout that can't hold an item marks it).
-- The switch is one undo step. "Not set" is a valid choice: back to plain paint with all tools.
-- Items drawn before the type was set that the type can't use (a pen path on Honeycomb Paths:
-  screen 5) get **Erase** or **Keep as a note** (moved to the notes layer: drawn, never converted).
+### 1.6 Type mode, tools, and switching type
+- **Tools**: only the type's (table in §4.4). Sudoku: Grid, Text, Eraser. **All tools** shows the
+  rest (pen, line, wash, every stamp) for decoration or for drawing ahead of choosing a type; they
+  appear below a divider. Anything they make that the type can't use is flagged **doesn't fit**
+  (red dashed outline, pin, a To check item) and left out of the puzzle. A flagged item can be
+  moved to the notes layer ("Keep as a note") to stop it counting as a problem.
+- **No type set**: plain paint with every tool; Check and Publish are greyed (1.8).
+- **Switching type** never deletes anything. The converter re-runs; items the new type can't use
+  are flagged, with **Erase** and, where one exists, a **translation** ("Make these 3 stones
+  pearls"). One button erases all that don't fit. The grid and every item's square carry over, and
+  Rules settings with the same meaning (size, allowed sizes, symmetry). The grid's look changes to
+  the type's (hex ↔ square keeps each item's row and column; a hex layout that can't hold an item
+  flags it). The switch is one undo step. "Not set" is a valid choice.
 
-### 1.5 Drafts and autosave
+### 1.7 "What type is this?" (screen 6)
+The **type picker** opens from the Type button (and from the reminder, 1.8). It shows **All
+types**, a searchable grid of the guide examples' pictures, and a **What type is this?** button.
+Only that button asks Claude:
+
+- For a photo, the reading's `kindChoices` answer at once. For a drawing, a call to the quick
+  reader with the drawing's data (`objects()`, no image).
+- The top three appear as cards: **your drawing as that type** (the converter's output in the
+  type's picture) and the **solver's verdict** on it (screen 6 shows the real verdicts: Nurikabe
+  one, Shikaku none, Fillomino several), and "Uses everything you drew" or "3 things won't fit".
+- Footer: "You can change the type any time; nothing you drew is lost." Not now / Make it X.
+
+### 1.8 No type yet: Check and Publish greyed (screen 9)
+Until a type is chosen, **Check** and **Publish** are greyed (`aria-disabled`, not `disabled`, so
+they still take a click and keep their tooltips). Clicking either:
+- opens a **reminder** hanging from the Type button: "Choose a puzzle type first. Check and Publish
+  need to know what kind of puzzle this is: its rules decide what counts as a solution." with
+  **Choose a type** (opens the picker) and **What type is this?** (opens it and asks);
+- and **bounces the Type button**: two hops, about 0.6 s in all, with a yellow ring while the
+  reminder is open (no bounce with `prefers-reduced-motion`; the ring alone).
+The reminder closes on the next click elsewhere. The verdict chip says "No type yet, so nothing to
+check".
+
+### 1.9 Play and publish: the draft's game page (`/g/<id>/publish`, screen 7)
+**Publish** in paint goes to the puzzle's own game page, as it will look published: the site
+shell, the back button (to paint), `GamePageView`'s head and the real player (`GameBoard` /
+`MountGame`). The differences from a published page:
+
+- **The title and the description are edited in place**, as the editor does today
+  (`GameEditor`'s `.studio-title` input and textarea, without borders): the title is the page's
+  `h1`, with a dashed underline on hover and a caret on click; the description sits beside the
+  board (under it on narrow screens) with "Add a description…" as its placeholder. Both save as
+  they change (the draft's autosave). There is no separate form.
+- The head's meta line says "not published yet" and a **Draft** tag; **How to play** and **Back to
+  paint** sit where the published page has How to play and Edit.
+- A **publish bar** under the head: the verdict ("Exactly one solution", from the last Check, re-run
+  if the drawing changed), "Play it here as players will; your solve isn't counted", **Publish to**
+  (personal or a studio) and **Publish**.
+- The player is the real one, with a host that saves to `sessionStorage` and never records a solve.
+- The **Drawn by** thumbnail (decision 2) is shown as it will be published.
+
+Publish is enabled only when the verdict passes (one solution; panels at least one) and the title
+isn't empty (an empty title gets "Give it a title" under the `h1`, which takes focus). Unanswered
+doubts and items that don't fit warn beside the button; they don't block. The server re-converts
+the saved drawing and re-checks the hash, as the editor's publish does today (`check.hash`), so
+the client can't publish a sketch that wasn't checked. After publishing the page simply becomes
+`/g/<id>`: the same layout without the editing.
+
+### 1.10 Drafts and autosave
 - The drawing is saved to the server (debounced ~1.5 s after the last change, and on leaving), with
   `localStorage` as the offline buffer (today's `inkit:sketchpad` key, now per game:
-  `inkit:draw:<id>`). Header shows Saving… / Saved / Offline, saved here.
-- What is saved: the **drawing** (model.ts `Drawing`, new column `games.drawing`), the **type**,
-  the **rule settings**, the **converted sketch** (as today's `games.sketch`), and doubt state.
+  `inkit:draw:<id>`). The top bar shows Saving… / Saved / Offline, saved here.
+- What is saved: the **drawing** (model.ts `Drawing`, new column `games.drawing`: the source of
+  truth), the **type**, the **rule settings**, the **converted sketch** (`games.sketch`, always
+  derived), the title and description, and doubt state.
 - Opening a draft restores undo history only for this browser session (history isn't stored).
 - Two tabs on one draft: last write wins; the losing tab shows "Changed elsewhere: reload".
 
-### 1.6 "What type is this?"
-Opened from the Type chip, from "Check & publish" when no type is set, or after an unsure read.
+### 1.11 Editing a published puzzle
+**Edit** on `/g/<id>` opens paint with the saved drawing; games published before this have none,
+so `toDrawing(spec)` makes one (and it's saved on the first change). The published puzzle doesn't
+change while you draw: Publish says **Update**, and goes to the same game page with **Update** in
+the publish bar; the update needs a passing verdict. Solves and likes stay (as today). Changing the
+type of a published puzzle is allowed but warned ("Players' progress on it will reset").
 
-- **Suggestions** (top 3): from the reading's `kindChoices` for photos; for drawings, a call to
-  the quick reader with the drawing's data (`objects()`, no image needed) on demand (pressing the
-  chip), never automatically on each stroke. Each card shows **your drawing as that type** (the
-  converter's output in the type's picture) and the **solver's verdict** on it (screen 6 shows the
-  real verdicts: Nurikabe one, Shikaku none, Fillomino several). "Uses everything you drew" or
-  "3 things won't fit".
-- **All types**: searchable grid of the guide examples' pictures (the existing guide list data).
-- Footer: "You can change the type any time; nothing you drew is lost." Not now / Make it X.
-
-### 1.7 Check & publish (`/g/<id>/publish`)
-A page of its own (screen 7). Left: **Play it yourself**, the real player (`MountGame`) with a host
-that saves to `sessionStorage` and never records a solve. Right: title, description, the **verdict
-card**, facts (type, size, rules, clue count), two ticks ("Nothing on the page is left out of the
-puzzle", "Played it through yourself", the second optional), where it goes, **Publish**.
-
-- Publish is enabled only when the verdict passes (one solution; panels at least one) and the
-  title isn't empty. Unanswered doubts and "doesn't fit" items warn, they don't block (the converter
-  ignores what doesn't fit, and the ticks say so).
-- The server re-converts the saved drawing and re-checks the hash, as the editor's publish does
-  today (`check.hash`), so the client can't publish a sketch that wasn't checked.
-
-### 1.8 Editing a published puzzle
-`/g/<id>/edit` opens paint with the saved drawing; games published before this have none, so
-`toDrawing(spec)` makes one (and it's saved on the first change). The published puzzle doesn't
-change while you draw: the header button says **Check & update**, the publish page **Update**, and
-the update needs a passing verdict. Solves and likes stay (as today). Changing the type of a
-published puzzle is allowed but warned ("Players' progress on it will reset").
-
-### 1.9 Phones (screen 8)
+### 1.12 Phones (screen 8)
 The sketchpad's phone layout as it is (paper on top; status, options and tools stacked at the
 bottom; Colour, Stamps and Rules in the bottom sheet behind the palette button, as three tabs).
-Type mode makes phones easier: Sudoku has three tools, Panel three. The header keeps back, undo,
-redo, the Type chip (name only) and **Publish**; the name is edited on the publish page. Notes on
-the canvas sit below the paper so they never cover what they're about. The status line holds only
-the two chips; the tool hint moves into the options bar.
-
-### 1.10 Kids
-- **Start blank with a type** gives the smallest tool set; Rules use plain words ("Each row holds 1
-  to 6 once"); hints are friendly and specific ("Two 5s in row 6"), never "invalid".
-- Big targets (44 px on touch, as now), no AI needed to make a puzzle, no free text on the page
-  except clues (notes stay private).
-- Open question: an age gate or supervised publishing (see §7).
+The top bar keeps back, the Type button (name only), undo, redo, **Check** and **Publish**; the
+title is edited on the game page. The panel opens as a bottom sheet over the tools and minimises
+to the same tab, top-left on the canvas. A selected error's tip sits below the paper so it never
+covers what it's about. The status line holds only the two chips; the tool hint moves into the
+options bar.
 
 ## 2. Validation UX
 
@@ -155,27 +236,27 @@ Three kinds of message, one look each, all from the converter and the engine (no
 |---|---|---|---|
 | **Doubt** (from a photo read) | "Is this a 2 or a 3?" | amber outline + numbered amber pin | no (warns) |
 | **Doesn't fit / not on the grid** | "A crest isn't part of Sudoku", "This line isn't on the grid", "Panels have no numbers" | red dashed outline + red pin | no: left out of the puzzle (warns) |
-| **Rule hint** | "Two 5s in row 6" | orange ring on each clue involved, dotted line between | it means no solution, so yes (via the verdict) |
+| **Error** (a broken rule, or two solutions' difference) | "Two 5s in row 6" | orange ring on each square involved, dotted line between | yes, through the verdict |
 
-- **Where**: the mark is on the paper (an overlay layer like `.sp-ui`, never exported). The words
-  appear in a **note** beside the mark for the newest problem only (one at a time, so the paper
-  stays readable), and all of them are in the **To check** popover from the status line chip
-  ("3 to check"). Clicking a list item scrolls to and flashes its mark.
-- **When**: doubts and "doesn't fit" appear at once; rule hints appear live, including **while
-  typing** (the hint previews the digit before it's committed: screen 3). Notes fade after 6 s or
-  on the next action; the mark and the list entry stay until fixed.
+- **Where**: the marks are on the paper (an overlay layer like `.sp-ui`, never exported). The words
+  are in the panel: To check (doubts, doesn't fit) and Check's results (errors). Selecting an item
+  scrolls to its mark, highlights it and shows its **tip** beside it with a pointer. One tip at a
+  time, so the paper stays readable.
+- **When**: doubts and "doesn't fit" appear at once. **Errors count at once** (decision 5): a
+  digit that breaks a rule, even before it is committed, rings its squares and turns the verdict
+  chip to "No solution · 1 broken rule". The panel's list is Check's (1.5).
 - **Dismissed by**: fixing the item (the mark goes); a doubt's answer buttons or its tick; "Leave it
   out" / "Keep as a note" for things that don't fit (they move to the notes layer, so they stop being
-  problems). Rule hints can't be dismissed: they're facts.
+  problems). Errors can't be dismissed: they're facts.
 - **Verdict chip** (status line), from `useLiveCheck` (clingo in a worker, 400 ms debounce):
-  - Checking… (dashed) · **No solution** (red; if there are rule hints, "No solution: see the hint")
-  - **Several solutions · show a difference** (red): solve for two, highlight one square where they
-    differ with both values pencilled ("4/3"); **Next difference** cycles. For line and region
-    types, the difference is drawn as the two solutions' lines or borders in two washes.
-  - **One solution** (green) · Panels: **Solvable · show the line** (draws one solution's line).
+  - Checking… (dashed) · **No solution** (red; "No solution · 2 broken rules" when the converter
+    finds given-vs-given conflicts, without waiting for the solver)
+  - **Several solutions** (red) · **One solution** (green) · Panels: **Solvable** (green)
   - With no type: "No type yet, so nothing to check".
+  - A click on the chip is Check.
 - For "several solutions" today's `countSolutions` returns only a count; it needs to return the two
-  boards (cheap: clingo already finds them).
+  boards (cheap: clingo already finds them). For "solvable" it returns the first solution, which
+  the panel draws.
 
 ## 3. The Rules panel, per type
 
@@ -197,8 +278,9 @@ in a collapsed **Advanced** section, with the Look panel).
 | Star Battle | stars per row, column and area |
 | Abstract Art | shares per colour |
 | Twins and Triplets | tiles |
-| RYB | pieces (from closed shapes drawn with Line), dots per piece |
 | Panes | its rules (each a switch) |
+
+(RYB is left for later: decision 7.)
 
 The lists live in one place each: a list that is also drawn (the shape bank, a fill-in's list)
 is edited on the paper or in the panel and both show the same thing.
@@ -332,17 +414,11 @@ Risks:
   paint's Text already moves with arrows; areas need a quick "paint regions" mode for Star Battle-like
   types (bold borders by dragging across squares).
 
-## 7. Open questions for the owner
+## 7. Open questions
 
-1. **Is the drawing the source of truth?** Proposed: yes, stored next to the sketch; the sketch is
-   always the converter's output. (Admin edits to a sketch by hand would be lost.)
-2. **Notes and decoration**: may a published puzzle's page show the creator's own drawing (with its
-   notes), or always the engine's picture?
-3. **Type suggestions for drawings**: on demand only (proposed), or automatic once a drawing looks
-   finished?
-4. **Strict tool filtering**: show only the type's tools (proposed), or an "All tools" escape for
-   decoration?
-5. **Rule hints vs. the verdict**: a rule hint means no solution; should the verdict chip then say
-   "No solution" (proposed) even while the hint is only a preview of a digit being typed?
-6. **Kids**: an age gate, a supervised account, or publishing review for young creators?
-7. **RYB**: in paint from the start, or kept on FigureEditor until last?
+The first draft's seven are answered (Decisions, at the top). Left from this revision:
+
+1. **The description's place on published pages**: beside the board, as on the draft's game page
+   (a small change to `GamePageView`), or under it as now (then the draft page puts it there too)?
+2. **The "Drawn by" thumbnail**: always shown, or may a creator hide it (a tidy engine picture
+   only)?

@@ -29,6 +29,10 @@ MK.overlays.honey = (q) => {
     <div class="studio-left">
       <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
       <button class="mk-name">Twenty Cells</button>
+      <button class="mk-type">
+        <span class="mk-type-pic grid-game" data-board="thumbs.honeycomb-paths" data-shown="40"></span>
+        <span><small>Type</small><b>Honeycomb Paths</b></span><span data-icon="chevron"></span>
+      </button>
       <span class="mk-saved">Saved</span>
     </div>
     <div class="studio-actions">
@@ -37,12 +41,9 @@ MK.overlays.honey = (q) => {
         <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
         <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
       </span>
-      <button class="mk-type">
-        <span class="mk-type-pic grid-game" data-board="thumbs.honeycomb-paths" data-shown="40"></span>
-        <span><small>Type</small><b>Honeycomb Paths</b></span><span data-icon="chevron"></span>
-      </button>
       <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
-      <button class="btn primary">Check &amp; publish</button>
+      <button class="btn sp-head-btn mk-head-btn"><span data-icon="check"></span><span>Check</span></button>
+      <button class="btn primary">Publish</button>
     </div>
   </header>
 
@@ -65,9 +66,11 @@ MK.overlays.honey = (q) => {
       <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
       <span class="sp-sep"></span>
       <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+      <button class="mk-alltools" title="Show every tool: what this type can't use is flagged"><span data-icon="more"></span>All tools</button>
     </div>
 
     <div class="grid-game sketchpad sp-canvas" style="position:relative">
+      <button class="mk-cp-tab" title="Restore the panel"><span data-icon="check"></span>Check<b>1</b></button>
       <div class="sp-paper tool-grid" style="width:600px">
         <div data-board="honey"></div>
         <div class="mk-note fit" style="left:calc(100% + 14px); top:150px; width:220px">

@@ -2,72 +2,82 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Check and publish</title>
+<title>Play and publish</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
 <link rel="stylesheet" href="../../src/styles/global.css">
-<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/site.css">
 <link rel="stylesheet" href="../../src/game-types/grid/styles.css">
 <link rel="stylesheet" href="mockup.css">
 <script src="boards.js"></script>
 <script src="mockup.js"></script>
 <style>
-  .studio { grid-template-rows: auto 1fr; }
-  .studio-top { border-bottom: 1px solid var(--line); }
-  .paper-bar .tool .sp-icon { width: 22px; height: 22px; stroke-width: 2.1; }
-  .paper-bar .title { font: 700 18px/1 var(--hand); }
-  .mk-play .sheet { --below: 0px; }
-  .mk-play .grid-game .digit:not(.given) { fill: #4f7fd9; }
+  /* The draft's own game page (/g/<id>/publish): GamePageView's layout, with the title and the
+     description edited in place, the creator's drawing beside the board, and Publish in a bar. */
+  .nav-item .sp-icon { width: 26px; height: 26px; }
+  .nav-items .create-btn { margin-top: 10px; display: flex; }
+  .mk-av { width: 26px; height: 26px; border-radius: 50%; background: #7a5cc2; color: #fff; display: inline-grid; place-items: center; font: 800 13px/1 var(--body); }
+  .mk-gp .sheet { width: min(100%, 470px); }
+  .mk-gp .grid-game .digit:not(.given) { fill: #4f7fd9; }
+  .mk-gp .paper-bar .tool .sp-icon { width: 22px; height: 22px; stroke-width: 2.1; }
+  .mk-gp .game-head .btn { white-space: nowrap; }
+  .mk-gp .game-head h1.mk-edit { cursor: text; }
+  .mk-gp .game-head .anno-cursor { display: inline-block; width: 2px; height: 22px; background: var(--ink); margin-left: 1px; vertical-align: -3px; }
 </style>
 </head>
 <body>
-<div class="studio">
-  <header class="studio-top">
-    <div class="studio-left">
-      <a class="studio-back" href="#" aria-label="Back to paint" data-icon="back" data-icon-class=""></a>
-      <strong style="font:800 17px/1 var(--display)">Check &amp; publish</strong>
-      <span class="mk-saved">Draft saved</span>
+<div class="shell">
+  <nav class="sidenav">
+    <a class="brand" href="#">inkit</a>
+    <div class="nav-items">
+      <a class="nav-item" href="#" data-icon="eye" data-icon-class="nav-icon"><span>Subscriptions</span></a>
+      <a class="nav-item" href="#" data-icon="search" data-icon-class="nav-icon"><span>Explore</span></a>
+      <a class="nav-item" href="#"><span class="mk-av">J</span><span>Profile</span></a>
+      <a class="btn primary create-btn" href="#"><span>Create</span></a>
     </div>
-    <div class="studio-actions">
-      <button class="btn">Back to paint</button>
+    <div style="margin-top:auto" class="nav-items">
+      <a class="nav-item" href="#" data-icon="book" data-icon-class="nav-icon"><span>Puzzle types</span></a>
+      <a class="nav-item" href="#" data-icon="more" data-icon-class="nav-icon"><span>More</span></a>
     </div>
-  </header>
+  </nav>
+  <div class="page">
+    <div class="game-layout">
+      <a class="back-btn" aria-label="Back to paint" title="Back to paint" href="#"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg></a>
+      <main class="wrap game-page mk-gp">
+        <header class="game-head">
+          <h1 class="mk-edit focus" contenteditable="true" aria-label="Title">Six by Six<span class="anno-cursor"></span></h1>
+          <span class="muted">Sudoku · 6 × 6 · by <a href="#">@josh</a> · not published yet</span>
+          <span class="state draft">Draft: only you can see this</span>
+          <button class="btn rules-toggle" type="button" aria-pressed="false">How to play</button>
+          <a class="btn" href="#">Back to paint</a>
+        </header>
 
-  <div class="mk-pub">
-    <section class="mk-play">
-      <div class="mk-play-h" style="gap:12px"><h2>Play it yourself</h2><span class="muted" style="font-size:13.5px">Exactly as players will see it · your solve isn't counted</span></div>
-      <div class="grid-game" data-marks="digit">
-        <div class="sheet" style="width:min(100%, 540px)">
-          <div class="paper-bar">
-            <span class="group"><button class="tool" data-icon="undo" data-icon-class="icon"></button><button class="tool" data-icon="reset" data-icon-class="icon"></button></span>
-            <span class="title">Six by Six</span>
-            <span class="group"><button class="tool" data-icon="pen" data-icon-class="icon" title="Pencil marks"></button><button class="tool" data-icon="book" data-icon-class="icon" title="How to play"></button></span>
-          </div>
-          <div data-board="testplay" data-shown="520"></div>
+        <div class="mk-pubbar">
+          <span class="ok"><span data-icon="check"></span>Exactly one solution</span>
+          <span class="muted grow">Play it here as players will; your solve isn't counted.</span>
+          <span class="muted">Publish to</span>
+          <span class="mk-select" style="min-width:190px">Your puzzles · @josh<span data-icon="chevron"></span></span>
+          <button class="btn primary">Publish</button>
         </div>
-      </div>
-      <p class="note">Tap a square, then a digit. Mistakes show the way they will for players.</p>
-    </section>
 
-    <aside class="mk-form">
-      <label class="mk-field"><span>Title</span><span class="mk-input">Six by Six</span></label>
-      <label class="mk-field"><span>Description <span style="font-weight:600">(optional)</span></span><span class="mk-input area">A gentle 6 × 6 to start the week. The 6 in the bottom row is the key.</span></label>
-
-      <div class="mk-verdict-card"><span class="ic" data-icon="check"></span><span><b>Exactly one solution</b>The solver checked the whole puzzle: it can be solved, and only one way.</span></div>
-
-      <dl class="mk-facts">
-        <dt>Type</dt><dd>Sudoku</dd>
-        <dt>Size</dt><dd>6 × 6, boxes 2 × 3</dd>
-        <dt>Clues</dt><dd>9 digits</dd>
-      </dl>
-      <div style="display:grid; gap:8px">
-        <div class="mk-tick"><i data-icon="check"></i><span>Nothing on the page is left out of the puzzle</span></div>
-        <div class="mk-tick todo"><i></i><span>Played it through yourself <span class="muted">(not needed, but worth it)</span></span></div>
-      </div>
-
-      <label class="mk-field"><span>Publish to</span><span class="mk-select" style="width:100%">Your puzzles · @josh<span data-icon="chevron"></span></span></label>
-      <button class="btn primary">Publish</button>
-      <p class="where">It goes on your profile and to your subscribers. You can still edit it after.</p>
-    </aside>
+        <div class="mk-gp-body">
+          <div class="game-spot">
+            <div class="grid-game" data-marks="digit" style="--ratio: 1">
+              <div class="sheet" style="--below: 46px">
+                <div class="paper-bar"><div class="group"></div><div class="status"></div>
+                  <div class="group"><button class="tool" data-icon="undo" data-icon-class="icon" aria-label="Undo"></button><button class="tool" data-icon="reset" data-icon-class="icon" aria-label="Reset"></button></div></div>
+                <div data-board="testplay" data-shown="470"></div>
+                <div class="paper-bar pad"><div class="group"><button class="word num">1</button><button class="word num">2</button><button class="word num">3</button><button class="word num">4</button><button class="word num">5</button><button class="word num">6</button></div>
+                  <div class="group"><button class="word" aria-pressed="false">pencil</button><button class="word">erase</button></div></div>
+              </div>
+            </div>
+          </div>
+          <aside class="mk-side">
+            <a class="mk-drawn" href="#"><span class="th grid-game" data-board="sudokuDrawn" data-shown="170"></span><span>Drawn by <b>@josh</b></span></a>
+            <p class="game-desc mk-edit" aria-label="Description" style="font-size:15px">A gentle 6 × 6 to start the week. The 6 in the bottom row is the key.</p>
+          </aside>
+        </div>
+      </main>
+    </div>
   </div>
 </div>
 </body>

@@ -26,6 +26,8 @@ MK.overlays.panel = (q) => {
   .mk-phone-screen .mk-note.below::before { left: auto; right: 34px; }
   .mk-phone-screen .mk-type { height: 32px; padding: 0 4px 0 8px; }
   .mk-phone-screen .mk-type small { display: none; }
+  .mk-phone-screen .studio-left .mk-type { margin-left: 0; }
+  .mk-phone-screen .sp-doc { border: 0; }
   .mk-phone-screen .sp-status { gap: 6px; padding: 4px 8px; }
   .mk-phone-screen .mk-verdict, .mk-phone-screen .mk-checks { height: 26px; }
   .mk-phone-screen .mk-note { max-width: 210px; }
@@ -39,15 +41,17 @@ MK.overlays.panel = (q) => {
   <span class="mk-notch"></span><span class="mk-time">9:41</span>
   <div class="studio sp-studio">
     <header class="studio-top">
-      <div class="studio-left"><a class="studio-back" href="#" data-icon="back" data-icon-class=""></a></div>
+      <div class="studio-left"><a class="studio-back" href="#" data-icon="back" data-icon-class=""></a>
+        <button class="mk-type"><b>Panel</b><span data-icon="chevron"></span></button></div>
       <div class="studio-actions">
         <span class="sp-doc"><button class="sp-btn" data-icon="undo"></button><button class="sp-btn" data-icon="redo" disabled></button></span>
-        <button class="mk-type"><b>Panel</b><span data-icon="chevron"></span></button>
+        <button class="btn mk-head-btn" style="height:34px" aria-label="Check"><span data-icon="check"></span>Check</button>
         <button class="btn primary">Publish</button>
       </div>
     </header>
     <div class="sp-work">
       <div class="grid-game sketchpad sp-canvas" style="position:relative">
+        <button class="mk-cp-tab" style="left:10px; top:10px" title="Restore the panel"><span data-icon="check"></span>Check<b>1</b></button>
         <div class="sp-paper tool-stamp" style="width:340px"><div data-board="panel"></div></div>
         <div class="mk-note fit below" style="right:14px; bottom:16px; top:auto; left:auto">
           <b>Panels have no numbers</b>Three triangles?

@@ -18,15 +18,16 @@
     <div class="studio-left">
       <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
       <button class="mk-name untitled">Untitled</button>
+      <button class="mk-type unset"><span><small>Type</small><b>Not set</b></span><span data-icon="chevron"></span></button>
       <span class="mk-saved">Saved</span>
     </div>
     <div class="studio-actions">
       <span class="sp-doc">
         <button class="sp-btn" data-icon="undo"></button><button class="sp-btn" data-icon="redo" disabled></button><button class="sp-btn" data-icon="clear"></button>
       </span>
-      <button class="mk-type unset"><span><small>Type</small><b>Not set</b></span><span data-icon="chevron"></span></button>
       <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>Puzzle types</span></button>
-      <button class="btn primary">Check &amp; publish</button>
+      <button class="btn sp-head-btn mk-head-btn mk-off" aria-disabled="true" title="Choose a puzzle type first"><span data-icon="check"></span><span>Check</span></button>
+      <span style="position:relative; display:inline-flex"><button class="btn primary mk-off" aria-disabled="true" title="Choose a puzzle type first">Publish</button></span>
     </div>
   </header>
   <div class="sp-work">
@@ -53,7 +54,7 @@
     <div class="mk-sheet-head">
       <div>
         <h2>What type of puzzle is this?</h2>
-        <p class="sub">Claude looked at your drawing: a 5 × 5 grid with numbers in some squares, and nothing else. These fit best, each shown with your numbers and the solver's verdict.</p>
+        <p class="sub">You asked “What type is this?”, so Claude looked at your drawing (its items, not a picture): a 5 × 5 grid with numbers in some squares, and nothing else. These fit best, each shown with your numbers and the solver's verdict.</p>
       </div>
       <button class="sp-btn" data-icon="close" aria-label="Close"></button>
     </div>

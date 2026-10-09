@@ -62,8 +62,19 @@ const out: Record<string, unknown> = {};
   // a fully solved board for the test-play (some cells filled in by the creator playing)
   const one = await solve(makePuzzle(full), 2);
   const b = one[0];
-  const play = { ...b, digit: b.digit.map((v, i) => ([0, 1, 4, 6, 7, 8, 12, 13, 19].includes(i) ? v : 0)) as unknown as Uint8Array };
+  const given = new Set(full.givens!.map((g) => (g.at === "cell" ? g.cell[0] * 6 + g.cell[1] : -1)));
+  const play = { ...b, digit: b.digit.map((v, i) => (given.has(i) || [0, 1, 4, 6, 7, 12, 13, 19].includes(i) ? v : 0)) as unknown as Uint8Array };
   out.testplay = { svg: pictureSvg(makePuzzle(full), play as typeof b, "Six by Six"), unique: one.length };
+  // the creator's drawing of the finished puzzle: the "drawn by" thumbnail on the game page
+  const dFull = dropHeader(toDrawing(makePuzzle(full), "sudoku").drawing, "sudoku");
+  out.sudokuDrawn = { svg: paper(dFull), grid: geom(dFull) };
+  // two broken rules: a second 5 in row 6, a second 3 in the top-right box. The solver finds none.
+  const broken: GridSpec = { ...full, givens: [...full.givens!,
+    { at: "cell", cell: [5, 4], kind: "number", value: 5 }, { at: "cell", cell: [0, 5], kind: "number", value: 3 }] } as GridSpec;
+  const pb = makePuzzle(broken);
+  const none = await solve(pb, 2);
+  const dBroken = dropHeader(toDrawing(pb, "sudoku").drawing, "sudoku");
+  out.sudokuBroken = { svg: paper(dBroken), grid: geom(dBroken), solutions: none.length };
 }
 
 // ---- 4. Panel: stones, crests, a triangle, dots, gaps ----
@@ -125,4 +136,4 @@ const out: Record<string, unknown> = {};
 }
 
 writeFileSync(OUT, `// Generated from the real sketchpad and picture code (from-puzzle.ts, draw.ts, picture.ts) and the solver.\nwindow.BOARDS = ${JSON.stringify(out)};\n`);
-console.log("ok", Object.keys(out), (out.sudoku as { diff: unknown }).diff, (out.panel as { solutions: number }).solutions, (out.honey as { solutions: number }).solutions);
+console.log("ok", Object.keys(out), (out.sudoku as { diff: unknown }).diff, "broken:", (out.sudokuBroken as { solutions: number }).solutions, (out.panel as { solutions: number }).solutions, (out.honey as { solutions: number }).solutions);

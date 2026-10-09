@@ -30,6 +30,10 @@ MK.overlays.photo = (q) => {
     <div class="studio-left">
       <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
       <button class="mk-name">Night Shift</button>
+      <button class="mk-type">
+        <span class="mk-type-pic grid-game" data-board="thumbs.akari" data-shown="40"></span>
+        <span><small>Type · read from the photo</small><b>Akari</b></span><span data-icon="chevron"></span>
+      </button>
       <span class="mk-saved">Saved</span>
     </div>
     <div class="studio-actions">
@@ -38,13 +42,9 @@ MK.overlays.photo = (q) => {
         <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
         <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
       </span>
-      <button class="btn sp-head-btn" aria-pressed="true"><span data-icon="photo" data-icon-class=""></span><span>Photo</span></button>
-      <button class="mk-type">
-        <span class="mk-type-pic grid-game" data-board="thumbs.akari" data-shown="40"></span>
-        <span><small>Type · read from the photo</small><b>Akari</b></span><span data-icon="chevron"></span>
-      </button>
       <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
-      <button class="btn primary">Check &amp; publish</button>
+      <button class="btn sp-head-btn mk-head-btn"><span data-icon="check"></span><span>Check</span></button>
+      <button class="btn primary">Publish</button>
     </div>
   </header>
 
@@ -64,26 +64,33 @@ MK.overlays.photo = (q) => {
       <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
       <span class="sp-sep"></span>
       <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+      <button class="mk-alltools" title="Show every tool: what this type can't use is flagged"><span data-icon="more"></span>All tools</button>
     </div>
 
     <div class="grid-game sketchpad sp-canvas" style="position:relative">
-      <div class="mk-strip"><span data-icon="sparkle"></span>Claude read your photo as <b>Akari, 8 × 8</b> and drew it in ink. <b>3 things to check.</b><button class="sp-btn" data-icon="close" aria-label="Close"></button></div>
-      <div class="mk-ref" style="left:22px; top:74px">
-        <header>Your photo<span><button class="sp-btn" data-icon="eye" aria-label="Lay it over the drawing"></button><button class="sp-btn" data-icon="close" aria-label="Close"></button></span></header>
-        <div class="mk-photo"><div class="grid-game" data-board="thumbs.akari2"></div></div>
-        <footer><button class="mk-act">Read again</button><button class="mk-act">Trace over</button></footer>
+      <div class="mk-cp">
+        <header><span data-icon="photo"></span><span class="grow">Photo &amp; checks</span>
+          <button class="sp-btn" aria-label="Minimise" title="Minimise to a tab"><span style="font:800 18px/1 var(--body); margin-top:-6px">&minus;</span></button></header>
+        <div class="body">
+          <section>
+            <h3>Your photo <span>Claude read it as Akari, 8 × 8</span></h3>
+            <div class="mk-photo"><div class="grid-game" data-board="thumbs.akari2"></div></div>
+            <div class="photo-acts"><button class="mk-act"><span data-icon="eye" style="display:none"></span>Lay it over</button><button class="mk-act">Read again</button><button class="mk-act">Trace over</button></div>
+          </section>
+          <section>
+            <h3>To check <span>1 of 4 done</span></h3>
+            <div class="mk-item on" style="background:color-mix(in srgb, #e0a100 12%, transparent); box-shadow: inset 3px 0 0 #e0a100"><span class="mk-n doubt">1</span><div><b>Row 7, column 2 · Claude wasn't sure</b>Is this a 2 or a 3?
+              <div class="mk-acts"><button class="mk-act hand">2</button><button class="mk-act hand">3</button><button class="mk-act quiet">Something else</button></div></div></div>
+            <div class="mk-item"><span class="mk-n doubt">2</span><div><b>Row 3, column 7 · Claude wasn't sure</b>A shaded square, or a smudge?
+              <div class="mk-acts"><button class="mk-act">Shaded</button><button class="mk-act">A smudge: erase</button></div></div></div>
+            <div class="mk-item"><span class="mk-n fit">3</span><div><b>Off the grid</b>A pen mark the puzzle can't use.
+              <div class="mk-acts"><button class="mk-act">Erase</button><button class="mk-act">Keep as a note</button></div></div></div>
+            <div class="mk-item" style="color:var(--muted)"><span class="mk-n off">✓</span><div><s>The type: written “Akari” at the top</s></div></div>
+          </section>
+        </div>
       </div>
-      <div class="sp-paper tool-stamp" style="width:500px; margin:auto auto auto 236px">
+      <div class="sp-paper tool-stamp" style="width:540px; margin:auto auto auto 372px">
         <div data-board="photo"></div>
-      </div>
-      <div class="mk-pop" style="right:14px; bottom:10px; width:300px">
-        <h3>To check <span>1 of 3 done</span></h3>
-        <div class="mk-item on"><span class="mk-n doubt">1</span><div><b>Row 7, column 2 · Claude wasn't sure</b>Is this a 2 or a 3?
-          <div class="mk-acts"><button class="mk-act hand">2</button><button class="mk-act hand">3</button><button class="mk-act quiet">Something else</button></div></div></div>
-        <div class="mk-item"><span class="mk-n doubt">2</span><div><b>Row 3, column 7 · Claude wasn't sure</b>A shaded square, or a smudge?
-          <div class="mk-acts"><button class="mk-act">Shaded</button><button class="mk-act">A smudge: erase</button></div></div></div>
-        <div class="mk-item"><span class="mk-n fit">3</span><div><b>Off the grid</b>A pen mark the puzzle can't use.</div></div>
-        <div class="mk-item" style="color:var(--muted)"><span class="mk-n off">✓</span><div><s>The type: written “Akari” at the top</s></div></div>
       </div>
     </div>
 

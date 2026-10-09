@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose a type first</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+</head>
+<body>
+<div class="studio sp-studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <button class="mk-name untitled">Untitled</button>
+      <span style="position:relative; display:inline-flex">
+        <button class="mk-type unset bounce"><span><small>Type</small><b>Not set</b></span><span data-icon="chevron"></span></button>
+        <span class="mk-motion" style="left:22px; right:22px; bottom:-20px"><i style="opacity:.55"></i><i style="margin:0 18px; opacity:.35"></i></span>
+        <span class="mk-frame" style="inset:-10px -10px -26px -10px"></span>
+        <div class="mk-remind" style="left:-6px; top:54px">
+          <b>Choose a puzzle type first</b>Check and Publish need to know what kind of puzzle this is: its rules decide what counts as a solution.
+          <div class="mk-acts"><button class="mk-act go">Choose a type</button><button class="mk-act"><span data-icon="sparkle" style="display:none"></span>What type is this?</button></div>
+        </div>
+        <div class="mk-anno" style="left:322px; top:64px; width:250px">Clicking a greyed Check or Publish opens this reminder and the Type button bounces twice (about 0.6 s, a small hop then a smaller one). The dashed frame marks the button that moves.</div>
+      </span>
+      <span class="mk-saved">Saved</span>
+    </div>
+    <div class="studio-actions">
+      <span class="sp-doc">
+        <button class="sp-btn" data-icon="undo"></button><button class="sp-btn" data-icon="redo" disabled></button><button class="sp-btn" data-icon="clear"></button>
+      </span>
+      <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>Puzzle types</span></button>
+      <button class="btn sp-head-btn mk-head-btn mk-off" aria-disabled="true" title="Choose a puzzle type first"><span data-icon="check"></span><span>Check</span></button>
+      <span style="position:relative; display:inline-flex"><button class="btn primary mk-off" aria-disabled="true" title="Choose a puzzle type first">Publish</button><svg viewBox="0 0 24 24" style="position:absolute; right:14px; bottom:-20px; width:26px; height:26px; z-index:60; filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"><path d="M5 3l14 8-6 1.6L10 19z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg></span>
+    </div>
+  </header>
+  <div class="sp-work">
+    <div class="sp-opts"><span class="sp-opts-tool"><span data-icon="text"></span>Text</span><span class="sp-opts-sep"></span>
+      <span class="sp-opts-body"><span class="sp-seg"><button class="sp-btn" aria-pressed="true">Normal</button><button class="sp-btn sp-small-btn">Small</button></span></span></div>
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid"></button><span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="pen"></button><button class="sp-btn sp-tool" data-icon="line"></button><span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="wash"></button><button class="sp-btn sp-tool" data-icon="stamp"></button><button class="sp-btn sp-tool" data-icon="text" aria-pressed="true"></button><span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase"></button>
+    </div>
+    <div class="grid-game sketchpad sp-canvas"><div class="sp-paper" style="width:600px"><div data-board="unknown"></div></div></div>
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square and type a number or letter</span>
+      <span class="sp-status-facts">5 × 5 grid</span>
+      <span class="mk-verdict off">No type yet, so nothing to check</span>
+    </div>
+    <aside class="sp-side"><section class="sp-panel"><h2 class="sp-panel-h">Colour</h2></section><section class="sp-panel"><h2 class="sp-panel-h">Stamps</h2></section></aside>
+  </div>
+</div>
+
+</body>
+</html>
