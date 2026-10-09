@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check and publish</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+<style>
+  .studio { grid-template-rows: auto 1fr; }
+  .studio-top { border-bottom: 1px solid var(--line); }
+  .paper-bar .tool .sp-icon { width: 22px; height: 22px; stroke-width: 2.1; }
+  .paper-bar .title { font: 700 18px/1 var(--hand); }
+  .mk-play .sheet { --below: 0px; }
+  .mk-play .grid-game .digit:not(.given) { fill: #4f7fd9; }
+</style>
+</head>
+<body>
+<div class="studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back to paint" data-icon="back" data-icon-class=""></a>
+      <strong style="font:800 17px/1 var(--display)">Check &amp; publish</strong>
+      <span class="mk-saved">Draft saved</span>
+    </div>
+    <div class="studio-actions">
+      <button class="btn">Back to paint</button>
+    </div>
+  </header>
+
+  <div class="mk-pub">
+    <section class="mk-play">
+      <div class="mk-play-h" style="gap:12px"><h2>Play it yourself</h2><span class="muted" style="font-size:13.5px">Exactly as players will see it · your solve isn't counted</span></div>
+      <div class="grid-game" data-marks="digit">
+        <div class="sheet" style="width:min(100%, 540px)">
+          <div class="paper-bar">
+            <span class="group"><button class="tool" data-icon="undo" data-icon-class="icon"></button><button class="tool" data-icon="reset" data-icon-class="icon"></button></span>
+            <span class="title">Six by Six</span>
+            <span class="group"><button class="tool" data-icon="pen" data-icon-class="icon" title="Pencil marks"></button><button class="tool" data-icon="book" data-icon-class="icon" title="How to play"></button></span>
+          </div>
+          <div data-board="testplay" data-shown="520"></div>
+        </div>
+      </div>
+      <p class="note">Tap a square, then a digit. Mistakes show the way they will for players.</p>
+    </section>
+
+    <aside class="mk-form">
+      <label class="mk-field"><span>Title</span><span class="mk-input">Six by Six</span></label>
+      <label class="mk-field"><span>Description <span style="font-weight:600">(optional)</span></span><span class="mk-input area">A gentle 6 × 6 to start the week. The 6 in the bottom row is the key.</span></label>
+
+      <div class="mk-verdict-card"><span class="ic" data-icon="check"></span><span><b>Exactly one solution</b>The solver checked the whole puzzle: it can be solved, and only one way.</span></div>
+
+      <dl class="mk-facts">
+        <dt>Type</dt><dd>Sudoku</dd>
+        <dt>Size</dt><dd>6 × 6, boxes 2 × 3</dd>
+        <dt>Clues</dt><dd>9 digits</dd>
+      </dl>
+      <div style="display:grid; gap:8px">
+        <div class="mk-tick"><i data-icon="check"></i><span>Nothing on the page is left out of the puzzle</span></div>
+        <div class="mk-tick todo"><i></i><span>Played it through yourself <span class="muted">(not needed, but worth it)</span></span></div>
+      </div>
+
+      <label class="mk-field"><span>Publish to</span><span class="mk-select" style="width:100%">Your puzzles · @josh<span data-icon="chevron"></span></span></label>
+      <button class="btn primary">Publish</button>
+      <p class="where">It goes on your profile and to your subscribers. You can still edit it after.</p>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

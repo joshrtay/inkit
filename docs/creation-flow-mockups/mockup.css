@@ -1,0 +1,249 @@
+/* The creation-flow mockups' own parts (docs/creation-flow.md). Everything else is the site's real
+   CSS, linked from the repo: global.css (tokens, fonts, .btn), editor.css (.studio-*), sketchpad.css
+   (the paint app) and the boards' styles.css. New pieces use the same tokens. */
+
+body { min-height: 100dvh; }
+.mk-hidden { display: none !important; }
+
+/* ---- the header: the drawing's name, its type, and the step forward ---- */
+.mk-name { font: 800 17px/1 var(--display); color: var(--ink); background: none; border: 0; border-bottom: 1px dashed transparent; padding: 4px 2px; min-width: 0; }
+.mk-name:hover { border-bottom-color: var(--line-strong); }
+.mk-name.untitled { color: var(--muted); font-weight: 700; }
+.mk-saved { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.mk-saved::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--good); margin-right: 6px; vertical-align: 1px; }
+.mk-type {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px 0 6px;
+  font: 700 14px/1 var(--body); color: var(--ink); background: var(--panel);
+  border: 1.5px solid var(--line-strong); border-radius: 8px;
+}
+.mk-type:hover { border-color: var(--ink); }
+.mk-type .mk-type-pic { width: 24px; height: 24px; border-radius: 4px; background: var(--paper); display: grid; overflow: hidden; }
+.mk-type .mk-type-pic svg { width: 100%; height: 100%; }
+.mk-type .sp-icon { width: 16px; height: 16px; color: var(--muted); }
+.mk-type small { font: 600 11px/1 var(--body); color: var(--muted); display: block; margin-bottom: 2px; }
+.mk-type.unset { border-style: dashed; color: var(--muted); }
+.mk-type.unset b { color: var(--ink); }
+
+/* ---- the status line: the solver's verdict and what to check ---- */
+.mk-verdict {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 8px; white-space: nowrap;
+  font: 800 12.5px/1 var(--body); border-radius: 999px; border: 1px solid currentColor; background: none;
+}
+.mk-verdict .sp-icon { width: 15px; height: 15px; stroke-width: 2.4; }
+.mk-verdict.one, .mk-verdict.some { color: var(--good); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.mk-verdict.many, .mk-verdict.none { color: var(--red); background: color-mix(in srgb, var(--red) 9%, transparent); }
+.mk-verdict.checking, .mk-verdict.off { color: var(--muted); border-style: dashed; }
+.mk-verdict u { text-underline-offset: 3px; font-weight: 700; }
+.mk-checks {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 8px; white-space: nowrap;
+  font: 700 12.5px/1 var(--body); color: #b07a00; border: 1px solid color-mix(in srgb, #e0a100 60%, transparent); border-radius: 999px;
+  background: color-mix(in srgb, #e0a100 12%, transparent);
+}
+:root:not([data-theme="light"]) .mk-checks { color: #f2c14e; }
+.mk-checks .sp-icon { width: 15px; height: 15px; }
+.mk-checks b { display: inline-grid; place-items: center; min-width: 18px; height: 18px; border-radius: 9px; background: #e0a100; color: #1f1e1c; font-size: 11px; }
+.sp-status .mk-sep { width: 1px; height: 18px; background: var(--line); }
+
+/* the list of what to check, opened from the status line */
+.mk-pop {
+  position: absolute; z-index: 20; width: 340px; padding: 6px; border-radius: 12px; background: var(--panel);
+  border: 1px solid var(--line-strong); box-shadow: 0 14px 40px var(--shadow);
+}
+.mk-pop h3 { margin: 6px 8px 8px; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+.mk-pop h3 span { text-transform: none; letter-spacing: 0; font-weight: 600; }
+.mk-item { display: grid; grid-template-columns: 22px 1fr; gap: 8px; padding: 9px 8px; border-radius: 8px; font-size: 13.5px; line-height: 1.35; }
+.mk-item + .mk-item { border-top: 1px solid var(--line); }
+.mk-item:hover, .mk-item.on { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.mk-item .mk-n { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 800 11px/1 var(--body); color: #1f1e1c; }
+.mk-item .mk-n.doubt { background: #f2c14e; }
+.mk-item .mk-n.fit { background: var(--wash-red); }
+.mk-item .mk-n.hint { background: var(--wash-orange); }
+.mk-item .mk-n.off { background: var(--line-strong); color: var(--panel); }
+.mk-item b { display: block; font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 1px; }
+.mk-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.mk-act { font: 700 12.5px/1 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 9px; }
+.mk-act:hover { border-color: var(--ink); }
+.mk-act.go { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+.mk-act.hand { font: 700 16px/1 var(--hand); padding: 4px 10px; background: var(--paper); color: var(--paper-ink); }
+.mk-act.quiet { border-color: transparent; color: var(--muted); }
+
+/* ---- marks on the paper (never exported; drawn over the ink, without its wobble) ---- */
+.mk-ui .flag { fill: color-mix(in srgb, var(--wash-red) 14%, transparent); stroke: var(--paper-red); stroke-width: 1.6; stroke-dasharray: 5 3; }
+.mk-ui .hint { fill: color-mix(in srgb, var(--wash-orange) 16%, transparent); stroke: #d9751b; stroke-width: 1.6; }
+.mk-ui .hint-line { fill: none; stroke: #d9751b; stroke-width: 1.4; stroke-dasharray: 2 3; }
+.mk-ui .diff { fill: color-mix(in srgb, var(--wash-blue) 22%, transparent); stroke: var(--wash-blue); stroke-width: 2; }
+.mk-ui .diff-text { font: 700 13px/1 var(--hand); fill: #1d7fb0; text-anchor: middle; dominant-baseline: central; }
+.mk-ui .pin circle { fill: #f2c14e; stroke: var(--paper); stroke-width: 2; }
+.mk-ui .pin.fit circle { fill: var(--wash-red); }
+.mk-ui .pin.hint circle { fill: var(--wash-orange); }
+.mk-ui .pin text { font: 800 11px/1 var(--body); fill: #1f1e1c; text-anchor: middle; dominant-baseline: central; }
+.mk-ui .ring { fill: none; stroke: #e0a100; stroke-width: 2.2; }
+.mk-ui .ring.fit { stroke: var(--paper-red); stroke-dasharray: 5 3; }
+.mk-ui .typing { fill: color-mix(in srgb, var(--wash-yellow) 30%, var(--paper)); stroke: var(--paper-ink); stroke-width: 1; }
+.mk-ui .typing-text { font: 700 24px/1 var(--hand); fill: var(--paper-ink); text-anchor: middle; dominant-baseline: central; }
+.mk-ui .caret { stroke: var(--paper-ink); stroke-width: 1.4; }
+.mk-ui .solution { fill: none; stroke: color-mix(in srgb, var(--wash-blue) 55%, transparent); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+
+/* a note on the paper, beside its mark: the canvas's only words */
+.mk-note {
+  position: absolute; z-index: 3; width: max-content; max-width: 230px; padding: 7px 10px 8px; border-radius: 8px;
+  font: 600 12.5px/1.35 var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line-strong); box-shadow: 0 6px 18px var(--shadow);
+}
+.mk-note b { display: block; font-size: 13px; }
+.mk-note.hint { border-color: #d9751b; }
+.mk-note.hint b { color: #d9751b; }
+.mk-note.fit { border-color: var(--red); }
+.mk-note.fit b { color: var(--red); }
+.mk-note.diff { border-color: var(--wash-blue); }
+.mk-note.diff b { color: #3a9fd0; }
+.mk-note .mk-acts { margin-top: 6px; }
+.mk-note::before { content: ""; position: absolute; width: 10px; height: 10px; background: inherit; border: inherit; border-width: 0 0 1px 1px; transform: rotate(45deg); left: -6px; top: 14px; }
+.mk-note.below::before { left: 18px; top: -6px; border-width: 1px 0 0 1px; }
+.mk-note.left::before { left: auto; right: -6px; border-width: 1px 1px 0 0; }
+
+/* ---- the right panel in type mode: Rules ---- */
+.mk-panel-h { display: flex; align-items: center; justify-content: space-between; }
+.mk-panel-h .sp-panel-h { margin: 0; }
+.mk-rules { display: grid; gap: 14px; margin-top: 12px; }
+.mk-row { display: grid; gap: 6px; }
+.mk-row > span { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+.mk-row .sp-seg { justify-self: start; }
+.mk-row .sp-seg .sp-btn { font-size: 12.5px; padding: 0 9px; }
+.mk-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--ink); }
+.mk-switch i { width: 32px; height: 18px; border-radius: 9px; background: var(--line-strong); position: relative; flex: none; }
+.mk-switch i::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--panel); }
+.mk-switch.on i { background: var(--ink); }
+.mk-switch.on i::after { left: 16px; }
+.mk-always { font-size: 12.5px; line-height: 1.45; color: var(--muted); margin: 0; }
+.mk-always b { color: var(--ink); font-weight: 700; }
+.mk-guide { font: 700 12.5px/1 var(--body); color: var(--ink); display: inline-flex; gap: 6px; align-items: center; text-decoration: none; }
+.mk-guide .sp-icon { width: 15px; height: 15px; }
+.mk-boxes { display: inline-grid; gap: 1px; padding: 2px; background: var(--paper-ink); border-radius: 2px; margin-right: 2px; vertical-align: middle; }
+.mk-boxes i { background: var(--paper); width: 4px; height: 4px; }
+.mk-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.mk-list span { font: 700 15px/1 var(--hand); color: var(--paper-ink); background: var(--paper); border: 1px solid var(--line); border-radius: 5px; padding: 5px 7px 3px; }
+.mk-list span.add { font: 700 13px/1 var(--body); color: var(--muted); border-style: dashed; background: none; }
+
+/* ---- the photo, kept beside the drawing as a reference card on the workspace ---- */
+.mk-ref {
+  position: absolute; z-index: 4; width: 210px; padding: 6px; border-radius: 10px; background: var(--panel);
+  border: 1px solid var(--line-strong); box-shadow: 0 12px 30px var(--shadow);
+}
+.mk-ref header { display: flex; align-items: center; justify-content: space-between; font: 700 12px/1 var(--body); color: var(--muted); padding: 2px 2px 6px 4px; }
+.mk-ref header .sp-btn { height: 24px; min-width: 24px; }
+.mk-ref header .sp-icon { width: 15px; height: 15px; }
+.mk-photo { position: relative; aspect-ratio: 4 / 5; border-radius: 6px; overflow: hidden; background: linear-gradient(160deg, #c9c2b3, #a59d8c); display: grid; place-items: center; }
+.mk-photo .grid-game { width: 82%; transform: rotate(-3deg); background: #f4f0e6; padding: 8px; box-shadow: 0 6px 14px rgba(0, 0, 0, .35); filter: grayscale(.7) contrast(1.1) sepia(.15); }
+.mk-photo svg { display: block; width: 100%; height: auto; filter: url(#pen); }
+.mk-ref footer { display: flex; gap: 6px; padding-top: 6px; }
+.mk-ref footer .mk-act { flex: 1; text-align: center; }
+
+/* a strip across the top of the workspace (what just happened) */
+.mk-strip {
+  position: absolute; z-index: 4; left: 50%; top: 14px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  padding: 7px 8px 7px 12px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 8px 24px var(--shadow);
+  font-size: 13.5px; white-space: nowrap;
+}
+.mk-strip .sp-icon { width: 18px; height: 18px; color: #3a9fd0; }
+.mk-strip .sp-btn { height: 26px; min-width: 26px; }
+
+/* ---- the start (/new) ---- */
+.mk-start { max-width: 920px; margin: 0 auto; padding: 36px 16px 64px; display: grid; gap: 26px; }
+.mk-start h1 { margin: 0; font: 800 30px/1.1 var(--display); }
+.mk-start .lede { margin: -14px 0 0; color: var(--muted); }
+.mk-ways { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.mk-way {
+  display: grid; grid-template-rows: 210px auto; overflow: hidden; border-radius: 14px; background: var(--panel); border: 1.5px solid var(--line);
+  text-align: left; color: var(--ink); padding: 0; font: inherit;
+}
+.mk-way:hover { border-color: var(--ink); box-shadow: 0 10px 30px -8px var(--shadow); }
+.mk-way .art { position: relative; background: var(--sp-workspace, color-mix(in srgb, var(--line) 45%, var(--bg))); display: grid; place-items: center; overflow: hidden; }
+.mk-way .body { padding: 16px 18px 18px; display: grid; gap: 6px; }
+.mk-way h2 { margin: 0; font: 800 19px/1.2 var(--display); display: flex; align-items: center; gap: 8px; }
+.mk-way h2 .sp-icon { width: 22px; height: 22px; }
+.mk-way p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.45; }
+.mk-way .go { margin-top: 8px; justify-self: start; }
+.mk-way .art .page { width: 150px; aspect-ratio: 1; background: var(--paper); border-radius: 2px; box-shadow: 0 2px 4px var(--shadow), 0 14px 32px -10px var(--shadow); }
+.mk-way .art .page svg { width: 100%; height: 100%; display: block; }
+.mk-way .art .snap { position: absolute; width: 132px; aspect-ratio: 4/5; left: 50%; top: 50%; transform: translate(-108%, -50%) rotate(-6deg); border-radius: 6px; overflow: hidden; background: linear-gradient(160deg, #c9c2b3, #a59d8c); display: grid; place-items: center; box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+.mk-way .art .snap .grid-game { width: 80%; background: #f4f0e6; padding: 6px; transform: rotate(3deg); filter: grayscale(.7) sepia(.15); }
+.mk-way .art .snap svg { display: block; width: 100%; height: auto; filter: url(#pen); }
+.mk-way .art .arrow { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; z-index: 2; box-shadow: 0 2px 8px var(--shadow); }
+.mk-way .art .arrow .sp-icon { width: 18px; height: 18px; transform: rotate(-90deg); }
+.mk-way .art .snap + .arrow + .page { transform: translateX(58%); }
+.mk-opt { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.mk-select { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 210px; height: 36px; padding: 0 10px 0 12px; border-radius: 8px; border: 1.5px solid var(--line-strong); background: var(--panel); color: var(--ink); font: 600 14px/1 var(--body); }
+.mk-select .sp-icon { width: 16px; height: 16px; color: var(--muted); }
+.mk-drafts h2 { margin: 0 0 12px; font: 800 13px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mk-draft-row { display: flex; gap: 14px; flex-wrap: wrap; }
+.mk-draft { display: grid; grid-template-columns: 56px auto; gap: 12px; align-items: center; padding: 8px 14px 8px 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); font-size: 14px; }
+.mk-draft .th { width: 56px; height: 56px; background: var(--paper); border-radius: 4px; overflow: hidden; }
+.mk-draft .th svg { width: 100%; height: 100%; }
+.mk-draft small { display: block; color: var(--muted); font-size: 12.5px; }
+
+/* ---- the type picker (a dialog) ---- */
+.mk-dialog { position: fixed; inset: 0; z-index: 30; background: color-mix(in srgb, #000 55%, transparent); display: grid; place-items: center; padding: 16px; }
+.mk-sheet { width: min(880px, 100%); max-height: calc(100dvh - 32px); overflow: auto; background: var(--panel); border-radius: 14px; padding: 20px 22px 18px; display: grid; gap: 16px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+.mk-sheet-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.mk-sheet h2 { margin: 0; font: 800 21px/1.2 var(--display); }
+.mk-sheet .sub { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+.mk-sugs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.mk-sug { position: relative; display: grid; grid-template-rows: auto auto; padding: 0; border-radius: 12px; border: 1.5px solid var(--line); background: var(--bg); overflow: hidden; text-align: left; color: var(--ink); font: inherit; }
+.mk-sug:hover { border-color: var(--line-strong); }
+.mk-sug.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.mk-sug .pic { background: var(--paper); padding: 10px; display: grid; place-items: center; height: 150px; }
+.mk-sug .pic svg { max-width: 100%; max-height: 130px; width: auto; height: 100%; }
+.mk-sug .txt { padding: 10px 12px 12px; display: grid; gap: 4px; font-size: 13px; color: var(--muted); line-height: 1.4; }
+.mk-sug .txt strong { font: 800 15.5px/1.2 var(--display); color: var(--ink); display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.mk-fit { font: 700 11.5px/1 var(--body); padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
+.mk-fit.best { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); }
+.mk-fit.ok { color: var(--muted); background: color-mix(in srgb, var(--muted) 14%, transparent); }
+.mk-sug .keeps { font-size: 12px; }
+.mk-sug .keeps em { font-style: normal; color: var(--red); font-weight: 700; }
+.mk-sug .keeps i { font-style: normal; color: var(--good); font-weight: 700; }
+.mk-sug .ai { position: absolute; top: 8px; left: 8px; display: inline-flex; gap: 4px; align-items: center; font: 700 11px/1 var(--body); color: #3a9fd0; background: var(--panel); border-radius: 999px; padding: 4px 7px 4px 5px; box-shadow: 0 1px 4px var(--shadow); }
+.mk-sug .ai .sp-icon { width: 13px; height: 13px; }
+.mk-all-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mk-all-h h3 { margin: 0; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mk-search { display: inline-flex; align-items: center; gap: 8px; width: 260px; height: 34px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--muted); font-size: 14px; }
+.mk-search .sp-icon { width: 16px; height: 16px; }
+.mk-all { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.mk-mini { display: grid; gap: 6px; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 700 12.5px/1.2 var(--body); text-align: center; }
+.mk-mini:hover { border-color: var(--line-strong); }
+.mk-mini .pic { background: var(--paper); border-radius: 6px; height: 70px; display: grid; place-items: center; padding: 6px; }
+.mk-mini .pic svg { max-width: 100%; max-height: 58px; width: auto; height: 100%; }
+.mk-sheet-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 4px; border-top: 1px solid var(--line); padding-top: 14px; }
+.mk-sheet-foot p { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* ---- the publish screen ---- */
+.mk-pub { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; max-width: 1180px; margin: 0 auto; padding: 26px 24px 48px; align-items: start; }
+.mk-play { display: grid; gap: 10px; }
+.mk-play-h { display: flex; align-items: center; justify-content: space-between; }
+.mk-play-h h2 { margin: 0; font: 800 13px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mk-play .sheet { width: min(100%, 560px); justify-self: center; }
+.mk-play .grid-game svg { display: block; width: 100%; height: auto; filter: url(#pen); }
+.mk-play .note { text-align: center; color: var(--muted); font-size: 13.5px; margin: 0; }
+.mk-form { display: grid; gap: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; position: sticky; top: 20px; }
+.mk-field { display: grid; gap: 6px; }
+.mk-field > span { font: 700 13px/1 var(--body); color: var(--muted); }
+.mk-input { font: 700 18px/1.3 var(--body); color: var(--ink); background: var(--bg); border: 1.5px solid var(--line-strong); border-radius: 8px; padding: 9px 11px; }
+.mk-input.area { font: 400 14.5px/1.45 var(--body); min-height: 78px; }
+.mk-verdict-card { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 12px; border-radius: 10px; background: color-mix(in srgb, var(--good) 11%, transparent); border: 1px solid color-mix(in srgb, var(--good) 45%, transparent); font-size: 13.5px; line-height: 1.4; color: var(--muted); }
+.mk-verdict-card b { display: block; color: var(--good); font-size: 15px; }
+.mk-verdict-card .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--good); display: grid; place-items: center; color: var(--panel); }
+.mk-verdict-card .ic .sp-icon { width: 20px; height: 20px; stroke-width: 2.6; }
+.mk-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; font-size: 13.5px; }
+.mk-facts dt { color: var(--muted); }
+.mk-facts dd { margin: 0; font-weight: 700; }
+.mk-tick { display: flex; gap: 9px; align-items: start; font-size: 13.5px; line-height: 1.4; }
+.mk-tick i { flex: none; width: 18px; height: 18px; border-radius: 4px; background: var(--good); display: grid; place-items: center; color: var(--panel); margin-top: 1px; }
+.mk-tick i .sp-icon { width: 13px; height: 13px; stroke-width: 3; }
+.mk-tick.todo i { background: none; border: 1.5px solid var(--line-strong); }
+.mk-form .btn.primary { padding: 12px 14px; font-size: 15px; }
+.mk-form .where { font-size: 12.5px; color: var(--muted); text-align: center; margin: -6px 0 0; }
+
+/* ---- a phone frame, for the phone mockup's screenshot ---- */
+.mk-phone-page { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--bg); }
+.mk-phone { width: 390px; height: 844px; border-radius: 46px; padding: 12px; background: #111; box-shadow: 0 30px 80px rgba(0,0,0,.55), inset 0 0 0 2px #333; }
+.mk-phone-screen { position: relative; width: 100%; height: 100%; border-radius: 36px; overflow: hidden; background: var(--bg); display: flex; flex-direction: column; }

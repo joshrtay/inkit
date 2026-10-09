@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What type is this</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+</head>
+<body>
+<div class="studio sp-studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <button class="mk-name untitled">Untitled</button>
+      <span class="mk-saved">Saved</span>
+    </div>
+    <div class="studio-actions">
+      <span class="sp-doc">
+        <button class="sp-btn" data-icon="undo"></button><button class="sp-btn" data-icon="redo" disabled></button><button class="sp-btn" data-icon="clear"></button>
+      </span>
+      <button class="mk-type unset"><span><small>Type</small><b>Not set</b></span><span data-icon="chevron"></span></button>
+      <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>Puzzle types</span></button>
+      <button class="btn primary">Check &amp; publish</button>
+    </div>
+  </header>
+  <div class="sp-work">
+    <div class="sp-opts"><span class="sp-opts-tool"><span data-icon="text"></span>Text</span><span class="sp-opts-sep"></span>
+      <span class="sp-opts-body"><span class="sp-seg"><button class="sp-btn" aria-pressed="true">Normal</button><button class="sp-btn sp-small-btn">Small</button></span></span></div>
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid"></button><span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="pen"></button><button class="sp-btn sp-tool" data-icon="line"></button><span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="wash"></button><button class="sp-btn sp-tool" data-icon="stamp"></button><button class="sp-btn sp-tool" data-icon="text" aria-pressed="true"></button><span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase"></button>
+    </div>
+    <div class="grid-game sketchpad sp-canvas"><div class="sp-paper" style="width:600px"><div data-board="unknown"></div></div></div>
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square and type a number or letter</span>
+      <span class="sp-status-facts">5 × 5 grid</span>
+      <span class="mk-verdict off">No type yet, so nothing to check</span>
+    </div>
+    <aside class="sp-side"><section class="sp-panel"><h2 class="sp-panel-h">Colour</h2></section><section class="sp-panel"><h2 class="sp-panel-h">Stamps</h2></section></aside>
+  </div>
+</div>
+
+<div class="mk-dialog">
+  <div class="mk-sheet">
+    <div class="mk-sheet-head">
+      <div>
+        <h2>What type of puzzle is this?</h2>
+        <p class="sub">Claude looked at your drawing: a 5 × 5 grid with numbers in some squares, and nothing else. These fit best, each shown with your numbers and the solver's verdict.</p>
+      </div>
+      <button class="sp-btn" data-icon="close" aria-label="Close"></button>
+    </div>
+    <div class="mk-sugs">
+      <button class="mk-sug on">
+        <span class="ai"><span data-icon="sparkle"></span>Best fit</span>
+        <span class="pic grid-game" data-board="as.nurikabe" data-shown="200"></span>
+        <span class="txt"><strong>Nurikabe <span class="mk-fit best">One solution</span></strong>
+          Shade squares into one wall; each number is an island of that many squares.
+          <span class="keeps"><i>✓</i> Uses everything you drew</span></span>
+      </button>
+      <button class="mk-sug">
+        <span class="pic grid-game" data-board="as.shikaku" data-shown="200"></span>
+        <span class="txt"><strong>Shikaku <span class="mk-fit ok">No solution yet</span></strong>
+          Cut the grid into rectangles, one number in each, as big as its number.
+          <span class="keeps"><i>✓</i> Uses everything you drew</span></span>
+      </button>
+      <button class="mk-sug">
+        <span class="pic grid-game" data-board="as.fillomino" data-shown="200"></span>
+        <span class="txt"><strong>Fillomino <span class="mk-fit ok">Several solutions</span></strong>
+          Fill every square so each region of touching equal numbers is that size.
+          <span class="keeps"><i>✓</i> Uses everything you drew</span></span>
+      </button>
+    </div>
+    <div class="mk-all-h"><h3>All types</h3><span class="mk-search"><span data-icon="search"></span>Search 40 types</span></div>
+    <div class="mk-all">
+      <button class="mk-mini"><span class="pic grid-game" data-board="thumbs.sudoku" data-shown="70"></span>Sudoku</button>
+      <button class="mk-mini"><span class="pic grid-game" data-board="thumbs.akari" data-shown="70"></span>Akari</button>
+      <button class="mk-mini"><span class="pic grid-game" data-board="thumbs.masyu" data-shown="70"></span>Masyu</button>
+      <button class="mk-mini"><span class="pic grid-game" data-board="thumbs.slitherlink" data-shown="70"></span>Slitherlink</button>
+      <button class="mk-mini"><span class="pic grid-game" data-board="thumbs.hidoku" data-shown="70"></span>Hidoku</button>
+      <button class="mk-mini"><span class="pic grid-game" data-board="thumbs.skyscrapers" data-shown="70"></span>Skyscrapers</button>
+    </div>
+    <div class="mk-sheet-foot">
+      <p>The verdicts are the solver's, on what you've drawn so far. You can change the type any time; nothing you drew is lost.</p>
+      <span style="display:flex; gap:8px; white-space:nowrap"><button class="btn">Not now</button><button class="btn primary">Make it Nurikabe</button></span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

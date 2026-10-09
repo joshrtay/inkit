@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paint: Panel</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+<script>
+// A panel in type mode: the grid drawn as tracks, the symbols as stamps. The creator wrote a 3 in a
+// square; panels have no numbers, so it's flagged with the likely meaning offered.
+MK.overlays.panel = (q) => {
+  const S = q.S;
+  return `<text class="clue sp-text" x="${q.cx(3)}" y="${q.cy(3) + 2}" style="font-size:${S * 0.5}px">3</text>`
+    + `<rect class="flag" x="${q.x(3) + 10}" y="${q.y(3) + 10}" width="${S - 20}" height="${S - 20}" rx="10"/>`
+    + `<g class="pin fit"><circle cx="${q.x(4) - 10}" cy="${q.y(3) + 10}" r="10"/><text x="${q.x(4) - 10}" y="${q.y(3) + 10.5}">1</text></g>`;
+};
+</script>
+<style>
+  .mk-sol { position: absolute; right: 18px; top: 18px; z-index: 4; width: 230px; padding: 8px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 12px 30px var(--shadow); }
+  .mk-sol header { display: flex; justify-content: space-between; align-items: center; font: 700 12.5px/1 var(--body); color: var(--good); padding: 2px 2px 8px 4px; }
+  .mk-sol header .sp-btn { height: 24px; min-width: 24px; color: var(--muted); }
+  .mk-sol header .sp-icon { width: 15px; height: 15px; }
+  .mk-sol .grid-game { background: var(--paper); border-radius: 6px; padding: 6px; }
+  .mk-sol svg { display: block; width: 100%; height: auto; filter: url(#pen); }
+  .mk-sol p { margin: 8px 4px 2px; font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="studio sp-studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <button class="mk-name">Stones and Crests</button>
+      <span class="mk-saved">Saved</span>
+    </div>
+    <div class="studio-actions">
+      <span class="sp-doc">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
+      </span>
+      <button class="mk-type">
+        <span class="mk-type-pic grid-game" data-board="thumbs.panel2" data-shown="40"></span>
+        <span><small>Type</small><b>Panel</b></span><span data-icon="chevron"></span>
+      </button>
+      <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
+      <button class="btn primary">Check &amp; publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-opts">
+      <span class="sp-opts-tool"><span data-icon="stamp"></span>Stamp</span>
+      <span class="sp-opts-sep"></span>
+      <span class="sp-opts-body">
+        <span class="sp-field"><span class="sp-label">Triangles</span>
+          <span class="sp-seg"><button class="sp-btn sp-num">1</button><button class="sp-btn sp-num" aria-pressed="true">2</button><button class="sp-btn sp-num">3</button></span></span>
+        <span class="sp-label">The line touches this square's sides this many times.</span>
+      </span>
+    </div>
+
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser (and gaps in the tracks)"></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas" style="position:relative">
+      <div class="sp-paper tool-stamp" style="width:600px">
+        <div data-board="panel"></div>
+        <div class="mk-note fit below" style="left:400px; top:540px; width:236px">
+          <b>Panels have no numbers</b>Did you mean three triangles?
+          <div class="mk-acts"><button class="mk-act go">Make it 3 triangles</button><button class="mk-act">Erase</button></div>
+        </div>
+      </div>
+      <div class="mk-sol">
+        <header><span>✓ Solvable · one way through</span><button class="sp-btn" data-icon="close" aria-label="Hide"></button></header>
+        <div class="grid-game" data-board="panel.solution" data-shown="220"></div>
+        <p>Any line that obeys the symbols solves a panel, so it only needs one. This is the first the solver found.</p>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square to stamp it (again to take it off)</span>
+      <span class="sp-status-facts">4 × 4 tracks</span>
+      <button class="mk-verdict some"><span data-icon="check"></span>Solvable · <u>hide the line</u></button>
+      <button class="mk-checks"><b>1</b>to check</button>
+      <span class="mk-sep"></span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="sp-side">
+      <section class="sp-panel">
+        <h2 class="sp-panel-h">Stamps</h2>
+        <div class="sp-stamps">
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.start"></span></button>
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.end"></span></button>
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.hoshi"></span></button>
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.stone"></span></button>
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.crest"></span></button>
+          <button class="sp-stamp grid-game" aria-pressed="true"><span class="be-icon" data-board="stamps.triangle"></span></button>
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.shape"></span></button>
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.eraser"></span></button>
+        </div>
+      </section>
+      <section class="sp-panel">
+        <h2 class="sp-panel-h">Colour</h2>
+        <div class="sp-current"><span class="sp-fg" style="background:var(--wash-orange)"></span><span class="sp-current-text"><span>Triangles</span><b>Orange</b></span></div>
+        <div class="sp-swatches">
+          <button class="sp-swatch"><span style="background:var(--wash-red)"></span></button>
+          <button class="sp-swatch" aria-pressed="true"><span style="background:var(--wash-orange)"></span></button>
+          <button class="sp-swatch"><span style="background:var(--wash-yellow)"></span></button>
+          <button class="sp-swatch"><span style="background:var(--wash-green)"></span></button>
+          <button class="sp-swatch"><span style="background:var(--wash-blue)"></span></button>
+          <button class="sp-swatch"><span style="background:var(--wash-purple)"></span></button>
+          <button class="sp-swatch"><span style="background:var(--sumi)"></span></button>
+          <button class="sp-swatch"><span style="background:var(--shell)"></span></button>
+        </div>
+      </section>
+      <section class="sp-panel">
+        <div class="mk-panel-h"><h2 class="sp-panel-h">Panel rules</h2><a class="mk-guide" href="#"><span data-icon="book"></span>Guide</a></div>
+        <div class="mk-rules">
+          <p class="mk-always"><b>Always:</b> one line from a start to an end, along the tracks, never crossing itself; every symbol obeyed.</p>
+          <div class="mk-row"><span>Symmetry (two lines)</span>
+            <span class="sp-seg"><button class="sp-btn" aria-pressed="true">None</button><button class="sp-btn">Mirror</button><button class="sp-btn">Turn</button></span>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

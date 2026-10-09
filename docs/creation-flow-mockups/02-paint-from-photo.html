@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paint: from a photo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+<script>
+// The photo, read and redrawn in the site's ink (from-puzzle.ts). Claude's doubts are pinned where
+// they are: a digit it wasn't sure of, a shaded square that might be a smudge; and a pen mark the
+// converter can't place (off the grid).
+MK.overlays.photo = (q) => {
+  const S = q.S, pin = (r, c, n, cls = "") => `<g class="pin ${cls}"><circle cx="${q.x(c) + S - 4}" cy="${q.y(r) + 4}" r="10"/><text x="${q.x(c) + S - 4}" y="${q.y(r) + 4.5}">${n}</text></g>`;
+  const ring = (r, c, cls = "") => `<rect class="ring ${cls}" x="${q.x(c) + 2}" y="${q.y(r) + 2}" width="${S - 4}" height="${S - 4}" rx="5"/>`;
+  return ring(6, 1) + pin(6, 1, 1) + ring(2, 6) + pin(2, 6, 2)
+    + `<ellipse class="flag" cx="${q.x(8) + S * 0.4}" cy="${q.y(6) + S * 0.4}" rx="${S * 0.42}" ry="${S * 0.55}"/>`
+    + `<g class="pin fit"><circle cx="${q.x(8) + S * 0.8}" cy="${q.y(6) - S * 0.1}" r="10"/><text x="${q.x(8) + S * 0.8}" y="${q.y(6) - S * 0.1 + 0.5}">3</text></g>`;
+};
+</script>
+</head>
+<body>
+<div class="studio sp-studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <button class="mk-name">Night Shift</button>
+      <span class="mk-saved">Saved</span>
+    </div>
+    <div class="studio-actions">
+      <span class="sp-doc">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
+      </span>
+      <button class="btn sp-head-btn" aria-pressed="true"><span data-icon="photo" data-icon-class=""></span><span>Photo</span></button>
+      <button class="mk-type">
+        <span class="mk-type-pic grid-game" data-board="thumbs.akari" data-shown="40"></span>
+        <span><small>Type · read from the photo</small><b>Akari</b></span><span data-icon="chevron"></span>
+      </button>
+      <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
+      <button class="btn primary">Check &amp; publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-opts">
+      <span class="sp-opts-tool"><span data-icon="stamp"></span>Stamp</span>
+      <span class="sp-opts-sep"></span>
+      <span class="sp-opts-body">
+        <span class="sp-label">Shaded square: tap a square to shade it (again to clear). Write its number on it with Text.</span>
+      </span>
+    </div>
+
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp" aria-pressed="true"></button>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas" style="position:relative">
+      <div class="mk-strip"><span data-icon="sparkle"></span>Claude read your photo as <b>Akari, 8 × 8</b> and drew it in ink. <b>3 things to check.</b><button class="sp-btn" data-icon="close" aria-label="Close"></button></div>
+      <div class="mk-ref" style="left:22px; top:74px">
+        <header>Your photo<span><button class="sp-btn" data-icon="eye" aria-label="Lay it over the drawing"></button><button class="sp-btn" data-icon="close" aria-label="Close"></button></span></header>
+        <div class="mk-photo"><div class="grid-game" data-board="thumbs.akari2"></div></div>
+        <footer><button class="mk-act">Read again</button><button class="mk-act">Trace over</button></footer>
+      </div>
+      <div class="sp-paper tool-stamp" style="width:500px; margin:auto auto auto 236px">
+        <div data-board="photo"></div>
+      </div>
+      <div class="mk-pop" style="right:14px; bottom:10px; width:300px">
+        <h3>To check <span>1 of 3 done</span></h3>
+        <div class="mk-item on"><span class="mk-n doubt">1</span><div><b>Row 7, column 2 · Claude wasn't sure</b>Is this a 2 or a 3?
+          <div class="mk-acts"><button class="mk-act hand">2</button><button class="mk-act hand">3</button><button class="mk-act quiet">Something else</button></div></div></div>
+        <div class="mk-item"><span class="mk-n doubt">2</span><div><b>Row 3, column 7 · Claude wasn't sure</b>A shaded square, or a smudge?
+          <div class="mk-acts"><button class="mk-act">Shaded</button><button class="mk-act">A smudge: erase</button></div></div></div>
+        <div class="mk-item"><span class="mk-n fit">3</span><div><b>Off the grid</b>A pen mark the puzzle can't use.</div></div>
+        <div class="mk-item" style="color:var(--muted)"><span class="mk-n off">✓</span><div><s>The type: written “Akari” at the top</s></div></div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square to shade it</span>
+      <span class="sp-status-facts">8 × 8 grid</span>
+      <span class="mk-verdict one"><span data-icon="check"></span>One solution, as read</span>
+      <button class="mk-checks"><b>3</b>to check</button>
+      <span class="mk-sep"></span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="sp-side">
+      <section class="sp-panel">
+        <h2 class="sp-panel-h">Stamps</h2>
+        <div class="sp-stamps">
+          <button class="sp-stamp grid-game" aria-pressed="true"><span class="be-icon" data-board="stamps.rock"></span></button>
+        </div>
+      </section>
+      <section class="sp-panel">
+        <div class="mk-panel-h"><h2 class="sp-panel-h">Akari rules</h2><a class="mk-guide" href="#"><span data-icon="book"></span>Guide</a></div>
+        <div class="mk-rules">
+          <p class="mk-always"><b>Always:</b> place lights so every white square is lit; no light shines on another; a number says how many lights touch its square.</p>
+          <div class="mk-row"><span>Clues on shaded squares</span>
+            <span class="sp-seg"><button class="sp-btn" aria-pressed="true">Numbers</button><button class="sp-btn">Letters (a code)</button></span>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paint on a phone</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+<script>
+MK.overlays.panel = (q) => {
+  const S = q.S;
+  return `<text class="clue sp-text" x="${q.cx(3)}" y="${q.cy(3) + 2}" style="font-size:${S * 0.5}px">3</text>`
+    + `<rect class="flag" x="${q.x(3) + 10}" y="${q.y(3) + 10}" width="${S - 20}" height="${S - 20}" rx="10"/>`
+    + `<g class="pin fit"><circle cx="${q.x(4) - 12}" cy="${q.y(3) + 12}" r="14"/><text x="${q.x(4) - 12}" y="${q.y(3) + 12.5}" style="font-size:15px">1</text></g>`;
+};
+</script>
+<style>
+  .mk-phone-screen .studio.sp-studio { height: 100%; }
+  .mk-phone-screen .studio-top { padding-top: 46px !important; }
+  .mk-phone-screen .studio-actions .btn.primary { height: 34px; }
+  .mk-phone-screen .mk-note.below::before { left: auto; right: 34px; }
+  .mk-phone-screen .mk-type { height: 32px; padding: 0 4px 0 8px; }
+  .mk-phone-screen .mk-type small { display: none; }
+  .mk-phone-screen .sp-status { gap: 6px; padding: 4px 8px; }
+  .mk-phone-screen .mk-verdict, .mk-phone-screen .mk-checks { height: 26px; }
+  .mk-phone-screen .mk-note { max-width: 210px; }
+  .mk-notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 120px; height: 32px; border-radius: 20px; background: #000; z-index: 60; }
+  .mk-time { position: absolute; top: 16px; left: 34px; font: 700 15px/1 -apple-system, system-ui, sans-serif; color: var(--ink); z-index: 60; }
+</style>
+</head>
+<body>
+<div class="mk-phone-page">
+<div class="mk-phone"><div class="mk-phone-screen">
+  <span class="mk-notch"></span><span class="mk-time">9:41</span>
+  <div class="studio sp-studio">
+    <header class="studio-top">
+      <div class="studio-left"><a class="studio-back" href="#" data-icon="back" data-icon-class=""></a></div>
+      <div class="studio-actions">
+        <span class="sp-doc"><button class="sp-btn" data-icon="undo"></button><button class="sp-btn" data-icon="redo" disabled></button></span>
+        <button class="mk-type"><b>Panel</b><span data-icon="chevron"></span></button>
+        <button class="btn primary">Publish</button>
+      </div>
+    </header>
+    <div class="sp-work">
+      <div class="grid-game sketchpad sp-canvas" style="position:relative">
+        <div class="sp-paper tool-stamp" style="width:340px"><div data-board="panel"></div></div>
+        <div class="mk-note fit below" style="right:14px; bottom:16px; top:auto; left:auto">
+          <b>Panels have no numbers</b>Three triangles?
+          <div class="mk-acts"><button class="mk-act go">Make it 3 triangles</button><button class="mk-act">Erase</button></div>
+        </div>
+      </div>
+      <div class="sp-status">
+        <button class="mk-verdict some"><span data-icon="check"></span>Solvable</button>
+        <button class="mk-checks"><b>1</b>to check</button>
+        <span style="margin-left:auto" class="sp-status-facts">4 × 4</span>
+      </div>
+      <div class="sp-opts">
+        <span class="sp-opts-body">
+          <span class="sp-seg"><button class="sp-btn sp-num">1</button><button class="sp-btn sp-num" aria-pressed="true">2</button><button class="sp-btn sp-num">3</button></span>
+          <span class="sp-label">triangles</span>
+        </span>
+        <span class="sp-opts-end sp-phone-only"><button class="sp-btn" data-icon="palette"></button></span>
+      </div>
+      <div class="sp-tools">
+        <button class="sp-btn sp-tool" data-icon="grid"></button><span class="sp-sep"></span>
+        <button class="sp-btn sp-tool" data-icon="stamp" aria-pressed="true"></button><span class="sp-sep"></span>
+        <button class="sp-btn sp-tool" data-icon="erase"></button>
+      </div>
+    </div>
+  </div>
+</div></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paint: Honeycomb Paths</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+<script>
+// Honeycomb Paths: the grid tool's look is fixed to hexagons by the type. A pen line drawn before
+// the type was chosen is flagged: the player draws the path, so it can't be part of the puzzle.
+MK.overlays.honey = (q) => {
+  const S = q.S, P = [[0, 3], [1, 3], [1, 2], [0, 2]].map(([r, c]) => `${q.hx(r, c)} ${q.hy(r)}`);
+  return `<path class="sp-pen medium" style="filter:url(#pen)" d="M${P.join("L")}"/>`
+    + `<ellipse class="flag" cx="${(q.hx(0, 2) + q.hx(1, 3)) / 2 + 10}" cy="${(q.hy(0) + q.hy(1)) / 2}" rx="${S * 0.95}" ry="${S * 0.75}"/>`
+    + `<g class="pin fit"><circle cx="${q.hx(0, 3) + S * 0.45}" cy="${q.hy(0) - S * 0.35}" r="10"/><text x="${q.hx(0, 3) + S * 0.45}" y="${q.hy(0) - S * 0.35 + 0.5}">1</text></g>`;
+};
+</script>
+
+</head>
+<body>
+<div class="studio sp-studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <button class="mk-name">Twenty Cells</button>
+      <span class="mk-saved">Saved</span>
+    </div>
+    <div class="studio-actions">
+      <span class="sp-doc">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
+      </span>
+      <button class="mk-type">
+        <span class="mk-type-pic grid-game" data-board="thumbs.honeycomb-paths" data-shown="40"></span>
+        <span><small>Type</small><b>Honeycomb Paths</b></span><span data-icon="chevron"></span>
+      </button>
+      <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
+      <button class="btn primary">Check &amp; publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-opts">
+      <span class="sp-opts-tool"><span data-icon="grid"></span>Grid</span>
+      <span class="sp-opts-sep"></span>
+      <span class="sp-opts-body">
+        <span class="sp-field"><span class="sp-label">Rows</span><span class="sp-stepper"><button class="sp-btn">−</button><output>4</output><button class="sp-btn">+</button></span></span>
+        <span class="sp-field"><span class="sp-label">Columns</span><span class="sp-stepper"><button class="sp-btn">−</button><output>5</output><button class="sp-btn">+</button></span></span>
+        <span class="sp-seg" title="Honeycomb Paths is played on hexagons"><button class="sp-btn sp-text-btn" disabled>Lines</button><button class="sp-btn sp-text-btn" aria-pressed="true">Hexagons</button></span>
+        <span class="sp-label">The type sets the look: Honeycomb Paths is played on hexagons.</span>
+      </span>
+    </div>
+
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="stamp" aria-label="Stamp"></button>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas" style="position:relative">
+      <div class="sp-paper tool-grid" style="width:600px">
+        <div data-board="honey"></div>
+        <div class="mk-note fit" style="left:calc(100% + 14px); top:150px; width:220px">
+          <b>Lines aren't part of Honeycomb Paths</b>The player draws the path. This line was drawn before the type was set.
+          <div class="mk-acts"><button class="mk-act">Erase</button><button class="mk-act">Keep as a note</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Drag the grid to move it, its corner to resize it</span>
+      <span class="sp-status-facts">4 × 5 hexagons · 20 cells</span>
+      <span class="mk-verdict one"><span data-icon="check"></span>One solution</span>
+      <button class="mk-checks"><b>1</b>to check</button>
+      <span class="mk-sep"></span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="sp-side">
+      <section class="sp-panel">
+        <h2 class="sp-panel-h">Stamps</h2>
+        <div class="sp-stamps">
+          <button class="sp-stamp grid-game"><span class="be-icon" data-board="stamps.rock"></span></button>
+        </div>
+        <p class="mk-always" style="margin-top:10px">A shaded hexagon: the path goes round it. Write numbers with Text.</p>
+      </section>
+      <section class="sp-panel">
+        <div class="mk-panel-h"><h2 class="sp-panel-h">Honeycomb Paths rules</h2><a class="mk-guide" href="#"><span data-icon="book"></span>Guide</a></div>
+        <div class="mk-rules">
+          <p class="mk-always"><b>Always:</b> number the hexagons in order so each number touches the next.</p>
+          <div class="mk-row"><span>Numbers run</span><span style="font-weight:700">1 to 20, one per open hexagon</span></div>
+          <div class="mk-row"><span>Given numbers</span>
+            <div class="mk-list"><span>1</span><span>10</span><span>19</span><span>20</span></div></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+</body>
+</html>

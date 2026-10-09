@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paint: Sudoku</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/styles/editor.css">
+<link rel="stylesheet" href="../../app/app/styles/sketchpad.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="mockup.css">
+<script src="boards.js"></script>
+<script src="mockup.js"></script>
+<script>
+// Sudoku, 6 × 6: the creator is typing a 5 into row 6 (not yet committed: the hint previews it),
+// and the solver's last verdict, several solutions, shows one square where two solutions differ.
+MK.overlays.sudoku = (q) => {
+  const S = q.S, cell = (r, c, cls) => `<rect class="${cls}" x="${q.x(c) + 3}" y="${q.y(r) + 3}" width="${S - 6}" height="${S - 6}" rx="6"/>`;
+  return cell(0, 0, "diff") + `<text class="diff-text" x="${q.x(0) + S - 14}" y="${q.y(0) + 13}">4/3</text>`
+    + `<circle class="hint" cx="${q.cx(0)}" cy="${q.cy(5)}" r="${S * 0.36}"/>`
+    + `<path class="hint-line" d="M${q.cx(0) + S * 0.36} ${q.cy(5)}H${q.cx(4) - S * 0.42}"/>`
+    + cell(5, 4, "typing") + `<text class="typing-text" x="${q.cx(4) - 2}" y="${q.cy(5) + 1}">5</text><line class="caret" x1="${q.cx(4) + 9}" y1="${q.cy(5) - 13}" x2="${q.cx(4) + 9}" y2="${q.cy(5) + 13}"/>`
+    + `<rect class="hint" x="${q.x(4) + 1}" y="${q.y(5) + 1}" width="${S - 2}" height="${S - 2}" rx="7" style="fill:none"/>`;
+};
+</script>
+</head>
+<body>
+<div class="studio sp-studio">
+  <header class="studio-top">
+    <div class="studio-left">
+      <a class="studio-back" href="#" aria-label="Back" data-icon="back" data-icon-class=""></a>
+      <button class="mk-name">Six by Six</button>
+      <span class="mk-saved">Saved</span>
+    </div>
+    <div class="studio-actions">
+      <span class="sp-doc">
+        <button class="sp-btn" data-icon="undo" aria-label="Undo"></button>
+        <button class="sp-btn" data-icon="redo" aria-label="Redo" disabled></button>
+        <button class="sp-btn" data-icon="clear" aria-label="Clear"></button>
+      </span>
+      <button class="mk-type" title="The puzzle type: change it any time">
+        <span class="mk-type-pic grid-game" data-board="thumbs.sudoku" data-shown="40"></span>
+        <span><small>Type</small><b>Sudoku</b></span><span data-icon="chevron"></span>
+      </button>
+      <button class="btn rules-toggle sp-head-btn"><span data-icon="book" data-icon-class=""></span><span>How to play</span></button>
+      <button class="btn primary">Check &amp; publish</button>
+    </div>
+  </header>
+
+  <div class="sp-work">
+    <div class="sp-opts">
+      <span class="sp-opts-tool"><span data-icon="text"></span>Text</span>
+      <span class="sp-opts-sep"></span>
+      <span class="sp-opts-body">
+        <span class="sp-field"><span class="sp-label">Writes</span>
+          <span class="sp-seg"><button class="sp-btn" aria-pressed="true">Digits 1–6</button><button class="sp-btn">Notes</button></span></span>
+        <span class="sp-label">Type a digit; Enter or the arrows move on. Notes are for you: they never go in the puzzle.</span>
+      </span>
+    </div>
+
+    <div class="sp-tools">
+      <button class="sp-btn sp-tool" data-icon="grid" aria-label="Grid"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="text" aria-label="Text" aria-pressed="true"></button>
+      <span class="sp-sep"></span>
+      <button class="sp-btn sp-tool" data-icon="erase" aria-label="Eraser"></button>
+    </div>
+
+    <div class="grid-game sketchpad sp-canvas">
+      <div class="sp-paper tool-text" style="width:600px">
+        <div data-board="sudoku"></div>
+        <div class="mk-note diff left" style="right:calc(100% + 14px); left:auto; top:40px; width:220px">
+          <b>Several solutions</b>This square can be a 4 or a 3, and the rest still works. Add a clue that settles it.
+          <div class="mk-acts"><button class="mk-act">Next difference</button><button class="mk-act quiet">Hide</button></div>
+        </div>
+        <div class="mk-note hint below" style="left:368px; top:559px; transform:translateY(8px)">
+          <b>Two 5s in row 6</b>Each row holds 1 to 6 once.
+        </div>
+      </div>
+    </div>
+
+    <div class="sp-status">
+      <span class="sp-status-hint">Tap a square and type a digit</span>
+      <span class="sp-status-facts">6 × 6 grid · boxes 2 × 3</span>
+      <button class="mk-verdict many"><span data-icon="warn"></span>Several solutions · <u>show a difference</u></button>
+      <button class="mk-checks"><b>1</b>rule hint</button>
+      <span class="mk-sep"></span>
+      <button class="sp-btn sp-toggle" aria-pressed="true"><span data-icon="magnet"></span><span>Snap</span></button>
+      <span class="sp-zoom"><button class="sp-btn" data-icon="zoomOut"></button><button class="sp-btn sp-zoom-fit">100%</button><button class="sp-btn" data-icon="zoomIn"></button></span>
+    </div>
+
+    <aside class="sp-side">
+      <section class="sp-panel">
+        <div class="mk-panel-h"><h2 class="sp-panel-h">Sudoku rules</h2><a class="mk-guide" href="#"><span data-icon="book"></span>Guide</a></div>
+        <div class="mk-rules">
+          <p class="mk-always"><b>Always:</b> every row, column and box holds each digit once.</p>
+          <div class="mk-row"><span>Size</span><span style="font-weight:700">6 × 6, from the grid</span></div>
+          <div class="mk-row"><span>Box shape</span>
+            <span class="sp-seg">
+              <button class="sp-btn" aria-pressed="true"><span class="mk-boxes" style="grid-template-columns:repeat(3,4px)"><i></i><i></i><i></i><i></i><i></i><i></i></span>2 × 3</button>
+              <button class="sp-btn"><span class="mk-boxes" style="grid-template-columns:repeat(2,4px)"><i></i><i></i><i></i><i></i><i></i><i></i></span>3 × 2</button>
+              <button class="sp-btn">Drawn</button>
+            </span>
+          </div>
+          <div class="mk-switch"><span>Diagonals hold each digit once</span><i></i></div>
+          <div class="mk-row"><span>Writes</span>
+            <span class="sp-seg"><button class="sp-btn" aria-pressed="true">1–6</button><button class="sp-btn">A–F</button></span>
+          </div>
+        </div>
+      </section>
+      <section class="sp-panel">
+        <h2 class="sp-panel-h">Stamps</h2>
+        <p class="mk-always">Sudoku has no stamps or colours: its clues are digits, written with Text.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
