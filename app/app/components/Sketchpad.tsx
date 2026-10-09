@@ -10,12 +10,13 @@
 // to its corners, stamps to its squares or points, washes fill whole squares. Mouse, pen and touch
 // (pointer events).
 //
-// The chrome is a paint app's, each part with one job and nothing in two places: the page's header
-// holds what acts on the whole drawing (undo, redo, clear: the page gives a slot for them, beside
-// its Download and Read); the tools in a strip on the left (a bottom bar on a phone); only the
-// chosen tool's own settings along the top; Colour and Stamps on the right (a bottom sheet on a
-// phone), the one place to choose either; and a status line under the paper for the hint and the
-// workspace (the grid's size, Snap, zoom with Cmd/Ctrl + − 0).
+// The chrome is a paint app's, each part with one job and nothing in two places (docs/creation-flow.md,
+// "v3 layout"): the page's header holds what acts on the whole drawing (undo, redo, and … with Clear
+// and Download: the page gives a slot for them); the tools in a rail on the left (a bottom bar on a
+// phone); the palette, in one fixed place at the top left of the workspace, with only the chosen
+// tool's settings (Stamp's stamps and colours, Wash's colour, the pen's weights …), collapsible to a
+// handle (a strip above the tools on a phone); the page's own drawer on the right (`drawer`); and a
+// status line under the paper for the hint, Snap and zoom (Cmd/Ctrl + − 0).
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { addInk } from "~site/lib/ink.ts";
@@ -66,6 +67,8 @@ type Colour = typeof PALETTE[number];
 const paint = (c: Colour) => (c === "black" ? "var(--sumi)" : c === "white" ? "var(--shell)" : `var(--wash-${c})`);
 const capital = (w: string) => w[0].toUpperCase() + w.slice(1);
 const SAVED = "inkit:sketchpad";
+/** Whether the palette is collapsed, in this browser. */
+export const PALETTE_KEY = "inkit:palette";
 const WASH_SCALE = 400;
 const STEPS: Record<string, RC> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
 /** Zoom, as a multiple of fitting the paper to the workspace. */
@@ -145,7 +148,7 @@ export interface SketchpadHandle {
   edit(f: (d: Drawing) => Drawing): void;
 }
 
-export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAVED, kit = null, typeName = "", overlay = "", underlay = "", tip, panel, chips, side: sideExtra, onPaper }: {
+export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAVED, kit = null, typeName = "", overlay = "", underlay = "", tip, drawer, onPaper, filename = "puzzle-drawing.png" }: {
   /** set to the sketchpad's exporter (the page's Download and Read buttons use it) */
   handle: React.MutableRefObject<SketchpadHandle | null>;
   /** after every change */
@@ -166,12 +169,10 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   underlay?: string;
   /** a tip on the paper, pointing at a page point */
   tip?: { at: XY; below?: boolean; node: ReactNode } | null;
-  /** a panel over the workspace's left side */
-  panel?: ReactNode;
-  /** chips in the status line */
-  chips?: ReactNode;
-  /** more sections in the side panel, after Colour and Stamps */
-  side?: ReactNode;
+  /** the page's drawer, on the right (a bottom sheet and its handle on a phone) */
+  drawer?: ReactNode;
+  /** the … menu's Download: the picture's file name */
+  filename?: string;
   /** a press on the paper (before the tool acts), at a page point */
   onPaper?: (p: XY) => void;
 }) {
@@ -198,10 +199,10 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   const [straight, setStraight] = useState(false);   // the pen draws straight lines, as with Shift
   const [zoom, setZoom] = useState(1);
   const [fit, setFit] = useState<number | null>(null);   // the paper's width that fits the workspace
-  const [sheet, setSheet] = useState(false);   // the side panel, open as a sheet (phones)
+  const [folded, setFolded] = useState(false);   // the palette, collapsed to its handle (kept per browser)
+  const [menu, setMenu] = useState(false);       // the … menu
   const [mod, setMod] = useState("Ctrl+");
   const toolButtons = useRef<(HTMLButtonElement | null)[]>([]);
-  const side = useRef<HTMLElement>(null);
   const svg = useRef<SVGSVGElement>(null);
   const defs = useRef<SVGSVGElement>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -240,6 +241,15 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   // it); and the drawing from last time
   useEffect(() => { if (defs.current && root.current) addInk(defs.current, root.current); }, []);
   useEffect(() => { if (/Mac|iPhone|iPad/.test(navigator.platform)) setMod("⌘"); }, []);
+  useEffect(() => { try { setFolded(localStorage.getItem(PALETTE_KEY) === "folded"); } catch { /* open */ } }, []);
+  const fold = (v: boolean) => { setFolded(v); try { localStorage.setItem(PALETTE_KEY, v ? "folded" : "open"); } catch { /* this page only */ } };
+  // the … menu closes on a click outside it
+  useEffect(() => {
+    if (!menu) return;
+    const away = (e: PointerEvent) => { if (!(e.target as Element).closest(".sp-menu-wrap")) setMenu(false); };
+    addEventListener("pointerdown", away);
+    return () => removeEventListener("pointerdown", away);
+  }, [menu]);
   // the paper fits the workspace (zoom 1), whatever the window's size
   useEffect(() => {
     const el = root.current;
@@ -294,7 +304,7 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
       if (mod && (e.key === "=" || e.key === "+")) { e.preventDefault(); zoomBy(1); return; }
       if (mod && (e.key === "-" || e.key === "_")) { e.preventDefault(); zoomBy(-1); return; }
       if (mod && e.key === "0") { e.preventDefault(); setZoom(1); return; }
-      if (e.key === "Escape") { setSheet(false); return; }
+      if (e.key === "Escape") { setMenu(false); return; }
       if (mod || e.altKey) return;
       const to = toolsNow.current.find((x) => x.key === e.key.toLowerCase());
       if (to) { setTool(to.id); setTyping(null); }
@@ -501,13 +511,18 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
   const allowed = (c: Colour) => (!forStamp ? (m.WASHES as readonly string[]).includes(c)
     : LINE_STAMPS.has(stampKind) ? c === "black" || c === "blue" || c === "yellow"
     : c !== "pink" && (stampKind === "stone" || stampKind === "eraser" || c !== "black")) && (!forStamp || everything || colourAllowed(kit, stampKind, c));
-  // the Colour section only where the type has something coloured to make
-  const hasColour = !kit || everything || kit.tools.includes("wash") || kit.stamps.some((k) => COLORED.has(k));
   const pickColour = (c: Colour) => { if (forStamp) setColors({ ...colors, [stampKind]: c as SymbolColor }); else setWash(c as WashColor); };
 
-  // ---- the side panel: always there on a wide screen, a bottom sheet on a phone ----
-  const phone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
-  const pickStamp = (k: StampKind) => { setStampKind(k); setTool("stamp"); setTyping(null); if (phone()) setSheet(false); };
+  const pickStamp = (k: StampKind) => { setStampKind(k); setTool("stamp"); setTyping(null); };
+  const download = async () => {
+    setMenu(false);
+    const png = await exportPng(svg.current!, latest.current);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(png);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  };
 
   // ---- the tool palette: a toolbar, arrows move along it ----
   const onToolKey = (e: React.KeyboardEvent) => {
@@ -535,96 +550,133 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
     </span>
   );
 
-  return (
-    <div className="sp-work">
-      {/* ---- the chosen tool's options, along the top ---- */}
-      <div className="sp-opts" role="group" aria-label={`${toolLabel} options`}>
-        <span className="sp-opts-tool" aria-hidden="true"><SpIcon name={tool} />{toolLabel}</span>
-        <span className="sp-opts-sep" aria-hidden="true" />
-        <span className="sp-opts-body">
-          {tool === "grid" && (g ? <>
-            {stepper("Rows", g.rows, (n) => resize(n, g.cols))}
-            {stepper("Columns", g.cols, (n) => resize(g.rows, n))}
-            <span className="sp-seg sp-tip" role="group" aria-label="Grid look" data-tip={kit ? `The type sets the look: ${typeName} is played ${LOOK_WORDS[kit.look]}` : "Pen lines, a panel's wide tracks, a honeycomb, or a lattice of points"}>
-              {([["Lines", "lines"], ["Tracks", "tracks"], ["Hexagons", "hex"], ["Dots", "dots"]] as const).map(([name, look]) => <button key={name} type="button" className="sp-btn sp-text-btn" aria-pressed={m.lookOf(g) === look}
-                disabled={!!kit && kit.look !== look && m.lookOf(g) !== look}
-                onClick={() => edit((dd) => (dd.grid ? m.setGrid(dd, m.setLook(dd.grid, look)) : dd))}>{name}</button>)}
-            </span>
-            <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
-          </> : <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the page (or drag one out)">Add a grid</button>)}
-
-          {(tool === "pen" || tool === "line") && (
-            <span className="sp-seg" role="group" aria-label="Pen weight">
-              {WEIGHTS.map((w) => <button key={w.id} type="button" className="sp-btn sp-weight sp-tip" aria-label={w.label} data-tip={`${w.label} pen`} aria-pressed={weight === w.id} onClick={() => setWeight(w.id)}>
-                <svg viewBox="0 0 30 14" aria-hidden="true"><line x1="4" y1="7" x2="26" y2="7" style={{ strokeWidth: w.width }} /></svg>
+  const swatches = (label: string) => (
+    <div className="sp-swatches" role="group" aria-label={label}>
+      {PALETTE.map((c) => <button key={c} type="button" className="sp-swatch sp-tip" aria-label={capital(c)} data-tip={capital(c)}
+        aria-pressed={colour === c} disabled={!allowed(c)} onClick={() => pickColour(c)}>
+        <span style={{ background: paint(c) }} /></button>)}
+    </div>
+  );
+  const row = (label: ReactNode, body: ReactNode, key?: string) => <div className="sp-pal-row" key={key}><span className="sp-pal-label">{label}</span>{body}</div>;
+  const weights = (
+    <span className="sp-seg" role="group" aria-label="Pen weight">
+      {WEIGHTS.map((w) => <button key={w.id} type="button" className="sp-btn sp-weight sp-tip" aria-label={w.label} data-tip={`${w.label} pen`} aria-pressed={weight === w.id} onClick={() => setWeight(w.id)}>
+        <svg viewBox="0 0 30 14" aria-hidden="true"><line x1="4" y1="7" x2="26" y2="7" style={{ strokeWidth: w.width }} /></svg>
+      </button>)}
+    </span>
+  );
+  // what the chosen tool can set; a tool with nothing to set says what it does
+  const options: ReactNode = (() => {
+    switch (tool) {
+      case "grid": return g ? <>
+        {row("Size", <span className="sp-pal-steppers">{stepper("Rows", g.rows, (n) => resize(n, g.cols))}{stepper("Columns", g.cols, (n) => resize(g.rows, n))}</span>)}
+        {!kit ? row("Look", (
+          <span className="sp-seg" role="group" aria-label="Grid look">
+            {([["Lines", "lines"], ["Tracks", "tracks"], ["Hexagons", "hex"], ["Dots", "dots"]] as const).map(([name, look]) => <button key={name} type="button" className="sp-btn sp-text-btn" aria-pressed={m.lookOf(g) === look}
+              onClick={() => edit((dd) => (dd.grid ? m.setGrid(dd, m.setLook(dd.grid, look)) : dd))}>{name}</button>)}
+          </span>
+        )) : <p className="sp-pal-note">{typeName} is played {LOOK_WORDS[kit.look]}: the type sets the look.</p>}
+        <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
+      </> : <>
+        <p className="sp-pal-note">Drag a rectangle on the paper, or start with one.</p>
+        <button type="button" className="sp-btn sp-text-btn sp-tip" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the page (or drag one out)">Add a grid</button>
+      </>;
+      case "pen": return <>{row("Weight", weights)}
+        <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
+          <SpIcon name="straight" /><span>Straight</span></button></>;
+      case "line": return row("Weight", weights);
+      case "wash": return row(<>Colour · {capital(colour)}</>, swatches("Wash colour"));
+      case "text": return row("Size", (
+        <span className="sp-seg" role="group" aria-label="Text size">
+          <button type="button" className="sp-btn sp-tip" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal: a clue in a square">Normal</button>
+          <button type="button" className="sp-btn sp-tip sp-small-btn" aria-pressed={small} onClick={() => setSmall(true)}
+            data-tip="Small: on a corner, a line, or a square's side or corner">Small</button>
+        </span>
+      ));
+      case "stamp": return <>
+        {!stamps.length ? <p className="sp-pal-note">{typeName} has no stamps: its clues are {own("text") ? "written with Text" : "drawn with the pen"}.</p>
+          : row(kit ? `${typeName}'s ${stamps.length === 1 ? "stamp" : "stamps"}` : "Stamps", (
+            <div className="sp-stamps" role="group" aria-label="Stamps">
+              {stamps.map((st) => <button key={st.id} type="button" className={`sp-stamp sp-tip${ownStamp(st.id) ? "" : " sp-off"}`} aria-label={st.label}
+                data-tip={ownStamp(st.id) ? st.tip ?? st.label : `${st.label}: ${notOurs.toLowerCase()}`}
+                aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
+                <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
               </button>)}
+            </div>
+          ))}
+        {stampKind === "triangle" && row("Triangles", (
+          <span className="sp-seg" role="group" aria-label="How many">
+            {[1, 2, 3].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}
+          </span>
+        ))}
+        {stampKind === "stone" && (
+          <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
+            <StampIcon s={{ stamp: "stone", color: colors.stone, hidden: true }} /><span>Hidden</span></button>
+        )}
+        {stampKind === "inequality" && row("Points", (
+          <span className="sp-seg" role="group" aria-label="Points at">
+            <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={!flip} onClick={() => setFlip(false)} data-tip="Points left or up">&lt; ∧</button>
+            <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={flip} onClick={() => setFlip(true)} data-tip="Points right or down">&gt; ∨</button>
+          </span>
+        ))}
+        {stampKind === "palisade" && <>
+          {row("Borders", (
+            <span className="sp-seg" role="group" aria-label="Borders">
+              {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={sides === n} onClick={() => setSides(n)}>{n}</button>)}
             </span>
-          )}
-          {tool === "pen" && (
-            <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
-              <SpIcon name="straight" /><span>Straight</span></button>
-          )}
-
-          {tool === "text" && (
-            <span className="sp-seg" role="group" aria-label="Text size">
-              <button type="button" className="sp-btn sp-tip" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal: a clue in a square">Normal</button>
-              <button type="button" className="sp-btn sp-tip sp-small-btn" aria-pressed={small} onClick={() => setSmall(true)}
-                data-tip="Small: on a corner, a line, or a square's side or corner">Small</button>
+          ))}
+          {sides === 2 && <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="The two borders opposite, not at a corner">
+            <StampIcon s={{ stamp: "palisade", count: 2, opposite: true }} /><span>Opposite</span></button>}
+        </>}
+        {stampKind === "thermo" && <p className="sp-pal-note">Drag from the bulb through the squares; tap a bulb to take its thermometer off.</p>}
+        {stampKind === "shape" && row("Shape", <>
+          <span className="sp-shapes" role="group" aria-label="Shape">
+            {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb sp-tip" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}
+              onClick={() => setPad(x.cells)}><StampIcon s={{ stamp: "shape", cells: x.cells, color: colors.shape }} /></button>)}
+          </span>
+          <span className="sp-pal-inline">
+            <ShapePad cells={pad} color={paint(colors.shape ?? "yellow")} onChange={setPad} />
+            <span className="sp-seg" role="group" aria-label="Turn or flip">
+              <IconButton icon="rotate" label="Turn the shape" tip="Turn a quarter turn" onClick={() => setPad(m.turnCells(pad))} />
+              <IconButton icon="flip" label="Flip the shape" tip="Flip (its mirror image)" onClick={() => setPad(m.flipCells(pad))} />
             </span>
-          )}
+          </span>
+          <span className="sp-pal-inline">
+            <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape, outlined">
+              <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, hollow: true }} /><span>Hollow</span></button>
+            <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={mayTurn} onClick={() => setMayTurn(!mayTurn)} data-tip="May turn: drawn tilted">
+              <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, rotate: true }} /><span>May turn</span></button>
+          </span>
+        </>)}
+        {forStamp && row(<>Colour · {capital(colour)}</>, swatches(colourFor))}
+      </>;
+      case "erase": return <p className="sp-pal-note">{toolHint}.</p>;
+    }
+  })();
+  const offNote = kit && !own(tool)
+    ? <p className="sp-pal-note sp-pal-off">{typeName} doesn&rsquo;t use the {toolLabel.toLowerCase()}: what you draw is decoration, flagged and left out of the puzzle.</p> : null;
+  const toolKey = TOOLS.find((x) => x.id === tool)!.key.toUpperCase();
+  // undo, redo and … (Clear, Download): in the page's header; on a phone, in the palette's strip
+  const docActions = (
+    <span className="sp-doc">
+      <IconButton icon="undo" label="Undo" tip={`Undo (${mod}Z)`} onClick={undo} disabled={!history.past.length} />
+      <IconButton icon="redo" label="Redo" tip={`Redo (${shift}Z)`} onClick={redo} disabled={!history.future.length} />
+      <span className="sp-menu-wrap">
+        <IconButton icon="more" label="More" tip="Clear, Download" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} />
+        {menu && (
+          <span className="sp-menu" role="menu" aria-label="More">
+            <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid}
+              onClick={() => { setMenu(false); if (confirm("Clear the page? (Undo brings it back.)")) { setTyping(null); edit(m.clear); } }}><SpIcon name="clear" />Clear the page</button>
+            <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid} onClick={() => void download()}><SpIcon name="download" />Download a picture</button>
+          </span>
+        )}
+      </span>
+    </span>
+  );
 
-          {tool === "stamp" && <>
-            {stampKind === "stone" && (
-              <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
-                <StampIcon s={{ stamp: "stone", color: colors.stone, hidden: true }} /><span>Hidden</span></button>
-            )}
-            {stampKind === "inequality" && (
-              <span className="sp-seg" role="group" aria-label="Points at">
-                <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={!flip} onClick={() => setFlip(false)} data-tip="Points left or up">&lt; ∧</button>
-                <button type="button" className="sp-btn sp-num sp-tip" aria-pressed={flip} onClick={() => setFlip(true)} data-tip="Points right or down">&gt; ∨</button>
-              </span>
-            )}
-            {stampKind === "palisade" && <>
-              <span className="sp-label">Borders</span>
-              <span className="sp-seg" role="group" aria-label="Borders">
-                {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={sides === n} onClick={() => setSides(n)}>{n}</button>)}
-              </span>
-              {sides === 2 && <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="The two borders opposite, not at a corner">
-                <StampIcon s={{ stamp: "palisade", count: 2, opposite: true }} /><span>Opposite</span></button>}
-            </>}
-            {stampKind === "thermo" && <span className="sp-label">Drag from the bulb through the squares; tap a bulb to take its thermometer off</span>}
-            {stampKind === "triangle" && (
-              <span className="sp-seg" role="group" aria-label="How many">
-                {[1, 2, 3].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={count === n} onClick={() => setCount(n)}>{n}</button>)}
-              </span>
-            )}
-            {stampKind === "shape" && <>
-              <span className="sp-shapes" role="group" aria-label="Shape">
-                {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb sp-tip" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}
-                  onClick={() => setPad(x.cells)}><StampIcon s={{ stamp: "shape", cells: x.cells, color: colors.shape }} /></button>)}
-              </span>
-              <ShapePad cells={pad} color={paint(colors.shape ?? "yellow")} onChange={setPad} />
-              <span className="sp-seg" role="group" aria-label="Turn or flip">
-                <IconButton icon="rotate" label="Turn the shape" tip="Turn a quarter turn" onClick={() => setPad(m.turnCells(pad))} />
-                <IconButton icon="flip" label="Flip the shape" tip="Flip (its mirror image)" onClick={() => setPad(m.flipCells(pad))} />
-              </span>
-              <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape, outlined">
-                <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, hollow: true }} /><span>Hollow</span></button>
-              <button type="button" className="sp-btn sp-toggle sp-tip" aria-pressed={mayTurn} onClick={() => setMayTurn(!mayTurn)} data-tip="May turn: drawn tilted">
-                <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, rotate: true }} /><span>May turn</span></button>
-            </>}
-          </>}
-        </span>
-        <span className="sp-opts-end sp-phone-only">
-          <IconButton icon="palette" label="Colour and stamps" onClick={() => setSheet(true)} />
-        </span>
-      </div>
-      {actions && createPortal(<span className="sp-doc">
-          <IconButton icon="undo" label="Undo" tip={`Undo (${mod}Z)`} onClick={undo} disabled={!history.past.length} />
-          <IconButton icon="redo" label="Redo" tip={`Redo (${shift}Z)`} onClick={redo} disabled={!history.future.length} />
-          <IconButton icon="clear" label="Clear" tip="Clear the page" disabled={!history.now.items.length && !history.now.grid}
-            onClick={() => { if (confirm("Clear the page? (Undo brings it back.)")) { setTyping(null); edit(m.clear); } }} />
-        </span>, actions)}
+  return (
+    <div className={`sp-work${folded ? " pal-folded" : " pal-open"}${drawer ? " has-drawer" : ""}`}>
+      {actions && createPortal(docActions, actions)}
 
       {/* ---- the tools, down the left (along the bottom on a phone) ---- */}
       <div className="sp-tools" role="toolbar" aria-label="Tools" aria-orientation="vertical" onKeyDown={onToolKey}>
@@ -639,6 +691,22 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
           data-tip={everything ? `Only ${typeName}'s tools` : "Every tool, for decoration or drawing ahead: what the type can't use is flagged"}>
           <span aria-hidden="true">⋯</span><span>{everything ? "Fewer" : "All tools"}</span></button>}
       </div>
+
+      {/* ---- the palette: the chosen tool's settings, in one place (a strip above the tools on a phone) ---- */}
+      {folded && (
+        <button type="button" className="sp-palette-handle sp-tip" aria-label="Show the tool options" data-tip={`${toolLabel} options`} aria-expanded={false} onClick={() => fold(false)}>
+          <SpIcon name={tool} /><SpIcon name="unfold" />
+        </button>
+      )}
+      {/* folded, it's hidden on a wide screen; a phone's strip is always there */}
+      <section className={`sp-palette tool-${tool}${folded ? " folded" : ""}`} aria-label={`${toolLabel} options`}>
+        <header className="sp-pal-head">
+          <SpIcon name={tool} /><strong>{toolLabel}</strong><small aria-hidden="true">{toolKey}</small>
+          <button type="button" className="sp-btn sp-pal-fold" aria-label="Hide the tool options" aria-expanded={true} onClick={() => fold(true)}><SpIcon name="fold" /></button>
+        </header>
+        <div className="sp-pal-body">{offNote}{options}</div>
+        <span className="sp-pal-doc">{docActions}</span>
+      </section>
 
       {/* ---- the paper, on the workspace ---- */}
       <div className="grid-game sketchpad sp-canvas" ref={root}>
@@ -686,11 +754,9 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
         </div>
       </div>
 
-      {/* ---- the status line ---- */}
+      {/* ---- the status line: how it's viewed ---- */}
       <div className="sp-status">
         <span className="sp-status-hint" aria-live="polite">{toolHint}</span>
-        <span className="sp-status-facts">{g ? `${g.rows} × ${g.cols} ${g.shape === "hex" ? "hexagons" : g.tracks ? "tracks" : "grid"}` : "No grid"}</span>
-        {chips}
         {snapToggle}
         <span className="sp-zoom" role="group" aria-label="Zoom">
           <IconButton icon="zoomOut" label="Zoom out" tip={`Zoom out (${mod}−)`} onClick={() => zoomBy(-1)} disabled={zoom <= ZOOMS[0]} />
@@ -699,39 +765,7 @@ export function Sketchpad({ handle, onChange, actions, initial, storageKey = SAV
         </span>
       </div>
 
-      {/* ---- Colour and Stamps, on the right (a bottom sheet on a phone) ---- */}
-      {panel}
-      {sheet && <div className="sp-scrim" aria-hidden="true" onClick={() => setSheet(false)} />}
-      <aside ref={side} className={`sp-side${sheet ? " open" : ""}`} aria-label="Colour and stamps">
-        <div className="sp-sheet-head">
-          <strong>Colour and stamps</strong>
-          <IconButton icon="close" label="Close" onClick={() => setSheet(false)} />
-        </div>
-        {hasColour && <section id="sp-colour" className="sp-panel" aria-labelledby="sp-colour-h">
-          <h2 id="sp-colour-h" className="sp-panel-h">Colour</h2>
-          <div className="sp-current">
-            <span className="sp-fg" style={{ background: paint(colour) }} aria-hidden="true" />
-            <span className="sp-current-text"><span>{colourFor}</span><b>{capital(colour)}</b></span>
-          </div>
-          <div className="sp-swatches" role="group" aria-label={colourFor}>
-            {PALETTE.map((c) => <button key={c} type="button" className="sp-swatch sp-tip" aria-label={capital(c)} data-tip={capital(c)}
-              aria-pressed={colour === c} disabled={!allowed(c)} onClick={() => { pickColour(c); if (phone()) setSheet(false); }}>
-              <span style={{ background: paint(c) }} /></button>)}
-          </div>
-        </section>}
-        <section id="sp-stamps" className="sp-panel" aria-labelledby="sp-stamps-h">
-          <h2 id="sp-stamps-h" className="sp-panel-h">Stamps</h2>
-          {!stamps.length && <p className="sp-panel-note">{typeName} has no stamps: its clues are {own("text") ? "written with Text" : "drawn with the pen"}.</p>}
-          <div className="sp-stamps" role="group" aria-label="Stamps">
-            {stamps.map((st) => <button key={st.id} type="button" className={`sp-stamp sp-tip${ownStamp(st.id) ? "" : " sp-off"}`} aria-label={st.label}
-              data-tip={ownStamp(st.id) ? st.tip ?? st.label : `${st.label}: ${notOurs.toLowerCase()}`}
-              aria-pressed={stampKind === st.id} onClick={() => pickStamp(st.id)}>
-              <StampIcon s={{ stamp: st.id, color: colors[st.id], ...(st.id === "triangle" ? { count: 1 } : {}), ...(st.id === "shape" ? { cells: SHAPES[2].cells } : {}) }} />
-            </button>)}
-          </div>
-        </section>
-        {sideExtra}
-      </aside>
+      {drawer}
     </div>
   );
 }

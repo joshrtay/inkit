@@ -1,9 +1,9 @@
 // Check, in paint (docs/creation-flow.md §1.5, §2): the verdict on the drawing as a puzzle of its
 // type, the list of what's wrong (numbered, with a tip each), and where each is on the paper.
 //
-//   verdictOf(...)   the status line's chip and the Check panel's heading
-//   checkList(...)   the panel's numbered list: broken rules and differences first, then what to fix,
-//                    then what doesn't fit
+//   verdictOf(...)   the verdict: the Check button's words and This puzzle's heading
+//   checkList(...)   the numbered list (This puzzle hangs each under its line: checklist.ts): broken
+//                    rules and differences first, then what to fix, then what doesn't fit
 //   highlight(...)   where an item is on the paper: rings round its squares, outlines round its
 //                    drawing items, a line joining them, and the point its pin and tip hang from
 //   differences(...) where two solutions differ (for "Several solutions")
@@ -71,7 +71,7 @@ export function verdictWords(v: Verdict): { text: string; tone: "ok" | "bad" | "
   }
 }
 
-/** The Check panel's heading and its line under it. */
+/** This puzzle's line under its heading. */
 export function verdictStory(v: Verdict, genre: GenreName | null): { title: string; text: string } {
   const name = genre ? kindName(genre) : "";
   switch (v.kind) {
@@ -150,7 +150,7 @@ function placeOf(text: string, cells: [number, number][]): string {
   return cells.length ? `Row ${cells[0][0] + 1}, column ${cells[0][1] + 1}` : "The whole puzzle";
 }
 
-/** The Check panel's list: what the converter found, and the solver's difference if any. */
+/** Check's list: what the converter found, and the solver's difference if any. */
 export function checkList(conv: Conversion | null, opts: { digits?: string; differences?: Difference[] } = {}): CheckItem[] {
   if (!conv) return [];
   const raw: Omit<CheckItem, "n">[] = conv.problems.filter((p) => p.kind !== "unsupported").map((p) => {
@@ -278,7 +278,7 @@ export function marksSvg(h: Highlight, tone: "error" | "misfit" | "doubt", n: nu
 
 // ---- a solution, drawn on the paper ----
 
-/** A solution over the drawing, in a light hand (the "Draw it on the board" switch): digits
+/** A solution over the drawing, in a light hand (while This puzzle's solution is pointed at): digits
  *  pencilled in the squares without a clue, shading washed, lines in blue. Never part of the
  *  drawing. Square grids and lattices; a honeycomb's digits and shading. */
 export function solutionSvg(p: Puzzle, b: Board, g: m.Grid): string {

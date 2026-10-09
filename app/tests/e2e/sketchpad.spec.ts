@@ -129,17 +129,24 @@ test("the paint-app chrome: a tool palette with arrow keys and letters, panels, 
   await page.keyboard.press("Enter");
   await expect(pen).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Bold" })).toHaveAttribute("aria-pressed", "true");
-  // a letter picks a tool; a stamp from the panel picks the stamp tool
+  // a letter picks a tool, and the palette shows only its settings: Wash, its colour
   await page.keyboard.press("w");
   await expect(palette.getByRole("button", { name: "Wash", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const options = page.locator(".sp-palette");
+  await expect(options.locator(".sp-pal-head")).toContainText("Wash");
   await page.getByRole("button", { name: "Green", exact: true }).click();
   await expect(page.getByRole("button", { name: "Green", exact: true })).toHaveAttribute("aria-pressed", "true");
-  // each choice has one place: colour and stamps only in the side panel, undo in the header
-  await expect(page.locator(".sp-opts .sp-chip")).toHaveCount(0);
+  await expect(options.getByRole("group", { name: "Stamps" })).toHaveCount(0);
+  // each choice has one place: no options bar, no side panel; undo and … in the header
+  await expect(page.locator(".sp-opts, .sp-side")).toHaveCount(0);
   await expect(page.locator(".studio-top").getByRole("button", { name: "Undo" })).toBeVisible();
-  await expect(page.getByText("Goes in")).toHaveCount(0);
-  await page.getByRole("button", { name: "Crest", exact: true }).click();
-  await expect(palette.getByRole("button", { name: "Stamp", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.locator(".studio-top").getByRole("button", { name: "More" }).click();
+  await expect(page.getByRole("menu", { name: "More" }).getByRole("menuitem")).toHaveText(["Clear the page", "Download a picture"]);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("s");
+  await options.getByRole("button", { name: "Crest", exact: true }).click();
+  await expect(options.getByRole("button", { name: "Crest", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(options.getByRole("group", { name: "Crest colour" })).toBeVisible();
   // zoom: Cmd/Ctrl + and 0, and the paper grows and comes back
   const board = page.locator(".sp-board");
   const w0 = (await board.boundingBox())!.width;
@@ -150,16 +157,21 @@ test("the paint-app chrome: a tool palette with arrow keys and letters, panels, 
   await expect(page.getByRole("button", { name: "Zoom to fit" })).toHaveText("100%");
 });
 
-test("on a phone: the tools along the bottom, Colour and Stamps in a sheet", async ({ page }) => {
+test("on a phone: the tools along the bottom, the palette a strip above them", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/new/draw");
-  const stone = page.getByRole("button", { name: "Stone", exact: true });
-  await expect(stone).toBeHidden();
+  const strip = page.locator(".sp-palette");
+  const stone = strip.getByRole("button", { name: "Stone", exact: true });
+  await expect(stone).toHaveCount(0);
   await page.getByRole("toolbar", { name: "Tools" }).getByRole("button", { name: "Text", exact: true }).click();
-  await page.getByRole("button", { name: "Colour and stamps" }).click();
+  await expect(strip.getByRole("group", { name: "Text size" })).toBeVisible();
+  await page.getByRole("toolbar", { name: "Tools" }).getByRole("button", { name: "Stamp", exact: true }).click();
   await stone.click();
-  await expect(stone).toBeHidden();
-  await expect(page.getByRole("toolbar", { name: "Tools" }).getByRole("button", { name: "Stamp", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(stone).toHaveAttribute("aria-pressed", "true");
+  // the strip sits just above the tools, with undo and redo
+  const tools = (await page.getByRole("toolbar", { name: "Tools" }).boundingBox())!, box = (await strip.boundingBox())!;
+  expect(Math.round(box.y + box.height)).toBeLessThanOrEqual(Math.round(tools.y) + 1);
+  await expect(strip.getByRole("button", { name: "Undo" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
@@ -181,6 +193,7 @@ test("a panel: gaps in the grid's lines, a hollow pentomino from the pad, colour
   await expect.poll(async () => (await data()).filter((it: { kind: string }) => it.kind === "gap").length).toBe(2);
 
   // a hollow P pentomino, made on the pad (three in a row, then two more squares), flipped
+  await tool(page, "Stamp");
   await page.getByRole("button", { name: "Shape", exact: true }).click();
   const pad = page.getByRole("group", { name: "Shape pad" });
   await pad.getByRole("button", { name: "Row 2, column 1" }).click();
@@ -212,7 +225,8 @@ test("a panel: gaps in the grid's lines, a hollow pentomino from the pad, colour
 test("the stamps are one list, and the puzzle types open beside the paper", async ({ page }) => {
   await page.goto("/new/draw");
   // many stamps belong to several types, so they aren't grouped by type
-  await expect(page.locator(".sp-side h3")).toHaveCount(0);
+  await tool(page, "Stamp");
+  await expect(page.locator(".sp-palette h3")).toHaveCount(0);
   await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(18);
   const types = page.locator(".studio-top").getByRole("button", { name: "Puzzle types" });
   await types.click();

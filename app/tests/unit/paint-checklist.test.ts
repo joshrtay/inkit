@@ -66,9 +66,18 @@ describe("a panel lists only the symbols it uses", () => {
     expect(c.rules.map((l) => l.text.split(":")[0].split(" ").slice(0, 2).join(" "))).toEqual(["Draw one", "Squares", "At least"]);
     expect(c.rules.every((l) => l.mark === "ok")).toBe(true);
   });
+  it("an Akari's cipher line only with letters; Fillomino's sizes only when set", () => {
+    const akari = { genre: "akari", size: [3, 3] as [number, number], givens: [{ at: "cell" as const, cell: [1, 1] as [number, number], kind: "number" as const, value: 2 }] };
+    expect(checklist("akari", lines("akari"), akari, [], { kind: "one" }).rules.map((l) => l.text)).not.toContainEqual(expect.stringMatching(/^In a cipher/));
+    const cipher = { ...akari, givens: [{ ...akari.givens[0], value: 0, letter: "A" }] };
+    expect(checklist("akari", lines("akari"), cipher, [], { kind: "one" }).rules.map((l) => l.text)).toContainEqual(expect.stringMatching(/^In a cipher/));
+    const sizes = lines("fillomino").find((l) => l.checks.includes("allowed-sizes"))!;
+    expect(usesLine("fillomino", sizes.text, { genre: "fillomino", size: [4, 4] }, sizes.checks)).toBe(false);
+    expect(usesLine("fillomino", sizes.text, { genre: "fillomino", size: [4, 4], rules: [{ rule: "allowed-sizes" }] }, sizes.checks)).toBe(true);
+  });
   it("other types keep every line", () => {
     expect(usesLine("akari", "Dots: anything", null)).toBe(true);
-    expect(usesLine("panel", "Symmetry: two lines", { ...spec, rules: [{ rule: "panel-line", symmetry: "left-right" }] })).toBe(true);
+    expect(usesLine("panel", "Symmetry: two lines", { ...spec, rules: [{ rule: "panel-line", symmetry: "left-right" }] }, ["panel-line"])).toBe(true);
     expect(usesLine("panel", "Symmetry: two lines", spec)).toBe(false);
   });
 });

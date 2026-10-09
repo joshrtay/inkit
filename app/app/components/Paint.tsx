@@ -1,16 +1,20 @@
-// Paint, as a game's editor (/g/<id>/draw; docs/creation-flow.md): the sketchpad with a puzzle
-// type. The drawing is the puzzle: the converter (sketchpad/to-puzzle.ts) reads it as the type
+// Paint, as a game's editor (/g/<id>/draw; docs/creation-flow.md, "v3 layout"): the sketchpad with a
+// puzzle type. The drawing is the puzzle: the converter (sketchpad/to-puzzle.ts) reads it as the type
 // chosen, on every change, and the solver checks it live.
 //
-// One job per place, as the sketchpad's own chrome:
-// - the top bar: back, the title (edited in place), the Type button (its picker, any time) and the
-//   save state; then undo, redo and clear, How to play (the type's guide), Check and Publish. With
-//   no type, Check and Publish look disabled and, clicked, say "Choose a type first" and bounce Type.
-// - with a type: the tool rail and stamps are the type's (All tools for the rest), the grid takes
-//   the type's look, and the right side gains the type's Rules.
-// - the status line: the verdict chip (live; a click is Check).
-// - the Check panel, over the workspace's left side (minimised to a tab): the verdict, the solution,
-//   and a numbered list of what's wrong; selecting one marks it on the paper with a tip.
+// Each part of the screen answers one question:
+// - the top bar, what is this puzzle: back, the title (a label: it's named on the publish step), the
+//   save state and Type ▾ (which opens the drawer at Types); then undo, redo and … (Sketchpad's), the
+//   verdict as the Check button (which opens This puzzle) and Publish, enabled when the verdict
+//   passes. With no type, Check and Publish are greyed and, clicked, bounce Type and turn the drawer
+//   to Types with "Choose a type first".
+// - the tool rail and the palette (Sketchpad), how do I make it: the type's tools (All tools for the
+//   rest), the grid in the type's look.
+// - the paper: the drawing, its problems' marks, and the selected one's tip.
+// - the drawer on the right, is it right and what are the rules: This puzzle (the photo and its
+//   doubts, then the rules as a checklist with each broken one's problems and its settings on it,
+//   the solution line, Your drawing, the solution) and Types (search, What type is this?, the list,
+//   each type's guide). It collapses to a strip; on a phone it's a bottom sheet.
 // - drafts save themselves (games.drawing; this browser's copy until the server has it).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useFetcher, useNavigate } from "react-router";
@@ -24,11 +28,12 @@ import * as m from "~/sketchpad/model";
 import { kitFor } from "~/sketchpad/kit";
 import { convert, type Settings } from "~/sketchpad/to-puzzle";
 import { checkList, differences, doubtHighlight, highlight, marksSvg, passes, solutionSvg, verdictOf, verdictStory, verdictWords, type CheckItem } from "~/sketchpad/check";
+import { checklist, type ChecklistLine, type RuleLine } from "~/sketchpad/checklist";
 import { doubtPlace, type Doubt } from "~/games/doubts";
 import { Sketchpad, type SketchpadHandle } from "./Sketchpad";
-import { GuidePane } from "./GuidePane";
-import { PaintRules } from "./PaintRules";
+import { MoreSettings, RuleSettings, settingRules } from "./PaintRules";
 import { TypePicker } from "./TypePicker";
+import { SpIcon } from "./SketchpadIcons";
 import { useSolved } from "./useSolved";
 
 /** This browser's copy of a draft (docs: "localStorage as the offline buffer"): `dirty` until the server has it. */
@@ -51,29 +56,36 @@ export interface PaintPhoto { src: string; doubts: Doubt[]; readAs: string }
 /** A doubt's letter on the paper and in the list (Check's items are numbered). */
 const letter = (i: number) => String.fromCharCode(65 + (i % 26));
 
-export function Paint({ game, saved, backTo, admin = false, photo = null, choices = [], opened = false }: {
+/** Whether the drawer is folded to its strip, in this browser. */
+const DRAWER_KEY = "inkit:paint-drawer";
+const isPhone = () => typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches;
+
+export function Paint({ game, saved, backTo, admin = false, photo = null, choices = [], opened = false, ruleLines = {}, startAt }: {
   game: { id: string; title: string };
+  /** each type's rules in its guide's words (src/guides/guides.ts), for This puzzle's checklist */
+  ruleLines?: Record<string, RuleLine[]>;
   saved: PaintSave | null;
   backTo: string;
   admin?: boolean;
   photo?: PaintPhoto | null;
   /** the types a photo's reading could be, best first (What type is this? answers with them) */
   choices?: string[];
-  /** just read from a photo: the panel opens at it */
+  /** just read from a photo: the drawer opens at This puzzle, with the photo first */
   opened?: boolean;
+  /** the drawer's tab to open at (the publish page's Type: Types) */
+  startAt?: "types";
 }) {
   const pad = useRef<SketchpadHandle | null>(null);
   const navigate = useNavigate();
   const saver = useFetcher<{ ok?: boolean; error?: string }>();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  const [guide, setGuide] = useState(false);   // How to play: the type's guide, slid in from the right
 
   // ---- what's being made: the drawing, its type and settings, the title ----
   const [start, setStart] = useState<{ drawing: m.Drawing; key: number }>({ drawing: saved?.drawing ?? m.EMPTY, key: 0 });
   const [drawing, setDrawing] = useState<m.Drawing>(start.drawing);
   const [genre, setGenre] = useState<GenreName | null>(saved?.genre ?? null);
   const [settings, setSettings] = useState<Settings>(saved?.settings ?? {});
-  const [title, setTitle] = useState(game.title);
+  const [title, setTitle] = useState(game.title);   // named on the publish page; kept with this browser's copy
   const [ready, setReady] = useState(false);
 
   // this browser's copy wins if the server never got it (a save cut off, offline)
@@ -127,15 +139,28 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
   const failed = saver.state === "idle" && !!saver.data && !saver.data.ok;
   const saveState = !ready ? "Saved" : saver.state !== "idle" ? "Saving…" : failed ? (typeof navigator !== "undefined" && !navigator.onLine ? "Offline, saved here" : "Couldn't save") : dirty ? "Saving…" : "Saved";
 
+  // ---- the drawer: This puzzle or Types; open, or folded to its strip (on a phone: a bottom sheet, closed) ----
+  const [drawer, setDrawer] = useState<{ open: boolean; tab: "puzzle" | "types" }>({ open: true, tab: startAt ?? (saved?.genre || opened ? "puzzle" : "types") });
+  const [about, setAbout] = useState<string | null>(null);   // a type's guide, shown in Types
+  const [ask, setAsk] = useState(0);                         // What type is this?, asked from the reminder
+  useEffect(() => {
+    if (isPhone()) setDrawer((d) => ({ ...d, open: !!startAt }));
+    else try { if (!startAt && localStorage.getItem(DRAWER_KEY) === "folded") setDrawer((d) => ({ ...d, open: false })); } catch { /* open */ }
+  }, []);
+  const openDrawer = (tab: "puzzle" | "types") => setDrawer({ open: true, tab });
+  const foldDrawer = (open: boolean) => {
+    setDrawer((d) => ({ ...d, open }));
+    if (!isPhone()) try { localStorage.setItem(DRAWER_KEY, open ? "open" : "folded"); } catch { /* this page only */ }
+  };
+
   // ---- the type ----
   const kit = genre ? kitFor(genre) : null;
   const typeName = genre ? kindName(genre) : "";
-  const [picking, setPicking] = useState<false | "list" | "ask">(false);
   const [touched, setTouched] = useState(false);   // the type was chosen here, not read from the photo
   const [reminder, setReminder] = useState(false);
   const [hops, setHops] = useState(0);   // the Type button's bounce, restarted each time
   const chooseType = (next: GenreName | null) => {
-    setPicking(false); setReminder(false);
+    setReminder(false);
     if (next === genre) return;
     setTouched(true);
     // settings that mean the same in the new type are kept; the grid takes the new type's look
@@ -144,17 +169,12 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
       setSettings(keep.length ? { ...settings, rules: keep } : (({ rules: _r, ...rest }) => rest)(settings));
       const look = kitFor(next)?.look;
       if (look) pad.current?.edit((d) => (d.grid && m.lookOf(d.grid) !== look ? m.setGrid(d, m.setLook(d.grid, look)) : d));
+      openDrawer("puzzle");
     }
     setGenre(next);
   };
-  const needType = () => { setReminder(true); setHops((n) => n + 1); };
-  // the reminder closes on the next click elsewhere
-  useEffect(() => {
-    if (!reminder) return;
-    const close = (e: PointerEvent) => { if (!(e.target as Element).closest(".paint-reminder, .paint-type")) setReminder(false); };
-    addEventListener("pointerdown", close);
-    return () => removeEventListener("pointerdown", close);
-  }, [reminder]);
+  /** Check or Publish with no type: Type bounces, and Types opens with the reminder at its top. */
+  const needType = () => { setReminder(true); setHops((n) => n + 1); setAbout(null); openDrawer("types"); };
 
   // ---- the puzzle, and the verdict ----
   const conv = useMemo(() => (genre ? convert(drawing, genre, settings) : null), [drawing, genre, settings]);
@@ -169,23 +189,27 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
   const digits = puzzle?.marks.includes("digit") && puzzle.digits ? `${symbolOf(puzzle, 1)} to ${symbolOf(puzzle, puzzle.digits)}` : undefined;
   const list = useMemo(() => checkList(conv, { digits, differences: diffs }), [conv, digits, diffs]);
 
-  // ---- the Check panel and what's selected in it ----
-  const [panel, setPanel] = useState<"open" | "min" | "closed">(photo ? (opened ? "open" : "min") : "closed");
+  // ---- what's selected on the paper ----
   const [selected, setSelected] = useState<number | null>(null);
-  const [onBoard, setOnBoard] = useState(false);
+  const [onBoard, setOnBoard] = useState(false);   // the solution drawn on the board, while it's pointed at
   const chosen = list.find((x) => x.n === selected) ?? null;
   useEffect(() => { if (selected !== null && !chosen) setSelected(null); }, [selected, chosen]);
+  /** The Check button: This puzzle, at the first broken rule. */
   const check = () => {
     if (!genre) { needType(); return; }
-    setPanel("open");
-    setPhotoOpen(false);   // the photo folds to its header above Check's results
+    openDrawer("puzzle");
     setDoubtSel(null);
     const first = list.find((x) => x.kind === "rule" || x.kind === "difference");
     if (first && selected === null) setSelected(first.n);
   };
   const next = () => { if (list.length) setSelected(((chosen?.n ?? 0) % list.length) + 1); };
+  /** A problem or doubt picked in the drawer: marked on the paper (on a phone the sheet makes way). */
+  const pick = (n: number | null, doubt: number | null) => {
+    setSelected(n); setDoubtSel(doubt);
+    if ((n !== null || doubt !== null) && isPhone()) setDrawer((d) => ({ ...d, open: false }));
+  };
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setSelected(null); setDoubtSel(null); setReminder(false); setPicking(false); } };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setSelected(null); setDoubtSel(null); setReminder(false); } };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
   }, []);
@@ -193,6 +217,7 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
   const [publishing, setPublishing] = useState(false);
   const publish = () => {
     if (!genre) { needType(); return; }
+    if (!passes(verdict)) { check(); return; }
     if (dirty && saver.state === "idle") save();
     setPublishing(true);
   };
@@ -202,7 +227,6 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
   }, [publishing, dirty, saver.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- the photo, and what Claude wasn't sure of (amber, lettered) ----
-  const [photoOpen, setPhotoOpen] = useState(true);
   const [doubtSel, setDoubtSel] = useState<number | null>(null);
   const [done, setDone] = useState<boolean[]>(() => (photo?.doubts ?? []).map((x) => !!x.done));
   const ticker = useFetcher();
@@ -245,125 +269,183 @@ export function Paint({ game, saved, backTo, admin = false, photo = null, choice
       onErase={chosen.kind === "misfit" && chosen.items.length ? () => { pad.current?.edit((d) => m.remove(d, chosen.items)); setSelected(null); } : undefined} />,
   } : null;
 
-  // ---- the Check panel ----
+  // ---- This puzzle: the checklist ----
   const story = verdictStory(verdict, genre);
-  const tone = words.tone === "ok" ? "ok" : words.tone === "bad" ? "bad" : "wait";
-  const errors = list.filter((x) => x.kind === "rule" || x.kind === "difference"), fixes = list.filter((x) => x.kind === "fix"), misfits = list.filter((x) => x.kind === "misfit");
+  const tone = words.tone;
+  const mark = tone === "ok" ? "✓" : tone === "bad" ? "✕" : tone === "wait" ? "…" : "";
+  const lines = useMemo(() => (genre ? checklist(genre, ruleLines[genre] ?? [], conv?.spec ?? null, list, verdict) : null), [genre, ruleLines, conv, list, verdict]);
+  const size: [number, number] | null = g ? [g.rows, g.cols] : null;
+  const settingNames = genre ? settingRules(genre, size) : [];
+  const placed = new Set<string>();
+  const settingsOn = (l: ChecklistLine) => {
+    const here = settingNames.filter((r) => l.checks.includes(r) && !placed.has(r));
+    here.forEach((r) => placed.add(r));
+    return here.length && genre ? <RuleSettings genre={genre} settings={settings} size={size} onChange={setSettings} rules={here} /> : null;
+  };
   const solution = (verdict.kind === "one" || verdict.kind === "solvable") && puzzle && boards[0] ? pictureSvg(puzzle, boards[0], "A solution") : "";
-  const row = (x: CheckItem) => (
+  const problem = (x: CheckItem) => (
     <li key={x.n}>
-      <button type="button" className={`paint-item ${x.kind}`} aria-pressed={chosen?.n === x.n} onClick={() => { setDoubtSel(null); setSelected(chosen?.n === x.n ? null : x.n); }}>
+      <button type="button" className={`paint-prob ${x.kind}`} aria-pressed={chosen?.n === x.n} onClick={() => pick(chosen?.n === x.n ? null : x.n, null)}>
         <span className="paint-n" aria-hidden="true">{x.n}</span>
-        <span><span className="paint-place">{x.place}</span><span className="paint-text">{x.text}</span></span>
+        <span className="paint-text">{x.text}</span>
+        <span className="paint-go">{x.place}</span>
       </button>
     </li>
   );
-  const panelNode = panel === "closed" ? null : panel === "min" ? (
-    <button type="button" className="paint-check-tab" onClick={() => setPanel("open")} aria-label={`Check: ${list.length} to look at`}>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg>{photo ? "Photo & check" : "Check"}{list.length + openDoubts > 0 && <span className="paint-count">{list.length + openDoubts}</span>}
-    </button>
-  ) : (
-    <section className="paint-check" aria-label="Check">
-      <div className="paint-check-head">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg><strong>{photo ? "Photo & check" : "Check"}</strong>
-        <button type="button" className="sp-btn" aria-label="Minimise" onClick={() => setPanel("min")}>−</button>
+  const line = (l: ChecklistLine, k: number) => (
+    <li key={k} className={`paint-line ${l.mark}`} data-mark={l.mark}>
+      <span className="paint-st" aria-label={l.mark === "ok" ? "Holds" : l.mark === "bad" ? "Broken" : l.mark === "wait" ? "Checking" : "Not yet"}>
+        {l.mark === "ok" ? "✓" : l.mark === "bad" ? "✕" : l.mark === "wait" ? "…" : "–"}</span>
+      <span className="paint-line-text">{l.text}{l.note && <small>{l.note}</small>}</span>
+      {(settingNames.length > 0 || l.items.length > 0) && <div className="paint-line-more">
+        {settingsOn(l)}
+        {l.items.length > 0 && <ol className="paint-probs">{l.items.map(problem)}</ol>}
+      </div>}
+    </li>
+  );
+  const photoCard = photo && (
+    <section className="paint-photo" aria-label="Your photo">
+      <div className="paint-photo-card">
+        <a href={photo.src} target="_blank" rel="noreferrer" className="paint-photo-img"><img src={photo.src} alt="Your photo of the puzzle" /></a>
+        <span><b>From your photo</b><span className="muted">{photo.readAs ? `Claude read it as ${kindName(photo.readAs)}` : "Claude read it"}{g ? `, ${g.rows} × ${g.cols}` : ""}. Check what it wasn&rsquo;t sure of against the paper.</span></span>
       </div>
-      <div className="paint-check-body">
-        {photo && (
-          <details className="paint-photo" open={photoOpen} onToggle={(e) => setPhotoOpen(e.currentTarget.open)}>
-            <summary><span>Your photo</span><span className="muted">{photo.readAs ? `Claude read it as ${kindName(photo.readAs)}` : "Claude read it"}{g ? `, ${g.rows} × ${g.cols}` : ""}</span></summary>
-            <a href={photo.src} target="_blank" rel="noreferrer" className="paint-photo-img"><img src={photo.src} alt="Your photo of the puzzle" /></a>
-            <div className="paint-group"><h3>Claude wasn&rsquo;t sure<span>{doubts.length ? `${doubts.length - openDoubts} of ${doubts.length} checked` : "of nothing"}</span></h3>
-              {doubts.length ? (
-                <ol className="paint-doubts">{doubts.map((x, i) => (
-                  <li key={i} className={done[i] ? "done" : ""}>
-                    <button type="button" className="paint-item doubt" aria-pressed={doubtSel === i} disabled={done[i]}
-                      onClick={() => { setSelected(null); setDoubtSel(doubtSel === i ? null : i); }}>
-                      <span className="paint-n" aria-hidden="true">{letter(i)}</span>
-                      <span><span className="paint-place">{doubtPlace(x) || "The whole puzzle"}</span><span className="paint-text">{x.text}</span></span>
-                    </button>
-                    <label className="paint-tick" title="Checked: it matches your drawing"><input type="checkbox" checked={done[i]} onChange={(e) => tick(i, e.target.checked)} /><span className="visually-hidden">Checked</span></label>
-                  </li>
-                ))}</ol>
-              ) : <p className="paint-quiet">It read everything clearly.</p>}
-            </div>
-          </details>
-        )}
-        <div className={`paint-verdict ${tone}`} role="status" data-verdict={verdict.kind}>
-          <span className="paint-verdict-mark" aria-hidden="true">{tone === "ok" ? "✓" : tone === "bad" ? "✕" : "…"}</span>
-          <span><strong>{story.title}</strong><span>{story.text}</span></span>
-        </div>
-        {solution && <>
-          <div className="grid-game paint-solution" dangerouslySetInnerHTML={{ __html: solution }} />
-          <label className="paint-switch"><span>Draw it on the board</span><input type="checkbox" role="switch" checked={onBoard} onChange={(e) => setOnBoard(e.target.checked)} /></label>
-        </>}
-        {verdict.kind === "several" && diffs.length > 0 && !chosen && (
-          <button type="button" className="btn paint-diff" onClick={() => setSelected(errors.find((x) => x.kind === "difference")?.n ?? null)}>Show a difference</button>
-        )}
-        {errors.length > 0 && <div className="paint-group"><h3>{verdict.kind === "several" ? "Differences" : "Broken rules"}<span>{errors.length}</span></h3><ol>{errors.map(row)}</ol></div>}
-        {fixes.length > 0 && <div className="paint-group"><h3>To fix<span>{fixes.length}</span></h3><ol>{fixes.map(row)}</ol></div>}
-        <div className="paint-group"><h3>Doesn&rsquo;t fit<span>{misfits.length || "nothing"}</span></h3>
-          {misfits.length ? <ol>{misfits.map(row)}</ol> : <p className="paint-quiet">Everything on the page is part of the puzzle.</p>}</div>
-      </div>
+      <h3 className="paint-h3">To check<span>{doubts.length ? `${doubts.length - openDoubts} of ${doubts.length} checked` : "nothing"}</span></h3>
+      {doubts.length ? (
+        <ol className="paint-doubts">{doubts.map((x, i) => (
+          <li key={i} className={done[i] ? "done" : ""}>
+            <button type="button" className="paint-prob doubt" aria-pressed={doubtSel === i} disabled={done[i]}
+              onClick={() => pick(null, doubtSel === i ? null : i)}>
+              <span className="paint-n" aria-hidden="true">{letter(i)}</span>
+              <span className="paint-text">{x.text}<small>{doubtPlace(x) || "The whole puzzle"}</small></span>
+            </button>
+            <label className="paint-tick" title="Checked: it matches your drawing"><input type="checkbox" checked={done[i]} onChange={(e) => tick(i, e.target.checked)} /><span className="visually-hidden">Checked</span></label>
+          </li>
+        ))}</ol>
+      ) : <p className="paint-quiet">Claude read everything clearly.</p>}
     </section>
   );
-
-  const chip = (
-    <button type="button" className={`paint-chip ${words.tone}`} onClick={check} data-verdict={verdict.kind} title="Check">
-      {words.tone === "ok" ? "✓ " : words.tone === "bad" ? "⚠ " : ""}{words.text}
-    </button>
+  const thisPuzzle = (
+    <div className="paint-puzzle">
+      {photoCard}
+      {!genre ? <>
+        <header className="paint-head"><h2>No type yet</h2></header>
+        <p className="paint-sub">{verdictStory(verdict, null).text}</p>
+        <button type="button" className="btn primary paint-choose" onClick={() => openDrawer("types")}>Choose a type</button>
+      </> : <>
+        <header className="paint-head">
+          <h2>{typeName}{size && <small> · {size[0]} × {size[1]}</small>}</h2>
+          <span className={`paint-pill ${tone}`} role="status" data-verdict={verdict.kind}>{mark && <>{mark} </>}{words.text}</span>
+        </header>
+        <p className="paint-sub">{story.text}</p>
+        {lines && <>
+          <h3 className="paint-h3">Rules<span>{lines.broken ? `${lines.broken} of ${lines.rules.length} broken` : genre === "panel" ? "for the symbols you used" : ""}</span></h3>
+          <ol className="paint-checklist" aria-label="Rules">{lines.rules.map(line)}</ol>
+          {settingNames.some((r) => !placed.has(r)) && (
+            <div className="paint-settings"><RuleSettings genre={genre} settings={settings} size={size} onChange={setSettings} rules={settingNames.filter((r) => !placed.has(r))} /></div>
+          )}
+          <h3 className="paint-h3">Your drawing</h3>
+          <ol className="paint-checklist" aria-label="Your drawing">{line(lines.drawing, 0)}</ol>
+        </>}
+        {solution && (
+          <section className="paint-sol" aria-label="A solution">
+            <h3 className="paint-h3">{verdict.kind === "one" ? "The solution" : "A solution"}</h3>
+            <div className="grid-game paint-solution" tabIndex={0} aria-label="Point at it to draw it on the board"
+              onPointerEnter={() => setOnBoard(true)} onPointerLeave={() => setOnBoard(false)} onFocus={() => setOnBoard(true)} onBlur={() => setOnBoard(false)}
+              onClick={() => setOnBoard((v) => !v)} dangerouslySetInnerHTML={{ __html: solution }} />
+            <p className="paint-quiet">Pointing at it draws it on the board.</p>
+          </section>
+        )}
+        <MoreSettings genre={genre} settings={settings} size={size} onChange={setSettings} admin={admin} />
+        <footer className="paint-foot">
+          <button type="button" className="paint-link" onClick={() => { setAbout(genre); openDrawer("types"); }}><SpIcon name="guide" />More about {typeName}</button>
+          <span className="muted">{size ? `Size ${size[0]} × ${size[1]}, from the grid` : "Draw a grid"}</span>
+        </footer>
+      </>}
+    </div>
   );
-  const misfitCount = misfits.length + fixes.length + openDoubts;
+  const reminderBox = reminder && !genre && (
+    <div className="paint-reminder" role="alert" aria-labelledby="paint-reminder-h">
+      <span className="paint-reminder-ic" aria-hidden="true">!</span>
+      <span><strong id="paint-reminder-h">Choose a type first</strong>
+        <span>Check and Publish need to know what kind of puzzle this is: its rules decide what counts as a solution.</span>
+        <button type="button" className="btn" onClick={() => setAsk((n) => n + 1)}>What type is this?</button></span>
+    </div>
+  );
+  const types = (
+    <TypePicker current={genre} onChoose={chooseType} ask={ask} drawing={drawing} settings={settings} choices={choices}
+      about={about} onAbout={setAbout} top={reminderBox} />
+  );
+
+  // ---- the drawer, or its strip ----
+  const toCheck = (lines?.drawing.items.length ?? 0) + openDoubts;
+  const brokenWords = !genre ? "no type yet" : lines?.broken ? `${lines.broken} broken rule${lines.broken === 1 ? "" : "s"}` : words.text;
+  const drawerNode = <>
+    {drawer.open ? (
+      <aside className="paint-drawer" aria-label="This puzzle and types">
+        <div className="paint-tabs" role="tablist" aria-label="Drawer">
+          <button type="button" role="tab" id="paint-tab-puzzle" aria-controls="paint-tabpanel" aria-selected={drawer.tab === "puzzle"} className="paint-tab" onClick={() => openDrawer("puzzle")}>
+            <SpIcon name="checklist" />This puzzle{genre && tone !== "none" && <span className={`paint-dot ${tone}`} aria-hidden="true" />}</button>
+          <button type="button" role="tab" id="paint-tab-types" aria-controls="paint-tabpanel" aria-selected={drawer.tab === "types"} className="paint-tab" onClick={() => openDrawer("types")}>
+            <SpIcon name="types" />Types</button>
+          <span className="paint-tabs-grow" />
+          <button type="button" className="sp-btn paint-drawer-fold" aria-label="Collapse the drawer" onClick={() => foldDrawer(false)}><SpIcon name="unfold" /></button>
+          <button type="button" className="sp-btn paint-drawer-close" aria-label="Close" onClick={() => foldDrawer(false)}><SpIcon name="close" /></button>
+        </div>
+        <div className="paint-drawer-body" role="tabpanel" id="paint-tabpanel" aria-labelledby={drawer.tab === "puzzle" ? "paint-tab-puzzle" : "paint-tab-types"}>
+          {drawer.tab === "puzzle" ? thisPuzzle : types}
+        </div>
+      </aside>
+    ) : (
+      <nav className="paint-strip" aria-label="This puzzle and types, folded">
+        <button type="button" className="sp-btn sp-tip" aria-label="Open the drawer" data-tip="Open" onClick={() => foldDrawer(true)}><SpIcon name="fold" /></button>
+        <span className="paint-strip-sep" />
+        <button type="button" className="sp-btn sp-tip" aria-label={`This puzzle: ${words.text}`} data-tip="This puzzle" onClick={() => openDrawer("puzzle")}>
+          <SpIcon name="checklist" />{genre && tone !== "none" && <span className={`paint-badge ${tone}`}>{tone === "ok" ? "✓" : tone === "bad" ? "✕" : "…"}</span>}</button>
+        {toCheck > 0 && <button type="button" className="sp-btn sp-tip" aria-label={`${toCheck} to check`} data-tip="To check" onClick={() => openDrawer("puzzle")}>
+          <SpIcon name="warn" /><span className="paint-badge warn">{toCheck}</span></button>}
+        <span className="paint-strip-sep" />
+        <button type="button" className="sp-btn sp-tip" aria-label="Types" data-tip="Types" onClick={() => { setAbout(null); openDrawer("types"); }}><SpIcon name="types" /></button>
+        {genre && <button type="button" className="sp-btn sp-tip" aria-label={`More about ${typeName}`} data-tip={`About ${typeName}`} onClick={() => { setAbout(genre); openDrawer("types"); }}><SpIcon name="guide" /></button>}
+      </nav>
+    )}
+    {/* a phone: the sheet's handle above the palette, and the scrim behind the open sheet */}
+    {!drawer.open && (
+      <button type="button" className="paint-sheet-handle" onClick={() => (genre ? check() : openDrawer("types"))}>
+        <SpIcon name="checklist" /><span>This puzzle · <b className={tone}>{brokenWords}</b></span>
+      </button>
+    )}
+    {drawer.open && <div className="paint-scrim" aria-hidden="true" onClick={() => foldDrawer(false)} />}
+  </>;
 
   return (
     <div className="studio sp-studio paint">
       <header className="studio-top">
         <div className="studio-left">
           <Link className="studio-back" to={backTo} aria-label="Back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
-          <input className="paint-title" aria-label="Title" value={title} maxLength={120} placeholder="Untitled"
-            onChange={(e) => setTitle(e.target.value)} onFocus={(e) => title === "Untitled" && e.currentTarget.select()} size={Math.max(6, Math.min(28, title.length + 1))} />
-          <div className="paint-type-wrap">
-            <button key={hops} type="button" className={`paint-type${genre ? "" : " unset"}${hops ? " bounce" : ""}${reminder ? " ringed" : ""}`}
-              aria-haspopup="dialog" aria-expanded={!!picking} onClick={() => { setPicking(picking ? false : "list"); setReminder(false); }}>
-              <span className="paint-type-label">{photo && genre && genre === photo.readAs && !touched ? "Type · read from the photo" : "Type"}</span><span className="paint-type-name">{genre ? typeName : "Not set"}</span>
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-            {reminder && (
-              <div className="paint-reminder" role="alertdialog" aria-labelledby="paint-reminder-h">
-                <strong id="paint-reminder-h">Choose a type first</strong>
-                <p>Check and Publish need to know what kind of puzzle this is: its rules decide what counts as a solution.</p>
-                <div className="paint-reminder-actions">
-                  <button type="button" className="btn primary" onClick={() => { setReminder(false); setPicking("list"); }}>Choose a type</button>
-                  <button type="button" className="btn" onClick={() => { setReminder(false); setPicking("ask"); }}>What type is this?</button>
-                </div>
-              </div>
-            )}
-            {picking && <TypePicker current={genre} onChoose={chooseType} onClose={() => setPicking(false)}
-              ask={picking === "ask"} drawing={drawing} settings={settings} choices={choices} />}
-          </div>
+          <span className="paint-title" title={title || "Untitled"}>{title || "Untitled"}</span>
           <span className={`paint-saved${saveState === "Saved" ? " ok" : failed ? " bad" : ""}`} aria-live="polite">{saveState}</span>
+          <button key={hops} type="button" className={`paint-type${genre ? "" : " unset"}${hops ? " bounce" : ""}${reminder && !genre ? " ringed" : ""}`}
+            aria-expanded={drawer.open && drawer.tab === "types"} aria-controls="paint-tabpanel" onClick={() => { setAbout(null); openDrawer("types"); }}>
+            <span className="paint-type-label">Type:</span><span className="paint-type-name">{genre ? typeName : "Not set"}</span>
+            {photo && genre && genre === photo.readAs && !touched && <span className="paint-type-from">· from the photo</span>}
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+          </button>
         </div>
         <div className="studio-actions">
           <span ref={setSlot} className="sp-doc-slot" />
-          <button type="button" className="btn rules-toggle sp-head-btn paint-howto" aria-pressed={guide} onClick={() => setGuide(!guide)}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">{["M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z", "M4 21V5", "M8 7h7", "M8 11h5"].map((d) => <path key={d} d={d} />)}</svg>
-            <span>{genre ? "How to play" : "Puzzle types"}</span></button>
-          <button type="button" className="btn paint-check-btn" aria-label="Check" aria-disabled={!genre || undefined} onClick={check}
-            title={genre ? "Check: is it a puzzle, with one solution?" : "Choose a type first"}>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7" /></svg><span>Check</span></button>
-          <button type="button" className="btn primary paint-publish" aria-disabled={!genre || undefined} aria-busy={publishing || undefined} onClick={publish}
-            title={!genre ? "Choose a type first" : passes(verdict) ? "Publish it" : "Publishing needs the verdict to pass"}>Publish</button>
+          <button type="button" className={`paint-verdict-btn ${tone}`} aria-disabled={!genre || undefined} aria-pressed={drawer.open && drawer.tab === "puzzle"} onClick={check}
+            data-verdict={verdict.kind} title={genre ? "This puzzle: its rules, and whether it has one solution" : "Choose a type first"}>
+            <span className="paint-verdict-mark" aria-hidden="true">{mark || "✓"}</span>{words.text}</button>
+          <button type="button" className="btn primary paint-publish" aria-disabled={!passes(verdict) || undefined} aria-busy={publishing || undefined} onClick={publish}
+            title={!genre ? "Choose a type first" : passes(verdict) ? "Name it, play it, and publish it" : "Publishing needs the verdict to pass"}>Publish</button>
         </div>
       </header>
       {ready && (
         <Sketchpad key={start.key} handle={pad} initial={start.drawing} storageKey={null} onChange={setDrawing} actions={slot}
-          kit={kit} typeName={typeName} underlay={underlay} overlay={overlay} tip={tip} panel={panelNode}
-          onPaper={() => setReminder(false)}
-          chips={<>{chip}{misfitCount > 0 && <button type="button" className="paint-chip todo" onClick={check}><span className="paint-count">{misfitCount}</span>to check</button>}</>}
-          side={genre && <PaintRules genre={genre} settings={settings} size={g ? [g.rows, g.cols] : null} onChange={setSettings} onGuide={() => setGuide(true)} admin={admin} />} />
+          kit={kit} typeName={typeName} underlay={underlay} overlay={overlay} tip={tip} drawer={drawerNode}
+          onPaper={() => setReminder(false)} filename={`${(title || "puzzle").replace(/[^\w-]+/g, "-").toLowerCase()}.png`} />
       )}
       {saver.data?.error && <p className="sp-error" role="alert">{saver.data.error}</p>}
-      <GuidePane key={genre ?? "all"} side start={genre ?? undefined} open={guide} onClose={() => setGuide(false)} />
     </div>
   );
 }

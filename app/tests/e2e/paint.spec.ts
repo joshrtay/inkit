@@ -40,14 +40,19 @@ async function write(page: Page, r: number, c: number, text: string) {
   await box.fill(text);
   await box.press("Enter");
 }
+/** The drawer's tabs and the verdict button (docs/creation-flow.md, "v3 layout"). */
+const tab = (page: Page, name: "This puzzle" | "Types") => page.getByRole("tab", { name });
+const verdict = (page: Page) => page.locator(".paint-verdict-btn");
 async function chooseType(page: Page, name: RegExp) {
   await page.locator(".paint-type").click();
-  const picker = page.getByRole("dialog", { name: "Puzzle type" });
-  await expect(picker.getByRole("button", { name }).first()).toBeVisible();
-  await picker.getByRole("button", { name }).first().click();
-  await expect(picker).toHaveCount(0);
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  const list = page.locator(".paint-type-list");
+  await expect(list.getByRole("button", { name }).first()).toBeVisible();
+  await list.getByRole("button", { name }).first().click();
+  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
 }
-const chip = (page: Page) => page.locator(".paint-chip").first();
+/** A problem in This puzzle: a link that points at the canvas. */
+const problem = (page: Page, name: RegExp) => page.locator(".paint-drawer").getByRole("button", { name });
 
 test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all survives a reload", async ({ page }) => {
   const errors: string[] = [];
@@ -56,11 +61,11 @@ test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all s
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
 
-  // no type yet: Check and Publish look disabled, and say so when clicked
-  const check = page.getByRole("button", { name: "Check", exact: true }), publish = page.getByRole("button", { name: "Publish", exact: true });
-  await expect(check).toHaveAttribute("aria-disabled", "true");
+  // no type yet: Check and Publish look disabled
+  const publish = page.getByRole("button", { name: "Publish", exact: true });
+  await expect(verdict(page)).toHaveText(/Check/);
+  await expect(verdict(page)).toHaveAttribute("aria-disabled", "true");
   await expect(publish).toHaveAttribute("aria-disabled", "true");
-  await expect(chip(page)).toHaveText("No type yet, so nothing to check");
 
   // a 6 × 6 grid (288 units: six of a board's 48-unit squares)
   await drag(page, [60, 60], [348, 348]);
@@ -69,32 +74,51 @@ test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all s
 
   await chooseType(page, /^Sudoku/);
   await expect(page.locator(".paint-type-name")).toHaveText("Sudoku");
-  await expect(check).not.toHaveAttribute("aria-disabled", "true");
-  await expect(publish).not.toHaveAttribute("aria-disabled", "true");
+  await expect(verdict(page)).not.toHaveAttribute("aria-disabled", "true");
   // the type's tools only, and All tools for the rest
   await expect(page.locator(".sp-tools .sp-tool")).toHaveCount(3);
   await expect(page.locator(".sp-tools").getByRole("button", { name: "Pen", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "Sudoku rules" })).toBeVisible();
+  // This puzzle: the guide's rules as a checklist, with the solution line last
+  const rules = page.getByRole("list", { name: "Rules" });
+  await expect(rules.locator(".paint-line")).toHaveCount(3);
+  await expect(rules.locator(".paint-line").first()).toContainText("Every row and every column has each digit once.");
+  await expect(rules.locator(".paint-line").last()).toContainText("Exactly one solution");
+  // the box rule carries its setting
+  await expect(rules.locator(".paint-line").nth(1).getByRole("group", { name: "Box shape" })).toBeVisible();
 
-  // a conflicting digit: No solution at once, the rule listed and marked
+  // a conflicting digit: No solution at once, the rule crossed with its problem under it
   await tool(page, "Text");
   await write(page, 0, 3, "2");
   await write(page, 5, 0, "5");
   await write(page, 5, 4, "5");
-  await expect(chip(page)).toHaveText(/No solution · 1 broken rule/);
-  await chip(page).click();
-  const panel = page.getByRole("region", { name: "Check" });
-  await expect(panel.locator(".paint-verdict")).toContainText("No solution");
-  await expect(panel.getByRole("button", { name: /Two 5s in row 6/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(verdict(page)).toHaveText(/No solution/);
+  await expect(publish).toHaveAttribute("aria-disabled", "true");
+  await verdict(page).click();
+  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".paint-pill")).toContainText("No solution");
+  const latin = rules.locator(".paint-line").first();
+  await expect(latin).toHaveAttribute("data-mark", "bad");
+  await expect(latin.getByRole("button", { name: /Two 5s in row 6/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(rules.locator(".paint-line").last()).toHaveAttribute("data-mark", "none");
   await expect(page.locator(".sp-mark.selected .sp-mark-ring")).toHaveCount(2);
   await expect(page.locator(".paint-tip")).toContainText("Each row holds 1 to 6 once");
   await shot(page, "3-broken-rule");
 
-  // fixed: the verdict updates (a few clues: several solutions), and Check offers a difference
+  // the error link points at the canvas: off, then on again, its mark selected on the paper
+  await problem(page, /Two 5s in row 6/).click();
+  await expect(page.locator(".sp-mark.selected")).toHaveCount(0);
+  await expect(page.locator(".paint-tip")).toHaveCount(0);
+  await problem(page, /Two 5s in row 6/).click();
+  await expect(page.locator('.sp-mark.selected[data-n="1"] .sp-mark-ring')).toHaveCount(2);
+  await expect(page.locator(".sp-paper-tip .paint-tip")).toBeVisible();
+
+  // fixed: the verdict updates (a few clues: several solutions), the difference under the solution line
   await write(page, 5, 4, "3");
-  await expect(chip(page)).toHaveText(/Several solutions/, { timeout: 15_000 });
-  await expect(panel.locator(".paint-verdict")).toContainText("Several solutions");
-  await panel.getByRole("button", { name: "Show a difference" }).click();
+  await expect(verdict(page)).toHaveText(/Several solutions/, { timeout: 15_000 });
+  await expect(latin).toHaveAttribute("data-mark", "ok");
+  const last = rules.locator(".paint-line").last();
+  await expect(last).toHaveAttribute("data-mark", "bad");
+  await last.getByRole("button", { name: /can be a .+ or a/ }).first().click();
   await expect(page.locator(".paint-tip")).toContainText(/can be a .+ or a/);
   await shot(page, "4-several");
 
@@ -111,33 +135,35 @@ test("a 6 × 6 Sudoku: type, a broken rule found and marked, fixed, and it all s
   await page.reload();
   await expect(page.locator(".paint-type-name")).toHaveText("Sudoku");
   await expect(page.locator(".sp-board text.sp-text")).toHaveCount(3);
-  await expect(chip(page)).toHaveText(/Several solutions/, { timeout: 15_000 });
+  await expect(verdict(page)).toHaveText(/Several solutions/, { timeout: 15_000 });
   expect(errors).toEqual([]);
 });
 
-test("Check and Publish without a type: the reminder, and the Type button bounces", async ({ page }) => {
+test("Check and Publish without a type: the reminder in Types, and the Type button bounces", async ({ page }) => {
   const id = blankDraft("remind");
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
+  // with no type the drawer starts at Types; This puzzle says there's nothing to check yet
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  await tab(page, "This puzzle").click();
+  await expect(page.locator(".paint-puzzle")).toContainText("No type yet");
   // aria-disabled, not disabled: they still take a click (force: Playwright waits for "enabled" otherwise)
-  await page.getByRole("button", { name: "Check", exact: true }).click({ force: true });
-  await expect(page.getByRole("alertdialog", { name: "Choose a type first" })).toBeVisible();
+  await verdict(page).click({ force: true });
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("alert").filter({ hasText: "Choose a type first" })).toBeVisible();
   await expect(page.locator(".paint-type")).toHaveClass(/bounce/);
   await expect(page.locator(".paint-type")).toHaveClass(/ringed/);
   await shot(page, "2-needs-type");
-  // a click elsewhere closes it; Publish opens it again
-  await page.locator(".sp-status-facts").click();
-  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  // Publish does the same, from This puzzle
+  await tab(page, "This puzzle").click();
   await page.getByRole("button", { name: "Publish", exact: true }).click({ force: true });
-  await expect(page.getByRole("alertdialog", { name: "Choose a type first" })).toBeVisible();
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("alert").filter({ hasText: "Choose a type first" })).toBeVisible();
   await expect(page.locator(".paint-type")).toHaveClass(/bounce/);
-  // Choose a type opens the picker
-  await page.getByRole("alertdialog").getByRole("button", { name: "Choose a type" }).click();
-  await expect(page.getByRole("dialog", { name: "Puzzle type" })).toBeVisible();
   expect(saved(id).drawing).toBeNull();   // nothing drawn, nothing saved
 });
 
-test("a Panel on tracks, with a start and an end, is Solvable", async ({ page }) => {
+test("a Panel on tracks, with a start and an end, is Solvable; its solution shows on the board while pointed at", async ({ page }) => {
   const id = blankDraft("panel");
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
@@ -147,42 +173,131 @@ test("a Panel on tracks, with a start and an end, is Solvable", async ({ page })
   // the grid takes the panel's look: tracks
   await expect.poll(() => page.locator(".sp-board .panel-track").count()).toBeGreaterThan(0);
   await expect(page.locator(".sp-tools .sp-tool")).toHaveCount(3);
-  await page.getByRole("button", { name: "Start", exact: true }).click();
+  // the Stamp palette: the panel's stamps and their colours
+  await tool(page, "Stamp");
+  const palette = page.getByRole("region", { name: "Stamp options" });
+  await palette.getByRole("button", { name: "Start", exact: true }).click();
   await tap(page, 60, 252);
-  await page.getByRole("button", { name: "End", exact: true }).click();
+  await palette.getByRole("button", { name: "End", exact: true }).click();
   await tap(page, 252, 60);
-  await page.getByRole("button", { name: "Stone", exact: true }).click();
+  await palette.getByRole("button", { name: "Stone", exact: true }).click();
+  await expect(palette.getByRole("group", { name: "Stone colour" })).toBeVisible();
   await tap(page, ...sq(1, 1));
-  await expect(chip(page)).toHaveText(/Solvable/, { timeout: 15_000 });
-  await page.getByRole("button", { name: "Check", exact: true }).click();
-  const panel = page.getByRole("region", { name: "Check" });
-  await expect(panel.locator(".paint-verdict")).toContainText("Solvable");
-  await expect(panel.locator(".paint-solution svg")).toBeVisible();
-  await panel.getByRole("switch", { name: "Draw it on the board" }).check();
+  await expect(verdict(page)).toHaveText(/Solvable/, { timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Publish", exact: true })).not.toHaveAttribute("aria-disabled", "true");
+  await verdict(page).click();
+  const rules = page.getByRole("list", { name: "Rules" });
+  // the line, the squares (the stone), and At least one solution: no lines for symbols it doesn't use
+  await expect(rules.locator(".paint-line")).toHaveCount(3);
+  await expect(rules.locator(".paint-line").last()).toContainText("At least one solution");
+  await expect(rules.locator('.paint-line[data-mark="ok"]')).toHaveCount(3);
+  // the line rule carries the panel's Lines setting
+  await expect(rules.locator(".paint-line").first().locator(".paint-field, .paint-switch").first()).toBeVisible();
+  const solution = page.locator(".paint-solution");
+  await expect(solution.locator("svg")).toBeVisible();
+  await expect(page.locator(".sp-solution")).toHaveCount(0);
+  await solution.hover();
   await expect.poll(() => page.locator(".sp-solution .sp-sol-line").count()).toBeGreaterThan(2);
   await shot(page, "5-panel-solvable");
-  // a number doesn't fit a panel: flagged, and left out
+  await page.locator(".sp-status").hover();
+  await expect(page.locator(".sp-solution")).toHaveCount(0);
+  // a number doesn't fit a panel: flagged under Your drawing, and left out
   await page.getByRole("button", { name: "All tools" }).click();
   await tool(page, "Text");
   await write(page, 3, 3, "3");
-  await expect(panel.getByRole("button", { name: /isn't part of Panel/ })).toBeVisible();
-  await panel.getByRole("button", { name: /isn't part of Panel/ }).click();
+  const yours = page.getByRole("list", { name: "Your drawing" });
+  await expect(yours.getByRole("button", { name: /isn't part of Panel/ })).toBeVisible();
+  await yours.getByRole("button", { name: /isn't part of Panel/ }).click();
   await expect(page.locator(".sp-mark.misfit.selected .sp-mark-box")).toHaveCount(1);
-  await expect(chip(page)).toHaveText(/Solvable/);
+  await expect(verdict(page)).toHaveText(/Solvable/);
   await shot(page, "6-panel-doesnt-fit");
 });
 
-test("Panel minimised to a tab, and a phone's layout", async ({ page }) => {
+test("the palette stays put across tools and folds to a handle; the drawer folds to a strip; Type opens Types", async ({ page }) => {
+  const id = blankDraft("chrome");
+  await page.addInitScript(() => { if (!sessionStorage.getItem("keep")) { localStorage.removeItem("inkit:palette"); localStorage.removeItem("inkit:paint-drawer"); } });
+  await page.goto(`/g/${id}/draw`);
+  await expect(page.locator(".sp-board")).toBeVisible();
+  await page.getByRole("button", { name: "Add a grid" }).click();
+  // one place, whichever tool: the header names the tool, the contents swap
+  const palette = page.locator(".sp-palette");
+  const box0 = (await palette.boundingBox())!;
+  const places: { x: number; y: number }[] = [];
+  for (const [name, has] of [["Pen", "Pen weight"], ["Stamp", "Stamps"], ["Wash", "Wash colour"], ["Text", "Text size"], ["Eraser", null], ["Grid", "Grid look"]] as const) {
+    await tool(page, name);
+    await expect(palette.locator(".sp-pal-head strong")).toHaveText(name);
+    if (has) await expect(palette.getByRole("group", { name: has })).toBeVisible();
+    else await expect(palette).toContainText("rub it out");   // the eraser has nothing to set: its hint
+    const b = (await palette.boundingBox())!;
+    places.push({ x: Math.round(b.x), y: Math.round(b.y) });
+  }
+  expect(places.every((p) => p.x === Math.round(box0.x) && p.y === Math.round(box0.y))).toBe(true);
+
+  // folded to a handle, and kept so in this browser
+  await palette.getByRole("button", { name: "Hide the tool options" }).click();
+  await expect(palette).toBeHidden();
+  const handle = page.getByRole("button", { name: "Show the tool options" });
+  await expect(handle).toBeVisible();
+  await page.evaluate(() => sessionStorage.setItem("keep", "1"));
+  await page.reload();
+  await expect(handle).toBeVisible();
+  await expect(palette).toBeHidden();
+  await handle.click();
+  await expect(palette).toBeVisible();
+  await expect(handle).toHaveCount(0);
+
+  // the drawer folds to a strip of icons, and opens again
+  await page.getByRole("button", { name: "Collapse the drawer" }).click();
+  await expect(page.locator(".paint-drawer")).toHaveCount(0);
+  const strip = page.getByRole("navigation", { name: /folded/ });
+  await expect(strip).toBeVisible();
+  // both folded: the paper has the room
+  await palette.getByRole("button", { name: "Hide the tool options" }).click();
+  await shot(page, "8-folded");
+  await handle.click();
+  // Type opens the drawer at Types
+  await page.locator(".paint-type").click();
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator(".paint-type")).toHaveAttribute("aria-expanded", "true");
+  await page.locator(".paint-type-list").getByRole("button", { name: /^Akari/ }).first().click();
+  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
+  // More about: the type's guide in the drawer, with a way back
+  await page.locator(".paint-drawer").getByRole("button", { name: "More about Akari" }).click();
+  await expect(tab(page, "Types")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("region", { name: "About Akari" }).getByRole("heading", { name: "Akari" })).toBeVisible();
+  await page.getByRole("button", { name: "← All types" }).click();
+  await expect(page.locator(".paint-type-list")).toBeVisible();
+  // the strip's This puzzle opens it there
+  await page.getByRole("button", { name: "Collapse the drawer" }).click();
+  await strip.getByRole("button", { name: /This puzzle/ }).click();
+  await expect(tab(page, "This puzzle")).toHaveAttribute("aria-selected", "true");
+});
+
+test("a phone: the drawer as a bottom sheet with its handle, the palette a strip above the tools", async ({ page }) => {
   const id = blankDraft("phone");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
+  await expect(page.locator(".paint-drawer")).toHaveCount(0);
   await drag(page, [60, 60], [348, 348]);
   await chooseType(page, /^Sudoku/);
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.locator(".paint-drawer")).toHaveCount(0);
   await tool(page, "Text");
-  await write(page, 0, 0, "1");
-  await page.getByRole("button", { name: "Check", exact: true }).click();
-  await page.getByRole("button", { name: "Minimise" }).click();
-  await expect(page.locator(".paint-check-tab")).toBeVisible();
+  await expect(page.locator(".sp-palette").getByRole("group", { name: "Text size" })).toBeVisible();
+  await expect(page.locator(".sp-palette").getByRole("button", { name: "Undo" })).toBeVisible();
+  await write(page, 5, 0, "5");
+  await write(page, 5, 4, "5");
+  await expect(page.locator(".paint-sheet-handle")).toContainText("1 broken rule");
   await shot(page, "7-phone");
+  await verdict(page).click();
+  await expect(page.locator(".paint-drawer")).toBeVisible();
+  await expect(problem(page, /Two 5s in row 6/)).toHaveAttribute("aria-pressed", "true");
+  await shot(page, "7-phone-sheet");
+  // a problem tapped: the sheet makes way for the paper and its tip
+  await problem(page, /Two 5s in row 6/).click();
+  await problem(page, /Two 5s in row 6/).click();
+  await expect(page.locator(".paint-drawer")).toHaveCount(0);
+  await expect(page.locator(".paint-tip")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

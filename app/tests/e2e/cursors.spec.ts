@@ -104,6 +104,13 @@ test("the sketchpad: each tool its own cursor; the grid grabbed and stretched", 
     await expect.poll(() => cursor(paper), name).toBe(want);
   }
   expect(await cursor(page.locator(".sp-tools").getByRole("button", { name: "Pen", exact: true }))).toBe("pointer");
+  // the palette: its buttons the pointer, its labels and header only to look at
+  const palette = page.locator(".sp-palette");
+  await page.locator(".sp-tools").getByRole("button", { name: "Pen", exact: true }).click();
+  expect(await cursor(palette.getByRole("button", { name: "Bold" }))).toBe("pointer");
+  expect(await cursor(palette.getByRole("button", { name: "Hide the tool options" }))).toBe("pointer");
+  expect(await cursor(palette.locator(".sp-pal-label").first())).toBe("default");
+  expect(await cursor(palette.locator(".sp-pal-head strong"))).toBe("default");
 });
 
 test("settings: the choices get the pointer", async ({ page }) => {

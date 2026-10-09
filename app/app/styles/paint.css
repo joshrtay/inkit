@@ -1,26 +1,29 @@
-/* Paint as a game's editor (/g/<id>/draw: components/Paint.tsx), on top of the sketchpad's layout
-   (sketchpad.css): the top bar's title, Type button, its picker and reminder, Check and Publish;
-   the verdict chip; the Check panel over the workspace's left side; the marks on the paper and the
-   tip beside the selected one; the Rules panel on the right. */
+/* Paint as a game's editor (/g/<id>/draw: components/Paint.tsx; docs/creation-flow.md, "v3 layout"),
+   on top of the sketchpad's layout (sketchpad.css): the top bar's title, Type button, verdict button
+   and Publish; the drawer (This puzzle and Types; its strip; a bottom sheet on a phone); the marks
+   on the paper and the tip beside the selected one. The publish page (/g/<id>/publish) shares the
+   top bar. */
 
-.paint .studio-left { min-width: 0; gap: 8px; }
-.paint-title {
-  font: 800 17px/1.2 var(--display); color: var(--ink); background: none; border: 0; border-bottom: 1.5px dashed transparent;
-  padding: 3px 2px; min-width: 4em; max-width: 26ch; outline: none;
-}
-.paint-title:hover { border-bottom-color: var(--line-strong); }
-.paint-title:focus { border-bottom-color: var(--ink); }
+.paint .studio-left { min-width: 0; gap: 10px; }
+.paint-title { font: 800 17px/1.2 var(--display); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 26ch; }
+.paint-saved { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.paint-saved::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
+.paint-saved.ok::before { background: var(--good); }
+.paint-saved.bad { color: var(--red); }
+.paint-saved.bad::before { background: var(--red); }
 
-/* ---- the Type button, its bounce, the reminder and the picker ---- */
-.paint-type-wrap { position: relative; }
+/* ---- Type: Sudoku ▾ (opens Types), and its bounce ---- */
 .paint-type {
-  display: inline-grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
-  padding: 3px 10px 4px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--panel); color: var(--ink); text-align: left;
+  display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 10px 0 12px; white-space: nowrap;
+  font: 700 14.5px/1 var(--body); color: var(--ink); background: var(--panel);
+  border: 1.5px solid var(--line-strong); border-radius: 9px; text-decoration: none;
 }
-.paint-type:hover { background: color-mix(in srgb, var(--ink) 6%, var(--panel)); }
-.paint-type-label { grid-column: 1; font: 600 10.5px/1.1 var(--body); color: var(--muted); }
-.paint-type-name { grid-column: 1; font: 800 14.5px/1.15 var(--display); }
-.paint-type svg { grid-column: 2; grid-row: 1 / 3; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.paint-type:hover { border-color: var(--ink); }
+.paint-type-label { color: var(--muted); font-weight: 600; }
+.paint-type-name { font: 800 14.5px/1 var(--display); }
+.paint-type-from { font: 600 12.5px/1 var(--body); color: var(--muted); }
+.paint-type svg { width: 16px; height: 16px; fill: none; stroke: var(--muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.paint-type[aria-expanded="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 25%, transparent); }
 .paint-type.unset { border-style: dashed; }
 .paint-type.unset .paint-type-name { color: var(--muted); }
 .paint-type.ringed { box-shadow: 0 0 0 3px color-mix(in srgb, var(--wash-yellow) 75%, transparent); border-color: var(--wash-yellow); }
@@ -32,105 +35,164 @@
 }
 @media (prefers-reduced-motion: reduce) { .paint-type.bounce { animation: none; } }
 
-.paint-reminder {
-  position: absolute; z-index: 45; top: calc(100% + 10px); left: 0; width: min(360px, calc(100vw - 24px));
-  padding: 14px 16px; border-radius: 10px; background: var(--panel); color: var(--ink);
-  border: 1.5px solid var(--wash-yellow); box-shadow: 0 10px 30px var(--shadow);
+/* ---- the Check button is the verdict ---- */
+.paint-verdict-btn {
+  display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 11px; border-radius: 9px; white-space: nowrap;
+  font: 800 14.5px/1 var(--body); border: 1.5px solid currentColor; background: none; color: var(--muted);
 }
-.paint-reminder::before {
-  content: ""; position: absolute; top: -7px; left: 30px; width: 12px; height: 12px; transform: rotate(45deg);
-  background: var(--panel); border-left: 1.5px solid var(--wash-yellow); border-top: 1.5px solid var(--wash-yellow);
-}
-.paint-reminder strong { font: 800 16px/1.2 var(--display); }
-.paint-reminder p { margin: 6px 0 12px; font-size: 14px; line-height: 1.45; color: var(--muted); }
-
-.guide-pane.paint-picker {
-  position: absolute; z-index: 45; top: calc(100% + 8px); left: 0; width: min(420px, calc(100vw - 24px)); height: auto; max-height: min(70dvh, 640px);
-  padding: 16px; border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 14px 36px var(--shadow); transform: none; inset: auto;
-  top: calc(100% + 8px); left: 0;
-}
-.paint-picker .pane-close { display: block; font-size: 24px; line-height: 1; background: none; border: 0; color: var(--muted); }
-.paint-picker .pane-list button[aria-pressed="true"] { background: var(--panel); border-color: var(--ink); }
-.paint-picker .pane-list button:disabled { opacity: .5; }
-.paint-unset { font: 800 22px/1 var(--display); color: var(--muted); border: 1.5px dashed var(--line-strong); border-radius: 8px; }
-.paint-picker-foot { margin: 0; font-size: 12.5px; }
-
-.paint-saved { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
-.paint-saved::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--line-strong); }
-.paint-saved.ok::before { background: var(--good); }
-.paint-saved.bad { color: var(--red); }
-.paint-saved.bad::before { background: var(--red); }
-
-/* Check and Publish look disabled until a type is set, but still take a click (aria-disabled) */
-.paint-check-btn { display: inline-flex; align-items: center; gap: 6px; }
-.paint-check-btn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.paint .btn[aria-disabled="true"] { opacity: .45; }
+.paint-verdict-mark { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: var(--panel); font: 900 12px/1 var(--body); background: var(--muted); }
+.paint-verdict-btn.ok { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.paint-verdict-btn.ok .paint-verdict-mark { background: var(--good); }
+.paint-verdict-btn.bad { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.paint-verdict-btn.bad .paint-verdict-mark { background: var(--red); }
+.paint-verdict-btn.wait, .paint-verdict-btn.none { border-style: dashed; }
+.paint-verdict-btn.wait .paint-verdict-mark, .paint-verdict-btn.none .paint-verdict-mark { background: none; color: inherit; }
+.paint-verdict-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 28%, transparent); }
+/* Check and Publish greyed without a type (and Publish until the verdict passes), but they still take a click */
+.paint-verdict-btn[aria-disabled="true"], .paint .btn[aria-disabled="true"] { opacity: .45; }
 .paint .btn[aria-disabled="true"]:hover { background: var(--panel); }
 .paint .btn.primary[aria-disabled="true"]:hover { background: var(--ink); }
 
-/* ---- the status line's chips ---- */
-.paint-chip {
-  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 11px; white-space: nowrap;
-  font: 700 12.5px/1 var(--body); border-radius: 999px; border: 1.5px solid var(--line-strong); background: none; color: var(--muted);
+/* ---- the drawer: This puzzle / Types; folded, a strip of icons ---- */
+.paint-drawer, .paint-strip, .paint .studio-top { cursor: default; }
+.paint-drawer, .paint-strip { grid-area: drawer; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); z-index: 7; }
+.paint-drawer { width: 372px; display: flex; flex-direction: column; }
+.paint-tabs { display: flex; align-items: stretch; gap: 2px; padding: 0 6px 0 8px; border-bottom: 1px solid var(--line); flex: none; }
+.paint-tab {
+  display: inline-flex; align-items: center; gap: 7px; padding: 13px 10px 11px; border: 0; border-bottom: 2.5px solid transparent; background: none;
+  font: 800 14px/1 var(--body); color: var(--muted);
 }
-.paint-chip.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 70%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }
-.paint-chip.bad { color: var(--red); border-color: color-mix(in srgb, var(--red) 70%, transparent); background: color-mix(in srgb, var(--red) 9%, transparent); }
-.paint-chip.wait, .paint-chip.none { border-style: dashed; }
-.paint-chip.todo { color: #a86a00; border-color: color-mix(in srgb, var(--wash-yellow) 80%, #a86a00); background: color-mix(in srgb, var(--wash-yellow) 14%, transparent); }
+.paint-tab .sp-icon { width: 17px; height: 17px; }
+.paint-tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+.paint-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--line-strong); }
+.paint-dot.ok { background: var(--good); }
+.paint-dot.bad { background: var(--red); }
+.paint-tabs-grow { flex: 1; }
+.paint-tabs .sp-btn { align-self: center; color: var(--muted); }
+.paint-drawer-close { display: none; }
+.paint-drawer-body { flex: 1; overflow-y: auto; min-height: 0; padding: 14px 16px 22px; }
+.paint-strip { width: 54px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0; }
+.paint-strip .sp-btn { width: 40px; height: 40px; position: relative; }
+.paint-strip .sp-icon { width: 21px; height: 21px; }
+.paint-strip-sep { width: 26px; height: 1px; background: var(--line); margin: 2px 0; }
+.paint-badge { position: absolute; top: 2px; right: 1px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; display: grid; place-items: center; font: 900 10px/1 var(--body); color: #fff; background: var(--muted); }
+.paint-badge.ok { background: var(--good); }
+.paint-badge.bad, .paint-badge.warn { background: var(--red); }
+@media (hover: hover) { .paint-strip .sp-tip[data-tip]:hover::after { top: 50%; left: auto; right: calc(100% + 8px); transform: translateY(-50%); } }
+.paint-sheet-handle, .paint-scrim { display: none; }
+
+/* This puzzle */
+.paint-puzzle, .paint-types { display: grid; align-content: start; gap: 14px; }
+.paint-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.paint-head h2 { margin: 0; font: 800 18px/1.2 var(--display); color: var(--ink); }
+.paint-head h2 small { font: 700 14px/1 var(--body); color: var(--muted); }
+.paint-pill { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; font: 800 12.5px/1 var(--body); white-space: nowrap; color: var(--muted); border: 1px dashed var(--line-strong); }
+.paint-pill.ok { color: var(--good); background: color-mix(in srgb, var(--good) 14%, transparent); border: 0; }
+.paint-pill.bad { color: var(--red); background: color-mix(in srgb, var(--red) 13%, transparent); border: 0; }
+.paint-sub { margin: -8px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.paint-choose { justify-self: start; }
+.paint-h3 { margin: 4px 0 -6px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 800 11.5px/1 var(--body); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.paint-h3 span { letter-spacing: 0; text-transform: none; font-weight: 600; }
+.paint-quiet { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* the checklist: a rule per line, ticked or crossed; its problems hang under it; its settings sit on it */
+.paint-checklist { list-style: none; margin: 0; padding: 0; display: grid; }
+.paint-line { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 6px 10px; padding: 9px 4px 10px; }
+.paint-line + .paint-line { border-top: 1px solid var(--line); }
+.paint-st { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 900 12px/1 var(--body); color: var(--panel); margin-top: 1px; }
+.paint-line.ok .paint-st { background: var(--good); }
+.paint-line.bad .paint-st { background: var(--red); }
+.paint-line.wait .paint-st, .paint-line.none .paint-st { border: 1.5px dashed var(--line-strong); color: var(--muted); background: none; }
+.paint-line-text { font-size: 14px; line-height: 1.4; color: var(--ink); }
+.paint-line.none .paint-line-text { color: var(--muted); }
+.paint-line-text small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.paint-line-more { grid-column: 2; display: grid; gap: 8px; }
+.paint-line-more:empty { display: none; }
+.paint-probs, .paint-doubts { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+/* a problem: a link that points at the canvas, numbered like its pin */
+.paint-prob {
+  display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; padding: 7px 8px; text-align: left;
+  font: 600 13.5px/1.3 var(--body); color: var(--ink); background: none; border: 1px solid transparent; border-left: 3px solid transparent; border-radius: 7px;
+}
+.paint-prob:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.paint-n { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font: 800 11px/1 var(--body); color: #fff; background: var(--wash-orange); }
+.paint-text small { display: block; font-size: 12px; font-weight: 600; color: var(--muted); }
+.paint-go { color: var(--muted); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.paint-go::after { content: "→"; font-size: 14px; }
+.paint-prob[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-orange) 16%, var(--panel)); border-left-color: var(--wash-orange); }
+.paint-prob[aria-pressed="true"] .paint-go { color: #e0913b; }
+.paint-prob.misfit .paint-n, .paint-prob.fix .paint-n { background: #e04a5f; }
+.paint-prob.misfit[aria-pressed="true"], .paint-prob.fix[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-red) 12%, var(--panel)); border-left-color: var(--wash-red); }
+.paint-prob.doubt { grid-template-columns: 20px minmax(0, 1fr); }
+.paint-prob.doubt .paint-n { background: #d99a00; }
+.paint-prob.doubt[aria-pressed="true"] { background: color-mix(in srgb, #d99a00 15%, var(--panel)); border-left-color: #d99a00; }
+.paint-doubts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; }
+.paint-doubts li.done .paint-text { text-decoration: line-through; color: var(--muted); }
+.paint-doubts li.done .paint-n { background: var(--line-strong); }
+.paint-prob.doubt:disabled { cursor: default; }
+.paint-tick { display: grid; place-items: center; width: 32px; height: 36px; cursor: pointer; }
+.paint-tick input { width: 17px; height: 17px; accent-color: var(--good); }
+.paint-settings { display: grid; gap: 8px; }
+
+/* from a photo: the photo and the reader's doubts, first */
+.paint-photo { display: grid; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.paint-photo-card { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 12px; align-items: start; padding: 10px; border-radius: 10px; background: color-mix(in srgb, #d99a00 8%, transparent); border: 1px solid color-mix(in srgb, #d99a00 45%, transparent); }
+.paint-photo-card b { display: block; font-size: 14px; color: var(--ink); }
+.paint-photo-card .muted { display: block; margin-top: 3px; font-size: 12.5px; line-height: 1.4; }
+.paint-photo-img { display: block; border-radius: 6px; overflow: hidden; background: var(--sp-workspace); }
+.paint-photo-img img { display: block; width: 100%; max-height: 140px; object-fit: contain; }
+
+/* the solution, at the foot; pointing at it draws it on the board */
+.paint-sol { display: grid; gap: 8px; }
+.grid-game.paint-solution { background: var(--paper); border-radius: 8px; padding: 8px; display: grid; place-items: center; outline: 2px solid transparent; cursor: default; }
+.grid-game.paint-solution:hover, .grid-game.paint-solution:focus-visible { outline-color: var(--wash-blue); }
+.paint-solution svg { display: block; width: auto; height: 200px; max-width: 100%; }
+.paint-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; }
+.paint-link { display: inline-flex; align-items: center; gap: 6px; font: 700 13.5px/1 var(--body); color: var(--ink); background: none; border: 0; padding: 0; }
+.paint-link .sp-icon { width: 16px; height: 16px; }
+
+/* Types: the reminder, search, What type is this?, the list, a type's guide */
+.paint-reminder { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 11px 12px; border-radius: 10px; border: 1.5px solid var(--wash-yellow); background: color-mix(in srgb, var(--wash-yellow) 10%, transparent); font-size: 13.5px; line-height: 1.4; color: var(--muted); }
+.paint-reminder > span:last-child { display: grid; gap: 4px; justify-items: start; }
+.paint-reminder strong { color: var(--ink); font: 800 15px/1.2 var(--display); }
+.paint-reminder .btn { margin-top: 4px; padding: 5px 10px; font-size: 13px; }
+.paint-reminder-ic { width: 26px; height: 26px; border-radius: 50%; background: var(--wash-yellow); color: #2a1f00; display: grid; place-items: center; font: 900 15px/1 var(--body); }
+.paint-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 11px; border-radius: 9px; border: 1px solid var(--line-strong); background: var(--bg); color: var(--muted); }
+.paint-search .sp-icon { width: 17px; height: 17px; flex: none; }
+.paint-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; color: var(--ink); font: 500 14px/1 var(--body); outline: none; }
+.paint-search:focus-within { border-color: var(--ink); }
+.paint-ask { display: flex; align-items: center; gap: 8px; width: 100%; justify-content: center; height: 40px; border-radius: 9px; border: 1.5px solid var(--ink); background: none; color: var(--ink); font: 800 14px/1 var(--body); }
+.paint-ask:disabled { opacity: .45; }
+.paint-ask .sp-icon { width: 18px; height: 18px; }
+.paint-type-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.paint-type-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; border-radius: 10px; border: 1px solid transparent; }
+.paint-type-list li:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.paint-type-list li.on { border-color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.paint-ty { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 11px; align-items: center; padding: 7px 8px; text-align: left; background: none; border: 0; color: var(--ink); font: inherit; }
+.paint-ty:disabled { opacity: .5; }
+.paint-ty .pic { width: 52px; height: 52px; border-radius: 6px; background: var(--paper); display: grid; place-items: center; padding: 3px; overflow: hidden; }
+.paint-ty .pic svg { width: 100%; height: 100%; }
+.paint-ty strong { display: block; font: 800 14.5px/1.2 var(--display); }
+.paint-ty .muted { display: block; font-size: 12.5px; line-height: 1.35; margin-top: 2px; }
+.paint-ty-more { padding: 6px 10px; font: 700 12px/1 var(--body); color: var(--muted); background: none; border: 0; white-space: nowrap; }
+.paint-ty-more:hover { color: var(--ink); }
+.paint-unset { font: 800 22px/1 var(--display); color: var(--muted); border: 1.5px dashed var(--line-strong); border-radius: 8px; background: none !important; }
+.paint-picker-foot { margin: 0; font-size: 12.5px; }
+.paint-about { display: grid; gap: 12px; }
+.paint-about-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.paint-about .pane-guide h2 { margin: 0 0 4px; font: 800 22px/1.2 var(--display); }
+
 .paint-count {
   display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
   font: 800 11px/1 var(--body); color: #3a2a00; background: var(--wash-yellow);
 }
 
-/* ---- the Check panel, over the workspace's left side, and its tab ---- */
-.paint-check, .paint-check-tab { grid-area: canvas; z-index: 6; align-self: start; justify-self: start; margin: 14px; }
-.paint-check {
-  width: min(330px, calc(100% - 28px)); max-height: calc(100% - 28px); display: flex; flex-direction: column;
-  background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 10px 30px var(--shadow);
-}
-.paint-check-head { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--line); }
-.paint-check-head svg, .paint-check-tab svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.paint-check-head strong { flex: 1; font: 800 15px/1 var(--display); }
-.paint-check-head .sp-btn { font-size: 20px; }
-.paint-check-body { overflow-y: auto; padding: 12px 14px 16px; display: grid; gap: 14px; }
-.paint-check-tab {
-  display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px 0 12px; border-radius: 999px;
-  font: 800 14px/1 var(--display); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); box-shadow: 0 6px 18px var(--shadow);
-}
-.paint-verdict { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; padding: 12px; border-radius: 10px; border: 1.5px solid var(--line-strong); }
-.paint-verdict > span:last-child { display: grid; gap: 3px; font-size: 13.5px; line-height: 1.4; color: var(--muted); }
-.paint-verdict strong { font: 800 16px/1.2 var(--display); color: var(--ink); }
-.paint-verdict-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; font: 800 16px/1 var(--body); color: #fff; background: var(--muted); }
-.paint-verdict.ok { border-color: color-mix(in srgb, var(--good) 60%, transparent); background: color-mix(in srgb, var(--good) 9%, transparent); }
-.paint-verdict.ok strong { color: var(--good); }
-.paint-verdict.ok .paint-verdict-mark { background: var(--good); }
-.paint-verdict.bad { border-color: color-mix(in srgb, var(--red) 60%, transparent); background: color-mix(in srgb, var(--red) 8%, transparent); }
-.paint-verdict.bad strong { color: var(--red); }
-.paint-verdict.bad .paint-verdict-mark { background: var(--red); }
-.paint-verdict.wait { border-style: dashed; }
-.grid-game.paint-solution { background: var(--paper); border-radius: 8px; padding: 6px; }
-.paint-solution svg { display: block; width: 100%; height: auto; }
+
 .paint-switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
 .paint-switch input { appearance: none; flex: none; width: 36px; height: 20px; border-radius: 10px; background: var(--line-strong); position: relative; transition: background .15s; }
 .paint-switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); transition: transform .15s; }
 .paint-switch input:checked { background: var(--ink); }
 .paint-switch input:checked::after { transform: translateX(16px); }
-.paint-diff { justify-self: start; }
-.paint-group h3 { display: flex; justify-content: space-between; margin: 0 0 8px; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.paint-group h3 span { letter-spacing: 0; text-transform: none; font-weight: 600; }
-.paint-group ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-.paint-quiet { margin: 0; font-size: 13.5px; color: var(--muted); }
-.paint-item {
-  display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; width: 100%; padding: 8px 10px; text-align: left;
-  font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-left: 3px solid transparent; border-radius: 8px;
-}
-.paint-item:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); }
-.paint-item[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-orange) 16%, var(--panel)); border-left-color: var(--wash-orange); }
-.paint-item.misfit[aria-pressed="true"], .paint-item.fix[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-red) 12%, var(--panel)); border-left-color: var(--wash-red); }
-.paint-n { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; font: 800 12px/1 var(--body); color: #fff; background: var(--wash-orange); }
-.paint-item.misfit .paint-n, .paint-item.fix .paint-n { background: var(--wash-red); }
-.paint-place { display: block; font-size: 12px; color: var(--muted); }
-.paint-text { display: block; font-size: 14px; line-height: 1.35; }
 
 /* ---- the marks on the paper (never exported): orange rings for errors, red dashed for what doesn't fit ---- */
 .sp-mark .sp-mark-ring { fill: color-mix(in srgb, var(--wash-orange) 18%, transparent); stroke: var(--wash-orange); stroke-width: 2.5; stroke-linejoin: round; }
@@ -170,22 +232,15 @@
 .paint-tip-foot .btn { padding: 4px 10px; font-size: 13px; }
 .paint-tip-x { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; font-size: 18px; line-height: 1; color: var(--muted); background: none; border: 0; border-radius: 50%; }
 
-/* ---- the Rules panel ---- */
-.paint-rules { display: grid; gap: 12px; }
-.paint-rules-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.paint-rules-head .sp-panel-h { margin: 0; }
-.paint-guide-link { font-weight: 700; }
-.paint-always { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
-.paint-always b { color: var(--ink); }
-.paint-field { display: grid; gap: 6px; font-size: 13.5px; }
-.paint-label { color: var(--muted); font-size: 13px; }
-.paint-field .sp-seg { justify-self: start; flex-wrap: wrap; }
+/* ---- rule settings, on their rule's line ---- */
+.paint-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; }
+.paint-label { color: var(--muted); font-size: 12.5px; }
+.paint-field .sp-seg .sp-btn { height: 26px; font-size: 12.5px; padding: 0 8px; }
 .paint-field .ge-rules, .paint-field.ge-rules { display: block; }
 .paint-field .setting { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
 .paint-field .setting input:not([type="checkbox"]), .paint-field .setting select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 6px; padding: 5px 8px; }
-.paint-rules .ge-section > summary { cursor: pointer; font-weight: 700; }
+.paint-panes .ge-section > summary, .paint-advanced .ge-section > summary { cursor: pointer; font-weight: 700; }
 .paint-advanced > summary { font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.sp-panel-note { margin: 0 0 4px; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
 
 /* the type's tools first; All tools adds the rest, flagged as not the type's */
 .sp-all { margin-top: auto; flex-direction: column; gap: 1px; width: 52px; height: auto; padding: 5px 2px; font-size: 10.5px; border: 1px dashed var(--line-strong); }
@@ -195,56 +250,50 @@
 .sp-stamp.sp-off { border-style: dashed; border-color: color-mix(in srgb, #d23f55 60%, transparent); }
 .sp-sep-off { background: #d23f55; opacity: .5; }
 
-@media (max-width: 1000px) { .paint-howto span, .paint-saved { display: none; } }
-/* a phone: back, Type (its name), undo, redo, Check and Publish; the title is edited on the game page */
+@media (max-width: 1000px) { .paint-saved, .paint-type-from { display: none; } .paint-drawer { width: 320px; } }
+
+/* ---- a phone: back, Type, the verdict and Publish on top; the drawer a bottom sheet, with its handle
+   above the palette's strip ---- */
 @media (max-width: 720px) {
-  .paint-title, .paint-type-label, .paint-saved, .paint-howto, .paint .sp-doc button[aria-label="Clear"] { display: none; }
-  .paint-type { grid-template-rows: auto; padding: 6px 8px; }
-  .paint-check-btn span { display: none; }
-  .paint-check { position: fixed; left: 0; right: 0; bottom: 0; top: auto; margin: 0; width: auto; max-height: 60dvh; border-radius: 16px 16px 0 0; z-index: 38; }
-  .paint-check-tab { margin: 10px; }
+  .paint-title, .paint-type-label, .paint-saved { display: none; }
+  .paint .studio-top { grid-template-columns: auto minmax(0, 1fr); gap: 6px; }
+  .paint-type { height: 36px; padding: 0 6px 0 8px; gap: 3px; }
+  .paint-verdict-btn { height: 36px; padding: 0 9px 0 6px; gap: 5px; font-size: 13px; }
+  .paint .studio-actions .btn.paint-publish { height: 36px; padding: 0 10px; }
+  .paint-strip { display: none; }
+  .paint-sheet-handle {
+    grid-area: drawer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 0; border-top: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); font: 700 14px/1.2 var(--body); text-align: left;
+  }
+  .paint-sheet-handle .sp-icon { width: 18px; height: 18px; }
+  .paint-sheet-handle b.bad { color: var(--red); }
+  .paint-sheet-handle b.ok { color: var(--good); }
+  .paint-sheet-handle::after { content: "⌃"; margin-left: auto; color: var(--muted); font-size: 18px; line-height: 1; }
+  .paint-drawer {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; width: auto; max-height: 72dvh; border: 0;
+    border-radius: 16px 16px 0 0; box-shadow: 0 -10px 30px var(--shadow);
+  }
+  .paint-drawer::before { content: ""; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: var(--line-strong); }
+  .paint-tabs { padding-top: 8px; }
+  .paint-drawer-fold { display: none; }
+  .paint-drawer-close { display: inline-flex; }
+  .paint-scrim { display: block; position: fixed; inset: 0; z-index: 39; background: color-mix(in srgb, #000 40%, transparent); }
   .sp-all { margin-top: 0; width: auto; height: 44px; flex-direction: row; padding: 0 8px; }
-  .sp-status-hint { display: none; }
-  .sp-paper-tip { position: fixed; left: 12px !important; right: 12px; top: auto !important; bottom: 210px; transform: none; max-width: none; width: auto; }
+  .sp-paper-tip { position: fixed; left: 12px !important; right: 12px; top: auto !important; bottom: 190px; transform: none; max-width: none; width: auto; }
   .sp-paper-tip::after { display: none; }
 }
-/* with the Check panel open, the paper moves over to make room beside it */
-@media (min-width: 721px) { .sp-work:has(> .paint-check) .grid-game.sp-canvas { padding-left: 364px; } }
-
-/* ---- a photo's doubts (amber, lettered): in the panel's Photo section and on the paper ---- */
-.paint-photo { display: grid; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.paint-photo > summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; cursor: pointer; font: 800 12px/1.3 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.paint-photo > summary .muted { letter-spacing: 0; text-transform: none; font-weight: 600; }
-.paint-photo-img { display: block; border-radius: 8px; overflow: hidden; background: var(--sp-workspace); }
-.paint-photo-img img { display: block; width: 100%; max-height: 240px; object-fit: contain; }
-.paint-doubts li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px; }
-.paint-doubts li.done .paint-text { text-decoration: line-through; color: var(--muted); }
-.paint-item.doubt .paint-n { background: #d99a00; }
-.paint-item.doubt[aria-pressed="true"] { background: color-mix(in srgb, #d99a00 14%, var(--panel)); border-left-color: #d99a00; }
-.paint-item.doubt:disabled { cursor: default; }
-.paint-tick { display: grid; place-items: center; width: 32px; height: 36px; cursor: pointer; }
-.paint-tick input { width: 17px; height: 17px; accent-color: var(--good); }
-.sp-mark.doubt .sp-mark-ring, .sp-mark.doubt .sp-mark-box { fill: color-mix(in srgb, #f2b705 12%, transparent); stroke: #d99a00; stroke-width: 2.2; stroke-dasharray: none; }
-.sp-mark.doubt .sp-mark-pin circle { fill: #d99a00; }
-.paint-tip.doubt { border-color: #d99a00; }
-.paint-tip.doubt strong { color: #a86f00; }
-.paint-reminder-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* ---- What type is this? (the picker widens to show its cards) ---- */
-.paint-ask { justify-self: start; gap: 6px; }
-.paint-ask svg, .paint-best::before { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-.paint-all-h { margin: 4px 0 0; font: 800 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.guide-pane.paint-picker.asking { width: min(860px, calc(100vw - 24px)); max-height: min(86dvh, 860px); }
 .paint-suggest { display: grid; gap: 12px; }
 .paint-suggest > p { margin: 0; font-size: 14px; line-height: 1.45; }
-.paint-suggest-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.paint-suggest-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .paint-suggest-card {
-  position: relative; display: grid; grid-template-rows: auto 1fr; width: 100%; height: 100%; padding: 0; text-align: left; overflow: hidden;
+  position: relative; display: grid; grid-template-columns: 96px minmax(0, 1fr); width: 100%; height: 100%; padding: 0; text-align: left; overflow: hidden;
   font: inherit; color: var(--ink); background: var(--panel); border: 1.5px solid var(--line-strong); border-radius: 12px;
 }
 .paint-suggest-card[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 30%, transparent); }
-.paint-suggest-card .pic { display: grid; place-items: center; height: 150px; padding: 12px; background: var(--paper); }
-.paint-suggest-card .pic svg { height: 100%; width: auto; max-width: 100%; }
+.paint-suggest-card .pic { display: grid; place-items: center; height: 100%; min-height: 96px; padding: 8px; background: var(--paper); }
+.paint-suggest-card .pic svg { width: 100%; height: auto; max-height: 80px; }
 .paint-suggest-text { display: grid; align-content: start; gap: 6px; padding: 10px 12px 12px; font-size: 13px; line-height: 1.4; }
 .paint-suggest-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .paint-suggest-head strong { font: 800 16px/1.2 var(--display); }
@@ -253,6 +302,37 @@
 .paint-said.bad { color: var(--ink); }
 .paint-fits { color: var(--good); font-weight: 600; }
 .paint-fits.bad { color: var(--red); }
-.paint-best { position: absolute; top: 8px; left: 8px; z-index: 1; display: inline-flex; gap: 4px; padding: 4px 9px; border-radius: 999px; font: 700 12px/1 var(--body); color: var(--panel); background: var(--ink); }
+.paint-best { position: absolute; top: 4px; left: 4px; z-index: 1; display: inline-flex; gap: 4px; padding: 4px 9px; border-radius: 999px; font: 700 12px/1 var(--body); color: var(--panel); background: var(--ink); }
 .paint-suggest-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
 .paint-suggest-foot .muted { flex: 1 1 220px; font-size: 13px; }
+
+/* ---- the publish page (/g/<id>/publish): paint's top bar; on the dark page the title and
+   description, edited in place in the site's display type; the paper holds only the player ---- */
+.publish-back { display: inline-flex; align-items: center; gap: 7px; }
+.publish-back svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.publish-stage {
+  flex: 1; min-height: 0; overflow-y: auto; display: grid; justify-items: center; align-content: start; gap: 18px;
+  padding: 34px 20px 48px; background: var(--sp-workspace); box-shadow: inset 0 1px 3px color-mix(in srgb, var(--shadow) 60%, transparent);
+}
+.publish-head, .publish-paper, .publish-note { width: min(100%, 640px); }
+.publish-head { display: grid; gap: 6px; }
+.publish-title, .publish-desc {
+  width: 100%; color: var(--ink); background: none; border: 0; border-bottom: 1.5px dashed transparent; border-radius: 0; padding: 2px 0; outline: none;
+}
+.publish-title { font: 800 clamp(28px, 5vw, 40px)/1.15 var(--display); letter-spacing: -.01em; }
+.publish-desc { font: 400 17px/1.5 var(--body); color: var(--muted); resize: none; field-sizing: content; min-height: 1.5em; }
+.publish-title:hover, .publish-desc:hover { border-bottom-color: var(--line-strong); }
+.publish-title:focus, .publish-desc:focus { border-bottom-color: var(--ink); }
+.publish-desc:focus { color: var(--ink); }
+.publish-title::placeholder, .publish-desc::placeholder { color: color-mix(in srgb, var(--muted) 75%, transparent); }
+.publish-title[aria-invalid="true"] { border-bottom-color: var(--red); }
+.publish-meta { margin: 2px 0 0; font-size: 13.5px; color: var(--muted); }
+.publish-needed, .publish-error { margin: 0; font-size: 14px; }
+.publish-warn { margin: 0; font-size: 13px; color: #d6a12a; }
+.publish-paper .grid-game { margin: 0; }
+.publish-note { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+@media (max-width: 720px) {
+  .publish-back span { display: none; }
+  .publish-back { padding: 0 9px; }
+  .publish-stage { padding: 18px 12px 32px; }
+}

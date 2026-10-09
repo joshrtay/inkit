@@ -1,5 +1,5 @@
 // Draw a draft in paint: inkit.games/g/<id>/draw (docs/creation-flow.md). The drawing is the
-// puzzle: components/Paint.tsx, with its type, Check and autosave. A page of its own, like the
+// puzzle: components/Paint.tsx, with its type, This puzzle's checklist and autosave. A page of its own, like the
 // editor. For drafts its author can edit; a published game is changed in the editor for now.
 import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
@@ -12,6 +12,10 @@ import { attempt } from "~/lib/http.server";
 import { Paint } from "~/components/Paint";
 import { paintFromSketch, readPaintSave } from "~/games/paint-save";
 import { doubtsOf } from "~/games/doubts";
+import { guides } from "~site/guides/guides.ts";
+
+/** Each type's rules in its guide's words, for This puzzle's checklist (text only: the pictures stay here). */
+const RULE_LINES = Object.fromEntries(Object.entries(guides).map(([k, g]) => [k, g.rules.map((r) => ({ text: r.text, checks: r.checks }))]));
 
 export const handle = { bare: true };
 
@@ -35,8 +39,11 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     } : null,
     choices,
     opened: new URL(request.url).searchParams.has("read"),
+    // from the publish page's Type: the drawer opens at Types
+    types: new URL(request.url).searchParams.has("types"),
     admin: may.feature,
     backTo: collection ? `/${collection.slug}?tab=drafts` : `/g/${game.id}`,
+    ruleLines: RULE_LINES,
   };
 }
 
@@ -53,6 +60,6 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   });
 }
 
-export default function DrawGame({ loaderData: { game, saved, admin, backTo, photo, choices, opened } }: Route.ComponentProps) {
-  return <Paint key={game.id} game={game} saved={saved} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} />;
+export default function DrawGame({ loaderData: { game, saved, admin, backTo, photo, choices, opened, ruleLines, types } }: Route.ComponentProps) {
+  return <Paint key={game.id} game={game} saved={saved} backTo={backTo} admin={admin} photo={photo} choices={choices} opened={opened} ruleLines={ruleLines} startAt={types ? "types" : undefined} />;
 }

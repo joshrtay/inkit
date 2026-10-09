@@ -4,10 +4,11 @@
 // for what isn't part of the puzzle.
 //
 //   checklist(...)   the lines, their marks and their problems
-//   usesLine(...)    whether a guide line applies to this puzzle (a panel lists only its symbols')
+//   usesLine(...)    whether a guide line applies to this puzzle: a panel lists only its symbols',
+//                    Panes only its own rules, an Akari its cipher line only with letters
 //
 // Pure: no DOM.
-import { needsOneSolution, type GenreName } from "~site/engine/puzzle.ts";
+import { genres, needsOneSolution, type GenreName } from "~site/engine/puzzle.ts";
 import type { GridSpec } from "~site/engine/types.ts";
 import type { CheckItem, Verdict } from "./check";
 
@@ -50,11 +51,17 @@ const PANEL_SYMBOLS: [RegExp, (s: GridSpec) => boolean][] = [
 const has = (s: GridSpec, kind: string) => (s.givens ?? []).some((g) => g.kind === kind);
 
 /** Whether a guide line applies to this puzzle: a panel's symbol lines only when it has the
- *  symbol (or the symmetry); every line of every other type. */
-export function usesLine(genre: GenreName, text: string, spec: GridSpec | null): boolean {
-  if (genre !== "panel") return true;
-  const sym = PANEL_SYMBOLS.find(([re]) => re.test(text));
-  return !sym || (!!spec && sym[1](spec));
+ *  symbol (or the symmetry); a line about rules a puzzle may add (Panes' rules, Fillomino's sizes)
+ *  only when it has one; an Akari's cipher line only when it has letters. */
+export function usesLine(genre: GenreName, text: string, spec: GridSpec | null, checks: string[] = []): boolean {
+  if (genre === "panel") {
+    const sym = PANEL_SYMBOLS.find(([re]) => re.test(text));
+    if (sym) return !!spec && sym[1](spec);
+  }
+  if (genre === "akari" && /^In a cipher/.test(text)) return !!spec && (spec.givens ?? []).some((g) => !!(g as { letter?: string }).letter);
+  if (!checks.length) return true;
+  const rules = new Set([...(genres[genre].rules as { rule: string }[]), ...(spec?.rules ?? [])].map((r) => r.rule));
+  return checks.some((c) => rules.has(c));
 }
 
 /** The line the solution is checked on. */
@@ -62,7 +69,7 @@ export const solutionLine = (genre: GenreName) => (needsOneSolution(genre) ? "Ex
 
 /** The checklist for a puzzle of this type, from its guide lines, Check's list and the verdict. */
 export function checklist(genre: GenreName, lines: RuleLine[], spec: GridSpec | null, list: CheckItem[], verdict: Verdict): Checklist {
-  const shown = lines.filter((l) => usesLine(genre, l.text, spec));
+  const shown = lines.filter((l) => usesLine(genre, l.text, spec, l.checks));
   const rules: ChecklistLine[] = shown.map((l) => ({ text: l.text, checks: l.checks, mark: spec ? "ok" : "none", items: [] }));
   // each broken rule under the first line about it (or the first line, if none says)
   for (const x of list.filter((i) => i.kind === "rule")) {
