@@ -57,7 +57,9 @@
 .profile-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 24px; align-items: start; }
 .profile-id { display: grid; gap: 6px; }
 .profile-id h1 { font-size: 30px; }
-.profile-bio { margin: 6px 0 0; max-width: 60ch; }
+.profile-bio { margin: 6px 0 0; max-width: 60ch; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }   /* the whole of it is on About */
+.profile-more { display: inline-block; margin-top: 4px; font-size: 14px; color: var(--muted); }
+.profile-more:hover { color: var(--ink); }
 .profile-stats { margin: 4px 0 0; color: var(--muted); font-size: 15px; }
 .profile-head .avatar { grid-row: span 2; }
 .profile-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
@@ -76,10 +78,11 @@
    "How I make puzzles" ---- */
 .ai-badge { display: inline-block; vertical-align: .12em; padding: 2px 5px 1px; border: 1.5px solid currentColor; border-radius: 4px; color: var(--ink); font: 800 10.5px/1.1 var(--body); letter-spacing: .08em; text-transform: none; white-space: nowrap; }
 .feed-from .ai-badge { margin-left: -4px; }
-.ai-profile { display: grid; gap: 10px; padding: 18px 20px; border: var(--card-border); border-radius: var(--radius); background: var(--panel); }
-.ai-profile h2 { margin: 0; font-size: 18px; }
-.ai-profile p { margin: 0; max-width: 64ch; line-height: 1.5; }
+.about, .ai-profile { display: grid; gap: 10px; padding: 18px 20px; border: var(--card-border); border-radius: var(--radius); background: var(--panel); }
+.ai-profile h2, .about h3 { margin: 0; font-size: 18px; }
+.about h3 { margin-top: 8px; }
+.ai-profile p, .about p { margin: 0; max-width: 64ch; line-height: 1.5; }
 .ai-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 4px 0 0; font-size: 15px; }
 .ai-facts dt { font-weight: 800; color: var(--muted); }
 .ai-facts dd { margin: 0; }
-.ai-profile .ai-note { font-size: 14px; }
+.ai-profile .ai-note, .about .ai-note { font-size: 14px; }

@@ -16,9 +16,14 @@ for (const p of PERSONAS) {
     const icon = head.locator(".avatar.avatar-ai svg");
     await expect(icon).toBeVisible();
     expect(await icon.boundingBox()).toMatchObject({ width: 96, height: 96 });
-    const how = page.getByRole("region", { name: "How I make puzzles" });
-    await expect(how).toContainText(p.howIMake[0].slice(0, 40));
-    await expect(how).toContainText(p.schedule.summary);
+    // the long story is on About, not at the top
+    await expect(page.getByText("How I make puzzles")).toHaveCount(0);
+    await page.locator(".profile-head").getByRole("link", { name: /^More about/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/${p.handle}\\?tab=about$`));
+    const about = page.getByRole("region", { name: "About" });
+    await expect(about.getByRole("heading", { name: "How I make puzzles" })).toBeVisible();
+    await expect(about).toContainText(p.howIMake[0].replace(/ \/ /g, " ").slice(0, 30));
+    await expect(about).toContainText(p.schedule.summary);
   });
 }
 
@@ -29,5 +34,8 @@ test("Explore shows an AI creator's icon and label; a person keeps the letter", 
   await expect(row.locator(".ai-badge")).toBeVisible();
   await page.goto("/wyatt");
   await expect(page.locator(".profile-head .avatar")).toHaveText("W");
+  // a person has an About tab too: the bio and what they make
+  await page.goto("/wyatt?tab=about");
+  await expect(page.getByRole("region", { name: "About" })).toContainText("Makes");
   await expect(page.locator(".profile-head .avatar-ai")).toHaveCount(0);
 });

@@ -49,7 +49,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const drafts = games.filter((g) => g.state !== "published" && (owner || viewer?.isAdmin || g.authorHandle === viewer?.handle));
   const canSeeDrafts = !!role || !!viewer?.isAdmin;
   return {
-    collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt },
+    collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt, since: collection.createdAt },
     person: person && { handle: person.handle, name: person.name, ai: person.isAi },
     // an AI creator's "How I make puzzles" (app/ai/personas.ts)
     persona: person?.isAi ? aiProfile(person.handle) : null,
@@ -59,7 +59,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
     subscribers, subscribed, solves, role,
     me: viewer?.handle ?? null,
-    tab: ["puzzles", "subscriptions", "members", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
+    tab: ["puzzles", "about", "subscriptions", "members", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
   };
 }
 
@@ -101,6 +101,9 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
   });
 };
 
+/** Text whose verse lines are broken with " / " (an AI creator's light verse), as lines. */
+const verse = (text: string) => text.split(" / ").flatMap((line, i) => (i ? [<br key={i} />, line] : [line]));
+
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
   const { collection, person, persona, members, games, drafts, following, subscribers, subscribed, solves, role, me, tab } = d;
   const mine = !!person && person.handle === me;
@@ -109,14 +112,19 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
     // only you (and the owners) see this tab
     ...(drafts ? [{ id: "drafts", label: "Drafts", n: drafts.length }] : []),
     ...(person ? [{ id: "subscriptions", label: "Subscriptions", n: following.length }] : [{ id: "members", label: "Members", n: members.length }]),
+    // who they are, at length: the whole bio, what they make, since when (an AI creator's how and when)
+    { id: "about", label: "About", n: null },
   ];
+  const makes = [...new Set(games.map((g) => g.kind).filter(Boolean))].map(kindName).sort();
   return (
     <main className="wrap profile">
       <header className="profile-head">
         <div className="profile-id">
           <h1>{collection.title}</h1>
           <span className="muted">{person ? `@${person.handle}` : `@${collection.slug} · studio`}{person?.ai && <> <AiBadge /></>}</span>
-          {collection.description && <p className="profile-bio">{collection.description}</p>}
+          {/* the bio, kept short here (two lines); the whole of it is on About */}
+          {collection.description && tab !== "about" && <p className="profile-bio">{verse(collection.description)}</p>}
+          {collection.description && tab !== "about" && <Link className="profile-more" to={`/${collection.slug}?tab=about`} preventScrollReset>More about {person ? (person.name.split(" ")[0] || collection.title) : "this studio"}</Link>}
           <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
         </div>
         <Avatar name={collection.title} seed={collection.slug} size={96} ai={!!person?.ai} />
@@ -128,31 +136,36 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
         </div>
       </header>
 
-      {persona && (
-        <section className="ai-profile" aria-labelledby="ai-how">
-          <h2 id="ai-how">How I make puzzles</h2>
-          {/* verse breaks its lines with " / " */}
-          {persona.howIMake.map((p) => <p key={p}>{p.split(" / ").flatMap((line, i) => (i ? [<br key={i} />, line] : [line]))}</p>)}
-          <dl className="ai-facts">
-            <dt>Makes</dt><dd>{persona.kinds.join(", ")}</dd>
-            <dt>Posts</dt><dd>{persona.paused ? "Paused for now." : persona.schedule}</dd>
-            <dt>Holds to</dt><dd>{persona.principles.join(" · ")}</dd>
-          </dl>
-          <p className="ai-note muted">
-            <AiBadge /> An AI creator. Its puzzles come from inkit&rsquo;s generator, and each one is proved to have exactly one
-            solution before it&rsquo;s posted. Claude writes the titles and notes in this voice.
-          </p>
-        </section>
-      )}
-
       <nav className="tabs" aria-label="Profile">
         {tabs.map((t) => (
           <Link key={t.id} to={t.id === "puzzles" ? `/${collection.slug}` : `/${collection.slug}?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined} preventScrollReset>
-            {t.label}{t.id !== "puzzles" && ` (${t.n})`}
+            {t.label}{t.n !== null && t.id !== "puzzles" && ` (${t.n})`}
           </Link>
         ))}
       </nav>
 
+      {tab === "about" && (
+        <section className="about" aria-labelledby="about-h">
+          <h2 id="about-h" className="visually-hidden">About</h2>
+          {collection.description && <p className="about-bio">{verse(collection.description)}</p>}
+          {persona && <>
+            <h3>How I make puzzles</h3>
+            {persona.howIMake.map((p) => <p key={p}>{verse(p)}</p>)}
+          </>}
+          <dl className="ai-facts">
+            {(persona?.kinds.length || makes.length) ? <><dt>Makes</dt><dd>{(persona?.kinds ?? makes).join(", ")}</dd></> : null}
+            {persona && <><dt>Posts</dt><dd>{persona.paused ? "Paused for now." : persona.schedule}</dd></>}
+            {persona && <><dt>Holds to</dt><dd>{persona.principles.join(" · ")}</dd></>}
+            {collection.since && <><dt>On inkit since</dt><dd>{new Date(collection.since).toLocaleDateString("en", { month: "long", year: "numeric" })}</dd></>}
+          </dl>
+          {persona && (
+            <p className="ai-note muted">
+              <AiBadge /> An AI creator. Its puzzles come from inkit&rsquo;s generator, and each one is proved to have exactly one
+              solution before it&rsquo;s posted. Claude writes the titles and notes in this voice.
+            </p>
+          )}
+        </section>
+      )}
       {tab === "puzzles" && (games.length ? <ul className="cards">{games.map((g) => <GameCard key={g.id} game={g} />)}</ul> : (
         <div className="empty-tab">
           <p>{mine ? "You haven't made any puzzles yet." : "No puzzles here yet."}</p>
