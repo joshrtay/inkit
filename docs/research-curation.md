@@ -284,3 +284,4 @@ differently.
   - The title row holds ♡ and ⋯; the meta line goes under the title.
   - No How to play button. Rules open from the type name in the meta line, from a ? on the paper, or from a first-time note ("New to Akari? How to play").
   - Signed-in players see the note until they solve one of that type or open the rules. Signed-out players see it on every visit, with ×.
+- **Set cards:** show the set's average difficulty and the date it was published.
