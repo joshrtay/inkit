@@ -4,8 +4,8 @@
 import { describe, expect, it } from "vitest";
 import type { Given, GridSpec } from "~site/engine/types.ts";
 import { personaByHandle, SLATE_CURRICULUM } from "~/ai/personas";
-import { lessonFor, lessonSettings, lessonSizes, planFor, slotsBetween, mondayOf } from "~/ai/schedule";
-import { checkLesson, contrastEdits, givensApart, rivalsOf, ruleWords, swapped, tellsRule, titlePrefix } from "../../../puzzles/ai/lesson.ts";
+import { historySlots, lessonFor, lessonSettings, lessonSizes, localDate, planFor, slotsBetween, mondayOf } from "~/ai/schedule";
+import { areaOf, checkLesson, contrastEdits, givensApart, pointsTooMuch, rivalsOf, ruleWords, swapped, tellsRule, titlePrefix } from "../../../puzzles/ai/lesson.ts";
 import { RIVALS } from "../../../puzzles/ai/rivals.ts";
 
 const slate = personaByHandle("slate")!;
@@ -32,6 +32,24 @@ describe("Slate's curriculum", () => {
     expect(mondayOf(slate.curriculumStart!)).toBe(slate.curriculumStart);
     expect(lessonFor(slate, { date: "2026-10-09", weekday: "fri" })!.index).toBe(SLATE_CURRICULUM.length - 1);
     expect(lessonFor(slate, { date: "2026-10-12", weekday: "mon" })!.index).toBe(0);
+  });
+  it("tells its back catalogue a week a day, from 10 August to 9 October 2026, in order", () => {
+    const slots = historySlots(slate), n = SLATE_CURRICULUM.length;
+    expect(slots).toHaveLength(n * 5);
+    expect(new Set(slots.map((s) => s.at.getTime())).size).toBe(slots.length);
+    const day = (s: { at: Date }) => localDate(s.at, slate.schedule.timezone).date;
+    expect(day(slots[0])).toBe("2026-08-10");
+    expect(day(slots.at(-1)!)).toBe("2026-10-09");
+    const perDay = new Map<string, number>();
+    for (const s of slots) perDay.set(day(s), (perDay.get(day(s)) ?? 0) + 1);
+    expect(perDay.size).toBe(61);
+    expect([...perDay.values()].filter((k) => k === 10)).toHaveLength(n - 61);
+    expect([...perDay.values()].every((k) => k === 5 || k === 10)).toBe(true);
+    // in curriculum order and in time order alike, each post the curriculum day it stands for
+    for (let i = 1; i < slots.length; i++) expect(slots[i].at.getTime()).toBeGreaterThan(slots[i - 1].at.getTime());
+    slots.forEach((s, i) => { const l = lessonFor(slate, s)!; expect(l.week).toBe(Math.floor(i / 5)); expect(l.day).toBe(i % 5); });
+    // and the live schedule carries on the next Monday with the curriculum's first week
+    expect(lessonFor(slate, { date: "2026-10-12", weekday: "mon" })).toMatchObject({ index: 0, round: 1 });
   });
   it("puts every subject after the ones it needs, and gives each its rivals", () => {
     const at = new Map(SLATE_CURRICULUM.map((s, i) => [s.id, i]));
@@ -142,5 +160,51 @@ describe("pointing, never telling", () => {
     expect(tellsRule(`${titlePrefix({ subject: squares, day: 0 })}Two`, squares)).toEqual([]);
     expect(tellsRule("Two squares. Draw a line.", squares)).toEqual([]);
     expect(tellsRule("Yesterday's board. One square has moved.", squares)).toEqual([]);
+  });
+});
+
+describe("pointing, never solving", () => {
+  // real notes from the first Slate batch (puzzles/ai/out/slate.json), each handing over the solve
+  const BAD: [string, Parameters<typeof pointsTooMuch>[1], string][] = [
+    ["Yesterday's board. One letter has changed. Start at row 4, column 1, then look at row 3, column 3.", "contrast", "a row or column number"],
+    ["Yesterday's board. One block has moved. Look at the bottom row, all four cells, left to right.", "second-contrast", "a scan across the board"],
+    ["The smallest board. Find the clue with the fewest open cells next to it. Put your pencil there.", "introduce", "a hand-held move (your pencil, your finger)"],
+    ["Two stars on the board. Look at the top row first. Put your finger on the left cell.", "introduce", "more than one instruction"],
+    ["Yesterday's board again. The start has moved. Find the circle, then look at row 1, column 1 and row 2, column 1.", "second-contrast", "a row or column number"],
+    ["Galaxies again. Start in the second row and go across it, left to right.", "review", "a numbered row or column"],
+    ["A new board. Go to the first column. Start at the top and go down.", "trap", "a numbered row or column"],
+    ["Yesterday's board again. Find the block. Look at where it sits now, then look at the cells next to it.", "second-contrast", "more than one instruction"],
+    ["Number Snake again. Count the cells on the board. Find the clue with the highest number and look at what sits beside it.", "review", "23 words (at most 12)"],
+    ["Yesterday's board. One peg is somewhere else. Look at the second square from the left.", "contrast", "a counted position"],
+  ];
+  it("rejects coordinates, chains of steps, a hand on the pencil and long notes", () => {
+    for (const [text, step, why] of BAD) expect(pointsTooMuch(text, step), text).toContain(why);
+    expect(pointsTooMuch("Look at r3c4.")).toContain("a cell reference");
+    expect(pointsTooMuch("Start at (3, 4).")).toContain("a cell reference");
+    expect(pointsTooMuch("The answer is a loop.")).toContain("what the answer is");
+    expect(pointsTooMuch("A single dot. The line goes to it.")).toContain("what the answer is");
+  });
+  it("passes a note that points once, or says nothing", () => {
+    const GOOD: [string, Parameters<typeof pointsTooMuch>[1]][] = [
+      ["Two squares. Draw a line.", "introduce"], ["Yesterday's board. One square has moved.", "contrast"],
+      ["The short way round is tempting.", "second-contrast"], ["", "trap"], ["The corner clue.", "trap"],
+      ["The pair of stars is back.", "review"], ["Which letter is alone?", "introduce"], ["Begin at the edge.", "introduce"],
+      ["Yesterday's board. Something moved near the top.", "second-contrast"],
+    ];
+    for (const [text, step] of GOOD) expect(pointsTooMuch(text, step), text).toEqual([]);
+  });
+  it("checks a title for positions only", () => {
+    expect(pointsTooMuch("Row Two", "review", { title: true })).toEqual(["a row or column number"]);
+    expect(pointsTooMuch("Second Column", "review", { title: true })).toEqual(["a numbered row or column"]);
+    expect(pointsTooMuch("The Long Way", "second-contrast", { title: true })).toEqual([]);
+    expect(pointsTooMuch("Yesterday's board. One square has moved.", "contrast", { sameDay: true })).toHaveLength(1);
+  });
+  it("points at an area of the board, not a cell, and not at all on the tiniest boards", () => {
+    expect(areaOf([0], 4, 4)).toBe("the top-left corner");
+    expect(areaOf([1, 2], 4, 4)).toBe("the top edge");
+    expect(areaOf([5, 6, 9, 10], 4, 4)).toBe("the middle");
+    expect(areaOf([13, 18], 5, 5)).toBe("the right side");
+    expect(areaOf([0], 2, 3)).toBeNull();
+    expect(areaOf([5, 18], 5, 5)).toBeNull();
   });
 });

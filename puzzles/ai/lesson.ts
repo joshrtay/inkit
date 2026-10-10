@@ -483,45 +483,116 @@ export function tellsRule(text: string, subject: Subject): string[] {
 export const NUMERALS = ["I", "II", "III", "IV", "V"];
 export const titlePrefix = (lesson: Pick<Lesson, "subject" | "day">) => `${lesson.subject.name} ${NUMERALS[lesson.day] ?? "V"} · `;
 
-const STEP_WORDS: Record<LessonStep, string> = {
-  introduce: "Monday: the first time this appears, on the smallest board. Nearly forced: the player can solve it before they understand it.",
-  contrast: "Tuesday: yesterday's board with one thing changed (often the start or the end), and a different answer. Point at the change, never at why it matters.",
-  "second-contrast": "Wednesday: yesterday's board again with one more thing changed (usually a symbol moved), and a different answer again. Point at what changed.",
-  trap: "Thursday: a tidy answer waits for anyone holding the wrong idea, and it's wrong. Say very little: a place to look, or nothing beyond the title.",
+const STEP_WORDS = (before: string): Record<LessonStep, string> => ({
+  introduce: "Monday: the first time this appears, on the smallest board. Nearly forced: the player can solve it before they understand it. The title and a few words are enough; often no pointer at all.",
+  contrast: `Tuesday: ${before} with one thing changed (often the start or the end), and a different answer. Say that it's ${before}, and at most point at the change, never at why it matters.`,
+  "second-contrast": `Wednesday: ${before} again with one more thing changed (usually a symbol moved), and a different answer again. Say that something moved, and little else.`,
+  trap: "Thursday: a tidy answer waits for anyone holding the wrong idea, and it's wrong. Say almost nothing: a few words, or nothing beyond the title.",
   combine: "Friday: the new idea meets an earlier one. Name the earlier one as something coming back, never what it does.",
-  review: "A review: an earlier idea comes back, with nothing new. Point at it as an old friend.",
-};
+  review: "A review: an earlier idea comes back, with nothing new. Say almost nothing: name it as an old friend, in a few words.",
+});
+
+/** How Slate's notes point: once, at a thing, never at a position or a sequence of moves. */
+export const noteRules = (max: number) => [
+  "The description is a note, not instructions. At most one short pointer, at a thing on the board (the corner clue, the two letters, the pair of stars, the edge) or a question that turns the eye somewhere. Many days need no pointer at all.",
+  "Never give coordinates or positions: no row or column numbers, no \"second from the left\", no \"left to right\" scans. Never give more than one instruction, never a sequence of steps (no \"then\"), never \"put your pencil\" or \"your finger\", and never say what goes where or what the answer is.",
+  `At most ${max} words; fewer is better.`,
+].join(" ");
+
+/** The most words a lesson's description may have, by step: a trap and a review say almost nothing. */
+export const NOTE_WORDS: Record<LessonStep, number> = { introduce: 20, contrast: 20, "second-contrast": 20, trap: 12, combine: 20, review: 12 };
+
+const ORDINAL = "first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|last|next|\\d+(?:st|nd|rd|th)";
+const NUMBER = "\\d+|one|two|three|four|five|six|seven|eight|nine|ten";
+const COORDINATES: [RegExp, string][] = [
+  [new RegExp(`\\b(?:row|column|col)s?\\s*(?:#|no\\.?\\s*)?(?:${NUMBER})\\b`, "i"), "a row or column number"],
+  [new RegExp(`\\b(?:${ORDINAL})\\s+(?:row|column|col)s?\\b`, "i"), "a numbered row or column"],
+  [/\br\s?\d+\s?c\s?\d+\b/i, "a cell reference"],
+  [/\(\s*\d+\s*,\s*\d+\s*\)/, "a cell reference"],
+  [new RegExp(`\\b(?:${ORDINAL}|${NUMBER})\\b[\\w\\s-]{0,24}?\\b(?:from|in from)\\s+the\\s+(?:left|right|top|bottom)\\b`, "i"), "a counted position"],
+  [/\b(?:left to right|right to left|top to bottom|bottom to top)\b/i, "a scan across the board"],
+];
+const STEP_VERBS = new Set(("look start begin find put go check draw move place try stand follow count read trace take shade fill mark work compare see watch notice "
+  + "leave ignore turn walk keep use pick choose cross run note sit point step head finish end").split(" "));
+const TELLING: [RegExp, string][] = [
+  [/\byour (?:pencil|pen|finger)\b/i, "a hand-held move (your pencil, your finger)"],
+  [/\b(?:the answer is|is the answer|must be|must go|has to be|have to be|goes here|goes there)\b/i, "what the answer is"],
+  [/\bthe (?:line|path|loop|answer) (?:goes|passes|runs|turns|must|has to)\b/i, "what the answer is"],
+];
+
+/** Where a note gives the solve away rather than pointing (none is the only acceptable answer):
+ *  coordinates, more than one instruction, a hand on the pencil, what holds, or too many words.
+ *  `step` sets the length; titles are checked for coordinates only (`title`); `sameDay`: the
+ *  board before went up the same day, so it isn't yesterday's. */
+export function pointsTooMuch(text: string, step?: LessonStep, o: { title?: boolean; sameDay?: boolean } = {}): string[] {
+  const out = new Set<string>();
+  for (const [re, why] of COORDINATES) if (re.test(text)) out.add(why);
+  // a back catalogue told a week a day (schedule.ts historySlots): the board before went up today
+  if (o.sameDay && /\byesterday/i.test(text)) out.add("\"yesterday\" (the board before went up earlier today: say \"the last board\")");
+  if (o.title) return [...out];
+  for (const [re, why] of TELLING) if (re.test(text)) out.add(why);
+  let steps = 0;
+  for (const s of text.split(/[.!?;:]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)) {
+    const words = s.replace(/[^a-z'\s]/g, " ").split(/\s+/).filter(Boolean);
+    const lead = ["then", "now", "first", "next", "and"].includes(words[0]) ? words[1] : words[0];
+    if (lead && STEP_VERBS.has(lead)) steps++;
+    for (let i = 1; i < words.length - 1; i++) if (words[i] === "then" && STEP_VERBS.has(words[i + 1])) steps++;
+  }
+  if (steps > 1) out.add("more than one instruction");
+  const n = text.split(/\s+/).filter((w) => /[a-z0-9]/i.test(w)).length, max = NOTE_WORDS[step ?? "introduce"];
+  if (n > max) out.add(`${n} words (at most ${max})`);
+  return [...out];
+}
+
+const AREAS = [["the top left", "the top", "the top right"], ["the left side", "the middle", "the right side"], ["the bottom left", "the bottom", "the bottom right"]];
+/** Where on a board some cells are, in words a teacher points with: a corner, an edge, the middle;
+ *  null on a board so small that pointing gives the answer away, or for cells spread over it. */
+export function areaOf(cells: number[], rows: number, cols: number): string | null {
+  if (!cells.length || rows * cols <= 6) return null;
+  const rs = cells.map((i) => Math.floor(i / cols)), cs = cells.map((i) => i % cols);
+  const all = (xs: number[], v: number) => xs.every((x) => x === v);
+  const v = all(rs, 0) ? "top" : all(rs, rows - 1) ? "bottom" : null, h = all(cs, 0) ? "left" : all(cs, cols - 1) ? "right" : null;
+  if (v && h) return `the ${v}-${h} corner`;
+  if (v || h) return `the ${v ?? h} edge`;
+  const third = (x: number, n: number) => (x + 0.5) / n < 1 / 3 ? 0 : (x + 0.5) / n > 2 / 3 ? 2 : 1;
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  if (Math.max(...rs) - Math.min(...rs) > rows / 2 || Math.max(...cs) - Math.min(...cs) > cols / 2) return null;
+  const y = third(mean(rs), rows), x = third(mean(cs), cols);
+  return AREAS[y][x];
+}
 
 /** The facts Claude writes a lesson's words from: the step, the subject, where to look. */
-export function lessonFacts(p: Persona, lesson: Lesson, spec: GridSpec, path?: { cells: number[]; uses: string[] }[], notes: string[] = []) {
-  const joined = notes.join(" ");
+export function lessonFacts(p: Persona, lesson: Lesson, spec: GridSpec, path?: { cells: number[]; uses: string[] }[], notes: string[] = [], sameDay = false) {
+  const joined = notes.join(" "), before = sameDay ? "the last board" : "yesterday's board";
   const change = joined.match(/one change from the day before's board \(([^)]*)\)/)?.[1];
-  const what = joined.includes("a fresh board") ? "Today's board is a new one the same size as yesterday's (no small change worked): don't call it yesterday's."
-    : change ? `What changed from yesterday's board: ${change}. Point at that, and nothing else about it.`
-    : "It's a new board, not an earlier post: don't call it yesterday's or last week's.";
-  const company = lessonSettings(p, lesson).with, cols = spec.size[1];
+  const what = joined.includes("a fresh board") ? `This board is a new one the same size as ${before} (no small change worked): don't call it ${before}.`
+    : change ? `What changed from ${before}, for you only: ${change}. At most point at it, without positions.`
+    : `It's a new board, not an earlier post: don't call it ${before} or last week's.`;
+  const company = lessonSettings(p, lesson).with, [rows, cols] = spec.size;
   const first = path?.find((st) => st.uses.some((u) => usesOf(lesson.focus).includes(u)));
-  const where = first?.cells.length && first.cells.length <= 4 ? first.cells.map((i) => `row ${Math.floor(i / cols) + 1}, column ${(i % cols) + 1}`).join("; ") : null;
+  const where = first?.cells.length && first.cells.length <= 4 && lesson.step !== "trap" && lesson.step !== "review" ? areaOf(first.cells, rows, cols) : null;
   const mine = (spec.givens ?? []).filter(subjectGiven(lesson.focus)).length;
   return [
     lesson.subject.review ? `This is a review week (week ${lesson.index + 1} of ${p.curriculum!.length}); today's subject comes back from earlier: ${lesson.focus.name}.`
       : `This week's subject: ${lesson.subject.name} (week ${lesson.index + 1} of ${p.curriculum!.length}).${lesson.focus !== lesson.subject ? ` Today reviews last week's: ${lesson.focus.name}.` : ""}`,
     `The rule, for you only: ${ruleSentences(lesson.focus).join(" ")}`,
-    STEP_WORDS[lesson.step],
+    STEP_WORDS(before)[lesson.step],
+    ...(sameDay ? ["The back catalogue goes up a week a day: the posts before this one went up earlier today. Never say yesterday; say \"the last board\"."] : []),
     what,
     ...(company ? [`Friday's company: ${company.name}, from an earlier week.`] : []),
     ...(mine && kindOf(lesson.focus) ? [`On the board: ${mine} of them.`] : []),
-    ...(where ? [`Where the first step that needs it happens (point here, never say what is true here): ${where}.`] : []),
-    `The title must be exactly "${titlePrefix(lesson)}" followed by one or two words.`,
+    ...(where ? [`Where the solve first needs it, if you point at all (never say what is true there): ${where}.`] : []),
+    noteRules(NOTE_WORDS[lesson.step]),
+    `The title must be exactly "${titlePrefix(lesson)}" followed by one or two words, never a position.`,
     `Never use these words, which state the rule: ${[...ruleWords(lesson.focus)].join(", ")}.`,
   ].join("\n");
 }
 
 /** Fallback words for a step, clean of any rule's words, when Claude's keep stating the rule. */
 export const PLAIN_WORDS: Record<LessonStep, { word: string; description: string }> = {
-  introduce: { word: "Begin", description: "Start at the circle." },
-  contrast: { word: "Again", description: "Yesterday's board. Look for the change." },
-  "second-contrast": { word: "Once More", description: "Yesterday's board. Something moved." },
+  introduce: { word: "Begin", description: "A small board." },
+  contrast: { word: "Again", description: "The last board. Something changed." },
+  "second-contrast": { word: "Once More", description: "The last board. Something moved." },
   trap: { word: "Careful", description: "" },
   combine: { word: "Company", description: "An old friend is back." },
   review: { word: "Back", description: "An old friend is back." },

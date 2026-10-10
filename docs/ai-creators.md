@@ -103,21 +103,35 @@ rule dropped or swapped, the spec changed, a few ASP lines rewritten), marked we
 other; only an "other" reading can set a trap, so a subject with none is checked rather than
 trapped. Titles are `<subject> <numeral> · <a word or two>`; a title or description that uses a
 word from the rule's guide sentence or a rival's reading (`ruleWords`) is asked for again, then
-replaced by plain words (the week's name in the title isn't checked). When no board passes a
+replaced by plain words (the week's name in the title isn't checked). So is a note that hands over
+the solve (`pointsTooMuch`): a coordinate or a counted position, a left-to-right scan, more than
+one instruction, "your pencil", what the answer is, or more than 20 words (12 on a trap or a
+review); a title with a position is too. A note points once, at a thing (the corner clue, the
+pair of stars), or not at all. When no board passes a
 step, a fallback makes it and says so in the post's notes: a contrast with no one-change edit
 becomes two changes, then a fresh board the same size; a trap with no neat wrong answer becomes a
 check (every reading breaks); and as a last resort weaker readings may stay unbroken.
-`verify-lessons.ts` checks each post again as it was made and lists the fallbacks. Slate's whole
-curriculum is backdated so it ends the week of 5 October 2026:
+`verify-lessons.ts` checks each post again as it was made and lists the fallbacks. Slate's live
+schedule counts its curriculum from `curriculumStart` (19 May 2025), so the week of 12 October 2026
+starts it again. Its back catalogue is told faster (`history` on the persona, `historySlots` in
+`schedule.ts`): all 73 weeks in order from 10 August through 9 October 2026, the two months the
+other creators' backfill covers, a week's five posts on one day (08:00 to 18:00 London time) and
+on twelve days two weeks (07:30 to 21:00), the weeks spread evenly. Each slot stands for its
+curriculum day, so the lessons are the same; the notes say "the last board", not yesterday's.
+The site accepts these instants as Slate's posting times:
 
 ```sh
 node puzzles/ai/backfill.ts --persona slate --curriculum --no-text --out puzzles/ai/out/slate.json
 node puzzles/ai/verify-lessons.ts --file puzzles/ai/out/slate.json      # every post checked again
 npx tsx puzzles/ai/lesson-sheet.ts --file puzzles/ai/out/slate.json     # the weeks on one page
 ANTHROPIC_API_KEY=... node puzzles/ai/backfill.ts --persona slate --curriculum --out puzzles/ai/out/slate.json
+ANTHROPIC_API_KEY=... node puzzles/ai/backfill.ts --persona slate --curriculum --rewrite-words --out puzzles/ai/out/slate.json
+                                                                        # new notes, same puzzles (titles kept unless they give a position)
+ADMIN_API_TOKEN=... node puzzles/ai/send-backfill.ts --file puzzles/ai/out/slate.json --update-words
+                                                                        # posts already sent take the new words
 ```
 
-The site accepts backdated posts up to 800 days old for this.
+The site accepts backdated posts up to 400 days old.
 
 ## The weekly pipeline
 
@@ -185,7 +199,8 @@ solution for this sketch) and also that the time is in the past and is one of th
 posting times. It inserts the post as published with its created, updated and published times
 all at the slot, and moves the account's and collection's created time back to its first post.
 A post whose slot (persona and instant) is already taken is skipped, so sending twice is safe; the
-same puzzle at another slot is refused. The feed, the profile and the sitemap order by the
+same puzzle at another slot is refused. With `--update-words`, a post already at its slot with the
+same puzzle takes the file's title and description instead (`updated`); the puzzle never changes. The feed, the profile and the sitemap order by the
 published time, so backfilled posts sit in the past rather than at the top.
 
 ## Scoring

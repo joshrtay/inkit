@@ -9,7 +9,7 @@ import type { GridSpec } from "../../src/engine/types.ts";
 import { guides } from "../../src/guides/guides.ts";
 import type { GenerateOptions } from "../grid/generate.ts";
 import type { GenrePlan, Persona } from "../../app/app/ai/personas.ts";
-import { difficultyOf, lessonFor, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
+import { difficultyOf, lessonFor, localDate, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Score, type Scorer } from "./score.ts";
 
 /** The model that writes titles and descriptions, and its price per million tokens (input, output). */
@@ -155,20 +155,29 @@ export async function wordsFor(client: Anthropic | null, usage: Usage, p: Person
   if (!client) return { title: `[${p.name}: ${made.spec.genre} ${slot.date}]`, description: "[written by Claude in the persona's voice]" };
   const lesson = lessonFor(p, slot);
   if (lesson) {
-    // a tutor's words point and never state the rule: a title or description with the rule's
-    // words is asked for again, then replaced by plain ones (./lesson.ts)
+    // a tutor's words point and never state the rule or the solve: a title or description with
+    // the rule's words, coordinates, a chain of steps or too many words is asked for again, then
+    // replaced by plain ones (./lesson.ts)
     const L = await import("./lesson.ts");
     const { deductionPaths } = await import("../difficulty/scorer.ts");
-    const facts = L.lessonFacts(p, lesson, made.spec, deductionPaths.get(made.spec), made.score.notes);
+    // a back catalogue told a week a day (schedule.ts historySlots): the slot stands for another date
+    const sameDay = localDate(slot.at, p.schedule.timezone).date !== slot.date;
+    const facts = L.lessonFacts(p, lesson, made.spec, deductionPaths.get(made.spec), made.score.notes, sameDay);
     const prefix = L.titlePrefix(lesson);
-    let words = { title: "", description: "" }, bad: string[] = [];
+    let words = { title: "", description: "" }, rule: string[] = [], told: string[] = [];
     for (let k = 0; k < 3; k++) {
-      words = await ask(client, usage, p, slot, made, earlier, said, [facts, extra, bad.length ? `Your last try used the rule's words (${bad.join(", ")}): don't.` : ""].filter(Boolean).join("\n"));
+      const again = [
+        rule.length ? `Your last try used the rule's words (${rule.join(", ")}): don't.` : "",
+        told.length ? `Your last try gave the solve away (${told.join("; ")}): point once at a thing, or say less.` : "",
+      ];
+      words = await ask(client, usage, p, slot, made, earlier, said, [facts, extra, ...again].filter(Boolean).join("\n"));
       const word = words.title.startsWith(prefix) ? words.title.slice(prefix.length) : words.title.replace(/^.*·\s*/, "");
       words.title = `${prefix}${word.trim()}`;
       // (the prefix is the week's name, not Claude's: only its own words are checked)
-      bad = L.tellsRule(`${words.title.slice(prefix.length)} ${words.description}`, lesson.focus);
-      if (!bad.length) return words;
+      const own = words.title.slice(prefix.length);
+      rule = L.tellsRule(`${own} ${words.description}`, lesson.focus);
+      told = [...new Set([...L.pointsTooMuch(own, lesson.step, { title: true, sameDay }), ...L.pointsTooMuch(words.description, lesson.step, { sameDay })])];
+      if (!rule.length && !told.length) return words;
     }
     const plain = L.PLAIN_WORDS[lesson.step];
     return { title: `${prefix}${plain.word}`, description: plain.description, plain: true as const };

@@ -140,10 +140,17 @@ describe("a backfilled post", () => {
   });
   it("must be in the past, and not long ago", async () => {
     expect(await checkBackfillPost(await body({ publishedAt: "2026-10-10T06:47:00Z" }), now)).toMatchObject({ ok: false, status: 400 });
-    // (a tutor's curriculum reaches back over a year: up to 800 days)
-    expect(await checkBackfillPost(await body({ publishedAt: "2024-01-02T07:47:00Z" }), now)).toMatchObject({ ok: false, status: 400 });
+    // (up to 400 days)
+    expect(await checkBackfillPost(await body({ publishedAt: "2025-09-01T06:47:00Z" }), now)).toMatchObject({ ok: false, status: 400 });
     // and a scheduled post can't be dated in the past
     expect(await checkScheduleRequest({ ...(await body()), publishAt: at }, now)).toMatchObject({ ok: false });
+  });
+  it("may be at one of a tutor's back catalogue's times (historySlots)", async () => {
+    const panel = 'panel\n{"size":[2,1],"givens":[{"at":"corner","corner":[2,0],"kind":"start"},{"at":"corner","corner":[0,1],"kind":"end"},{"at":"cell","cell":[0,0],"kind":"square","color":"black"},{"at":"cell","cell":[1,0],"kind":"square","color":"white"},{"at":"line","corners":[[0,1],[1,1]],"kind":"gap"}]}';
+    const slate = (publishedAt: string) => async () => body({ persona: "slate", sketch: panel, publishedAt, proof: { solutions: 1, sketchHash: await sha256(panel), solver: "t" } });
+    // 10 August 2026, a day carrying two weeks: its second post at 09:00 London time
+    expect(await checkBackfillPost(await slate("2026-08-10T08:00:00.000Z")(), now)).toMatchObject({ ok: true, key: "slate@2026-08-10T08:00:00.000Z" });
+    expect(await checkBackfillPost(await slate("2026-08-10T08:15:00.000Z")(), now)).toMatchObject({ ok: false, status: 400 });
   });
   it("must be at one of the persona's posting times", async () => {
     const r = await checkBackfillPost(await body({ publishedAt: "2026-09-02T06:48:00Z" }), now);
@@ -169,6 +176,13 @@ describe("a backfilled post", () => {
     // a slot already taken by a queued draft, or one since deleted, is skipped too
     expect(backfillAction([{ ...sent[0], state: "draft", publishedAt: null, publishAt: t }], t, sketch)).toMatchObject({ do: "skip" });
     expect(backfillAction([{ ...sent[0], state: "deleted" }], t, sketch)).toMatchObject({ do: "skip" });
+  });
+  it("with updateWords, gives a post already at its slot new words, never a new puzzle", () => {
+    const t = new Date(at), sent = [{ id: "g1", state: "published", publishedAt: t, publishAt: null, sketch }];
+    expect(backfillAction(sent, t, sketch, true)).toEqual({ do: "update", id: "g1" });
+    expect(backfillAction(sent, t, "sudoku\n{}", true)).toEqual({ do: "skip", id: "g1" });
+    expect(backfillAction([{ ...sent[0], state: "deleted" }], t, sketch, true)).toEqual({ do: "skip", id: "g1" });
+    expect(backfillAction([], t, sketch, true)).toEqual({ do: "insert" });
   });
   it("can't repeat a puzzle the persona already has", () => {
     const other = new Date(Date.parse(at) - DAY);

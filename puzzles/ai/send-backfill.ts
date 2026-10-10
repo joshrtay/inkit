@@ -1,13 +1,15 @@
 // Send a backfill file (./backfill.ts) to the site: POST /admin/ai/backfill, a batch at a time.
 // The site checks each post as it checks a scheduled one and inserts it as published at its slot;
-// a post already there is skipped, so this can be run again safely. See docs/ai-creators.md.
+// a post already there is skipped, so this can be run again safely (with --update-words, a post
+// already there with the same puzzle takes the file's title and description). See docs/ai-creators.md.
 //
 //   node puzzles/ai/send-backfill.ts --dry-run                              the site checks everything and says what it would do; writes nothing
 //   node puzzles/ai/send-backfill.ts --site https://inkit.games             the real thing
 //
 // Flags: --file <path> (default puzzles/ai/out/backfill.json); --site (default http://localhost:5173);
 // --persona <handle>[,...]; --batch <n> (default 20); --allow-placeholders (send posts made with
-// --no-text, with their placeholder words: for trying it locally, refused for any other site).
+// --no-text, with their placeholder words: for trying it locally, refused for any other site);
+// --update-words (posts already sent get the file's words; their puzzles never change).
 // Env: ADMIN_API_TOKEN (never printed).
 import { readFileSync } from "node:fs";
 import type { BackfillFile, BackfillRecord } from "./backfill.ts";
@@ -15,7 +17,7 @@ import type { BackfillFile, BackfillRecord } from "./backfill.ts";
 const argv = process.argv.slice(2);
 const flag = (k: string) => argv.includes(`--${k}`);
 const arg = (k: string, d?: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
-const dryRun = flag("dry-run"), allowPlaceholders = flag("allow-placeholders");
+const dryRun = flag("dry-run"), allowPlaceholders = flag("allow-placeholders"), updateWords = flag("update-words");
 const file = arg("file", "puzzles/ai/out/backfill.json")!;
 const site = (arg("site", "http://localhost:5173") ?? "").replace(/\/$/, "");
 const only = arg("persona")?.split(",").map((h) => h.trim()).filter(Boolean);
@@ -47,7 +49,7 @@ for (let i = 0; i < chosen.length; i += batch) {
   const res = await fetch(`${site}/admin/ai/backfill`, {
     method: "POST",
     headers: { authorization: `Bearer ${process.env.ADMIN_API_TOKEN}`, "content-type": "application/json" },
-    body: JSON.stringify({ posts: part.map(asPost), dryRun }),
+    body: JSON.stringify({ posts: part.map(asPost), dryRun, updateWords }),
   });
   const body = await res.json().catch(() => ({})) as { error?: string; results?: { key?: string; id?: string | null; status: string; error?: string }[] };
   if (!res.ok || !body.results) { console.error(`POST ${site}/admin/ai/backfill: ${res.status} ${body.error ?? ""}`); process.exit(1); }

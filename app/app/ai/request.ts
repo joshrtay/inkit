@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { parseSketch } from "../games/sketch";
 import { personaByHandle, type Persona } from "./personas.ts";
-import { slotKey, slotsBetween } from "./schedule.ts";
+import { historySlots, slotKey, slotsBetween } from "./schedule.ts";
 
 export const ScheduleRequest = z.object({
   persona: z.string(),
@@ -75,10 +75,12 @@ export const BackfillRequest = z.object({
   posts: z.array(z.unknown()).min(1).max(50),
   /** check everything and say what would happen, writing nothing */
   dryRun: z.boolean().optional(),
+  /** a post already at its slot with the same puzzle gets the sent title and description */
+  updateWords: z.boolean().optional(),
 });
 
 /** How far back a post may be dated. */
-const BACK = 800 * 86400e3;
+const BACK = 400 * 86400e3;
 
 export type CheckedBackfill =
   | { ok: true; persona: Persona; kind: string; publishedAt: Date; key: string; req: BackfillPost }
@@ -96,8 +98,10 @@ export async function checkBackfillPost(body: unknown, now: Date): Promise<Check
   if (Number.isNaN(publishedAt.getTime())) return { ok: false, status: 400, error: "publishedAt isn't a time." };
   const key = slotKey(persona.handle, publishedAt);
   if (publishedAt.getTime() >= now.getTime()) return { ok: false, status: 400, key, error: "publishedAt isn't in the past: schedule it instead (POST /admin/ai/schedule)." };
-  if (publishedAt.getTime() < now.getTime() - BACK) return { ok: false, status: 400, key, error: "publishedAt is more than 800 days ago." };
-  const slot = slotsBetween(persona, new Date(publishedAt.getTime() - 60e3), new Date(publishedAt.getTime() + 60e3)).find((s) => s.at.getTime() === publishedAt.getTime());
+  if (publishedAt.getTime() < now.getTime() - BACK) return { ok: false, status: 400, key, error: "publishedAt is more than 400 days ago." };
+  // a posting time, or one of a tutor's back catalogue's (`historySlots`)
+  const slot = slotsBetween(persona, new Date(publishedAt.getTime() - 60e3), new Date(publishedAt.getTime() + 60e3)).find((s) => s.at.getTime() === publishedAt.getTime())
+    ?? historySlots(persona).find((s) => s.at.getTime() === publishedAt.getTime());
   if (!slot) return { ok: false, status: 400, key, error: `${publishedAt.toISOString()} isn't one of ${persona.name}'s posting times.` };
   const puzzle = await checkPuzzle(persona, req.sketch, req.proof);
   if (!puzzle.ok) return { ...puzzle, key };
@@ -106,12 +110,13 @@ export async function checkBackfillPost(body: unknown, now: Date): Promise<Check
 
 /** What to do with a checked backfilled post, given the persona's games that share its slot or its
  *  sketch: a game at the same instant (queued, published, or since deleted) means it was sent
- *  before, so it's skipped; the same puzzle at another time is a repeat, refused. Pure, so the
- *  idempotency is unit-tested. */
-export function backfillAction(existing: { id: string; state: string; publishedAt: Date | null; publishAt: Date | null; sketch: string }[], at: Date, sketch: string):
-  { do: "insert" } | { do: "skip"; id: string } | { do: "repeat"; id: string } {
+ *  before, so it's skipped; the same puzzle at another time is a repeat, refused. With `updateWords`,
+ *  a game at the same instant with the same puzzle, not deleted, takes the new words instead (the
+ *  puzzle itself never changes). Pure, so the idempotency is unit-tested. */
+export function backfillAction(existing: { id: string; state: string; publishedAt: Date | null; publishAt: Date | null; sketch: string }[], at: Date, sketch: string, updateWords = false):
+  { do: "insert" } | { do: "skip"; id: string } | { do: "repeat"; id: string } | { do: "update"; id: string } {
   const same = existing.find((g) => g.publishedAt?.getTime() === at.getTime() || g.publishAt?.getTime() === at.getTime());
-  if (same) return { do: "skip", id: same.id };
+  if (same) return updateWords && same.state !== "deleted" && same.sketch === sketch ? { do: "update", id: same.id } : { do: "skip", id: same.id };
   const repeat = existing.find((g) => g.state !== "deleted" && g.sketch === sketch);
   if (repeat) return { do: "repeat", id: repeat.id };
   return { do: "insert" };

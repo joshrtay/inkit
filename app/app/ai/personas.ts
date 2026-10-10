@@ -165,6 +165,11 @@ export interface Persona {
   curriculumStart?: string;
   /** which step of the week's lesson each posting day is */
   lessonDays?: Partial<Record<Weekday, LessonStep>>;
+  /** a tutor's back catalogue told faster (schedule.ts `historySlots`): every curriculum week, in
+   *  order, from `from` through `to` (local dates), a week's posts on one day at `times[0]`, or
+   *  `times[1]` on a day that carries two weeks, the weeks spread evenly over the days. The
+   *  backfill posts at these instants, and the site accepts them; the live schedule is unchanged */
+  history?: { from: string; to: string; times: string[][] };
 }
 
 /** A day's job in a tutor's week (docs/research-tutorials.md §4.2, revised by
@@ -936,6 +941,11 @@ export const PERSONAS: Persona[] = [
     curriculum: SLATE_CURRICULUM,
     // the curriculum's first week: the whole of it had been posted by the week of 5 October 2026
     curriculumStart: "2025-05-19",
+    // ...but the back catalogue is told in the two months the other creators' backfill covers
+    history: {
+      from: "2026-08-10", to: "2026-10-09",
+      times: [["08:00", "10:30", "13:00", "15:30", "18:00"], ["07:30", "09:00", "10:30", "12:00", "13:30", "15:00", "16:30", "18:00", "19:30", "21:00"]],
+    },
     lessonDays: { mon: "introduce", tue: "contrast", wed: "second-contrast", thu: "trap", fri: "combine" },
     quality: {
       // the tiniest boards are full: a 2 × 1 with two squares is every cell a symbol
@@ -945,13 +955,15 @@ export const PERSONAS: Persona[] = [
       principles: ["one idea a week", "the smallest board that needs it", "every wrong reading fails by Thursday", "point, never tell"],
     },
     voice: {
-      brief: "A teacher at a blackboard who only points. Short plain sentences in the present tense, mostly imperatives: look here, start there. It names a place on the board (a corner, the top row, the cell beside the circle, yesterday's board) and never says what is true there or why. No praise, no encouragement, no jokes, no explaining. It never says rule, never says what a symbol means, never tells you you'll learn something. One or two sentences, often a fragment. The week reads as one lesson.",
+      brief: "A teacher at a blackboard who only points, and not often. Short plain sentences in the present tense, often a fragment. At most one pointer, at a thing on the board (the corner clue, the two letters, the pair of stars, the edge, yesterday's board) or a question that turns the eye; many days, just a few words. Never a position (no rows, columns or counting across), never a sequence of steps, never what is true there or why. No praise, no encouragement, no jokes, no explaining. It never says rule, never says what a symbol means, never tells you you'll learn something. The week reads as one lesson.",
       titles: "The week's subject, the day's numeral (I on Monday to V on Friday), a middle dot, then one or two words for where to look or what changed: Squares I · Two, Squares II · Moved, Squares III · The Long Way, Squares IV · Corners, Squares V · Company.",
       examples: [
         { title: "Squares I · Two", description: "Two squares. Draw a line." },
         { title: "Squares II · Moved", description: "Yesterday's board. One square has moved." },
         { title: "Squares III · The Long Way", description: "The short way round is tempting." },
-        { title: "Dots IV · Corners", description: "Start in the corners." },
+        { title: "Dots IV · Corners", description: "The corners." },
+        { title: "Stars V · Company", description: "The pair of stars is back." },
+        { title: "Letters I · Two", description: "Two letters." },
       ],
     },
   },

@@ -199,6 +199,33 @@ export function backfillSlots(p: Persona, now: Date, days: number): Slot[] {
   return slotsBetween(p, from, to).filter((s) => s.at.getTime() < now.getTime());
 }
 
+const addDays = (date: string, n: number) => { const [y, m, d] = date.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+
+/** A tutor's back catalogue told faster (`history` on the persona): every curriculum week in order,
+ *  its posts on one day, through the day at the history's times, the weeks spread evenly over the
+ *  days (so some days carry two, the second after the first). Each slot's `at` is when it's
+ *  published; its `date` and `weekday` are the curriculum day it stands for, so `lessonFor` and
+ *  `planFor` give that day's lesson. Empty for any persona without a history. */
+export function historySlots(p: Persona): Slot[] {
+  const h = p.history, list = p.curriculum, start = p.curriculumStart, steps = WEEKDAYS.filter((w) => p.lessonDays?.[w]);
+  if (!h || !list?.length || !start || !steps.length) return [];
+  const days = Math.round((Date.parse(`${h.to}T00:00:00Z`) - Date.parse(`${h.from}T00:00:00Z`)) / DAY) + 1;
+  const byDay: number[][] = Array.from({ length: days }, () => []);
+  for (let i = 0; i < list.length; i++) byDay[Math.floor((i * days) / list.length)].push(i);
+  const out: Slot[] = [];
+  byDay.forEach((weeks, d) => {
+    const [y, m, dd] = addDays(h.from, d).split("-").map(Number);
+    const times = h.times[weeks.length - 1] ?? h.times.at(-1)!;
+    let k = 0;
+    for (const week of weeks) for (const weekday of steps) {
+      const [hh, mm] = times[Math.min(k++, times.length - 1)].split(":").map(Number);
+      const at = zonedTime(y, m, dd, hh, mm, p.schedule.timezone), date = addDays(start, 7 * week + WEEKDAYS.indexOf(weekday));
+      out.push({ handle: p.handle, at, date, weekday, difficulty: difficultyOf(p.difficulty, at, date, weekday) });
+    }
+  });
+  return out;
+}
+
 /** Which weekday a slot's pair partner is on, and which of the pair it is (0 first, 1 second). */
 export function pairRole(p: Persona, weekday: Weekday): 0 | 1 | null {
   if (!p.pairs) return null;

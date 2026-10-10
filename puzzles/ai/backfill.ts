@@ -10,9 +10,14 @@
 //
 //   node puzzles/ai/backfill.ts --persona slate --curriculum --no-text --out puzzles/ai/out/slate.json
 //                                                           a tutor's whole curriculum, from its first week through yesterday
+//   node puzzles/ai/backfill.ts --persona slate --curriculum --rewrite-words --out puzzles/ai/out/slate.json
+//                                                           new descriptions for posts already worded, keeping
+//                                                           their puzzles (and their titles, if a tutor's pass ./lesson.ts)
 //
 // Flags: --persona <handle>[,<handle>...]; --curriculum (a tutor's days reach back to its
-// curriculum's first week, app/app/ai/personas.ts `curriculumStart`); --days <n> (default 61: the n local days before today,
+// curriculum's first week, app/app/ai/personas.ts `curriculumStart`; or, with a `history`, the whole
+// curriculum told over the history's days, schedule.ts `historySlots`: a post already in the file
+// for the same curriculum day moves to its new slot, keeping its puzzle); --days <n> (default 61: the n local days before today,
 // through yesterday, in each persona's own time zone); --now <ISO time> (default now);
 // --out <file> (default puzzles/ai/out/backfill.json); --jobs <n> (personas made at once,
 // default a third of the CPUs); --candidates <n>, --candidate-ms, --budget-ms (as week.ts);
@@ -31,7 +36,7 @@ import { makePuzzle } from "../../src/engine/puzzle.ts";
 import { solve } from "../../src/engine/solve.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { PERSONAS, type Persona } from "../../app/app/ai/personas.ts";
-import { backfillRange, backfillSlots, planFor, slotKey, type Slot } from "../../app/app/ai/schedule.ts";
+import { backfillRange, backfillSlots, historySlots, planFor, slotKey, type Slot } from "../../app/app/ai/schedule.ts";
 import { clashingTitle } from "../../app/app/ai/titles.ts";
 import { cluesOf, type Score } from "./score.ts";
 import { deductionScorer } from "../difficulty/scorer.ts";
@@ -40,7 +45,7 @@ import { costOf, factsFor, makeFor, MODEL, newUsage, PRICE, sha256, sketchOf, sy
 const argv = process.argv.slice(2);
 const flag = (k: string) => argv.includes(`--${k}`);
 const arg = (k: string, d?: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
-const dryRun = flag("dry-run"), noText = flag("no-text"), curriculum = flag("curriculum");
+const dryRun = flag("dry-run"), noText = flag("no-text"), curriculum = flag("curriculum"), rewriteWords = flag("rewrite-words");
 const only = arg("persona")?.split(",").map((h) => h.trim()).filter(Boolean);
 const days = Number(arg("days", "61"));
 const now = new Date(arg("now") ?? Date.now());
@@ -103,20 +108,22 @@ export interface BackfillFile {
 // ---- the dry run: the slots, and what each would be ----
 
 const localTime = (p: Persona, at: Date) => new Intl.DateTimeFormat("en-GB", { timeZone: p.schedule.timezone, hour: "2-digit", minute: "2-digit" }).format(at);
-const slotsOf = (p: Persona) => backfillSlots(p, now, daysOf(p));
+const told = (p: Persona) => curriculum && !!p.history;
+const slotsOf = (p: Persona) => (told(p) ? historySlots(p).filter((s) => s.at.getTime() < now.getTime()) : backfillSlots(p, now, daysOf(p)));
 
 if (dryRun) {
   const genres = new Map<string, number>(), counts: [string, number][] = [];
   let estIn = 0;
   for (const p of personas) {
-    const slots = slotsOf(p), { from, to } = backfillRange(p, now, daysOf(p));
+    const slots = slotsOf(p), range = backfillRange(p, now, daysOf(p));
+    const from = told(p) ? slots[0]?.at ?? range.from : range.from, to = told(p) ? slots.at(-1)?.at ?? range.to : range.to;
     counts.push([p.handle, slots.length]);
     console.log(`${p.name} (@${p.handle}): ${slots.length} posts, ${from.toISOString()} .. ${to.toISOString()} (${p.schedule.timezone}; ${p.difficulty.kind})`);
     for (const s of slots) {
       const { plan, mix, rules, moves, lesson } = planFor(p, s);
       const label = `${plan.genre}${mix ? `/${mix}` : ""}${rules ? `[${rules}]` : ""}${moves ? `{${moves}}` : ""}${lesson ? `  week ${lesson.week + 1}: ${lesson.subject.id}, ${lesson.step}${lesson.focus !== lesson.subject ? ` of ${lesson.focus.id}` : ""}` : ""}`;
       genres.set(plan.genre, (genres.get(plan.genre) ?? 0) + 1);
-      console.log(`  ${s.date} ${s.weekday} ${localTime(p, s.at)}  ${s.at.toISOString()}  difficulty ${s.difficulty.toFixed(2)}  ${label}`);
+      console.log(`  ${s.date} ${s.weekday} ${told(p) ? `${s.at.toISOString().slice(0, 10)} ` : ""}${localTime(p, s.at)}  ${s.at.toISOString()}  difficulty ${s.difficulty.toFixed(2)}  ${label}`);
       estIn += estimateInputTokens(p, s, plan.genre, plan.sizes[Math.round(s.difficulty * (plan.sizes.length - 1))]);
     }
   }
@@ -167,7 +174,7 @@ const shiftDate = (date: string, days: number) => { const [y, m, d] = date.split
 
 const client = writeText ? new Anthropic() : null;
 const usage = newUsage();
-let made = 0, worded = 0, skipped = 0, failures = 0;
+let made = 0, worded = 0, skipped = 0, failures = 0, moved = 0;
 
 async function backfillPersona(p: Persona) {
   const log = (s: string) => console.log(`${p.handle.padEnd(16)} ${s.trimStart()}`);
@@ -176,7 +183,16 @@ async function backfillPersona(p: Persona) {
   for (const slot of slots) {
     const key = slotKey(p.handle, slot.at);
     let rec: BackfillRecord | undefined = posts.get(key);
-    if (rec && (rec.placeholder ? !writeText : true)) { skipped++; continue; }
+    if (told(p) && rec?.date !== slot.date) {
+      // the same curriculum day at its old slot: moved here, its puzzle and words kept (a post
+      // already at this instant stands for another day, and moves to its own slot in turn)
+      const old = mine().find((r) => r.date === slot.date);
+      if (rec) { posts.delete(key); posts.set(`${rec.key}#moving`, { ...rec, key: `${rec.key}#moving` }); }
+      rec = old && { ...old, key, publishedAt: slot.at.toISOString(), weekday: slot.weekday, target: +slot.difficulty.toFixed(3) };
+      if (old) { posts.delete(old.key); posts.set(key, rec!); moved++; }
+    }
+    // --rewrite-words only rewords: a slot not already in the file gets no puzzle
+    if (rec ? (rec.placeholder || rewriteWords ? !writeText : true) : rewriteWords) { if (rec) save(); skipped++; continue; }
     if (!rec) {
       // ---- the puzzle: never one this persona already has ----
       const seen = new Set(mine().map((r) => r.sketch));
@@ -214,7 +230,11 @@ async function backfillPersona(p: Persona) {
       const m: Made = { spec: specOf(rec), score: rec.score, size: rec.size, mix: rec.mix, rules: rec.rules, moves: rec.moves, tries: rec.tries };
       // a tutor's words point at where the solve first needs the rule: the deduction path
       if (planFor(p, slot).lesson) await deductionScorer({ spec: m.spec, plan: planFor(p, slot).plan }, p, slot).catch(() => null);
-      let words = await wordsFor(client, usage, p, slot, m, earlier, said), clash = clashingTitle(words.title, others);
+      // --rewrite-words keeps a worded post's title when a tutor's checks pass it (no coordinates)
+      const lesson = planFor(p, slot).lesson;
+      const keep = rewriteWords && !rec.placeholder && !rec.plainWords && (!lesson || !(await import("./lesson.ts")).pointsTooMuch(rec.title, lesson.step, { title: true, sameDay: told(p) }).length) ? rec.title : undefined;
+      let words = await wordsFor(client, usage, p, slot, m, earlier, said, keep && `The title is "${keep}": keep it exactly.`), clash = keep ? undefined : clashingTitle(words.title, others);
+      if (keep) words = { ...words, title: keep };
       for (let k = 0; clash && k < 2; k++) {
         words = await wordsFor(client, usage, p, slot, m, earlier, said, `"${clash}" is already taken: choose a title with different words.`);
         clash = clashingTitle(words.title, others);
@@ -235,6 +255,6 @@ const queue = [...personas];
 const t0 = Date.now();
 await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () => { for (let p = queue.shift(); p; p = queue.shift()) await backfillPersona(p); }));
 save();
-console.log(`\n${made} puzzles made, ${worded} worded, ${skipped} already done${failures ? `, ${failures} failed (a rerun tries them again)` : ""}, in ${((Date.now() - t0) / 60000).toFixed(1)} min; ${posts.size} posts in ${outFile}` +
+console.log(`\n${made} puzzles made, ${worded} worded, ${moved} moved to new slots, ${skipped} already done${failures ? `, ${failures} failed (a rerun tries them again)` : ""}, in ${((Date.now() - t0) / 60000).toFixed(1)} min; ${posts.size} posts in ${outFile}` +
   (usage.calls ? `\nClaude (${MODEL}): ${usage.calls} calls, ${usage.input} in / ${usage.output} out tokens, about $${costOf(usage).toFixed(3)}` : ""));
 if (failures) process.exitCode = 1;

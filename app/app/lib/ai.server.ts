@@ -77,19 +77,27 @@ export async function scheduleGame(db: Db, p: Persona, kind: string, publishAt: 
  *  and in the sitemap. Idempotent by the slot (persona + instant): a post already there, in any
  *  state, is skipped; the same puzzle at another time is refused as a repeat. `dryRun` writes
  *  nothing. The persona's account and collection date from its first post at the latest. */
-export async function backfillGame(db: Db, p: Persona, kind: string, at: Date, req: BackfillPost, dryRun = false):
-  Promise<{ id: string | null; status: "created" | "exists" | "repeat" | "would-create" }> {
+export async function backfillGame(db: Db, p: Persona, kind: string, at: Date, req: BackfillPost, dryRun = false, updateWords = false):
+  Promise<{ id: string | null; status: "created" | "exists" | "repeat" | "would-create" | "updated" | "would-update" }> {
   const creatorId = aiCreatorId(p.handle);
   if (dryRun) {
     const byHandle = await db.query.creators.findFirst({ where: eq(schema.creators.handle, p.handle) });
     if (byHandle && (byHandle.id !== creatorId || !byHandle.isAi)) throw new Invalid(`The handle @${p.handle} belongs to someone else; rename the persona.`);
   }
   const collectionId = dryRun ? aiCollectionId(p.handle) : (await ensurePersona(db, p)).collectionId;
-  const existing = await db.select({ id: schema.games.id, state: schema.games.state, publishedAt: schema.games.publishedAt, publishAt: schema.games.publishAt, sketch: schema.games.sketch })
+  const existing = await db.select({ id: schema.games.id, state: schema.games.state, publishedAt: schema.games.publishedAt, publishAt: schema.games.publishAt, sketch: schema.games.sketch, title: schema.games.title, description: schema.games.description })
     .from(schema.games)
     .where(and(eq(schema.games.authorId, creatorId), or(eq(schema.games.publishAt, at), eq(schema.games.publishedAt, at), eq(schema.games.sketch, req.sketch))));
-  const action = backfillAction(existing, at, req.sketch);
+  const action = backfillAction(existing, at, req.sketch, updateWords);
   if (action.do === "skip") return { id: action.id, status: "exists" };
+  if (action.do === "update") {
+    // new words for a post already sent (send-backfill.ts --update-words): the puzzle stays
+    const game = existing.find((g) => g.id === action.id)!;
+    if (game.title === req.title && game.description === (req.description ?? "")) return { id: action.id, status: "exists" };
+    if (dryRun) return { id: action.id, status: "would-update" };
+    await db.update(schema.games).set({ title: req.title, description: req.description ?? "" }).where(eq(schema.games.id, action.id));
+    return { id: action.id, status: "updated" };
+  }
   if (action.do === "repeat") return { id: action.id, status: "repeat" };
   if (dryRun) return { id: null, status: "would-create" };
   const id = newId();
