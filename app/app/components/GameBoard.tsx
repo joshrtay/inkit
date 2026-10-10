@@ -43,17 +43,23 @@ export function GameBoard({ play, saveId, onSolved }: { play: Playable; saveId?:
   const spot = useRef<HTMLDivElement>(null);
   const solved = useRef(onSolved);
   solved.current = onSolved;
+  // the page's data is reloaded after any action on it (a like, the solve being saved), which hands
+  // over an equal but new puzzle: rebuilding then would cut the solve's celebration short
+  const key = JSON.stringify(play);
+  const current = useRef(play);
+  current.current = play;
 
   useEffect(() => {
     if (!spot.current) return;
     const holder = document.createElement("div");
+    const play = current.current;
     holder.innerHTML = markup(play.layout);
     const root = holder.firstElementChild as HTMLElement;
     spot.current.appendChild(root);
     const host = createHost(saveId ?? "", () => solved.current?.(), !saveId);
     const cleanup = createGrid({ spec: play.spec })(root, host);
     return () => { cleanup?.(); root.remove(); };
-  }, [play, saveId]);
+  }, [key, saveId]);
 
   return <div ref={spot} className="game-spot" />;
 }

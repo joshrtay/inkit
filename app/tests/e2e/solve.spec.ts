@@ -22,7 +22,10 @@ test("a solve is celebrated, kept and shown", async ({ page }) => {
   await page.goto(`/g/${GAME}`);
   await expect(page.locator(".sheet svg.board")).toBeVisible();
   await solve(page);
-  await expect(page.locator(".sheet .solved-stamp")).toBeVisible({ timeout: 10_000 });
+  // the ink bursts out, and the check lands at the end of the celebration: saving the solve
+  // mustn't rebuild the board partway through, leaving just the stamp
+  await expect(page.locator(".celebration .ink-drop").first()).toBeAttached();
+  await expect(page.locator(".sheet .solved-stamp.landed")).toBeVisible({ timeout: 10_000 });
   await expect.poll(() => sql(`select 1 from solves where creator_id = ${q(run.userId)} and game_id = ${q(GAME)}`).length, { timeout: 10_000 }).toBe(1);
 
   await page.reload();

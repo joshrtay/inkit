@@ -112,7 +112,11 @@ export function celebrate(root: HTMLElement, inks: string[]) {
   big.style.strokeDashoffset = `${length}`;
 
   // 2. the ink: drops of the puzzle's colors, from where its ink is, bursting outward
-  const N = 52, cx = W / 2, cy = H / 2;
+  // as many drops, and as big, as the board is: a big board (and a bright one) gets a proper splash
+  const u = Math.min(1.6, Math.max(0.8, M / 480));
+  const N = Math.round(Math.min(110, Math.max(44, (52 * W * H) / (480 * 480)))), cx = W / 2, cy = H / 2;
+  // the paper, in the stage's pixels: the drops stay on it (blue ink is lost on the dark page)
+  const paper = { l: at.left - box.left, t: at.top - box.top, r: at.right - box.left, b: at.bottom - box.top };
   const from = inkSpots(board, N);
   // the colors painted on the board join the ink
   const painted = [...board.querySelectorAll<SVGElement>(".wash, .star, circle:not(.panel-start), [class^='panel-']:not(.panel-track):not(.panel-start):not(.panel-frame), .panel-shape rect, .mark.pen")]
@@ -120,13 +124,13 @@ export function celebrate(root: HTMLElement, inks: string[]) {
     .filter((c) => c && c !== "none" && !c.startsWith("url") && !/rgba?\(\s*(255,\s*255,\s*255|0,\s*0,\s*0)/.test(c));
   inks = [...new Set([...inks, ...painted])].slice(0, 6);
   const drops = from.map(({ x, y }, i) => {
-    const r = i % 5 === 0 ? 2 + Math.random() * 1.5 : 3.5 + Math.random() * 5;
+    const r = (i % 5 === 0 ? 2 + Math.random() * 1.5 : 3.5 + Math.random() * 5) * u;
     const e = svgEl("circle", { r: r.toFixed(1), class: "ink-drop", cx: 0, cy: 0, filter: "url(#pen)" });
     // mostly the puzzle's ink, with its other colors mixed in
     e.style.setProperty("--c", inks[i % 3 === 0 ? 1 + (i % Math.max(1, inks.length - 1)) : 0] ?? inks[0]);
     e.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(0)`);
     stage.appendChild(e);
-    const away = Math.atan2(y - cy, x - cx) + (Math.random() - 0.5) * 0.9, speed = (0.55 + Math.random() * 0.75) * M;
+    const away = Math.atan2(y - cy, x - cx) + (Math.random() - 0.5) * 0.9, speed = (0.45 + Math.random() * 0.55) * M;
     const p = (big as SVGPathElement).getPointAtLength((i / (N - 1)) * length);
     return { e, r, x, y, fx: x, fy: y, vx: Math.cos(away) * speed, vy: Math.sin(away) * speed - M * 0.25, tx: p.x, ty: p.y, s: 0 };
   });
@@ -155,6 +159,10 @@ export function celebrate(root: HTMLElement, inks: string[]) {
         const drag = Math.exp(-2.6 * dt);
         q.vx *= drag; q.vy = q.vy * drag + M * 1.4 * dt;
         q.x += q.vx * dt; q.y += q.vy * dt; q.s = Math.min(1, t / (90 * SLOW));
+        // off the paper's edge: back onto it, losing most of its speed
+        const e = q.r * 1.5;
+        if (q.x < paper.l + e || q.x > paper.r - e) { q.x = Math.min(paper.r - e, Math.max(paper.l + e, q.x)); q.vx *= -0.35; }
+        if (q.y < paper.t + e || q.y > paper.b - e) { q.y = Math.min(paper.b - e, Math.max(paper.t + e, q.y)); q.vy *= -0.35; }
         q.fx = q.x; q.fy = q.y;
       } else {
         // 4. pulled into the check, shrinking into its stroke as it draws
