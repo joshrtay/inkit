@@ -12,6 +12,7 @@ import { paletteSize } from "../../engine/encode.ts";
 import { emptyBoard, type Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
 import { celebrate, stamp, unstamp } from "./celebrate";
+import { boardKey, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
 
 interface Saved { color?: number[]; hearts?: number }
 const NS = "http://www.w3.org/2000/svg";
@@ -44,12 +45,12 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
   let history: [number, number][] = [];
 
   // ---- the figure ----
-  const gPieces = el("g", { class: "wash" }), gEdges = el("g", {}), gErr = el("g", { class: "errors" }), gDots = el("g", {});
+  const gPieces = el("g", { class: "wash" }), gFlash = el("g", { class: "flash-layer" }), gEdges = el("g", {}), gErr = el("g", { class: "errors" }), gDots = el("g", {});
   const ptsOf = (pts: number[][]) => pts.map((pt) => pt.join(",")).join(" ");
   const shapes = pieces.map((pts, i) => el("polygon", { class: "piece", points: ptsOf(pts), "data-i": i }, gPieces));
   for (const pts of pieces) el("polygon", { class: "edge", points: ptsOf(pts) }, gEdges);
   const dotGroups = pieces.map((pts, i) => {
-    const g = el("g", { class: "dots" }, gDots);
+    const g = el("g", { class: "dots", "data-flash": `cell:${i}` }, gDots);
     const dots = (p.cellGivens.get(i) ?? []).flatMap((x) => (x.kind === "dots" ? x.value : []));
     const hidden = (p.cellGivens.get(i) ?? []).some((x) => x.kind === "dots" && x.hidden);
     if (hidden) g.classList.add("hideable");
@@ -93,15 +94,31 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
     root.classList.toggle("solved", solved);
   }
   const save = () => host.save({ color, ...(maxHearts ? { hearts } : {}) } satisfies Saved);
+  // ---- the failure flash (flash.ts): every piece painted but wrong, the pieces that break the
+  // rules pulse red. Only when painting freely: with hearts a wrong color is turned away.
+  let flashOn: Set<string> | null = null, flashTimer = 0, flashState = flashStart();
+  const clearFlash = () => { clearTimeout(flashTimer); flashOn = null; gFlash.replaceChildren(); svg.querySelectorAll(".flash").forEach((x) => x.classList.remove("flash")); };
+  function flash(targets: string[]) {
+    clearFlash();
+    flashOn = new Set(targets);
+    for (const t of targets) { const [kind, i] = t.split(":"); if (kind === "cell" && pieces[Number(i)]) el("polygon", { class: "flash-wash wash", points: ptsOf(pieces[Number(i)]) }, gFlash); }
+    svg.querySelectorAll("[data-flash]").forEach((x) => { if (flashes(x.getAttribute("data-flash"), flashOn!)) x.classList.add("flash"); });
+    flashTimer = window.setTimeout(clearFlash, FLASH_MS);
+  }
   function settle() {
-    const was = solved;
-    solved = answer ? color.every((c, i) => c === answer[i]) : check(p, paintBoard()).length === 0;
+    const was = solved, problems = answer ? [] : check(p, paintBoard());
+    solved = answer ? color.every((c, i) => c === answer[i]) : problems.length === 0;
     if (solved && !was) {
       say("Every piece is painted. Solved!", "good said");
       celebrate(root, [getComputedStyle(root).getPropertyValue("--paper-ink").trim() || "#222", ...palette]);
       if (!reported) { reported = true; host.solved(maxHearts ? { mistakes: maxHearts - hearts } : {}); }
     } else if (!solved && was) { say(""); unstamp(root); }
     save(); render();
+    if (!answer) {
+      const board = paintBoard(), step = flashStep(flashState, { done: !solved && isDone(p, board), solved, busy: false, key: boardKey(board) });
+      flashState = step.state;
+      if (step.fire) { const targets = flashTargets(p, board, problems); if (targets.length) flash(targets); }
+    }
   }
   const paintBoard = () => { const b = emptyBoard(p.grid); b.color.set(color); return b; };
 
@@ -109,7 +126,7 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
     const t = (evt.target as Element).closest<SVGPolygonElement>(".piece");
     if (!t || solved) return;
     const i = Number(t.dataset.i);
-    gErr.replaceChildren();
+    gErr.replaceChildren(); clearFlash();
     if (maxHearts) {
       if (hearts <= 0 || color[i]) return;            // out of hearts, or already locked in
       if (answer![i] === brush) { color[i] = brush; settle(); return; }
@@ -135,7 +152,7 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
   q<HTMLButtonElement>("[data-undo]")?.addEventListener("click", () => {
     const last = history.pop();
     if (!last || solved) return;
-    color[last[0]] = last[1]; gErr.replaceChildren(); settle();
+    color[last[0]] = last[1]; gErr.replaceChildren(); clearFlash(); settle();
   });
   const reset = q<HTMLButtonElement>("[data-reset]");
   let confirming = false;
@@ -147,7 +164,7 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
     }
     confirming = false; delete reset.dataset.confirm;
     color = new Array<number>(n).fill(0); hearts = maxHearts; history = []; solved = false; reported = false;
-    gErr.replaceChildren(); say(""); unstamp(root); settle();
+    gErr.replaceChildren(); clearFlash(); say(""); unstamp(root); settle();
   });
 
   pick(1);
@@ -155,6 +172,7 @@ export function createFigure(p: Puzzle, root: HTMLElement, host: GameHost) {
   reported = solved;
   if (solved) { say("Every piece is painted. Solved!", "good said"); stamp(root); }
   else if (maxHearts && hearts <= 0) say("Out of hearts. Reset to try again.", "warn");
+  flashState = flashStart({ done: isDone(p, paintBoard()), solved, busy: false, key: boardKey(paintBoard()) });   // no flash for a board as saved
   render();
-  return () => document.removeEventListener("keydown", onKey);
+  return () => { clearFlash(); document.removeEventListener("keydown", onKey); };
 }

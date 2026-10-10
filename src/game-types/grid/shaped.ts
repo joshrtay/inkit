@@ -17,6 +17,7 @@ import { pathNeighbours, rootText, sqLength } from "../../engine/rules.ts";
 import { emptyBoard, type Board, type Puzzle } from "../../engine/types.ts";
 import { stoneSvg } from "./panel-draw";
 import { celebrate, stamp, unstamp } from "./celebrate";
+import { boardKey, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
 
 const S = 48, M = 26, LENGTHS_ROOM = 46;
 type A = Record<string, string | number>;
@@ -76,10 +77,10 @@ export function shapedLayers(p: Puzzle, b: Board | null, lay: ShapedLayout, opts
   if (g.kind === "lattice") {
     // every point of the lattice a faint dot; the dots to join are stones, over the path
     for (let i = 0; i < g.cellCount; i++) { const [x, y] = lay.at(i); out.grid += tag("circle", { class: "dot lattice-point", cx: x, cy: y, r: 2.6 }); }
-    for (const i of p.pegs) { const [x, y] = lay.at(i); out.givens += stoneSvg("black", x, y, S * 0.2, "pearl peg"); }
+    for (const i of p.pegs) { const [x, y] = lay.at(i); out.givens += tag("g", { "data-flash": `cell:${i}` }, stoneSvg("black", x, y, S * 0.2, "pearl peg")); }
     if (b) for (const l of g.links) if (b.loop[l.id] === 1) {
       const [[x1, y1], [x2, y2]] = l.cells.map(lay.at);
-      out.lines += tag("line", { class: `mark pen segment${opts.wrong?.includes(-1 - l.id) ? " wrong" : ""}`, x1, y1, x2, y2 });
+      out.lines += tag("line", { class: `mark pen segment${opts.wrong?.includes(-1 - l.id) ? " wrong" : ""}`, x1, y1, x2, y2, "data-flash": `link:${l.id}` });
     }
     // the lengths, under the board; each one the path uses is crossed off
     if (p.lengths) {
@@ -129,7 +130,7 @@ export function shapedLayers(p: Puzzle, b: Board | null, lay: ShapedLayout, opts
   // numbers: printed ones in ink, the player's lighter; pencil notes small, in a ring
   for (let i = 0; i < g.cellCount; i++) {
     const [x, y] = lay.at(i), d = digit(i);
-    if (d) out.marks += text({ class: given.has(i) ? "digit given" : "digit", x, y: y + 2 }, String(d));
+    if (d) out.marks += text({ class: given.has(i) ? "digit given" : "digit", x, y: y + 2, "data-flash": `cell:${i}` }, String(d));
     else if (b && opts.pencil && b.pencil[i]) {
       const notes = Array.from({ length: 15 }, (_, k) => k + 1).filter((k) => b.pencil[i] & (1 << k));
       notes.forEach((k, j) => {
@@ -162,7 +163,7 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
   addInk(svg, root);
   root.classList.add("shaped");
   const layer = (cls = "") => { const e = document.createElementNS(NS, "g"); if (cls) e.setAttribute("class", cls); svg.appendChild(e); return e; };
-  const gTint = layer(), gWash = layer("wash"), gGrid = layer("gridlines"), gTrail = layer(), gLines = layer(), gHead = layer("line-head"), gGivens = layer(), gMarks = layer("marks"), gBelow = layer("runs");
+  const gTint = layer(), gWash = layer("wash"), gFlash = layer("flash-layer"), gGrid = layer("gridlines"), gTrail = layer(), gLines = layer(), gHead = layer("line-head"), gGivens = layer(), gMarks = layer("marks"), gBelow = layer("runs");
 
   const board = emptyBoard(g), given = new Map<number, number>();
   for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number") { given.set(i, x.value); board.digit[i] = x.value; }
@@ -182,11 +183,36 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
     gTint.innerHTML = L.tint; gWash.innerHTML = L.wash; gGrid.innerHTML = L.grid; gTrail.innerHTML = L.trail;
     gLines.innerHTML = L.lines; gGivens.innerHTML = L.givens; gMarks.innerHTML = L.marks; gBelow.innerHTML = L.below;
     root.classList.toggle("solved", solved);
+    applyFlash();
   }
+
+  // ---- the failure flash (flash.ts): finished but wrong, what breaks the rules pulses red ----
+  let flashOn: Set<string> | null = null, flashTimer = 0, flashAt = 0, flashState = flashStart();
+  /** the flash on the marks that carry it; a mark drawn again mid-flash (a cell picked) picks it up where it is */
+  const applyFlash = () => {
+    if (!flashOn) return;
+    const delay = `${Math.round(flashAt - performance.now())}ms`;
+    svg.querySelectorAll<SVGElement>("[data-flash]").forEach((n) => { if (flashes(n.getAttribute("data-flash"), flashOn!) && !n.classList.contains("flash")) { n.style.animationDelay = delay; n.classList.add("flash"); } });
+  };
+  const clearFlash = () => { clearTimeout(flashTimer); flashOn = null; gFlash.replaceChildren(); svg.querySelectorAll(".flash").forEach((n) => n.classList.remove("flash")); };
+  function flash(targets: string[]) {
+    clearFlash();
+    flashOn = new Set(targets); flashAt = performance.now();
+    gFlash.innerHTML = targets.map((t) => {
+      const [kind, n] = t.split(":"), k = Number(n);
+      if (kind === "cell" && lattice) { const [x, y] = lay.at(k); return tag("circle", { class: "flash-wash wash", cx: x, cy: y, r: S * 0.34 }); }
+      if (kind === "cell") return tag("polygon", { class: "flash-wash wash", points: cellOutline(p, lay, k, 2) });
+      if (kind === "link") { const [[x1, y1], [x2, y2]] = g.links[k].cells.map(lay.at); return tag("line", { class: "flash-wash wash along", x1, y1, x2, y2 }); }
+      return "";
+    }).join("");
+    applyFlash();
+    flashTimer = window.setTimeout(clearFlash, FLASH_MS);
+  }
+
   function settle() {
     if (changes.length) { history.push(changes); changes = []; }
-    const was = solved;
-    solved = check(p, board).length === 0;
+    const was = solved, problems = check(p, board);
+    solved = problems.length === 0;
     if (solved && !was) {
       say("Solved!", "good said"); sel = -1;
       celebrate(root, [getComputedStyle(root).getPropertyValue("--paper-ink").trim() || "#26398f"]);
@@ -196,6 +222,10 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
     for (const k of ["digit", "pencil", "loop"] as const) if (board[k].some((v, i) => v && !(k === "digit" && given.has(i)))) out[k] = [...board[k]];
     host.save(out);
     render();
+    // finished but wrong: flash what breaks the rules, once for this board
+    const step = flashStep(flashState, { done: !solved && isDone(p, board), solved, busy: drag !== null, key: boardKey(board) });
+    flashState = step.state;
+    if (step.fire) { const targets = flashTargets(p, board, problems); if (targets.length) flash(targets); }
   }
   const toBoard = (evt: PointerEvent): [number, number] => {
     const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
@@ -206,6 +236,7 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
   // ---- digits ----
   const enter = (d: number) => {
     if (sel < 0 || solved || given.has(sel)) return;
+    clearFlash();
     if (d === 0) { put("digit", sel, 0); put("pencil", sel, 0); }
     else if (pencilMode && pencilOk) { if (!board.digit[sel]) put("pencil", sel, board.pencil[sel] ^ (1 << d)); }
     else put("digit", sel, d);
@@ -269,6 +300,7 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
     if (solved) return;
     const [x, y] = toBoard(evt);
     if (!lattice) { select(lay.cellAt(x, y)); return; }
+    clearFlash();
     const i = pegAt(x, y);
     if (i >= 0) {
       drag = { at: i, moved: false, start: [x, y] };
@@ -301,7 +333,7 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
     const last = history.pop();
     if (!last) return;
     for (const [k, i, v] of last.reverse()) board[k][i] = v;
-    changes = []; settle();
+    changes = []; clearFlash(); settle();
   });
   const reset = q<HTMLButtonElement>("[data-reset]");
   let confirming = false;
@@ -315,12 +347,13 @@ export function createShaped(p: Puzzle, root: HTMLElement, host: GameHost) {
     board.digit.fill(0); board.pencil.fill(0); board.loop.fill(0);
     for (const [i, d] of given) board.digit[i] = d;
     history = []; changes = []; solved = false; reported = false; sel = -1;
-    say(""); unstamp(root); settle();
+    say(""); unstamp(root); clearFlash(); settle();
   });
 
   solved = check(p, board).length === 0;
   reported = solved;
   if (solved) { say("Solved!", "good said"); stamp(root); }
+  flashState = flashStart({ done: isDone(p, board), solved, busy: false, key: boardKey(board) });   // no flash for a board as saved
   render();
-  return () => document.removeEventListener("keydown", onKey);
+  return () => { clearFlash(); document.removeEventListener("keydown", onKey); };
 }

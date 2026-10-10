@@ -52,7 +52,7 @@ export function paneCluesSvg(p: Puzzle, { S, X, Y }: PanelFrame): string {
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
     if (giv.kind !== "shape" || p.rules.some((r) => r.rule === "panel-symbols")) continue;   // a panel draws its own
     const [r, c] = g.rc(i);
-    out.push(symbolSvg({ kind: "shape", value: giv.value }, X(c) + S / 2, Y(r) + S / 2, S));
+    out.push(tag("g", { "data-flash": `cell:${i}` }, symbolSvg({ kind: "shape", value: giv.value }, X(c) + S / 2, Y(r) + S / 2, S)));
   }
   for (const [e, gs] of p.borderGivens) for (const giv of gs) {
     if (giv.at !== "border" || (giv.kind !== "inequality" && giv.kind !== "difference")) continue;
@@ -67,12 +67,12 @@ export function paneCluesSvg(p: Puzzle, { S, X, Y }: PanelFrame): string {
       const tip = [x + dx * d, y + dy * d], back = [x - dx * d, y - dy * d];
       body += tag("path", { d: `M${f1(back[0] - dy * d)} ${f1(back[1] - dx * d)}L${f1(tip[0])} ${f1(tip[1])}L${f1(back[0] + dy * d)} ${f1(back[1] + dx * d)}` });
     }
-    out.push(tag("g", { class: `border-clue ${giv.kind}` }, body));
+    out.push(tag("g", { class: `border-clue ${giv.kind}`, "data-flash": `border:${e}` }, body));
   }
   for (const [v, gs] of p.cornerGivens) for (const giv of gs) {
     if (giv.kind !== "watchtower") continue;
     const [r, c] = g.cornerRC(v), x = X(c), y = Y(r);
-    out.push(tag("g", { class: "num watchtower" }, tag("circle", { cx: x, cy: y, r: 12 }) + tag("text", { x, y: y + 1 }, String(giv.value))));
+    out.push(tag("g", { class: "num watchtower", "data-flash": `corner:${v}` }, tag("circle", { cx: x, cy: y, r: 12 }) + tag("text", { x, y: y + 1 }, String(giv.value))));
   }
   const bank = bankLayout(p, S);
   if (bank.items.length) {

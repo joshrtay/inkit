@@ -29,6 +29,7 @@ import * as Line from "./line-input";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
 import { createFigure } from "./figure";
 import { createShaped, isShaped } from "./shaped.ts";
+import { boardKey, familyOf, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
 
 type Layer = keyof Board;
 interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
@@ -120,6 +121,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
 
   // ---- layers, back to front ----
   const gTint = el("g", {}), gReveal = el("g", { class: "reveal wash" }), gWash = el("g", { class: "wash" }), gRocks = el("g", { class: "wash" });
+  const gFlash = el("g", { class: "flash-layer" });   // the failure flash's red wash (flash.ts)
   const gGrid = el("g", { class: "gridlines" }), gWater = el("g", { class: "water" }), gLines = el("g", {}), gHead = el("g", { class: "line-head" }), gGivens = el("g", {});
   const gMarks = el("g", { class: "marks" }), gHint = el("g", {});
   const gWalk = el("g", { class: "walk" }), gCorners = el("g", {});
@@ -172,7 +174,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const cornerEls = new Map<number, [Element, number]>();
   for (const [v, gs] of p.cornerGivens) for (const giv of gs) {
     if (giv.kind !== "count") continue;
-    const [x, y] = cornerXY(v), n = el("g", { class: "num" }, gCorners);
+    const [x, y] = cornerXY(v), n = el("g", { class: "num", "data-flash": `corner:${v}` }, gCorners);
     el("circle", { cx: x, cy: y, r: 13 }, n);
     el("text", { x, y: y + 1 }, n).textContent = String(giv.value);
     cornerEls.set(v, [n, giv.value]);
@@ -187,25 +189,27 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // galaxy centres
   for (const [y, x] of p.galaxies) el("circle", { class: "galaxy", cx: ML + (x * S) / 2, cy: MT + (y * S) / 2, r: 7 }, gGivens);
   // clues outside the grid, beside the row / column they look along
-  for (const c of p.edgeClues) {
+  const edgeXY: [number, number][] = [];
+  p.edgeClues.forEach((c, k) => {
     const [cx, cy] = center(c.cell), d = S / 2 + 18;
     const [x, y] = c.side === "top" ? [cx, cy - d] : c.side === "bottom" ? [cx, cy + d] : c.side === "left" ? [cx - d, cy] : [cx + d, cy];
-    el("text", { class: "clue outside", x, y: y + 1 }, gGivens).textContent = c.kind === "first" ? label(c.value) : String(c.value);
-  }
+    edgeXY.push([x, y]);
+    el("text", { class: "clue outside", x, y: y + 1, "data-flash": `edge:${k}` }, gGivens).textContent = c.kind === "first" ? label(c.value) : String(c.value);
+  });
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
-    const [x, y] = center(i);
+    const [x, y] = center(i), key = `cell:${i}`, wrap = (m: string) => `<g data-flash="${key}">${m}</g>`;
     if (giv.kind === "number" && !digits) {
       if (links) el("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 }, gGivens);
-      const t = el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1 }, gGivens) as SVGTextElement;
+      const t = el("text", { class: p.blocked.has(i) ? "clue on-rock" : "clue", x, y: y + 1, "data-flash": key }, gGivens) as SVGTextElement;
       t.textContent = giv.letter ?? String(giv.value);   // a cipher's letter stands for its number
       if (shadeClues) digitEls.set(i, t);
     }
-    else if (giv.kind === "color") cellRect(i, "paint-given", gGivens, 6);   // a printed color: its wash (below) with a pen outline
-    else if (giv.kind === "pearl") gGivens.insertAdjacentHTML("beforeend", stoneSvg(giv.value, x, y, S * 0.28, "pearl"));   // pearls are stones
-    else if (giv.kind === "symbol") gGivens.insertAdjacentHTML("beforeend", symbolClueSvg(giv.value, x, y));
-    else if (giv.kind === "palisade") gGivens.insertAdjacentHTML("beforeend", palisadeSvg(giv.value, !!giv.opposite, x, y, S));
+    else if (giv.kind === "color") cellRect(i, "paint-given", gGivens, 6).setAttribute("data-flash", key);   // a printed color: its wash (below) with a pen outline
+    else if (giv.kind === "pearl") gGivens.insertAdjacentHTML("beforeend", wrap(stoneSvg(giv.value, x, y, S * 0.28, "pearl")));   // pearls are stones
+    else if (giv.kind === "symbol") gGivens.insertAdjacentHTML("beforeend", wrap(symbolClueSvg(giv.value, x, y)));
+    else if (giv.kind === "palisade") gGivens.insertAdjacentHTML("beforeend", wrap(palisadeSvg(giv.value, !!giv.opposite, x, y, S)));
     else if (giv.kind === "compass") {
-      const c = el("g", { class: "compass" }, gGivens);
+      const c = el("g", { class: "compass", "data-flash": key }, gGivens);
       el("path", { d: `M${x} ${y - 7}V${y + 7}M${x - 7} ${y}H${x + 7}` }, c);
       const at = { n: [x, y - 14], s: [x, y + 15], e: [x + 15, y + 1], w: [x - 15, y + 1] } as const;
       for (const d of ["n", "e", "s", "w"] as const) {
@@ -217,7 +221,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   for (const [e, gs] of p.borderGivens) for (const giv of gs) {
     if (giv.kind !== "twins" && giv.kind !== "opposites") continue;
     const [[x1, y1], [x2, y2]] = borderXY(e), x = (x1 + x2) / 2, y = (y1 + y2) / 2, d = 8;
-    el("path", { class: `diamond ${giv.kind}`, d: `M${x} ${y - d}L${x + d} ${y}L${x} ${y + d}L${x - d} ${y}Z` }, gGivens);
+    el("path", { class: `diamond ${giv.kind}`, "data-flash": `border:${e}`, d: `M${x} ${y - d}L${x + d} ${y}L${x} ${y + d}L${x - d} ${y}Z` }, gGivens);
   }
   // Panes' shapes, signs and numbers on borders, watchtowers, the shape bank
   gGivens.insertAdjacentHTML("beforeend", paneCluesSvg(p, { S, X, Y }));
@@ -318,7 +322,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     for (let i = 0; i < g.cellCount; i++) {
       const [x, y] = center(i);
       if (marks.includes("shade") && board.shade[i] === 1) {
-        if (p.style.shaded === "star") el("path", { class: "star", d: starPath(x, y, S * 0.36) }, gMarks);
+        if (p.style.shaded === "star") el("path", { class: "star", d: starPath(x, y, S * 0.36), "data-flash": `cell:${i}` }, gMarks);
         else if (p.style.shaded === "mine") {
           el("circle", { class: "mine", cx: x, cy: y, r: S * 0.2 }, gMarks);
           el("path", { class: "mine-spikes", d: `M${x - S * 0.3} ${y}H${x + S * 0.3}M${x} ${y - S * 0.3}V${y + S * 0.3}M${x - S * 0.21} ${y - S * 0.21}L${x + S * 0.21} ${y + S * 0.21}M${x + S * 0.21} ${y - S * 0.21}L${x - S * 0.21} ${y + S * 0.21}` }, gMarks);
@@ -333,9 +337,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
         if (p.style.empty === "x") xMark(x, y, S * 0.18, "xmark cellx"); else el("circle", { class: "dotmark", cx: x, cy: y, r: 3.5 }, gMarks);
       }
       if (digits && board.digit[i] && tiles) {
-        gMarks.insertAdjacentHTML("beforeend", tileSvg(tileOf(tiles, board.digit[i]), x, y, S));
+        gMarks.insertAdjacentHTML("beforeend", `<g data-flash="cell:${i}">${tileSvg(tileOf(tiles, board.digit[i]), x, y, S)}</g>`);
       } else if (digits && board.digit[i]) {
-        el("text", { class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2 }, gMarks).textContent = label(board.digit[i]);
+        el("text", { class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2, "data-flash": `cell:${i}` }, gMarks).textContent = label(board.digit[i]);
       } else if (digits && board.pencil[i]) {
         const per = Math.ceil(Math.sqrt(p.digits));
         for (let d = 1; d <= p.digits; d++) if (board.pencil[i] & (1 << d)) {
@@ -351,7 +355,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     for (const e of g.borders) {
       const [[x1, y1], [x2, y2]] = borderXY(e.id);
       const lineTint = mirror ? tint(e.corners[0]) : undefined;
-      if (marks.includes("fence") && board.fence[e.id] === 1 && !locked.has(e.id)) el("line", { class: "mark pen", x1, y1, x2, y2, ...(lineTint ? { style: `stroke:${LINE_COLORS[lineTint]}` } : {}) }, gLines);
+      if (marks.includes("fence") && board.fence[e.id] === 1 && !locked.has(e.id)) el("line", { class: "mark pen", x1, y1, x2, y2, "data-flash": `border:${e.id}`, ...(lineTint ? { style: `stroke:${LINE_COLORS[lineTint]}` } : {}) }, gLines);
       if (marks.includes("fence") && board.fence[e.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
       if (regionsPuzzle && e.link >= 0) {
         const [a, b] = e.cells;
@@ -371,7 +375,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     if (marks.includes("loop")) for (const l of g.links) {
       const [x1, y1] = center(l.cells[0]), [x2, y2] = center(l.cells[1]);
       const tint = lineColor.get(l.cells[0]) ?? lineColor.get(l.cells[1]), style = tint ? `stroke:${tint};fill:${tint}` : "";
-      if (board.loop[l.id] === 1) { el("line", { class: "river", x1, y1, x2, y2, style }, gWater); el("circle", { class: "joint", cx: x1, cy: y1, r: 6.5, style }, gWater); el("circle", { class: "joint", cx: x2, cy: y2, r: 6.5, style }, gWater); }
+      if (board.loop[l.id] === 1) { el("line", { class: "river", x1, y1, x2, y2, style, "data-flash": `link:${l.id}` }, gWater); el("circle", { class: "joint", cx: x1, cy: y1, r: 6.5, style }, gWater); el("circle", { class: "joint", cx: x2, cy: y2, r: 6.5, style }, gWater); }
       if (board.loop[l.id] === 2) xMark((x1 + x2) / 2, (y1 + y2) / 2);
     }
     for (const [k, t] of clueEls) t.classList.toggle("done", ticks.has(k));
@@ -383,10 +387,44 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       n.classList.toggle("done", have === want); n.classList.toggle("over", have > want);
     }
     root.classList.toggle("solved", solved);
+    applyFlash();
   }
 
+  // ---- the failure flash (flash.ts): finished but wrong, what breaks the rules pulses red ----
+  const family = familyOf(p);
+  let flashOn: Set<string> | null = null, flashTimer = 0, flashAt = 0;
+  /** the red wash under one target */
+  function washFor(t: string) {
+    const [kind, n] = t.split(":"), k = Number(n), cls = "flash-wash wash";
+    if (kind === "cell") cellRect(k, cls, gFlash, 2);
+    else if (kind === "border") { const [[x1, y1], [x2, y2]] = borderXY(k); el("line", { class: `${cls} along`, x1, y1, x2, y2 }, gFlash); }
+    else if (kind === "link") { const [[x1, y1], [x2, y2]] = g.links[k].cells.map(center); el("line", { class: `${cls} along`, x1, y1, x2, y2 }, gFlash); }
+    else if (kind === "corner") { const [x, y] = cornerXY(k); el("circle", { class: cls, cx: x, cy: y, r: S * 0.36 }, gFlash); }
+    else if (kind === "dot") { const [[x1, y1], [x2, y2]] = borderXY(k); el("circle", { class: cls, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2, r: S * 0.26 }, gFlash); }
+    else if (kind === "edge" && edgeXY[k]) el("circle", { class: cls, cx: edgeXY[k][0], cy: edgeXY[k][1], r: 17 }, gFlash);
+  }
+  function applyFlash() {
+    if (!flashOn) return;
+    // a mark drawn again mid-flash (a square picked) picks the flash up where it is
+    const delay = `${Math.round(flashAt - performance.now())}ms`;
+    svg.querySelectorAll<SVGElement>("[data-flash]").forEach((n) => { if (flashes(n.getAttribute("data-flash"), flashOn!) && !n.classList.contains("flash")) { n.style.animationDelay = delay; n.classList.add("flash"); } });
+  }
+  function clearFlash() {
+    clearTimeout(flashTimer);
+    flashOn = null; gFlash.replaceChildren();
+    svg.querySelectorAll<SVGElement>(".flash").forEach((n) => { n.classList.remove("flash"); n.style.animationDelay = ""; });
+  }
+  function flash(targets: string[]) {
+    clearFlash();
+    flashOn = new Set(targets); flashAt = performance.now();
+    for (const t of targets) washFor(t);
+    applyFlash();
+    flashTimer = window.setTimeout(clearFlash, FLASH_MS);
+  }
+  let flashState = flashStart();
+
   let errTimer = 0;
-  const clearProblems = () => { gHint.replaceChildren(); clearTimeout(errTimer); };
+  const clearProblems = () => { gHint.replaceChildren(); clearTimeout(errTimer); clearFlash(); };
 
   /** nonogram helpers: tick a line's numbers once it matches, and X out the rest of a ticked line */
   function assist() {
@@ -402,18 +440,22 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
 
   function afterChange() {
     assist();
-    const was = solved;
+    const was = solved, problems = check(p, board);
     if (maze) {
       // walls right: walk it; solved once out
-      const ok = check(p, board).length === 0;
+      const ok = problems.length === 0;
       if (ok && !walk!.active) walk!.start(saved?.trail);
       else if (!ok && walk!.active) walk!.stop();
       solved = walk!.done;
-    } else solved = check(p, board).length === 0;
+    } else solved = problems.length === 0;
     if (solved && !was) win();
     else if (!solved && was) { root.classList.remove("revealed", "titled"); say(""); unstamp(root); }
     else if (!solved && !walk?.active && status.classList.contains("good")) say("");
     render();
+    // finished but wrong: flash what breaks the rules, once for this board
+    const step = flashStep(flashState, { done: !solved && isDone(p, board, family), solved, busy: drag !== null, key: boardKey(board) });
+    flashState = step.state;
+    if (step.fire) { const targets = flashTargets(p, board, problems); if (targets.length) flash(targets); }
     const out: Saved = {};
     for (const k of Object.keys(board) as Layer[]) if (board[k].some((v) => v)) out[k] = [...board[k]];
     if (ticks.size) out.ticks = [...ticks];
@@ -562,7 +604,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   svg.addEventListener("pointerdown", (evt) => {
     if (solved || walk?.active) return;
     const pt = toBoard(evt), back = evt.button === 2;
-    changes = []; clearProblems();
+    // picking a square for a digit changes nothing: a flash plays on
+    changes = []; if (digits) { gHint.replaceChildren(); clearTimeout(errTimer); } else clearProblems();
     const tick = (evt.target as Element).closest<SVGElement>("[data-tick]");
     if (tick) {                                         // tick a nonogram number on or off
       const k = tick.dataset.tick!;
@@ -786,8 +829,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     if (p.spec.picture) root.classList.add("revealed", "titled");
     stamp(root);
   }
+  flashState = flashStart({ done: isDone(p, board, family), solved, busy: false, key: boardKey(board) });   // no flash for a board as saved
   render();
-  return () => document.removeEventListener("keydown", onKey);
+  return () => { clearFlash(); document.removeEventListener("keydown", onKey); };
 };
 
 /** Mount every grid board on the page (each carries its config and id as data attributes). */

@@ -144,11 +144,12 @@ export function panelSymbols(p: Puzzle, fr: PanelFrame): string {
     if (h.at === "corner") [x, y] = cornerXY(g, fr, h.v);
     else { const [[x1, y1], [x2, y2]] = g.borders[h.e].corners.map((v) => cornerXY(g, fr, v)); x = (x1 + x2) / 2; y = (y1 + y2) / 2; }
     // a hoshi, the star point of a Go board
-    out.push(tag("circle", { class: `panel-dot${h.color ? ` ${h.color}` : ""}`, cx: f1(x), cy: f1(y), r: f1(fr.S * 0.1), ...(h.color ? { style: `fill:${LINE_COLORS[h.color]}` } : {}) }));
+    // data-flash: what the failure flash calls it (flash.ts)
+    out.push(tag("circle", { class: `panel-dot${h.color ? ` ${h.color}` : ""}`, cx: f1(x), cy: f1(y), r: f1(fr.S * 0.1), "data-flash": h.at === "corner" ? `corner:${h.v}` : `dot:${h.e}`, ...(h.color ? { style: `fill:${LINE_COLORS[h.color]}` } : {}) }));
   }
   for (const { i, x } of cellSymbolsOf(p)) {
     const [r, c] = g.rc(i);
-    out.push(symbolSvg(x, fr.X(c) + fr.S / 2, fr.Y(r) + fr.S / 2, fr.S));
+    out.push(tag("g", { "data-flash": `cell:${i}` }, symbolSvg(x, fr.X(c) + fr.S / 2, fr.Y(r) + fr.S / 2, fr.S)));
   }
   return out.join("");
 }

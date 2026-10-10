@@ -3,7 +3,8 @@
   /* the pen's weights (docs/style.md): hairline for faint grid lines; fine for outlines and small
      marks; medium for frames, area outlines, stones and symbols' strokes; bold for lines drawn
      and walls; and the wide watercolour stroke for rivers, tracks and thermometers */
-  --pen-hair: 1; --pen-fine: 1.6; --pen-medium: 2.6; --pen-bold: 5.5; --wash-stroke: 12; }
+  --pen-hair: 1; --pen-fine: 1.6; --pen-medium: 2.6; --pen-bold: 5.5; --wash-stroke: 12;
+  --flash-time: 1.5s; }   /* the failure flash (flash.ts FLASH_MS) */
 .grid-game .sheet > svg { touch-action: none; user-select: none; -webkit-user-select: none; cursor: default; }
 /* the cursor says what a click on the board does (docs/style.md, "Cursors"; game.ts puts the
    puzzle's marks on the board as data-marks): pick a square for a digit; a brush for the marks in
@@ -167,6 +168,28 @@
 @keyframes grid-shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.5%); } 75% { transform: translateX(1.5%); } }
 
 @media (prefers-reduced-motion: reduce) { .grid-game.revealed .reveal .pix { transition: none; } .grid-game.revealed .sign { animation: none; } }
+
+/* ---- the failure flash (flash.ts), after The Witness: finished but wrong, what breaks the rules
+   pulses twice in a red wash, its clue or symbol with a small ink wobble, then fades back. The board
+   is left as it was. Reduced motion: a still tint for as long, no wobble. ---- */
+.grid-game .flash-layer { pointer-events: none; }
+.grid-game .flash-wash { fill: var(--wash-red); stroke: none; opacity: 0; animation: grid-flash-wash var(--flash-time) ease-out forwards; }
+.grid-game .flash-wash.along { fill: none; stroke: var(--wash-red); stroke-width: var(--wash-stroke); stroke-linecap: round; }
+@keyframes grid-flash-wash { 0% { opacity: 0; } 12% { opacity: .62; } 30% { opacity: .3; } 46% { opacity: .62; } 100% { opacity: 0; } }
+.grid-game .flash { transform-box: fill-box; transform-origin: center; animation: grid-flash-wobble var(--flash-time) ease-out; }
+.grid-game text.flash, .grid-game .num.flash text { animation-name: grid-flash-wobble, grid-flash-ink; animation-duration: var(--flash-time); }
+.grid-game .num.flash text { transform-box: fill-box; transform-origin: center; }
+@keyframes grid-flash-wobble {
+  0%, 52%, 100% { transform: none; }
+  6% { transform: rotate(-6deg) scale(1.12); } 12% { transform: rotate(5deg) scale(1.12); } 18% { transform: rotate(-3deg) scale(1.06); }
+  30% { transform: rotate(2deg) scale(1.04); } 38% { transform: rotate(-4deg) scale(1.1); } 44% { transform: rotate(3deg) scale(1.08); }
+}
+@keyframes grid-flash-ink { 0%, 55% { fill: color-mix(in srgb, var(--wash-red) 75%, var(--paper-ink)); } }
+@media (prefers-reduced-motion: reduce) {
+  .grid-game .flash-wash { animation: none; opacity: .45; }
+  .grid-game .flash, .grid-game text.flash, .grid-game .num.flash text { animation: none; }
+  .grid-game text.flash, .grid-game .num.flash text { fill: color-mix(in srgb, var(--wash-red) 75%, var(--paper-ink)); }
+}
 /* the on-puzzle editor: cells the clues can't pin down */
 .grid-game .undecided { fill: #e0a100; fill-opacity: .28; stroke: #e0a100; stroke-width: var(--pen-fine); stroke-dasharray: 3 2; pointer-events: none; }
 

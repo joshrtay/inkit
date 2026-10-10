@@ -60,6 +60,17 @@ colours (`LINE_COLORS`), not washes. Don't add hex colours in drawing code: add 
 New symbols should come from the same world (Go, crests, craft patterns, brush marks) and follow
 the two media: a wash fill with a pen outline.
 
+## The failure flash
+
+When a player has clearly finished but the puzzle is wrong (a panel's line reaches its end, a loop
+closes, every square of a fill has a value, every region is cut), what breaks the rules pulses
+twice in `--wash-red` and fades in 1.5 s (`--flash-time`), as in The Witness: clue text and digits
+turn red-ink and wobble a little, symbols wobble, cells and lines get a red wash under them. No
+words, and the board stays as it was. Shading puzzles never flash (no moment to trust, and a count
+would give the answer away). With reduced motion it's a still tint for as long. The logic is
+`src/game-types/grid/flash.ts`; each mark names what it draws in `data-flash` (`cell:i`,
+`border:e`, `link:l`, `corner:v`, `dot:e`, `edge:k`).
+
 ## Type
 
 Puzzle text is handwritten (`--hand`, Kalam). Printed digits and clues are the pen's ink;
