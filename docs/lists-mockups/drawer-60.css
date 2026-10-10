@@ -1,0 +1,179 @@
+/* The set drawer (make-60.mjs). On top of the site's CSS, lists.css, create-set.css and flow-50.css. Same tokens, no new colours. */
+
+:root { --dw: 380px; }
+
+/* ---- the right-hand slot: How to play or the set drawer, one at a time ---- */
+.slot { display: none; }
+@media (min-width: 1200px) {
+  /* wide: the slot is a column; the page gives up its width */
+  .slot-on .shell { grid-template-columns: var(--side) minmax(0, 1fr) var(--dw); }
+  .slot { display: block; position: sticky; top: 0; height: 100dvh; min-width: 0; }
+}
+@media (min-width: 641px) and (max-width: 1199px) {
+  /* narrower: it lies over the page, which stays as it is */
+  .slot { display: block; position: fixed; z-index: 40; top: 0; right: 0; bottom: 0; width: var(--dw); box-shadow: -14px 0 36px var(--shadow); }
+}
+.guide-pane.in-slot { position: static; height: 100dvh; width: auto; transform: none; visibility: visible; box-shadow: none; }
+.guide-pane.in-slot .pane-close { display: block; font-size: 26px; line-height: 1; background: none; border: 0; color: var(--muted); }
+
+/* ---- the drawer ---- */
+.sdrawer {
+  height: 100dvh; display: flex; flex-direction: column; gap: 12px; padding: 16px 0 0;
+  background: var(--page), var(--bg); border-left: 1.5px solid color-mix(in srgb, var(--line) 80%, transparent);
+}
+.sdrawer > * { padding-inline: 18px; }
+.d-head { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.d-close { margin-left: auto; display: grid; place-items: center; width: 34px; height: 34px; margin-right: -8px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.d-close:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.d-close .mini-icon { width: 22px; height: 22px; stroke-width: 2.2; }
+.d-top { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px; align-items: start; }
+.mosaic.d-cover { width: 76px; height: 76px; border-radius: 10px; gap: 2px; }
+.mosaic.d-cover .mthumb { padding: 3px; }
+.d-words { display: grid; gap: 2px; min-width: 0; }
+.d-name, .d-intro { width: 100%; color: var(--ink); background: none; border: 1px solid transparent; border-radius: 8px; padding: 3px 7px; margin-left: -8px; }
+.d-name { font: 800 21px/1.2 var(--display); }
+.d-name:hover, .d-intro:hover { border-color: var(--line); }
+.d-intro { font: 400 13.5px/1.4 var(--body); color: var(--muted); resize: none; }
+.d-intro:placeholder-shown { border: 1px dashed var(--line); }
+.d-intro::placeholder { color: var(--muted); opacity: .75; }
+.d-count { font-size: 14px; padding-top: 10px; border-top: 1px solid var(--line); margin-inline: 18px; padding-inline: 0; }
+.d-count strong { font-weight: 800; }
+
+.d-list { list-style: none; margin: -4px 0 0; padding-block: 2px 8px; display: grid; align-content: start; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; }
+.d-row {
+  position: relative; display: grid; grid-template-columns: 14px 18px 48px minmax(0, 1fr) auto; align-items: center; gap: 9px;
+  padding: 6px 4px 6px 6px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line);
+}
+.d-grip { display: grid; place-items: center; color: var(--muted); cursor: grab; }
+.d-grip .mini-icon { width: 16px; height: 16px; stroke-width: 3.4; }
+.d-n { font: 800 13.5px/1 var(--body); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.d-row .cthumb { width: 48px; height: 40px; padding: 3px; }
+.d-text { display: grid; gap: 3px; min-width: 0; }
+.d-text strong { font: 800 14px/1.2 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-text .by { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); min-width: 0; white-space: nowrap; }
+.d-text .by .avatar { flex: none; }
+.d-text .by .by-name { overflow: hidden; text-overflow: ellipsis; }
+.d-text .diff { margin-left: 3px; color: var(--ink); }
+.d-x { display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 8px; background: none; color: var(--muted); }
+.d-x:hover { color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.d-x .mini-icon { width: 17px; height: 17px; stroke-width: 2.4; }
+.d-move { display: none; }
+
+/* the one just added: a short highlight */
+.d-row.fresh { border-color: var(--good); background: color-mix(in srgb, var(--good) 13%, var(--panel)); }
+.d-row.fresh .d-n { color: var(--good); }
+
+/* mid-drag: a gap where it will land, the row lifted over it */
+.d-gap { height: 54px; border: 1.5px dashed var(--line-strong); border-radius: 10px; position: relative; }
+.d-row.lift { position: absolute; inset: -6px -10px auto 8px; rotate: -1.2deg; border-color: var(--line-strong); box-shadow: 0 14px 30px var(--shadow), 0 2px 6px var(--shadow); z-index: 3; }
+.d-row.lift .d-grip, .d-row.lift .d-n { color: var(--ink); }
+.cursor.grab { top: 22px; left: 0; right: auto; width: 24px; height: 24px; fill: #fff; stroke: #111; stroke-width: 1.3; }
+
+.d-foot { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 10px; padding-block: 12px 16px; border-top: 1px solid var(--line); }
+.d-foot p { margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.d-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.d-actions .btn { height: 40px; padding: 0 20px; }
+.d-open { display: inline-flex; align-items: center; gap: 5px; color: var(--ink); font-weight: 700; font-size: 14.5px; }
+.d-open .mini-icon { width: 16px; height: 16px; stroke-width: 2.4; }
+.d-foot.asking { margin: 0 12px 12px; padding: 14px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 -8px 30px var(--shadow); }
+.d-foot.asking strong { font: 800 16px/1.25 var(--display); }
+.d-foot.asking p { font-size: 13.5px; }
+.d-foot.asking .d-actions { justify-content: end; }
+.d-foot.asking .d-actions .btn:first-child { background: none; }
+
+/* ---- the puzzle page's + ---- */
+.add-wrap { position: relative; display: inline-flex; align-self: center; }
+.add-wrap .btn { display: inline-flex; align-items: center; gap: 6px; }
+.add-wrap .mini-icon { width: 17px; height: 17px; stroke-width: 2.6; }
+.btn.add-set.open { background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.add-wrap.split .split-main { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.add-wrap.split .split-caret { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left-width: 0; padding-inline: 8px; }
+.split-main.done, .add-wrap .btn.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 60%, transparent); background: none; }
+.split-main.done + .split-caret { border-color: color-mix(in srgb, var(--good) 60%, transparent); }
+.add-wrap > .cursor { top: 22px; right: auto; left: 70px; }
+.add-pop { top: calc(100% + 8px); right: 0; left: auto; width: 290px; text-align: left; }
+
+/* the list of drafts */
+.sl-row.hov { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.sl-row.on .sl-n { color: var(--good); }
+.sl-row .sl-n .mini-icon { width: 17px; height: 17px; stroke-width: 2.8; }
+.sl-field { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 10px 6px 4px; border-top: 1px solid var(--line); }
+.sl-field .mini-icon { flex: none; width: 18px; height: 18px; stroke-width: 2.4; color: var(--muted); }
+.sl-field input { flex: 1; min-width: 0; font: 700 14.5px/1.2 var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; }
+.sl-field input::placeholder { color: var(--muted); opacity: .9; }
+
+/* ---- the cards: + (hover) or + and a caret (drawer open); ✓ on those in the open set ---- */
+.card-split {
+  position: absolute; top: 8px; right: 8px; z-index: 2; display: flex; align-items: stretch; border-radius: 999px;
+  background: var(--ink); border: 2px solid var(--bg); box-shadow: 0 2px 6px var(--shadow);
+}
+.card-split .card-add { position: static; border: 0; box-shadow: none; width: 34px; height: 34px; background: none; }
+.card-caret { display: grid; place-items: center; width: 24px; padding: 0 4px 0 0; border: 0; border-left: 1px solid color-mix(in srgb, var(--panel) 30%, transparent); border-radius: 0 999px 999px 0; background: none; color: var(--panel); }
+.card-caret .mini-icon { width: 15px; height: 15px; stroke-width: 2.8; }
+.x-cards > li.hover .card-split { top: 6px; }
+.x-cards > li.hover .card-split + .cursor { right: 38px; }
+.tip {
+  position: absolute; z-index: 5; top: calc(100% + 8px); right: 0; white-space: nowrap; pointer-events: none;
+  padding: 6px 9px; border-radius: 7px; background: var(--ink); color: var(--panel); font: 700 13px/1.2 var(--body); box-shadow: 0 6px 16px var(--shadow);
+}
+.x-cards > li.in .card-add.on { width: 32px; height: 32px; }
+
+/* ---- toasts ---- */
+.toast.t60 { bottom: 28px; }
+.slot-on .toast.t60 { left: calc(var(--side) + (100vw - var(--side) - var(--dw)) / 2); }
+.toast .t-n { font-weight: 800; }
+
+/* ---- phones ---- */
+@media (max-width: 640px) {
+  /* + always on the card, smaller */
+  .x-cards > li .card-add { top: 6px; right: 6px; width: 30px; height: 30px; border-width: 1.5px; }
+  .x-cards > li .card-add .mini-icon { width: 16px; height: 16px; }
+  .x-cards > li.in .card-add.on { width: 30px; height: 30px; }
+
+  .toast.t60 { bottom: calc(64px + 12px); }
+
+  /* the list of drafts, as a sheet */
+  .sets-pop.psheet60 {
+    position: fixed; z-index: 41; left: 0; right: 0; bottom: 0; top: auto; width: auto; gap: 4px;
+    padding: 10px 14px calc(64px + 16px); border: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px var(--shadow);
+  }
+  .psheet60 .grabber { display: block; justify-self: center; margin-bottom: 6px; }
+  .psheet60 h3 { font-size: 17px; margin: 0 4px 8px; }
+  .psheet60 .sl-row { padding: 10px 4px; gap: 12px; }
+  .psheet60 .mosaic.tiny { width: 38px; height: 38px; }
+  .psheet60 .sl-name { font-size: 16px; }
+  .psheet60 .sl-field { padding: 14px 4px 4px; }
+  .psheet60 .sl-field input { font-size: 16px; padding: 11px 12px; }
+
+  /* the set, as a sheet over the tab bar */
+  .sdrawer.as-sheet {
+    position: fixed; z-index: 43; left: 0; right: 0; bottom: 0; top: 56px; height: auto; padding-top: 8px; gap: 10px;
+    border: 0; border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px var(--shadow);
+  }
+  .sdrawer.as-sheet > * { padding-inline: 14px; }
+  .sdrawer.as-sheet .grabber { display: block; justify-self: center; align-self: center; padding: 0; margin-bottom: -4px; }
+  .sdrawer.as-sheet .d-count { margin-inline: 14px; }
+  .sdrawer.as-sheet .d-row { grid-template-columns: 16px 46px minmax(0, 1fr) auto auto; gap: 8px; padding: 5px 2px 5px 8px; }
+  .sdrawer.as-sheet .d-grip { display: none; }
+  .sdrawer.as-sheet .d-row .cthumb { width: 46px; height: 40px; }
+  .sdrawer.as-sheet .d-text .by-name { max-width: 70px; }
+  .sdrawer.as-sheet .d-move { display: flex; }
+  .d-move button { display: grid; place-items: center; width: 32px; height: 38px; border: 0; background: none; color: var(--ink); }
+  .d-move button:disabled { opacity: .25; }
+  .d-move .mini-icon { width: 20px; height: 20px; stroke-width: 2.4; }
+  .sdrawer.as-sheet .d-x { width: 30px; height: 38px; }
+  .sdrawer.as-sheet .d-foot { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .sdrawer.as-sheet .d-actions .btn { height: 46px; padding: 0 28px; font-size: 16px; }
+
+  /* the puzzle page: + in the title row */
+  .phone-pz .add-wrap .btn { padding: 6px 10px; font-size: 14px; }
+}
+
+/* ---- the contact sheet ---- */
+.contact60 { max-width: 1500px; }
+.c60 { display: flex; flex-wrap: wrap; gap: 28px 24px; margin-top: 22px; align-items: start; }
+.c60 figure { margin: 0; width: calc(50% - 12px); display: grid; gap: 8px; }
+.c60 figure.ph { width: calc(25% - 18px); }
+.c60 img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.c60 figcaption { font-size: 14px; color: var(--muted); line-height: 1.35; }
+.c60 figcaption strong { font: 800 18px/1 var(--display); color: var(--ink); margin-right: 6px; }
