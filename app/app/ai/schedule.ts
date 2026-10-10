@@ -1,7 +1,7 @@
 // When the AI creators post and how hard: pure functions of the persona and the date, shared by the
 // weekly batch (puzzles/ai/week.ts), the site's admin endpoint and the cron that publishes
 // (app/lib/ai.server.ts). Unit-tested in tests/unit/ai-schedule.test.ts.
-import { WEEKDAYS, type DifficultyScheme, type Persona, type PostTime, type Weekday } from "./personas.ts";
+import { WEEKDAYS, type DifficultyScheme, type GenrePlan, type Persona, type PostTime, type Weekday } from "./personas.ts";
 
 const DAY = 86400e3;
 
@@ -69,6 +69,21 @@ export function sunriseUtcMinutes(y: number, m: number, d: number, lat: number, 
   return 720 - 4 * (lon + ha) - eqTime;
 }
 
+/** How long the day is at a latitude on a date, in hours (0..24), and the year's shortest and
+ *  longest there; the same approximation as `sunriseUtcMinutes`. */
+export function dayLength(y: number, m: number, d: number, lat: number) {
+  const rad = Math.PI / 180;
+  const hours = (decl: number) => {
+    const cosH = Math.cos(90.833 * rad) / (Math.cos(lat * rad) * Math.cos(decl)) - Math.tan(lat * rad) * Math.tan(decl);
+    return cosH >= 1 ? 0 : cosH <= -1 ? 24 : (2 * Math.acos(cosH) / rad) / 15;
+  };
+  const n = Math.floor((Date.UTC(y, m - 1, d) - Date.UTC(y, 0, 0)) / DAY);
+  const g = (2 * Math.PI / 365) * (n - 1);
+  const decl = 0.006918 - 0.399912 * Math.cos(g) + 0.070257 * Math.sin(g) - 0.006758 * Math.cos(2 * g) + 0.000907 * Math.sin(2 * g) - 0.002697 * Math.cos(3 * g) + 0.00148 * Math.sin(3 * g);
+  const tilt = 23.44 * rad, [a, b] = [hours(-tilt), hours(tilt)];
+  return { hours: hours(decl), shortest: Math.min(a, b), longest: Math.max(a, b) };
+}
+
 /** The instant a post goes up on a local date. */
 export function postInstant(time: PostTime, y: number, m: number, d: number, timeZone: string): Date {
   if (time.at === "sunrise") {
@@ -117,6 +132,28 @@ export function difficultyOf(scheme: DifficultyScheme, at: Date, date: string, w
       const [y, m, d] = date.split("-").map(Number);
       return clamp01(scheme.low + (scheme.high - scheme.low) * ((d - 1) / (daysInMonth(y, m) - 1)));
     }
+    case "season": {
+      const m = Number(date.slice(5, 7));
+      const north = m >= 3 && m <= 5 ? "spring" : m >= 6 && m <= 8 ? "summer" : m >= 9 && m <= 11 ? "autumn" : "winter";
+      const flip = { spring: "autumn", summer: "winter", autumn: "spring", winter: "summer" } as const;
+      return clamp01(scheme.by[scheme.hemisphere === "north" ? north : flip[north]]);
+    }
+    case "school-year": {
+      // 1 September .. 30 June, then the summer holidays
+      const [y, m, d] = date.split("-").map(Number);
+      if (m === 7 || m === 8) return clamp01(scheme.summer);
+      const start = Date.UTC(m >= 9 ? y : y - 1, 8, 1), end = Date.UTC(m >= 9 ? y + 1 : y, 5, 30);
+      return clamp01(scheme.low + (scheme.high - scheme.low) * ((Date.UTC(y, m - 1, d) - start) / (end - start)));
+    }
+    case "daylight": {
+      const [y, m, d] = date.split("-").map(Number);
+      const { hours, shortest, longest } = dayLength(y, m, d, scheme.lat);
+      return clamp01(scheme.low + (scheme.high - scheme.low) * (longest > shortest ? (longest - hours) / (longest - shortest) : 0.5));
+    }
+    case "digits": {
+      const sum = [...date.slice(5).replace("-", "")].reduce((a, ch) => a + Number(ch), 0);
+      return clamp01(scheme.low + (scheme.high - scheme.low) * ((sum - 2) / 18));
+    }
   }
 }
 
@@ -159,6 +196,43 @@ export function isoWeek(date: string) {
 }
 
 export { WEEKDAYS };
+
+// ---- what to make ----
+
+const EPOCH = Date.UTC(2026, 0, 5);   // a Monday
+
+/** A post's place in its creator's run of posts (0, 1, 2, ... from the week of 5 January 2026),
+ *  for a plan taken in order (`sequence`). Weekday schedules count only their own days; prime
+ *  dates count days. */
+export function seriesIndex(p: Persona, slot: Pick<Slot, "date" | "weekday">) {
+  const [y, m, d] = slot.date.split("-").map(Number);
+  const days = Math.round((Date.UTC(y, m - 1, d) - EPOCH) / DAY);
+  const list = p.schedule.days;
+  if (list === "prime-dates") return Math.max(0, days);
+  const mine = WEEKDAYS.filter((w) => list.includes(w));
+  const i = mine.indexOf(slot.weekday);
+  return Math.max(0, Math.floor(days / 7) * mine.length + (i < 0 ? 0 : i));
+}
+
+const rngOf = (key: string) => { let s = hash(key) || 1; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822507) ^ Math.imul(s ^ (s >>> 13), 3266489909)) >>> 0) / 2 ** 32; };
+const pickWeighted = <T extends { weight: number }>(xs: T[], r: number) => { let x = r * xs.reduce((a, b) => a + b.weight, 0); for (const v of xs) if ((x -= v.weight) < 0) return v; return xs.at(-1)!; };
+
+/** What to make for a slot: the genre plan, and its mix, rules and moves. Deterministic: the same
+ *  persona and date always choose the same. A pair's two posts share the week's plan and rules
+ *  (the second is the first's board turned on its side); a one-type-a-week creator's week shares
+ *  a genre; a `sequence` plan takes its mixes and rules in order. */
+export function planFor(p: Persona, slot: Pick<Slot, "date" | "weekday">) {
+  const role = pairRole(p, slot.weekday);
+  const week = isoWeek(slot.date);
+  const r = rngOf(role === null ? `${p.handle}/${slot.date}` : `${p.handle}/${week}`);
+  const pickPlan = p.oneTypeAWeek ? rngOf(`${p.handle}/${week}/type`) : r;
+  const plans = p.genres.filter((g) => !g.days || g.days.includes(slot.weekday));
+  const plan: GenrePlan = pickWeighted(plans.length ? plans : p.genres, pickPlan());
+  const n = seriesIndex(p, slot);
+  const choose = <T,>(xs?: T[]) => (xs?.length ? xs[plan.sequence ? n % xs.length : Math.floor(r() * xs.length)] : undefined);
+  const mix = choose(plan.mixes), rules = choose(plan.rules) || undefined, moves = choose(plan.moves) || undefined;
+  return { plan, role, mix, rules, moves, cipher: plan.cipher };
+}
 
 // ---- publishing what's due ----
 

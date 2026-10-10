@@ -5,7 +5,7 @@
 // site as a scheduled draft (POST /admin/ai/schedule). The site's cron publishes each at its time.
 //
 //   node puzzles/ai/week.ts --dry-run                        make and print a week, write it to archive/ai-week/; no Claude, no site
-//   node puzzles/ai/week.ts --dry-run --persona pebble       one persona
+//   node puzzles/ai/week.ts --dry-run --persona isola        one persona
 //   node puzzles/ai/week.ts --site https://inkit.games       the real thing (GitHub Actions runs this on Sundays)
 //
 // Other flags: --from <ISO time> (default now), --days <n> (default 7), --out <dir>,
@@ -24,7 +24,7 @@ import type { GridSpec } from "../../src/engine/types.ts";
 import { guides } from "../../src/guides/guides.ts";
 import type { GenerateOptions } from "../grid/generate.ts";
 import { PERSONAS, type GenrePlan, type Persona } from "../../app/app/ai/personas.ts";
-import { difficultyOf, isoWeek, moonLit, pairRole, slotsBetween, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
+import { difficultyOf, moonLit, pairRole, planFor, slotsBetween, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Score, type Scorer } from "./score.ts";
 
 const argv = process.argv.slice(2);
@@ -49,20 +49,6 @@ if (!dryRun && !process.env.ANTHROPIC_API_KEY) { console.error("ANTHROPIC_API_KE
 
 // ---- deterministic choices: the same persona and date always choose the same way ----
 const hash = (s: string) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h; };
-const rng = (key: string) => { let s = hash(key) || 1; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822507) ^ Math.imul(s ^ (s >>> 13), 3266489909)) >>> 0) / 2 ** 32; };
-const pickWeighted = <T extends { weight: number }>(xs: T[], r: number) => { let x = r * xs.reduce((a, b) => a + b.weight, 0); for (const v of xs) if ((x -= v.weight) < 0) return v; return xs.at(-1)!; };
-
-/** What to make for a slot: genre plan, size, mix or rules. A pair's two posts share the week's
- *  plan and rules; the second is the first's board turned on its side. */
-function planFor(p: Persona, slot: Slot) {
-  const role = pairRole(p, slot.weekday);
-  const key = role === null ? `${p.handle}/${slot.date}` : `${p.handle}/${isoWeek(slot.date)}`;
-  const r = rng(key);
-  const plans = p.genres.filter((g) => !g.days || g.days.includes(slot.weekday));
-  const plan = pickWeighted(plans.length ? plans : p.genres, r());
-  const choice = { mix: plan.mixes ? plan.mixes[Math.floor(r() * plan.mixes.length)] : undefined, rules: plan.rules ? plan.rules[Math.floor(r() * plan.rules.length)] : undefined };
-  return { plan, role, ...choice };
-}
 
 /** Candidate sizes, nearest the day's difficulty first. */
 function sizesFor(plan: GenrePlan, difficulty: number, n: number, transpose: boolean, rules?: string): [number, number][] {
@@ -97,12 +83,12 @@ function generateWithin(opts: GenerateOptions, ms: number): Promise<GridSpec | n
   });
 }
 
-interface Made { spec: GridSpec; score: Score; size: [number, number]; mix?: string; rules?: string; tries: number }
+interface Made { spec: GridSpec; score: Score; size: [number, number]; mix?: string; rules?: string; moves?: string; tries: number }
 
 /** Make candidates for a slot and keep the best: among those good enough, the closest to the
  *  target difficulty (quality breaks near-ties). */
 async function makeFor(p: Persona, slot: Slot): Promise<Made | null> {
-  const { plan, role, mix, rules } = planFor(p, slot);
+  const { plan, role, mix, rules, moves, cipher } = planFor(p, slot);
   const n = candidatesOverride ?? p.quality.candidates;
   // a pair's second post is the first's board turned on its side: size it by the first day
   const sizeDifficulty = role === 1 ? difficultyOf(p.difficulty, slot.at, slot.date, p.pairs!.days[0]) : slot.difficulty;
@@ -112,13 +98,13 @@ async function makeFor(p: Persona, slot: Slot): Promise<Made | null> {
   for (let k = 0; k < n * 2 && tries < n; k++) {
     if (k > 0 && Date.now() - started > BUDGET_MS) break;
     const [rows, cols] = sizes[k % sizes.length];
-    const spec = await generateWithin({ genre: plan.genre, rows, cols, seed: 1 + (hash(`${p.handle}/${slot.date}/${k}`) % 1e6), mix, rules }, CANDIDATE_MS);
+    const spec = await generateWithin({ genre: plan.genre, rows, cols, seed: 1 + (hash(`${p.handle}/${slot.date}/${k}`) % 1e6), mix, rules, moves, cipher }, CANDIDATE_MS);
     if (!spec) continue;
     tries++;
     const score = await scorer({ spec, plan }, p, slot);
     if (score.quality < p.quality.minQuality) { lastNotes = score.notes; continue; }
     const key = Math.abs(score.difficulty - slot.difficulty) - 0.15 * score.quality;
-    if (key < bestKey) { best = { spec, score, size: [rows, cols], mix, rules, tries: 0 }; bestKey = key; }
+    if (key < bestKey) { best = { spec, score, size: [rows, cols], mix, rules, moves, tries: 0 }; bestKey = key; }
   }
   if (best) best.tries = tries;
   else console.log(`  ${p.handle} ${slot.date}: ${tries} candidates (${plan.genre} ${sizes.map(([r, c]) => `${r}x${c}`).join(", ")}${rules ? ` [${rules}]` : ""}${mix ? ` /${mix}` : ""}), none good enough${lastNotes.length ? `: ${lastNotes.join("; ")}` : ""}`);
@@ -126,6 +112,9 @@ async function makeFor(p: Persona, slot: Slot): Promise<Made | null> {
 }
 
 // ---- Claude: the title and description ----
+
+/** Words that make writing sound machine-made (docs/ai-creators.md, "Writing"). */
+const AI_TELLS = ["delve", "tapestry", "journey", "embark", "elevate", "seamless", "testament", "realm", "unleash", "vibrant", "intricate", "navigate", "unlock"];
 
 const Words = z.object({ title: z.string(), description: z.string() });
 const client = dryRun ? null : new Anthropic();
@@ -138,7 +127,9 @@ function factsFor(p: Persona, slot: Slot, made: Made, earlier: string[], said: s
   const [rows, cols] = made.spec.size;
   return [
     `Puzzle type: ${g?.name ?? made.spec.genre}${g?.summary ? ` (${g.summary})` : ""}`,
-    `Board: ${rows} × ${cols}, ${cluesOf(made.spec).length} clues${made.mix ? `, symbol mix: ${made.mix}` : ""}${made.rules ? `, rules: ${made.rules}` : ""}`,
+    `Board: ${rows} × ${cols}, ${cluesOf(made.spec).length} clues${made.mix ? `, symbol mix: ${made.mix}` : ""}${made.rules ? `, rules: ${made.rules}` : ""}${made.moves ? `, moves: ${made.moves}` : ""}`,
+    ...(made.spec.picture?.title ? [`The hidden picture (never name it, at most hint at it): ${made.spec.picture.title}`] : []),
+    ...(made.spec.givens?.some((g) => g.kind === "number" && "letter" in g && g.letter) ? ["Its numbers are written as letters: a cipher to crack."] : []),
     `Difficulty for this creator: ${word(made.score.difficulty)} (the day's target was ${word(slot.difficulty)})`,
     `Posting: ${slot.weekday}, ${slot.date} (${p.schedule.summary})`,
     ...(p.difficulty.kind === "lunar" ? [`Moon: ${Math.round(moonLit(slot.at) * 100)}% lit`] : []),
@@ -157,6 +148,7 @@ async function wordsFor(p: Persona, slot: Slot, made: Made, earlier: string[], s
     `Titles: ${p.voice.titles}`,
     `Examples:\n${p.voice.examples.map((e) => `- ${e.title}: ${e.description}`).join("\n")}`,
     "Rules: the title is at most 40 characters; the description at most 160 characters. The page already shows the puzzle's rules, size and type, so don't restate the rules or recite the facts: say something in character, at most one light hint about where to begin. Never reveal the solution or claim things about the puzzle that the facts don't support. No emoji, no hashtags.",
+    `Write like a person with habits, not like an assistant: concrete details, plain words, real opinions. Never use these words: ${AI_TELLS.join(", ")}. No "not just X but Y", no lists of three, no rhetorical questions, no em dashes${p.voice.brief.includes("dashes") ? " (except the voice's own dashes)" : ""}. Never quote or name a real author, book or brand, and never pretend to be a real person.`,
   ].join("\n\n");
   const response = await client.beta.messages.parse({
     model: MODEL,

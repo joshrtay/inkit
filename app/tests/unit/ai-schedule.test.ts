@@ -2,7 +2,9 @@
 // curves, which scheduled drafts are due, and the admin endpoint's checks of a queued post.
 import { describe, expect, it } from "vitest";
 import { PERSONAS, GENERATOR_GENRES, type Persona } from "~/ai/personas";
-import { difficultyOf, dueToPublish, isoWeek, isPrime, localDate, moonLit, pairRole, postInstant, slotsBetween, tideStrength, zonedTime } from "~/ai/schedule";
+import { PERSONA_ICONS, personaIcon } from "~/ai/icons";
+import { WIP_KINDS } from "~/games/kinds";
+import { dayLength, difficultyOf, dueToPublish, isoWeek, isPrime, localDate, moonLit, pairRole, planFor, postInstant, seriesIndex, slotsBetween, tideStrength, zonedTime } from "~/ai/schedule";
 import { checkScheduleRequest, sha256 } from "~/ai/request";
 
 const persona = (over: Partial<Persona> & { schedule: Persona["schedule"] }): Persona => ({ ...PERSONAS[1], ...over });
@@ -47,7 +49,7 @@ describe("slots", () => {
     const slots = slotsBetween(clerk, from, to);
     expect(slots).toHaveLength(7);
     for (const s of slots) {
-      expect(new Intl.DateTimeFormat("en-GB", { timeZone: "America/New_York", hour: "2-digit", minute: "2-digit" }).format(s.at)).toBe("23:47");
+      expect(new Intl.DateTimeFormat("en-GB", { timeZone: "America/Los_Angeles", hour: "2-digit", minute: "2-digit" }).format(s.at)).toBe("23:47");
       expect(s.at >= from && s.at < to).toBe(true);
     }
     expect(new Set(slots.map((s) => s.date)).size).toBe(7);
@@ -60,8 +62,10 @@ describe("slots", () => {
   });
 
   it("posts only on the persona's weekdays", () => {
+    const quillwort = PERSONAS.find((p) => p.handle === "quillwort")!;
+    expect(slotsBetween(quillwort, from, to).map((s) => s.weekday)).toEqual(["mon", "wed", "fri"]);
     const granny = PERSONAS.find((p) => p.handle === "granny-rect")!;
-    expect(slotsBetween(granny, from, to).map((s) => s.weekday)).toEqual(["mon", "wed", "fri", "sun"]);
+    expect(slotsBetween(granny, from, to).map((s) => s.weekday)).toEqual(["mon", "tue", "wed", "thu", "fri"]);
   });
 
   it("posts on prime dates", () => {
@@ -108,11 +112,79 @@ describe("difficulty", () => {
     expect(difficultyOf(month, at, "2026-10-01", "thu")).toBe(0);
     expect(difficultyOf(month, at, "2026-10-31", "sat")).toBe(1);
   });
+  it("follows the seasons, either side of the equator", () => {
+    const by = { spring: 0.1, summer: 0.3, autumn: 0.6, winter: 0.9 };
+    expect(difficultyOf({ kind: "season", hemisphere: "north", by }, at, "2026-10-14", "wed")).toBe(0.6);
+    expect(difficultyOf({ kind: "season", hemisphere: "north", by }, at, "2026-01-14", "wed")).toBe(0.9);
+    expect(difficultyOf({ kind: "season", hemisphere: "south", by }, at, "2026-10-14", "wed")).toBe(0.1);
+  });
+  it("rises through the school year, with a summer break", () => {
+    const scheme = { kind: "school-year", low: 0, high: 1, summer: 0.4 } as const;
+    expect(difficultyOf(scheme, at, "2026-09-01", "tue")).toBe(0);
+    expect(difficultyOf(scheme, at, "2027-06-30", "wed")).toBe(1);
+    expect(difficultyOf(scheme, at, "2027-07-15", "thu")).toBe(0.4);
+    const feb = difficultyOf(scheme, at, "2027-02-01", "mon");
+    expect(feb).toBeGreaterThan(0.45);
+    expect(feb).toBeLessThan(0.65);
+  });
+  it("follows the length of the day: hardest at midwinter", () => {
+    const scheme = { kind: "daylight", lat: 44.5, low: 0, high: 1 } as const;
+    expect(difficultyOf(scheme, at, "2026-12-21", "mon")).toBeGreaterThan(0.97);
+    expect(difficultyOf(scheme, at, "2026-06-21", "sun")).toBeLessThan(0.03);
+    expect(difficultyOf(scheme, at, "2026-09-22", "tue")).toBeCloseTo(0.5, 1);
+    const { hours, shortest, longest } = dayLength(2026, 6, 21, 44.5);
+    expect(hours).toBeCloseTo(longest, 1);
+    expect(longest - shortest).toBeGreaterThan(6);
+  });
+  it("adds up the date's digits", () => {
+    const scheme = { kind: "digits", low: 0, high: 1 } as const;
+    expect(difficultyOf(scheme, at, "2027-01-01", "fri")).toBe(0);
+    expect(difficultyOf(scheme, at, "2026-09-29", "tue")).toBe(1);
+    expect(difficultyOf(scheme, at, "2026-10-10", "sat")).toBeCloseTo(0, 5);   // 1+0+1+0 = 2
+    expect(difficultyOf(scheme, at, "2026-10-14", "wed")).toBeCloseTo(4 / 18, 5);
+  });
   it("stays within 0..1 for every persona's slots", () => {
     for (const p of PERSONAS) for (const s of slotsBetween(p, new Date("2026-10-01T00:00:00Z"), new Date("2026-11-01T00:00:00Z"))) {
       expect(s.difficulty).toBeGreaterThanOrEqual(0);
       expect(s.difficulty).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("what to make", () => {
+  const isola = PERSONAS.find((p) => p.handle === "isola")!;
+  const slotsOf = (p: Persona, days: number) => slotsBetween(p, new Date("2026-10-05T00:00:00Z"), new Date(Date.UTC(2026, 9, 5 + days)));
+
+  it("counts a creator's posts in order, its own days only", () => {
+    const slots = slotsOf(isola, 21);
+    expect(slots.map((s) => s.weekday).slice(0, 3)).toEqual(["mon", "wed", "fri"]);
+    const n = slots.map((s) => seriesIndex(isola, s));
+    expect(n).toEqual(n.map((_, i) => n[0] + i));
+  });
+  it("takes a sequence's mixes in order: one new symbol a week, alone first", () => {
+    const mixes = isola.genres[0].mixes!;
+    const slots = slotsOf(isola, 7 * mixes.length / 3);
+    const got = slots.map((s) => planFor(isola, s).mix);
+    expect(new Set(got)).toEqual(new Set(mixes));
+    for (const s of slots) expect(planFor(isola, s).mix).toBe(mixes[seriesIndex(isola, s) % mixes.length]);
+    // Monday's panel has a single kind of symbol
+    for (const s of slots) if (s.weekday === "mon") expect(planFor(isola, s).mix).not.toContain("+");
+  });
+  it("keeps one type all week for a one-type-a-week creator, and changes it between weeks", () => {
+    const granny = PERSONAS.find((p) => p.oneTypeAWeek)!;
+    const weeks = new Map<string, Set<string>>();
+    for (const s of slotsOf(granny, 70)) { const w = isoWeek(s.date); weeks.set(w, (weeks.get(w) ?? new Set()).add(planFor(granny, s).plan.genre)); }
+    for (const kinds of weeks.values()) expect(kinds.size).toBe(1);
+    expect(new Set([...weeks.values()].map((k) => [...k][0])).size).toBeGreaterThan(1);
+  });
+  it("gives a pair's two posts the same rules", () => {
+    const bb = PERSONAS.find((p) => p.pairs)!;
+    const [a, b] = slotsOf(bb, 7);
+    expect(planFor(bb, a).rules).toBe(planFor(bb, b).rules);
+    expect([planFor(bb, a).role, planFor(bb, b).role]).toEqual([0, 1]);
+  });
+  it("is the same choice every time for a date", () => {
+    for (const p of PERSONAS) for (const s of slotsOf(p, 7)) expect(planFor(p, s)).toEqual(planFor(p, s));
   });
 });
 
@@ -123,7 +195,37 @@ describe("the personas", () => {
     for (const h of handles) expect(h).toMatch(/^[a-z][a-z0-9-]{2,29}$/);
     const covered = new Set(PERSONAS.flatMap((p) => p.genres.map((g) => g.genre)));
     expect(covered.size).toBeGreaterThanOrEqual(GENERATOR_GENRES.length * 0.8);
-    expect(PERSONAS.length).toBeGreaterThanOrEqual(8);
+    expect(PERSONAS.length).toBe(15);
+  });
+  it("make no work-in-progress types, and no two make the same mix", () => {
+    for (const k of WIP_KINDS) expect(GENERATOR_GENRES as readonly string[]).not.toContain(k);
+    const mixes = PERSONAS.map((p) => p.genres.map((g) => g.genre).sort().join(","));
+    expect(new Set(mixes).size).toBe(mixes.length);
+  });
+  it("each have an icon, and only they do", () => {
+    expect(Object.keys(PERSONA_ICONS).sort()).toEqual(PERSONAS.map((p) => p.handle).sort());
+    for (const p of PERSONAS) {
+      const svg = personaIcon(p.handle)!;
+      expect(svg).toMatch(/^<svg viewBox="0 0 48 48"/);
+      // colours come from the site's tokens, with fallbacks, never a bare hex
+      expect(svg.replace(/var\(--[a-z-]+,#[0-9a-f]{6}\)/g, "")).not.toMatch(/#[0-9a-f]{3,6}/i);
+      // the pen weights (docs/style.md)
+      for (const w of svg.matchAll(/stroke-width:([\d.]+)/g)) expect(["1", "1.6", "2.6", "5.5"]).toContain(w[1]);
+    }
+    expect(personaIcon("wyatt")).toBeNull();
+  });
+  it("don't write like a chatbot", () => {
+    const tells = /\b(delve|tapestry|journey|embark|elevate|seamless|testament to|realm|unleash|vibrant|intricate)\b|not just .{1,40} but|\?/i;
+    for (const p of PERSONAS) {
+      const text = [p.bio, ...p.howIMake, p.schedule.summary, ...p.voice.examples.flatMap((e) => [e.title, e.description])];
+      for (const t of text) {
+        expect(t, `${p.handle}: ${t}`).not.toMatch(tells);
+        // em dashes only where the style is built on them
+        if (p.handle !== "hester-vane") expect(t, `${p.handle}: ${t}`).not.toMatch(/—/);
+      }
+      // a style, never a name
+      expect([p.voice.brief, p.voice.titles, ...text].join(" ")).not.toMatch(/\b(Hemingway|Wodehouse|Dickinson|Chandler|Ogden|Douglas Adams|Calvino|Mary Oliver|Basho|Bashō|Gertrude|Le Guin|Vonnegut)\b/);
+    }
   });
 });
 

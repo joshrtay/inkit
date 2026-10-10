@@ -14,13 +14,16 @@ type Group = Given[];
 const debug = (m: string) => { if (process.env.DEBUG) console.error(`panel: ${m}`); };
 
 /** `mix`: which symbols the panel is made of: dots, squares, stars, triangles, shapes, erasers or
- *  symmetry (two mirrored lines, with dots). */
+ *  symmetry (two mirrored lines, with dots), or several joined with "+" ("squares+stars"): every
+ *  part's symbols go in the pool, one symbol to a cell. */
 export const PANEL_MIXES = ["dots", "squares", "stars", "triangles", "shapes", "erasers", "symmetry"] as const;
-export async function makePanel(mix: (typeof PANEL_MIXES)[number], rows: number, cols: number, rand: () => number): Promise<GridSpec | null> {
+export async function makePanel(mix: string, rows: number, cols: number, rand: () => number): Promise<GridSpec | null> {
+  const parts = mix.split("+");
+  for (const m of parts) if (!(PANEL_MIXES as readonly string[]).includes(m)) throw new Error(`no panel mix "${m}" (${PANEL_MIXES.join(", ")})`);
   const clingo = await import("clingo-wasm");
   const shuffle = <T,>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
-  const sym: Symmetry | null = mix === "symmetry" ? "left-right" : null;
+  const sym: Symmetry | null = parts.includes("symmetry") ? "left-right" : null;
 
   // where the line starts and ends: the bottom-left corner to the top-right one, as panels often do
   // (or somewhere else on the edge, now and then)
@@ -54,7 +57,8 @@ export async function makePanel(mix: (typeof PANEL_MIXES)[number], rows: number,
     for (let v = 0; v < g.cornerCount; v++) if (visited(v) && !p0.cornerGivens.has(v) && rand() < 0.6) pool.push([{ at: "corner", corner: cornerXY(v), kind: "hexagon" }]);
     for (const e of g.borders) if (target.fence[e.id] === 1 && rand() < 0.4) pool.push([{ at: "line", corners: e.corners.map(cornerXY) as [RC, RC], kind: "hexagon" }]);
   };
-  const gaps = () => { for (const e of g.borders) if (target.fence[e.id] !== 1) pool.push([{ at: "line", corners: e.corners.map(cornerXY) as [RC, RC], kind: "gap" }]); };
+  let gapped = false;
+  const gaps = () => { if (gapped) return; gapped = true; for (const e of g.borders) if (target.fence[e.id] !== 1) pool.push([{ at: "line", corners: e.corners.map(cornerXY) as [RC, RC], kind: "gap" }]); };
   // each region's square color: neighbouring regions differ (black and white, more colors if needed)
   const tone: SymbolColor[] = [], palette: SymbolColor[] = rand() < 0.5 ? ["black", "white", "blue", "red"] : ["white", "black", "blue", "red"];
   reg.cells.forEach((cs, k) => {
@@ -70,6 +74,7 @@ export async function makePanel(mix: (typeof PANEL_MIXES)[number], rows: number,
   };
 
   let first: Group | null = null;   // a group the puzzle starts with (an eraser)
+  for (const mix of parts) {
   if (mix === "dots") { dots(); gaps(); }
   else if (mix === "symmetry") {
     const color = new Map<number, "blue" | "yellow">();
@@ -85,7 +90,8 @@ export async function makePanel(mix: (typeof PANEL_MIXES)[number], rows: number,
   else if (mix === "triangles") triangles();
   else if (mix === "stars") {
     // pairs of stars of one color in a region; a region's pairs have different colors
-    const colors: SymbolColor[] = ["orange", "purple", "green", "red"];
+    // (with squares about, no red: a red square would count as one of a red pair's)
+    const colors: SymbolColor[] = parts.includes("squares") || parts.includes("erasers") ? ["orange", "purple", "green"] : ["orange", "purple", "green", "red"];
     reg.cells.forEach((cs) => {
       const cells = shuffle([...cs]);
       for (let k = 0; k + 1 < cells.length && k / 2 < colors.length; k += 2) {
@@ -146,10 +152,10 @@ export async function makePanel(mix: (typeof PANEL_MIXES)[number], rows: number,
     for (const i of cs.slice(0, half)) take(i);
     triangles();
   }
-  else throw new Error(`no panel mix "${mix}" (${PANEL_MIXES.join(", ")})`);
+  }
   // gaps for every type: symbols in cells can't tell apart lines that cut out the same regions
   // (one hugging the edge a different way)
-  if (mix !== "dots" && mix !== "symmetry") gaps();
+  if (parts.some((m) => m !== "dots" && m !== "symmetry")) gaps();
 
   // 3. every symbol group at once (one symbol to a cell), then gaps until the target is the only
   // line, 4. then take out what isn't needed, gaps first, so the symbols do the work

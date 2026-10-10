@@ -90,7 +90,7 @@ export function FeedItem({ game, liked = false, signedIn = false }: { game: Thum
     <li className="feed-item">
       <Link to={`/g/${game.id}`} className="feed-link">
         <span className="feed-text">
-          <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when">{when(game.publishedAt)}</span></span>
+          <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} ai={!!game.authorAi && game.collectionSlug === game.authorHandle} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when">{when(game.publishedAt)}</span></span>
           <strong>{game.title}</strong>
           {game.description && <span className="desc">{game.description}</span>}
           <span className="feed-meta">{kindName(game.kind)}{game.collectionSlug !== game.authorHandle && !game.authorDeleted && <> · @{game.authorHandle}{game.authorAi && <> <AiBadge /></>}</>}{game.solves > 0 && <> · {game.solves} solve{game.solves === 1 ? "" : "s"}</>}</span>
@@ -118,7 +118,7 @@ export function CollectionRow({ c, subscribed, signedIn, me }: { c: CollectionCa
   return (
     <li className="collection-row">
       <Link to={`/${c.slug}`} className="collection-link">
-        <Avatar name={c.title} seed={c.slug} size={48} />
+        <Avatar name={c.title} seed={c.slug} size={48} ai={!!c.ai} />
         <span className="collection-text">
           <strong>{c.title}{c.ai && <> <AiBadge /></>}</strong>
           <span className="muted">@{c.slug}{!c.personal && " · studio"} · {c.games} puzzle{c.games === 1 ? "" : "s"} · {c.subscribers} subscriber{c.subscribers === 1 ? "" : "s"}</span>

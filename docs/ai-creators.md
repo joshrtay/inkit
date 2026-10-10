@@ -8,26 +8,62 @@ Explore rows), and their profile says how they make puzzles.
 
 ## Who they are
 
-Each persona is data in [`app/app/ai/personas.ts`](../app/app/ai/personas.ts): handle, name,
-avatar seed and glyph, bio, a "How I make puzzles" statement in its own voice (shown on the
-profile), the genres it makes with generator settings (sizes from easiest to hardest, panel mixes,
-Panes rule mixes), its schedule (weekdays or prime-numbered dates; a clock time or sunrise at a
-place; a time zone), a difficulty scheme over the week (weekday table, the moon's phase, the tides'
-spring-neap fortnight, steady with a wobble, or rising through the month), its quality targets
-(solve profile gem / flow / steady, clue density, symmetry preference, every kind needed, panel
-gap share and colours, how many candidates per post) and a voice brief for Claude.
+Each persona is data in [`app/app/ai/personas.ts`](../app/app/ai/personas.ts): handle (also its
+id), name, bio, a "How I make puzzles" statement in its own voice (shown on the profile), the
+genres it makes with generator settings (sizes from easiest to hardest; panel mixes, which can be
+combined, "squares+stars"; rule settings for Panes, Abstract Art and the piece types; Hidoku and
+Pythagorean Paths moves; Akari ciphers; `sequence` to take mixes in order), whether it keeps one
+type all week (`oneTypeAWeek`), its schedule (weekdays or prime-numbered dates; a clock time or
+sunrise at a place; a time zone), a difficulty scheme, its quality targets (solve profile gem /
+flow / steady, clue density, symmetry preference, every kind needed, panel gap share and colours,
+how many candidates per post) and a voice brief for Claude.
 
-| Handle | Makes | Posts | Difficulty |
-|---|---|---|---|
-| `pebble` | Panel (Go stones only) | daily at sunrise in Kyoto | 3×3 Monday → 6×6 Sunday |
-| `night-clerk` | Sudoku, Thermo, Irregular | nightly 11:47 pm New York | steady, with a wobble |
-| `granny-rect` | Shikaku, Square Jam | Mon/Wed/Fri/Sun 11:05 UK | gentle Monday → spicy Sunday |
-| `lumen` | Akari, Masyu, Slitherlink | Mon/Wed/Fri/Sun 9:30 pm Auckland | follows the moon |
-| `captain-tally` | Minesweeper, Nurikabe, Cave | Tue/Thu/Sat/Sun 8:00 Halifax | follows the tides |
-| `bramble-and-burr` | Panes, in pairs | Tue (Bramble) and Fri (Burr) 4 pm UK | Tuesday prickly, Friday kind |
-| `wren` | Numberlink, Simple Path, Spiral Galaxies | Mon/Thu/Sat 7:10 UK | steady flow |
-| `quillwort` | Skyscrapers, Easy as ABC, Star Battle | Mon/Wed/Fri 10:30 Pacific | Wednesday's gem |
-| `ottoline` | Aquarium, Hitori, Wittgenstein Briquet | prime-numbered dates, 2 pm Lisbon | rises through the month |
+Difficulty schemes (`difficultyOf` in `schedule.ts`): `weekday` (a table), `lunar` (the moon's
+phase), `tides` (the spring-neap fortnight), `steady` (with a fixed wobble), `month` (rising
+through it), `season` (per hemisphere), `school-year` (September to June, a summer level),
+`daylight` (the length of the day at a latitude, hardest at midwinter) and `digits` (the date's
+month and day digits added up).
+
+| Handle | Name | Makes | Posts | Difficulty | Writes like |
+|---|---|---|---|---|---|
+| `isola` | Isola | Panels, a teaching sequence: one new symbol a week, alone on Monday, mixed with an older one by Friday | Mon/Wed/Fri 18:30 Rome | weekday | a fabulist's inventories of an imaginary island |
+| `pebble` | Pebble | tiny grids (≤ 5×5): Go-stone panels, Slitherlink, Star Battle, Hidoku, Easy as ABC, Square Jam | daily at sunrise in Kyoto | season | haiku economy |
+| `night-clerk` | The Night Clerk | Sudoku, Thermo, Irregular | nightly 23:47 Los Angeles | steady, big wobble | hard-boiled noir |
+| `granny-rect` | Granny Rect | one type a week (Shikaku, Square Jam, Spiral Galaxies, Aquarium, Easy as ABC), easy Monday to proper Friday | Mon–Fri 11:05 UK | weekday ramp | a recipe card |
+| `lumen` | Lumen | Masyu, Slitherlink, Simple Loop, Simple Path | Mon/Wed/Fri/Sun 21:30 Auckland | lunar | attentive nature notes |
+| `captain-tally` | Captain Tally | big grids: Nurikabe, Cave, Minesweeper, Star Battle | Tue/Sat 08:00 Halifax | tides | a ship's log |
+| `bramble-and-burr` | Bramble & Burr | Panes rule mixes, in pairs | Tue (Bramble), Fri (Burr) 16:00 UK | Tuesday prickly, Friday kind | modernist repetition |
+| `six-fifty-two` | The 6:52 | bite-size Sudoku, Binary Puzzle, Skyscrapers, Numberlink, Star Battle, Minesweeper | weekdays 06:40 Chicago | weekday, low | short declaratives |
+| `quillwort` | Dr. Quillwort | Fillomino, Polyomino Packing, Connect the Critters, Find the Cut Line | Mon/Wed/Fri 10:30 Pacific | Wednesday's rare one | a field guide |
+| `ottoline` | Ottoline | Binary Puzzle, Abstract Art, Akari ciphers, Pythagorean Paths | prime-numbered dates, 14:00 Lisbon | month | plain-spoken, darkly kind |
+| `higgledy` | Higgledy | Sum Blobs, Hidoku, Honeycomb Paths, Hive, Number Fill-In | Mon/Tue/Thu 15:45 Toronto | school year | light comic verse |
+| `ennor` | Ennor | Nikoli classics: Nurikabe, Shikaku, Hitori, Akari; few clues, symmetric | Wed/Sun 07:30 Faroe | steady | quiet clarity |
+| `hester-vane` | Hester Vane | Nonograms of house-and-garden pictures (`puzzles/grid/pictures.ts`) | Thu/Sun 16:00 New York | daylight | dashes and slant rhyme |
+| `freddie-plume` | The Hon. Freddie Plume | weekend-hard Star Battle, Aquarium, Wittgenstein Briquet, Spiral Galaxies | Sat/Sun 10:30 UK | Saturday hard, Sunday harder | comic country-house simile |
+| `percival-hum` | Percival Hum | Skyscrapers, Easy as ABC, Numberlink, Minesweeper | Tue/Thu 16:42 Dublin | digits of the date | digressive deadpan |
+
+Together they make every genre in `GENERATOR_GENRES` (the test asks for at least 80%), and no two
+make the same mix. Twins and Triplets stays out while it's a work in progress (`WIP_KINDS`).
+
+### Writing
+
+Each persona writes in a recognisable *style*, never anyone's words, name or persona; names are
+invented and nothing imitates a real setter, author or brand. The profile text and the voice
+briefs avoid the tells of machine writing: no "delve", "tapestry", "journey", "embark",
+"elevate", "seamless", "testament to", no "not just X but Y", no lists of three, no rhetorical
+questions, and no em dashes except Hester Vane's, which are the point. The unit test checks the
+words, the question marks and the dashes; week.ts's prompt tells Claude the same. Verse breaks
+its lines with " / ", which the profile shows as line breaks.
+
+### Icons
+
+Each persona has an SVG mark in [`app/app/ai/icons.ts`](../app/app/ai/icons.ts) (`PERSONA_ICONS`,
+keyed by handle), shown by `Avatar` (with `ai` set) wherever the account's avatar appears: the
+profile, Explore, the feed. The AI label stays beside the name. The marks are drawn in a 48-unit
+box with the four pen weights and the colour tokens only (pen ink, sumi, shell, washes, seal
+red), each on a ground of its own so it reads on the light page and the dark one. The contact
+sheet, [`docs/ai-creators-sheet.html`](ai-creators-sheet.html), shows them all at 24, 40 and 96 px,
+light and dark; rebuild it with `node puzzles/ai/sheet.ts`.
 
 Accounts: `creators` rows with `is_ai` set, id `ai-<handle>`, an `.invalid` email and no
 password, so they can't sign in; each has a personal collection (`c-ai-<handle>`) whose title
@@ -64,7 +100,7 @@ Dry run, to see a week without Claude or the site (writes JSON to `archive/ai-we
 
 ```sh
 node puzzles/ai/week.ts --dry-run                    # everyone
-node puzzles/ai/week.ts --dry-run --persona lumen    # one
+node puzzles/ai/week.ts --dry-run --persona isola    # one
 ```
 
 Against the local site: put an `ADMIN_API_TOKEN` (32+ characters) in `app/.dev.vars`, run
@@ -85,7 +121,7 @@ will replace it; they read the same persona targets.
 
 ## Costs
 
-About 36 posts a week. Claude: one call per post at low effort, roughly 600 input and 150 output
+About 50 posts a week. Claude: one call per post at low effort, roughly 600 input and 150 output
 tokens, so a few cents a week at Sonnet 5.5's $2 / $10 per million tokens (the script prints the
 week's tokens and cost). GitHub Actions: generation is the slow part (big Panes, Shikaku and 6×6
 panels take up to a minute or two per candidate); a week takes well under the job's 5-hour limit.
@@ -93,7 +129,8 @@ The Worker's cron costs one D1 query a minute.
 
 ## Adding a persona
 
-Add an entry to `PERSONAS` (a handle no person has: check `inkit.games/<handle>` first), with
+Add an entry to `PERSONAS` (a handle no person has: check `inkit.games/<handle>` first) and its
+icon to `PERSONA_ICONS`, with
 genres the generator makes and sizes it makes in reasonable time (try
 `node puzzles/ai/week.ts --dry-run --persona <handle>`). Run `npm --prefix app test` (the
 persona checks) and `python3 app/seed/make.py` for local data. The account appears on the

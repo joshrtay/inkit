@@ -14,6 +14,9 @@
 //   node puzzles/grid/new.ts --genre shikaku --size 6x6 --number 1 --name "Boxes"
 //   node puzzles/grid/new.ts --genre irregular-sudoku --size 6x6 --number 1 --name "Jigsaw"
 //   node puzzles/grid/new.ts --genre panel --mix squares --size 4x4 --number 8 --name "Two Tones"   (mixes: panels.ts)
+//   node puzzles/grid/new.ts --genre panel --mix squares+stars --size 5x5 --number 9 --name "Pairs"   (several mixes at once)
+//   node puzzles/grid/new.ts --genre simple-loop --size 6x6 --number 9 --name "Pond"
+//   node puzzles/grid/new.ts --genre nonogram --size 8x8 --number 10 --name "Pear"   (a picture from pictures.ts)
 //   node puzzles/grid/new.ts --genre akari --cipher --size 6x6 --number 3 --name "Secret Code"   (letters for numbers)
 //   node puzzles/grid/new.ts --genre binary-puzzle --size 6x6 --number 1 --name "Red and Blue"
 //   node puzzles/grid/new.ts --genre abstract-art --size 6x6 --number 1 --name "Thirds" --rules "parts=1:1:1,no-three-in-a-row"

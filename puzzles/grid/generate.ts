@@ -11,6 +11,7 @@ import { fillSlots } from "../../src/engine/rules.ts";
 import { emptyBoard, type Board, type Given, type GridSpec, type RuleSpec } from "../../src/engine/types.ts";
 import { makePanel, PANEL_MIXES } from "./panels.ts";
 import { makePieceGenre, PIECE_GENRES } from "./pieces.ts";
+import { PICTURES } from "./pictures.ts";
 
 export interface GenerateOptions {
   genre: string;
@@ -20,7 +21,7 @@ export interface GenerateOptions {
   seed?: number;
   /** Panes: the rule mix, e.g. "size=4,twins,opposites,compass" */
   rules?: string;
-  /** Panel: the symbol mix (PANEL_MIXES) */
+  /** Panel: the symbol mix (PANEL_MIXES), or several joined with "+" ("squares+stars") */
   mix?: string;
   /** Star Battle: stars per row, column and area (only 1 for now) */
   stars?: number;
@@ -95,7 +96,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "simple-loop" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -423,6 +424,35 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const pool: Given[] = g.links.filter((l) => !target.loop[l.id] && !l.cells.some((c) => givens.some((x) => x.kind === "block" && x.at === "cell" && g.cell(...x.cell) === c)))
         .map((l) => ({ at: "border", cells: [at(l.cells[0]), at(l.cells[1])], kind: "wall" }));
       result = await narrow(base, target, pool);
+    } else if (genre === "simple-loop") {
+      // a few rocks; a random loop through every other square; then walls (which the loop never
+      // crosses) until it's the only one
+      const givens: Given[] = [];
+      const rocks = Math.floor(rows * cols * (0.04 + rand() * 0.08));
+      for (const i of shuffle(Array.from({ length: rows * cols }, (_, i) => i)).slice(0, rocks)) givens.push({ at: "cell", cell: at(i), kind: "block" });
+      const base: GridSpec = { genre, size: [rows, cols], givens };
+      const target = await randomBoard(base, "");
+      if (!target) continue;
+      const g = makePuzzle(base).grid, rock = new Set(givens.map((x) => (x.at === "cell" ? g.cell(...x.cell) : -1)));
+      const pool: Given[] = g.links.filter((l) => !target.loop[l.id] && !l.cells.some((c) => rock.has(c)))
+        .map((l) => ({ at: "border", cells: [at(l.cells[0]), at(l.cells[1])], kind: "wall" }));
+      result = await narrow(base, target, pool);
+    } else if (genre === "nonogram") {
+      // a picture from ./pictures.ts that fits (turned or mirrored now and then), kept if its clues
+      // allow nothing else; when none of that size does, a quilt block: a random picture mirrored
+      // both ways
+      const fits = shuffle(PICTURES.filter((x) => x.rows.length === rows && x.rows[0].length === cols));
+      for (const pic of fits.slice(0, 6)) {
+        const flip = rand() < 0.5, rowsOf = flip ? pic.rows.map((r) => [...r].reverse().join("")) : pic.rows;
+        const spec: GridSpec = { genre, size: [rows, cols], picture: { rows: rowsOf, palette: pic.palette, title: pic.title } };
+        if ((await solve(makePuzzle(spec), 2)).length === 1) { result = spec; break; }
+      }
+      if (result) break;
+      const half = (n: number) => Math.ceil(n / 2), cell = Array.from({ length: half(rows) }, () => Array.from({ length: half(cols) }, () => rand() < 0.55));
+      const on = (r: number, c: number) => cell[Math.min(r, rows - 1 - r)][Math.min(c, cols - 1 - c)];
+      const quilt = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => (on(r, c) ? ((r + c) % 3 ? "q" : "p") : ".")).join(""));
+      const spec: GridSpec = { genre, size: [rows, cols], picture: { rows: quilt, palette: { ".": "#f6efe2", q: "#3f6fb0", p: "#d8443a" }, title: "Quilt block" } };
+      if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
     } else if (genre === "slitherlink") {
       const base: GridSpec = { genre, size: [rows, cols], givens: [] };
       const target = await randomBoard(base, `:- #count{B: fence(B)} < ${Math.round(rows * cols * 0.9)}.`);
@@ -531,8 +561,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
       }
     } else if (genre === "panel") {
-      const mix = (o.mix ?? "squares") as (typeof PANEL_MIXES)[number];
-      if (!PANEL_MIXES.includes(mix)) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}`);
+      const mix = o.mix ?? "squares";
+      if (!mix.split("+").every((m) => (PANEL_MIXES as readonly string[]).includes(m))) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}, or several joined with +`);
       result = await makePanel(mix, rows, cols, rand);
     } else if (genre === "binary-puzzle" || genre === "abstract-art") {
       // a random painting, then printed colors until it's the only one. Abstract Art's --rules:

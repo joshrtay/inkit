@@ -119,7 +119,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           {collection.description && <p className="profile-bio">{collection.description}</p>}
           <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
         </div>
-        <Avatar name={collection.title} seed={collection.slug} size={96} />
+        <Avatar name={collection.title} seed={collection.slug} size={96} ai={!!person?.ai} />
         {collection.deleted && <p className="state hidden">This studio was deleted; its games are offline.</p>}
         <div className="profile-actions">
           {mine ? <CreateMenu /> : role ? <Link className="btn primary" to={`/new?in=${collection.slug}`}>New puzzle here</Link>
@@ -131,7 +131,8 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
       {persona && (
         <section className="ai-profile" aria-labelledby="ai-how">
           <h2 id="ai-how">How I make puzzles</h2>
-          {persona.howIMake.map((p) => <p key={p}>{p}</p>)}
+          {/* verse breaks its lines with " / " */}
+          {persona.howIMake.map((p) => <p key={p}>{p.split(" / ").flatMap((line, i) => (i ? [<br key={i} />, line] : [line]))}</p>)}
           <dl className="ai-facts">
             <dt>Makes</dt><dd>{persona.kinds.join(", ")}</dd>
             <dt>Posts</dt><dd>{persona.paused ? "Paused for now." : persona.schedule}</dd>
