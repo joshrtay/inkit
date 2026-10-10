@@ -258,3 +258,13 @@ differently.
   games share single puzzles by game ID and have no sets.
 - Nikoli's pencil-puzzle books (not sudoku) and puzz.link's database ordering weren't confirmed.
 - Lichess AMA quotes come from a Reddit mirror and may differ slightly from the original.
+
+## Decisions (October 10, 2026)
+
+- **Navigation while playing a set or a search: V2, arrangement A.** A bar under the board: Prev on the left, Next on the right, and in the middle the context (set or search) with progress. A set shows a thin progress bar ("4 of 8 solved", a notch at this puzzle's place). A search shows "3 of 41". Mockups: `lists-mockups/30-v2-*`.
+- **The curator's note goes on the paper,** at the left of the paper's top strip, opposite undo, hint and reset (`lists-mockups/32-v2-note-b-*`).
+  - Reserve that spot on every puzzle. Today the strip's left side holds only the color pots, on puzzles with regions or paint.
+  - On those puzzles the note takes its own line at the top of the strip, so the paper grows by one line, only inside a set.
+  - Limit: 60 characters, plain text, no links. The set editor shows a counter. That fits two lines in the strip on a phone and one on desktop.
+  - The note is written in the board's ink like the rest of the strip, so make clear it's the curator's: it shows only inside a set, and the bar below names the set and its curator.
+  - The "Solved!" and mistake messages pop up under the strip, so they don't collide with the note.
