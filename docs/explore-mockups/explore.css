@@ -1,0 +1,177 @@
+/* The Explore redesign mockups' own pieces (make.ts). Everything else is the site's real CSS, linked from
+   the repo: global.css (tokens, .btn), site.css (shell, .game-card, .chips, .tabs, .ai-badge, .avatar)
+   and the boards' styles.css. New pieces use the same tokens and no new colours. */
+
+.x-page .wrap { max-width: 1180px; grid-template-columns: minmax(0, 1fr); }
+.xshelf, .rail { min-width: 0; }
+.x-head { display: grid; gap: 14px; }
+.x-search { max-width: 640px; }
+.quick-chips button { padding: 7px 13px; font-size: 13.5px; }
+
+/* ---- a shelf: a heading with one idea, a line saying it, and a row that scrolls sideways ---- */
+.xshelf { gap: 10px; }
+.shelf-head { display: flex; align-items: end; gap: 16px; }
+.shelf-head > div:first-child { flex: 1; min-width: 0; }
+.shelf-head h2 { margin: 0; display: flex; align-items: center; gap: 10px; }
+.shelf-sub { margin: 2px 0 0; color: var(--muted); font-size: 14.5px; }
+.see-all { display: inline-flex; align-items: center; gap: 4px; font: 700 14px/1 var(--body); white-space: nowrap; text-decoration: none; }
+.wrap .see-all { color: var(--muted); }
+.wrap .see-all:hover { color: var(--ink); }
+.mini-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.rail { position: relative; }
+.row {
+  list-style: none; margin: 0; padding: 2px 2px 10px; display: grid; grid-auto-flow: column; grid-auto-columns: 216px; gap: 14px;
+  overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent);
+}
+.row > li { scroll-snap-align: start; }
+.rail-btn {
+  position: absolute; right: -14px; top: 74px; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--panel); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: 0 4px 14px var(--shadow);
+}
+.rail-btn .mini-icon { width: 18px; height: 18px; }
+
+/* ---- a puzzle card on a shelf: the site's .game-card, smaller, with a calm footer ---- */
+.pcard .thumb { padding: 12px; }
+.pcard .game-card-text { padding: 10px 12px 12px; gap: 3px; }
+.pcard strong { font-size: 16px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pcard .kind { font-size: 11px; }
+.pcard .by { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pcard .by-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pcard .by .ai-badge { font-size: 9.5px; padding: 1px 4px 0; }
+.card-foot { display: flex; align-items: center; gap: 10px; margin-top: 4px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.card-foot .when { margin-left: auto; }
+.card-foot .mins.strong { color: var(--ink); font-weight: 800; }
+.card-foot .likes { opacity: .9; }
+
+/* difficulty: three small ink dots, filled up to the level */
+.diff { display: inline-flex; gap: 3px; align-items: center; }
+.diff i { width: 7px; height: 7px; border-radius: 50%; border: 1.3px solid currentColor; opacity: .55; }
+.diff i.on { background: currentColor; opacity: 1; }
+.card-foot .diff { color: var(--ink); }
+
+/* Start here: the type's name leads, the card says it's the easy one */
+.starter .kind { color: var(--good); font-weight: 800; }
+.starter .desc { font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rules-link { margin-left: auto; text-decoration: underline; text-underline-offset: 2px; }
+
+/* Fresh ink (beta): pencil, not ink, around the card, and how far it is from being inked */
+.pcard.beta { border-style: dashed; border-color: var(--line-strong); }
+.beta-tag { font-weight: 800; color: var(--ink); }
+.votes { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.vote-bar { width: 38px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--muted) 30%, transparent); overflow: hidden; }
+.vote-bar i { display: block; height: 100%; background: var(--wash-green); }
+.beta-pill { font: 800 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 4px 7px 3px; border-radius: 999px; border: 1.5px dashed var(--line-strong); color: var(--muted); }
+.seg { display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid var(--line-strong); }
+.seg button { font: 700 14px/1 var(--body); color: var(--muted); background: none; border: 0; padding: 8px 16px; border-radius: 999px; }
+.seg button[aria-selected="true"] { background: var(--ink); color: var(--panel); }
+.seg.small button { font-size: 12.5px; padding: 6px 11px; }
+
+/* Browse by type: the guide's picture and the type's name */
+.tiles { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+.tiles.one { grid-template-columns: minmax(0, 260px); }
+.type-tile { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 12px; padding: 8px; text-decoration: none; color: inherit;
+  background: var(--panel); border: var(--card-border); border-radius: var(--radius); transition: transform .15s, border-color .15s; }
+.wrap .type-tile { color: inherit; }
+.type-tile:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.tile-pic { width: 64px; height: 64px; display: grid; place-items: center; padding: 5px; }
+.tile-pic svg { width: auto; height: 100%; max-width: 100%; }
+.tile-text { display: grid; gap: 2px; min-width: 0; }
+.tile-text strong { font: 800 15px/1.2 var(--display); }
+.tile-text span { font-size: 12.5px; color: var(--muted); }
+
+/* ---- a creator card: who, what they've made lately, three puzzles, Subscribe ---- */
+.crow { grid-auto-columns: 300px; }
+.ccard { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr auto; gap: 10px; padding: 14px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
+.ccard-who { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; min-width: 0; }
+.wrap .ccard-who { color: inherit; }
+.ccard-id { display: grid; gap: 2px; min-width: 0; }
+.ccard-id strong { font: 800 17px/1.2 var(--display); }
+.ccard-meta { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ccard-bio { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
+.ccard-pics { display: flex; gap: 6px; align-self: start; min-width: 0; }
+.ccard-pics .mini { flex: none; width: calc((100% - 12px) / 3); aspect-ratio: 1; display: block; padding: 5px; }
+.ccard-pics .mini { min-width: 0; overflow: hidden; }
+.ccard-pics .mini svg { width: 100%; height: 100%; max-height: none; }
+.ccard-actions { display: flex; }
+.ccard-actions .btn { flex: 1; text-align: center; }
+.ai-shelf .shelf-sub { max-width: 70ch; }
+
+/* ---- a creator's recommendations (after Substack's) ---- */
+.recs h2 .avatar { vertical-align: middle; }
+.rec-row { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.rec { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr auto auto; gap: 10px; padding: 14px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
+.rec-who { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.wrap .rec-who { color: inherit; }
+.rec-who > span { display: grid; }
+.rec-who strong { font: 800 16px/1.2 var(--display); }
+.rec blockquote { margin: 0; font-size: 14.5px; line-height: 1.45; font-style: italic; }
+.rec .btn { justify-self: start; }
+
+/* ---- a type page ---- */
+.crumbs { font-size: 14px; color: var(--muted); }
+.wrap .crumbs a { color: var(--muted); }
+.crumbs span { margin: 0 4px; }
+.type-head { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; align-items: center; }
+.type-pic { aspect-ratio: 1; display: grid; place-items: center; padding: 12px; }
+.type-pic svg { width: auto; height: 100%; max-width: 100%; }
+.type-id { display: grid; gap: 6px; }
+.type-id h1 { font-size: 34px; }
+.type-id .aka { margin: 0; color: var(--muted); font-size: 14px; }
+.type-stats { margin: 0; font-size: 14px; color: var(--muted); }
+.type-actions { display: flex; gap: 10px; margin-top: 6px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.filter { display: flex; align-items: center; gap: 10px; }
+.filter-label { font-size: 13px; font-weight: 700; color: var(--muted); }
+.filter .chips button { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; }
+.filter .chips button .diff { color: inherit; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; }
+.toggle .muted { font-weight: 400; }
+.sort-note { margin: -16px 0 0; font-size: 13px; }
+.x-cards { grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
+
+/* ---- search ---- */
+.group-h { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.x-search-page .collection-text .desc { max-width: 60ch; }
+
+/* ---- the creator-card close-up ---- */
+.x-closeup { max-width: 1000px; }
+.x-title { font-size: 26px; }
+.closeup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.closeup-row figure { margin: 0; display: grid; gap: 10px; align-content: start; }
+.closeup-row figcaption { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.crow.solo { display: block; overflow: visible; mask-image: none; padding: 0; max-width: 340px; }
+.notes { margin: 0; padding-left: 20px; font-size: 14px; color: var(--muted); display: grid; gap: 4px; }
+.x-sub { font-size: 20px; }
+.mini-profile { display: grid; gap: 12px; padding: 18px; border: var(--card-border); border-radius: var(--radius); background: color-mix(in srgb, var(--panel) 50%, transparent); }
+.mp-head { display: flex; align-items: center; gap: 14px; }
+.mp-head > div { flex: 1; }
+.mp-head h3 { margin: 0; font: 800 22px/1.2 var(--display); }
+.mp-head p { margin: 2px 0 0; font-size: 14px; }
+.rec-intro { margin: 0; font-size: 14px; }
+.rec-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.rec-list li { display: grid; grid-template-columns: auto minmax(0, 1fr) 150px auto; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.rec-list p { margin: 2px 0 0; font-size: 14px; color: var(--muted); font-style: italic; }
+.rec-list .ccard-pics .mini { width: calc((100% - 6px) / 2); }
+
+/* ---- phones: the site's tab bar; shelves keep scrolling sideways, cards a bit narrower ---- */
+@media (max-width: 640px) {
+  .x-page .wrap { padding-block: 16px 24px; gap: 26px; }
+  .x-head h1 { font-size: 26px; }
+  .quick-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .quick-chips button { flex: none; }
+  .shelf-sub { font-size: 13.5px; }
+  .row { grid-auto-columns: 168px; gap: 10px; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; mask-image: none; }
+  .crow { grid-auto-columns: 82%; }
+  .rail-btn { display: none; }
+  .pcard .thumb { padding: 8px; }
+  .pcard strong { font-size: 15px; }
+  .card-foot .likes { display: none; }
+  .tiles { grid-auto-flow: column; grid-template-columns: none; grid-template-rows: repeat(2, auto); grid-auto-columns: 150px; overflow-x: auto; scrollbar-width: none; margin-inline: -16px; padding-inline: 16px; }
+  .type-tile { grid-template-columns: 48px 1fr; }
+  .tile-pic { width: 48px; height: 48px; }
+  .shelf-head .seg { display: none; }
+  .rec-row { grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: 82%; overflow-x: auto; margin-inline: -16px; padding-inline: 16px; }
+  .type-head { grid-template-columns: 96px 1fr; gap: 14px; }
+}
