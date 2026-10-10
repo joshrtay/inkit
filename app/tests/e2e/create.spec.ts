@@ -93,7 +93,11 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   // no verdict badge (paint showed it) and no "Playing your puzzle": the server still checks on Publish
   await expect(page.locator(".paint-verdict-btn, .publish-bar, [data-verdict]")).toHaveCount(0);
   await expect(page.getByText("Playing your puzzle")).toHaveCount(0);
-  await expect(page.locator(".publish-note")).toContainText("your solve isn’t counted");
+  await expect(page.locator(".publish-note")).toHaveText("Try the puzzle. It’s playable.");
+  // the top bar: Type, then the save state; no title
+  await expect(page.locator(".studio-top .paint-title")).toHaveCount(0);
+  const typeBox = (await page.locator(".studio-top .paint-type").boundingBox())!, savedBox = (await page.locator(".studio-top .paint-saved").boundingBox())!;
+  expect(savedBox.x).toBeGreaterThan(typeBox.x + typeBox.width - 1);
   await expect(page.locator(".publish-meta")).toHaveText(`Akari · 3 × 3 · by @${run.handle} · not published yet`);
   await expect(page.locator("select")).toHaveCount(0);   // no collection picker
   const publish = page.locator(".studio-top").getByRole("button", { name: "Publish" });

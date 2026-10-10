@@ -1,5 +1,5 @@
 // Play and publish a draft drawn in paint: inkit.games/g/<id>/publish (docs/creation-flow.md, "v3
-// layout", option A). Still paint's chrome: the same top bar (the title, Type), then Back to paint
+// layout", option A). Still paint's chrome: the same top bar (Type, the save state), then Back to paint
 // and Publish. On the dark page above the board, the title and description edited in place (saved
 // as they change) and a line of what it is; on the paper, only the real player, to try it as
 // players will (a host that saves nothing and records no solve). No verdict badge: paint already
@@ -112,12 +112,11 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
       <header className="studio-top">
         <div className="studio-left">
           <Link className="studio-back" to={paintTo} aria-label="Back to paint"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg></Link>
-          <span className="paint-title" title={draftName(title, game.kind, play?.spec.size)}>{draftName(title, game.kind, play?.spec.size)}</span>
-          <span className={`paint-saved${saveState === "Saved" ? " ok" : saveState === "Couldn't save" ? " bad" : ""}`} aria-live="polite">{saveState}</span>
           {/* the type is settled by now: shown, not changed here (Back to paint to change it) */}
           <span className="paint-type locked">
             <span className="paint-type-label">Type:</span><span className="paint-type-name">{kindName(game.kind)}</span>
           </span>
+          <span className={`paint-saved${saveState === "Saved" ? " ok" : saveState === "Couldn't save" ? " bad" : ""}`} aria-live="polite">{saveState}</span>
         </div>
         <div className="studio-actions">
           <Link className="btn publish-back" to={paintTo}>
@@ -137,7 +136,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
           <textarea className="publish-desc" aria-label="Description" value={description} maxLength={2000} rows={1} placeholder="Add a line about it"
             onChange={(e) => setDescription(e.target.value)} />
           <p className="publish-meta">{d.summary} · by @{d.author.handle} · not published yet</p>
-          {failed && <p className="error publish-error" role="alert">It needs {play?.spec.genre === "panel" ? "at least one solution" : "exactly one solution"} to be published. Back to paint to fix it.</p>}
+          {failed && <p className="error publish-error" role="alert">Needs {play?.spec.genre === "panel" ? "a solution" : "exactly one solution"}. Back to paint to fix it.</p>}
           {warn.length > 0 && <p className="publish-warn">{warn.join(" · ")}</p>}
           {(publisher.data?.error || details.data?.error) && <p className="error" role="alert">{publisher.data?.error ?? details.data?.error}</p>}
         </div>
@@ -146,7 +145,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
           {play ? <GameBoard play={play} />
             : <div className="problems"><p>This puzzle has problems:</p><ul>{d.errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         </div>
-        <p className="publish-note">Play it as players will; your solve isn&rsquo;t counted. Back to paint to change it: once it&rsquo;s published, it can&rsquo;t be changed.</p>
+        <p className="publish-note">Try the puzzle. It&rsquo;s playable.</p>
       </main>
     </div>
   );
