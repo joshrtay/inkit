@@ -154,6 +154,16 @@ export const PERSONA_ICONS: Record<string, string> = {
     `<path d="M11.5 38.5C18 29 26 19 34.5 10.5" ${s(null, INK, MEDIUM)}/>`,
   ].join(""),
 
+  // a schoolroom slate in its wooden frame: a two-by-two board in chalk, and a chalk arrow
+  // pointing at one square
+  slate: [
+    `<rect x="3" y="5" width="42" height="38" rx="5" ${s(wash("orange"), SUMI, FINE)}/>`,
+    `<rect x="8" y="10" width="32" height="28" rx="2" ${s(SUMI)}/>`,
+    `<path d="M12 15H26V29H12ZM19 15V29M12 22H26" ${s(null, SHELL, FINE, "stroke-opacity:.8")}/>`,
+    `<rect x="20.6" y="23.6" width="3.8" height="3.8" rx="0.8" ${s(SHELL)}/>`,
+    `<path d="M36 34L27.5 26.5M27.5 26.5H32.3M27.5 26.5V31.3" ${s(null, SHELL, MEDIUM)}/>`,
+  ].join(""),
+
   // a small screen with a hum on it
   "percival-hum": [
     `<rect x="4" y="6" width="40" height="31" rx="6" ${s(SUMI)}/>`,

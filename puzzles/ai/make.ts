@@ -9,7 +9,7 @@ import type { GridSpec } from "../../src/engine/types.ts";
 import { guides } from "../../src/guides/guides.ts";
 import type { GenerateOptions } from "../grid/generate.ts";
 import type { GenrePlan, Persona } from "../../app/app/ai/personas.ts";
-import { difficultyOf, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
+import { difficultyOf, lessonFor, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Score, type Scorer } from "./score.ts";
 
 /** The model that writes titles and descriptions, and its price per million tokens (input, output). */
@@ -65,13 +65,25 @@ export interface MakeOptions {
   /** added to the generator's seeds, for another try at the same slot ("" for the usual seeds) */
   salt?: string;
   log?: (s: string) => void;
+  /** a tutor's Tuesday or Wednesday: the day before's puzzle, which it changes (./lesson.ts);
+   *  without it, that day's is made again */
+  previous?: GridSpec | null;
 }
 
 /** Make candidates for a slot and keep the best: among those good enough, the closest to the
  *  target difficulty (quality breaks near-ties). */
 export async function makeFor(p: Persona, slot: Slot, o: MakeOptions): Promise<Made | null> {
   const log = o.log ?? console.log, scorer = o.scorer ?? proxyScorer;
-  const { plan, role, mix, rules, moves, cipher } = planFor(p, slot);
+  const { plan, role, mix, rules, moves, cipher, lesson } = planFor(p, slot);
+  if (lesson) {
+    // a tutor's post: the lesson's checks pick it (./lesson.ts), the smallest board first
+    const { makeLesson } = await import("./lesson.ts");
+    const made = await makeLesson(p, slot, {
+      previous: o.previous, isNew: o.isNew, candidateMs: o.candidateMs, log, perSize: o.candidates,
+      remake: async (day) => (await makeFor(p, { ...day, at: slot.at, difficulty: difficultyOf(p.difficulty, slot.at, day.date, day.weekday) }, { ...o, previous: undefined, isNew: undefined }))?.spec ?? null,
+    }, (opts, ms) => generateWithin(opts, ms, log), (k) => 1 + (hash(`${p.handle}/${slot.date}/${k}${o.salt ?? ""}`) % 1e6));
+    return made && { spec: made.spec, score: made.score, size: made.size, mix, rules, moves, tries: made.tries };
+  }
   const n = o.candidates ?? p.quality.candidates;
   // a pair's second post is the first's board turned on its side: size it by the first day
   const sizeDifficulty = role === 1 ? difficultyOf(p.difficulty, slot.at, slot.date, p.pairs!.days[0]) : slot.difficulty;
@@ -141,6 +153,30 @@ export function systemFor(p: Persona) {
  *  title to steer clear of). `client` null gives placeholders, with no call. */
 export async function wordsFor(client: Anthropic | null, usage: Usage, p: Persona, slot: Slot, made: Made, earlier: string[], said: string[], extra?: string) {
   if (!client) return { title: `[${p.name}: ${made.spec.genre} ${slot.date}]`, description: "[written by Claude in the persona's voice]" };
+  const lesson = lessonFor(p, slot);
+  if (lesson) {
+    // a tutor's words point and never state the rule: a title or description with the rule's
+    // words is asked for again, then replaced by plain ones (./lesson.ts)
+    const L = await import("./lesson.ts");
+    const { deductionPaths } = await import("../difficulty/scorer.ts");
+    const facts = L.lessonFacts(p, lesson, made.spec, deductionPaths.get(made.spec), made.score.notes);
+    const prefix = L.titlePrefix(lesson);
+    let words = { title: "", description: "" }, bad: string[] = [];
+    for (let k = 0; k < 3; k++) {
+      words = await ask(client, usage, p, slot, made, earlier, said, [facts, extra, bad.length ? `Your last try used the rule's words (${bad.join(", ")}): don't.` : ""].filter(Boolean).join("\n"));
+      const word = words.title.startsWith(prefix) ? words.title.slice(prefix.length) : words.title.replace(/^.*·\s*/, "");
+      words.title = `${prefix}${word.trim()}`;
+      // (the prefix is the week's name, not Claude's: only its own words are checked)
+      bad = L.tellsRule(`${words.title.slice(prefix.length)} ${words.description}`, lesson.focus);
+      if (!bad.length) return words;
+    }
+    const plain = L.PLAIN_WORDS[lesson.step];
+    return { title: `${prefix}${plain.word}`, description: plain.description, plain: true as const };
+  }
+  return ask(client, usage, p, slot, made, earlier, said, extra);
+}
+
+async function ask(client: Anthropic, usage: Usage, p: Persona, slot: Slot, made: Made, earlier: string[], said: string[], extra?: string) {
   const response = await client.beta.messages.parse({
     model: MODEL,
     max_tokens: 2000,

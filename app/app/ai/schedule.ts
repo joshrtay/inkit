@@ -1,7 +1,7 @@
 // When the AI creators post and how hard: pure functions of the persona and the date, shared by the
 // weekly batch (puzzles/ai/week.ts), the site's admin endpoint and the cron that publishes
 // (app/lib/ai.server.ts). Unit-tested in tests/unit/ai-schedule.test.ts.
-import { WEEKDAYS, type DifficultyScheme, type GenrePlan, type Persona, type PostTime, type Weekday } from "./personas.ts";
+import { WEEKDAYS, type DifficultyScheme, type GenrePlan, type LessonStep, type Persona, type PostTime, type Subject, type Weekday } from "./personas.ts";
 
 const DAY = 86400e3;
 
@@ -238,11 +238,98 @@ export function seriesIndex(p: Persona, slot: Pick<Slot, "date" | "weekday">) {
 const rngOf = (key: string) => { let s = hash(key) || 1; return () => ((s = Math.imul(s ^ (s >>> 15), 2246822507) ^ Math.imul(s ^ (s >>> 13), 3266489909)) >>> 0) / 2 ** 32; };
 const pickWeighted = <T extends { weight: number }>(xs: T[], r: number) => { let x = r * xs.reduce((a, b) => a + b.weight, 0); for (const v of xs) if ((x -= v.weight) < 0) return v; return xs.at(-1)!; };
 
+// ---- a tutor's curriculum (docs/research-tutorials.md §4.2) ----
+
+/** The Monday of a date's ISO week, YYYY-MM-DD. */
+export function mondayOf(date: string) {
+  const [y, m, d] = date.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7));
+  return t.toISOString().slice(0, 10);
+}
+const weeksBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / (7 * DAY));
+
+export interface Lesson {
+  /** the week's subject (a review week's is the review) */
+  subject: Subject;
+  /** what this post is about: the week's subject, or the earlier one it reviews */
+  focus: Subject;
+  step: LessonStep;
+  /** which of the week's posting days, 0 (Monday) to 4 */
+  day: number;
+  /** weeks since the curriculum's first (negative before it) */
+  week: number;
+  /** the subject's place in the curriculum, 0-based */
+  index: number;
+  /** how many times the curriculum has come round before this week (0 the first time) */
+  round: number;
+}
+
+/** A tutor's lesson for a date: the week's subject (taken in order, one per ISO week from
+ *  `curriculumStart`, wrapping round at the end) and the day's step (`lessonDays`). Friday
+ *  combines on a symbol's last week (`with`) and otherwise reviews the week before's subject; a
+ *  review week takes its earlier subjects in turn. Null for any other persona or a day with no step. */
+export function lessonFor(p: Persona, slot: Pick<Slot, "date" | "weekday">): Lesson | null {
+  const list = p.curriculum, days = p.lessonDays, planned = days?.[slot.weekday];
+  if (!list?.length || !p.curriculumStart || !planned) return null;
+  const week = weeksBetween(mondayOf(p.curriculumStart), mondayOf(slot.date));
+  const index = ((week % list.length) + list.length) % list.length;
+  const subject = list[index], day = WEEKDAYS.filter((w) => days![w]).indexOf(slot.weekday);
+  const byId = (id: string) => list.find((s) => s.id === id)!;
+  let step = planned, focus = subject;
+  if (subject.review?.length) { step = "review"; focus = byId(subject.review[day % subject.review.length]); }
+  else if (planned === "combine" && !subject.with) {
+    // nothing to combine with yet: the week before's subject again
+    step = "review";
+    // (the very first week has none before it: its own subject again)
+    for (let k = 1; k <= index; k++) { const s = list[index - k]; if (!s.review) { focus = s; break; } }
+  }
+  return { subject, focus, step, day, week, index, round: Math.floor(week / list.length) };
+}
+
+/** The board sizes a lesson's step tries, smallest first: Monday (and Tuesday and Wednesday, which
+ *  change Monday's board) the subject's smallest; Thursday's trap one or two sizes up; Friday's
+ *  combination the next two bigger than Monday's; a review the subject's middle sizes, and in a
+ *  review week rising from Monday to Friday. */
+export function lessonSizes(focus: Subject, step: LessonStep, day = 4): [number, number][] {
+  const s = focus.sizes;
+  const bigger = s.filter(([r, c]) => r * c > s[0][0] * s[0][1]);
+  const pick = step === "introduce" || step === "contrast" || step === "second-contrast" ? s.slice(0, 1)
+    : step === "trap" ? s.slice(1, 3)
+    : step === "combine" ? bigger.slice(0, 2)
+    : day < 4 ? s.slice(Math.min(day, s.length - 1), Math.min(day, s.length - 1) + 2) : s.slice(1, 3);
+  const seen = new Set<string>();
+  return (pick.length ? pick : s.slice(-1)).filter(([r, c]) => !seen.has(`${r}x${c}`) && !!seen.add(`${r}x${c}`));
+}
+
+/** A lesson's generator settings: its focus's own, and on Friday's combination the earlier subject
+ *  it meets (`with`): a panel's mixes joined (erasers first, as the generator wants), Panes' rules merged. */
+export function lessonSettings(p: Persona, lesson: Pick<Lesson, "focus" | "step">) {
+  const { focus, step } = lesson;
+  const other = step === "combine" && focus.with ? p.curriculum?.find((s) => s.id === focus.with) : undefined;
+  const join = (a?: string, b?: string, sep = "+") => {
+    const parts = [...new Set([...(a ?? "").split(sep), ...(b ?? "").split(sep)].map((x) => x.trim()).filter(Boolean))];
+    return parts.length ? parts.sort((x, y) => Number(y === "erasers") - Number(x === "erasers")).join(sep) : undefined;
+  };
+  return {
+    mix: other ? join(focus.mix, other.mix) : focus.mix,
+    rules: other ? join(focus.rules, other.rules, ",") : focus.rules,
+    moves: focus.moves, cipher: focus.cipher, with: other,
+  };
+}
+
 /** What to make for a slot: the genre plan, and its mix, rules and moves. Deterministic: the same
  *  persona and date always choose the same. A pair's two posts share the week's plan and rules
  *  (the second is the first's board turned on its side); a one-type-a-week creator's week shares
- *  a genre; a `sequence` plan takes its mixes and rules in order. */
+ *  a genre; a `sequence` plan takes its mixes and rules in order; a tutor's post is its week's
+ *  subject at the day's step (`lessonFor`). */
 export function planFor(p: Persona, slot: Pick<Slot, "date" | "weekday">) {
+  const lesson = lessonFor(p, slot);
+  if (lesson) {
+    const { mix, rules, moves, cipher } = lessonSettings(p, lesson);
+    const plan: GenrePlan = { genre: lesson.focus.genre, weight: 1, sizes: lessonSizes(lesson.focus, lesson.step, lesson.day) };
+    return { plan, role: null, mix, rules, moves, cipher, lesson };
+  }
   const role = pairRole(p, slot.weekday);
   const week = isoWeek(slot.date);
   const r = rngOf(role === null ? `${p.handle}/${slot.date}` : `${p.handle}/${week}`);
@@ -252,7 +339,7 @@ export function planFor(p: Persona, slot: Pick<Slot, "date" | "weekday">) {
   const n = seriesIndex(p, slot);
   const choose = <T,>(xs?: T[]) => (xs?.length ? xs[plan.sequence ? n % xs.length : Math.floor(r() * xs.length)] : undefined);
   const mix = choose(plan.mixes), rules = choose(plan.rules) || undefined, moves = choose(plan.moves) || undefined;
-  return { plan, role, mix, rules, moves, cipher: plan.cipher };
+  return { plan, role, mix, rules, moves, cipher: plan.cipher, lesson: null };
 }
 
 // ---- publishing what's due ----

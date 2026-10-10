@@ -157,6 +157,69 @@ export interface Persona {
   /** stops the weekly batch making new posts (already scheduled ones still go up; cancel them
    *  with DELETE /admin/ai/schedule) */
   paused?: boolean;
+  /** a tutor's subjects, one per ISO week in this order from `curriculumStart`, wrapping round at
+   *  the end (schedule.ts `lessonFor`): each week's posts teach one rule (docs/research-tutorials.md
+   *  §4). With it, `genres` only lists what the persona makes (for the site's checks) */
+  curriculum?: Subject[];
+  /** the Monday of the curriculum's first week, YYYY-MM-DD */
+  curriculumStart?: string;
+  /** which step of the week's lesson each posting day is */
+  lessonDays?: Partial<Record<Weekday, LessonStep>>;
+}
+
+/** A day's job in a tutor's week (docs/research-tutorials.md §4.2, revised by
+ *  docs/tutorial-sequences.md §6):
+ *  - introduce: the new reading alone, on the tiniest board (a panel's 2 × 1), nearly forced;
+ *  - contrast: Monday's board with one thing changed (a panel's start or end), and a different answer;
+ *  - second-contrast: Tuesday's board with one of the new symbols or clues moved, a different answer again;
+ *  - trap: the subject's rival reading gives a neat wrong answer (one answer, not the true one);
+ *  - combine: the new reading with one earlier subject, each needing the other (a symbol's last week);
+ *  - review: an earlier subject again (Friday's when there's nothing to combine with, and every day
+ *    of a review week). */
+export type LessonStep = "introduce" | "contrast" | "second-contrast" | "trap" | "combine" | "review";
+export const LESSON_STEPS: LessonStep[] = ["introduce", "contrast", "second-contrast", "trap", "combine", "review"];
+
+/** One week's subject in a tutor's curriculum: one reading of a rule (a symbol gets two or three
+ *  weeks: squares that make one cut, then a pocket), and how the generator makes puzzles that need
+ *  it. Its rivals (the plausible misreadings each post is checked against) are in
+ *  puzzles/ai/rivals.ts, its reading's test in puzzles/ai/lesson.ts `READINGS`, both by `id`. */
+export interface Subject {
+  /** "panel:squares", "panel:pockets", "panes:twins", "thermo-sudoku", "hidoku:sides", "review:3" */
+  id: string;
+  /** what titles call it: "Squares", "Pockets", "Thermometers" */
+  name: string;
+  genre: GeneratorGenre;
+  /** the reading, in a few plain words (for the record; never shown) */
+  reading?: string;
+  /** generator settings, as GenrePlan's: a panel mix, Panes' rules, a path's moves, a cipher */
+  mix?: string;
+  rules?: string;
+  moves?: string;
+  cipher?: boolean;
+  /** board sizes, smallest first: Monday takes the first, later days a little further along */
+  sizes: [number, number][];
+  /** the rules or symbol kinds a solver holds in mind for this subject (score.ts `ruleLoad`; default
+   *  1), its partner's included: a Panes rule comes with its region size, hollow shapes with solid ones */
+  load?: number;
+  /** subjects that come before it (the curriculum's order keeps them earlier) */
+  requires?: string[];
+  /** an earlier subject it always comes with, because it can't decide a board alone or has
+   *  nothing to act on alone (erasers: docs/tutorial-sequences.md §6.6–7); its settings are already
+   *  in `mix` or `rules` */
+  partner?: string;
+  /** Friday's company on a symbol's last week: an earlier subject joined to it (a panel mix or a
+   *  Panes rule). Without one, Friday reviews the week before's subject */
+  with?: string;
+  /** whose rivals it's checked against (default its own id) */
+  rivals?: string;
+  /** a pencil type's Monday is eased with few unknowns, not a tiny board: more of the answer's
+   *  digits given (docs/tutorial-sequences.md §6.8) */
+  ease?: boolean;
+  /** a review week: no new subject; each day takes one of these earlier ones in turn, easy to hard */
+  review?: string[];
+  /** the guide's rule sentences it teaches (src/guides/guides.ts): those starting with this, or
+   *  those checking these rules; default every rule of the type */
+  guide?: { starts?: string; checks?: string[] };
 }
 
 const ALL_WEEK: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
@@ -173,6 +236,93 @@ const ISOLA_MIXES = [
   "symmetry", "symmetry", "symmetry+squares",
 ];
 const sq = (...ns: number[]): [number, number][] => ns.map((n) => [n, n]);
+
+/** A review week (docs/tutorial-sequences.md §6.9): no new subject; Monday to Friday take these
+ *  earlier ones in turn, easy to hard. */
+const review = (n: number, ...ids: string[]): Subject => ({ id: `review:${n}`, name: "Review", genre: "panel", sizes: [], review: ids });
+const PANEL_SMALL: [number, number][] = [[2, 2], [3, 3], [3, 4]];
+
+/** Slate's curriculum, one subject a week (docs/research-tutorials.md §4.2, revised by
+ *  docs/tutorial-sequences.md §6). A panel symbol gets two to four weeks, one reading each, each
+ *  opening on the tiniest board again (The Witness's sawtooth); Panes rules, Sudoku and its
+ *  variants and every other type the generator makes, easiest first, come in between; a review
+ *  week follows every five. A symbol's last week combines it with one earlier subject on Friday.
+ *  Rivals: puzzles/ai/rivals.ts; readings: puzzles/ai/lesson.ts. */
+export const SLATE_CURRICULUM: Subject[] = [
+  { id: "panel:squares", name: "Squares", genre: "panel", reading: "one cut keeps two colours apart", mix: "squares", sizes: [[2, 1], [2, 2], ...PANEL_SMALL], guide: { starts: "Squares:" } },
+  { id: "panel:pockets", name: "Pockets", genre: "panel", reading: "squares kept apart by two cuts, or a pocket", mix: "squares", rivals: "panel:squares", sizes: [[3, 2], [2, 3], [3, 3], [3, 4]], requires: ["panel:squares"], guide: { starts: "Squares:" } },
+  { id: "minesweeper", name: "Mines", genre: "minesweeper", sizes: sq(3, 4, 4, 5) },
+  { id: "panel:dots", name: "Dots", genre: "panel", reading: "the line passes every dot", mix: "dots", sizes: [[2, 2], ...PANEL_SMALL], guide: { starts: "Dots:" } },
+  { id: "panel:detours", name: "Detours", genre: "panel", reading: "dots that force the long way round", mix: "dots", rivals: "panel:dots", sizes: [[2, 2], ...PANEL_SMALL], requires: ["panel:dots"], with: "panel:squares", guide: { starts: "Dots:" } },
+  review(1, "panel:squares", "panel:pockets", "panel:dots"),
+  { id: "simple-loop", name: "Loops", genre: "simple-loop", sizes: sq(3, 4, 4, 5) },
+  { id: "panes:compass", name: "Compass", genre: "panes", reading: "a compass counts its own pane's cells each way", rules: "size=3,compass", load: 2, sizes: [[2, 3], [3, 3], [3, 4], [3, 5]], guide: { checks: ["compass"] } },
+  { id: "sudoku", name: "Sudoku", genre: "sudoku", ease: true, sizes: [[6, 6], [4, 4], [4, 4], [6, 6]] },
+  { id: "panel:stars", name: "Stars", genre: "panel", reading: "one pair of stars", mix: "stars", load: 1.15, sizes: [[2, 1], [2, 2], ...PANEL_SMALL], guide: { starts: "Stars:" } },
+  { id: "panel:star-pairs", name: "Star Pairs", genre: "panel", reading: "two pairs of colours in one region", mix: "stars", load: 1.15, rivals: "panel:stars", sizes: [[2, 2], [2, 3], ...PANEL_SMALL], requires: ["panel:stars"], guide: { starts: "Stars:" } },
+  review(2, "panel:detours", "minesweeper", "panes:compass"),
+  { id: "panel:stars-squares", name: "Stars and Squares", genre: "panel", reading: "a square counts as a star's partner", mix: "starsquare", load: 2, rivals: "panel:stars", sizes: [[2, 2], [2, 3], ...PANEL_SMALL], requires: ["panel:star-pairs", "panel:squares"], partner: "panel:squares", guide: { starts: "Stars:" } },
+  { id: "shikaku", name: "Rectangles", genre: "shikaku", sizes: sq(3, 4, 4, 5) },
+  { id: "nurikabe", name: "Islands", genre: "nurikabe", sizes: sq(4, 4, 5, 5) },
+  { id: "panel:triangles", name: "Triangles", genre: "panel", reading: "a triangle counts the sides the line runs along", mix: "triangles", sizes: [[2, 1], [2, 2], ...PANEL_SMALL], guide: { starts: "Triangles:" } },
+  { id: "panel:triangle-edges", name: "Edge Triangles", genre: "panel", reading: "the board's edge is a side too", mix: "triangles", sizes: [[2, 1], [2, 2], ...PANEL_SMALL], requires: ["panel:triangles"], with: "panel:squares", guide: { starts: "Triangles:" } },
+  review(3, "panel:stars", "panel:star-pairs", "simple-loop"),
+  { id: "panes:twins", name: "Twins", genre: "panes", reading: "the panes either side of ◆ match", rules: "size=3,twins", load: 2, sizes: [[2, 3], [3, 3], [3, 4], [3, 5]], requires: ["panes:compass"], with: "panes:compass", guide: { checks: ["twins"] } },
+  { id: "akari", name: "Lamps", genre: "akari", sizes: sq(3, 4, 4, 5) },
+  { id: "thermo-sudoku", name: "Thermometers", genre: "thermo-sudoku", ease: true, load: 2, sizes: [[6, 6], [4, 4], [4, 4], [6, 6]], requires: ["sudoku"], guide: { checks: ["thermo"] } },
+  { id: "panel:shapes", name: "Shapes", genre: "panel", reading: "one piece fills a region", mix: "solid", sizes: [[2, 1], [2, 2], ...PANEL_SMALL], guide: { starts: "Shapes:" } },
+  { id: "panel:two-shapes", name: "Two Shapes", genre: "panel", reading: "two pieces fill one region together", mix: "solid", rivals: "panel:shapes", sizes: [[3, 1], [2, 2], ...PANEL_SMALL], requires: ["panel:shapes"], guide: { starts: "Shapes:" } },
+  review(4, "panel:triangles", "panel:stars-squares", "shikaku"),
+  { id: "panel:tilted", name: "Tilted Shapes", genre: "panel", reading: "a tilted piece may turn", mix: "tilted", rivals: "panel:tilted", sizes: [[2, 2], [2, 3], ...PANEL_SMALL], requires: ["panel:two-shapes"], guide: { starts: "Shapes:" } },
+  { id: "panel:hollow", name: "Hollow Shapes", genre: "panel", reading: "a hollow piece takes a square away", mix: "hollow", load: 2, sizes: [[2, 2], [2, 3], ...PANEL_SMALL], requires: ["panel:shapes"], with: "panel:triangles", guide: { starts: "Hollow shapes" } },
+  { id: "simple-path", name: "Paths", genre: "simple-path", sizes: sq(3, 4, 4, 5) },
+  { id: "binary-puzzle", name: "Two Colours", genre: "binary-puzzle", sizes: sq(4, 4, 4, 6) },
+  { id: "panes:opposites", name: "Opposites", genre: "panes", reading: "the panes either side of ◇ differ", rules: "size=3,opposites", load: 2, sizes: [[2, 3], [3, 3], [3, 4], [3, 5]], requires: ["panes:twins"], with: "panes:twins", guide: { checks: ["opposites"] } },
+  review(5, "panel:shapes", "panel:two-shapes", "nurikabe"),
+  { id: "hitori", name: "Repeats", genre: "hitori", sizes: sq(3, 4, 4, 5) },
+  { id: "panel:erasers", name: "Erasers", genre: "panel", reading: "an eraser cancels a dot the line can't reach", mix: "erasers+dots", load: 2, rivals: "panel:erasers-dots", partner: "panel:dots", sizes: [[1, 2], [2, 2], [2, 3], [3, 3], [3, 4]], requires: ["panel:dots"], guide: { starts: "Erasers:" } },
+  { id: "panel:eraser-squares", name: "Erasers and Squares", genre: "panel", reading: "an eraser cancels a square of the wrong colour", mix: "erasers", load: 2, rivals: "panel:erasers", partner: "panel:squares", sizes: [[2, 2], [2, 3], [3, 3], [3, 4]], requires: ["panel:erasers", "panel:squares"], with: "panel:triangles", guide: { starts: "Erasers:" } },
+  { id: "slitherlink", name: "Fences", genre: "slitherlink", sizes: sq(3, 3, 4, 5) },
+  { id: "irregular-sudoku", name: "Odd Boxes", genre: "irregular-sudoku", ease: true, load: 2, sizes: [[6, 6], [4, 4], [5, 5], [6, 6]], requires: ["sudoku"] },
+  review(6, "panel:tilted", "panel:hollow", "panes:twins"),
+  { id: "star-battle", name: "Star Battle", genre: "star-battle", sizes: sq(4, 4, 5, 6) },
+  { id: "panel:mirrors", name: "Mirrors", genre: "panel", reading: "a second line mirrors the first", mix: "symmetry", load: 2, sizes: [[3, 3], [2, 4], [3, 4], [4, 4]], requires: ["panel:dots"], guide: { starts: "Symmetry:" } },
+  { id: "panel:turns", name: "Turns", genre: "panel", reading: "a second line is the first turned halfway round", mix: "rotation", load: 2, sizes: [[3, 3], [3, 4], [4, 4]], requires: ["panel:mirrors"], with: "panel:squares", guide: { starts: "Symmetry:" } },
+  { id: "numberlink", name: "Pairs", genre: "numberlink", sizes: sq(3, 4, 4, 5) },
+  { id: "masyu", name: "Pearls", genre: "masyu", sizes: sq(3, 4, 4, 5) },
+  review(7, "panel:erasers", "panel:eraser-squares", "akari"),
+  { id: "skyscrapers", name: "Towers", genre: "skyscrapers", sizes: sq(3, 4, 4, 5) },
+  { id: "easy-as-abc", name: "Letters", genre: "easy-as-abc", sizes: sq(3, 4, 4, 5) },
+  { id: "square-jam", name: "Square Jam", genre: "square-jam", sizes: sq(4, 4, 5, 5) },
+  { id: "aquarium", name: "Tanks", genre: "aquarium", sizes: sq(3, 4, 4, 5) },
+  { id: "cave", name: "Caves", genre: "cave", sizes: sq(3, 4, 4, 5) },
+  review(8, "panel:mirrors", "panel:turns", "thermo-sudoku"),
+  { id: "spiral-galaxies", name: "Galaxies", genre: "spiral-galaxies", sizes: sq(3, 4, 4, 5) },
+  { id: "fillomino", name: "Fillomino", genre: "fillomino", sizes: sq(3, 4, 4, 5) },
+  { id: "fillomino:sizes", name: "Allowed Sizes", genre: "fillomino", rules: "sizes=1/2/3", load: 2, sizes: sq(3, 4, 4, 5), requires: ["fillomino"] },
+  { id: "sum-blobs", name: "Sum Blobs", genre: "sum-blobs", sizes: sq(3, 4, 4, 5) },
+  { id: "hidoku", name: "Number Snake", genre: "hidoku", ease: true, sizes: [[4, 4], [3, 3], [4, 4], [4, 4]] },
+  review(9, "slitherlink", "star-battle", "masyu"),
+  { id: "hidoku:sides", name: "Sides Only", genre: "hidoku", moves: "sides", ease: true, sizes: [[4, 4], [3, 3], [4, 4], [4, 4]], requires: ["hidoku"], guide: { starts: "When a puzzle says" } },
+  { id: "honeycomb-paths", name: "Honeycomb", genre: "honeycomb-paths", ease: true, sizes: [[4, 4], [3, 3], [4, 4], [4, 4]] },
+  { id: "hive", name: "Hive", genre: "hive", sizes: sq(3, 3, 4, 4) },
+  { id: "fill-in", name: "Fill-In", genre: "fill-in", sizes: sq(3, 3, 4, 4) },
+  { id: "nonogram", name: "Pictures", genre: "nonogram", sizes: sq(3, 4, 4, 5) },
+  review(10, "skyscrapers", "easy-as-abc", "cave"),
+  { id: "abstract-art", name: "Abstract Art", genre: "abstract-art", sizes: sq(4, 4, 4, 6) },
+  { id: "abstract-art:thirds", name: "Thirds", genre: "abstract-art", rules: "parts=1:2", sizes: sq(3, 3, 6, 6), requires: ["abstract-art"] },
+  { id: "polyomino-packing", name: "Packing", genre: "polyomino-packing", sizes: sq(4, 4, 5, 5) },
+  { id: "connect-the-critters", name: "Critters", genre: "connect-the-critters", sizes: sq(3, 4, 4, 5) },
+  { id: "connect-the-critters:flip", name: "Flipped Critters", genre: "connect-the-critters", rules: "flip", sizes: sq(3, 4, 4, 5), requires: ["connect-the-critters"] },
+  review(11, "fillomino", "hidoku", "nonogram"),
+  { id: "find-the-cut-line", name: "Cut Line", genre: "find-the-cut-line", sizes: sq(3, 4, 4, 5) },
+  { id: "find-the-cut-line:mirror", name: "Folded Halves", genre: "find-the-cut-line", rules: "symmetry=mirror", sizes: sq(3, 4, 4, 5), requires: ["find-the-cut-line"] },
+  { id: "wittgenstein-briquet", name: "Bricks", genre: "wittgenstein-briquet", sizes: sq(3, 4, 4, 5) },
+  { id: "pythagorean-paths", name: "Pegs", genre: "pythagorean-paths", sizes: sq(3, 4, 4, 5) },
+  { id: "abstract-art:no-three", name: "No Three", genre: "abstract-art", rules: "parts=1:1,no-three-in-a-row", load: 2, sizes: sq(4, 4, 4, 6), requires: ["abstract-art"], guide: { checks: ["no-three-in-a-row"] } },
+  review(12, "abstract-art", "polyomino-packing", "connect-the-critters"),
+  { id: "akari:cipher", name: "Lamp Code", genre: "akari", cipher: true, load: 2, sizes: sq(4, 4, 5, 5), requires: ["akari"] },
+];
 
 export const PERSONAS: Persona[] = [
   // ---- a deep-puzzle creator: Witness-style panels, a teaching sequence (fable-like inventories) ----
@@ -754,6 +904,54 @@ export const PERSONAS: Persona[] = [
       examples: [
         { title: "Tuesday Again", description: "Tuesdays are statistically the least eventful day of the week, which this puzzle is attempting to fix. The tallest tower is a 6, and everything follows from where it isn't." },
         { title: "Box Marked MISC", description: "Contains several mines, one manual, no batteries. The 0 in the corner is a safe place to stand while you read it." },
+      ],
+    },
+  },
+
+  // ---- a tutor: one rule a week, taught by the puzzles (a teacher who only points) ----
+  {
+    handle: "slate",
+    name: "Slate",
+    bio: "One rule a week, taught by the puzzles and not by me. Monday is the smallest board I can find. By Friday you won't need the rules written down.",
+    recommends: [
+      { handle: "isola", note: "Symbols you have met here, on an island. Look at her Fridays." },
+      { handle: "pebble", note: "One small board every morning. Start at the stone." },
+      { handle: "granny-rect", note: "One type a week, like here. Monday first." },
+    ],
+    howIMake: [
+      "Each week has one new idea. On Monday it sits alone on a board so small that the answer almost draws itself.",
+      "On Tuesday I move the start or the end, and the answer changes with it. On Wednesday I move one symbol, and it changes again. Put the three side by side.",
+      "On Thursday there is a tidy answer waiting for anyone who has the wrong idea. It is wrong.",
+      "On Friday an old idea comes back. At the end of a symbol's last week, the new one meets it on the same board.",
+      "Every few weeks nothing new arrives. The week is old ideas, easy on Monday, harder by Friday.",
+      "I never write the rule down. It's on the page if you want it, but you shouldn't need it. I point. You look.",
+      "A panel symbol gets two or more weeks, one idea at a time, with the pane rules and every other type on the site in between, easiest first. When the list ends, it starts again.",
+    ],
+    schedule: { timezone: "Europe/London", days: ["mon", "tue", "wed", "thu", "fri"], time: { at: "07:30" }, summary: "Monday to Friday at 7:30 am, UK time. A new subject every Monday." },
+    difficulty: { kind: "weekday", by: { mon: 0.02, tue: 0.05, wed: 0.12, thu: 0.22, fri: 0.32, sat: 0.1, sun: 0.1 } },
+    // what it makes, for the site's checks; what each post is comes from the curriculum
+    genres: [...new Set(SLATE_CURRICULUM.filter((s) => !s.review).map((s) => s.genre))].map((genre) => ({
+      genre, weight: 1, sizes: SLATE_CURRICULUM.filter((s) => s.genre === genre).flatMap((s) => s.sizes).sort((a, b) => a[0] * a[1] - b[0] * b[1]),
+    })),
+    curriculum: SLATE_CURRICULUM,
+    // the curriculum's first week: the whole of it had been posted by the week of 5 October 2026
+    curriculumStart: "2025-05-19",
+    lessonDays: { mon: "introduce", tue: "contrast", wed: "second-contrast", thu: "trap", fri: "combine" },
+    quality: {
+      // the tiniest boards are full: a 2 × 1 with two squares is every cell a symbol
+      profile: "flow", clueDensity: [0, 2], symmetry: "any", allKindsNeeded: true, maxGapShare: 0.6,
+      maxSymbolShare: 1, maxRuleLoad: 3.3,
+      minQuality: 0.3, candidates: 24,
+      principles: ["one idea a week", "the smallest board that needs it", "every wrong reading fails by Thursday", "point, never tell"],
+    },
+    voice: {
+      brief: "A teacher at a blackboard who only points. Short plain sentences in the present tense, mostly imperatives: look here, start there. It names a place on the board (a corner, the top row, the cell beside the circle, yesterday's board) and never says what is true there or why. No praise, no encouragement, no jokes, no explaining. It never says rule, never says what a symbol means, never tells you you'll learn something. One or two sentences, often a fragment. The week reads as one lesson.",
+      titles: "The week's subject, the day's numeral (I on Monday to V on Friday), a middle dot, then one or two words for where to look or what changed: Squares I · Two, Squares II · Moved, Squares III · The Long Way, Squares IV · Corners, Squares V · Company.",
+      examples: [
+        { title: "Squares I · Two", description: "Two squares. Draw a line." },
+        { title: "Squares II · Moved", description: "Yesterday's board. One square has moved." },
+        { title: "Squares III · The Long Way", description: "The short way round is tempting." },
+        { title: "Dots IV · Corners", description: "Start in the corners." },
       ],
     },
   },

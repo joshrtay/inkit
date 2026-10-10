@@ -13,18 +13,22 @@ type RC = [number, number];
 type Group = Given[];
 const debug = (m: string) => { if (process.env.DEBUG) console.error(`panel: ${m}`); };
 
-/** `mix`: which symbols the panel is made of: dots, squares, stars, triangles, shapes, erasers (with
- *  something to cancel: squares when alone, else the mix's other symbols; put erasers first, as in
- *  "erasers+triangles") or symmetry (two mirrored lines, with dots), or several joined with "+"
- *  ("squares+stars"): every part's symbols go in the pool, one symbol to a cell. */
-export const PANEL_MIXES = ["dots", "squares", "stars", "triangles", "shapes", "erasers", "symmetry"] as const;
+/** `mix`: which symbols the panel is made of: dots, squares, stars, starsquare (a star paired with a
+ *  square of its colour, among squares), triangles, shapes (now and then tilted, or with a hollow
+ *  shape), solid (shapes never tilted or hollow), tilted (shapes that all turn), hollow (shapes,
+ *  none tilted, with a hollow one wherever two overlap), erasers (with something to cancel: squares
+ *  when alone, else the mix's other symbols, a dot off the line included; put erasers first, as in
+ *  "erasers+triangles"), symmetry (two mirrored lines, with dots) or rotation (two lines, one the
+ *  other turned halfway round, with dots), or several joined with "+" ("squares+stars"): every
+ *  part's symbols go in the pool, one symbol to a cell. */
+export const PANEL_MIXES = ["dots", "squares", "stars", "starsquare", "triangles", "shapes", "solid", "tilted", "hollow", "erasers", "symmetry", "rotation"] as const;
 export async function makePanel(mix: string, rows: number, cols: number, rand: () => number): Promise<GridSpec | null> {
   const parts = mix.split("+");
   for (const m of parts) if (!(PANEL_MIXES as readonly string[]).includes(m)) throw new Error(`no panel mix "${m}" (${PANEL_MIXES.join(", ")})`);
   const clingo = await import("clingo-wasm");
   const shuffle = <T,>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
-  const sym: Symmetry | null = parts.includes("symmetry") ? "left-right" : null;
+  const sym: Symmetry | null = parts.includes("symmetry") ? "left-right" : parts.includes("rotation") ? "turn" : null;
 
   // where the line starts and ends: the bottom-left corner to the top-right one, as panels often do
   // (or somewhere else on the edge, now and then)
@@ -54,6 +58,7 @@ export async function makePanel(mix: string, rows: number, cols: number, rand: (
   const pool: Group[] = [];
   const free = new Set(Array.from({ length: g.cellCount }, (_, i) => i));   // a cell holds one symbol
   const take = (i: number) => free.delete(i);
+  const cornerCellsOf = (v: number) => { const [r, c] = g.cornerRC(v); return [[r - 1, c - 1], [r - 1, c], [r, c - 1], [r, c]].filter(([y, x]) => y >= 0 && x >= 0 && y < rows && x < cols).map(([y, x]) => g.cell(y, x)); };
   const dots = () => {
     for (let v = 0; v < g.cornerCount; v++) if (visited(v) && !p0.cornerGivens.has(v) && rand() < 0.6) pool.push([{ at: "corner", corner: cornerXY(v), kind: "hexagon" }]);
     for (const e of g.borders) if (target.fence[e.id] === 1 && rand() < 0.4) pool.push([{ at: "line", corners: e.corners.map(cornerXY) as [RC, RC], kind: "hexagon" }]);
@@ -77,7 +82,7 @@ export async function makePanel(mix: string, rows: number, cols: number, rand: (
   let first: Group | null = null;   // a group the puzzle starts with (an eraser)
   for (const mix of parts) {
   if (mix === "dots") { dots(); gaps(); }
-  else if (mix === "symmetry") {
+  else if (mix === "symmetry" || mix === "rotation") {
     const color = new Map<number, "blue" | "yellow">();
     // which line each corner is on
     for (const x of base.givens!) if (x.kind === "start") {
@@ -101,10 +106,22 @@ export async function makePanel(mix: string, rows: number, cols: number, rand: (
       }
     });
   }
-  else if (mix === "shapes") {
+  else if (mix === "starsquare") {
+    // a region holds either a star with one square of its colour, or squares (never both: a second
+    // square of the star's colour would spoil the pair)
+    reg.cells.forEach((cs, k) => {
+      const cells = shuffle([...cs].filter((i) => free.has(i)));
+      if (cells.length >= 2 && rand() < 0.6) {
+        pool.push([{ at: "cell", cell: rc(cells[0]), kind: "star", color: tone[k] }, { at: "cell", cell: rc(cells[1]), kind: "square", color: tone[k] }]);
+        for (const i of cs) take(i);
+      } else { squares(cells); for (const i of cells) take(i); }
+    });
+  }
+  else if (mix === "shapes" || mix === "solid" || mix === "hollow" || mix === "tilted") {
     // each region cut into random pieces of 1 to 4 squares; the group is all of them, each drawn in
-    // one of the region's squares; now and then a piece reaches into its neighbour's and a hollow
-    // square takes the overlap back
+    // one of the region's squares; now and then (always for "hollow", never for "solid") a piece
+    // reaches into its neighbour's and a hollow square takes the overlap back
+    const tilt = mix === "shapes" ? 0.3 : mix === "tilted" ? 1 : 0, overlap = mix === "shapes" ? 0.35 : mix === "hollow" ? 1 : 0;
     reg.cells.forEach((cs) => {
       if (cs.length > 9) return;
       const left = new Set(cs), pieces: number[][] = [];
@@ -121,9 +138,11 @@ export async function makePanel(mix: string, rows: number, cols: number, rand: (
       if (pieces.length > cs.length) return;
       const where = shuffle([...cs]);
       const rel = (piece: number[]): RC[] => { const pts = piece.map(rc), r0 = Math.min(...pts.map((x) => x[0])), c0 = Math.min(...pts.map((x) => x[1])); return pts.map(([r, c]) => [r - r0, c - c0]); };
-      const group: Group = pieces.map((piece, k) => ({ at: "cell", cell: rc(where[k]), kind: "shape", value: rel(piece), ...(rand() < 0.3 ? { rotate: true } : {}) }));
+      // a tilted piece is drawn a quarter turn from how it lies, so it has to be turned to fit
+      const turned = (cs: RC[]): RC[] => { const t = cs.map(([r, c]) => [c, -r] as RC), r0 = Math.min(...t.map((x) => x[0])), c0 = Math.min(...t.map((x) => x[1])); return t.map(([r, c]) => [r - r0, c - c0]); };
+      const group: Group = pieces.map((piece, k) => ({ at: "cell", cell: rc(where[k]), kind: "shape", value: mix === "tilted" ? turned(rel(piece)) : rel(piece), ...(rand() < tilt ? { rotate: true } : {}) }));
       // the overlap: grow the first piece by a square of the second, and cancel that square
-      if (pieces.length >= 2 && where.length > pieces.length && rand() < 0.35) {
+      if (pieces.length >= 2 && where.length > pieces.length && rand() < overlap) {
         const [a, b] = pieces, extra = b.find((j) => a.some((i) => g.borderBetween(i, j) >= 0));
         if (extra !== undefined) {
           (group[0] as { value: RC[] }).value = rel([...a, extra]);
@@ -142,8 +161,19 @@ export async function makePanel(mix: string, rows: number, cols: number, rand: (
     const n = g.cellBorders[a].filter((x) => target.fence[x] === 1).length;
     // what it cancels: one of the mix's other symbols (squares when it's alone)
     const others = parts.filter((m) => m !== "erasers");
-    const can = (["square", "star", "triangle"] as const).filter((x) => others.includes(`${x}s`));
+    const can = (["square", "star", "triangle", "dot"] as const).filter((x) => others.includes(`${x}s`));
     const kind = pick(can.length ? can : others.length ? ["square", "star", "triangle"] as const : ["square"] as const);
+    if (kind === "dot") {
+      // a dot the line can't pass: on a corner inside the region, off the line
+      const inside: Given[] = [
+        ...Array.from({ length: g.cornerCount }, (_, v) => v).filter((v) => !visited(v) && !p0.cornerGivens.has(v) && cornerCellsOf(v).every((i) => reg.of[i] === k))
+          .map((v): Given => ({ at: "corner", corner: cornerXY(v), kind: "hexagon" })),
+        ...g.borders.filter((x) => target.fence[x.id] !== 1 && x.cells.every((i) => i < 0 || reg.of[i] === k))
+          .map((x): Given => ({ at: "line", corners: x.corners.map(cornerXY) as [RC, RC], kind: "hexagon" })),
+      ];
+      if (!inside.length) return null;
+      first = [{ at: "cell", cell: rc(e), kind: "eraser" }, pick(inside)];
+    } else
     first = kind === "square"
       ? [{ at: "cell", cell: rc(e), kind: "eraser" }, { at: "cell", cell: rc(a), kind: "square", color: tone[k] }, { at: "cell", cell: rc(b), kind: "square", color: tone[k] === "black" ? "white" : "black" }]
       : kind === "star" ? [{ at: "cell", cell: rc(e), kind: "eraser" }, { at: "cell", cell: rc(a), kind: "star", color: "orange" }]

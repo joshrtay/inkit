@@ -16,6 +16,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
+import type { GridSpec } from "../../src/engine/types.ts";
 import { solve } from "../../src/engine/solve.ts";
 import { PERSONAS, type Persona } from "../../app/app/ai/personas.ts";
 import { slotsBetween, type Slot } from "../../app/app/ai/schedule.ts";
@@ -86,11 +87,13 @@ for (const p of PERSONAS) {
   if (only && p.handle !== only) continue;
   if (p.paused) { console.log(`${p.handle}: paused`); continue; }
   const earlier = [...(titles.get(p.handle) ?? [])].slice(-12), said: string[] = [];
+  let previous: GridSpec | null = null;   // a tutor's Tuesday and Wednesday change the day before's board (./lesson.ts)
   for (const slot of slotsBetween(p, from, to)) {
     if (made >= limit) break;
-    if (taken.has(`${p.handle}@${slot.at.getTime()}`)) { console.log(`${p.handle} ${slot.date}: already queued`); continue; }
+    if (taken.has(`${p.handle}@${slot.at.getTime()}`)) { console.log(`${p.handle} ${slot.date}: already queued`); previous = null; continue; }
     const t0 = Date.now();
-    const best = await makeFor(p, slot, { candidates: candidatesOverride, budgetMs: BUDGET_MS, candidateMs: CANDIDATE_MS, scorer });
+    const best = await makeFor(p, slot, { candidates: candidatesOverride, budgetMs: BUDGET_MS, candidateMs: CANDIDATE_MS, scorer, previous });
+    previous = best?.spec ?? null;
     if (!best) { failed++; console.log(`${p.handle} ${slot.date}: no candidate good enough`); continue; }
     const sketch = sketchOf(best.spec);
     const solutions = (await solve(makePuzzle(best.spec), 2)).length;

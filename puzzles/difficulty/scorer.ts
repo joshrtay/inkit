@@ -5,7 +5,11 @@
 //
 // Not wired into the personas yet: to try it, pass `deductionScorer` where week.ts takes a Scorer.
 import { proxyScorer, type Scorer } from "../ai/score.ts";
-import { deduce, type Options } from "./deduce.ts";
+import { deduce, type Options, type Step } from "./deduce.ts";
+
+/** The last deduction path found for a candidate's spec, for scorers built on this one (the lesson
+ *  checks in puzzles/ai/lesson.ts read which rules each step used). */
+export const deductionPaths = new WeakMap<object, Step[]>();
 
 /** A scorer whose difficulty is the deduction solver's estimate (0..1, the same scale for every
  *  persona: not stretched to each persona's size range as proxyScorer's is), with quality and
@@ -14,7 +18,8 @@ export function withDeductionDifficulty(base: Scorer, opts: Options = { budgetMs
   return async (c, persona, slot) => {
     const score = await base(c, persona, slot);
     try {
-      const { profile } = await deduce(c.spec, opts);
+      const { profile, path } = await deduce(c.spec, opts);
+      deductionPaths.set(c.spec, path);
       if (!profile.solved) { score.notes.push(`deduction solver: unsolved (${profile.notes.join("; ")}); kept ${score.difficulty.toFixed(2)}`); return score; }
       const hardest = Object.entries(profile.bands).filter(([, n]) => n).map(([b, n]) => `${n} ${b}`).join(", ");
       score.notes.push(`deduction: ${profile.steps} steps (${hardest}), hardest step costs ${profile.maxCost}, rule load ${profile.ruleLoad} (${profile.ruleItems.join(", ")})`);

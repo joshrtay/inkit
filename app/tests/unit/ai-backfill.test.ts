@@ -140,7 +140,8 @@ describe("a backfilled post", () => {
   });
   it("must be in the past, and not long ago", async () => {
     expect(await checkBackfillPost(await body({ publishedAt: "2026-10-10T06:47:00Z" }), now)).toMatchObject({ ok: false, status: 400 });
-    expect(await checkBackfillPost(await body({ publishedAt: "2025-01-02T07:47:00Z" }), now)).toMatchObject({ ok: false, status: 400 });
+    // (a tutor's curriculum reaches back over a year: up to 800 days)
+    expect(await checkBackfillPost(await body({ publishedAt: "2024-01-02T07:47:00Z" }), now)).toMatchObject({ ok: false, status: 400 });
     // and a scheduled post can't be dated in the past
     expect(await checkScheduleRequest({ ...(await body()), publishAt: at }, now)).toMatchObject({ ok: false });
   });

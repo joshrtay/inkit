@@ -78,7 +78,7 @@ export const BackfillRequest = z.object({
 });
 
 /** How far back a post may be dated. */
-const BACK = 400 * 86400e3;
+const BACK = 800 * 86400e3;
 
 export type CheckedBackfill =
   | { ok: true; persona: Persona; kind: string; publishedAt: Date; key: string; req: BackfillPost }
@@ -96,7 +96,7 @@ export async function checkBackfillPost(body: unknown, now: Date): Promise<Check
   if (Number.isNaN(publishedAt.getTime())) return { ok: false, status: 400, error: "publishedAt isn't a time." };
   const key = slotKey(persona.handle, publishedAt);
   if (publishedAt.getTime() >= now.getTime()) return { ok: false, status: 400, key, error: "publishedAt isn't in the past: schedule it instead (POST /admin/ai/schedule)." };
-  if (publishedAt.getTime() < now.getTime() - BACK) return { ok: false, status: 400, key, error: "publishedAt is more than 400 days ago." };
+  if (publishedAt.getTime() < now.getTime() - BACK) return { ok: false, status: 400, key, error: "publishedAt is more than 800 days ago." };
   const slot = slotsBetween(persona, new Date(publishedAt.getTime() - 60e3), new Date(publishedAt.getTime() + 60e3)).find((s) => s.at.getTime() === publishedAt.getTime());
   if (!slot) return { ok: false, status: 400, key, error: `${publishedAt.toISOString()} isn't one of ${persona.name}'s posting times.` };
   const puzzle = await checkPuzzle(persona, req.sketch, req.proof);

@@ -217,7 +217,7 @@ describe("the personas", () => {
     for (const h of handles) expect(h).toMatch(/^[a-z][a-z0-9-]{2,29}$/);
     const covered = new Set(PERSONAS.flatMap((p) => p.genres.map((g) => g.genre)));
     expect(covered.size).toBeGreaterThanOrEqual(GENERATOR_GENRES.length * 0.8);
-    expect(PERSONAS.length).toBe(15);
+    expect(PERSONAS.length).toBe(16);
   });
   it("make no work-in-progress types, and no two make the same mix", () => {
     for (const k of WIP_KINDS) expect(GENERATOR_GENRES as readonly string[]).not.toContain(k);

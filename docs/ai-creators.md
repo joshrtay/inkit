@@ -41,8 +41,9 @@ month and day digits added up).
 | `hester-vane` | Hester Vane | Nonograms of house-and-garden pictures (`puzzles/grid/pictures.ts`) | Thu/Sun 16:00 New York | daylight | dashes and slant rhyme |
 | `freddie-plume` | The Hon. Freddie Plume | weekend-hard Star Battle, Aquarium, Wittgenstein Briquet, Spiral Galaxies | Sat/Sun 10:30 UK | Saturday hard, Sunday harder | comic country-house simile |
 | `percival-hum` | Percival Hum | Skyscrapers, Easy as ABC, Numberlink, Minesweeper | Tue/Thu 16:42 Dublin | digits of the date | digressive deadpan |
+| `slate` | Slate | tutorials: one subject a week from a 73-week curriculum (every type the generator makes), Monday to Friday a lesson | weekdays 07:30 UK | weekday, very low | a teacher who only points |
 
-Together they make every genre in `GENERATOR_GENRES` (the test asks for at least 80%), and no two
+Together they make every genre in `GENERATOR_GENRES` (the test asks for at least 80%; Slate alone makes them all), and no two
 make the same mix. Twins and Triplets stays out while it's a work in progress (`WIP_KINDS`).
 
 ### Writing
@@ -77,6 +78,46 @@ every post, by the seed, and on demand by `POST /admin/ai/recommendations`; a ha
 account yet is skipped. They show on the profile's Recommends tab and in Explore's "… recommends"
 row. A post's scorer difficulty (`meta.difficulty`) is kept as the game's difficulty, for
 Explore's dots and minutes (`app/app/games/estimate.ts`).
+
+### Slate's lessons
+
+Slate is a tutor ([research-tutorials.md](research-tutorials.md) §4, revised by
+[tutorial-sequences.md](tutorial-sequences.md) §6). Its persona carries a `curriculum` (a list of
+`Subject`s: one reading of a rule each, with its generator settings, sizes, partner and Friday
+company), a `curriculumStart` (the Monday of week 1) and `lessonDays` (the step each weekday is).
+`lessonFor` in `schedule.ts` gives a date's subject (one per ISO week, in order, wrapping round at
+the end) and step; `planFor` passes it on, and `makeFor` hands a lesson to
+[`puzzles/ai/lesson.ts`](../puzzles/ai/lesson.ts):
+
+| day | step | the post | what the checks require |
+|---|---|---|---|
+| Mon | introduce | the new reading alone on the tiniest board (a panel's 2 × 1; a pencil type eased with few unknowns) | one solution; rule load at the subject's; its symbols needed and used by the deduction path; the week's reading (one cut, a pocket, two pairs...) |
+| Tue | contrast | Monday's board with the start or end moved (else one symbol changed) | one change from Monday's post, a different answer |
+| Wed | second contrast | Tuesday's board with one symbol moved | one change from Tuesday's, a different answer |
+| Thu | trap | a board where a wrong reading gives a neat wrong answer | every rival reading ([`rivals.ts`](../puzzles/ai/rivals.ts)) broken, and one of them offers a wrong answer while turning the true one down |
+| Fri | combine or review | on a symbol's last week, the new reading with one earlier subject; otherwise the week before's subject again | both needed and used / the first rival broken |
+
+Every fifth or sixth week is a review week: no new subject, Monday to Friday take two or three
+earlier ones in turn, easy to hard. A rival is the true program with one rule read differently (a
+rule dropped or swapped, the spec changed, a few ASP lines rewritten), marked weaker, stricter or
+other; only an "other" reading can set a trap, so a subject with none is checked rather than
+trapped. Titles are `<subject> <numeral> · <a word or two>`; a title or description that uses a
+word from the rule's guide sentence or a rival's reading (`ruleWords`) is asked for again, then
+replaced by plain words (the week's name in the title isn't checked). When no board passes a
+step, a fallback makes it and says so in the post's notes: a contrast with no one-change edit
+becomes two changes, then a fresh board the same size; a trap with no neat wrong answer becomes a
+check (every reading breaks); and as a last resort weaker readings may stay unbroken.
+`verify-lessons.ts` checks each post again as it was made and lists the fallbacks. Slate's whole
+curriculum is backdated so it ends the week of 5 October 2026:
+
+```sh
+node puzzles/ai/backfill.ts --persona slate --curriculum --no-text --out puzzles/ai/out/slate.json
+node puzzles/ai/verify-lessons.ts --file puzzles/ai/out/slate.json      # every post checked again
+npx tsx puzzles/ai/lesson-sheet.ts --file puzzles/ai/out/slate.json     # the weeks on one page
+ANTHROPIC_API_KEY=... node puzzles/ai/backfill.ts --persona slate --curriculum --out puzzles/ai/out/slate.json
+```
+
+The site accepts backdated posts up to 800 days old for this.
 
 ## The weekly pipeline
 
