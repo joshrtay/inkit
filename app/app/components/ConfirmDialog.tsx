@@ -38,23 +38,21 @@ export function openerNow(): Opener {
   return { trigger, menuButton };
 }
 
-/** The dialog itself: open while it's mounted; `onClose` gets the answer (null: cancelled). */
-export function ConfirmDialog({ title, body, action, cancel = "Cancel", danger = false, field, opener, onClose }: Options & { opener?: Opener; onClose: (answer: string | null) => void }) {
+/** The site's modal: a native <dialog> opened with showModal (the page behind is inert) and open while
+ *  it's mounted. Tab stays inside it, Escape or a click on the backdrop calls `onCancel`, and focus
+ *  goes back to its opener when it closes. `focusFirst` puts focus where it should start. The
+ *  confirm dialog and the sign-in dialog (SignInDialog.tsx) are built on it; the look is `.confirm`. */
+export function Modal({ className = "", role = "dialog", labelledBy, describedBy, opener, focusFirst, onCancel, children }: {
+  className?: string; role?: "dialog" | "alertdialog"; labelledBy: string; describedBy?: string;
+  opener?: Opener; focusFirst?: (dialog: HTMLDialogElement) => void; onCancel: () => void; children: ReactNode;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
-  const fieldRef = useRef<HTMLTextAreaElement>(null);
-  const cancelRef = useRef<HTMLButtonElement>(null);
-  const actionRef = useRef<HTMLButtonElement>(null);
-  const [text, setText] = useState("");
-  const id = useId();
-  const answer = answerOf(field, text);
-
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
     const { trigger, menuButton } = opener ?? openerNow();
     if (!dialog.open) dialog.showModal();
-    const first = firstFocus({ field, danger });
-    (first === "field" ? fieldRef : first === "cancel" ? cancelRef : actionRef).current?.focus();
+    focusFirst?.(dialog);
     return () => {
       if (dialog.open) dialog.close();
       const back = trigger?.isConnected ? trigger : menuButton?.isConnected ? menuButton : null;
@@ -73,11 +71,31 @@ export function ConfirmDialog({ title, body, action, cancel = "Cancel", danger =
   };
 
   return (
-    <dialog ref={ref} className="confirm" role={field ? "dialog" : "alertdialog"} aria-modal="true"
-      aria-labelledby={`${id}-title`} aria-describedby={body ? `${id}-body` : undefined}
-      onCancel={(e) => { e.preventDefault(); onClose(null); }}   // Escape
+    <dialog ref={ref} className={`confirm ${className}`.trim()} role={role} aria-modal="true" aria-labelledby={labelledBy} aria-describedby={describedBy}
+      onCancel={(e) => { e.preventDefault(); onCancel(); }}   // Escape
       onKeyDown={onKeyDown}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(null); }}>   {/* the backdrop */}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>   {/* the backdrop */}
+      {children}
+    </dialog>
+  );
+}
+
+/** The confirm dialog itself: open while it's mounted; `onClose` gets the answer (null: cancelled). */
+export function ConfirmDialog({ title, body, action, cancel = "Cancel", danger = false, field, opener, onClose }: Options & { opener?: Opener; onClose: (answer: string | null) => void }) {
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  const actionRef = useRef<HTMLButtonElement>(null);
+  const [text, setText] = useState("");
+  const id = useId();
+  const answer = answerOf(field, text);
+  const focusFirst = () => {
+    const first = firstFocus({ field, danger });
+    (first === "field" ? fieldRef : first === "cancel" ? cancelRef : actionRef).current?.focus();
+  };
+
+  return (
+    <Modal role={field ? "dialog" : "alertdialog"} labelledBy={`${id}-title`} describedBy={body ? `${id}-body` : undefined}
+      opener={opener} focusFirst={focusFirst} onCancel={() => onClose(null)}>
       <form className="confirm-box" method="dialog" onSubmit={(e) => { e.preventDefault(); if (answer !== null) onClose(answer); }}>
         <h2 id={`${id}-title`}>{title}</h2>
         {body && <div id={`${id}-body`} className="confirm-body">{body}</div>}
@@ -93,7 +111,7 @@ export function ConfirmDialog({ title, body, action, cancel = "Cancel", danger =
           <button ref={actionRef} type="submit" className={`btn primary${danger ? " danger" : ""}`} disabled={answer === null}>{action}</button>
         </div>
       </form>
-    </dialog>
+    </Modal>
   );
 }
 

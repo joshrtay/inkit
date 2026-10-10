@@ -2,7 +2,7 @@
 // sitemap, llms.txt and the guides as Markdown.
 import { describe, expect, it } from "vitest";
 import {
-  AI_CRAWLERS, clip, exploreJsonLd, gameJsonLd, guideDescription, guideJsonLd, guideMarkdown, guideTitle, llmsFullTxt, llmsTxt, pageMeta,
+  AI_CRAWLERS, clip, exploreJsonLd, exploreMeta, HOME_TITLE, gameJsonLd, guideDescription, guideJsonLd, guideMarkdown, guideTitle, llmsFullTxt, llmsTxt, pageMeta,
   profileJsonLd, puzzlesJsonLd, robotsTxt, SITE, sitemapXml, typePuzzlesJsonLd,
 } from "~/lib/seo";
 import { guideDoc, ORDER } from "~/lib/guides.server";
@@ -142,11 +142,19 @@ describe("game and profile JSON-LD", () => {
 });
 
 describe("Explore JSON-LD", () => {
-  it("/explore: a CollectionPage listing Today's puzzles, with breadcrumbs", () => {
-    const [page, crumbs] = exploreJsonLd([{ id: "a", title: "A" }, { id: "b", title: "B" }]) as Obj[];
-    expect(page).toMatchObject({ "@type": "CollectionPage", url: `${SITE}/explore`, mainEntity: { "@type": "ItemList", numberOfItems: 2 } });
+  it("Explore is the home page: the WebSite, and a CollectionPage at / listing Today's puzzles", () => {
+    const [site, page] = exploreJsonLd([{ id: "a", title: "A" }, { id: "b", title: "B" }]) as Obj[];
+    expect(site).toMatchObject({ "@type": "WebSite", "@id": `${SITE}/#site`, url: SITE });
+    expect(page).toMatchObject({ "@type": "CollectionPage", url: `${SITE}/`, isPartOf: { "@id": `${SITE}/#site` }, mainEntity: { "@type": "ItemList", numberOfItems: 2 } });
     expect(((page.mainEntity as Obj).itemListElement as Obj[])[1]).toEqual({ "@type": "ListItem", position: 2, name: "B", url: `${SITE}/g/b` });
-    expectBreadcrumbs(crumbs, ["Explore"]);
+  });
+  it("/ and /explore are one page: both canonical at /; a search is noindex", () => {
+    const canonical = (tags: ReturnType<typeof exploreMeta>) => (tags.find((t) => "rel" in t && t.rel === "canonical") as { href: string }).href;
+    const d = { q: "", today: [{ id: "a", title: "A" }] };
+    expect(canonical(exploreMeta(d, "/"))).toBe(`${SITE}/`);
+    expect(canonical(exploreMeta(d, "/explore"))).toBe(`${SITE}/`);
+    expect(exploreMeta(d, "/")).toContainEqual({ title: HOME_TITLE });
+    expect(exploreMeta({ q: "akari", today: [] })).toContainEqual({ name: "robots", content: "noindex" });
   });
   it("a type's puzzles: a CollectionPage about the type, linking its guide", () => {
     const ld = typePuzzlesJsonLd({ kind: "masyu", name: "Masyu" }, [{ id: "m", title: "M" }]) as Obj[];

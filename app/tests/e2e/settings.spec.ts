@@ -71,7 +71,9 @@ test("handle: taken ones are refused; a free one moves the profile", async ({ pa
   await row.getByRole("button", { name: "Edit" }).click();
   await page.getByLabel("Handle").fill(run.handle);
   await page.getByRole("button", { name: "Save" }).click();
-  await expect(row).toContainText(`@${run.handle}`);
+  // "@<handle>x" contains "@<handle>" too, so check it's really back
+  await expect(row).not.toContainText(`@${moved}`);
+  await expect.poll(() => sql<{ handle: string }>(`select handle from creators where id = ${q(run.userId)}`)[0].handle).toBe(run.handle);
 });
 
 test("appearance: light, dark, auto", async ({ page }) => {

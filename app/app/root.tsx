@@ -15,8 +15,13 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const creator = await currentCreator(context.get(cloudflareContext).env, request);
-  return { me: creator && { id: creator.id, handle: creator.handle, name: creator.name, isAdmin: creator.isAdmin } };
+  const { env } = context.get(cloudflareContext);
+  const creator = await currentCreator(env, request);
+  return {
+    me: creator && { id: creator.id, handle: creator.handle, name: creator.name, isAdmin: creator.isAdmin },
+    // the sign-in dialog (components/SignInDialog.tsx) offers Google when the site has its keys
+    google: !creator && !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET),
+  };
 }
 
 /** The signed-in creator, from any route. */

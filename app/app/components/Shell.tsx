@@ -1,10 +1,13 @@
 // The site's frame, in the manner of Substack: a left nav on wide screens (Subscriptions, Explore,
 // Profile, Create, and More at the bottom) and a bottom tab bar on phones, around the page.
+// Signed out, the same places: Subscriptions, Profile and Create open the sign-in dialog
+// (SignInDialog.tsx), Explore is home ("/"), and Sign in takes More's place.
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { authClient } from "~/lib/auth-client";
 import { Avatar } from "./Avatar";
 import { ReportBugItem } from "./BugReport";
+import { SignInButton } from "./SignInDialog";
 
 export interface Me { id: string; handle: string; name: string; isAdmin: boolean }
 
@@ -15,6 +18,7 @@ const PATHS = {
   plus: ["M12 5v14", "M5 12h14"],
   user: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M4 21a8 8 0 0 1 16 0"],
   more: ["M4 7h16", "M4 12h16", "M4 17h16"],
+  signin: ["M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4", "M10 16l4-4-4-4", "M14 12H4"],
 } as const;
 export const Icon = ({ name }: { name: keyof typeof PATHS }) => (
   <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{PATHS[name].map((d) => <path key={d} d={d} />)}</svg>
@@ -58,24 +62,26 @@ function MoreMenu() {
 export function SideNav({ me }: { me: Me | null }) {
   const { pathname } = useLocation();
   const onProfile = !!me && (pathname === `/${me.handle}` || pathname.startsWith(`/${me.handle}/`));
+  // signed out, home is Explore
+  const onExplore = !me && (pathname === "/" || pathname === "/explore" || pathname.startsWith("/explore/"));
   return (
     <nav className="sidenav" aria-label="Main">
       <Link className="brand" to="/">inkit</Link>
       <div className="nav-items">
-        {me && <NavLink className="nav-item" to="/" end><Icon name="feed" /><span>Subscriptions</span></NavLink>}
-        <NavLink className="nav-item" to="/explore"><Icon name="explore" /><span>Explore</span></NavLink>
-        {me && <Link className={`nav-item${onProfile ? " active" : ""}`} to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={26} /><span>Profile</span></Link>}
+        {me ? <NavLink className="nav-item" to="/" end><Icon name="feed" /><span>Subscriptions</span></NavLink>
+          : <SignInButton why="subscriptions" className="nav-item"><Icon name="feed" /><span>Subscriptions</span></SignInButton>}
+        {me ? <NavLink className="nav-item" to="/explore"><Icon name="explore" /><span>Explore</span></NavLink>
+          : <Link className={`nav-item${onExplore ? " active" : ""}`} to="/" aria-current={onExplore ? "page" : undefined}><Icon name="explore" /><span>Explore</span></Link>}
+        {me ? <Link className={`nav-item${onProfile ? " active" : ""}`} to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={26} /><span>Profile</span></Link>
+          : <SignInButton why="profile" className="nav-item"><Icon name="user" /><span>Profile</span></SignInButton>}
       </div>
-      {me && <CreateMenu />}
-      {/* at the bottom: the puzzle types, then More (which opens over them) or sign in */}
+      {me ? <CreateMenu /> : <SignInButton why="create" className="btn primary create-btn"><Icon name="plus" /><span>Create</span></SignInButton>}
+      {/* at the bottom: the puzzle types, then More (which opens over them) or Sign in */}
       <div className="nav-foot">
         <NavLink className="nav-item" to="/puzzles"><Icon name="guide" /><span>Puzzle types</span></NavLink>
         {me ? <MoreMenu /> : (
           <>
-            <div className="nav-guest">
-              <Link className="btn primary" to="/signup">Start creating</Link>
-              <Link className="btn" to="/signin">Sign in</Link>
-            </div>
+            <SignInButton why="signin" className="nav-item"><Icon name="signin" /><span>Sign in</span></SignInButton>
             <p className="nav-legal"><Link to="/privacy">Privacy</Link> · <Link to="/terms">Terms</Link></p>
           </>
         )}
@@ -86,14 +92,24 @@ export function SideNav({ me }: { me: Me | null }) {
 
 /** Phones: the same places as tabs along the bottom. */
 export function TabBar({ me }: { me: Me | null }) {
+  const { pathname } = useLocation();
+  const onExplore = !me && (pathname === "/" || pathname === "/explore" || pathname.startsWith("/explore/"));
+  if (!me) return (
+    <nav className="tabbar" aria-label="Main">
+      <SignInButton why="subscriptions"><Icon name="feed" /><span>Feed</span></SignInButton>
+      <Link to="/" className={onExplore ? "active" : undefined} aria-current={onExplore ? "page" : undefined}><Icon name="explore" /><span>Explore</span></Link>
+      <SignInButton why="create" className="tab-create"><Icon name="plus" /><span>Create</span></SignInButton>
+      <NavLink to="/puzzles"><Icon name="guide" /><span>Types</span></NavLink>
+      <SignInButton why="profile"><Icon name="user" /><span>Profile</span></SignInButton>
+    </nav>
+  );
   return (
     <nav className="tabbar" aria-label="Main">
-      {me && <NavLink to="/" end><Icon name="feed" /><span>Feed</span></NavLink>}
+      <NavLink to="/" end><Icon name="feed" /><span>Feed</span></NavLink>
       <NavLink to="/explore"><Icon name="explore" /><span>Explore</span></NavLink>
-      {me ? <NavLink to="/new" className="tab-create"><Icon name="plus" /><span>Create</span></NavLink> : <NavLink to="/signup"><Icon name="plus" /><span>Create</span></NavLink>}
+      <NavLink to="/new" className="tab-create"><Icon name="plus" /><span>Create</span></NavLink>
       <NavLink to="/puzzles"><Icon name="guide" /><span>Types</span></NavLink>
-      {me ? <NavLink to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={24} /><span>Profile</span></NavLink>
-        : <NavLink to="/signin"><Icon name="user" /><span>Sign in</span></NavLink>}
+      <NavLink to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={24} /><span>Profile</span></NavLink>
     </nav>
   );
 }

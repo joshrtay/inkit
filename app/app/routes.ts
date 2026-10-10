@@ -9,6 +9,7 @@ export default [
   route("llms-full.txt", "routes/llms-full.ts"),
   route("signin", "routes/signin.tsx"),
   route("signup", "routes/signup.tsx"),
+  route("account", "routes/account.ts"),   // your profile (the nav's Profile, signed out, signs in to it)
   route("forgot-password", "routes/forgot-password.tsx"),
   route("reset-password", "routes/reset-password.tsx"),
   route("api/auth/*", "routes/api.auth.ts"),

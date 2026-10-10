@@ -21,12 +21,6 @@ const cards = (db: Db) => db.select(cardColumns).from(schema.games)
 
 const live = and(eq(schema.games.state, "published"), isNull(schema.collections.deletedAt));
 
-export const featuredGames = (db: Db) => db.select(cardColumns).from(schema.featured)
-  .innerJoin(schema.games, eq(schema.featured.gameId, schema.games.id))
-  .innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
-  .innerJoin(schema.creators, eq(schema.games.authorId, schema.creators.id))
-  .where(live).orderBy(schema.featured.position);
-
 export const newestGames = (db: Db, limit = 24) => cards(db).where(live).orderBy(desc(schema.games.publishedAt)).limit(limit);
 
 /** A collection's games, newest first by when they were published (a draft: last edited), so a

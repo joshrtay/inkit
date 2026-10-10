@@ -19,7 +19,8 @@ export function sql<T = Record<string, unknown>>(command: string): T[] {
 export const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 /** The test run's account and drafts (written by setup.ts). */
-export interface Run { userId: string; handle: string; collectionId: string; drafts: Record<string, string> }
+/** This run's account (a test account on the local site; signin.spec.ts signs in with it). */
+export interface Run { userId: string; handle: string; email: string; password: string; collectionId: string; drafts: Record<string, string> }
 // Each Playwright run keeps its own account in its own files, so runs side by side (two agents, or the
 // reader evaluation alongside the rest) don't sign each other out or delete each other's files. The
 // main process names the run; its workers inherit the name through the environment.

@@ -6,16 +6,19 @@ import { cloudflareContext } from "~/lib/context";
 import { currentCreator } from "~/lib/auth.server";
 import { authClient } from "~/lib/auth-client";
 import { GoogleButton } from "~/components/GoogleButton";
+import { safeNext } from "~/lib/next";
 
 export const meta: Route.MetaFunction = () => [{ title: "Start creating · inkit" }, { name: "robots", content: "noindex" }];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  if (await currentCreator(env, request)) throw redirect("/");
-  return { google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) };
+  const next = new URL(request.url).searchParams.get("next");
+  if (await currentCreator(env, request)) throw redirect(safeNext(next));
+  // where to go once the account is made: `next` if there is one, or the new profile
+  return { google: !!(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET), next: next ? safeNext(next) : null };
 }
 
-export default function SignUp({ loaderData: { google } }: Route.ComponentProps) {
+export default function SignUp({ loaderData: { google, next } }: Route.ComponentProps) {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -31,7 +34,7 @@ export default function SignUp({ loaderData: { google } }: Route.ComponentProps)
     });
     setBusy(false);
     if (error) return setError(error.message ?? "Couldn't make the account.");
-    navigate(`/${(data.user as { handle?: string }).handle ?? ""}`, { replace: true });
+    navigate(next ?? `/${(data.user as { handle?: string }).handle ?? ""}`, { replace: true });
     location.reload();   // pick up the new session in the top bar
   }
 
@@ -39,7 +42,7 @@ export default function SignUp({ loaderData: { google } }: Route.ComponentProps)
     <main className="wrap narrow">
       <h1>Start creating</h1>
       <p className="muted">Make games, and publish them in your own collection or a shared studio.</p>
-      {google && <><GoogleButton /><p className="or">or</p></>}
+      {google && <><GoogleButton next={next ?? "/account"} /><p className="or">or</p></>}
       <form className="form" onSubmit={submit}>
         <label>Display name<input name="name" required maxLength={60} autoComplete="name" /></label>
         <label>Handle
@@ -54,7 +57,7 @@ export default function SignUp({ loaderData: { google } }: Route.ComponentProps)
         <button className="btn primary" type="submit" disabled={busy}>{busy ? "Making your account…" : "Make my account"}</button>
         <p className="legal-note">By making an account you agree to the <Link to="/terms">terms</Link> and <Link to="/privacy">privacy policy</Link>.</p>
       </form>
-      <p className="muted">Already have an account? <Link to="/signin">Sign in</Link></p>
+      <p className="muted">Already have an account? <Link to={next ? `/signin?next=${encodeURIComponent(next)}` : "/signin"}>Sign in</Link></p>
     </main>
   );
 }

@@ -29,8 +29,8 @@ export async function sitemapEntries(db: Db): Promise<SitemapEntry[]> {
   ]);
   const newest = games[0]?.updated?.getTime() ?? null;
   return [
+    // Explore is "/" (its canonical), so /explore isn't listed
     { path: "/", lastmod: newest },
-    { path: "/explore", lastmod: newest },
     { path: "/puzzles", lastmod: GUIDES_CHANGED },
     ...ORDER.map((k) => ({ path: guidePath(k), lastmod: GUIDES_CHANGED })),
     // each type's puzzles on Explore (RYB's are on its guide and profiles)

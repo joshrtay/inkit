@@ -159,15 +159,25 @@ export function puzzlesJsonLd(types: { kind: string; name: string }[]): JsonLd[]
   ];
 }
 
-/** /explore: a CollectionPage whose list is Today's puzzles. */
+/** The site's home ("/"): a WebSite, for every version of it. */
+export const websiteJsonLd = (): JsonLd => ({
+  "@type": "WebSite", "@id": `${SITE}/#site`, name: SITE_NAME, url: SITE, description: "Hand-drawn logic puzzles you can play in the browser.",
+});
+
+export const HOME_TITLE = "inkit: hand-drawn logic puzzles to play in your browser";
+export const HOME_DESCRIPTION = "Hand-drawn logic puzzles you can play in the browser, made by creators: Sudoku, Akari, Slitherlink, Nurikabe and dozens more. Draw your own and share it.";
+
+/** Explore, which is the home page for anyone signed out (and so for search engines): the WebSite,
+ *  and a CollectionPage at "/" whose list is Today's puzzles. No breadcrumbs: it's the top. */
 export function exploreJsonLd(today: { id: string; title: string }[]): JsonLd[] {
   return [
+    websiteJsonLd(),
     {
       "@type": "CollectionPage",
-      "@id": `${SITE}/explore#page`,
+      "@id": `${SITE}/#page`,
       name: "Explore logic puzzles",
-      url: abs("/explore"),
-      isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE },
+      url: abs("/"),
+      isPartOf: { "@id": `${SITE}/#site` },
       mainEntity: {
         "@type": "ItemList",
         name: "Today",
@@ -175,8 +185,20 @@ export function exploreJsonLd(today: { id: string; title: string }[]): JsonLd[] 
         itemListElement: today.map((g, i) => ({ "@type": "ListItem", position: i + 1, name: g.title, url: abs(`/g/${g.id}`) })),
       },
     },
-    crumbs([["Explore", "/explore"]]),
   ];
+}
+
+/** Explore's tags, at "/" (signed out) or /explore. One page at two addresses, so both name "/" as
+ *  canonical: the site's root is what people link to, and /explore can't redirect there, since
+ *  signed in "/" is the Subscriptions feed. A search (?q=) is kept out of search results. */
+export function exploreMeta(d: { q: string; today: { id: string; title: string }[] } | undefined, at: "/" | "/explore" = "/explore"): MetaDescriptor[] {
+  return pageMeta({
+    title: at === "/" ? HOME_TITLE : `Explore logic puzzles · ${SITE_NAME}`,
+    description: HOME_DESCRIPTION,
+    path: "/",
+    noindex: !!d?.q,
+    jsonLd: d && !d.q ? exploreJsonLd(d.today) : undefined,
+  });
 }
 
 export const explorePath = (kind: string) => `/explore/${kind}`;
@@ -196,7 +218,7 @@ export function typePuzzlesJsonLd(t: { kind: string; name: string }, puzzles: { 
         itemListElement: puzzles.map((g, i) => ({ "@type": "ListItem", position: i + 1, name: g.title, url: abs(`/g/${g.id}`) })),
       },
     },
-    crumbs([["Explore", "/explore"], [t.name, explorePath(t.kind)]]),
+    crumbs([["Explore", "/"], [t.name, explorePath(t.kind)]]),
   ];
 }
 
@@ -337,7 +359,7 @@ export function llmsTxt(guides: Pick<GuideDoc, "kind" | "name" | "summary" | "ca
   }
   out.push("## Site", "",
     `- [Puzzle types](${abs("/puzzles")}): every guide, by kind of puzzle`,
-    `- [Explore](${abs("/explore")}): today's newest puzzles, quick ones, the week's hardest, and the creators (each type's puzzles at ${SITE}/explore/<type>)`,
+    `- [Explore](${abs("/")}): today's newest puzzles, quick ones, the week's hardest, and the creators (each type's puzzles at ${SITE}/explore/<type>)`,
     `- [Sitemap](${abs("/sitemap.xml")}): every public puzzle (${SITE}/g/<id>) and creator profile (${SITE}/<handle>)`,
     "",
     "## Optional", "",

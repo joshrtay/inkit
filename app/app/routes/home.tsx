@@ -1,66 +1,47 @@
 // Home. Signed in: the Subscriptions feed, the newest puzzles from everyone you subscribe to.
-// Signed out: what inkit is, featured puzzles, and creators to follow.
+// Signed out: Explore (components/ExplorePage.tsx), the same page as /explore, at "/".
 import { Link } from "react-router";
 import type { Route } from "./+types/home";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { exploreCollections, featuredGames, feedGames, likedAmong, solvedAmong, subscriptionsOf } from "~/lib/queries.server";
+import { exploreCollections, feedGames, likedAmong, solvedAmong, subscriptionsOf } from "~/lib/queries.server";
+import { explorePage } from "~/lib/explore-page.server";
 import { withPictures } from "~/lib/thumbs.server";
-import { CollectionRow, FeedItem, GameCard } from "~/components/GameCard";
-import { pageMeta, SITE, SITE_NAME } from "~/lib/seo";
+import { CollectionRow, FeedItem } from "~/components/GameCard";
+import { ExplorePage } from "~/components/ExplorePage";
+import { exploreMeta, HOME_DESCRIPTION, HOME_TITLE, pageMeta, websiteJsonLd } from "~/lib/seo";
 import "~site/game-types/grid/styles.css";
 
-export const meta: Route.MetaFunction = () => pageMeta({
-  title: "inkit: hand-drawn logic puzzles to play in your browser",
-  description: "Hand-drawn logic puzzles you can play in the browser, made by creators and studios: Sudoku, Akari, Slitherlink, Nurikabe and dozens more. Draw your own and share it.",
-  path: "/",
-  jsonLd: { "@type": "WebSite", "@id": `${SITE}/#site`, name: SITE_NAME, url: SITE, description: "Hand-drawn logic puzzles you can play in the browser." },
-});
+export const meta: Route.MetaFunction = ({ loaderData: d }) => d?.explore
+  ? exploreMeta(d.explore, "/")
+  : pageMeta({ title: HOME_TITLE, description: HOME_DESCRIPTION, path: "/", jsonLd: websiteJsonLd() });
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const me = await currentCreator(env, request);
-  if (me) {
-    const [feed, subs] = await Promise.all([feedGames(db, me.id), subscriptionsOf(db, me.id)]);
-    const suggestions = feed.length ? [] : (await exploreCollections(db, "", 8)).filter((c) => c.slug !== me.handle && !subs.some((s) => s.id === c.id)).slice(0, 5);
-    const [liked, solved] = await Promise.all([likedAmong(db, me.id, feed.map((g) => g.id)), solvedAmong(db, me.id, feed.map((g) => g.id))]);
-    return { signedIn: true as const, feed: withPictures(feed).map((g) => ({ ...g, liked: liked.has(g.id), solved: solved.has(g.id) })), subscribedTo: subs.length, suggestions, featured: [], creators: [] };
-  }
-  const [featured, creators] = await Promise.all([featuredGames(db), exploreCollections(db, "", 6)]);
-  return { signedIn: false as const, feed: [], subscribedTo: 0, suggestions: [], featured: withPictures(featured), creators };
+  if (!me) return { explore: await explorePage(db, new URL(request.url), null), feed: null };
+  const [feed, subs] = await Promise.all([feedGames(db, me.id), subscriptionsOf(db, me.id)]);
+  const suggestions = feed.length ? [] : (await exploreCollections(db, "", 8)).filter((c) => c.slug !== me.handle && !subs.some((s) => s.id === c.id)).slice(0, 5);
+  const [liked, solved] = await Promise.all([likedAmong(db, me.id, feed.map((g) => g.id)), solvedAmong(db, me.id, feed.map((g) => g.id))]);
+  return {
+    explore: null,
+    feed: { games: withPictures(feed).map((g) => ({ ...g, liked: liked.has(g.id), solved: solved.has(g.id) })), subscribedTo: subs.length, suggestions },
+  };
 }
 
 export default function Home({ loaderData: d }: Route.ComponentProps) {
-  if (!d.signedIn) return (
-    <main className="wrap">
-      <header className="landing">
-        <h1>Hand-drawn puzzles, made by people</h1>
-        <p className="lead">Draw a puzzle on paper, snap a photo, and inkit turns it into a game anyone can play. Follow the creators you like.</p>
-        <p className="landing-actions"><Link className="btn primary" to="/signup">Start creating</Link> <Link className="btn" to="/explore">Explore puzzles</Link></p>
-      </header>
-      {d.featured.length > 0 && (
-        <section className="shelf"><h2>Featured</h2><ul className="cards">{d.featured.map((g) => <GameCard key={g.id} game={g} />)}</ul></section>
-      )}
-      {d.creators.length > 0 && (
-        <section className="shelf">
-          <h2>Creators</h2>
-          <ul className="collection-list">{d.creators.map((c) => <CollectionRow key={c.id} c={c} subscribed={false} signedIn={false} />)}</ul>
-          <p><Link to="/explore">Find more creators →</Link></p>
-        </section>
-      )}
-    </main>
-  );
-
+  if (d.explore) return <ExplorePage d={d.explore} />;
+  const f = d.feed!;
   return (
     <main className="wrap feed-page">
       <h1 className="visually-hidden">Subscriptions</h1>
-      {d.feed.length ? <ul className="feed">{d.feed.map((g) => <FeedItem key={g.id} game={g} liked={g.liked} signedIn />)}</ul> : (
+      {f.games.length ? <ul className="feed">{f.games.map((g) => <FeedItem key={g.id} game={g} liked={g.liked} signedIn />)}</ul> : (
         <section className="feed-empty">
-          <h2>{d.subscribedTo ? "Nothing new yet" : "Your feed is empty"}</h2>
-          <p className="muted">{d.subscribedTo ? "The creators you subscribe to haven't published puzzles yet." : "Subscribe to creators and their new puzzles show up here."}</p>
-          {d.suggestions.length > 0 && <ul className="collection-list">{d.suggestions.map((c) => <CollectionRow key={c.id} c={c} subscribed={false} signedIn />)}</ul>}
+          <h2>{f.subscribedTo ? "Nothing new yet" : "Your feed is empty"}</h2>
+          <p className="muted">{f.subscribedTo ? "The creators you subscribe to haven't published puzzles yet." : "Subscribe to creators and their new puzzles show up here."}</p>
+          {f.suggestions.length > 0 && <ul className="collection-list">{f.suggestions.map((c) => <CollectionRow key={c.id} c={c} subscribed={false} signedIn />)}</ul>}
           <p><Link className="btn" to="/explore">Explore creators</Link></p>
         </section>
       )}

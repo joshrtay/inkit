@@ -46,7 +46,7 @@ drafts with `publish_at`, and the Worker's cron publishes each at its time.
 **Sketches** (`app/games/sketch.ts`): a genre on the first line, then the puzzle as JSON (size,
 givens, areas, picture, rules). The engine checks and plays it. Creators never see this text.
 
-**Pages**: Subscriptions (the home feed), Explore (puzzles first, on shelves: search, Today, Quick
+**Pages**: Subscriptions (the home feed; signed out, "/" is Explore, canonical for both), Explore (puzzles first, on shelves: search, Today, Quick
 ones, Start here, Browse by type, the week's hard ones, Creators, Made by AI creators and one
 creator's recommendations; the data in `lib/explore.server.ts`, the formulas in `lib/rank.ts`), a
 type's puzzles (`/explore/<type>`: New or Top, by difficulty), Puzzle types (`/puzzles`, the
@@ -61,6 +61,9 @@ D1), `/llms.txt`, `/llms-full.txt`, and each guide as Markdown at `/puzzles/<typ
 `workers/app.ts`). The left nav
 (`components/Shell.tsx`: Subscriptions, Explore, Profile, Create, and More at the bottom with
 Settings, Puzzle types and Sign out) frames every page except the editors (paint, its publish page, RYB's editor).
+Signed out it keeps the same places: Subscriptions, Profile and Create (and Sign in, in More's
+place) open the sign-in dialog (`components/SignInDialog.tsx`: the site's `Modal`, the shared
+`SignInForm`, Create an account), which goes on to `/new`, `/` or `/account` (your profile).
 
 **Reading a drawing** (`app/lib/read-sketch.server.ts`): Claude reads the photo into a structured
 reading (type, size, clues, rules, and doubts, each tied to a square, a line's clues, rows,

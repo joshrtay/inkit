@@ -48,9 +48,6 @@
 .collection-text .desc { font-size: 14px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .subscribe-form { margin: 0; }
 .btn.subscribed { color: var(--muted); }
-.landing { display: grid; gap: 14px; padding: 20px 0 8px; }
-.landing h1 { font-size: clamp(30px, 5vw, 46px); max-width: 18ch; }
-.landing-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 0; }
 
 /* ---- profiles ---- */
 .profile { max-width: 860px; gap: 22px; }
