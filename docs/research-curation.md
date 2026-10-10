@@ -267,3 +267,20 @@ differently.
   - Descriptions today average 78 characters, longest 154. Limit new ones to 160. The strip grows to fit: up to 2 lines on desktop, 3 on a phone.
   - The description leaves the page header, so it isn't shown twice.
   - "Solved!" and mistake messages pop up under the strip, so they don't collide with it.
+
+### Making sets (decided)
+
+- **No pinning.** An open drawer is the only "current set". It's remembered in the browser tab, not on the account.
+- **Starting:** ⋯ → Add to set on a puzzle page, or Create → Set. Cards have no + until a drawer is open. Then every card on every browsing page shows + (✓ if in). On a puzzle page the add is a row in the drawer.
+- **The drawer is the editor for a draft:** 280px, rows of number, picture and title. It shares the right-hand slot with How to play. Published sets can never be in it.
+- **The drawer shows** on browsing pages (Explore, type pages, search, profiles, feed, puzzle pages, other sets). It hides, but stays open, on settings, account, paint, publish, sign-in, legal, admin and the set's own page. It ends on publish, delete, ×, or sign-out.
+- **Drafts:** "Only you can see it." Reopen one with Edit on its page, or from the profile's Drafts tab.
+- **Profiles:** sets sit in the Puzzles grid with the puzzles, as a mosaic of their first four. A Drafts tab (owner only) holds draft puzzles and draft sets.
+- **Phone:**
+  - ⋯ → Add to set, then a toast "Added to … · 7" with Change.
+  - While a set is in progress, ⋯ lists it ("Akari for beginners · 7") to reopen its sheet.
+  - The description on the paper clamps to 2 lines.
+- **The header:**
+  - The title row holds ♡ and ⋯; the meta line goes under the title.
+  - No How to play button. Rules open from the type name in the meta line, from a ? on the paper, or from a first-time note ("New to Akari? How to play").
+  - Signed-in players see the note until they solve one of that type or open the rules. Signed-out players see it on every visit, with ×.
