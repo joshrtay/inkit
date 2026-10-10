@@ -445,7 +445,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   };
   function win() {
     // the check says "Solved!" on screen; a maze's walk and a nonogram's picture get a word too
-    say(p.spec.picture ? "Solved! Here's the picture." : maze ? `You're out! ${walk!.trail.length} squares from the way in to the way out.` : "Solved!", p.spec.picture || maze ? "good" : "good said");
+    say(p.spec.picture ? "Solved! Here's the picture." : maze ? `You're out in ${walk!.trail.length} squares!` : "Solved!", p.spec.picture || maze ? "good" : "good said");
     clearProblems();
     celebrate(root, inksOf());
     if (p.spec.picture) root.classList.add("revealed");
@@ -738,7 +738,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     clearProblems();
     let h: Hint | null = null;
     for (const s of p.rules) { h = blockFor(s).hint?.(s, p, board) ?? null; if (h) break; }
-    if (!h) { say("No hints left: nothing one line alone gives away. Check for mistakes?", "warn"); return; }
+    if (!h) { say("No hints left. Check for mistakes?", "warn"); return; }
     for (const i of h.area) cellRect(i, "hint-area", gHint);
     for (const { cell, shade } of h.cells) {
       const [x, y] = center(cell);

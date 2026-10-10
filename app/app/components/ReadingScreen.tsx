@@ -41,7 +41,7 @@ export function ReadingScreen({ image, as }: {
           <span className="reading-tag">Did you know</span>
           <p>{fact}</p>
         </aside>
-        <p className="reading-note">{t < 50 ? "This usually takes 20 to 40 seconds." : "Hard-to-read drawings take a little longer."}</p>
+        <p className="reading-note">{t < 50 ? "Usually 20 to 40 seconds." : "Messy drawings take longer."}</p>
       </div>
     </div>
   );

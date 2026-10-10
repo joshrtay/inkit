@@ -84,7 +84,7 @@ export function checklist(genre: GenreName, lines: RuleLine[], spec: GridSpec | 
   const misfits = list.filter((i) => i.kind === "misfit" || i.kind === "fix");
   const drawing: ChecklistLine = {
     text: "Everything on the page is part of the puzzle.", checks: [], items: misfits, mark: misfits.length ? "bad" : unchecked ? "none" : "ok",
-    ...(misfits.some((i) => i.kind === "misfit") ? { note: "What doesn't fit is left out until it's fixed; it doesn't change the verdict." } : {}),
+    ...(misfits.some((i) => i.kind === "misfit") ? { note: "Left out of the puzzle until it's fixed." } : {}),
   };
   const all = [...rules, final];
   return { rules: all, drawing, broken: all.filter((l) => l.mark === "bad").length };
@@ -94,13 +94,13 @@ export function checklist(genre: GenreName, lines: RuleLine[], spec: GridSpec | 
 function finalMark(v: Verdict): { mark: Mark; note?: string } {
   switch (v.kind) {
     case "one": case "solvable": return { mark: "ok" };
-    case "checking": return { mark: "wait", note: "The solver is looking." };
-    case "none": return { mark: "bad", note: "No way of filling it in obeys every rule. Take a clue out, or change one." };
-    case "several": return { mark: "bad", note: "It can be solved more than one way, so a player would have to guess. Add a clue that settles it." };
+    case "checking": return { mark: "wait", note: "Checking…" };
+    case "none": return { mark: "bad", note: "Nothing fits every rule. Remove or change a clue." };
+    case "several": return { mark: "bad", note: "Players would have to guess. Add a clue to settle it." };
     case "error": return { mark: "bad", note: v.text };
     case "incomplete": return { mark: "none", note: v.text };
-    case "broken": return { mark: "none", note: "The solver looks once every rule holds." };
-    case "unchecked": return { mark: "none", note: "Press Check to run the solver." };
+    case "broken": return { mark: "none", note: "Fix the broken rules first." };
+    case "unchecked": return { mark: "none", note: "Press Check." };
     default: return { mark: "none" };
   }
 }

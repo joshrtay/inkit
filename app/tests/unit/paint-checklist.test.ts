@@ -25,7 +25,7 @@ describe("a sudoku's checklist", () => {
       ["bad", ["Two 3s in a box"]],
       ["none", []],
     ]);
-    expect(c.rules[2]).toMatchObject({ text: "Exactly one solution", note: "The solver looks once every rule holds." });
+    expect(c.rules[2]).toMatchObject({ text: "Exactly one solution", note: "Fix the broken rules first." });
     expect(c.broken).toBe(2);
     expect(c.drawing.mark).toBe("ok");
   });

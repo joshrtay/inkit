@@ -108,16 +108,16 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search, like “Light Up”" aria-label="Search puzzle types" /></label>
       {!asked ? (
         <button type="button" className="paint-ask" onClick={() => void suggest()} disabled={!drawing?.grid}
-          title={drawing?.grid ? undefined : "Draw a grid first: the types are tried on it"}>
+          title={drawing?.grid ? undefined : "Draw a grid first"}>
           <SpIcon name="sparkle" />What type is this?
         </button>
       ) : (
         <section className="paint-suggest" aria-label="Suggested types" aria-busy={asked.state === "checking"}>
           <h3 className="paint-h3">What type is this?</h3>
           <p className="muted">{asked.photo
-            ? "Claude read your photo as one of these. Each is shown with your drawing and the solver's verdict."
-            : "Your drawing tried as every type, without asking Claude: these fit it best, each with the solver's verdict."}</p>
-          {!top.length ? <p className="paint-quiet">Nothing fits yet: draw a grid and some clues, then ask again.</p> : (
+            ? "Claude's best guesses from your photo."
+            : "The types that fit your drawing best."}</p>
+          {!top.length ? <p className="paint-quiet">Nothing fits yet. Draw a grid and some clues, then ask again.</p> : (
             <ul className="paint-suggest-cards">
               {top.map(({ fit, said }, i) => (
                 <li key={fit.genre} className="paint-suggest-item">
@@ -137,7 +137,7 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
             </ul>
           )}
           <div className="paint-suggest-foot">
-            <span className="muted">{asked.state === "checking" ? "The solver is checking each…" : asked.state === "stopped" ? "Stopped: some weren't checked." : "The verdicts are the solver's, on what you've drawn so far."}</span>
+            <span className="muted">{asked.state === "checking" ? "Checking each…" : asked.state === "stopped" ? "Stopped before checking them all." : "Based on your drawing so far."}</span>
             {asked.state === "checking" && <button type="button" className="btn" onClick={() => void stop()}>Cancel</button>}
             <button type="button" className="btn" onClick={() => { void stop(); setAsked(null); }}>Not now</button>
           </div>
@@ -150,7 +150,7 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
             {/* no guide to show: the row is the choice */}
             <button type="button" className="paint-ty" aria-current={current === null || undefined} onClick={() => use(null)}>
               <span className="pic paint-unset" aria-hidden="true">?</span>
-              <span><strong>Not set</strong><span className="muted">Plain paint, every tool: choose a type when you know it</span></span>
+              <span><strong>Not set</strong><span className="muted">Every tool. Choose a type later.</span></span>
             </button>
             <UseButton name="no type" on={current === null} onUse={() => use(null)} />
           </li>
@@ -161,7 +161,7 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
             <li key={t.kind} className={current === t.kind ? "on" : ""}>
               <button type="button" className="paint-ty" aria-current={current === t.kind || undefined} aria-label={`${t.name}: more about it`} onClick={() => onAbout(t.kind)}>
                 <span className="grid-game pic" style={{ "--paper-ink": t.ink } as React.CSSProperties} dangerouslySetInnerHTML={{ __html: t.thumb }} />
-                <span><strong>{t.name}</strong><span className="muted">{inPaint ? t.summary : "Not made in paint yet: it keeps its own editor"}</span></span>
+                <span><strong>{t.name}</strong><span className="muted">{inPaint ? t.summary : "Has its own editor"}</span></span>
               </button>
               <UseButton name={t.name} on={current === t.kind} disabled={!inPaint} onUse={() => use(t.kind as GenreName)} />
             </li>
@@ -169,7 +169,7 @@ export function TypePicker({ current, onChoose, ask = 0, drawing, settings = {},
         })}
         {list.data && !types.length && <li className="muted">No types match.</li>}
       </ul>
-      <p className="paint-picker-foot muted">You can change the type any time; nothing you drew is lost.</p>
+      <p className="paint-picker-foot muted">Change the type any time. Your drawing stays.</p>
     </div>
   );
 }
@@ -206,7 +206,7 @@ function AboutType({ kind, current, onBack, onChoose }: { kind: string; current:
           {g.aka.length > 0 && <p className="aka">Also called {g.aka.join(", ")}</p>}
           <p className="lead">{g.summary}</p>
           <GuideBody g={g} inPane />
-          <p><a href={`/puzzles/${kind}`} target="_blank" rel="noreferrer">The full guide, on its own page ↗</a></p>
+          <p><a href={`/puzzles/${kind}`} target="_blank" rel="noreferrer">Full guide ↗</a></p>
         </div>
       ) : <p className="muted">Loading…</p>}
     </div>

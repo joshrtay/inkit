@@ -78,17 +78,17 @@ export function verdictWords(v: Verdict): { text: string; tone: "ok" | "bad" | "
 export function verdictStory(v: Verdict, genre: GenreName | null): { title: string; text: string } {
   const name = genre ? kindName(genre) : "";
   switch (v.kind) {
-    case "no-type": return { title: "No type yet", text: "Choose a puzzle type: its rules decide what counts as a solution." };
-    case "unchecked": return { title: "Not checked yet", text: "Press Check when it's ready: the solver looks for its solutions, and keeps looking as you draw." };
-    case "no-grid": return { title: "No grid yet", text: "Draw a grid with the Grid tool: the puzzle is read off it." };
+    case "no-type": return { title: "No type yet", text: "Choose a puzzle type." };
+    case "unchecked": return { title: "Not checked yet", text: "Press Check when it's ready." };
+    case "no-grid": return { title: "No grid yet", text: "Draw a grid with the Grid tool." };
     case "unsupported": return { title: "Not in paint yet", text: v.text };
     case "incomplete": return { title: "Not a puzzle yet", text: v.text };
-    case "checking": return { title: "Checking…", text: "The solver is looking for solutions." };
-    case "broken": return { title: "No solution", text: `${v.rules === 1 ? "A rule is" : `${v.rules} rules are`} broken already, so nothing can solve it. Fix ${v.rules === 1 ? "it" : "them"} and the verdict updates.` };
-    case "none": return { title: "No solution", text: `No way of filling it in obeys every ${name} rule. Take a clue out, or change one.` };
-    case "several": return { title: "Several solutions", text: "It can be solved more than one way, so a player would have to guess. Add a clue that settles it." };
-    case "one": return { title: "Exactly one solution", text: "It can be solved, one way only. Here it is." };
-    case "solvable": return { title: "Solvable", text: "Any line that obeys the symbols solves a panel, so one is enough. Here is the first the solver found." };
+    case "checking": return { title: "Checking…", text: "Looking for solutions." };
+    case "broken": return { title: "No solution", text: `${v.rules === 1 ? "A rule is" : `${v.rules} rules are`} broken. Fix ${v.rules === 1 ? "it" : "them"} first.` };
+    case "none": return { title: "No solution", text: `Nothing fits every ${name} rule. Remove or change a clue.` };
+    case "several": return { title: "Several solutions", text: "Players would have to guess. Add a clue to settle it." };
+    case "one": return { title: "Exactly one solution", text: "Here it is." };
+    case "solvable": return { title: "Solvable", text: "Here's one." };
     case "error": return { title: "Couldn't check", text: v.text };
   }
 }
@@ -141,9 +141,9 @@ const KIND_OF: Record<Problem["kind"], ItemKind> = { rule: "rule", incomplete: "
 /** Why a broken rule is one, and what to do. */
 function ruleTip(text: string, digits: string): string {
   if (/too big/.test(text)) return "Change it to one that fits, or erase it.";
-  if (/thermometer/.test(text)) return "Digits rise from the bulb to the tip, at least one a square, so these can't all be right. Change or erase one of them.";
+  if (/thermometer/.test(text)) return "Digits rise from the bulb. Change or erase one.";
   const where = /in row/.test(text) ? "row" : /in column/.test(text) ? "column" : /in a box/.test(text) ? "box" : /in an area/.test(text) ? "area" : /in a line/.test(text) ? "line" : "";
-  return where ? `Each ${where} holds ${digits} once, so one of these is wrong. Change or erase one of them.` : "Each one can appear only once, so one of these is wrong. Change or erase one of them.";
+  return where ? `Each ${where} holds ${digits} once. Change or erase one.` : "Each can appear only once. Change or erase one.";
 }
 /** A place for the list: the row or column a rule names, else the first square. */
 function placeOf(text: string, cells: [number, number][]): string {
@@ -160,18 +160,18 @@ export function checkList(conv: Conversion | null, opts: { digits?: string; diff
   const raw: Omit<CheckItem, "n">[] = conv.problems.filter((p) => p.kind !== "unsupported").map((p) => {
     const kind = KIND_OF[p.kind], cells = p.cells ?? [];
     const tip = kind === "rule" ? ruleTip(p.text, opts.digits ?? "each digit")
-      : p.kind === "off-type" ? "It's left out of the puzzle. Erase it, or keep it if it's only decoration."
-      : p.kind === "off-grid" ? "It's left out of the puzzle. Move it onto the grid, or erase it."
-      : p.kind === "ambiguous" ? "It's read the likelier way for now. Make it clear to be sure."
-      : p.kind === "grid" ? "The type sets the grid's look: change it with the Grid tool."
-      : "The puzzle needs this before it can be checked.";
+      : p.kind === "off-type" ? "Left out of the puzzle. Erase it, or keep it as decoration."
+      : p.kind === "off-grid" ? "Left out of the puzzle. Move it onto the grid, or erase it."
+      : p.kind === "ambiguous" ? "Read the likelier way. Make it clearer."
+      : p.kind === "grid" ? "Change it with the Grid tool."
+      : "Needed before it can be checked.";
     return { kind, place: kind === "misfit" ? (p.kind === "off-grid" ? "Not on the grid" : "Doesn't fit") : placeOf(p.text, cells), text: p.text, tip, items: p.items, cells, ...(p.rule ? { rule: p.rule } : {}) };
   });
   (opts.differences ?? []).forEach((d) => raw.push({
     kind: "difference", place: placeOf("", d.cells), cells: d.cells, items: [], values: d.values,
     text: d.values ? `This square can be a ${d.values[0]} or a ${d.values[1]}` : "The solutions differ here",
-    tip: d.values ? `This square can be a ${d.values[0]} or a ${d.values[1]}, and the rest still works. Add a clue that settles it.`
-      : "Two solutions differ here, and both obey every rule. Add a clue that settles it.",
+    tip: d.values ? `It can be a ${d.values[0]} or a ${d.values[1]}. Add a clue to settle it.`
+      : "Two solutions differ here. Add a clue to settle it.",
   }));
   return raw.sort((a, b) => ORDER[a.kind] - ORDER[b.kind]).map((x, i) => ({ ...x, n: i + 1 }));
 }

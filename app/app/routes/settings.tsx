@@ -87,7 +87,7 @@ export default function Settings({ loaderData: d, actionData }: Route.ComponentP
             <Form method="post" className="form">
               <label>Handle
                 <input name="handle" required maxLength={31} defaultValue={d.handle} autoCapitalize="none" spellCheck={false} />
-                <span className="hint">Your profile is at inkit.games/<em>handle</em>. Links to your old address stop working; your puzzles keep theirs.</span>
+                <span className="hint">Your profile is at inkit.games/<em>handle</em>. Old links to your profile stop working.</span>
               </label>
               {error && editing === "handle" && <p className="error" role="alert">{error}</p>}
               <Buttons busy={busy} onCancel={() => setEditing(null)} intent="handle" />
@@ -152,7 +152,7 @@ function EmailForm({ current, onCancel }: { current: string; onCancel: () => voi
     if (error) return setError(error.status === 429 ? "Too many tries. Wait a minute and try again." : error.message || "That didn't work. Try again.");
     setSentTo(newEmail);
   }
-  if (sentTo) return <p>We&rsquo;ve sent a link to <strong>{sentTo}</strong>. Your email changes when you open it (it works for a day).</p>;
+  if (sentTo) return <p>We&rsquo;ve sent a link to <strong>{sentTo}</strong>. Open it within a day to change your email.</p>;
   return (
     <form className="form" onSubmit={submit}>
       <label>New email<input name="email" type="email" required autoComplete="email" /></label>
@@ -185,7 +185,7 @@ function PasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: () =
     <form className="form" onSubmit={submit}>
       <label>Current password<input name="current" type="password" required autoComplete="current-password" /></label>
       <label>New password<input name="new" type="password" required minLength={8} autoComplete="new-password" />
-        <span className="hint">At least 8 characters. You&rsquo;ll stay signed in here; other devices are signed out.</span></label>
+        <span className="hint">At least 8 characters. Other devices will be signed out.</span></label>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="setting-buttons">
         <button className="btn primary" disabled={busy}>{busy ? "Saving…" : "Change password"}</button>
@@ -204,7 +204,7 @@ function Recording() {
       <label className="bug-setting">
         <input type="checkbox" checked={on} onChange={(e) => { set(e.target.checked); setRecordingAllowed(e.target.checked); }} />
         <span>Keep a recording for bug reports
-          <small>While you use inkit, this browser keeps the last two minutes of the page in memory, so a bug report can show what happened. It&rsquo;s sent only if you report a bug and leave its box ticked; what you type is hidden, and settings pages are never recorded.</small></span>
+          <small>This browser keeps the last two minutes in memory. It&rsquo;s sent only with a bug report, and what you type is hidden.</small></span>
       </label>
     </div>
   );

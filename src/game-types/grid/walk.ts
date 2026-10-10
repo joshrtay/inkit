@@ -64,7 +64,7 @@ export function createWalk(p: Puzzle, fence: Uint8Array, half: number, v: WalkVi
     const [tx, ty] = out ? exit.at(14) : tail ?? v.center(head());
     v.el("circle", { class: "token", r: 10, cx: tx, cy: ty }, v.layer);
     if (out) v.out(trail.length);
-    else v.say(`The walls are right! Now find the way out: ${trail.length} square${trail.length === 1 ? "" : "s"} so far.`, "good");
+    else v.say(`The walls are right! Now find the way out. ${trail.length} square${trail.length === 1 ? "" : "s"} so far.`, "good");
   }
 
   /** shortest open route between two cells, at most 4 steps (covers fast drags) */

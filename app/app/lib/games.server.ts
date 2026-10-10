@@ -62,7 +62,7 @@ async function validated(f: Fields, publishing: boolean, draft = false): Promise
   }
   if (!parsed.ok) throw new Invalid(parsed.errors.join(" "));
   if (publishing && f.checked !== (await sketchHash(f.sketch))) {
-    throw new Invalid("Check the puzzle first: it needs exactly one solution (a panel, at least one) to be published.");
+    throw new Invalid("Check the puzzle in paint first.");
   }
   return parsed;
 }
@@ -120,7 +120,7 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
     case "hide": {
       if (!canHide(me, role)) throw new Forbidden("Only the collection's owners and admins can take a game down.");
       const note = String(form.get("note") ?? "").trim().slice(0, 500);
-      if (!note) throw new Invalid("Say why it's being taken down; the author and owners will see this note.");
+      if (!note) throw new Invalid("Say why. The author and owners will see this note.");
       await set({ state: "hidden", hiddenNote: note, hiddenBy: me.id });
       return;
     }

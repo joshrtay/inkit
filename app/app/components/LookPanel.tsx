@@ -49,7 +49,7 @@ export function LookPanel({ spec, onChange }: { spec: GridSpec; onChange: (spec:
           );
         })}
         <fieldset className="ge-marks">
-          <legend>What the player draws <span className="hint">(the game type decides unless you change it)</span></legend>
+          <legend>What the player draws <span className="hint">default: the type&rsquo;s</span></legend>
           {(Object.keys(MARKS) as MarkKind[]).map((m) => {
             const current = spec.marks ?? (genres[genre]?.marks as MarkKind[] | undefined) ?? [];
             return (

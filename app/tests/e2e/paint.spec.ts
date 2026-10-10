@@ -274,7 +274,7 @@ test("the palette stays put across tools and is always open; the drawer folds to
     await tool(page, name);
     await expect(palette.locator(".sp-pal-head strong")).toHaveText(name);
     if (has) await expect(palette.getByRole("group", { name: has })).toBeVisible();
-    else await expect(palette).toContainText("rub it out");   // the eraser has nothing to set: its hint
+    else await expect(palette).toContainText("Tap or drag to erase");   // the eraser has nothing to set: its hint
     const b = (await palette.boundingBox())!;
     places.push({ x: Math.round(b.x), y: Math.round(b.y) });
   }

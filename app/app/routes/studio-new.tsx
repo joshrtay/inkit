@@ -29,7 +29,7 @@ export default function NewStudio({ actionData }: Route.ComponentProps) {
   return (
     <main className="wrap narrow">
       <h1>Start a studio</h1>
-      <p className="muted">A shared collection: you'll be its owner, and you can add other creators as owners or contributors.</p>
+      <p className="muted">A shared collection. You own it and can add other creators.</p>
       <Form method="post" className="form">
         <label>Name<input name="title" required maxLength={80} /></label>
         <label>Web address

@@ -39,7 +39,7 @@ export default function ResetPassword({ loaderData: { token, invalid } }: Route.
       <h1>Choose a new password</h1>
       {done ? (
         <>
-          <p className="good">Your password is changed. Any other devices you were signed in on are signed out.</p>
+          <p className="good">Your password is changed. Other devices are signed out.</p>
           <p><Link className="btn primary" to="/signin">Sign in</Link></p>
         </>
       ) : (

@@ -150,7 +150,7 @@ describe("off-type, off-grid and type switching", () => {
     const numbers = (sudoku.givens ?? []).length;
     expect(out.problems.filter((p) => p.kind === "off-type" && p.text.startsWith("Writing"))).toHaveLength(numbers);
     // the box lines aren't a panel's: the player draws the line
-    expect(out.problems.some((p) => p.text.startsWith("The player draws the line"))).toBe(true);
+    expect(out.problems.some((p) => p.text.startsWith("Players draw the line"))).toBe(true);
   });
 
   it("switching type: Akari's rocks and numbers carry over to Hidoku as they are", () => {
@@ -229,7 +229,7 @@ describe("pen lines", () => {
     const d = drawing(6, 6, [pen("medium", [0, 3], [6, 3]), pen("medium", [0, 2], [6, 2])]);
     const out = convert(d, "sudoku");
     expect(out.problems.map((p) => [p.kind, p.items])).toEqual([["ambiguous", [2]]]);
-    expect(out.problems[0].text).toBe("Not a box line: the boxes are 2 × 3 (set in Rules)");
+    expect(out.problems[0].text).toBe("Not a box line. Boxes are 2 × 3");
     // with tall boxes set in Rules, the other line is the wrong one
     expect(convert(d, "sudoku", { rules: [{ rule: "boxes", box: [3, 2] }] }).problems.map((p) => p.items)).toEqual([[1]]);
   });
@@ -247,7 +247,7 @@ describe("rule hints", () => {
     const box = convert(drawing(4, 4, [text(cell(0, 0), "2"), text(cell(1, 1), "2")]), "sudoku");
     expect(box.problems.map((p) => p.text)).toEqual(["Two 2s in a box"]);
     const big = convert(drawing(4, 4, [text(cell(0, 0), "7")]), "sudoku");
-    expect(big.problems.map((p) => p.text)).toEqual(["7 is too big: the numbers here run 1 to 4"]);
+    expect(big.problems.map((p) => p.text)).toEqual(["7 is too big. Use 1 to 4"]);
     const thermo = convert(drawing(4, 4, [{ kind: "stamp", stamp: "stone", at: cell(0, 0) }, pen("bold", [0.5, 0.5], [0.5, 2.5]), text(cell(0, 0), "3"), text(cell(0, 2), "1")]), "thermo-sudoku");
     expect(thermo.problems).toEqual([{ kind: "rule", text: "These can't rise along the thermometer", items: [3, 4], cells: [[0, 0], [0, 2]], rule: "thermo" }]);
   });

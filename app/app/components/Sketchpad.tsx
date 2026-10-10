@@ -44,14 +44,14 @@ import "~site/game-types/grid/styles.css";
 type Tool = Kit["tools"][number];
 /** The tools, in the palette's groups (a thin line between groups). */
 const TOOLS: { id: Tool; label: string; key: string; hint: string; group: number }[] = [
-  { id: "grid", label: "Grid", key: "g", group: 0, hint: "Drag a rectangle for a grid; drag the grid to move it, its corner to resize it" },
-  { id: "pen", label: "Pen", key: "p", group: 1, hint: "Draw freehand (hold Shift for a straight line)" },
-  { id: "line", label: "Line", key: "l", group: 1, hint: "Drag a straight line; it keeps level or upright near the axes" },
-  { id: "region", label: "Areas", key: "a", group: 1, hint: "Drag from a square across others to put them in its area (with New area, in an area of their own); the borders follow" },
-  { id: "wash", label: "Wash", key: "w", group: 2, hint: "Tap or drag across squares to wash them (again to clear); brush off the grid" },
-  { id: "stamp", label: "Stamp", key: "s", group: 2, hint: "Tap where the stamp goes (again to take it off)" },
-  { id: "text", label: "Text", key: "t", group: 2, hint: "Tap a square and type a number or letter (Enter to finish, arrows to move on); small text goes on corners, lines and a square's sides" },
-  { id: "erase", label: "Eraser", key: "e", group: 3, hint: "Tap or drag over anything to rub it out; along a grid line to break it (again to mend it)" },
+  { id: "grid", label: "Grid", key: "g", group: 0, hint: "Drag to make a grid. Drag it to move, its corner to resize." },
+  { id: "pen", label: "Pen", key: "p", group: 1, hint: "Draw freehand. Hold Shift for a straight line." },
+  { id: "line", label: "Line", key: "l", group: 1, hint: "Drag a straight line." },
+  { id: "region", label: "Areas", key: "a", group: 1, hint: "Drag from a square across others to join its area." },
+  { id: "wash", label: "Wash", key: "w", group: 2, hint: "Tap or drag to colour squares. Again to clear." },
+  { id: "stamp", label: "Stamp", key: "s", group: 2, hint: "Tap to place a stamp. Again to remove it." },
+  { id: "text", label: "Text", key: "t", group: 2, hint: "Tap a square and type. Enter to finish, arrows to move." },
+  { id: "erase", label: "Eraser", key: "e", group: 3, hint: "Tap or drag to erase. Erase a grid line to break it, again to mend it." },
 ];
 /** The pen's weights, with the board's widths (docs/style.md) for the buttons' previews. */
 const WEIGHTS: { id: Weight; label: string; width: number }[] = [
@@ -61,7 +61,7 @@ const WEIGHTS: { id: Weight; label: string; width: number }[] = [
  *  stones, then marks, then the line puzzles' symbols. */
 const STAMPS: { id: StampKind; label: string; tip?: string }[] = [
   // a panel's squares are stones too (docs/style.md), so the stone, in any colour, draws them
-  { id: "stone", label: "Stone", tip: "Stone (pearls, a panel's squares, paint dots)" },
+  { id: "stone", label: "Stone", tip: "Stone: pearls and dots" },
   { id: "star", label: "Star" }, { id: "rock", label: "Shaded square" }, { id: "galaxy", label: "Circle" }, { id: "x", label: "X" }, { id: "dot", label: "Dot" },
   { id: "diamond", label: "Filled diamond", tip: "Filled diamond, on a line (twins)" }, { id: "open-diamond", label: "Empty diamond", tip: "Empty diamond, on a line (opposites)" },
   { id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
@@ -737,7 +737,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
 
   const snapToggle = (
     <button type="button" className="sp-btn sp-toggle" aria-pressed={snapping} onClick={() => setSnapping(!snapping)}
-      data-tip="Snap to the grid: line ends to its corners, stamps to its squares and points, washes fill squares"><SpIcon name="magnet" /><span>Snap</span></button>
+      data-tip="Snap to the grid"><SpIcon name="magnet" /><span>Snap</span></button>
   );
   const stepper = (name: string, value: number, set: (n: number) => void) => (
     <span className="sp-field"><span className="sp-label">{name}</span>
@@ -774,31 +774,31 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
             {([["Lines", "lines"], ["Tracks", "tracks"], ["Hexagons", "hex"], ["Dots", "dots"]] as const).map(([name, look]) => <button key={name} type="button" className="sp-btn sp-text-btn" aria-pressed={m.lookOf(g) === look}
               onClick={() => edit((dd) => (dd.grid ? m.setGrid(dd, m.setLook(dd.grid, look)) : dd))}>{name}</button>)}
           </span>
-        )) : <p className="sp-pal-note">{typeName} is played {LOOK_WORDS[kit.look]}: the type sets the look.</p>}
-        <button type="button" className="sp-btn sp-text-btn" onClick={() => edit(m.removeGrid)} data-tip="Take the grid away (what's drawn stays)">Remove grid</button>
+        )) : <p className="sp-pal-note">{typeName} is played {LOOK_WORDS[kit.look]}.</p>}
+        <button type="button" className="sp-btn sp-text-btn" onClick={() => edit(m.removeGrid)} data-tip="Remove the grid. Your drawing stays.">Remove grid</button>
       </> : <>
         <p className="sp-pal-note">Drag a rectangle on the paper, or start with one.</p>
-        <button type="button" className="sp-btn sp-text-btn" onClick={addGrid} data-tip="A 6 × 6 grid in the middle of the view (or drag one out)">Add a grid</button>
+        <button type="button" className="sp-btn sp-text-btn" onClick={addGrid} data-tip="Add a 6 × 6 grid">Add a grid</button>
       </>;
       case "pen": return <>{row("Weight", weights)}
-        <button type="button" className="sp-btn sp-toggle" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (or hold Shift)">
+        <button type="button" className="sp-btn sp-toggle" aria-pressed={straight} onClick={() => setStraight(!straight)} data-tip="Straight lines (Shift)">
           <SpIcon name="straight" /><span>Straight</span></button></>;
       case "line": return row("Weight", weights);
       case "region": return <>
-        <button type="button" className="sp-btn sp-toggle" aria-pressed={newArea} onClick={() => setNewArea(!newArea)} data-tip="The squares you drag make an area of their own">
+        <button type="button" className="sp-btn sp-toggle" aria-pressed={newArea} onClick={() => setNewArea(!newArea)} data-tip="Drag to make a new area">
           <SpIcon name="region" /><span>New area</span></button>
-        <p className="sp-pal-note">{newArea ? "Drag across squares: they make a new area." : "Drag from a square across others: they join its area."} The borders are drawn for you.</p>
+        <p className="sp-pal-note">{newArea ? "Drag across squares to make a new area." : "Drag from a square across others to join its area."}</p>
       </>;
       case "wash": return row(<>Colour · {capital(colour)}</>, swatches("Wash colour"));
       case "text": return row("Size", (
         <span className="sp-seg" role="group" aria-label="Text size">
-          <button type="button" className="sp-btn" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal: a clue in a square">Normal</button>
+          <button type="button" className="sp-btn" aria-pressed={!small} onClick={() => setSmall(false)} data-tip="Normal, for squares">Normal</button>
           <button type="button" className="sp-btn sp-small-btn" aria-pressed={small} onClick={() => setSmall(true)}
-            data-tip="Small: on a corner, a line, or a square's side or corner">Small</button>
+            data-tip="Small, for corners and lines">Small</button>
         </span>
       ));
       case "stamp": return <>
-        {!stamps.length ? <p className="sp-pal-note">{typeName} has no stamps: its clues are {own("text") ? "written with Text" : "drawn with the pen"}.</p>
+        {!stamps.length ? <p className="sp-pal-note">{typeName} has no stamps. {own("text") ? "Use Text" : "Use the pen"}.</p>
           : row(kit ? `${typeName}'s ${stamps.length === 1 ? "stamp" : "stamps"}` : "Stamps", (
             <div className="sp-stamps" role="group" aria-label="Stamps" data-tip-side="top">
               {stamps.map((st) => <button key={st.id} type="button" className={`sp-stamp${ownStamp(st.id) ? "" : " sp-off"}`} aria-label={st.label}
@@ -814,7 +814,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
           </span>
         ))}
         {stampKind === "stone" && (
-          <button type="button" className="sp-btn sp-toggle" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted (a dashed outline)">
+          <button type="button" className="sp-btn sp-toggle" aria-pressed={hidden} onClick={() => setHidden(!hidden)} data-tip="Hidden until painted">
             <StampIcon s={{ stamp: "stone", color: colors.stone, hidden: true }} /><span>Hidden</span></button>
         )}
         {stampKind === "inequality" && row("Points", (
@@ -829,10 +829,10 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
               {[0, 1, 2, 3, 4].map((n) => <button key={n} type="button" className="sp-btn sp-num" aria-pressed={sides === n} onClick={() => setSides(n)}>{n}</button>)}
             </span>
           ))}
-          {sides === 2 && <button type="button" className="sp-btn sp-toggle" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="The two borders opposite, not at a corner">
+          {sides === 2 && <button type="button" className="sp-btn sp-toggle" aria-pressed={opposite} onClick={() => setOpposite(!opposite)} data-tip="Borders on opposite sides">
             <StampIcon s={{ stamp: "palisade", count: 2, opposite: true }} /><span>Opposite</span></button>}
         </>}
-        {stampKind === "thermo" && <p className="sp-pal-note">Drag from the bulb through the squares; tap a bulb to take its thermometer off.</p>}
+        {stampKind === "thermo" && <p className="sp-pal-note">Drag from the bulb through the squares. Tap a bulb to remove it.</p>}
         {stampKind === "shape" && row("Shape", <>
           <span className="sp-shapes" role="group" aria-label="Shape">
             {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}
@@ -842,11 +842,11 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
             <ShapePad cells={pad} color={paint(colors.shape ?? "yellow")} onChange={setPad} />
             <span className="sp-seg" role="group" aria-label="Turn or flip">
               <IconButton icon="rotate" label="Turn the shape" tip="Turn a quarter turn" onClick={() => setPad(m.turnCells(pad))} />
-              <IconButton icon="flip" label="Flip the shape" tip="Flip (its mirror image)" onClick={() => setPad(m.flipCells(pad))} />
+              <IconButton icon="flip" label="Flip the shape" tip="Flip" onClick={() => setPad(m.flipCells(pad))} />
             </span>
           </span>
           <span className="sp-pal-inline">
-            <button type="button" className="sp-btn sp-toggle" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape, outlined">
+            <button type="button" className="sp-btn sp-toggle" aria-pressed={hollow} onClick={() => setHollow(!hollow)} data-tip="Hollow: a negative shape">
               <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, hollow: true }} /><span>Hollow</span></button>
             <button type="button" className="sp-btn sp-toggle" aria-pressed={mayTurn} onClick={() => setMayTurn(!mayTurn)} data-tip="May turn: drawn tilted">
               <StampIcon s={{ stamp: "shape", cells: [[0, 0], [0, 1], [1, 0]], color: colors.shape, rotate: true }} /><span>May turn</span></button>
@@ -854,11 +854,11 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
         </>)}
         {forStamp && row(<>Colour · {capital(colour)}</>, swatches(colourFor))}
       </>;
-      case "erase": return <p className="sp-pal-note">{toolHint}.</p>;
+      case "erase": return <p className="sp-pal-note">{toolHint}</p>;
     }
   })();
   const offNote = kit && !own(tool)
-    ? <p className="sp-pal-note sp-pal-off">{typeName} doesn&rsquo;t use the {toolLabel.toLowerCase()}: what you draw is decoration, flagged and left out of the puzzle.</p> : null;
+    ? <p className="sp-pal-note sp-pal-off">{typeName} doesn&rsquo;t use the {toolLabel.toLowerCase()}. It&rsquo;s left out of the puzzle.</p> : null;
   // undo, redo and … (Clear, Download): in the page's header; on a phone, in the palette's strip
   const docActions = (where: "head" | "strip") => (
     <span className="sp-doc">
@@ -870,7 +870,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
           <span ref={menuRef} className="sp-menu" role="menu" aria-label="More" popover="manual">
             <button type="button" role="menuitem" disabled={!history.now.items.length && !history.now.grid}
               onClick={async () => {
-                const ask = confirm({ title: "Clear the page?", body: <p>Everything on it goes. Undo brings it back.</p>, action: "Clear", danger: true });
+                const ask = confirm({ title: "Clear the page?", body: <p>You can undo this.</p>, action: "Clear", danger: true });
                 setMenu(null);
                 if (await ask) { setTyping(null); edit(m.clear); }
               }}><SpIcon name="clear" />Clear the page</button>
@@ -896,7 +896,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
             onClick={() => { setTool(x.id); setTyping(null); }}><SpIcon name={x.id} /></button>
         </Fragment>)}
         {kit && <button type="button" className="sp-btn sp-all" aria-pressed={everything} onClick={() => setEverything(!everything)}
-          data-tip={everything ? `Only ${typeName}'s tools` : "Every tool, for decoration or drawing ahead: what the type can't use is flagged"}>
+          data-tip={everything ? `Only ${typeName}'s tools` : "Show every tool"}>
           <span aria-hidden="true">⋯</span><span>{everything ? "Fewer" : "All tools"}</span></button>}
       </div>
 

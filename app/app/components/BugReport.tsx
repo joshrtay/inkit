@@ -133,14 +133,14 @@ function BugReportDialog({ opener, onClose }: { opener: Opener; onClose: () => v
             <input type="checkbox" checked={withReplay && canRecord} disabled={!canRecord} onChange={(e) => setWithReplay(e.target.checked)} />
             <span>Include a recording of the last 2 minutes
               <small>{canRecord
-                ? "A replay of this page as you used it: clicks, scrolling and what was on screen. Anything you typed is hidden."
-                : "No recording: it's turned off in Settings, or the page has only just opened."}</small></span>
+                ? "Clicks, scrolling and the screen. What you typed is hidden."
+                : "No recording yet, or it's off in Settings."}</small></span>
           </label>
           <label className="bug-check">
             <input type="checkbox" checked={withShot} onChange={(e) => setWithShot(e.target.checked)} />
-            <span>Include a screenshot<small>A picture of the page as it is now.</small></span>
+            <span>Include a screenshot</span>
           </label>
-          <p className="bug-note">We also send the page&rsquo;s address, the puzzle you&rsquo;re on, your browser and screen size, and recent errors. Only the inkit team sees your report.</p>
+          <p className="bug-note">We also send the page address, your browser and screen size, and recent errors. Only the inkit team sees it.</p>
           {error && <p className="error" role="alert">{error}</p>}
           <div className="confirm-acts">
             <button type="button" className="btn" onClick={onClose}>Cancel</button>

@@ -86,7 +86,7 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
   return (
     <main className="wrap new-start">
       <h1>New puzzle</h1>
-      <p className="lede muted">Either way you finish it in paint. Check it there whenever you like: it needs exactly one solution (panels: at least one) before it can be published.</p>
+      <p className="lede muted">Either way, you finish it in paint.</p>
       <div className="new-ways-cards">
         <section className="new-way">
           <div className="new-way-art photo" aria-hidden="true">
@@ -94,7 +94,7 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
           </div>
           <div className="new-way-body">
             <h2><Icon d={["M4 8h3l2-3h6l2 3h3v11H4z", "M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"]} />Start from a sketch</h2>
-            <p>Take or choose a photo of a puzzle you drew on paper. Claude reads it and redraws it here in ink, and marks anything it wasn&rsquo;t sure of.</p>
+            <p>Take a photo of a puzzle you drew. Claude redraws it in ink.</p>
             {error && <p className="error" role="alert">{error} <span className="muted">Try another photo, or start blank and draw it.</span></p>}
             <label className={`btn primary${busy || !collection ? " disabled" : ""}`}>
               {error ? "Try another photo" : "Choose a photo"}
@@ -107,7 +107,7 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
           <div className="new-way-art" aria-hidden="true"><span className="new-blank">an empty page</span></div>
           <div className="new-way-body">
             <h2><Icon d={["M4 20h4L19 9l-4-4L4 16z", "m13.5 6.5 4 4"]} />Start blank</h2>
-            <p>An empty page with the grid, pen, stamps and text. Choose the puzzle type in paint when you know it; from then on paint shows only what that type needs.</p>
+            <p>Draw it from scratch.</p>
             <Form method="post">
               <input type="hidden" name="collection" value={collection ?? ""} />
               <button className="btn" name="intent" value="blank" disabled={busy || !collection}>Open an empty page</button>

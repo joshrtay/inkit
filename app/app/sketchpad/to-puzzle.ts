@@ -99,7 +99,7 @@ export const PROFILES: Record<GenreName, Profile | null> = {
   // RYB is a figure of pieces, not a grid: it stays on the figure editor until paint can draw it
   coats: null,
   panel: { reads: ["start", "end", "hexagon", "gap", "square", "star", "triangle", "shape", "eraser"], look: "tracks",
-    lines: "The player draws the line: break a track with the eraser instead" },
+    lines: "Players draw the line. Break a track with the eraser." },
   panes: { reads: ["block", "number", "symbol", "compass", "palisade", "wall", "twins", "opposites", "inequality", "difference", "watchtower", "shape", "bank"] },
   "binary-puzzle": { reads: ["color"] },
   "abstract-art": { reads: ["color"] },
@@ -359,7 +359,7 @@ function cellTexts(cx: Ctx, accept: (t: Text) => boolean) {
     if (at && accept(t)) by.set(`${at}`, [...(by.get(`${at}`) ?? []), t]);
   }
   return [...by.values()].map((ts) => {
-    if (ts.length > 1) cx.problem("ambiguous", "Two things written in one square: only the last one counts", ts.map((t) => t.id), [cx.gridCell(ts[0].at)!]);
+    if (ts.length > 1) cx.problem("ambiguous", "Two things in one square. Only the last counts", ts.map((t) => t.id), [cx.gridCell(ts[0].at)!]);
     for (const t of ts.slice(0, -1)) cx.take(t.id);
     return { t: ts[ts.length - 1], cell: cx.gridCell(ts[0].at)! };
   });
@@ -536,7 +536,7 @@ export const READERS: Record<Part, Reader | null> = {
       const first = bulbAt(part.cells[0]), last = bulbAt(part.cells[part.cells.length - 1]);
       const cells = !first && last ? [...part.cells].reverse() : part.cells;
       cx.claim(s, part);
-      if (!!first === !!last) cx.problem("ambiguous", first ? "A bulb at both ends: which end is the bulb?" : "Which end is the bulb? Stamp a stone on it", [s.id], cells);
+      if (!!first === !!last) cx.problem("ambiguous", first ? "Bulbs at both ends" : "Which end is the bulb? Stamp a stone on it", [s.id], cells);
       const bulb = first ?? last;
       if (bulb) cx.take(bulb.s.id);
       cx.give({ at: "cells", cells, kind: "thermo" }, s.id);
@@ -631,7 +631,7 @@ export const READERS: Record<Part, Reader | null> = {
     }
     if (n < 2) return;
     const names = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    if (n > names.length) { cx.problem("ambiguous", `${n} areas: more than a puzzle can have`, found.map((f) => f.s.id)); return; }
+    if (n > names.length) { cx.problem("ambiguous", `Too many areas (${n})`, found.map((f) => f.s.id)); return; }
     cx.areas = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => names[of[r * cols + c]]).join(""));
   },
   // a fill-in's list, under the grid
@@ -660,7 +660,7 @@ export const READERS: Record<Part, Reader | null> = {
     for (const { s, part } of cx.parts("edges", (s) => s.weight === "medium")) {
       cx.claim(s, part);
       const off = part.edges.filter((e) => cx.interior(e) && (!box || (e.side === "top" ? e.r % box[0] : e.c % box[1])));
-      if (off.length) cx.problem("ambiguous", box ? `Not a box line: the boxes are ${box[0]} × ${box[1]} (set in Rules)` : `A ${cx.rows} × ${cx.cols} grid has no boxes`, [s.id], off.map((e) => cx.edgeCells(e)[1]));
+      if (off.length) cx.problem("ambiguous", box ? `Not a box line. Boxes are ${box[0]} × ${box[1]}` : `A ${cx.rows} × ${cx.cols} grid has no boxes`, [s.id], off.map((e) => cx.edgeCells(e)[1]));
     }
   },
   // a nonogram's heavier line every 5 squares: the type's own, so nothing to read
@@ -753,7 +753,7 @@ export function ruleHints(p: Puzzle): { text: string; cells: number[]; rule?: st
   }
   for (const i of big) {
     const gv = p.cellGivens.get(i)!.find((x) => x.kind === "number") as Extract<Given, { kind: "number" }>;
-    out.push({ text: `${gv.value} is too big: the numbers here run 1 to ${p.digits}`, cells: [i] });
+    out.push({ text: `${gv.value} is too big. Use 1 to ${p.digits}`, cells: [i] });
   }
   /** "Two 5s in row 6": a group of repeated clues, by digit */
   const repeats = (cells: number[], where: string) => {

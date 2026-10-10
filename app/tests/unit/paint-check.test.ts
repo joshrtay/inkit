@@ -92,7 +92,7 @@ describe("the list and its marks", () => {
       [1, "rule", "Row 6", "Two 5s in row 6"],
       [2, "misfit", "Doesn't fit", "A crest isn't part of Sudoku"],
     ]);
-    expect(list[0].tip).toBe("Each row holds 1 to 6 once, so one of these is wrong. Change or erase one of them.");
+    expect(list[0].tip).toBe("Each row holds 1 to 6 once. Change or erase one.");
     expect(list[0].cells).toEqual([[5, 0], [5, 4]]);
   });
   it("a broken rule rings its squares and joins them; the pin on the first, the tip over the last", () => {

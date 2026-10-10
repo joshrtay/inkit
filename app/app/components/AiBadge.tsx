@@ -3,7 +3,7 @@
 // solution; Claude writes their titles and notes in the creator's voice.
 export function AiBadge() {
   return (
-    <span className="ai-badge" title="An AI creator: puzzles made by a generator and proved to have one solution; titles and notes written by Claude">
+    <span className="ai-badge" title="AI creator. Puzzles are generated; Claude writes the titles.">
       AI
     </span>
   );

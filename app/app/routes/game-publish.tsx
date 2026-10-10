@@ -103,7 +103,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
   const failed = !ok && check.state !== "checking";
   const warn = [
     d.warnings.doubts ? `${d.warnings.doubts} of Claude's doubts not checked` : "",
-    d.warnings.misfits ? `${d.warnings.misfits} thing${d.warnings.misfits === 1 ? "" : "s"} left out (they don't fit)` : "",
+    d.warnings.misfits ? `${d.warnings.misfits} thing${d.warnings.misfits === 1 ? "" : "s"} left out` : "",
   ].filter(Boolean);
   const saveState = details.state !== "idle" || pending ? "Saving…" : details.data?.error ? "Couldn't save" : "Saved";
 
@@ -123,7 +123,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.7 18.5z" /><path d="M13.8 7l3.2 3.2" /></svg>
             <span>Back to paint</span></Link>
           <button type="button" className="btn primary paint-publish" disabled={!ok || busy} onClick={publish}
-            title={ok ? "Publish it: everyone can play it; once published, it can't be changed" : check.state === "checking" ? "The solver is checking it" : "It needs to pass the check in paint first"}>
+            title={ok ? "Publish it. It can't be changed after." : check.state === "checking" ? "Checking…" : "Fix it in paint first"}>
             {busy ? "Publishing…" : "Publish"}</button>
         </div>
       </header>

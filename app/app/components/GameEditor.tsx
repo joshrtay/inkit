@@ -115,7 +115,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, backT
     if (!drawing) return false;
     const ok = await confirm({
       title: `Read your drawing again as ${kindName(kind)}?`,
-      body: <p>Claude looks at it again, told which type it is. This takes up to a minute and replaces the puzzle here.</p>,
+      body: <p>Claude reads it again as this type. It takes up to a minute and replaces the puzzle here.</p>,
       action: "Read it again",
     });
     if (ok) reader.submit({ intent: "reread", kind }, { method: "post" });
@@ -226,7 +226,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, backT
                 <input type="hidden" name="title" value={title.trim()} />
                 <input type="hidden" name="description" value={description} />
                 <p className="publish-what"><strong>{title.trim() || "Untitled"}</strong>{description && <span className="muted">{description}</span>}</p>
-                {!title.trim() && <p className="error">Give it a title first (at the top of the page).</p>}
+                {!title.trim() && <p className="error">Give it a title first.</p>}
                 {!passed(check.state) && <p className="error">{check.state === "checking" ? "Still checking its solutions…" : `It needs ${needsOneSolution(loose?.genre) ? "exactly one solution" : "a solution"} first (${check.state === "broken" ? check.text : check.text.toLowerCase()}).`}</p>}
                 <p className="muted">Once it&rsquo;s published, it can&rsquo;t be changed.</p>
                 {open > 0 && <p className="muted">{open === 1 ? "One of Claude's doubts isn't" : `${open} of Claude's doubts aren't`} checked yet.</p>}
@@ -252,7 +252,7 @@ function TellClaude({ reader }: { reader: ReturnType<typeof useFetcher<{ error?:
       <label>What&rsquo;s wrong?
         <textarea name="feedback" rows={3} required maxLength={2000} autoFocus placeholder={'"It\'s 6 rows, not 5"'} />
       </label>
-      <span className="hint">Claude reads your drawing again with this. It replaces the puzzle here.</span>
+      <span className="hint">Claude reads the drawing again. This replaces the puzzle here.</span>
       <div className="editor-actions">
         <button className="btn primary" name="intent" value="reread">Read it again</button>
         <button className="link" type="button" onClick={() => setOpen(false)}>Cancel</button>

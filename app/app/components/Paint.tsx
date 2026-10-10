@@ -334,7 +334,7 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
     <section className="paint-photo" aria-label="Your photo">
       <div className="paint-photo-card">
         <a href={photo.src} target="_blank" rel="noreferrer" className="paint-photo-img"><img src={photo.src} alt="Your photo of the puzzle" /></a>
-        <span><b>From your photo</b><span className="muted">{photo.readAs ? `Claude read it as ${kindName(photo.readAs)}` : "Claude read it"}{g ? `, ${g.rows} × ${g.cols}` : ""}. Check what it wasn&rsquo;t sure of against the paper.</span></span>
+        <span><b>From your photo</b><span className="muted">{photo.readAs ? `Claude read it as ${kindName(photo.readAs)}` : "Claude read it"}{g ? `, ${g.rows} × ${g.cols}` : ""}.</span></span>
       </div>
       <h3 className="paint-h3">To check<span>{doubts.length ? `${doubts.length - openDoubts} of ${doubts.length} checked` : "nothing"}</span></h3>
       {doubts.length ? (
@@ -345,7 +345,7 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
               <span className="paint-n" aria-hidden="true">{letter(i)}</span>
               <span className="paint-text">{x.text}<small>{doubtPlace(x) || "The whole puzzle"}</small></span>
             </button>
-            <label className="paint-tick" title="Checked: it matches your drawing"><input type="checkbox" checked={done[i]} onChange={(e) => tick(i, e.target.checked)} /><span className="visually-hidden">Checked</span></label>
+            <label className="paint-tick" title="Matches your drawing"><input type="checkbox" checked={done[i]} onChange={(e) => tick(i, e.target.checked)} /><span className="visually-hidden">Checked</span></label>
           </li>
         ))}</ol>
       ) : <p className="paint-quiet">Claude read everything clearly.</p>}
@@ -377,16 +377,16 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
         {solution && (
           <section className="paint-sol" aria-label="A solution">
             <h3 className="paint-h3">{verdict.kind === "one" ? "The solution" : "A solution"}</h3>
-            <div className="grid-game paint-solution" tabIndex={0} aria-label="Point at it to draw it on the board"
+            <div className="grid-game paint-solution" tabIndex={0} aria-label="Solution. Point at it to show it on the board"
               onPointerEnter={() => setOnBoard(true)} onPointerLeave={() => setOnBoard(false)} onFocus={() => setOnBoard(true)} onBlur={() => setOnBoard(false)}
               onClick={() => setOnBoard((v) => !v)} dangerouslySetInnerHTML={{ __html: solution }} />
-            <p className="paint-quiet">Pointing at it draws it on the board.</p>
+            <p className="paint-quiet">Point at it to see it on the board.</p>
           </section>
         )}
         <MoreSettings genre={genre} settings={settings} size={size} onChange={setSettings} admin={admin} />
         <footer className="paint-foot">
           <button type="button" className="paint-link" onClick={() => { setAbout(genre); openDrawer("types"); }}><SpIcon name="guide" />More about {typeName}</button>
-          <span className="muted">{size ? `Size ${size[0]} × ${size[1]}, from the grid` : "Draw a grid"}</span>
+          <span className="muted">{size ? `Size ${size[0]} × ${size[1]}` : "Draw a grid"}</span>
         </footer>
       </>}
     </div>
@@ -395,7 +395,7 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
     <div className="paint-reminder" role="alert" aria-labelledby="paint-reminder-h">
       <span className="paint-reminder-ic" aria-hidden="true">!</span>
       <span><strong id="paint-reminder-h">Choose a type first</strong>
-        <span>Check and Publish need to know what kind of puzzle this is: its rules decide what counts as a solution.</span>
+        <span>Check and Publish need a puzzle type.</span>
         <button type="button" className="btn" onClick={() => setAsk((n) => n + 1)}>What type is this?</button></span>
     </div>
   );
@@ -462,10 +462,10 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
         <div className="studio-actions">
           <span ref={setSlot} className="sp-doc-slot" />
           <button type="button" className={`paint-verdict-btn ${tone}`} aria-disabled={!genre || undefined} aria-pressed={drawer.open && drawer.tab === "puzzle"} onClick={check}
-            data-verdict={verdict.kind} title={genre ? "This puzzle: its rules, and whether it has one solution" : "Choose a type first"}>
+            data-verdict={verdict.kind} title={genre ? "Rules and solutions" : "Choose a type first"}>
             <span className="paint-verdict-mark" aria-hidden="true">{mark || "✓"}</span>{words.text}</button>
           <button type="button" className="btn primary paint-publish" aria-disabled={!genre || (checked && !passes(verdict)) || undefined} aria-busy={publishing || publishOnceChecked || undefined} onClick={publish}
-            title={!genre ? "Choose a type first" : !checked ? "Checks it, then on to name it, play it and publish it" : passes(verdict) ? "Name it, play it, and publish it" : "Publishing needs the verdict to pass"}>Publish</button>
+            title={!genre ? "Choose a type first" : !checked ? "Check it, then publish" : passes(verdict) ? "Name, try and publish it" : "Fix it first"}>Publish</button>
         </div>
       </header>
       {ready && (
@@ -508,7 +508,7 @@ function TellClaude({ reader, onSend }: { reader: ReturnType<typeof useFetcher<{
       {given && <input type="hidden" name="given-reading" value={given} />}
       <label><span className="paint-label">What&rsquo;s wrong?</span>
         <textarea name="feedback" rows={3} required maxLength={2000} autoFocus placeholder={'"It\'s 6 rows, not 5"'} /></label>
-      <span className="paint-quiet">Claude reads your photo again with this. Its reading replaces the drawing here.</span>
+      <span className="paint-quiet">Claude reads the photo again. This replaces your drawing.</span>
       <span className="paint-tell-acts">
         <button className="btn primary" name="intent" value="reread">Read it again</button>
         <button className="btn" type="button" onClick={() => setOpen(false)}>Cancel</button>
