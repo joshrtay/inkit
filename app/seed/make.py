@@ -4,7 +4,7 @@
 
 Wyatt (no password, so this account can't sign in), his personal collection, and every grid
 puzzle from the current site (../src/games), as sketches. Number Line Mazes and Three Coats
-levels are converted to the engine's maze and coats genres. A few go on the Featured shelf.
+levels are converted to the engine's maze and coats genres.
 Also the AI creators (app/ai/personas.ts, read with Node): their accounts and collections,
 the same rows the site's ensurePersona makes (app/lib/ai.server.ts).
 """
@@ -20,7 +20,6 @@ GENRES = {"number-line-maze": "maze", "three-coats": "coats", "round-the-bend": 
           "hidoku": "hidoku", "honeycomb-paths": "honeycomb-paths", "hive": "hive", "pythagorean-paths": "pythagorean-paths",
           "fillomino": "fillomino", "sum-blobs": "sum-blobs", "polyomino-packing": "polyomino-packing",
           "connect-the-critters": "connect-the-critters", "find-the-cut-line": "find-the-cut-line", "twins-and-triplets": "twins-and-triplets"}
-FEATURED = ["simple-loop-5", "panes-1", "sudoku-1", "nonogram-2"]
 
 q = lambda s: "'" + s.replace("'", "''") + "'"
 out = [
@@ -106,7 +105,5 @@ for genre, n, name, body in instances():
     gid, stamp = f"{genre}-{n}", stamp + 1
     out.append("INSERT OR IGNORE INTO games (id, collection_id, author_id, title, sketch, kind, state, published_at) VALUES "
                f"({q(gid)}, 'c-wyatt', 'wyatt', {q(name)}, {q(sketch)}, {q(genre)}, 'published', (unixepoch() * 1000) + {stamp});")
-out.append("INSERT OR IGNORE INTO featured (game_id, position, featured_by) VALUES "
-           + ", ".join(f"({q(g)}, {i}, 'wyatt')" for i, g in enumerate(FEATURED)) + ";")
 (Path(__file__).parent / "dev.sql").write_text("\n".join(out) + "\n")
 print(f"{stamp} games")

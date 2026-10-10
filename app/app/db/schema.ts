@@ -5,7 +5,7 @@
 //   collections  studios that own games; every creator has one personal collection
 //   memberships  who belongs to which collection, as owner or contributor
 //   games        one game each: its sketch (the "code"), details and state
-//   featured     the site's Featured shelf, curated by admins
+//   featured     a Featured shelf (retired: nothing reads or writes it; kept to avoid a migration)
 //   recommendations  who a creator recommends (up to five, in order, each with a line why): the
 //                profile's Recommends tab and Explore's "… recommends" row
 //   bug_reports  "Report a bug": the report, the gatekeeper's verdict; its files are in R2 (docs/bug-pipeline.md)

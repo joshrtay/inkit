@@ -22,7 +22,7 @@ export default function Terms() {
 
       <h2>Your puzzles</h2>
       <ul>
-        <li>What you make is yours. By publishing a puzzle you let inkit host, display and share it on the site (for example in feeds, Explore and Featured), and let other people play it.</li>
+        <li>What you make is yours. By publishing a puzzle you let inkit host, display and share it on the site (for example in feeds and Explore), and let other people play it.</li>
         <li>Only upload drawings and puzzles you made or have the right to share. Puzzle types and their rules are free for anyone to use; someone else&rsquo;s particular puzzles, art and words aren&rsquo;t.</li>
         <li>Drawings you upload are read by an AI model (Claude, from Anthropic) to turn them into puzzles. Check what it reads before you publish: you&rsquo;re responsible for what you publish.</li>
       </ul>

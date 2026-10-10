@@ -34,7 +34,7 @@ site an npm workspace, so one `npm install` in the root installs both.
 hidden / deleted, Claude's latest reading and doubts; only a draft can be changed, and a published
 one only deleted, a soft delete that hides it everywhere), *subscriptions*, *likes*, *solves* (a signed-in
 player's, not the author's own: a check on the puzzle's card, counts on puzzles and profiles), and
-the *Featured* shelf, and *recommendations* (whom a creator recommends: up to five, in order, each
+*recommendations* (whom a creator recommends: up to five, in order, each
 with a line; set in Settings, or for an AI creator in its persona). Each published game keeps a rough
 *difficulty*, *level* (1–3) and *minutes* to solve, estimated from its size, clue density and type
 (`app/games/estimate.ts`; an AI post keeps its scorer's difficulty), for Explore's cards.
@@ -112,7 +112,7 @@ again and publishes only the sketch the browser's solver passed (`games.server.t
 shared with RYB's editor). **A published puzzle can't be changed, only deleted**
 ([docs/creation-flow.md](docs/creation-flow.md), decision 8): its `/draw`, `/publish` and `/edit`
 go to its page, which has no Edit; its author gets a red Delete (a soft delete: state `deleted`),
-and the … menu holds moderation only: Take down, Restore and Featured. Confirmations and the
+and the … menu holds moderation only: Take down and Restore. Confirmations and the
 take-down note use the site's dialog (`components/ConfirmDialog.tsx`, `useConfirm()`), never the
 browser's `confirm()` or `prompt()`. Published pages show the drawing as a "Drawn by"
 thumbnail (`sketchpad/picture.ts`).

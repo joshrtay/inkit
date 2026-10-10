@@ -6,7 +6,7 @@
 //  - A collection always keeps at least one owner; the last owner can't leave without handing it on.
 //  - A personal collection can't be deleted and has no other members.
 //  - When someone leaves, they lose edit access, but their games stay with the collection and keep their credit.
-//  - Admins can hide any game, and put any game on the Featured shelf.
+//  - Admins can hide any game.
 //  - A published puzzle can't be changed, only deleted (docs/creation-flow.md, decision 8): only a
 //    draft is edited. Its author (or an admin) can delete it; deleting is for good, and a deleted
 //    game is gone for everyone (a soft delete: the row stays, so its solves and likes break nothing).

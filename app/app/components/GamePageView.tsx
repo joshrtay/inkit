@@ -30,8 +30,8 @@ export interface GamePageProps {
   editTo?: string | null;
   /** its author (or an admin) can delete it: a red Delete, after the confirm dialog */
   canDelete?: boolean;
-  /** the … menu: moderation (take down, restore, Featured), for owners and admins */
-  manage?: { takeDown: boolean; restore: boolean; feature: boolean; featured: boolean };
+  /** the … menu: moderation (take down, restore), for owners and admins */
+  manage?: { takeDown: boolean; restore: boolean };
   /** the … menu's last action went wrong */
   error?: string;
   /** the creator's drawing (paint's, as drawn: sketchpad/picture.ts) */
@@ -135,7 +135,7 @@ function DeleteButton({ title, published, solves, likes }: { title: string; publ
 }
 
 /** The game's … menu, moderation only: take down (a collection's owners and admins, with a note its
- *  author sees, asked for in the confirm dialog), restore, and the Featured shelf (admins). Shown
+ *  author sees, asked for in the confirm dialog), and restore. Shown
  *  only with something in it. */
 function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }) {
   const [open, setOpen] = useState(false);
@@ -147,7 +147,7 @@ function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }
     addEventListener("pointerdown", away);
     return () => removeEventListener("pointerdown", away);
   }, [open]);
-  if (!manage.takeDown && !manage.restore && !manage.feature) return null;
+  if (!manage.takeDown && !manage.restore) return null;
   const takeDown = async () => {
     const note = await ask({
       title: "Take this puzzle down?",
@@ -166,7 +166,6 @@ function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }
         <div className="menu" role="menu">
           {manage.takeDown && <button type="button" role="menuitem" onClick={() => void takeDown()}>Take down…</button>}
           {manage.restore && <Form method="post"><button role="menuitem" name="intent" value="unhide">Restore</button></Form>}
-          {manage.feature && <Form method="post"><button role="menuitem" name="intent" value={manage.featured ? "unfeature" : "feature"}>{manage.featured ? "Remove from Featured" : "Add to Featured"}</button></Form>}
         </div>
       )}
     </div>

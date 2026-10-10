@@ -14,11 +14,11 @@ import { GamePageView } from "~/components/GamePageView";
 import { readPaintSave } from "~/games/paint-save";
 import { drawingSvg } from "~/sketchpad/picture";
 import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
-import { changeGame, isFeatured } from "~/lib/games.server";
+import { changeGame } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 
 /** The game's … menu (take down, restore, feature: moderation) and Delete; changeGame checks who may. */
-const MANAGE = new Set(["hide", "unhide", "feature", "unfeature", "delete"]);
+const MANAGE = new Set(["hide", "unhide", "delete"]);
 export async function action({ params, request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const me = await currentCreator(env, request);
@@ -73,8 +73,6 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     manage: {
       takeDown: canHide(viewer, role) && game.authorId !== viewer?.id && game.state === "published",
       restore: canHide(viewer, role) && game.state === "hidden",
-      feature: !!viewer?.isAdmin && game.state === "published",
-      featured: await isFeatured(db, game.id),
     },
     likes: await likesOf(db, game.id, viewer?.id),
     solves: await solvesOf(db, game.id, viewer?.id),

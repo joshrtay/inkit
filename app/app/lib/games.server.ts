@@ -135,15 +135,6 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
       await set({ state: game.publishedAt ? "published" : "draft", hiddenNote: null, hiddenBy: null });
       return;
     }
-    case "feature":
-    case "unfeature": {
-      if (!me.isAdmin) throw new Forbidden("Only admins curate the Featured shelf.");
-      if (intent === "unfeature") { await db.delete(schema.featured).where(eq(schema.featured.gameId, game.id)); return; }
-      if (game.state !== "published") throw new Invalid("Only published games can be featured.");
-      const shelf = await db.query.featured.findMany();
-      await db.insert(schema.featured).values({ gameId: game.id, position: shelf.length, featuredBy: me.id }).onConflictDoNothing();
-      return;
-    }
     default:
       throw new Invalid("Unknown action.");
   }
@@ -152,15 +143,14 @@ export async function changeGame(db: Db, me: Creator, game: Game, form: FormData
 /** Delete a game (its author while a member, or an admin): for good, as far as anyone can tell. A
  *  soft delete: the row stays (state "deleted"), so the solves and likes that point at it break
  *  nothing, but every page treats it as gone (lists show only published games; its page says it
- *  was deleted). Nobody can undo it from the site. It comes off the Featured shelf. */
+ *  was deleted). Nobody can undo it from the site. */
 export async function deleteGame(db: Db, me: Creator, game: Game, role: Awaited<ReturnType<typeof roleIn>>) {
   if (!canDelete(game, me, role)) throw new Forbidden("Only its author can delete this puzzle.");
   await db.update(schema.games).set({ state: "deleted", publishAt: null, updatedAt: new Date() }).where(eq(schema.games.id, game.id));
   await db.delete(schema.featured).where(eq(schema.featured.gameId, game.id));
 }
 
-export const isFeatured = async (db: Db, gameId: string) =>
-  !!(await db.query.featured.findFirst({ where: eq(schema.featured.gameId, gameId) }));
+
 
 // ---- games made from a hand-drawn sketch ----
 
