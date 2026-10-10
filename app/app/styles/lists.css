@@ -21,6 +21,7 @@
 .feed-page { max-width: 760px; }
 .feed { list-style: none; margin: 0; padding: 0; display: grid; }
 .feed-item { border-bottom: 1px solid var(--line); }
+.feed-more { min-height: 48px; padding: 16px 4px; text-align: center; font-size: 14px; }
 .feed-link { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 24px; align-items: center; padding: 22px 4px; color: inherit; text-decoration: none; }
 .wrap .feed-link { color: inherit; }
 .feed-text { display: grid; gap: 6px; }

@@ -16,6 +16,7 @@ export default [
   route("new", "routes/new.tsx"),
   route("new/draw", "routes/new-draw.tsx"),   // gone: redirects to /new
   route("studios/new", "routes/studio-new.tsx"),
+  route("feed", "routes/feed.ts"),
   route("explore", "routes/explore.tsx"),
   // a puzzle type's puzzles (New / Top, by difficulty), or every type's ("all": the quick chips)
   route("explore/:kind", "routes/explore-type.tsx"),

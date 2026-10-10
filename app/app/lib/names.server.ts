@@ -6,7 +6,7 @@ import { schema, type Db } from "../db";
 /** Paths the site itself uses; no handle or collection may take them. */
 const RESERVED = new Set([
   "g", "api", "app", "admin", "new", "edit", "settings", "signin", "signup", "signout", "login", "logout",
-  "account", "about", "help", "featured", "explore", "search", "studios", "studio", "collections", "games",
+  "account", "about", "help", "featured", "explore", "feed", "search", "studios", "studio", "collections", "games",
   "assets", "static", "public", "www", "wyattsgames", "puzzles", "rules", "guide", "guides", "privacy", "terms", "legal",
 ]);
 

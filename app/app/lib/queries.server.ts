@@ -1,5 +1,5 @@
 // Reading games and collections for pages (permission checks are in permissions.server.ts).
-import { and, count, desc, eq, inArray, isNull, like, ne, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, like, lt, ne, or, sql } from "drizzle-orm";
 import { schema, type Db } from "../db";
 
 /** A game card: the game plus its collection and author, for lists. */
@@ -48,11 +48,20 @@ export type GameCard = Awaited<ReturnType<typeof newestGames>>[number];
 
 // ---- subscriptions ----
 
-/** The newest games from the collections someone subscribes to. */
-export const feedGames = (db: Db, subscriberId: string, limit = 40) => cards(db)
+/** Where a page of the feed ends: the last game's publish time and id (ties broken by id). */
+export type FeedCursor = { at: number; id: string };
+export const feedCursor = (s: string | null): FeedCursor | null => {
+  const m = s?.match(/^(\d+)-([\w-]+)$/);
+  return m ? { at: Number(m[1]), id: m[2] } : null;
+};
+
+/** The games from the collections someone subscribes to, newest first, a page at a time: the page
+ *  after `before`, if given. */
+export const feedGames = (db: Db, subscriberId: string, limit = 24, before: FeedCursor | null = null) => cards(db)
   .where(and(live, inArray(schema.games.collectionId,
-    db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, subscriberId)))))
-  .orderBy(desc(schema.games.publishedAt)).limit(limit);
+    db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, subscriberId))),
+    before ? or(lt(schema.games.publishedAt, new Date(before.at)), and(eq(schema.games.publishedAt, new Date(before.at)), lt(schema.games.id, before.id))) : undefined))
+  .orderBy(desc(schema.games.publishedAt), desc(schema.games.id)).limit(limit);
 
 export const isSubscribed = async (db: Db, subscriberId: string | undefined, collectionId: string) => !!subscriberId && !!(await db.query.subscriptions.findFirst({
   where: and(eq(schema.subscriptions.subscriberId, subscriberId), eq(schema.subscriptions.collectionId, collectionId)),
