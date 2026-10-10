@@ -1,0 +1,252 @@
+/* Making a set, the light way (make-50.mjs). On top of the site's CSS, lists.css and create-set.css. Same tokens, no new colours. */
+
+.f50 .create-btn .caret { width: 16px; height: 16px; stroke-width: 2.6; margin-right: -4px; }
+.scrim { position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .5); }
+.scrim.light { background: rgba(0, 0, 0, .28); }
+.grabber { display: none; }
+
+/* ---- a set's cover: its first four pictures ---- */
+.mosaic {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px; flex: none; overflow: hidden;
+  width: 40px; height: 40px; border-radius: 7px; background: var(--line); box-shadow: 0 1px 3px var(--shadow);
+}
+.mthumb { display: grid; place-items: center; padding: 2px; min-width: 0; min-height: 0; border-radius: 0; }
+.mthumb svg { width: 100%; height: 100%; }
+.m-empty { background: color-mix(in srgb, var(--panel) 70%, var(--bg)); }
+.mosaic.small { width: 40px; height: 40px; }
+.mosaic.tiny { width: 30px; height: 30px; border-radius: 5px; gap: 1px; }
+.mosaic.tiny .mthumb { padding: 1px; }
+.mosaic.big { width: 112px; height: 112px; border-radius: 12px; gap: 3px; }
+.mosaic.big .mthumb { padding: 5px; }
+
+/* ---- 50: New set ---- */
+.new-set {
+  position: fixed; z-index: 41; left: calc(var(--side) + (100vw - var(--side)) / 2); top: 34%; translate: -50% -50%; width: 400px;
+  display: grid; gap: 12px; padding: 22px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 14px; box-shadow: 0 20px 50px var(--shadow);
+}
+.new-set h2 { margin: 0; font: 800 20px/1.2 var(--display); }
+.new-set input {
+  font: 700 18px/1.2 var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line-strong); border-radius: 10px; padding: 12px 14px;
+  outline: 2px solid color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: 1px;
+}
+.new-set input::placeholder { color: var(--muted); opacity: .8; }
+.new-set p { margin: -2px 0 0; font-size: 13.5px; }
+.ns-actions { display: flex; justify-content: end; gap: 8px; margin-top: 4px; }
+.ns-actions .btn { height: 40px; padding-block: 0; }
+
+/* ---- the cards: + on the picture's top-right corner ---- */
+.x-cards > li { position: relative; }
+.card-add {
+  position: absolute; top: 8px; right: 8px; z-index: 2; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; padding: 0;
+  background: var(--ink); color: var(--panel); border: 2px solid var(--bg); box-shadow: 0 2px 6px var(--shadow);
+}
+.card-add .mini-icon { width: 19px; height: 19px; stroke-width: 2.8; }
+.card-add.on { background: var(--good); color: var(--bg); }
+.x-cards > li.in .game-card { border-color: var(--good); box-shadow: 0 0 0 1.5px var(--good); }
+.x-cards > li.hover .game-card { border-color: var(--line-strong); transform: translateY(-2px); }
+.x-cards > li.hover .card-add { top: 6px; }
+.cursor { position: absolute; z-index: 4; top: 30px; right: 4px; width: 22px; height: 22px; fill: #fff; stroke: #111; stroke-width: 1.4; stroke-linejoin: round; pointer-events: none; }
+.card-more { display: none; }
+.pill-on .page { padding-bottom: 110px; }
+
+/* ---- the pill ---- */
+.pill {
+  position: fixed; z-index: 30; bottom: 22px; left: calc(var(--side) + (100vw - var(--side)) / 2); translate: -50% 0;
+  display: flex; align-items: center; gap: 4px; padding: 6px 6px 6px 6px; max-width: 520px;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 999px; box-shadow: 0 10px 30px var(--shadow), 0 2px 6px var(--shadow);
+}
+.pill-main { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0 10px 0 0; background: none; border: 0; color: var(--ink); text-align: left; font: inherit; }
+.pill .mosaic { border-radius: 50%; }
+.pill-text { display: grid; gap: 1px; min-width: 0; }
+.pill-k { font: 800 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pill-name { font: 400 15px/1.25 var(--body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-name strong { font-weight: 800; }
+.pill-n { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pill-chev { width: 18px; height: 18px; color: var(--muted); stroke-width: 2.4; }
+.pill-done { height: 40px; padding: 0 18px; border-radius: 999px; border: 0; background: var(--ink); color: var(--panel); font: 800 15px/1 var(--body); }
+
+/* ---- 53: the tray above the pill ---- */
+.tray {
+  position: fixed; z-index: 41; bottom: 84px; left: calc(var(--side) + (100vw - var(--side)) / 2); translate: -50% 0; width: 460px;
+  display: grid; gap: 14px; padding: 18px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 20px 50px var(--shadow);
+}
+.tray-open .pill { z-index: 42; }
+.tray-head { display: grid; gap: 3px; }
+.tray-head strong { font: 800 18px/1.2 var(--display); }
+.tray-head .muted { font-size: 13.5px; }
+.tray-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.tray-list li { position: relative; }
+.tray-list .cthumb { width: 100%; aspect-ratio: 1; height: auto; padding: 6px; box-shadow: 0 1px 3px var(--shadow); }
+.tray-n {
+  position: absolute; left: -5px; top: -5px; z-index: 1; display: grid; place-items: center; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px;
+  background: var(--ink); color: var(--panel); font: 800 12.5px/1 var(--body); font-variant-numeric: tabular-nums; border: 2px solid var(--panel);
+}
+.tray-foot { display: flex; align-items: center; justify-content: space-between; }
+.tray-foot a { color: var(--ink); font-weight: 700; font-size: 15px; }
+.tray-foot .btn { height: 38px; padding: 0 18px; }
+
+/* ---- 54: a puzzle page with the pill on ---- */
+.pill-on .game-page { --nav-h: calc(84px + 76px + var(--tabbar, 0px)); }
+.pill-on .page { padding-bottom: 0; }
+.pill-on.f50 .shell .page:has(.game-page) { padding-bottom: 0; }
+.add-set { display: inline-flex; align-items: center; gap: 6px; }
+.add-set .mini-icon { width: 17px; height: 17px; stroke-width: 2.6; }
+.btn.add-set.done { background: none; color: var(--good); border-color: color-mix(in srgb, var(--good) 60%, transparent); }
+.x-cards > li.pop-on .card-add { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 35%, transparent); }
+.toast {
+  position: fixed; z-index: 31; bottom: 86px; left: calc(var(--side) + (100vw - var(--side)) / 2); translate: -50% 0;
+  display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; white-space: nowrap;
+  background: var(--ink); color: var(--panel); border-radius: 12px; box-shadow: 0 10px 26px var(--shadow); font: 400 15px/1.2 var(--body);
+}
+.toast strong { font-weight: 800; }
+.toast .mini-icon { width: 18px; height: 18px; stroke-width: 2.8; color: var(--good); }
+.toast button { margin-left: 4px; padding: 7px 10px; border-radius: 8px; border: 0; background: color-mix(in srgb, var(--panel) 14%, transparent); color: var(--panel); font: 800 14px/1 var(--body); }
+
+/* ---- 55: no pill; + on hover, a list of your sets ---- */
+.sets-pop {
+  position: absolute; z-index: 20; top: 50px; right: 4px; width: 270px; display: grid; gap: 2px; padding: 10px;
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 16px 40px var(--shadow);
+}
+.sets-pop h3, .psheet h3 { margin: 2px 6px 6px; font: 800 15px/1.2 var(--body); }
+.sl-row {
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 7px 6px; border-radius: 8px;
+  color: var(--ink); background: none; border: 0; font: inherit; text-align: left; cursor: pointer;
+}
+.sl-row:hover { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.sl-row input { width: 18px; height: 18px; margin: 0; accent-color: var(--good); }
+.sl-name { font: 700 14.5px/1.25 var(--body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-n { font: 700 13px/1 var(--body); color: var(--muted); font-variant-numeric: tabular-nums; }
+.sl-new { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 10px 6px 4px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink); font: 700 14.5px/1 var(--body); }
+.sl-new .mini-icon { width: 18px; height: 18px; stroke-width: 2.4; }
+.sl-row.pick { grid-template-columns: auto minmax(0, 1fr) auto; }
+.psheet { display: none; }
+
+/* ---- 56: all at once ---- */
+.all-pop { top: calc(100% + 8px); right: 0; width: 290px; }
+.all-pop .muted { margin: 4px 6px 2px; font-size: 13px; }
+.q-actions .btn.open { background: color-mix(in srgb, var(--ink) 10%, transparent); }
+.q-actions .btn .mini-icon { margin-right: 6px; }
+
+/* ---- 57: /s/<id>/edit ---- */
+.e-page { display: grid; align-content: start; gap: 14px; max-width: 760px; margin: 0 auto; padding: 22px 32px 120px; }
+.e-top { display: flex; align-items: center; gap: 10px; font-size: 13.5px; }
+.e-top .cs-back { display: grid; place-items: center; width: 34px; height: 34px; margin-left: -8px; color: var(--ink); }
+.e-top .cs-back .mini-icon { width: 22px; height: 22px; }
+.e-share { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.e-unlisted { font-size: 13px; color: var(--muted); }
+.e-share .btn { display: inline-flex; align-items: center; gap: 6px; height: 38px; padding-block: 0; }
+.e-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: start; }
+.e-words { display: grid; gap: 4px; min-width: 0; }
+.e-name, .e-intro { width: 100%; color: var(--ink); background: none; border: 1px solid transparent; border-radius: 8px; padding: 4px 8px; margin-left: -9px; }
+.e-name { font: 800 30px/1.2 var(--display); }
+.e-name:hover, .e-intro:hover { border-color: var(--line); }
+.e-intro { font: 400 16px/1.45 var(--body); resize: none; color: var(--muted); }
+.e-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.e-row {
+  display: grid; grid-template-columns: 18px 22px 60px minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
+  padding: 7px 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line);
+}
+.e-row.lift { rotate: -1deg; translate: 10px -4px; box-shadow: 0 12px 26px var(--shadow); border-color: var(--line-strong); position: relative; z-index: 2; }
+.e-row.lift .cs-grip { color: var(--ink); cursor: grabbing; }
+.e-row .cthumb { width: 60px; height: 48px; }
+.e-text { display: grid; gap: 3px; min-width: 0; }
+.e-text strong { font: 800 15px/1.2 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.e-text .by { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); min-width: 0; }
+.e-dots { display: none; }
+.e-diff .diff { color: var(--ink); }
+.e-row .cs-x { display: grid; }
+.e-add { justify-self: start; display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 16px; }
+.e-add .mini-icon { width: 18px; height: 18px; stroke-width: 2.4; }
+.e-foot {
+  position: fixed; bottom: 0; left: var(--side); right: 0; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 24px;
+  background: var(--page), var(--bg); border-top: 1px solid var(--line);
+}
+.e-foot p { margin: 0; font-size: 14px; color: var(--muted); }
+.e-foot .btn { height: 40px; padding: 0 22px; }
+
+/* ---- phones ---- */
+@media (max-width: 640px) {
+  .new-set { left: 16px; right: 16px; top: 96px; translate: none; width: auto; padding: 18px; }
+  .ns-actions .btn { flex: 1; justify-content: center; height: 46px; }
+  .modal-open .tabbar { z-index: 1; }
+
+  .x-cards > li .card-add { top: 6px; right: 6px; width: 34px; height: 34px; }
+  .pill-on .page { padding-bottom: 150px; }
+  .pill { left: 12px; right: 12px; translate: none; bottom: calc(64px + 10px + env(safe-area-inset-bottom, 0px)); max-width: none; }
+  .pill-main { flex: 1; }
+  .pill-done { height: 38px; padding: 0 14px; font-size: 14.5px; }
+  .pill-name { font-size: 14.5px; }
+
+  .tray { left: 0; right: 0; bottom: 0; translate: none; width: auto; border-radius: 18px 18px 0 0; padding: 10px 16px calc(64px + 16px); border-bottom: 0; }
+  .tray-open .tabbar { z-index: 42; }
+  .tray-open .pill { display: none; }
+  .grabber { display: block; justify-self: center; width: 40px; height: 5px; border-radius: 3px; background: var(--line-strong); }
+  .tray-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tray-foot .btn { height: 44px; padding: 0 22px; }
+
+  .pill-on .game-page { --nav-h: calc(84px + 62px + var(--tabbar, 0px)); }
+  .add-set { padding: 6px 10px; font-size: 14px; }
+  .toast { left: 12px; right: 12px; translate: none; bottom: calc(64px + 72px); white-space: normal; font-size: 14px; }
+  .toast span { flex: 1; }
+
+  /* no pill: ⋯ on the card, then sheets */
+  .card-more {
+    display: grid; place-items: center; position: absolute; z-index: 2; right: 0; top: 2px; width: 36px; height: 34px; border: 0; background: none; color: var(--ink);
+  }
+  .x-cards .game-card-text { position: relative; }
+  .card-more .mini-icon { width: 20px; height: 20px; stroke-width: 3; }
+  .sheet-on .psheet {
+    display: grid; gap: 4px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 41;
+    padding: 10px 14px calc(64px + 16px); background: var(--panel); border-radius: 18px 18px 0 0; box-shadow: 0 -10px 30px var(--shadow);
+  }
+  .sheet-on .tabbar { z-index: 42; }
+  .psheet .grabber { margin-bottom: 6px; }
+  .ps-head { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; align-items: center; padding: 4px 4px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .ps-head .cthumb { width: 52px; height: 44px; }
+  .ps-head > span { display: grid; gap: 3px; min-width: 0; }
+  .ps-head strong { font: 800 16px/1.2 var(--display); }
+  .ps-head .by { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .psheet > button[role="menuitem"] { display: flex; align-items: center; gap: 14px; padding: 14px 8px; border: 0; border-radius: 10px; background: none; color: var(--ink); font: 700 16px/1 var(--body); text-align: left; }
+  .psheet > button[role="menuitem"]:first-of-type { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+  .psheet > button .mini-icon { width: 22px; height: 22px; }
+  .psheet h3 { font-size: 17px; margin: 0 4px 8px; }
+  .psheet .sl-row { padding: 10px 4px; gap: 12px; }
+  .psheet .sl-row input { width: 22px; height: 22px; }
+  .psheet .mosaic.tiny { width: 36px; height: 36px; }
+  .psheet .sl-name { font-size: 16px; }
+  .psheet .sl-new { padding: 14px 4px 6px; font-size: 16px; }
+
+  /* the edit page: no tab bar (it's a task); ↑↓ instead of dragging */
+  .edit50 .tabbar { display: none; }
+  .edit50 .page { padding-bottom: 0; }
+  .e-page { padding: 10px 16px 150px; gap: 12px; }
+  .e-top { flex-wrap: wrap; row-gap: 0; }
+  .e-share { gap: 8px; }
+  .e-top .muted { display: none; }
+  .e-share { flex-direction: column; align-items: end; gap: 3px; }
+  .e-unlisted { order: 2; font-size: 12px; }
+  .e-share .btn { height: 36px; padding: 0 12px; }
+  .e-head { grid-template-columns: 72px minmax(0, 1fr); gap: 12px; }
+  .mosaic.big { width: 72px; height: 72px; border-radius: 10px; gap: 2px; }
+  .mosaic.big .mthumb { padding: 3px; }
+  .e-name { font-size: 22px; padding: 2px 6px; margin-left: -7px; }
+  .e-intro { font-size: 14.5px; padding: 2px 6px; margin-left: -7px; }
+  .e-share-note { display: block; }
+  .e-row { grid-template-columns: 18px 50px minmax(0, 1fr) auto auto; gap: 8px; padding: 6px 2px 6px 8px; }
+  .e-row.lift { rotate: 0deg; translate: 0 0; box-shadow: none; border-color: var(--line-strong); }
+  .e-row .cs-grip, .e-diff { display: none; }
+  .e-row .cthumb { width: 50px; height: 44px; }
+  .e-text strong { font-size: 14.5px; }
+  .e-text .by .by-name { max-width: 80px; }
+  .e-dots { display: inline-flex; margin-left: 2px; }
+  .e-dots .diff { color: var(--ink); }
+  .e-row .cs-move { display: flex; }
+  .e-row .cs-move button { width: 32px; height: 38px; color: var(--ink); }
+  .e-row .cs-move button:disabled { opacity: .25; }
+  .e-row .cs-move .mini-icon { width: 20px; height: 20px; stroke-width: 2.4; }
+  .e-row .cs-x { width: 30px; }
+  .e-add { justify-self: stretch; justify-content: center; height: 46px; }
+  .e-foot { left: 0; flex-direction: column; gap: 8px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .e-foot p { font-size: 13px; text-align: center; text-wrap: balance; }
+  .e-foot .btn { width: 100%; justify-content: center; height: 46px; font-size: 16px; }
+}
