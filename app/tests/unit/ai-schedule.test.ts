@@ -143,6 +143,19 @@ describe("difficulty", () => {
     expect(difficultyOf(scheme, at, "2026-10-10", "sat")).toBeCloseTo(0, 5);   // 1+0+1+0 = 2
     expect(difficultyOf(scheme, at, "2026-10-14", "wed")).toBeCloseTo(4 / 18, 5);
   });
+  it("leans easy for every persona: the hardest day at most 0.7, the easiest a warm-up", () => {
+    const year = (p: Persona) => slotsBetween(p, new Date("2026-01-01T00:00:00Z"), new Date("2027-01-01T00:00:00Z")).map((s) => s.difficulty);
+    const top = new Map<string, number>();
+    for (const p of PERSONAS) {
+      const ds = year(p), hi = Math.max(...ds), lo = Math.min(...ds);
+      top.set(p.handle, hi);
+      expect(hi, p.handle).toBeLessThanOrEqual(0.7);
+      // (Freddie Plume makes only weekend-hard ones)
+      expect(lo, p.handle).toBeLessThanOrEqual(p.handle === "freddie-plume" ? 0.5 : 0.2);
+    }
+    // Freddie Plume's Sunday is still the hardest there is
+    expect(top.get("freddie-plume")).toBe(Math.max(...top.values()));
+  });
   it("stays within 0..1 for every persona's slots", () => {
     for (const p of PERSONAS) for (const s of slotsBetween(p, new Date("2026-10-01T00:00:00Z"), new Date("2026-11-01T00:00:00Z"))) {
       expect(s.difficulty).toBeGreaterThanOrEqual(0);
@@ -167,8 +180,17 @@ describe("what to make", () => {
     const got = slots.map((s) => planFor(isola, s).mix);
     expect(new Set(got)).toEqual(new Set(mixes));
     for (const s of slots) expect(planFor(isola, s).mix).toBe(mixes[seriesIndex(isola, s) % mixes.length]);
-    // Monday's panel has a single kind of symbol
+    // Monday's panel has a single kind of symbol; Friday's puts it beside one earlier symbol, never several
     for (const s of slots) if (s.weekday === "mon") expect(planFor(isola, s).mix).not.toContain("+");
+    for (const s of slots) if (s.weekday === "fri") expect(planFor(isola, s).mix!.split("+")).toHaveLength(2);
+  });
+  it("keeps Isola's doors small: Monday 3 × 3, Wednesday 3 × 4 or 4 × 4, Friday mostly 4 × 4", () => {
+    const sizes = (w: string) => planFor(isola, slotsOf(isola, 7).find((s) => s.weekday === w)!).plan.sizes.map(([r, c]) => `${r}x${c}`);
+    expect(sizes("mon")).toEqual(["3x3"]);
+    expect(new Set(sizes("wed"))).toEqual(new Set(["3x4", "4x4"]));
+    const fri = sizes("fri");
+    expect(fri.filter((x) => x === "4x4").length).toBeGreaterThanOrEqual(fri.length - 1);
+    expect(fri.every((x) => x === "4x4" || x === "5x5")).toBe(true);
   });
   it("keeps one type all week for a one-type-a-week creator, and changes it between weeks", () => {
     const granny = PERSONAS.find((p) => p.oneTypeAWeek)!;

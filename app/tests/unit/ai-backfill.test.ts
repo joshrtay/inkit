@@ -96,9 +96,23 @@ describe("the backfill's slots", () => {
     for (const w of weeks.values()) {
       if (w.mon) { expect(w.mon).not.toContain("+"); symbols.add(w.mon); }
       if (w.mon && w.wed) expect(w.wed).toBe(w.mon);
-      if (w.fri) expect(w.fri).toContain("+");
+      // Friday: the week's symbol beside one earlier symbol, never several
+      if (w.fri) { expect(w.fri.split("+")).toHaveLength(2); if (w.mon) expect(w.fri.split("+")[0]).toBe(w.mon); }
     }
     expect(symbols.size).toBeGreaterThanOrEqual(6);   // a new symbol each week of the range
+  });
+
+  it("lean easy: no day's target above 0.7 over the range, and every persona has easy days", () => {
+    const now = new Date("2026-10-09T12:00:00Z");
+    for (const persona of PERSONAS) {
+      const ds = backfillSlots(persona, now, 61).map((s) => s.difficulty);
+      expect(Math.max(...ds), persona.handle).toBeLessThanOrEqual(0.7);
+      expect(Math.min(...ds), persona.handle).toBeLessThanOrEqual(persona.handle === "freddie-plume" ? 0.5 : 0.45);
+    }
+    // Isola's Monday is a warm-up, her Friday no more than middling
+    const isola = backfillSlots(p("isola"), now, 61);
+    for (const s of isola) if (s.weekday === "mon") expect(s.difficulty).toBeLessThanOrEqual(0.1);
+    for (const s of isola) if (s.weekday === "fri") expect(s.difficulty).toBeLessThanOrEqual(0.6);
   });
 
   it("key a post by its persona and instant", () => {

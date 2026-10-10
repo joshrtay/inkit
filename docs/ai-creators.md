@@ -26,7 +26,7 @@ month and day digits added up).
 
 | Handle | Name | Makes | Posts | Difficulty | Writes like |
 |---|---|---|---|---|---|
-| `isola` | Isola | Panels, a teaching sequence: one new symbol a week, alone on Monday, mixed with an older one by Friday | Mon/Wed/Fri 18:30 Rome | weekday | a fabulist's inventories of an imaginary island |
+| `isola` | Isola | Panels, a teaching sequence: one new symbol a week, alone on Monday (3 × 3) and Wednesday, beside one older one on Friday (4 × 4) | Mon/Wed/Fri 18:30 Rome | weekday | a fabulist's inventories of an imaginary island |
 | `pebble` | Pebble | tiny grids (≤ 5×5): Go-stone panels, Slitherlink, Star Battle, Hidoku, Easy as ABC, Square Jam | daily at sunrise in Kyoto | season | haiku economy |
 | `night-clerk` | The Night Clerk | Sudoku, Thermo, Irregular | nightly 23:47 Los Angeles | steady, big wobble | hard-boiled noir |
 | `granny-rect` | Granny Rect | one type a week (Shikaku, Square Jam, Spiral Galaxies, Aquarium, Easy as ABC), easy Monday to proper Friday | Mon–Fri 11:05 UK | weekday ramp | a recipe card |
@@ -143,11 +143,27 @@ published time, so backfilled posts sit in the past rather than at the top.
 ## Scoring
 
 `Scorer` is `(candidate, persona, slot) => { difficulty, quality, notes, measures }`. Today's
-`proxyScorer` estimates difficulty from board size (within the persona's range), clue sparsity
-and clingo's search statistics (choices, conflicts), and quality from the persona's targets:
-clue density, clue-layout symmetry, the solve profile as far as clingo can tell, panel gap share
-and colours, and "every kind needed" (drop all clues of one kind; if it's still unique, that
-kind was decoration). A step-by-step deduction solver (difficulty profile, flow vs gem, entry
+`proxyScorer` estimates difficulty in two parts. The **logic** comes from board size (within the
+persona's range), clue sparsity and clingo's search statistics (choices, conflicts). The **rule
+load** (`ruleLoad`) is how many rules or kinds of symbol a solver has to hold in mind, which makes
+a puzzle hard for newcomers even when every step is easy: a panel's distinct symbol kinds
+(squares, stars, triangles, shapes, hollow shapes, erasers, dots, symmetry) plus 0.15 for each
+symbol colour beyond two; each rule a Panes puzzle lists; a Sudoku's added constraints
+(thermometers, irregular areas, diagonals); otherwise the distinct clue kinds plus any rule
+beyond the genre's own, a third colour or a cipher; 1 for a plain genre. `withRuleLoad` joins
+them, `1 − (1 − logic)(1 − 0.7 · min(1, (load − 1) / 3))`: one rule leaves the logic alone, and
+four or more put even an easy board at 0.7 or above. The measures and notes record `logic`,
+`ruleLoad` and `ruleTerm`. Quality comes from the persona's targets: clue density, clue-layout
+symmetry, the solve profile as far as clingo can tell, panel gap share and colours, the caps on
+rule load (`maxRuleLoad`) and crowding (`maxSymbolShare`, symbols per cell), and "every kind
+needed" (drop all clues of one kind; if it's still unique, that kind was decoration).
+
+Targets lean easy (the owner's rule: err on the easy side). No persona's day is above 0.7 (Freddie
+Plume's Sunday, the hardest), and every one but Freddie has days at 0.2 or below. Isola's Monday
+is one symbol on a 3 × 3, Wednesday the same symbol on a 3 × 4 or 4 × 4, Friday that symbol beside
+one earlier symbol, almost always on a 4 × 4. To check by eye, `npx tsx puzzles/ai/difficulty-sheet.ts`
+writes [`docs/ai-creators-difficulty.html`](ai-creators-difficulty.html) from a backfill file:
+each persona's easiest and hardest puzzle, with its target, score and rule load. A step-by-step deduction solver (difficulty profile, flow vs gem, entry
 points, clue usage: panel-design §3 and §9, design-grant "for inkit") and later a learned scorer
 will replace it; they read the same persona targets.
 

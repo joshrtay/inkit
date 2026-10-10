@@ -106,6 +106,11 @@ export interface QualityTargets {
   maxGapShare?: number;
   /** Panel: the only symbol colours it uses (Go stones are black and white) */
   colors?: string[];
+  /** Panel: the most symbols (not gaps) per cell, so a panel isn't crowded */
+  maxSymbolShare?: number;
+  /** the most rules or symbol kinds a solver must hold in mind (puzzles/ai/score.ts `ruleLoad`:
+   *  1 for a plain genre, plus a little for each colour beyond two on a panel) */
+  maxRuleLoad?: number;
   /** candidates below this quality (0..1) are thrown away */
   minQuality: number;
   /** how many candidates to make for each post, keeping the one closest to the day's difficulty */
@@ -150,6 +155,18 @@ export interface Persona {
 }
 
 const ALL_WEEK: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+
+/** Isola's calendar of symbols, one week each (Monday, Wednesday, Friday): the new symbol alone
+ *  twice, then beside one earlier symbol (never several). Erasers come with squares to cancel, and
+ *  on Friday with triangles instead; the mirror's lines come with dots. */
+const ISOLA_MIXES = [
+  "squares", "squares", "squares+dots",
+  "stars", "stars", "stars+squares",
+  "triangles", "triangles", "triangles+squares",
+  "shapes", "shapes", "shapes+squares",
+  "erasers", "erasers", "erasers+triangles",
+  "symmetry", "symmetry", "symmetry+squares",
+];
 const sq = (...ns: number[]): [number, number][] => ns.map((n) => [n, n]);
 
 export const PERSONAS: Persona[] = [
@@ -165,22 +182,17 @@ export const PERSONAS: Persona[] = [
       "Nothing on a door is ornament. If a symbol can be taken away and the line is still the only line, it is taken away. Gaps in the grid are permitted, but they are walls and not hints, and the islanders frown on too many of them.",
     ],
     schedule: { timezone: "Europe/Rome", days: ["mon", "wed", "fri"], time: { at: "18:30" }, summary: "Monday, Wednesday and Friday, at half past six in the evening, Rome time. Monday's door is the smallest." },
-    difficulty: { kind: "weekday", by: { mon: 0.1, tue: 0.3, wed: 0.5, thu: 0.6, fri: 0.85, sat: 0.6, sun: 0.6 } },
+    difficulty: { kind: "weekday", by: { mon: 0.05, tue: 0.2, wed: 0.25, thu: 0.35, fri: 0.55, sat: 0.35, sun: 0.35 } },
+    // the same calendar on each day (it's taken in order across all three): Monday a 3 × 3,
+    // Wednesday a 3 × 4 or 4 × 4, Friday mostly a 4 × 4 (a 5 × 5 only when the 4 × 4s fail)
     genres: [
-      {
-        genre: "panel", weight: 1, sequence: true, sizes: [[3, 3], [3, 4], [4, 4], [4, 5], [5, 5]],
-        mixes: [
-          "squares", "squares", "squares+dots",
-          "stars", "stars", "stars+squares",
-          "triangles", "triangles", "triangles+squares",
-          "shapes", "shapes", "shapes+stars",
-          "erasers", "erasers", "erasers+stars",
-          "symmetry", "symmetry", "dots+triangles",
-        ],
-      },
+      { genre: "panel", weight: 1, sequence: true, days: ["mon"], sizes: [[3, 3]], mixes: ISOLA_MIXES },
+      { genre: "panel", weight: 1, sequence: true, days: ["wed"], sizes: [[3, 4], [4, 4]], mixes: ISOLA_MIXES },
+      { genre: "panel", weight: 1, sequence: true, days: ["fri"], sizes: [[4, 4], [4, 4], [4, 4], [4, 4], [5, 5]], mixes: ISOLA_MIXES },
     ],
     quality: {
       profile: "gem", clueDensity: [0.1, 1], symmetry: "any", allKindsNeeded: true, maxGapShare: 0.5,
+      maxSymbolShare: 0.65, maxRuleLoad: 3.3,
       minQuality: 0.35, candidates: 4,
       principles: ["one new symbol a week", "alone on Monday, in company by Friday", "every kind of symbol needed", "gaps are walls, not hints"],
     },
@@ -206,7 +218,7 @@ export const PERSONAS: Persona[] = [
       "If a clue does nothing, it goes. The empty squares are not empty.",
     ],
     schedule: { timezone: "Asia/Tokyo", days: ALL_WEEK, time: { at: "sunrise", lat: 35.01, lon: 135.77 }, summary: "Every morning, at sunrise in Kyoto." },
-    difficulty: { kind: "season", hemisphere: "north", by: { spring: 0.2, summer: 0.4, autumn: 0.6, winter: 0.85 } },
+    difficulty: { kind: "season", hemisphere: "north", by: { spring: 0.05, summer: 0.2, autumn: 0.35, winter: 0.55 } },
     genres: [
       { genre: "panel", weight: 3, mixes: ["squares"], sizes: [[3, 3], [3, 4], [4, 4]] },
       { genre: "slitherlink", weight: 1, sizes: sq(4, 5) },
@@ -216,7 +228,7 @@ export const PERSONAS: Persona[] = [
       { genre: "square-jam", weight: 1, sizes: sq(4, 5) },
     ],
     quality: {
-      profile: "gem", clueDensity: [0.05, 0.75], symmetry: "any", allKindsNeeded: true, maxGapShare: 0.4, colors: ["black", "white"],
+      profile: "gem", clueDensity: [0.05, 0.75], symmetry: "any", allKindsNeeded: true, maxGapShare: 0.4, colors: ["black", "white"], maxSymbolShare: 0.65,
       minQuality: 0.4, candidates: 4,
       principles: ["one move the whole puzzle turns on", "fewest clues", "nothing bigger than five by five"],
     },
@@ -242,9 +254,9 @@ export const PERSONAS: Persona[] = [
       "Most nights are quiet. Some nights the grid has friends in high places. I don't tell you which until you're already in it.",
     ],
     schedule: { timezone: "America/Los_Angeles", days: ALL_WEEK, time: { at: "23:47" }, summary: "Every night at 11:47 pm, Los Angeles time. The desk never closes." },
-    difficulty: { kind: "steady", level: 0.55, wobble: 0.4 },
+    difficulty: { kind: "steady", level: 0.32, wobble: 0.5 },
     genres: [
-      { genre: "sudoku", weight: 2, sizes: sq(6, 6, 9, 9) },
+      { genre: "sudoku", weight: 2, sizes: sq(4, 6, 6, 9) },
       { genre: "thermo-sudoku", weight: 3, sizes: sq(4, 6, 6) },
       { genre: "irregular-sudoku", weight: 2, sizes: sq(5, 6, 7) },
     ],
@@ -275,13 +287,13 @@ export const PERSONAS: Persona[] = [
       "Do not substitute guessing. If a puzzle can only be finished by trying things, it goes back in the tin.",
     ],
     schedule: { timezone: "Europe/London", days: ["mon", "tue", "wed", "thu", "fri"], time: { at: "11:05" }, summary: "Monday to Friday at 11:05 (UK time), after elevenses. One type all week." },
-    difficulty: { kind: "weekday", by: { mon: 0.05, tue: 0.25, wed: 0.45, thu: 0.65, fri: 0.9, sat: 0.5, sun: 0.5 } },
+    difficulty: { kind: "weekday", by: { mon: 0.03, tue: 0.15, wed: 0.28, thu: 0.42, fri: 0.6, sat: 0.3, sun: 0.3 } },
     oneTypeAWeek: true,
     genres: [
-      { genre: "shikaku", weight: 1, sizes: [[4, 4], [5, 5], [5, 6], [6, 6], [7, 7]] },
+      { genre: "shikaku", weight: 1, sizes: [[4, 4], [5, 5], [5, 6], [6, 6]] },
       { genre: "square-jam", weight: 1, sizes: [[4, 4], [5, 5], [5, 6], [6, 6]] },
-      { genre: "spiral-galaxies", weight: 1, sizes: sq(4, 5, 6, 7) },
-      { genre: "aquarium", weight: 1, sizes: sq(4, 5, 6, 7) },
+      { genre: "spiral-galaxies", weight: 1, sizes: sq(4, 5, 5, 6) },
+      { genre: "aquarium", weight: 1, sizes: sq(4, 5, 5, 6) },
       { genre: "easy-as-abc", weight: 1, sizes: sq(4, 5, 5, 6) },
     ],
     quality: {
@@ -311,11 +323,11 @@ export const PERSONAS: Persona[] = [
       "I keep the clues few. Each pearl and each number is there because the line needed telling.",
     ],
     schedule: { timezone: "Pacific/Auckland", days: ["mon", "wed", "fri", "sun"], time: { at: "21:30" }, summary: "Monday, Wednesday, Friday and Sunday at 9:30 pm in Auckland, harder as the moon fills." },
-    difficulty: { kind: "lunar", low: 0.1, high: 0.95 },
+    difficulty: { kind: "lunar", low: 0.05, high: 0.6 },
     genres: [
-      { genre: "masyu", weight: 3, sizes: sq(5, 6, 7, 8) },
+      { genre: "masyu", weight: 3, sizes: sq(5, 6, 7) },
       { genre: "slitherlink", weight: 3, sizes: sq(5, 6, 7) },
-      { genre: "simple-loop", weight: 2, sizes: sq(5, 6, 7, 8) },
+      { genre: "simple-loop", weight: 2, sizes: sq(5, 6, 6, 7) },
       { genre: "simple-path", weight: 1, sizes: sq(5, 6, 7) },
     ],
     quality: {
@@ -345,11 +357,11 @@ export const PERSONAS: Persona[] = [
       "Log the time you took. The crew compares.",
     ],
     schedule: { timezone: "America/Halifax", days: ["tue", "sat"], time: { at: "08:00" }, summary: "Tuesdays and Saturdays, 0800 Halifax time. Rough at spring tides." },
-    difficulty: { kind: "tides", low: 0.2, high: 0.95 },
+    difficulty: { kind: "tides", low: 0.1, high: 0.6 },
     genres: [
       { genre: "nurikabe", weight: 2, sizes: sq(8, 9, 9) },
       { genre: "cave", weight: 2, sizes: sq(8, 9, 10) },
-      { genre: "minesweeper", weight: 2, sizes: [[9, 9], [10, 10], [10, 12], [12, 12]] },
+      { genre: "minesweeper", weight: 2, sizes: [[9, 9], [10, 10], [10, 12]] },
       { genre: "star-battle", weight: 1, sizes: sq(8, 9, 9) },
     ],
     quality: {
@@ -379,13 +391,14 @@ export const PERSONAS: Persona[] = [
       "Solve them in order. Tuesday is learning it. Friday is knowing it.",
     ],
     schedule: { timezone: "Europe/London", days: ["tue", "fri"], time: { at: "16:00" }, summary: "Tuesday is Bramble at four. Friday is Burr at four. Four in the afternoon, UK time." },
-    difficulty: { kind: "weekday", by: { mon: 0.5, tue: 0.8, wed: 0.5, thu: 0.5, fri: 0.35, sat: 0.5, sun: 0.5 } },
+    difficulty: { kind: "weekday", by: { mon: 0.35, tue: 0.5, wed: 0.35, thu: 0.35, fri: 0.2, sat: 0.35, sun: 0.35 } },
+    // a region size and two rules, never more (rule load 3: puzzles/ai/score.ts)
     genres: [
-      { genre: "panes", weight: 1, sizes: [[4, 4], [4, 5], [4, 6], [5, 5]], rules: ["size=4,twins,opposites", "size=4,twins,compass", "size=4,opposites,compass", "size=5,twins,opposites", "size=3,twins,compass"] },
+      { genre: "panes", weight: 1, sizes: [[4, 4], [4, 5], [4, 6]], rules: ["size=4,twins,opposites", "size=4,twins,compass", "size=4,opposites,compass", "size=5,twins,opposites", "size=3,twins,compass"] },
     ],
     pairs: { days: ["tue", "fri"], names: ["Bramble", "Burr"] },
     quality: {
-      profile: "gem", clueDensity: [0.05, 0.4], symmetry: "any", allKindsNeeded: true,
+      profile: "gem", clueDensity: [0.05, 0.4], symmetry: "any", allKindsNeeded: true, maxRuleLoad: 3,
       minQuality: 0.3, candidates: 3,
       principles: ["rules that work together", "every rule needed", "Tuesday teaches, Friday confirms"],
     },
@@ -411,7 +424,7 @@ export const PERSONAS: Persona[] = [
       "Monday is the easiest. Friday is a little harder, because by Friday you are good at it.",
     ],
     schedule: { timezone: "America/Chicago", days: ["mon", "tue", "wed", "thu", "fri"], time: { at: "06:40" }, summary: "Weekdays at 6:40 am, Chicago time. Twelve minutes before the train." },
-    difficulty: { kind: "weekday", by: { mon: 0.1, tue: 0.2, wed: 0.3, thu: 0.35, fri: 0.5, sat: 0.3, sun: 0.3 } },
+    difficulty: { kind: "weekday", by: { mon: 0.03, tue: 0.1, wed: 0.17, thu: 0.24, fri: 0.32, sat: 0.2, sun: 0.2 } },
     genres: [
       { genre: "sudoku", weight: 2, sizes: sq(4, 4, 6) },
       { genre: "binary-puzzle", weight: 2, sizes: sq(4, 6, 6) },
@@ -447,15 +460,15 @@ export const PERSONAS: Persona[] = [
       "Similar species. Jigsaws, which are easier to start and harder to finish.",
     ],
     schedule: { timezone: "America/Los_Angeles", days: ["mon", "wed", "fri"], time: { at: "10:30" }, summary: "Observed Monday, Wednesday and Friday at 10:30 am, Pacific time. Wednesday's is the rare one." },
-    difficulty: { kind: "weekday", by: { mon: 0.25, tue: 0.4, wed: 0.85, thu: 0.4, fri: 0.45, sat: 0.5, sun: 0.5 } },
+    difficulty: { kind: "weekday", by: { mon: 0.08, tue: 0.2, wed: 0.55, thu: 0.2, fri: 0.25, sat: 0.3, sun: 0.3 } },
     genres: [
-      { genre: "fillomino", weight: 2, sizes: sq(5, 6, 6), rules: ["", "", "sizes=1/2/3/4"] },
+      { genre: "fillomino", weight: 2, sizes: sq(5, 5, 6), rules: ["", "", "sizes=1/2/3/4"] },
       { genre: "polyomino-packing", weight: 2, sizes: sq(5, 6, 6) },
-      { genre: "connect-the-critters", weight: 2, sizes: sq(5, 6, 7), rules: ["", "flip"] },
+      { genre: "connect-the-critters", weight: 2, sizes: sq(5, 6, 6), rules: ["", "flip"] },
       { genre: "find-the-cut-line", weight: 2, sizes: sq(5, 5, 6), rules: ["symmetry=turn", "symmetry=mirror", ""] },
     ],
     quality: {
-      profile: "gem", clueDensity: [0.0, 0.5], symmetry: "any", allKindsNeeded: false,
+      profile: "gem", clueDensity: [0.0, 0.5], symmetry: "any", allKindsNeeded: false, maxRuleLoad: 2,
       minQuality: 0.3, candidates: 3,
       principles: ["solved by looking, not trying", "every clue needed", "a rare find on Wednesday"],
     },
@@ -481,15 +494,17 @@ export const PERSONAS: Persona[] = [
       "A puzzle should be fair. That is the whole of my philosophy, and it took me eighty years.",
     ],
     schedule: { timezone: "Europe/Lisbon", days: "prime-dates", time: { at: "14:00" }, summary: "On prime-numbered dates only, at 2 pm in Lisbon. Harder as the month goes on." },
-    difficulty: { kind: "month", low: 0.1, high: 0.95 },
+    difficulty: { kind: "month", low: 0.05, high: 0.6 },
     genres: [
-      { genre: "binary-puzzle", weight: 2, sizes: sq(6, 6, 8) },
-      { genre: "abstract-art", weight: 2, sizes: sq(6, 6), rules: ["parts=1:1:1,no-three-in-a-row", "parts=1:2", "parts=1:1:1"] },
-      { genre: "akari", weight: 2, cipher: true, sizes: sq(6, 7, 7) },
+      { genre: "binary-puzzle", weight: 2, sizes: sq(4, 6, 6, 8) },
+      // three colours or an added rule, never both at once
+      { genre: "abstract-art", weight: 2, sizes: sq(6, 6), rules: ["parts=1:2", "parts=1:2", "parts=1:1:1", "parts=1:2,no-three-in-a-row"] },
+      // the cipher is a rule of its own, so the boards stay modest
+      { genre: "akari", weight: 2, cipher: true, sizes: sq(5, 6, 7) },
       { genre: "pythagorean-paths", weight: 1, sizes: sq(4, 5), moves: ["", "queen", "knight"] },
     ],
     quality: {
-      profile: "steady", clueDensity: [0.0, 1], symmetry: "prefer", allKindsNeeded: false,
+      profile: "steady", clueDensity: [0.0, 1], symmetry: "prefer", allKindsNeeded: false, maxRuleLoad: 2,
       minQuality: 0.3, candidates: 3,
       principles: ["square dealing, no tricks", "balance", "difficulty that builds through the month"],
     },
@@ -515,7 +530,7 @@ export const PERSONAS: Persona[] = [
       "I post after school on Monday, Tuesday and Thursday, at a quarter to four, / And if you finish early I'm sorry, but there isn't any more.",
     ],
     schedule: { timezone: "America/Toronto", days: ["mon", "tue", "thu"], time: { at: "15:45" }, summary: "Monday, Tuesday and Thursday at 3:45 pm, Toronto time. Gentle in September, sterner by June." },
-    difficulty: { kind: "school-year", low: 0.1, high: 0.9, summer: 0.35 },
+    difficulty: { kind: "school-year", low: 0.05, high: 0.6, summer: 0.2 },
     genres: [
       { genre: "sum-blobs", weight: 2, sizes: sq(4, 5, 5, 6), rules: ["", "target=10"] },
       { genre: "hidoku", weight: 2, sizes: sq(4, 5, 5), moves: ["", "sides"] },
@@ -550,12 +565,12 @@ export const PERSONAS: Persona[] = [
       "When a clue can go, it goes. What remains is what the puzzle is.",
     ],
     schedule: { timezone: "Atlantic/Faroe", days: ["wed", "sun"], time: { at: "07:30" }, summary: "Wednesdays and Sundays at half past seven in the morning, Faroe time." },
-    difficulty: { kind: "steady", level: 0.6, wobble: 0.15 },
+    difficulty: { kind: "steady", level: 0.33, wobble: 0.3 },
     genres: [
       { genre: "nurikabe", weight: 2, sizes: sq(6, 7, 8) },
       { genre: "shikaku", weight: 2, sizes: sq(6, 7, 7) },
       { genre: "hitori", weight: 1, sizes: sq(6, 7, 8) },
-      { genre: "akari", weight: 2, sizes: sq(7, 8, 9) },
+      { genre: "akari", weight: 2, sizes: sq(6, 7, 8) },
     ],
     quality: {
       profile: "steady", clueDensity: [0.05, 0.3], symmetry: "prefer", allKindsNeeded: false,
@@ -584,9 +599,9 @@ export const PERSONAS: Persona[] = [
       "And should two Pictures — fit the Clues — / I tear it up — and start — / One Answer only — leaves this Desk — / One Picture — learned by Heart —",
     ],
     schedule: { timezone: "America/New_York", days: ["thu", "sun"], time: { at: "16:00" }, summary: "Thursdays and Sundays — at four — Eastern time — harder as the Days grow short —" },
-    difficulty: { kind: "daylight", lat: 44.5, low: 0.15, high: 0.9 },
+    difficulty: { kind: "daylight", lat: 44.5, low: 0.05, high: 0.6 },
     genres: [
-      { genre: "nonogram", weight: 1, sizes: sq(5, 8, 8, 10, 10) },
+      { genre: "nonogram", weight: 1, sizes: sq(5, 6, 8, 8, 10) },
     ],
     quality: {
       profile: "steady", clueDensity: [0, 1], symmetry: "any", allKindsNeeded: false,
@@ -615,11 +630,11 @@ export const PERSONAS: Persona[] = [
       "Every one of them can be done without guessing. I have this on the best authority, namely my own, and I checked twice.",
     ],
     schedule: { timezone: "Europe/London", days: ["sat", "sun"], time: { at: "10:30" }, summary: "Saturdays and Sundays at 10:30 am, UK time, roughly when the kedgeree runs out." },
-    difficulty: { kind: "weekday", by: { mon: 0.7, tue: 0.7, wed: 0.7, thu: 0.7, fri: 0.7, sat: 0.8, sun: 1 } },
+    difficulty: { kind: "weekday", by: { mon: 0.45, tue: 0.45, wed: 0.45, thu: 0.45, fri: 0.45, sat: 0.5, sun: 0.68 } },
     genres: [
       { genre: "star-battle", weight: 2, sizes: sq(8, 9, 9) },
-      { genre: "aquarium", weight: 2, sizes: sq(8, 9, 10) },
-      { genre: "wittgenstein-briquet", weight: 2, sizes: sq(8, 9, 10) },
+      { genre: "aquarium", weight: 2, sizes: sq(8, 8, 9) },
+      { genre: "wittgenstein-briquet", weight: 2, sizes: sq(8, 8, 9) },
       { genre: "spiral-galaxies", weight: 1, sizes: sq(8, 9) },
     ],
     quality: {
@@ -649,12 +664,12 @@ export const PERSONAS: Persona[] = [
       "Each puzzle has exactly one answer, checked by a program even more pedantic than I am. This is more certainty than you will get from almost anything else today.",
     ],
     schedule: { timezone: "Europe/Dublin", days: ["tue", "thu"], time: { at: "16:42" }, summary: "Tuesdays and Thursdays at 4:42 pm, Dublin time. Difficulty by the digits of the date." },
-    difficulty: { kind: "digits", low: 0.1, high: 0.95 },
+    difficulty: { kind: "digits", low: 0.05, high: 0.6 },
     genres: [
       { genre: "skyscrapers", weight: 2, sizes: sq(4, 5, 6) },
       { genre: "easy-as-abc", weight: 2, sizes: sq(5, 6) },
       { genre: "numberlink", weight: 2, sizes: sq(6, 7, 8) },
-      { genre: "minesweeper", weight: 1, sizes: sq(7, 8, 9) },
+      { genre: "minesweeper", weight: 1, sizes: sq(6, 7, 8) },
     ],
     quality: {
       profile: "steady", clueDensity: [0.0, 0.5], symmetry: "any", allKindsNeeded: false,

@@ -13,9 +13,10 @@ type RC = [number, number];
 type Group = Given[];
 const debug = (m: string) => { if (process.env.DEBUG) console.error(`panel: ${m}`); };
 
-/** `mix`: which symbols the panel is made of: dots, squares, stars, triangles, shapes, erasers or
- *  symmetry (two mirrored lines, with dots), or several joined with "+" ("squares+stars"): every
- *  part's symbols go in the pool, one symbol to a cell. */
+/** `mix`: which symbols the panel is made of: dots, squares, stars, triangles, shapes, erasers (with
+ *  something to cancel: squares when alone, else the mix's other symbols; put erasers first, as in
+ *  "erasers+triangles") or symmetry (two mirrored lines, with dots), or several joined with "+"
+ *  ("squares+stars"): every part's symbols go in the pool, one symbol to a cell. */
 export const PANEL_MIXES = ["dots", "squares", "stars", "triangles", "shapes", "erasers", "symmetry"] as const;
 export async function makePanel(mix: string, rows: number, cols: number, rand: () => number): Promise<GridSpec | null> {
   const parts = mix.split("+");
@@ -139,18 +140,23 @@ export async function makePanel(mix: string, rows: number, cols: number, rand: (
     if (k < 0) return null;
     const cells = shuffle([...reg.cells[k]]), [e, a, b] = cells;
     const n = g.cellBorders[a].filter((x) => target.fence[x] === 1).length;
-    const kind = pick(["square", "star", "triangle"] as const);
+    // what it cancels: one of the mix's other symbols (squares when it's alone)
+    const others = parts.filter((m) => m !== "erasers");
+    const can = (["square", "star", "triangle"] as const).filter((x) => others.includes(`${x}s`));
+    const kind = pick(can.length ? can : others.length ? ["square", "star", "triangle"] as const : ["square"] as const);
     first = kind === "square"
       ? [{ at: "cell", cell: rc(e), kind: "eraser" }, { at: "cell", cell: rc(a), kind: "square", color: tone[k] }, { at: "cell", cell: rc(b), kind: "square", color: tone[k] === "black" ? "white" : "black" }]
       : kind === "star" ? [{ at: "cell", cell: rc(e), kind: "eraser" }, { at: "cell", cell: rc(a), kind: "star", color: "orange" }]
       : [{ at: "cell", cell: rc(e), kind: "eraser" }, { at: "cell", cell: rc(a), kind: "triangle", value: pick([1, 2, 3].filter((x) => x !== n)) }];
     for (const x of first) if (x.at === "cell") take(g.cell(...x.cell));
-    // the rest of the panel: squares and triangles (none in the eraser's region, which must need it)
+    // the rest of the panel (none in the eraser's region, which must need it): the mix's other
+    // symbols, or squares on about half the cells when it's alone
     for (const i of [...free]) if (reg.of[i] === k) take(i);
-    const cs = shuffle([...free]), half = Math.ceil(cs.length / 2);
-    squares(cs.slice(0, half));
-    for (const i of cs.slice(0, half)) take(i);
-    triangles();
+    if (!others.length) {
+      const cs = shuffle([...free]).slice(0, Math.ceil(free.size / 2));
+      squares(cs);
+      for (const i of cs) take(i);
+    }
   }
   }
   // gaps for every type: symbols in cells can't tell apart lines that cut out the same regions
