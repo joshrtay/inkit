@@ -48,7 +48,7 @@ interface Fields { title: string; description: string; sketch: string; checked: 
 
 function fieldsFrom(form: FormData): Fields {
   const s = (k: string) => String(form.get(k) ?? "");
-  return { title: s("title").trim().slice(0, 120), description: s("description").trim().slice(0, 2000), sketch: s("sketch").replace(/\r\n/g, "\n"), checked: s("checked") };
+  return { title: s("title").trim().slice(0, 120), description: s("description").trim().slice(0, 160), sketch: s("sketch").replace(/\r\n/g, "\n"), checked: s("checked") };
 }
 
 /** Parse a sketch or explain what's wrong; for publishing, also require its one-solution check.

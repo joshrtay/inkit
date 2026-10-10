@@ -148,13 +148,21 @@ a.btn { text-decoration: none; display: inline-block; }
 
 .paper-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  height: 42px; font-family: var(--hand); color: var(--paper-ink);
+  position: relative; min-height: 42px; font-family: var(--hand); color: var(--paper-ink);
 }
+/* the puzzle's description, top left on the paper, lined up with the puzzle's border (GameBoard
+   measures it: --edge-l); up to two lines, three on a phone */
+.paper-desc {
+  flex: 1; min-width: 0; margin: 0; padding: 4px 0 4px calc(100% * var(--edge-l, 0));
+  font: 16px/1.25 var(--hand); color: var(--paper-ink);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+@media (max-width: 600px) { .paper-desc { -webkit-line-clamp: 3; font-size: 15px; } }
 .paper-bar .group { display: flex; align-items: center; gap: 2px; }
 /* The status line says something only when it matters, a mistake (.warn) or a win (.good),
-   as a note pinned to the paper just under the strip. Running counts are never shown. */
+   as a note pinned to the paper just under the strip (however tall the description makes it). Running counts are never shown. */
 .paper-bar .status {
-  position: absolute; z-index: 1; top: 46px; left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px);
+  position: absolute; z-index: 1; top: calc(100% - 2px); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 24px);
   text-align: center; font: 700 16px/1.25 var(--hand); background: var(--paper); padding: 5px 12px; border-radius: 4px;
   box-shadow: 0 2px 10px var(--shadow); pointer-events: none;
 }

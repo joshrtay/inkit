@@ -161,7 +161,7 @@ export function GameEditor({ game, reading, drawing, doubts, choices, may, backT
         <div className="studio-title">
           <input aria-label="Title" placeholder="Title" maxLength={120} value={title} readOnly={!may.edit}
             onChange={(e) => setTitle(e.target.value)} onFocus={(e) => title === "Untitled" && e.currentTarget.select()} />
-          <textarea aria-label="Description" placeholder="Add a description…" rows={1} maxLength={2000} value={description} readOnly={!may.edit}
+          <textarea aria-label="Description" placeholder="Add a description…" rows={1} maxLength={160} value={description} readOnly={!may.edit}
             onChange={(e) => setDescription(e.target.value)}
             onInput={(e) => { const t = e.currentTarget; t.style.height = "auto"; t.style.height = `${t.scrollHeight}px`; }} />
         </div>
@@ -250,7 +250,7 @@ function TellClaude({ reader }: { reader: ReturnType<typeof useFetcher<{ error?:
   return (
     <reader.Form method="post" className="form tell" onSubmit={() => setOpen(false)}>
       <label>What&rsquo;s wrong?
-        <textarea name="feedback" rows={3} required maxLength={2000} autoFocus placeholder={'"It\'s 6 rows, not 5"'} />
+        <textarea name="feedback" rows={3} required maxLength={160} autoFocus placeholder={'"It\'s 6 rows, not 5"'} />
       </label>
       <span className="hint">Claude reads the drawing again. This replaces the puzzle here.</span>
       <div className="editor-actions">

@@ -11,12 +11,13 @@ import type { Layout, Playable } from "~/games/layout";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
 
-/** The markup the grid player builds its board in. */
+/** The markup the grid player builds its board in (the description, top left, is filled in after). */
 function markup(l: Layout) {
+  // the colors go under the board, like the digit pad: the colors on the left, clearing on the right
   const pots = l.palette.length
-    ? `<div class="pots" role="group" aria-label="Color">${l.palette.map((c, i) =>
+    ? `<div class="paper-bar pad colors" role="group" aria-label="Color"><div class="group pots">${l.palette.map((c, i) =>
         `<button class="pot" data-color="${i + 1}" type="button" aria-pressed="${i === 0}" aria-label="Color ${i + 1}" style="--c: ${esc(c)}"><i></i></button>`).join("")
-      }<button class="pot erase" data-color="0" type="button" aria-pressed="false" aria-label="Clear color" title="Clear color"><i></i></button></div>`
+      }</div><div class="group"><button class="pot erase" data-color="0" type="button" aria-pressed="false" aria-label="Clear color" title="Clear color"><i></i></button></div></div>`
     : "";
   // numbers past 9 (a number path) are typed a digit at a time: 1 then 2 is 12
   const keys = l.digits > 9
@@ -30,16 +31,28 @@ function markup(l: Layout) {
   const sign = l.title
     ? `<button class="sign" data-sign type="button" aria-label="Show what the picture is"><span class="q">?</span><span class="title">It&rsquo;s ${/^[aeiou]/i.test(l.title) ? "an" : "a"} ${esc(l.title)}!</span></button>`
     : "";
+  const below = l.digits || l.palette.length ? ' style="--below: 46px"' : "";
   return `<div class="grid-game"${l.ink ? ` style="--paper-ink: ${esc(l.ink)}"` : ""}>
-    <div class="sheet"${l.digits ? ' style="--below: 46px"' : ""}>
-      <div class="paper-bar"><div class="group">${pots}</div><div class="status" aria-live="polite"></div>
+    <div class="sheet"${below}>
+      <div class="paper-bar"><p class="paper-desc"></p><div class="status" aria-live="polite"></div>
         <div class="group">${l.hearts ? '<div class="hearts" data-hearts role="img"></div>' : ""}${tool("undo", "Undo", "undo")}${l.hints ? tool("hint", "Hint", "hint") : ""}${tool("reset", "Reset", "reset")}</div></div>
-      <svg class="board" role="img" aria-label="Puzzle grid"></svg>${pad}${sign}
+      <svg class="board" role="img" aria-label="Puzzle grid"></svg>${pad}${pots}${sign}
     </div></div>`;
 }
 
-/** `saveId` keeps the player's progress in this browser; without it (the editor's preview), nothing is saved. */
-export function GameBoard({ play, saveId, onSolved }: { play: Playable; saveId?: string; onSolved?: () => void }) {
+/** Line the paper's rows up with the puzzle's border: its left and right edges, as shares of the
+ *  board's width (--edge-l, --edge-r; styles.css). */
+function alignToBorder(root: HTMLElement) {
+  const svg = root.querySelector<SVGSVGElement>(".sheet > svg.board"), frame = svg?.querySelector(".frame");
+  const s = svg?.getBoundingClientRect(), f = frame?.getBoundingClientRect();
+  if (!s?.width || !f?.width) return;
+  root.style.setProperty("--edge-l", ((f.left - s.left) / s.width).toFixed(4));
+  root.style.setProperty("--edge-r", ((s.right - f.right) / s.width).toFixed(4));
+}
+
+/** `saveId` keeps the player's progress in this browser; without it (the editor's preview), nothing
+ *  is saved. `description`: the creator's line about it, on the paper. */
+export function GameBoard({ play, saveId, onSolved, description = "" }: { play: Playable; saveId?: string; onSolved?: () => void; description?: string }) {
   const spot = useRef<HTMLDivElement>(null);
   const solved = useRef(onSolved);
   solved.current = onSolved;
@@ -58,8 +71,17 @@ export function GameBoard({ play, saveId, onSolved }: { play: Playable; saveId?:
     spot.current.appendChild(root);
     const host = createHost(saveId ?? "", () => solved.current?.(), !saveId);
     const cleanup = createGrid({ spec: play.spec })(root, host);
-    return () => { cleanup?.(); root.remove(); };
+    const board = root.querySelector(".sheet > svg.board");
+    const fit = new ResizeObserver(() => alignToBorder(root));
+    if (board) fit.observe(board);
+    return () => { fit.disconnect(); cleanup?.(); root.remove(); };
   }, [key, saveId]);
+
+  // the description changes without rebuilding the board (the publish page edits it as you play)
+  useEffect(() => {
+    const p = spot.current?.querySelector<HTMLElement>(".paper-desc");
+    if (p) { p.textContent = description; p.title = description; }
+  }, [description, key, saveId]);
 
   return <div ref={spot} className="game-spot" />;
 }

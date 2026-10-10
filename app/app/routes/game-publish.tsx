@@ -133,7 +133,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
             onChange={(e) => { setTitle(e.target.value); if (e.target.value.trim()) setTried(false); }}
             aria-invalid={tried && !title.trim() ? true : undefined} aria-describedby={tried && !title.trim() ? "title-needed" : undefined} />
           {tried && !title.trim() && <p id="title-needed" className="error publish-needed" role="alert">Give it a title</p>}
-          <textarea className="publish-desc" aria-label="Description" value={description} maxLength={2000} rows={1} placeholder="Add a line about it"
+          <textarea className="publish-desc" aria-label="Description" value={description} maxLength={160} rows={1} placeholder="Add a line about it"
             onChange={(e) => setDescription(e.target.value)} />
           <p className="publish-meta">{d.summary} · by @{d.author.handle} · not published yet</p>
           {failed && <p className="error publish-error" role="alert">Needs {play?.spec.genre === "panel" ? "a solution" : "exactly one solution"}. Back to paint to fix it.</p>}
@@ -142,7 +142,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
         </div>
         <div className="publish-paper">
           {/* the real player: saves nothing, records no solve */}
-          {play ? <GameBoard play={play} />
+          {play ? <GameBoard play={play} description={description} />
             : <div className="problems"><p>This puzzle has problems:</p><ul>{d.errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         </div>
         <p className="publish-note">Try the puzzle. It&rsquo;s playable.</p>

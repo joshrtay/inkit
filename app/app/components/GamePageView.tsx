@@ -93,7 +93,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       </header>
 
       <div className={drawnBy ? "game-body with-aside" : "game-body"}>
-        {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} />
+        {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description} />
           : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         {drawnBy ? (
           <aside className="game-aside">
@@ -101,9 +101,8 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
               <button type="button" className="drawn-by-pic grid-game" aria-label="The drawing, larger" onClick={() => setBig(true)} dangerouslySetInnerHTML={{ __html: drawnBy }} />
               <figcaption>Drawn by {author.deleted ? author.name : <Link to={`/${author.handle}`} onClick={stay}>@{author.handle}</Link>}</figcaption>
             </figure>
-            {game.description && <p className="game-desc">{game.description}</p>}
           </aside>
-        ) : game.description && <p className="game-desc">{game.description}</p>}
+        ) : null}
       </div>
       {big && drawnBy && (
         <div className="drawn-by-big" role="dialog" aria-label={`Drawn by @${author.handle}`} onClick={() => setBig(false)}>
