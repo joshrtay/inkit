@@ -29,10 +29,12 @@ export const featuredGames = (db: Db) => db.select(cardColumns).from(schema.feat
 
 export const newestGames = (db: Db, limit = 24) => cards(db).where(live).orderBy(desc(schema.games.publishedAt)).limit(limit);
 
-/** A collection's games, newest first (drafts and hidden games only if `all`; deleted ones never). */
+/** A collection's games, newest first by when they were published (a draft: last edited), so a
+ *  take-down and restore, or a backfilled post (puzzles/ai/backfill.ts), keeps its place
+ *  (drafts and hidden games only if `all`; deleted ones never). */
 export const collectionGames = (db: Db, collectionId: string, all: boolean) => cards(db)
   .where(all ? and(eq(schema.games.collectionId, collectionId), ne(schema.games.state, "deleted")) : and(eq(schema.games.collectionId, collectionId), eq(schema.games.state, "published")))
-  .orderBy(desc(schema.games.updatedAt));
+  .orderBy(desc(sql`coalesce(${schema.games.publishedAt}, ${schema.games.updatedAt})`));
 
 /** Someone's latest drafts, anywhere they've made them (not an AI creator's scheduled posts): /new's "Carry on with a draft". */
 export const latestDrafts = (db: Db, authorId: string, limit = 3) => cards(db)

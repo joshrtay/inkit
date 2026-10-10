@@ -108,6 +108,38 @@ Against the local site: put an `ADMIN_API_TOKEN` (32+ characters) in `app/.dev.v
 (default `--site` is `http://localhost:5173`). The local cron doesn't fire on its own; run it with
 `curl "http://localhost:5173/cdn-cgi/handler/scheduled"`.
 
+## Backfilling
+
+So that each persona starts with a couple of months behind it, `puzzles/ai/backfill.ts` makes
+every post it would have made over the last 61 days, through yesterday in its own time zone
+(`backfillSlots` in `schedule.ts`: the live `slotsBetween`, so the slots are the same ones, with
+sunrise, prime dates, the moon and clock changes included). Each post uses that date's difficulty
+and is made the way the weekly batch makes it (`puzzles/ai/make.ts`, shared with `week.ts`: the
+plan, the candidates, the scorer and Claude's prompt). Posts are made oldest first within a
+persona, so a teaching sequence (Isola's symbol of the week) and a pair's answer follow on. No
+puzzle is used twice by one persona, and a title too like an earlier one (`app/app/ai/titles.ts`)
+is sent back to Claude, at most twice. The batch is written to `puzzles/ai/out/backfill.json`
+(gitignored) after every post, so a stopped run carries on where it left off.
+
+```sh
+node puzzles/ai/backfill.ts --dry-run                 # the slots per persona: date, time, difficulty, genre; the Claude estimate
+node puzzles/ai/backfill.ts --no-text --jobs 6        # the puzzles only, placeholder words, no Claude
+ANTHROPIC_API_KEY=... node puzzles/ai/backfill.ts --jobs 6   # the words (keeps puzzles already made)
+ADMIN_API_TOKEN=... node puzzles/ai/send-backfill.ts --site https://inkit.games --dry-run
+ADMIN_API_TOKEN=... node puzzles/ai/send-backfill.ts --site https://inkit.games
+```
+
+Other flags: `--persona a,b`, `--days n`, `--now <ISO>`, `--out <file>`; the sender takes
+`--file`, `--batch` and, for a local site only, `--allow-placeholders`. It sends to
+`POST /admin/ai/backfill` (admin token), which checks each post as a scheduled one is checked
+(`checkBackfillPost` in `request.ts`: an AI persona, the sketch, its genre, the proof of one
+solution for this sketch) and also that the time is in the past and is one of the persona's
+posting times. It inserts the post as published with its created, updated and published times
+all at the slot, and moves the account's and collection's created time back to its first post.
+A post whose slot (persona and instant) is already taken is skipped, so sending twice is safe; the
+same puzzle at another slot is refused. The feed, the profile and the sitemap order by the
+published time, so backfilled posts sit in the past rather than at the top.
+
 ## Scoring
 
 `Scorer` is `(candidate, persona, slot) => { difficulty, quality, notes, measures }`. Today's

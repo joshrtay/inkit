@@ -1,12 +1,13 @@
 // The AI creators on the site (docs/ai-creators.md): their accounts, their queue of scheduled
-// drafts (filled weekly by puzzles/ai/week.ts through POST /admin/ai/schedule), and the cron that
-// publishes each draft at its time (workers/app.ts, every few minutes).
-import { and, asc, eq, inArray, isNotNull, lte, or } from "drizzle-orm";
+// drafts (filled weekly by puzzles/ai/week.ts through POST /admin/ai/schedule), the cron that
+// publishes each draft at its time (workers/app.ts, every few minutes), and the backfill of past
+// posts (puzzles/ai/backfill.ts through POST /admin/ai/backfill).
+import { and, asc, eq, gt, inArray, isNotNull, lte, or } from "drizzle-orm";
 import { schema, type Db } from "../db";
 import { parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { PERSONAS, type Persona } from "../ai/personas.ts";
 import { dueToPublish } from "../ai/schedule.ts";
-import type { ScheduleRequest } from "../ai/request.ts";
+import { backfillAction, type BackfillPost, type ScheduleRequest } from "../ai/request.ts";
 import { newId } from "./names.server";
 import { Invalid } from "./errors.server";
 
@@ -44,6 +45,38 @@ export async function scheduleGame(db: Db, p: Persona, kind: string, publishAt: 
     sketch: req.sketch, sketchVersion: SKETCH_VERSION, kind, state: "draft", publishAt,
   });
   return { id, created: true };
+}
+
+/** Insert a checked backfilled post (puzzles/ai/backfill.ts) as published at its slot: created,
+ *  updated and published all at that instant, so it sits in the past in the feed, on the profile
+ *  and in the sitemap. Idempotent by the slot (persona + instant): a post already there, in any
+ *  state, is skipped; the same puzzle at another time is refused as a repeat. `dryRun` writes
+ *  nothing. The persona's account and collection date from its first post at the latest. */
+export async function backfillGame(db: Db, p: Persona, kind: string, at: Date, req: BackfillPost, dryRun = false):
+  Promise<{ id: string | null; status: "created" | "exists" | "repeat" | "would-create" }> {
+  const creatorId = aiCreatorId(p.handle);
+  if (dryRun) {
+    const byHandle = await db.query.creators.findFirst({ where: eq(schema.creators.handle, p.handle) });
+    if (byHandle && (byHandle.id !== creatorId || !byHandle.isAi)) throw new Invalid(`The handle @${p.handle} belongs to someone else; rename the persona.`);
+  }
+  const collectionId = dryRun ? aiCollectionId(p.handle) : (await ensurePersona(db, p)).collectionId;
+  const existing = await db.select({ id: schema.games.id, state: schema.games.state, publishedAt: schema.games.publishedAt, publishAt: schema.games.publishAt, sketch: schema.games.sketch })
+    .from(schema.games)
+    .where(and(eq(schema.games.authorId, creatorId), or(eq(schema.games.publishAt, at), eq(schema.games.publishedAt, at), eq(schema.games.sketch, req.sketch))));
+  const action = backfillAction(existing, at, req.sketch);
+  if (action.do === "skip") return { id: action.id, status: "exists" };
+  if (action.do === "repeat") return { id: action.id, status: "repeat" };
+  if (dryRun) return { id: null, status: "would-create" };
+  const id = newId();
+  await db.insert(schema.games).values({
+    id, collectionId, authorId: creatorId, title: req.title, description: req.description,
+    sketch: req.sketch, sketchVersion: SKETCH_VERSION, kind, state: "published",
+    publishedAt: at, publishAt: null, createdAt: at, updatedAt: at,
+  });
+  // "since" on the profile: no later than its first post
+  await db.update(schema.creators).set({ createdAt: at }).where(and(eq(schema.creators.id, creatorId), gt(schema.creators.createdAt, at)));
+  await db.update(schema.collections).set({ createdAt: at }).where(and(eq(schema.collections.id, collectionId), gt(schema.collections.createdAt, at)));
+  return { id, status: "created" };
 }
 
 const aiIds = () => PERSONAS.map((p) => aiCreatorId(p.handle));

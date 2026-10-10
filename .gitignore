@@ -15,3 +15,6 @@ __pycache__/
 
 # the bug-fix workflow's copy of a report's bundle (.github/workflows/bug-fix.yml): never committed
 /bug/
+
+# the AI creators' backfill batches (puzzles/ai/backfill.ts): generated, never committed
+puzzles/ai/out/

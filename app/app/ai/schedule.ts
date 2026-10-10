@@ -178,6 +178,27 @@ export function slotsBetween(p: Persona, from: Date, to: Date): Slot[] {
   return out.sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
+/** A slot's key, unique per persona and instant: what makes a backfilled post idempotent. */
+export const slotKey = (handle: string, at: Date) => `${handle}@${at.toISOString()}`;
+
+/** A backfill's range for a persona (puzzles/ai/backfill.ts): local midnight `days` days before
+ *  `now`'s local date, to local midnight that day, in the persona's own time zone. */
+export function backfillRange(p: Persona, now: Date, days: number) {
+  const tz = p.schedule.timezone, today = localDate(now, tz);
+  const start = new Date(Date.UTC(today.y, today.m - 1, today.d - days));
+  return {
+    from: zonedTime(start.getUTCFullYear(), start.getUTCMonth() + 1, start.getUTCDate(), 0, 0, tz),
+    to: zonedTime(today.y, today.m, today.d, 0, 0, tz),
+  };
+}
+
+/** Every post a persona would have made in the `days` local days before today (through
+ *  yesterday), exactly as the live schedule computes them (`slotsBetween`). */
+export function backfillSlots(p: Persona, now: Date, days: number): Slot[] {
+  const { from, to } = backfillRange(p, now, days);
+  return slotsBetween(p, from, to).filter((s) => s.at.getTime() < now.getTime());
+}
+
 /** Which weekday a slot's pair partner is on, and which of the pair it is (0 first, 1 second). */
 export function pairRole(p: Persona, weekday: Weekday): 0 | 1 | null {
   if (!p.pairs) return null;
