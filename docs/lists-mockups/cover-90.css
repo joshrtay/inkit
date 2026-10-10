@@ -1,0 +1,66 @@
+/* Set-card covers (make-90.mjs). On top of the site's CSS and lists.css. Same tokens, no new colours. */
+
+.cv-label { margin: 0 0 12px; font-size: 15px; color: var(--muted); }
+.cv-label strong { font: 800 18px/1 var(--display); color: var(--ink); margin-right: 6px; }
+
+/* the cover's ground: the card's dark, a shade under the text panel */
+.game-card .thumb.set-thumb { background: color-mix(in srgb, var(--bg) 55%, var(--panel)); }
+.game-card .thumb.cv, .feed-pic.cv { --p: 12px; display: grid; place-items: stretch; align-content: stretch; gap: 10px; padding: var(--p) calc(12.5% + var(--p)); }
+.cv-tile { position: relative; display: grid; min-width: 0; min-height: 0; }
+.cv .cv-pic { position: absolute; inset: 0; width: auto; height: auto; padding: 5px; display: grid; place-items: center; border-radius: 5px; box-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 3px 8px -2px rgba(0, 0, 0, .45); }
+.cv .cv-pic svg { width: 100%; height: 100%; max-width: none; }
+
+/* A: four small cards in a square, even gaps */
+.cv-a, .cv-c, .cv-d { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+
+/* B: touching, one paper with thin lines between */
+.game-card .thumb.cv-b { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 0; }
+.cv-b .cv-tile { border: .5px solid color-mix(in srgb, #2b2b30 18%, transparent); }
+.cv-b .cv-pic { border-radius: 0; box-shadow: none; }
+.cv-b .cv-tile:nth-child(1), .cv-b .cv-tile:nth-child(1) .cv-pic { border-top-left-radius: 6px; }
+.cv-b .cv-tile:nth-child(2), .cv-b .cv-tile:nth-child(2) .cv-pic { border-top-right-radius: 6px; }
+.cv-b .cv-tile:nth-child(3), .cv-b .cv-tile:nth-child(3) .cv-pic { border-bottom-left-radius: 6px; }
+.cv-b .cv-tile:nth-child(4), .cv-b .cv-tile:nth-child(4) .cv-pic { border-bottom-right-radius: 6px; }
+
+
+/* C: numbered */
+.cv-n {
+  position: absolute; left: -4px; top: -4px; z-index: 1; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--ink); color: var(--panel); font: 800 10.5px/1 var(--body); border: 1.5px solid color-mix(in srgb, var(--bg) 55%, var(--panel));
+}
+
+/* D: each turned a little */
+.game-card .thumb.cv-d { gap: 12px; }
+.cv-d .cv-tile:nth-child(1) { rotate: -2deg; }
+.cv-d .cv-tile:nth-child(2) { rotate: 1.5deg; translate: 0 2px; }
+.cv-d .cv-tile:nth-child(3) { rotate: 1deg; translate: 1px 0; }
+.cv-d .cv-tile:nth-child(4) { rotate: -1.5deg; }
+
+/* E: a row of four */
+.game-card .thumb.cv-e { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: auto; align-content: center; gap: 7px; padding: var(--p); }
+.cv-e .cv-tile { aspect-ratio: 1; }
+.cv-e .cv-pic { padding: 3px; }
+
+/* F: the first big, the next three small */
+.game-card .thumb.cv-f { grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 7px; padding: var(--p); }
+.cv-f .cv-tile:first-child { grid-row: 1 / 4; }
+.cv-f .cv-tile:not(:first-child) .cv-pic { padding: 3px; }
+
+/* the feed's picture */
+.feed-pic.set-thumb { background: color-mix(in srgb, var(--bg) 55%, var(--panel)); }
+.feed-pic.cv { --p: 8px; gap: 7px; box-shadow: none; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+
+@media (max-width: 640px) {
+  .game-card .thumb.cv { --p: 8px; gap: 6px; }
+  .cv .cv-pic { padding: 3px; border-radius: 4px; }
+  .cv-n { width: 15px; height: 15px; font-size: 9px; left: -3px; top: -3px; }
+}
+
+/* the contact sheet */
+.c90 { max-width: 1400px; }
+.c90-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 18px; }
+.c90 figure { margin: 0; display: grid; gap: 8px; }
+.c90 img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.c90 figcaption { font-size: 14px; color: var(--muted); }
+.c90 figcaption strong { font: 800 20px/1 var(--display); color: var(--ink); margin-right: 6px; }
+.c90-more { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 22px; margin-top: 26px; align-items: start; }

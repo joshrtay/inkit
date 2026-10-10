@@ -1,0 +1,132 @@
+// Builds the 90- mockups (docs/lists-mockups/f90-*.html): six covers for a set's card, side by side
+// with two puzzle cards so the fit shows. Every cover is made of the same set's first four pictures:
+//   A  four small paper cards in a 2×2 square, even gaps on the card's dark ground
+//   B  the same, touching: one paper with thin lines between
+//   C  as A, with 1–4 in their corners (it's a sequence)
+//   D  as A, each turned a degree or two, like cards on a table
+//   E  a row of four
+//   F  the first one big on the left, the next three small on the right
+// The set's card has the same footer as a puzzle's: "Set · 6 puzzles", its average difficulty, the
+// minutes, and when it was published. Also A at the Subscriptions feed's picture size.
+// Real cards from fragments.json (capture.mjs). Styles in cover-90.css. Not product code.
+//
+// Run from the repo root: node docs/lists-mockups/make-90.mjs, then node docs/lists-mockups/shoot-90.mjs
+import { readFileSync, writeFileSync } from "node:fs";
+const dir = new URL(".", import.meta.url).pathname;
+const F = JSON.parse(readFileSync(`${dir}fragments.json`, "utf8"));
+const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const clean = (s) => s.replace(/ data-discover="true"/g, "").replace(/<!-- -->/g, "");
+
+const PZ = new Map();
+for (const c of [...F.cards, ...F.mixedCards]) {
+  const g = (r) => (c.match(r) || [])[1];
+  const id = g(/href="\/g\/([^"]+)"/);
+  if (PZ.has(id) || !c.includes('<span class="by">') || !c.includes('<span class="card-foot">')) continue;
+  PZ.set(id, {
+    id, title: g(/<strong>([^<]*)/), kind: g(/class="kind">([^<]*)/),
+    by: clean(g(/<span class="by">([\s\S]*?)<\/span><span class="card-foot">/)),
+    level: { Easy: 1, Medium: 2, Hard: 3 }[g(/Difficulty: (\w+)/)] ?? 1,
+    mins: +(clean(c).match(/~(\d+) min/) || [0, 4])[1],
+    pic: c.match(/<span class="grid-game pic thumb"[\s\S]*?<\/svg><\/span>/)[0],
+    card: clean(c),
+  });
+}
+const pz = (id) => PZ.get(id);
+const LEVEL = ["", "Easy", "Medium", "Hard"];
+const dots = (level) => `<span class="diff" role="img" aria-label="Difficulty: ${LEVEL[level]}" title="${LEVEL[level]}">${[1, 2, 3].map((i) => `<i${i <= level ? ' class="on"' : ""}></i>`).join("")}</span>`;
+
+// the set: Wyatt's Akari for beginners, published here, six puzzles
+const SET = { name: "Akari for beginners", items: ["s3pw7skznd", "akari-1", "akari-3", "akari-2", "akari-4", "m29sd5vthj"].map(pz) };
+const avg = Math.round(SET.items.reduce((n, it) => n + it.level, 0) / SET.items.length);
+const total = SET.items.reduce((n, it) => n + it.mins, 0);
+const BY = pz("akari-4").by;   // Wyatt
+const tile = (it, i, numbered) => `<span class="cv-tile">${it.pic.replace(/^<span class="grid-game pic thumb"/, `<span class="grid-game pic cv-pic"`)}${numbered ? `<span class="cv-n">${i + 1}</span>` : ""}</span>`;
+const cover = (v) => `<span class="grid-game pic thumb set-thumb cv cv-${v}" aria-hidden="true">${SET.items.slice(0, 4).map((it, i) => tile(it, i, v === "c")).join("")}</span>`;
+const setCard = (v) => `<li class="setc"><a class="game-card pcard" href="#set">${cover(v)}<span class="game-card-text"><span class="kind">Set · ${SET.items.length} puzzles</span><strong>${esc(SET.name)}</strong><span class="by">${BY}</span><span class="card-foot">${dots(avg)}<span class="mins">~${total} min</span><span class="when">1 d ago</span></span></span></a></li>`;
+
+// ---------------------------------------------------------------- the frame
+
+function item(html, label, fn) {
+  const at = html.indexOf(`<span>${label}</span>`);
+  if (at < 0) return html;
+  const start = Math.max(html.lastIndexOf("<a ", at), html.lastIndexOf("<button ", at));
+  const close = html.slice(start, start + 2) === "<a" ? "</a>" : "</button>";
+  const end = html.indexOf(close, at) + close.length;
+  return html.slice(0, start) + fn(html.slice(start, end)) + html.slice(end);
+}
+const nav = (active) => {
+  let s = clean(F.sidenav).replace(/ class="nav-item active" aria-current="page"/, ` class="nav-item"`);
+  s = item(s, "Sign in", () => `<button type="button" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg><span>More</span></button>`);
+  if (active) s = item(s, active, (t) => t.replace(`class="nav-item"`, `class="nav-item active" aria-current="page"`));
+  return s;
+};
+const tabbar = (active) => {
+  let s = clean(F.tabbar).replace(/ class="active" aria-current="page"/, "");
+  if (active) s = item(s, active, (t) => t.replace(/^<a( class="")?/, `<a class="active" aria-current="page"`));
+  return s;
+};
+const page = (title, body, active) => `<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<!-- A mockup of set-card covers (not product code). Generated by make-90.mjs; the site's real CSS is linked from the repo. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css">
+<link rel="stylesheet" href="../../app/app/site.css">
+<link rel="stylesheet" href="../../src/game-types/grid/styles.css">
+<link rel="stylesheet" href="lists.css">
+<link rel="stylesheet" href="cover-90.css">
+</head>
+<body class="f90">
+${F.defs}
+<div class="shell">${nav(active)}<div class="page">${body}</div>${tabbar(active)}</div>
+</body></html>
+`;
+const out = (name, html) => writeFileSync(`${dir}${name}`, html);
+
+// ---------------------------------------------------------------- one page per cover: the set's card, then two puzzles
+
+export const VARIANTS = [
+  ["a", "Four small cards in a square, even gaps"],
+  ["b", "Four touching: one paper, thin lines between"],
+  ["c", "Four cards, numbered 1–4"],
+  ["d", "Four cards, each turned a little"],
+  ["e", "A row of four"],
+  ["f", "The first one big, the next three small"],
+];
+for (const [v, label] of VARIANTS) {
+  const body = `<main class="wrap explore x-explore"><header class="x-head"><h1>Explore</h1>${clean(F.search).replace(/ value="[^"]*"/, ` value="akari"`)}</header>
+<p class="cv-label"><strong>${v.toUpperCase()}</strong> ${esc(label)}</p>
+<section class="shelf"><ul class="cards x-cards">${setCard(v)}${pz("nf3fyxf7yu").card}${pz("prn6szg7v2").card}</ul></section></main>`;
+  out(`f90-${v}.html`, page(`Set cover ${v.toUpperCase()} (mockup)`, body, "Explore"));
+}
+
+// ---------------------------------------------------------------- A in the Subscriptions feed
+
+{
+  const heart = `<div class="feed-actions"><button type="button" class="like-btn" aria-label="Like"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"></path></svg><span>0</span></button></div>`;
+  const setItem = `<li class="feed-item"><a class="feed-link" href="#set"><span class="feed-text"><span class="feed-from">${BY}<span class="feed-when">OCT 9</span></span><strong>${esc(SET.name)}</strong><span class="feed-meta">Set · ${SET.items.length} puzzles · ~${total} min</span></span>
+<span class="feed-pic-wrap">${cover("a").replace("pic thumb set-thumb", "pic feed-pic set-thumb")}</span></a>${heart}</li>`;
+  const rest = ["nf3fyxf7yu", "prn6szg7v2"].map(pz).map((it, i) => `<li class="feed-item"><a class="feed-link" href="/g/${it.id}"><span class="feed-text"><span class="feed-from">${it.by}<span class="feed-when">OCT ${8 - i}</span></span><strong>${esc(it.title)}</strong><span class="feed-meta">${esc(it.kind)}</span></span>
+<span class="feed-pic-wrap">${it.pic.replace("pic thumb", "pic feed-pic")}</span></a>${heart}</li>`).join("");
+  out("f90-feed-a.html", page("Subscriptions (mockup)", `<main class="wrap feed-page"><h1 class="visually-hidden">Subscriptions</h1><ul class="feed">${setItem}${rest}</ul></main>`, "Subscriptions"));
+}
+
+// ---------------------------------------------------------------- the contact sheet
+
+const sheet = `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set covers</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap">
+<link rel="stylesheet" href="../../src/styles/global.css"><link rel="stylesheet" href="create-set.css"><link rel="stylesheet" href="cover-90.css"></head>
+<body class="sheet-index"><main class="c90">
+<h1>Set covers</h1>
+<p class="muted">The same set's first four pictures, six ways, next to two puzzle cards. Mockups, not product code.</p>
+<div class="c90-rows">${VARIANTS.map(([v, d]) => `<figure><img src="90-${v}-desktop.png"><figcaption><strong>${v.toUpperCase()}</strong> ${esc(d)}</figcaption></figure>`).join("")}</div>
+<div class="c90-more">
+<figure class="ph"><img src="90-a-phone.png"><figcaption><strong>A</strong> Phone</figcaption></figure>
+<figure class="ph"><img src="90-c-phone.png"><figcaption><strong>C</strong> Phone</figcaption></figure>
+<figure class="fd"><img src="90-a-feed-desktop.png"><figcaption><strong>A</strong> In the Subscriptions feed</figcaption></figure></div>
+</main></body></html>`;
+out("contact-90.html", sheet);
+console.log("wrote f90-*.html and contact-90.html");
