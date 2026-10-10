@@ -71,8 +71,8 @@ export const guides: Record<GenreName, Guide> = {
   "simple-loop": {
     name: "Simple Loop", aka: ["Round the Bend"], category: "Lines", ink: "#2d6a45",
     summary: "Draw one loop that winds through every white cell.",
-    origin: "A classic loop-drawing puzzle. Wyatt's version was called Round the Bend.",
-    credit: { note: "A classic puzzle-championship type; no single inventor is known.", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Simple_Loop" } },
+    origin: "Simple Loop has no known inventor, but its idea of one loop through every point goes back to William Rowan Hamilton's Icosian game of 1857, and Wyatt's first ones were called Round the Bend.",
+    credit: { note: "The idea goes back to William Rowan Hamilton's Icosian game (1857).", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Simple_Loop" } },
     rules: [
       { text: "Draw one closed loop through the centre of every white cell.", checks: ["loop"], pictures: [
         { ok: true, note: "Every cell, one loop", size: [2, 3], lines: [[[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [1, 0], [0, 0]]] },
@@ -92,8 +92,8 @@ export const guides: Record<GenreName, Guide> = {
   "simple-path": {
     name: "Simple Path", aka: ["Hamiltonian Path"], category: "Lines", ink: "#2d6a45",
     summary: "Draw one path from the arrow in to the arrow out that visits every white cell.",
-    origin: "A Hamiltonian path puzzle: the idea of visiting every spot exactly once goes back to William Rowan Hamilton's Icosian game of 1857.",
-    credit: { note: "No inventor is known for the grid puzzle; the idea goes back to William Rowan Hamilton's Icosian game (1857).", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Icosian_game" } },
+    origin: "Simple Path has no known inventor, and a path that visits every cell once is called a Hamiltonian path after William Rowan Hamilton, whose Icosian game of 1857 was built on the idea.",
+    credit: { note: "The idea goes back to William Rowan Hamilton's Icosian game (1857).", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Icosian_game" } },
     rules: [
       { text: "Draw one path from the arrow in to the arrow out, through every white cell.", checks: ["path"], pictures: [
         { ok: true, note: "Every cell", size: [2, 3], givens: [door(0, 0, "left", "in"), door(1, 0, "left", "out")], lines: [[[0, 0], [0, 1], [0, 2], [1, 2], [1, 1], [1, 0]]] },
@@ -113,7 +113,7 @@ export const guides: Record<GenreName, Guide> = {
   slitherlink: {
     name: "Slitherlink", aka: ["Fences", "Loop the Loop"], category: "Lines", ink: "#26398f",
     summary: "Draw one loop along the dotted lines; each number counts the sides of its cell the loop uses.",
-    origin: "A Nikoli puzzle, first published in 1989.",
+    origin: "Slitherlink first ran in the Japanese magazine Puzzle Communication Nikoli in 1989, made by its editors from two puzzles that readers sent in, and Nikoli made it popular.",
     credit: { popularizer: "Nikoli", year: "1989", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/slitherlink/" } },
     rules: [
       { text: "Draw one loop along the grid lines. It never branches or crosses itself.", checks: ["loop"], pictures: [
@@ -131,7 +131,7 @@ export const guides: Record<GenreName, Guide> = {
   masyu: {
     name: "Masyu", aka: ["Pearl"], category: "Lines", ink: "#2b2b30",
     summary: "Draw one loop through cell centres that goes straight through white pearls and turns on black ones.",
-    origin: "A Nikoli puzzle from 2000.",
+    origin: "Masyu began in Nikoli's magazine as Pearl Necklace, with white pearls only, and Nikoli added the black pearls in 2000 before giving it the name Masyu.",
     credit: { popularizer: "Nikoli", year: "2000", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/masyu/" } },
     rules: [
       { text: "Draw one loop through the centres of cells. It doesn't have to visit every cell.", checks: ["loop"], pictures: [
@@ -152,8 +152,8 @@ export const guides: Record<GenreName, Guide> = {
   numberlink: {
     name: "Numberlink", aka: ["Connectlink", "Flow", "Arukone"], category: "Lines", ink: "#26398f",
     summary: "Join each pair of matching numbers with a line; lines never cross.",
-    origin: "Sam Loyd printed an early form of it in 1897; Nikoli made it popular in Japan. Connectlink adds the rule that every cell is used.",
-    credit: { popularizer: "Nikoli", note: "Sam Loyd printed an early form in 1897.", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/numberlink/" } },
+    origin: "Sam Loyd printed an early form of Numberlink in the Brooklyn Daily Eagle in 1897 and Henry Dudeney printed another in 1917, but the Japanese publisher Nikoli made it popular.",
+    credit: { popularizer: "Nikoli", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/numberlink/" } },
     rules: [
       { text: "Join each pair of matching numbers with one line.", checks: ["links"], pictures: [
         { ok: true, note: "Pairs joined", size: [2, 3], givens: [num(0, 0, 1), num(0, 2, 1), num(1, 0, 2), num(1, 2, 2)], lines: [[[0, 0], [0, 1], [0, 2]], [[1, 0], [1, 1], [1, 2]]] },
@@ -172,7 +172,7 @@ export const guides: Record<GenreName, Guide> = {
   maze: {
     name: "Number Line Maze", category: "Lines", ink: "#26398f",
     summary: "Draw the walls each number asks for, then find your way from the arrow in to the arrow out.",
-    origin: "Invented by Wyatt, a young puzzle maker, who drew the first ones by hand.",
+    origin: "Wyatt invented the Number Line Maze for inkit and drew the first ones by hand.",
     credit: { inventor: "@wyatt / inkit", source: { label: "@wyatt", url: "https://inkit.games/wyatt" } },
     rules: [
       { text: "A number counts the walls touching it. The outside edge counts too.", checks: ["corner-count"], pictures: [
@@ -191,8 +191,8 @@ export const guides: Record<GenreName, Guide> = {
   panel: {
     name: "Panel", aka: ["Witness-style panels"], category: "Lines", ink: "#26398f",
     summary: "Draw a line from the start circle to an end; the symbols in the grid say where it may go.",
-    origin: "These panels follow the rules of the line puzzles in Jonathan Blow's video game The Witness (2016).",
-    credit: { inventor: "Jonathan Blow (Thekla), in the video game The Witness", year: "2016", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/The_Witness_(2016_video_game)" } },
+    origin: "These panels follow the line puzzles Jonathan Blow designed for The Witness, the 2016 video game from Blow's studio Thekla, where hundreds of them fill an island.",
+    credit: { inventor: "Jonathan Blow", popularizer: "the video game The Witness", year: "2016", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/The_Witness_(2016_video_game)" } },
     rules: [
       { text: "Draw one line along the grid lines, from the start circle to an end sticking out of the edge. It never touches itself and never crosses a gap.", checks: ["panel-line"], pictures: [
         { ok: true, note: "Start to end", size: [2, 2], givens: corners2, fence: STEP },
@@ -249,8 +249,8 @@ export const guides: Record<GenreName, Guide> = {
   nonogram: {
     name: "Nonogram", aka: ["Picture Squares", "Griddlers", "Paint by Numbers", "Picross"], category: "Shading", ink: "#a3343f",
     summary: "Shade the cells the numbers ask for to uncover a hidden picture.",
-    origin: "Invented in 1987 by two puzzle makers, Non Ishida and Tetsuya Nishio, each on their own.",
-    credit: { inventor: "Non Ishida and Tetsuya Nishio, each on their own", popularizer: "James Dalgety and The Sunday Telegraph", year: "1987", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Nonogram" } },
+    origin: "Non Ishida and Tetsuya Nishio each invented the Nonogram in Japan in 1987, and James Dalgety named it after Ishida and brought it to The Sunday Telegraph, which ran it weekly from 1990.",
+    credit: { inventor: "Non Ishida and Tetsuya Nishio", popularizer: "James Dalgety and The Sunday Telegraph", year: "1987", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Nonogram" } },
     rules: [
       { text: "Numbers beside a row (or above a column) are the lengths of its runs of shaded cells, in order, with at least one gap between runs.", checks: ["runs"], pictures: [
         { ok: true, note: "2 then 1", size: [1, 5], givens: [runs("row", 0, [2, 1])], shade: ["##.#."] },
@@ -264,8 +264,8 @@ export const guides: Record<GenreName, Guide> = {
   nurikabe: {
     name: "Nurikabe", aka: ["Islands in the Stream"], category: "Shading", ink: "#2d6a45",
     summary: "Shade a winding wall so every number sits in a white island of exactly that size.",
-    origin: "A Nikoli puzzle from 1991.",
-    credit: { popularizer: "Nikoli", year: "1991", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/nurikabe/" } },
+    origin: "Nurikabe was invented by the puzzle author renin and first ran in Nikoli's magazine in 1991, taking its name from an invisible wall in Japanese folklore.",
+    credit: { inventor: "renin", popularizer: "Nikoli", year: "1991", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Nurikabe_(puzzle)" } },
     rules: [
       { text: "Each number sits in a white island of exactly that many cells, and each island has one number.", checks: ["size-clue", "one-each"], pictures: [
         { ok: true, note: "Island of 3", size: [2, 3], givens: [num(0, 1, 3)], shade: ["#..", "##."] },
@@ -285,7 +285,7 @@ export const guides: Record<GenreName, Guide> = {
   "star-battle": {
     name: "Star Battle", aka: ["Two Not Touch"], category: "Shading", ink: "#26398f",
     summary: "Place one star in every row, column and outlined area; stars never touch.",
-    origin: "Invented by Hans Eendebak for the 2003 World Puzzle Championship in the Netherlands.",
+    origin: "Hans Eendebak invented Star Battle for the 2003 World Puzzle Championship in the Netherlands, building on Cattle, a 1999 puzzle by Tim Peeters.",
     credit: { inventor: "Hans Eendebak", popularizer: "the World Puzzle Championship", year: "2003", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Star_Battle" } },
     rules: [
       { text: "Every row and every column has exactly one star.", checks: ["shaded-per-line"], pictures: [
@@ -305,8 +305,8 @@ export const guides: Record<GenreName, Guide> = {
   akari: {
     name: "Akari", aka: ["Light Up"], category: "Shading", ink: "#2b2b30",
     summary: "Place light bulbs so every white cell is lit and no bulb shines on another.",
-    origin: "A Nikoli puzzle from 2001.",
-    credit: { popularizer: "Nikoli", year: "2001", note: "Also known as Light Up.", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/akari/" } },
+    origin: "Nikoli introduced Akari in 2001 under the Japanese name Bijutsukan, \"art gallery\", and outside Japan it goes by Akari, \"light\".",
+    credit: { popularizer: "Nikoli", year: "2001", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/akari/" } },
     rules: [
       { text: "A bulb lights its row and column, up to a black cell. Every white cell must be lit.", checks: ["lit"], pictures: [
         { ok: true, note: "All lit", size: [3, 3], givens: [rock(1, 1)], shade: ["#..", "...", "..#"] },
@@ -331,8 +331,8 @@ export const guides: Record<GenreName, Guide> = {
   cave: {
     name: "Cave", aka: ["Corral", "Bag"], category: "Shading", ink: "#2b2b30",
     summary: "Shade the rock around one connected cave; each number counts the cave cells it can see.",
-    origin: "Nikoli introduced it in 1996 as a loop puzzle called Bag; it became Corral in the West, and later the shading puzzle Cave.",
-    credit: { popularizer: "Nikoli", year: "1996", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Cave" } },
+    origin: "Gesaku invented it as Bag, a loop puzzle that first ran in Nikoli's magazine in 1996 and is called Corral in English, and Cave is the same puzzle solved by shading.",
+    credit: { inventor: "Gesaku", popularizer: "Nikoli", year: "1996", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Cave" } },
     rules: [
       { text: "The white cells form one connected cave.", checks: ["unshaded-connected"], pictures: [
         { ok: true, note: "One cave", size: [3, 3], shade: ["#..", "...", "..#"] },
@@ -352,7 +352,7 @@ export const guides: Record<GenreName, Guide> = {
   aquarium: {
     name: "Aquarium", category: "Shading", ink: "#26398f",
     summary: "Fill the outlined tanks with water that settles level; the numbers count the water in each row and column.",
-    origin: "Invented by the Japanese puzzle author Naoki Inaba in 2004, as Aqua Place.",
+    origin: "Naoki Inaba, a Japanese puzzle author, invented Aquarium in 2004 and first called it Aqua Place.",
     credit: { inventor: "Naoki Inaba", year: "2004", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Aquarium" } },
     rules: [
       { text: "Water settles: each tank fills from the bottom up, level all the way across.", checks: ["water"], pictures: [
@@ -371,7 +371,7 @@ export const guides: Record<GenreName, Guide> = {
   hitori: {
     name: "Hitori", category: "Shading", ink: "#2b2b30",
     summary: "Shade cells so no number repeats in a row or column; shaded cells never touch, and the rest stay connected.",
-    origin: "A Nikoli puzzle from 1990. Its full name, Hitori ni shitekure, means \"leave me alone\".",
+    origin: "Hitori first ran in Nikoli's magazine Puzzle Communication Nikoli in 1990, and its full name, Hitori ni shite kure, means \"leave me alone\".",
     credit: { popularizer: "Nikoli", year: "1990", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/hitori/" } },
     rules: [
       { text: "Shade cells so no number repeats in any row or column.", checks: ["unique-unshaded"], pictures: [
@@ -392,8 +392,8 @@ export const guides: Record<GenreName, Guide> = {
   minesweeper: {
     name: "Minesweeper", category: "Shading", ink: "#2b2b30",
     summary: "Every number counts the mines in the eight cells around it.",
-    origin: "The computer game turned into a logic puzzle: every number is shown from the start, and nothing explodes.",
-    credit: { popularizer: "Microsoft's Minesweeper", year: "1990", note: "The computer game, as a pencil puzzle.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Minesweeper_(video_game)" } },
+    origin: "Minesweeper goes back to computer games like Ian Andrew's Mined-Out (1983) and became famous through the version Robert Donner and Curt Johnson wrote for Microsoft Windows in 1990.",
+    credit: { popularizer: "Microsoft's Minesweeper", year: "1990", note: "Robert Donner and Curt Johnson wrote it.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Minesweeper_(video_game)" } },
     rules: [
       { text: "A number counts the mines in the eight cells around it, diagonals included. Numbered cells are never mines.", checks: ["mine-count"], pictures: [
         { ok: true, note: "2 around it", size: [3, 3], givens: [num(1, 1, 2)], shade: ["#..", "...", "..#"] },
@@ -406,8 +406,8 @@ export const guides: Record<GenreName, Guide> = {
   "wittgenstein-briquet": {
     name: "Wittgenstein Briquet", aka: ["Desk Place"], category: "Shading", ink: "#2b2b30",
     summary: "Place straight blocks of three; numbers count block cells beside them, and the rest stays connected.",
-    origin: "It began as \"Desk Place\" at the Japan Puzzle Championship in 2007; Serkan Yürekli gave it its English name.",
-    credit: { popularizer: "Serkan Yürekli, who named it", note: "It began as Desk Place at the Japan Puzzle Championship (2007).", source: { label: "Serkan Yürekli", url: "https://yureklis.wordpress.com/2012/06/03/wittgenstein-briquet/" } },
+    origin: "Wittgenstein Briquet began as Desk Place at the 2007 Japan Puzzle Championship, and Serkan Yürekli gave it its English name in 2012 and made many more.",
+    credit: { popularizer: "Serkan Yürekli", year: "2012", source: { label: "Serkan Yürekli", url: "https://yureklis.wordpress.com/2012/06/03/wittgenstein-briquet/" } },
     rules: [
       { text: "Blocks are straight lines of 3 cells, across or down. Blocks may touch.", checks: ["bars"], pictures: [
         { ok: true, note: "A block of 3", size: [3, 3], shade: ["###", "...", "..."] },
@@ -429,8 +429,8 @@ export const guides: Record<GenreName, Guide> = {
   shikaku: {
     name: "Shikaku", aka: ["Rectangles", "Divide by Box"], category: "Regions", ink: "#a3343f",
     summary: "Cut the grid into rectangles, each holding one number: its size.",
-    origin: "A Nikoli puzzle, first published in 1989.",
-    credit: { popularizer: "Nikoli", year: "1989", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/shikaku/" } },
+    origin: "Yoshinao Anpuku, a maths student at Kyoto University, invented Shikaku in 1989, and Nikoli published it and made it popular.",
+    credit: { inventor: "Yoshinao Anpuku", popularizer: "Nikoli", year: "1989", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Shikaku" } },
     rules: [
       { text: "Cut the grid into rectangles (squares count).", checks: ["rectangles"], pictures: [
         { ok: true, note: "Rectangles", size: [2, 3], regions: ["aab", "aab"] },
@@ -447,8 +447,8 @@ export const guides: Record<GenreName, Guide> = {
   "square-jam": {
     name: "Square Jam", category: "Regions", ink: "#a3343f",
     summary: "Split the grid into squares; four never meet at a point, and a number is its square's side.",
-    origin: "The American puzzle designer Eric Fox wrote its puzzles for the 2022 World Puzzle Championship.",
-    credit: { popularizer: "the 2022 World Puzzle Championship", note: "Its puzzles there were by Eric Fox.", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/WPC_2022/Round_16" } },
+    origin: "Square Jam's inventor isn't known, and Eric Fox wrote the ones that appeared at the 2022 World Puzzle Championship.",
+    credit: { note: "Its inventor isn't known.", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/WPC_2022/Round_16" } },
     rules: [
       { text: "Split the grid into squares.", checks: ["squares"], pictures: [
         { ok: true, note: "All squares", size: [2, 3], regions: ["aab", "aac"] },
@@ -468,8 +468,8 @@ export const guides: Record<GenreName, Guide> = {
   "spiral-galaxies": {
     name: "Spiral Galaxies", aka: ["Tentai Show"], category: "Regions", ink: "#26398f",
     summary: "Split the grid into regions that look the same turned halfway round their circle.",
-    origin: "Nikoli introduced it in 2001 as Tentai Show, a pun meaning both \"astronomy show\" and \"symmetric dots\".",
-    credit: { popularizer: "Nikoli, as Tentai Show", year: "2001", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Spiral_Galaxies" } },
+    origin: "Gesaku invented Spiral Galaxies, and it first ran in Nikoli's magazine in 2001 as Tentai Show, a name that means \"astronomy show\" and sounds like the Japanese for point symmetry.",
+    credit: { inventor: "Gesaku", popularizer: "Nikoli", year: "2001", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Spiral_Galaxies" } },
     rules: [
       { text: "Every region holds exactly one circle.", checks: ["galaxies"], pictures: [
         { ok: false, note: "Two circles", size: [2, 3], givens: [galaxy(2, 1), galaxy(2, 4)], regions: ["aaa", "aaa"] },
@@ -485,8 +485,8 @@ export const guides: Record<GenreName, Guide> = {
   panes: {
     name: "Panes", category: "Regions", ink: "#2b2b30",
     summary: "Cut the window into panes of stained glass that follow every rule listed with the puzzle.",
-    origin: "Our own puzzle, after the region-dividing puzzles of The Artisan of Glimmith.",
-    credit: { inventor: "@wyatt / inkit", note: "After the region puzzles of The Artisan of Glimmith.", source: { label: "The Artisan of Glimmith", url: "https://pixeltwelve.com/games/the-artisan-of-glimmith" } },
+    origin: "Panes is inkit's own puzzle, made by Wyatt after the stained-glass puzzles in the game The Artisan of Glimmith.",
+    credit: { inventor: "@wyatt / inkit", source: { label: "The Artisan of Glimmith", url: "https://pixeltwelve.com/games/the-artisan-of-glimmith" } },
     rules: [
       { text: "Each puzzle lists its own rules. Size N: every pane has N cells. Dark squares are holes, in no pane; thick lines are borders drawn already.", checks: ["size"], pictures: [
         { ok: true, note: "Size 3", size: [2, 3], rules: [{ rule: "size", is: 3 }], regions: ["aab", "abb"] },
@@ -571,8 +571,8 @@ export const guides: Record<GenreName, Guide> = {
   sudoku: {
     name: "Sudoku", category: "Numbers", ink: "#2b2b30",
     summary: "Fill the grid so every row, column and box has each digit once.",
-    origin: "Howard Garns created it for Dell in 1979 as Number Place; Nikoli named it Sudoku in 1984.",
-    credit: { inventor: "Howard Garns, for Dell, as Number Place", popularizer: "Nikoli, which named it Sudoku, and Wayne Gould", year: "1979", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Sudoku" } },
+    origin: "Howard Garns created Sudoku for Dell's puzzle magazines in 1979 as Number Place, Nikoli named it Sudoku in 1984, and Wayne Gould's puzzles in The Times made it famous worldwide in 2004.",
+    credit: { inventor: "Howard Garns", popularizer: "Nikoli and Wayne Gould", year: "1979", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Sudoku" } },
     rules: [
       { text: "Every row and every column has each digit once.", checks: ["latin"], pictures: [
         { ok: true, note: "No repeats", size: [4, 4], digits: ["1234", "3412", "2143", "4321"] },
@@ -588,8 +588,8 @@ export const guides: Record<GenreName, Guide> = {
   "irregular-sudoku": {
     name: "Irregular Sudoku", aka: ["Jigsaw Sudoku"], category: "Numbers", ink: "#2b2b30",
     summary: "A sudoku whose boxes are odd shapes: every row, column and outlined area has each digit once.",
-    origin: "A Sudoku variant whose boxes are irregular shapes.",
-    credit: { note: "A Sudoku variant; its inventor isn't known.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Sudoku" } },
+    origin: "Irregular Sudoku is a Sudoku variant with no known inventor that swaps the square boxes for odd shapes of the same size.",
+    credit: { note: "Its inventor isn't known.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Sudoku" } },
     rules: [
       { text: "Every row and every column has each digit once.", checks: ["latin"], pictures: [
         { ok: true, note: "No repeats", size: [4, 4], areas: ["aabb", "aabb", "ccdd", "ccdd"], digits: ["1234", "3412", "2143", "4321"] },
@@ -605,8 +605,8 @@ export const guides: Record<GenreName, Guide> = {
   "thermo-sudoku": {
     name: "Thermo Sudoku", category: "Numbers", ink: "#a3343f",
     summary: "A sudoku whose digits rise along each thermometer, from the bulb to the tip.",
-    origin: "A Sudoku variant with thermometers.",
-    credit: { inventor: "Thomas Snyder", popularizer: "GMPuzzles", source: { label: "GMPuzzles", url: "https://www.gmpuzzles.com/blog/sudoku-rules-and-info/thermo-sudoku-rules-and-info/" } },
+    origin: "Thermo Sudoku has no known inventor, and it got its name from Wei-Hwa Huang and Thomas Snyder in their 2009 book Mutant Sudoku.",
+    credit: { popularizer: "Wei-Hwa Huang and Thomas Snyder", note: "Its inventor isn't known.", source: { label: "GMPuzzles", url: "https://www.gmpuzzles.com/blog/sudoku-rules-and-info/thermo-sudoku-rules-and-info/" } },
     rules: [
       { text: "It's a sudoku: every row, column and box has each digit once.", checks: ["latin", "boxes"], pictures: [
         { ok: true, note: "A sudoku", size: [4, 4], digits: ["1234", "3412", "2143", "4321"] },
@@ -622,7 +622,7 @@ export const guides: Record<GenreName, Guide> = {
   skyscrapers: {
     name: "Skyscrapers", aka: ["Towers"], category: "Numbers", ink: "#26398f",
     summary: "Fill in building heights; the numbers outside count the buildings you can see.",
-    origin: "Invented by Masanori Natsuhara in 1992.",
+    origin: "Masanori Natsuhara invented Skyscrapers in 1992, and it first ran in the Japanese magazine Puzzler as Building City Puzzle.",
     credit: { inventor: "Masanori Natsuhara", year: "1992", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Skyscrapers" } },
     rules: [
       { text: "Every row and every column has each height once.", checks: ["latin"], pictures: [
@@ -640,8 +640,8 @@ export const guides: Record<GenreName, Guide> = {
   "easy-as-abc": {
     name: "Easy as ABC", aka: ["Letterraam", "End View"], category: "Numbers", ink: "#2d6a45",
     summary: "Put each letter once in every row and column; letters outside are the first one seen.",
-    origin: "Known in Dutch as Letterraam, \"letter frame\".",
-    credit: { note: "Its inventor isn't known; puzzle championships made it popular.", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/ABCtje" } },
+    origin: "No one knows who invented Easy as ABC, but the oldest known one appeared at the 1994 German puzzle championship as Buchstaben-Roulett, and puzzle championships have kept it popular.",
+    credit: { popularizer: "puzzle championships", note: "Its inventor isn't known.", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/ABCtje" } },
     rules: [
       { text: "Every row and column has A, B and C exactly once; the other cells stay empty.", checks: ["letters"], pictures: [
         { ok: true, note: "One of each", size: [4, 4], digits: ["ABC.", "C.AB", "BA.C", ".CBA"] },
@@ -659,8 +659,8 @@ export const guides: Record<GenreName, Guide> = {
   hidoku: {
     name: "Hidoku", aka: ["Number Snake"], category: "Numbers", ink: "#26398f",
     summary: "Fill in the numbers 1 to the last so each one touches the next, making one snake through the grid.",
-    origin: "Invented by Gyora Benedek and sold as Hidato, a trademarked name; Hidoku and Number Snake are the names puzzle sites use. The sides-only kind is often called Numbrix.",
-    credit: { inventor: "Gyora Benedek", note: "He named it Hidato, a registered trademark, so we use the generic name.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Hidato" } },
+    origin: "Gyora Benedek invented this puzzle and named it Hidato, from the Hebrew for \"riddle\", and since Hidato is a trademark we call it Hidoku, as many puzzle sites do.",
+    credit: { inventor: "Gyora Benedek", note: "Hidato is a registered trademark, so we use the generic name.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Hidato" } },
     rules: [
       { text: "Fill every white cell with the numbers 1 to the last one, each once.", checks: ["number-path"], pictures: [
         { ok: true, note: "1 to 6, once each", size: [2, 3], digits: ["135", "246"] },
@@ -684,8 +684,8 @@ export const guides: Record<GenreName, Guide> = {
   "honeycomb-paths": {
     name: "Honeycomb Paths", aka: ["Honeycombs"], category: "Numbers", ink: "#7a4a12",
     summary: "Fill a honeycomb with the numbers 1 to the last so each one touches the next.",
-    origin: "Hidoku on hexagons, as Beast Academy draws it. A hexagon touches six others, always along a side, so there are no corner steps to worry about.",
-    credit: { popularizer: "Beast Academy (Art of Problem Solving)", note: "Gyora Benedek's Hidato, on hexagons.", source: { label: "Beast Academy Puzzles 2", url: "https://beastacademy.com/books/puzzles2" } },
+    origin: "Honeycomb Paths is Gyora Benedek's Hidato on hexagons, as drawn in Beast Academy, the maths books for kids from Art of Problem Solving.",
+    credit: { popularizer: "Beast Academy (Art of Problem Solving)", note: "Based on Gyora Benedek's Hidato.", source: { label: "Beast Academy Puzzles 2", url: "https://beastacademy.com/books/puzzles2" } },
     rules: [
       { text: "Fill every hexagon with the numbers 1 to the last one, each once.", checks: ["number-path"], pictures: [
         { ok: true, note: "1 to 6, once each", size: [2, 3], digits: ["123", "654"] },
@@ -702,7 +702,7 @@ export const guides: Record<GenreName, Guide> = {
   hive: {
     name: "Hive", category: "Numbers", ink: "#7a4a12",
     summary: "Each hexagon holds the smallest number that none of its neighbours has.",
-    origin: "A honeycomb puzzle from Beast Academy's maths books for kids. Each number is the \"mex\" (minimum excluded value) of its neighbours, the rule behind Sprague and Grundy's numbers for games, from the 1930s.",
+    origin: "Hive comes from Beast Academy's maths puzzle books for kids, and each number follows the \"mex\" rule that Sprague and Grundy used for games in the 1930s.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 4", url: "https://beastacademy.com/books/puzzles4" } },
     rules: [
       { text: "Hexagons that touch never hold the same number.", checks: ["smallest-missing"], pictures: [
@@ -720,7 +720,7 @@ export const guides: Record<GenreName, Guide> = {
   "pythagorean-paths": {
     name: "Pythagorean Paths", category: "Lines", ink: "#2d6a45",
     summary: "Join the dots with one path of straight segments whose lengths are the ones listed.",
-    origin: "A geoboard puzzle from Beast Academy's maths books for kids. The lengths come from Pythagoras: a segment 1 across and 2 down is √(1² + 2²) = √5 long.",
+    origin: "Pythagorean Paths comes from Beast Academy's maths puzzle books for kids and measures each segment with Pythagoras, so one that goes 1 across and 2 down is √5 long.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 5", url: "https://beastacademy.com/books/puzzles5" } },
     rules: [
       { text: "Join all the dots into one path of straight segments, each from a dot to a dot.", checks: ["distance-path"], pictures: [
@@ -748,8 +748,8 @@ export const guides: Record<GenreName, Guide> = {
   coats: {
     name: "RYB", aka: ["Three Coats"], category: "Paint", ink: "#2b2b30",
     summary: "Paint every shape red, yellow or blue so each dot sees its color next door.",
-    origin: "FLEB's logic puzzle game RYB (2016): colour shapes from clues, a little like a mix of Sudoku and Minesweeper. Wyatt's puzzles of this kind were first called Three Coats.",
-    credit: { inventor: "FLEB, in the game RYB", year: "2016", source: { label: "RYB", url: "https://rawg.io/games/ryb" } },
+    origin: "RYB comes from FLEB's 2016 puzzle game of the same name, and Wyatt's first puzzles of this kind were called Three Coats.",
+    credit: { inventor: "FLEB", year: "2016", source: { label: "RYB", url: "https://rawg.io/games/ryb" } },
     rules: [
       { text: "Paint every piece red, yellow or blue.", checks: ["painted"], pictures: [] },
       { text: "A dot asks for a neighbour of its color: two red dots need at least two red neighbours. Neighbours share an edge, not just a corner.", checks: ["neighbor-dots"], pictures: [
@@ -764,8 +764,8 @@ export const guides: Record<GenreName, Guide> = {
   "binary-puzzle": {
     name: "Binary Puzzle", category: "Paint", ink: "#2b2b30",
     summary: "Paint every cell red or blue: half of each in every row and column, never three alike in a row, and no two lines the same.",
-    origin: "Peter De Schepper and Frank Coussement published it in Belgium in 2009 as Binairo; it's also sold as Takuzu. Both names are trademarks, so we use the generic one. It's often written with 0s and 1s.",
-    credit: { inventor: "Peter De Schepper and Frank Coussement", year: "2009", note: "They named it Binairo; Binairo and Takuzu are trademarks, so we use the generic name.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Takuzu" } },
+    origin: "Peter De Schepper and Frank Coussement published this puzzle in Belgium in 2009 as Binairo, and since Binairo and its other name, Takuzu, are trademarks, we use the generic name.",
+    credit: { inventor: "Peter De Schepper and Frank Coussement", year: "2009", note: "They named it Binairo. Binairo and Takuzu are trademarks, so we use the generic name.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Takuzu" } },
     rules: [
       { text: "Every row and every column is half red and half blue.", checks: ["line-shares"], pictures: [
         { ok: true, note: "Two of each", size: [2, 4], paint: [1, 2, 1, 2, 2, 1, 2, 1] },
@@ -786,7 +786,7 @@ export const guides: Record<GenreName, Guide> = {
   "abstract-art": {
     name: "Abstract Art", category: "Paint", ink: "#26398f",
     summary: "Paint every cell so each row and column has its share of each color: half and half, a third of each, or whatever the puzzle asks.",
-    origin: "A paint-by-shares puzzle from Beast Academy's maths books for kids; the Binary Puzzle is its best-known two-color cousin.",
+    origin: "Abstract Art comes from Beast Academy's maths puzzle books for kids and works like the Binary Puzzle with more colors and other shares.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 3", url: "https://beastacademy.com/books/puzzles3" } },
     rules: [
       { text: "Paint every cell. Every row and every column has the share of each color the puzzle asks for, like half blue and half yellow.", checks: ["line-shares"], pictures: [
@@ -808,8 +808,8 @@ export const guides: Record<GenreName, Guide> = {
   "fill-in": {
     name: "Number Fill-In", aka: ["Fill-In", "Numbercross"], category: "Numbers", ink: "#2b2b30",
     summary: "Fit every number on the list into the grid, across or down, like a crossword made of numbers.",
-    origin: "A puzzle-magazine favourite: fill-ins come with words or numbers, and the number kind is usually called Number Fill-In.",
-    credit: { note: "A traditional puzzle-magazine type with no known inventor; Beast Academy calls it Numbercross.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Fill-In_(puzzle)" } },
+    origin: "Number Fill-In is a puzzle-magazine type with no known inventor, and Beast Academy's maths books for kids call it Numbercross.",
+    credit: { note: "Its inventor isn't known. Beast Academy calls it Numbercross.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Fill-In_(puzzle)" } },
     rules: [
       { text: "Every number on the list goes into the grid once, reading across (left to right) or down (top to bottom).", checks: ["fill-in"], pictures: [
         { ok: true, note: "12, 34 across; 13, 24 down", size: [2, 2], entries: ["12", "13", "24", "34"], digits: ["12", "34"] },
@@ -828,8 +828,8 @@ export const guides: Record<GenreName, Guide> = {
   fillomino: {
     name: "Fillomino", category: "Regions", ink: "#26398f",
     summary: "Split the grid into regions: a number is its region's size, and regions of the same size never share a side.",
-    origin: "A Nikoli puzzle, first published in 1994.",
-    credit: { popularizer: "Nikoli", year: "1994", source: { label: "Nikoli", url: "https://www.nikoli.co.jp/en/puzzles/fillomino/" } },
+    origin: "Fillomino first ran in Nikoli's magazine in 1994, from an idea sent in by a contributor called Suranta, and Nikoli made it popular.",
+    credit: { popularizer: "Nikoli", year: "1994", source: { label: "WPC wiki", url: "https://wpcunofficial.miraheze.org/wiki/Fillomino" } },
     rules: [
       { text: "Split the grid into regions. A number tells how many cells its region has. A region can hold several numbers (all the same), or none.", checks: ["size-clue"], pictures: [
         { ok: true, note: "3, 2 and 1", size: [2, 3], givens: [num(0, 0, 3), num(1, 2, 2)], regions: ["aab", "acb"] },
@@ -850,7 +850,7 @@ export const guides: Record<GenreName, Guide> = {
   "sum-blobs": {
     name: "Sum Blobs", category: "Regions", ink: "#2f6b3a",
     summary: "Every square has a number: split the grid into regions whose numbers each add up to the target.",
-    origin: "Beast Academy's puzzle, from its maths books for kids: dividing a grid of numbers into groups with the same total.",
+    origin: "Sum Blobs comes from Beast Academy, the maths puzzle books for kids from Art of Problem Solving.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 2", url: "https://beastacademy.com/books/puzzles2" } },
     rules: [
       { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written with the puzzle (here 6).", checks: ["region-sum"], pictures: [
@@ -864,8 +864,8 @@ export const guides: Record<GenreName, Guide> = {
   "polyomino-packing": {
     name: "Polyomino Packing", aka: ["Polyominoes", "Polyomino Tiling", "Pentomino puzzle"], category: "Regions", ink: "#5b3a8f",
     summary: "Cut the board into the pieces under it, using each piece exactly once.",
-    origin: "Fitting polyominoes into a shape is a classic: Solomon Golomb named polyominoes in 1953, and pentomino puzzles go back to Henry Dudeney's in 1907.",
-    credit: { inventor: "Solomon Golomb, who named polyominoes", popularizer: "Martin Gardner", year: "1953", note: "Beast Academy calls its version Polyominoes.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Polyomino" } },
+    origin: "Henry Dudeney set a pentomino puzzle in 1907, Solomon Golomb named polyominoes in 1953, and Martin Gardner made them famous in Scientific American.",
+    credit: { popularizer: "Solomon Golomb and Martin Gardner", note: "Beast Academy calls its version Polyominoes.", source: { label: "Wikipedia", url: "https://en.wikipedia.org/wiki/Polyomino" } },
     rules: [
       { text: "Cut the board into the pieces under it, each used exactly once. Pieces may be turned or flipped. Dark squares aren't part of the board.", checks: ["shape-bank"], pictures: [
         { ok: true, note: "An L and a domino", size: [2, 3], givens: [rock(1, 2), bank(...ELL), bank([0, 0], [0, 1])], regions: ["abb", "aa#"] },
@@ -878,7 +878,7 @@ export const guides: Record<GenreName, Guide> = {
   "connect-the-critters": {
     name: "Connect the Critters", category: "Shading", ink: "#7a4a1f",
     summary: "Place the pieces so they cover every critter and join up into one group.",
-    origin: "A placement puzzle from Beast Academy's maths books for kids and its online Puzzle Lab.",
+    origin: "Connect the Critters comes from Beast Academy's maths puzzle books for kids and its online Puzzle Lab, both from Art of Problem Solving.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 3", url: "https://beastacademy.com/books/puzzles3" } },
     rules: [
       { text: "Shade squares to place every piece under the board exactly once. Pieces can be turned but not flipped (unless the puzzle says so), and never overlap.", checks: ["pieces"], pictures: [
@@ -901,7 +901,7 @@ export const guides: Record<GenreName, Guide> = {
   "find-the-cut-line": {
     name: "Find the Cut Line", category: "Regions", ink: "#a3343f",
     summary: "Cut the shape into two pieces (or three), each of them symmetric.",
-    origin: "A cutting puzzle from Beast Academy's online Puzzle Lab.",
+    origin: "Find the Cut Line comes from Beast Academy's online Puzzle Lab, made by Art of Problem Solving for kids learning maths.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Online", url: "https://beastacademy.com/online" } },
     rules: [
       { text: "Cut the shape along the grid lines into two pieces (or as many as the puzzle says). Dark squares aren't part of it.", checks: ["region-count"], pictures: [

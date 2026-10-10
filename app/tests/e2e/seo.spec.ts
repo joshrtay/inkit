@@ -18,13 +18,13 @@ test.describe("as a crawler", () => {
     expect(html).not.toContain('name="robots"');
     const ld = JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]);
     expect(ld["@graph"].map((o: { "@type": string }) => o["@type"])).toEqual(["Article", "BreadcrumbList"]);
-    // the rules, the pictures' captions and names, the example and the credit, all without JavaScript
+    // the rules, the pictures' captions and names, the example and the origin, all without JavaScript
     expect(html).toContain("A bulb lights its row and column, up to a black cell. Every white cell must be lit.");
     expect(html).toContain("<figcaption>All lit</figcaption>");
     expect(html).toContain("<title>Right: All lit</title>");
     expect(html).toContain("<title>Akari example, Lights On: solved</title>");
     expect(html).toMatch(/<h2 id="example">Example: (<!-- -->)?Lights On<\/h2>/);
-    expect(html).toContain("Popularized by Nikoli (2001).");
+    expect(html).toContain("Nikoli introduced Akari in 2001 under the Japanese name Bijutsukan");
     expect(html.match(/<h1[ >]/g)).toHaveLength(1);
   });
 
