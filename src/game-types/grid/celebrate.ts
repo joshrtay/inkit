@@ -131,7 +131,11 @@ export function celebrate(root: HTMLElement, inks: string[]) {
     return { e, r, x, y, fx: x, fy: y, vx: Math.cos(away) * speed, vy: Math.sin(away) * speed - M * 0.25, tx: p.x, ty: p.y, s: 0 };
   });
 
-  const START = 275, BURST = 560, GATHER = 620, HOLD = 450, FLY = 650;
+  // SLOW stretches the whole thing evenly (the squeeze, burst, gather, hold and fly, and the CSS
+  // transitions through --slow), so it plays as before in slow motion: the drops' paths don't change
+  const SLOW = 1.6;
+  sheet.style.setProperty("--slow", String(SLOW));
+  const START = 275 * SLOW, BURST = 560 * SLOW, GATHER = 620 * SLOW, HOLD = 450 * SLOW, FLY = 650 * SLOW;
   const start = performance.now() + START;
   const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
   let frame = 0, last = start;
@@ -144,13 +148,13 @@ export function celebrate(root: HTMLElement, inks: string[]) {
   const tick = (now: number) => {
     const t = now - start;
     if (t < 0) { frame = requestAnimationFrame(tick); return; }
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const dt = Math.min(0.05, (now - last) / 1000) / SLOW; last = now;   // physics in slow motion
     for (const q of drops) {
       if (t < BURST) {
         // flying out, slowing, falling a little
         const drag = Math.exp(-2.6 * dt);
         q.vx *= drag; q.vy = q.vy * drag + M * 1.4 * dt;
-        q.x += q.vx * dt; q.y += q.vy * dt; q.s = Math.min(1, t / 90);
+        q.x += q.vx * dt; q.y += q.vy * dt; q.s = Math.min(1, t / (90 * SLOW));
         q.fx = q.x; q.fy = q.y;
       } else {
         // 4. pulled into the check, shrinking into its stroke as it draws

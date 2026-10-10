@@ -173,18 +173,18 @@
 /* ---- solving a puzzle (celebrate.ts): squeezed and let go; the ink bursts out in drops and
    the puzzle goes gray; the drops gather into a check, which flies to the corner as a stamp ---- */
 /* squeezed, then let go: the ink bursts out as it springs back (celebrate.ts times the burst to it) */
-.sheet.solving > svg:not(.celebration):not(.solved-stamp) { animation: solve-squeeze .5s cubic-bezier(.4, 0, .2, 1); transform-origin: 50% 50%; }
+.sheet.solving > svg:not(.celebration):not(.solved-stamp) { animation: solve-squeeze calc(.5s * var(--slow, 1)) cubic-bezier(.4, 0, .2, 1); transform-origin: 50% 50%; }
 @keyframes solve-squeeze { 0% { transform: scale(1); } 55% { transform: scale(.92); } 75% { transform: scale(1.04); } 100% { transform: scale(1); } }
 /* gray while the ink is out of it: --gray is registered so the filter fades rather than jumps */
 @property --gray { syntax: "<number>"; inherits: false; initial-value: 0; }
-.sheet > svg:not(.celebration):not(.solved-stamp) { filter: url(#pen) grayscale(var(--gray)) opacity(calc(1 - var(--gray) * .45)); transition: --gray .6s ease; }
-.sheet.drained > svg:not(.celebration):not(.solved-stamp) { --gray: 1; transition-duration: .35s; }
+.sheet > svg:not(.celebration):not(.solved-stamp) { filter: url(#pen) grayscale(var(--gray)) opacity(calc(1 - var(--gray) * .45)); transition: --gray calc(.6s * var(--slow, 1)) ease; }
+.sheet.drained > svg:not(.celebration):not(.solved-stamp) { --gray: 1; transition-duration: calc(.35s * var(--slow, 1)); }
 .sheet > svg.celebration { position: absolute; display: block; filter: none; cursor: default; pointer-events: none; overflow: visible; z-index: 3; }
 .celebration .ink-drop { fill: var(--c); }
-.celebration .flier { transition: transform .65s cubic-bezier(.5, 0, .2, 1); }
+.celebration .flier { transition: transform calc(.65s * var(--slow, 1)) cubic-bezier(.5, 0, .2, 1); }
 .check-ink { fill: none; stroke: var(--paper-ink, #26398f); stroke-linecap: round; stroke-linejoin: round; }
 /* the transition only once it draws, so hiding it at the start doesn't animate */
-.celebration .check-ink.big.drawn { stroke-dashoffset: 0 !important; transition: stroke-dashoffset .5s ease-out, stroke-width .65s ease; }
+.celebration .check-ink.big.drawn { stroke-dashoffset: 0 !important; transition: stroke-dashoffset calc(.5s * var(--slow, 1)) ease-out, stroke-width calc(.65s * var(--slow, 1)) ease; }
 .sheet > svg.solved-stamp { position: absolute; top: -14px; right: -14px; width: 54px; height: 54px; translate: -50% -50%; filter: none; cursor: default; padding: 8px; border-radius: 50%;
   background: var(--paper, #fbfaf6); box-shadow: 0 2px 8px #0003; z-index: 2; animation: stamp-in .35s cubic-bezier(.3, 1.6, .5, 1); }
 .solved-stamp .check-ink { stroke-width: 11; }
