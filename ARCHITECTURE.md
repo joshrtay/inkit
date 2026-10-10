@@ -18,6 +18,7 @@ browser, subscribe to creators, and like puzzles.
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
 | `puzzles/ai/` | The AI creators' weekly batch: `week.ts` makes, scores (`score.ts`), titles and queues each persona's posts ([docs/ai-creators.md](docs/ai-creators.md)) |
+| `puzzles/difficulty/` | The deduction solver: solves a puzzle step by step on the engine's own encoding, costs each step by its smallest explanation, and estimates difficulty (`deduce.ts`); `deductionScorer` for the AI creators (`scorer.ts`), a CLI (`cli.ts`) and calibration runs (`calibrate.ts`) |
 | `.github/bug-fix/` | The AI bug fixer's gate, guard and prompt, run by `.github/workflows/bug-fix.yml` ([docs/bug-pipeline.md](docs/bug-pipeline.md)) |
 | `docs/` | The grid engine in depth, including how the editors (paint, RYB's) must keep up with it; the creation flow |
 
