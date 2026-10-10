@@ -138,6 +138,10 @@
 .grid-game .clue.length.done { fill: color-mix(in srgb, var(--paper-ink) 35%, transparent); text-decoration: line-through; }
 .grid-game .wrong-cell { fill: color-mix(in srgb, var(--wash-red) 30%, transparent); }
 .grid-game .pad .num { min-width: 30px; font-size: 20px; padding: 6px 4px; }
+/* on a phone the digits share what room there is (a 9 × 9's nine digits, pencil and erase don't
+   fit at 30px each): the paper never gets wider than the screen */
+.grid-game .pad .group:first-child { min-width: 0; flex: 0 1 auto; }
+@media (max-width: 600px) { .grid-game .pad .group:first-child { flex: 1 1 auto; } .grid-game .pad .num { min-width: 0; flex: 1 1 26px; padding: 6px 2px; } .grid-game .pad .word { padding-inline: 4px; } }
 .grid-game .pad .word[aria-pressed="true"] { background: color-mix(in srgb, var(--paper-ink) 12%, transparent); text-decoration: none; }
 
 /* mazes: numbers in circles on the corners, arrows at the doors; then a walk through it */
