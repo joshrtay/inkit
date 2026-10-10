@@ -350,6 +350,38 @@ the main UI; typing is for people who want it.
 5. Later, if asked: lists in the feed, follow a list, a daily or "unsolved in types you play"
    generated list.
 
+## Risks in the search syntax
+
+Two choices in system B carry most of the risk: bare words that act as filters (`akari easy`), and having no AND/OR/NOT.
+
+### Bare words as filters
+
+- **Title clashes.** "Lights On", "Easy Street", "Night Maze", "Hive Mind". A title search turns into a filter. The word "sudoku" can never be searched as text.
+- **Long type names.** "Easy as ABC" contains `easy`. "Find the Cut Line", "Number Line Maze", "Star Battle" are phrases. Match the longest phrase first.
+- **Aliases and plurals.** Light Up, Hidato, Takuzu, Binairo, Corral, "witness", "sudokus". Each alias takes another word away from title search.
+- **Old links change meaning.** Add a type called Tents and every shared link with "tents" in it changes from a title search to a filter. `before:` doesn't help: the reading changed, not the puzzles.
+- **Chips flicker while typing.** "aka" isn't a type, "akari" is. Update chips after a pause.
+- **Difficulty drifts.** `easy` reads the estimate, which the cron recomputes. A frozen `easy` list can still change. So can `under:10min`.
+- **Natural phrasing.** People will type `akari by wyatt` without the colon.
+
+### No AND / OR / NOT
+
+- **"Not" comes first:** no AI creators, not by Slate, not solved.
+- **Cross-field "or" can't be said:** "easy Akari or hard Nurikabe". Commas only cover one field (`akari,nurikabe`). The fallback is an `id:` list.
+- **People type "or" anyway.** `akari or sudoku` finds nothing, with no hint why.
+- **Adding logic later breaks links** if `-x` or `OR` already meant text. GitHub hit this with `repo:`.
+
+### Fixes
+
+1. **Share the explicit form.** Bare words are typing shortcuts. Copy and Share always write `type:akari level:easy`, so new types and aliases can't change a shared link.
+2. **Reserve syntax now.** A leading `-`, `OR`, `AND` and brackets mean nothing yet ("not supported yet"), so they can gain a meaning later. A bare "or" suggests `akari,sudoku`.
+3. **Chips show the reading.** Tapping a chip offers "Search 'akari' as text instead". Quotes always mean text.
+4. **Freeze only what holds still.** A frozen share with a drifting filter (difficulty, minutes) is saved as an `id:` list, or says "as of Oct 10".
+5. **Named exclusions instead of NOT:** `made:people`, `unsolved`.
+6. **Version shared links** with `v=1`, so a later parser can read old links the old way.
+
+Do 1 to 3 from the start. 4 and 5 come with sharing.
+
 ## Surprises
 
 - YouTube's anonymous playlists still work signed out, and the `TLGG…` id is a hash of the
