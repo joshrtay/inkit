@@ -68,7 +68,7 @@ test.describe.serial("bug reports", () => {
     await expect(dialog.getByLabel("What went wrong?")).toBeFocused();
     const recording = dialog.getByRole("checkbox", { name: /Include a recording of the last 2 minutes/ });
     await expect(recording).toBeChecked();
-    await expect(dialog).toContainText("Anything you typed is hidden");
+    await expect(dialog).toContainText("What you typed is hidden");
     await dialog.getByLabel("What went wrong?").fill(SECRET);
     await dialog.getByLabel(/What did you expect/).fill("It should keep working");
     await shot(page, "dialog");
