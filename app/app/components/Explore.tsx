@@ -95,7 +95,6 @@ export function StarterCard({ s, pics, inks }: { s: { kind: string; name: string
         <Link className="starter-link" to={`/g/${s.id}`}>
           <Pic pic={pics[s.kind]} inks={inks} />
           <span className="game-card-text">
-            <span className="kind">Start here</span>
             <strong>{s.name}</strong>
             <span className="desc">{s.summary}</span>
           </span>

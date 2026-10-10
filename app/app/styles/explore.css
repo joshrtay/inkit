@@ -61,8 +61,7 @@
 .diff i.on { background: currentColor; opacity: 1; }
 .card-foot .diff { color: var(--ink); }
 
-/* Start here: the type's name leads, the card says it's the easy one */
-.starter .kind { color: var(--good); font-weight: 800; }
+/* Start here: the type's name leads */
 .starter .desc { font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rules-link { margin-left: auto; text-decoration: underline; text-underline-offset: 2px; }
 
