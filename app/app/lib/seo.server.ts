@@ -3,7 +3,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Db } from "../db";
 import { exampleGameId, guideDoc, ORDER } from "./guides.server";
-import { guideMarkdown, guidePath, SITEMAP_MAX, type SitemapEntry } from "./seo";
+import { explorePath, guideMarkdown, guidePath, SITEMAP_MAX, type SitemapEntry } from "./seo";
 import type { GenreName } from "~site/engine/puzzle.ts";
 
 /** Plain text, cached at the edge for an hour. */
@@ -33,6 +33,8 @@ export async function sitemapEntries(db: Db): Promise<SitemapEntry[]> {
     { path: "/explore", lastmod: newest },
     { path: "/puzzles", lastmod: GUIDES_CHANGED },
     ...ORDER.map((k) => ({ path: guidePath(k), lastmod: GUIDES_CHANGED })),
+    // each type's puzzles on Explore (RYB's are on its guide and profiles)
+    ...ORDER.filter((k) => k !== "coats").map((k) => ({ path: explorePath(k), lastmod: newest })),
     ...profiles.map((p) => ({ path: `/${p.slug}`, lastmod: Number(p.last) || null })),
     ...games.map((g) => ({ path: `/g/${g.id}`, lastmod: (g.updated ?? g.published)?.getTime() ?? null })),
   ];

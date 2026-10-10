@@ -1,7 +1,7 @@
 // Your settings: inkit.games/settings. Account (profile, email, password, handle), each row with
 // an Edit that opens it in place, and Appearance (light, dark, or the device's). After Substack's.
 import { useEffect, useState } from "react";
-import { Form, Link, useNavigation, useRevalidator } from "react-router";
+import { data, Form, Link, useNavigation, useRevalidator } from "react-router";
 import { and, eq } from "drizzle-orm";
 import type { Route } from "./+types/settings";
 import { cloudflareContext } from "~/lib/context";
@@ -9,7 +9,12 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { authClient } from "~/lib/auth-client";
 import { changeHandle, changeProfile } from "~/lib/account.server";
+import { changeRecommendations, recommendationsOf } from "~/lib/recommendations.server";
+import { subscriptionsOf } from "~/lib/queries.server";
+import { MAX_RECOMMENDATIONS, NOTE_MAX } from "~/lib/rank";
+import { AiBadge } from "~/components/AiBadge";
 import { attempt, signInFirst } from "~/lib/http.server";
+import { Invalid } from "~/lib/errors.server";
 import { savedTheme, setTheme, type Theme } from "~/lib/theme";
 import { recordingAllowed, setRecordingAllowed } from "~/lib/bugs/capture";
 import { openBugReport } from "~/components/BugReport";
@@ -22,12 +27,17 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const me = await currentCreator(env, request);
   if (!me) signInFirst(request);
   const db = getDb(env);
-  const [profile, password] = await Promise.all([
+  const [profile, password, recs, subs] = await Promise.all([
     db.query.collections.findFirst({ where: eq(schema.collections.personalOf, me.id) }),
     db.query.accounts.findFirst({ columns: { id: true }, where: and(eq(schema.accounts.userId, me.id), eq(schema.accounts.providerId, "credential")) }),
+    recommendationsOf(db, me.id),
+    subscriptionsOf(db, me.id),
   ]);
   return {
     name: me.name, handle: me.handle, email: me.email, bio: profile?.description ?? "", hasPassword: !!password,
+    recommends: recs.map((r) => ({ handle: r.handle, name: r.name, ai: r.ai, note: r.note })),
+    // people you subscribe to, to pick from
+    suggestions: subs.filter((c) => c.personal && !recs.some((r) => r.handle === c.slug)).map((c) => ({ handle: c.slug, name: c.title })),
     emailChanged: new URL(request.url).searchParams.has("email-changed"),
   };
 }
@@ -38,6 +48,11 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!me) signInFirst(request);
   const db = getDb(env);
   const form = await request.formData();
+  const intent = String(form.get("intent"));
+  if (intent.startsWith("rec-")) {
+    try { await changeRecommendations(db, me, form); return { done: "recommendations" as const }; }
+    catch (e) { if (e instanceof Invalid) return data({ error: e.message, intent }, { status: 400 }); throw e; }
+  }
   return attempt(async () => {
     if (form.get("intent") === "profile") { await changeProfile(db, me, form); return { done: "profile" as const }; }
     if (form.get("intent") === "handle") { await changeHandle(db, me, form); return { done: "handle" as const }; }
@@ -51,9 +66,9 @@ export default function Settings({ loaderData: d, actionData }: Route.ComponentP
   const [editing, setEditing] = useState<Row>(null);
   const [note, setNote] = useState(d.emailChanged ? "Your email is changed." : "");
   const busy = useNavigation().state !== "idle";
-  const error = actionData && "error" in actionData ? actionData.error : "";
+  const error = actionData && "error" in actionData && !("intent" in actionData) ? actionData.error : "";
   // a saved row closes
-  useEffect(() => { if (actionData && "done" in actionData) { setEditing(null); setNote("Saved."); } }, [actionData]);
+  useEffect(() => { if (actionData && "done" in actionData && actionData.done !== "recommendations") { setEditing(null); setNote("Saved."); } }, [actionData]);
   const edit = (row: Row) => { setEditing(editing === row ? null : row); setNote(""); };
 
   return (
@@ -94,6 +109,11 @@ export default function Settings({ loaderData: d, actionData }: Route.ComponentP
             </Form>
           </SettingRow>
         </div>
+      </section>
+
+      <section aria-labelledby="recommendations-h" id="recommendations">
+        <h2 id="recommendations-h">Recommendations</h2>
+        <Recommendations d={d} busy={busy} error={actionData && "intent" in actionData && "error" in actionData ? String(actionData.error) : ""} />
       </section>
 
       <section aria-labelledby="appearance">
@@ -192,6 +212,46 @@ function PasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: () =
         <button className="btn" type="button" onClick={onCancel}>Cancel</button>
       </div>
     </form>
+  );
+}
+
+/** Whom you recommend (up to five, in order, each with a line why): your profile's Recommends tab,
+ *  and sometimes Explore's "… recommends" row. */
+function Recommendations({ d, busy, error }: { d: Route.ComponentProps["loaderData"]; busy: boolean; error: string }) {
+  const full = d.recommends.length >= MAX_RECOMMENDATIONS;
+  return (
+    <div className="settings-card recs-settings">
+      <p className="muted recs-hint">Up to {MAX_RECOMMENDATIONS} creators, on <Link to={`/${d.handle}?tab=recommends`}>your profile</Link>.</p>
+      {d.recommends.length > 0 && (
+        <ol className="recs-edit">{d.recommends.map((r, i) => (
+          <li key={r.handle} className="rec-edit">
+            <span className="rec-edit-who"><strong>{r.name}</strong>{r.ai && <> <AiBadge /></>} <span className="muted">@{r.handle}</span></span>
+            <Form method="post" className="rec-edit-note">
+              <input type="hidden" name="handle" value={r.handle} />
+              <input name="note" aria-label={`Why you recommend ${r.name}`} maxLength={NOTE_MAX} defaultValue={r.note} placeholder="Why" />
+              <button className="btn" name="intent" value="rec-note" disabled={busy}>Save</button>
+            </Form>
+            <Form method="post" className="rec-edit-moves">
+              <input type="hidden" name="handle" value={r.handle} />
+              <button className="btn icon-btn" name="intent" value="rec-up" disabled={busy || i === 0} aria-label={`Move ${r.name} up`}>↑</button>
+              <button className="btn icon-btn" name="intent" value="rec-down" disabled={busy || i === d.recommends.length - 1} aria-label={`Move ${r.name} down`}>↓</button>
+              <button className="btn" name="intent" value="rec-remove" disabled={busy}>Remove</button>
+            </Form>
+          </li>
+        ))}</ol>
+      )}
+      {full ? <p className="muted">That&rsquo;s the most. Remove one to add another.</p> : (
+        <Form method="post" className="form rec-add" key={d.recommends.length}>
+          <label>Recommend a creator
+            <input name="handle" required list="rec-suggestions" placeholder="@handle" autoCapitalize="none" spellCheck={false} />
+          </label>
+          <datalist id="rec-suggestions">{d.suggestions.map((c) => <option key={c.handle} value={c.handle}>{c.name}</option>)}</datalist>
+          <label>Why<input name="note" maxLength={NOTE_MAX} placeholder="Optional" /></label>
+          <div className="setting-buttons"><button className="btn primary" name="intent" value="rec-add" disabled={busy}>Add</button></div>
+        </Form>
+      )}
+      {error && <p className="error" role="alert">{error}</p>}
+    </div>
   );
 }
 

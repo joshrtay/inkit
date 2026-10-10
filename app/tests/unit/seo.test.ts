@@ -2,8 +2,8 @@
 // sitemap, llms.txt and the guides as Markdown.
 import { describe, expect, it } from "vitest";
 import {
-  AI_CRAWLERS, clip, gameJsonLd, guideDescription, guideJsonLd, guideMarkdown, guideTitle, llmsFullTxt, llmsTxt, pageMeta,
-  profileJsonLd, puzzlesJsonLd, robotsTxt, SITE, sitemapXml,
+  AI_CRAWLERS, clip, exploreJsonLd, gameJsonLd, guideDescription, guideJsonLd, guideMarkdown, guideTitle, llmsFullTxt, llmsTxt, pageMeta,
+  profileJsonLd, puzzlesJsonLd, robotsTxt, SITE, sitemapXml, typePuzzlesJsonLd,
 } from "~/lib/seo";
 import { guideDoc, ORDER } from "~/lib/guides.server";
 
@@ -138,6 +138,21 @@ describe("game and profile JSON-LD", () => {
   it("a profile: a ProfilePage about a Person or an Organization", () => {
     expect(profileJsonLd({ slug: "wyatt", title: "Wyatt", description: "", person: true })).toMatchObject({ "@type": "ProfilePage", mainEntity: { "@type": "Person", name: "Wyatt", url: `${SITE}/wyatt` } });
     expect(profileJsonLd({ slug: "lab", title: "Lab", description: "d", person: false }).mainEntity).toMatchObject({ "@type": "Organization", description: "d" });
+  });
+});
+
+describe("Explore JSON-LD", () => {
+  it("/explore: a CollectionPage listing Today's puzzles, with breadcrumbs", () => {
+    const [page, crumbs] = exploreJsonLd([{ id: "a", title: "A" }, { id: "b", title: "B" }]) as Obj[];
+    expect(page).toMatchObject({ "@type": "CollectionPage", url: `${SITE}/explore`, mainEntity: { "@type": "ItemList", numberOfItems: 2 } });
+    expect(((page.mainEntity as Obj).itemListElement as Obj[])[1]).toEqual({ "@type": "ListItem", position: 2, name: "B", url: `${SITE}/g/b` });
+    expectBreadcrumbs(crumbs, ["Explore"]);
+  });
+  it("a type's puzzles: a CollectionPage about the type, linking its guide", () => {
+    const ld = typePuzzlesJsonLd({ kind: "masyu", name: "Masyu" }, [{ id: "m", title: "M" }]) as Obj[];
+    expect(ld[0]).toMatchObject({ "@type": "CollectionPage", name: "Masyu puzzles", url: `${SITE}/explore/masyu`, about: { name: "Masyu", url: `${SITE}/puzzles/masyu` } });
+    expectBreadcrumbs(ld[1], ["Explore", "Masyu"]);
+    expect(urlsIn(ld).every((u) => u.startsWith(SITE))).toBe(true);
   });
 });
 

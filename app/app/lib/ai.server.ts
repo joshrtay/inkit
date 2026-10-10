@@ -2,8 +2,10 @@
 // drafts (filled weekly by puzzles/ai/week.ts through POST /admin/ai/schedule), the cron that
 // publishes each draft at its time (workers/app.ts, every few minutes), and the backfill of past
 // posts (puzzles/ai/backfill.ts through POST /admin/ai/backfill).
-import { and, asc, eq, gt, inArray, isNotNull, lte, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-orm";
 import { schema, type Db } from "../db";
+import { MAX_RECOMMENDATIONS } from "./rank";
+import { estimateColumns } from "./estimates.server";
 import { parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { PERSONAS, type Persona } from "../ai/personas.ts";
 import { dueToPublish } from "../ai/schedule.ts";
@@ -27,7 +29,28 @@ export async function ensurePersona(db: Db, p: Persona) {
   await db.insert(schema.collections).values({ id: aiCollectionId(p.handle), slug: p.handle, title: p.name, description: p.bio, personalOf: id })
     .onConflictDoUpdate({ target: schema.collections.id, set: { title: p.name, description: p.bio, updatedAt: new Date() } });
   await db.insert(schema.memberships).values({ collectionId: aiCollectionId(p.handle), creatorId: id, role: "owner" }).onConflictDoNothing();
+  await syncRecommendations(db, p);
   return { creatorId: id, collectionId: aiCollectionId(p.handle) };
+}
+
+/** A persona's recommendations (personas.ts `recommends`) into the table, in its order: creators
+ *  with no account (or a deleted one) are skipped, and the rest replace what was there. Writes only
+ *  when something changed. Run with each post (ensurePersona), by the seed, and for every persona
+ *  by POST /admin/ai/recommendations. */
+export async function syncRecommendations(db: Db, p: Persona) {
+  const me = aiCreatorId(p.handle);
+  const picks = (p.recommends ?? []).filter((r) => r.handle !== p.handle).slice(0, MAX_RECOMMENDATIONS);
+  const found = picks.length ? await db.select({ id: schema.creators.id, handle: schema.creators.handle }).from(schema.creators)
+    .where(and(inArray(schema.creators.handle, picks.map((r) => r.handle)), isNull(schema.creators.deletedAt))) : [];
+  const idOf = new Map(found.map((c) => [c.handle, c.id]));
+  const want = picks.flatMap((r, i) => (idOf.has(r.handle) ? [{ recommenderId: me, recommendedId: idOf.get(r.handle)!, position: i, note: r.note }] : []));
+  const have = await db.select({ recommendedId: schema.recommendations.recommendedId, position: schema.recommendations.position, note: schema.recommendations.note })
+    .from(schema.recommendations).where(eq(schema.recommendations.recommenderId, me)).orderBy(asc(schema.recommendations.position));
+  const key = (rs: { recommendedId: string; position: number; note: string }[]) => JSON.stringify(rs.map((r) => [r.recommendedId, r.position, r.note]));
+  if (key(have) === key(want)) return false;
+  await db.delete(schema.recommendations).where(eq(schema.recommendations.recommenderId, me));
+  if (want.length) await db.insert(schema.recommendations).values(want);
+  return true;
 }
 
 /** Queue a checked post as a scheduled draft. A post for the same creator at the same time
@@ -43,6 +66,8 @@ export async function scheduleGame(db: Db, p: Persona, kind: string, publishAt: 
   await db.insert(schema.games).values({
     id, collectionId, authorId: creatorId, title: req.title, description: req.description,
     sketch: req.sketch, sketchVersion: SKETCH_VERSION, kind, state: "draft", publishAt,
+    // the scorer's difficulty, when the batch sent it (app/games/estimate.ts)
+    ...estimateColumns(req.sketch, SKETCH_VERSION, req.meta?.difficulty),
   });
   return { id, created: true };
 }
@@ -72,6 +97,7 @@ export async function backfillGame(db: Db, p: Persona, kind: string, at: Date, r
     id, collectionId, authorId: creatorId, title: req.title, description: req.description,
     sketch: req.sketch, sketchVersion: SKETCH_VERSION, kind, state: "published",
     publishedAt: at, publishAt: null, createdAt: at, updatedAt: at,
+    ...estimateColumns(req.sketch, SKETCH_VERSION, req.meta?.difficulty),
   });
   // "since" on the profile: no later than its first post
   await db.update(schema.creators).set({ createdAt: at }).where(and(eq(schema.creators.id, creatorId), gt(schema.creators.createdAt, at)));

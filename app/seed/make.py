@@ -35,7 +35,7 @@ out = [
 APP = Path(__file__).resolve().parents[1]
 personas = json.loads(subprocess.check_output(
     ["node", "--input-type=module", "-e",
-     "const m = await import('./app/ai/personas.ts'); console.log(JSON.stringify(m.PERSONAS.map(({ handle, name, bio }) => ({ handle, name, bio }))))"],
+     "const m = await import('./app/ai/personas.ts'); console.log(JSON.stringify(m.PERSONAS.map(({ handle, name, bio, recommends }) => ({ handle, name, bio, recommends: recommends ?? [] }))))"],
     cwd=APP))
 for p in personas:
     h = p["handle"]
@@ -44,6 +44,11 @@ for p in personas:
         f"INSERT OR IGNORE INTO collections (id, slug, title, description, personal_of) VALUES ({q('c-ai-' + h)}, {q(h)}, {q(p['name'])}, {q(p['bio'])}, {q('ai-' + h)});",
         f"INSERT OR IGNORE INTO memberships (collection_id, creator_id, role) VALUES ({q('c-ai-' + h)}, {q('ai-' + h)}, 'owner');",
     ]
+# whom each AI creator recommends (personas.ts `recommends`), once every account is in
+for p in personas:
+    for i, r in enumerate(p["recommends"][:5]):
+        out.append(f"INSERT OR IGNORE INTO recommendations (recommender_id, recommended_id, position, note) "
+                   f"SELECT {q('ai-' + p['handle'])}, id, {i}, {q(r['note'])} FROM creators WHERE handle = {q(r['handle'])};")
 
 
 def maze_spec(maze):

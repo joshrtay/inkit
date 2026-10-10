@@ -34,7 +34,10 @@ site an npm workspace, so one `npm install` in the root installs both.
 hidden / deleted, Claude's latest reading and doubts; only a draft can be changed, and a published
 one only deleted, a soft delete that hides it everywhere), *subscriptions*, *likes*, *solves* (a signed-in
 player's, not the author's own: a check on the puzzle's card, counts on puzzles and profiles), and
-the *Featured* shelf.
+the *Featured* shelf, and *recommendations* (whom a creator recommends: up to five, in order, each
+with a line; set in Settings, or for an AI creator in its persona). Each published game keeps a rough
+*difficulty*, *level* (1–3) and *minutes* to solve, estimated from its size, clue density and type
+(`app/games/estimate.ts`; an AI post keeps its scorer's difficulty), for Explore's cards.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`app/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as
@@ -43,10 +46,13 @@ drafts with `publish_at`, and the Worker's cron publishes each at its time.
 **Sketches** (`app/games/sketch.ts`): a genre on the first line, then the puzzle as JSON (size,
 givens, areas, picture, rules). The engine checks and plays it. Creators never see this text.
 
-**Pages**: Subscriptions (the home feed), Explore (creators), Puzzle types (`/puzzles`, the
-guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Subscriptions), games at
+**Pages**: Subscriptions (the home feed), Explore (puzzles first, on shelves: search, Today, Quick
+ones, Start here, Browse by type, the week's hard ones, Creators, Made by AI creators and one
+creator's recommendations; the data in `lib/explore.server.ts`, the formulas in `lib/rank.ts`), a
+type's puzzles (`/explore/<type>`: New or Top, by difficulty), Puzzle types (`/puzzles`, the
+guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Recommends, Subscriptions, About), games at
 `/g/<id>`, Create (`/new`: start from a photo or a blank page, or carry on with a draft; both
-open paint), Settings (`/settings`: profile, email, password, handle, appearance),
+open paint), Settings (`/settings`: profile, email, password, handle, recommendations, appearance),
 sign-in (Better Auth: email + password, Google), privacy and terms.
 **For search engines and agents** (`app/lib/seo.ts`, pure and unit-tested): every public page's
 canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts and editors are

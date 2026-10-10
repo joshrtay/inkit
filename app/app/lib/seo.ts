@@ -159,6 +159,47 @@ export function puzzlesJsonLd(types: { kind: string; name: string }[]): JsonLd[]
   ];
 }
 
+/** /explore: a CollectionPage whose list is Today's puzzles. */
+export function exploreJsonLd(today: { id: string; title: string }[]): JsonLd[] {
+  return [
+    {
+      "@type": "CollectionPage",
+      "@id": `${SITE}/explore#page`,
+      name: "Explore logic puzzles",
+      url: abs("/explore"),
+      isPartOf: { "@type": "WebSite", name: SITE_NAME, url: SITE },
+      mainEntity: {
+        "@type": "ItemList",
+        name: "Today",
+        numberOfItems: today.length,
+        itemListElement: today.map((g, i) => ({ "@type": "ListItem", position: i + 1, name: g.title, url: abs(`/g/${g.id}`) })),
+      },
+    },
+    crumbs([["Explore", "/explore"]]),
+  ];
+}
+
+export const explorePath = (kind: string) => `/explore/${kind}`;
+
+/** A type's puzzles (/explore/<type>): a CollectionPage of them, about the type (its guide), with breadcrumbs. */
+export function typePuzzlesJsonLd(t: { kind: string; name: string }, puzzles: { id: string; title: string }[]): JsonLd[] {
+  return [
+    {
+      "@type": "CollectionPage",
+      "@id": `${abs(explorePath(t.kind))}#page`,
+      name: `${t.name} puzzles`,
+      url: abs(explorePath(t.kind)),
+      about: { "@type": "Thing", name: t.name, url: abs(guidePath(t.kind)) },
+      mainEntity: {
+        "@type": "ItemList",
+        numberOfItems: puzzles.length,
+        itemListElement: puzzles.map((g, i) => ({ "@type": "ListItem", position: i + 1, name: g.title, url: abs(`/g/${g.id}`) })),
+      },
+    },
+    crumbs([["Explore", "/explore"], [t.name, explorePath(t.kind)]]),
+  ];
+}
+
 /** A published game: a Game (a CreativeWork), credited to its author. */
 export function gameJsonLd(g: {
   id: string; title: string; description: string; kindName: string; kind: string;
@@ -296,7 +337,7 @@ export function llmsTxt(guides: Pick<GuideDoc, "kind" | "name" | "summary" | "ca
   }
   out.push("## Site", "",
     `- [Puzzle types](${abs("/puzzles")}): every guide, by kind of puzzle`,
-    `- [Explore](${abs("/explore")}): creators and studios, and featured puzzles`,
+    `- [Explore](${abs("/explore")}): today's newest puzzles, quick ones, the week's hardest, and the creators (each type's puzzles at ${SITE}/explore/<type>)`,
     `- [Sitemap](${abs("/sitemap.xml")}): every public puzzle (${SITE}/g/<id>) and creator profile (${SITE}/<handle>)`,
     "",
     "## Optional", "",

@@ -67,19 +67,21 @@ export const isSubscribed = async (db: Db, subscriberId: string | undefined, col
 /** Collections for lists (Explore, someone's subscriptions): who they are, how many games and subscribers. */
 const collectionCards = (db: Db) => db.select({
   id: schema.collections.id, slug: schema.collections.slug, title: schema.collections.title, description: schema.collections.description,
-  personal: sql<boolean>`${schema.collections.personalOf} is not null`,
+  // (SQLite answers 0 or 1: as booleans, so `{c.ai && …}` never renders a stray "0")
+  personal: sql<boolean>`${schema.collections.personalOf} is not null`.mapWith(Boolean),
   /** an AI creator's personal collection */
-  ai: sql<boolean>`coalesce((select c.is_ai from creators c where c.id = collections.personal_of), 0)`.as("is_ai_collection"),
+  ai: sql<boolean>`coalesce((select c.is_ai from creators c where c.id = collections.personal_of), 0)`.mapWith(Boolean).as("is_ai_collection"),
   // (table names written out: inside a subquery drizzle's bare "id" would mean the subquery's table)
   games: sql<number>`(select count(*) from games g where g.collection_id = collections.id and g.state = 'published')`.as("game_count"),
   subscribers: sql<number>`(select count(*) from subscriptions s where s.collection_id = collections.id)`.as("subscriber_count"),
 }).from(schema.collections);
 
-/** Creators and studios to find: the most followed and busiest first; `q` searches names and handles. */
+/** Creators and studios to find (the home page's), with a published puzzle: the most followed and busiest first; `q` searches names and handles. */
 export const exploreCollections = (db: Db, q: string, limit = 60) => {
   const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
   const match = words.map((w) => or(like(sql`lower(${schema.collections.title})`, `%${w}%`), like(schema.collections.slug, `%${w}%`), like(sql`lower(${schema.collections.description})`, `%${w}%`)));
-  return collectionCards(db).where(and(isNull(schema.collections.deletedAt), ...match))
+  // (empty accounts left out: only creators and studios with a published puzzle)
+  return collectionCards(db).where(and(isNull(schema.collections.deletedAt), sql`game_count > 0`, ...match))
     .orderBy(sql`subscriber_count desc`, sql`game_count desc`, schema.collections.title).limit(limit);
 };
 

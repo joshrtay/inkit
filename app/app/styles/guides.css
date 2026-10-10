@@ -84,3 +84,4 @@
   .guide-card .thumb { aspect-ratio: 1; padding: 8px; }
   .guide-card-text { padding: 12px 14px; }
 }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 10px; }

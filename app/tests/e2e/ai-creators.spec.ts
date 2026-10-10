@@ -28,6 +28,14 @@ for (const p of PERSONAS) {
 }
 
 test("Explore shows an AI creator's icon and label; a person keeps the letter", async ({ page }) => {
+  // Explore lists creators with a published puzzle: lend this one a seeded example for the test
+  const h = PERSONAS[0].handle, id = `e2e-ai-icon-${Date.now().toString(36)}`;
+  sql(`insert into games (id, collection_id, author_id, title, sketch, sketch_version, kind, state, published_at)
+    select ${q(id)}, ${q(`c-ai-${h}`)}, ${q(`ai-${h}`)}, 'Icon test', sketch, sketch_version, kind, 'published', ${Date.now()} from games where id = 'sudoku-1'`);
+  try { await iconAndLabel(page); } finally { sql(`delete from games where id = ${q(id)}`); }
+});
+
+async function iconAndLabel(page: import("@playwright/test").Page) {
   await page.goto(`/explore?q=${encodeURIComponent(PERSONAS[0].name)}`);
   const row = page.locator("li, article").filter({ hasText: `${PERSONAS[0].name}` }).filter({ has: page.locator(".avatar") }).first();
   await expect(row.locator(".avatar.avatar-ai svg")).toBeVisible();
@@ -38,4 +46,4 @@ test("Explore shows an AI creator's icon and label; a person keeps the letter", 
   await page.goto("/wyatt?tab=about");
   await expect(page.getByRole("region", { name: "About" })).toContainText("Makes");
   await expect(page.locator(".profile-head .avatar-ai")).toHaveCount(0);
-});
+}

@@ -6,12 +6,14 @@
 //   memberships  who belongs to which collection, as owner or contributor
 //   games        one game each: its sketch (the "code"), details and state
 //   featured     the site's Featured shelf, curated by admins
+//   recommendations  who a creator recommends (up to five, in order, each with a line why): the
+//                profile's Recommends tab and Explore's "… recommends" row
 //   bug_reports  "Report a bug": the report, the gatekeeper's verdict; its files are in R2 (docs/bug-pipeline.md)
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
 import { sql } from "drizzle-orm";
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 const now = sql`(unixepoch() * 1000)`;
 const created = () => integer("created_at", { mode: "timestamp_ms" }).notNull().default(now);
@@ -141,10 +143,18 @@ export const games = sqliteTable("games", {
   publishedAt: integer("published_at", { mode: "timestamp_ms" }),
   /** A scheduled draft: the cron publishes it at this time (app/lib/ai.server.ts), then clears it. */
   publishAt: integer("publish_at", { mode: "timestamp_ms" }),
+  /** How hard it is, 0 (a warm-up) to 1, and the rough time to solve it in minutes (Explore's cards
+   *  and shelves): app/games/estimate.ts, set whenever the sketch is saved; an AI creator's post
+   *  keeps its scorer's difficulty. Null until estimated (the cron fills in older games). */
+  difficulty: real("difficulty"),
+  /** 1 easy, 2 medium, 3 hard: the difficulty's three dots */
+  level: integer("level"),
+  minutes: integer("minutes"),
   createdAt: created(),
   updatedAt: updated(),
 }, (t) => [
   index("games_scheduled").on(t.state, t.publishAt),
+  index("games_kind").on(t.kind, t.state, t.publishedAt),
   index("games_collection").on(t.collectionId, t.state),
   index("games_author").on(t.authorId),
   index("games_published").on(t.state, t.publishedAt),
@@ -212,6 +222,18 @@ export const featured = sqliteTable("featured", {
   featuredBy: text("featured_by").notNull().references(() => creators.id),
   createdAt: created(),
 }, (t) => [index("featured_position").on(t.position)]);
+
+// ---- recommendations: a creator recommending other creators (people or AI), after Substack's;
+//      at most five each (app/lib/rank.ts MAX_RECOMMENDATIONS) ----
+export const recommendations = sqliteTable("recommendations", {
+  recommenderId: text("recommender_id").notNull().references(() => creators.id),
+  recommendedId: text("recommended_id").notNull().references(() => creators.id),
+  /** order on the profile, lowest first */
+  position: integer("position").notNull().default(0),
+  /** a line, in their own words, of why */
+  note: text("note").notNull().default(""),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.recommenderId, t.recommendedId] }), index("recommendations_recommended").on(t.recommendedId)]);
 
 // ---- bug reports (docs/bug-pipeline.md): the row; the replay, screenshot and state are in R2 under bugs/<id>/ ----
 export const BUG_STATES = ["new", "reviewed", "quarantined", "dismissed", "duplicate", "sent"] as const;

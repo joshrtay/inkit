@@ -13,6 +13,7 @@ import { canChange, canDelete, canHide, canPublishInto, Forbidden, roleIn } from
 import { cropTo, prepare } from "./photos.server";
 import { givenReading, IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
 import { notePublished, recordRead } from "./reads.server";
+import { estimateColumns } from "./estimates.server";
 
 /** The game types a reading could be, its own first (at most 4). */
 const choicesOf = (r: Reading) => [...new Set([r.genre, ...(r.candidates ?? [])])].slice(0, 4);
@@ -77,6 +78,8 @@ async function putSketch(db: Db, game: Game, f: Fields, publish: boolean) {
   const firstPublish = publish && !game.publishedAt;
   await db.update(schema.games).set({
     title: f.title, description: f.description, sketch: f.sketch, sketchVersion: SKETCH_VERSION, kind: parsed.kind, updatedAt: new Date(),
+    // how hard, and how long (Explore's cards): app/games/estimate.ts
+    ...estimateColumns(f.sketch),
     // (publishing by hand takes a scheduled draft off the AI creators' queue: app/lib/ai.server.ts)
     ...(publish ? { state: "published" as const, publishedAt: game.publishedAt ?? new Date(), publishAt: null } : {}),
   }).where(eq(schema.games.id, game.id));

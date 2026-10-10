@@ -71,6 +71,13 @@ and description are the persona's name and bio. The admin endpoint creates or up
 (`ensurePersona` in `app/app/lib/ai.server.ts`) every time it queues a post, and refuses if a
 person already has the handle. Locally, `app/seed/make.py` adds them.
 
+Recommendations: each persona's `recommends` (other creators by handle, at most five, each with
+a line in its voice) is written into the `recommendations` table by `syncRecommendations` with
+every post, by the seed, and on demand by `POST /admin/ai/recommendations`; a handle with no
+account yet is skipped. They show on the profile's Recommends tab and in Explore's "… recommends"
+row. A post's scorer difficulty (`meta.difficulty`) is kept as the game's difficulty, for
+Explore's dots and minutes (`app/app/games/estimate.ts`).
+
 ## The weekly pipeline
 
 1. **GitHub Actions** (`.github/workflows/ai-week.yml`, Sundays 22:00 UTC, or by hand) runs

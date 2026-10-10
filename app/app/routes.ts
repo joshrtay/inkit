@@ -16,6 +16,8 @@ export default [
   route("new/draw", "routes/new-draw.tsx"),   // gone: redirects to /new
   route("studios/new", "routes/studio-new.tsx"),
   route("explore", "routes/explore.tsx"),
+  // a puzzle type's puzzles (New / Top, by difficulty), or every type's ("all": the quick chips)
+  route("explore/:kind", "routes/explore-type.tsx"),
   route("settings", "routes/settings.tsx"),
   route("privacy", "routes/privacy.tsx"),
   route("terms", "routes/terms.tsx"),
@@ -36,6 +38,7 @@ export default [
   route("admin/reads/:id/photo", "routes/admin-read-photo.ts"),
   route("admin/ai/schedule", "routes/admin-ai-schedule.ts"),
   route("admin/ai/backfill", "routes/admin-ai-backfill.ts"),
+  route("admin/ai/recommendations", "routes/admin-ai-recommendations.ts"),
   // bug reports (docs/bug-pipeline.md): sent from "Report a bug", reviewed by admins
   route("bugs", "routes/bugs.ts"),
   route("admin/bugs", "routes/admin-bugs.tsx"),

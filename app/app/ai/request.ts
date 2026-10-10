@@ -16,7 +16,8 @@ export const ScheduleRequest = z.object({
   /** ISO time */
   publishAt: z.string(),
   proof: z.object({ solutions: z.number().int().min(0), sketchHash: z.string(), solver: z.string() }),
-  /** what the batch knows about it (difficulty, scores, tokens): logged, not stored */
+  /** what the batch knows about it (difficulty, scores, tokens): logged; `difficulty` (0..1) is kept
+   *  as the game's difficulty (app/games/estimate.ts) */
   meta: z.record(z.string(), z.unknown()).optional(),
 });
 export type ScheduleRequest = z.infer<typeof ScheduleRequest>;

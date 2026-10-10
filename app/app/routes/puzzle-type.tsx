@@ -42,7 +42,7 @@ export default function PuzzleType({ loaderData: g }: Route.ComponentProps) {
       </header>
 
       <GuideBody g={g} />
-      {g.playId && <p><Link className="btn primary" to={`/g/${g.playId}`}>Play {g.example.name}</Link></p>}
+      <p className="guide-actions">{g.playId && <Link className="btn primary" to={`/g/${g.playId}`}>Play {g.example.name}</Link>}{g.kind !== "coats" && <Link className="btn" to={`/explore/${g.kind}`}>More {g.name} puzzles</Link>}</p>
 
       <nav className="guide-pager" aria-label="More puzzle types">
         {g.prev ? <Link to={`/puzzles/${g.prev.kind}`} rel="prev">← {g.prev.name}</Link> : <span />}

@@ -6,6 +6,7 @@ import { draftName, editPath, kindName } from "~/games/kinds";
 import { Avatar } from "./Avatar";
 import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
+import { firstLine } from "~/lib/rank";
 
 const Picture = ({ svg, className }: { svg: string | null; className: string }) =>
   svg ? <span className={`grid-game pic ${className}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <span className={`pic ${className} none`} />;
@@ -120,9 +121,9 @@ export function CollectionRow({ c, subscribed, signedIn, me }: { c: CollectionCa
       <Link to={`/${c.slug}`} className="collection-link">
         <Avatar name={c.title} seed={c.slug} size={48} ai={!!c.ai} />
         <span className="collection-text">
-          <strong>{c.title}{c.ai && <> <AiBadge /></>}</strong>
+          <strong>{c.title}{!!c.ai && <> <AiBadge /></>}</strong>
           <span className="muted">@{c.slug}{!c.personal && " · studio"} · {c.games} puzzle{c.games === 1 ? "" : "s"} · {c.subscribers} subscriber{c.subscribers === 1 ? "" : "s"}</span>
-          {c.description && <span className="desc">{c.description}</span>}
+          {c.description && <span className="desc">{firstLine(c.description)}</span>}
         </span>
       </Link>
       {me !== c.slug && <SubscribeButton slug={c.slug} subscribed={subscribed} signedIn={signedIn} />}

@@ -9,6 +9,8 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { roleIn } from "~/lib/permissions.server";
 import { signInFirst } from "~/lib/http.server";
+import { inks, newestPictures } from "~/lib/explore.server";
+import { recommendationsOf } from "~/lib/recommendations.server";
 import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, markSolved, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
 import { draftPictures, withPictures } from "~/lib/thumbs.server";
 import { pageMeta, profileJsonLd } from "~/lib/seo";
@@ -16,6 +18,7 @@ import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard"
 import { Avatar } from "~/components/Avatar";
 import { CreateMenu } from "~/components/Shell";
 import { AiBadge } from "~/components/AiBadge";
+import { Pic } from "~/components/Explore";
 import { personaByHandle } from "~/ai/personas";
 import { kindName } from "~/games/kinds";
 import "~site/game-types/grid/styles.css";
@@ -39,8 +42,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     isSubscribed(db, viewer?.id, collection.id),
     collectionSolves(db, collection.id),
   ]);
-  const following = person ? await subscriptionsOf(db, person.id) : [];
-  const viewerFollows = viewer && following.length
+  const [following, recs] = person ? await Promise.all([subscriptionsOf(db, person.id), recommendationsOf(db, person.id)]) : [[], []];
+  const recPics = recs.length ? await newestPictures(db, recs.map((r) => r.id), 2) : { byAuthor: {}, pictures: {} };
+  const viewerFollows = viewer && (following.length || recs.length)
     ? new Set((await db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, viewer.id))).map((s) => s.id))
     : new Set<string>();
   // Puzzles: what everyone sees. Drafts (and games taken down): only their author, the
@@ -57,9 +61,12 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     games: await markSolved(db, viewer?.id, withPictures(published)),
     drafts: canSeeDrafts ? await draftPictures(db, drafts) : null,
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
+    // whom they recommend (lib/recommendations.server.ts), with each one's two newest puzzles
+    recommends: recs.map((r) => ({ ...r, subscribed: viewerFollows.has(r.collectionId), newest: recPics.byAuthor[r.id] ?? [] })),
+    recPictures: recPics.pictures, inks: recs.length ? inks() : {},
     subscribers, subscribed, solves, role,
     me: viewer?.handle ?? null,
-    tab: ["puzzles", "about", "subscriptions", "members", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
+    tab: ["puzzles", "about", "subscriptions", "members", "recommends", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
   };
 }
 
@@ -105,12 +112,14 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 const verse = (text: string) => text.split(" / ").flatMap((line, i) => (i ? [<br key={i} />, line] : [line]));
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, persona, members, games, drafts, following, subscribers, subscribed, solves, role, me, tab } = d;
+  const { collection, person, persona, members, games, drafts, following, recommends, subscribers, subscribed, solves, role, me, tab } = d;
   const mine = !!person && person.handle === me;
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
     // only you (and the owners) see this tab
     ...(drafts ? [{ id: "drafts", label: "Drafts", n: drafts.length }] : []),
+    // whom they recommend: shown when they recommend anyone (and always to themselves, to set it up)
+    ...(person && (recommends.length || mine) ? [{ id: "recommends", label: "Recommends", n: recommends.length }] : []),
     ...(person ? [{ id: "subscriptions", label: "Subscriptions", n: following.length }] : [{ id: "members", label: "Members", n: members.length }]),
     // who they are, at length: the whole bio, what they make, since when (an AI creator's how and when)
     { id: "about", label: "About", n: null },
@@ -128,7 +137,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
         </div>
         <Avatar name={collection.title} seed={collection.slug} size={96} ai={!!person?.ai} />
-        {collection.deleted && <p className="state hidden">This studio was deleted; its games are offline.</p>}
+        {collection.deleted && <p className="state hidden">This studio was deleted.</p>}
         <div className="profile-actions">
           {mine ? <CreateMenu /> : role ? <Link className="btn primary" to={`/new?in=${collection.slug}`}>New puzzle here</Link>
             : <SubscribeButton slug={collection.slug} subscribed={subscribed} signedIn={!!me} />}
@@ -176,9 +185,28 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
       {tab === "drafts" && drafts && (drafts.length ? <ul className="cards">{drafts.map((g) => <GameCard key={g.id} game={g} draft />)}</ul> : (
         <div className="empty-tab">
           <p>No drafts.</p>
-          <p className="muted">Puzzles you&rsquo;re still working on wait here until you publish them.</p>
+          <p className="muted">Unpublished puzzles wait here.</p>
           <Link className="btn primary" to={role && !mine ? `/new?in=${collection.slug}` : "/new"}>Make a puzzle</Link>
         </div>
+      ))}
+      {tab === "recommends" && person && (recommends.length ? (
+        <section className="recommends" aria-labelledby="recs-h">
+          <h2 id="recs-h" className="visually-hidden">Recommends</h2>
+          <p className="muted rec-intro">{mine ? "You recommend" : `${person.name.replace(/^The (Hon\. )?/, "").split(" ")[0]} recommends`} {recommends.length} creator{recommends.length === 1 ? "" : "s"}.{mine && <> <Link to="/settings#recommendations">Edit</Link></>}</p>
+          <ul className="rec-list">{recommends.map((r) => (
+            <li key={r.id}>
+              <Link to={`/${r.handle}`} className="rec-list-who"><Avatar name={r.name} seed={r.handle} size={44} ai={r.ai} /></Link>
+              <div>
+                <Link to={`/${r.handle}`} className="rec-name"><strong>{r.name}</strong></Link>{r.ai && <> <AiBadge /></>} <span className="muted">@{r.handle}</span>
+                <p>{r.note || r.bio}</p>
+              </div>
+              <Link className="ccard-pics" to={`/${r.handle}`} aria-label={`${r.name}'s puzzles`}>{r.newest.map((id) => <Pic key={id} pic={d.recPictures[id]} inks={d.inks} className="mini" />)}</Link>
+              {me !== r.handle ? <SubscribeButton slug={r.handle} subscribed={r.subscribed} signedIn={!!me} /> : <span />}
+            </li>
+          ))}</ul>
+        </section>
+      ) : (
+        <div className="empty-tab"><p>You don&rsquo;t recommend anyone yet.</p><p className="muted">Up to five creators, each with a line.</p><Link className="btn" to="/settings#recommendations">Choose in Settings</Link></div>
       ))}
       {tab === "subscriptions" && (following.length
         ? <ul className="collection-list">{following.map((c) => <CollectionRow key={c.id} c={c} subscribed={c.subscribed} signedIn={!!me} me={me ?? undefined} />)}</ul>

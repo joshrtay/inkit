@@ -2,6 +2,7 @@ import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflareContext } from "../app/lib/context";
 import { getDb } from "../app/db";
 import { publishDue } from "../app/lib/ai.server";
+import { backfillEstimates } from "../app/lib/estimates.server";
 import { isKind } from "../app/lib/guides.server";
 import { guideMarkdownOf, playableExamples, textResponse } from "../app/lib/seo.server";
 
@@ -32,8 +33,10 @@ export default {
   },
   /** The cron (wrangler.jsonc, every minute): publish the AI creators' scheduled drafts that are
    *  due (app/lib/ai.server.ts). Only a database query and an update: generating happens weekly,
-   *  off the Worker (puzzles/ai/week.ts). */
+   *  off the Worker (puzzles/ai/week.ts). And estimate a few older games' difficulty and time
+   *  (app/lib/estimates.server.ts), until every published game has one. */
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(publishDue(getDb(env)));
+    ctx.waitUntil(backfillEstimates(getDb(env), 40));
   },
 } satisfies ExportedHandler<Env>;
