@@ -36,6 +36,10 @@ export interface Fact { mark: string; value: boolean; text: string }
 
 export interface Step {
   tier: Tier;
+  /** the round it was taken in, and how many tier-0 steps were open then (0: none, so a harder
+   *  look was needed): for flow and break-ins (puzzles/difficulty/interest.ts) */
+  round?: number;
+  open?: number;
   /** what was looked at: "row 3", "box 2 + row 3", "assume r2c4 shaded", ... */
   where: string;
   cells: number[];
@@ -707,14 +711,14 @@ end
 
   /** Take the cheapest candidate steps (within SLACK of the cheapest); the rest wait for a later
    *  round, when more is known and they may come cheaper. */
-  const take = (steps: (Step & { w: Window })[]) => {
+  const take = (steps: (Step & { w: Window })[], open = 0) => {
     if (!steps.length) return 0;
     const min = Math.min(...steps.map((s) => s.cost));
     let count = 0;
     for (const s of steps) {
       if (s.cost > min + SLACK) { evaluatedAt.delete(s.w); continue; }
       const { w: _w, ...step } = s;
-      path.push(step); count++;
+      path.push({ ...step, round, open }); count++;
     }
     for (const s of steps) if (s.cost <= min + SLACK) for (const f of s.facts) settle(markOf.get(f.mark)!, f.value);
     return count;
@@ -792,7 +796,7 @@ end
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
     round++;
     let f = runWindows(T0);
-    if (f.size) { const c = candidates(f, 0); if (entryPoints < 0) entryPoints = c.length; take(c); continue; }
+    if (f.size) { const c = candidates(f, 0); if (entryPoints < 0) entryPoints = c.length; take(c, c.length); continue; }
     if (entryPoints < 0) entryPoints = 0;
     f = runWindows(T1);
     if (f.size) { take(candidates(f, 1)); continue; }
