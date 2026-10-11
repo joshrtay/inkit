@@ -1,56 +1,95 @@
 # Developing problem solvers: inkit's learning design
 
-inkit's aim, beyond hosting puzzles: great puzzles and great sequences should develop great problem
-solvers. That means three things:
+## The target
 
-1. **Teach techniques**: the reusable ideas in each type, met in order and mastered.
-2. **Use contrasting cases**: the same idea working and not working, or one idea in two types, so
-   players see the structure underneath.
-3. **Keep it interesting**: a player who stops learns nothing; motivation is part of the design.
+**A player who can solve puzzles they have never seen, long after they stopped practising.**
 
-And one constraint over all three: **build robust problem solvers, not fast exercise-doers.** A
-learner who can only apply a technique when told which one to use is brittle. The design below
-borrows structure where structure helps and deliberately adds what structure alone leaves out.
+Learning has two horizons, and they pull against each other:
 
-Background: [research-interestingness.md](research-interestingness.md),
+- **Near: this puzzle, next week.** Known, named material; practice, automaticity, accuracy. It
+  shows quickly and fades (Bjork's *performance*).
+- **Far: unforeseen puzzles, in the distant future**, including types that don't exist yet.
+  Insight, reflection, leaps nobody cued (Bjork's *learning*; Bransford and Schwartz's preparation
+  for future learning; Hatano's adaptive as against routine expertise).
+
+What raises the near score (cued practice, telling the method, easy repetition) tends to cost the
+far one; what serves the far one (struggle, mixed problems, reading a solution for its key idea)
+looks slower. **inkit designs for the far horizon.** Near practice earns its place only by serving
+it: automatic basics free attention for the hard step (Evan Chen's "spend at least 70% of practice
+getting smarter, not faster"). Transfer is how the far horizon is measured, not the goal itself.
+
+This merges three sources:
+
+- **The original aim**: great puzzles and great sequences develop great problem solvers, through
+  techniques, contrasting cases and interest. These stay, as the means to the far horizon.
+- **Robustness** (the Math Academy critique): borrow structure for acquiring, never let it become
+  the whole of practice.
+- **Rusczyk and Evan Chen**: a course is a carefully sequenced problem set whose problems ask for
+  real leaps; the set is both the scaffold and the bar. And the taste that set embodies (below)
+  becomes ours.
+
+### The taste we design for
+
+Evan Chen's good problem, which is the far horizon's taste: a short, inviting statement; a
+surprising truth; one main insight; a solution without heavy machinery; depth; room for partial
+progress. Instructive, novel, memorable. Against it: computation or casework as the whole content,
+one-trick and trivia problems, tricks recited from memory.
+
+For puzzles, read off the solver's path: **one costly step that opens up the rest (a break-in)
+beats long case splits; an idea used on purpose beats an obscure trick; a puzzle teaches the idea
+it hinges on.** Our sequences, featured puzzles and generated puzzles aim at that.
+
+Other tastes are real. On Puzzle Square JP, Masyu players like long runs of easy moves, sparse clues
+and big grids, whatever the difficulty (see "Measuring difficulty and interest"). That pleasure is
+flow and fluency, a near-horizon pleasure. inkit hosts it and recommends it to those who like it,
+and it can serve as rest and practice; it doesn't steer the learning design.
+
+Background: [research-evan-chen.md](research-evan-chen.md),
+[research-interestingness.md](research-interestingness.md),
 [research-sudoku-difficulty.md](research-sudoku-difficulty.md),
 [research-tutorials.md](research-tutorials.md), [tutorial-sequences.md](tutorial-sequences.md),
 [sudoku-techniques.md](sudoku-techniques.md).
 
 ## Principles
 
-1. **Acquire, then integrate.** New techniques are learned with structure: worked examples, short
+1. **The sequence is the course.** A hand-made set, sequenced so each puzzle asks for a real leap,
+   sets the bar. Adaptivity chooses *among* sets and schedules review; it never adapts the leap away.
+2. **Acquire, then integrate.** New techniques are learned with structure: worked examples, short
    cued practice, contrasting cases. Most practice is then *uncued and mixed*: techniques and types
    interleaved, so recognising what applies is the work. Interleaving feels harder and builds exactly
    that discrimination (Rohrer and colleagues).
-2. **Teach when an idea doesn't apply, not only when it does.** Near misses and minimal pairs show a
+3. **Teach when an idea doesn't apply, not only when it does.** Near misses and minimal pairs show a
    technique's conditions. This is the main cure for brittleness.
-3. **The curriculum's unit is the idea that crosses types**, not the type. Counting and pigeonhole
+4. **The curriculum's unit is the idea that crosses types**, not the type. Counting and pigeonhole
    run through Sudoku, Star Battle, Binary Puzzle and Sum Blobs; "follow the only way" through
    Masyu and Simple Path; contradiction through everything. Seeing one structure in different
-   settings (analogical encoding, Gentner) is the best-supported route to transfer.
-4. **Struggle grows with skill.** Novices get direct instruction; worked examples beat unguided
+   settings (analogical encoding, Gentner) is the best-supported route to transfer. Within a lesson,
+   one theme, sorted by the main idea rather than the surface (as Evan Chen builds his).
+5. **Struggle grows with skill.** Novices get direct instruction; worked examples beat unguided
    discovery at the start (cognitive load theory). As expertise grows, help drops (the expertise
    reversal effect): more "attempt first, then see the idea" (Kapur's productive failure), longer
    puzzles that need sustained effort.
-5. **Some techniques are discovered before they're named.** A puzzle built so its break-in forces
+6. **Two success rates.** Acquiring practice sits near 85% success, where learning is fastest
+   (Wilson et al., 2019). A set's leaps sit lower on purpose: OTIS aims students at 60–75% of a
+   set's points, and counts what they solved, not what they missed.
+7. **Some techniques are discovered before they're named.** A puzzle built so its break-in forces
    the insight, with the name and explanation after (how The Witness teaches). Ownership resists
    brittleness.
-6. **Basics become automatic.** When singles and simple scanning are effortless, working memory is
-   free for the hard step, and the break-in is visible. Rule load and Pelánek's dependency measure
-   are the warning signs of overload.
-7. **General heuristics are techniques too**: most-constrained-first, contradiction, extremes,
-   counting, working backwards. Named, taught and practised across types, at the top of the
-   technique language.
-8. **Reflection and making.** Short optional prompts after key steps ("what made this cell
-   forced?"), checked by the solver; replays of where a player got stuck. And making puzzles: a
-   puzzle that *needs* a given technique, checked by the solver, demands real understanding.
-9. **Keep players in the zone.** Learning is fastest at roughly 85% success (Wilson et al., "The
-   Eighty Five Percent Rule", 2019). Interest comes from how hard moments are placed (a break-in, a
-   theme, flow, little busywork), not from difficulty alone.
-10. **Measure robustness, not throughput.** Uncued mixed puzzles, retention after weeks, transfer to
-    new types, techniques used unprompted in solve paths. A change that speeds up learning but hurts
-    these loses.
+8. **Basics become automatic**, because that frees attention for the hard step and lets the
+   break-in be seen. Rule load and Pelánek's dependency measure are the warning signs of overload.
+9. **General heuristics are techniques too**: most-constrained-first, contradiction, extremes,
+   counting, small cases, working backwards. Named, taught and practised across types, at the top
+   of the technique language.
+10. **Give up well, then reflect.** Hints are self-serve and guilt-free after a real attempt. A
+    solution is read for its one or two key ideas, not line by line, then: "how could I have found
+    that?" Short prompts after key steps ("what made this cell forced?"), checked by the solver;
+    replays of where a player got stuck.
+11. **Making puzzles.** A puzzle that *needs* a given technique, checked by the solver, demands real
+    understanding.
+12. **Measure the far horizon.** New puzzles and new types, after a delay, uncued; techniques used
+    unprompted in solve paths. A change that speeds up near progress but hurts these loses.
+13. **Difficulty numbers are advice.** Coarse levels, framed as a guide; Evan Chen came to regret his
+    own fine hardness scale for advanced students, since numbers feed ego.
 
 ## The system
 
@@ -155,22 +194,28 @@ solver's cost model.
 - **Design gradients for creators** (the same lab's follow-up): in paint, an overlay showing what a
   clue would do in each place: easier, harder, not unique, a different key step.
 
-### 5. Sequencing
+### 5. Sequences and sequencing
 
+- **Hand-made sets come first.** A set is a sequence of puzzles, each asking for a leap the
+  setter chose: one theme, sorted by its main idea, with its best puzzles marked and a target of
+  most, not all, of it. The solver helps the setter (proving what each puzzle needs, finding minimal
+  pairs, flagging a grind), but the sequence is authored. inkit's sets and Slate are where this
+  lives.
 - **Two modes.** Acquiring: short, cued, worked examples and contrasting cases, a technique at a
   time, in prerequisite order. Integrating: uncued, interleaved across techniques and types; most of
   the practice.
-- **The next puzzle** is chosen per player: in the ~85% success zone by the student model, mixing
-  review due through the graph, variety across types, and interest. A bandit (or modest
-  reinforcement learning) rewarded for techniques mastered *and* for finishing, liking and coming
-  back.
+- **Adaptivity serves the sets.** Per player it chooses which set next, schedules review due
+  through the graph, and picks rest and practice puzzles to the player's taste. It never shortens
+  a set's leaps. Its reward is far-horizon progress (techniques used unprompted, new types solved),
+  with finishing, liking and coming back as guards.
 - **Slate** (the tutorial creator) moves from "a week per technique" (which is cued practice: "it's
   X-Wing week") to lessons per idea followed by mixed weeks.
 
 ### 6. Tutor and reflection
 
-A tutor grounded in the solver: hints that point at where to look before what to conclude, prompts
-to explain a step, replays of where a player got stuck. An LLM words it; the solver checks every
+A tutor grounded in the solver: self-serve hints that point at where to look before what to
+conclude, the key idea when a player gives up (not the whole path), "how could you have found
+that?", prompts to explain a step, replays of where a player got stuck. An LLM words it; the solver checks every
 claim. Tested against no hints and against fixed hints.
 
 ### 7. Making as learning
@@ -192,10 +237,14 @@ which method applies, so learners match labels, not situations), only short well
 few general heuristics, no problem posing, and success measured as throughput.
 
 Puzzles defend against this by nature (a puzzle never says which technique applies), but we could
-recreate the pitfall ("X-Wing week" with five X-Wing puzzles is cued practice). Principles 1, 2, 4,
-5, 7, 8 and 10 are the guard: uncued integration, near misses, growing struggle, discovery,
-heuristics, reflection and making, and measures of robustness rather than throughput. Whether we're
-more robust is an empirical question; part of phase 4 is how we find out.
+recreate the pitfall ("X-Wing week" with five X-Wing puzzles is cued practice). Principles 1–5,
+7 and 9–12 are the guard: authored leaps, uncued integration, near misses, growing struggle,
+discovery, heuristics, reflection and making, and measures of the far horizon rather than
+throughput. Whether we're more robust is an empirical question; part of phase 4 is how we find out.
+
+The two horizons say why. Math Academy is excellent at the near one, and its measures are near
+ones. Rusczyk's and Evan Chen's courses are built for the far one: the problem set's leaps are the
+point, and they'd rather a student solve two-thirds of a hard set than all of an easy one.
 
 ## What to doubt
 
@@ -206,9 +255,11 @@ more robust is an empirical question; part of phase 4 is how we find out.
   however good models get.
 - **Far transfer.** Evidence that puzzles make people better problem solvers in general is weak
   (most brain-training studies failed). Near transfer is solid. Far transfer has a chance only with
-  ideas taught explicitly and practised across settings, which is why principle 3 sets the unit.
-- **One score for interest.** Likes partly track difficulty (hard puzzles draw keener solvers); any
-  interest measure must predict beyond difficulty.
+  ideas taught explicitly and practised across settings, which is why principle 4 sets the unit.
+- **One score for interest.** Likes partly track difficulty (hard puzzles draw keener solvers), and
+  taste differs by type; any interest measure must predict beyond difficulty, per type.
+- **Adaptive engines.** Rusczyk argues against them: the art is in the set's leaps, which an engine
+  tuned to a success rate smooths away. Hence principle 1.
 
 ## Plan
 
@@ -216,8 +267,8 @@ more robust is an empirical question; part of phase 4 is how we find out.
 |---|---|---|---|---|
 | 1. Measure | Solve times; technique solvers (Sudoku first); interest measures and the Puzzle Square JP experiment; Sudoku Explainer comparison (needs SukakuExplainer and Java, local only) | Solve times live in code; Sudoku solver done (0.87); interest runs under way | Technique solvers track human labels; interest measures predict likes beyond difficulty | Interest measures add nothing beyond difficulty on the larger sets: rethink the measures |
 | 2. Techniques | Mining on Akari and Star Battle (documented, to check), then the undocumented types; the cross-type map of schemas | Next | Mining rediscovers most documented techniques, plus verified new ones experts find meaningful; non-trivial shapes recur across types | Only trivial or uninterpretable patterns; types stay unrelated |
-| 3. Learners and content | Mastery per technique; review credited through the graph; restricted-solver student models; minimal-pair generator; discovery puzzles; Slate by idea; design gradients in paint | After 2 | Student models predict a player's own times and stuck points better than one score per puzzle (a few hundred active players) | No gain with enough data |
-| 4. Adapt and test | Next-puzzle choice per player (two modes, ~85% zone, review, variety, interest); the solver-grounded tutor; making as learning; randomised comparisons | With players | Contrasting-case sequences beat plain practice on held-out puzzles; robustness measures (uncued, delayed, new types) hold or improve; longer streaks at the target success rate | No difference with a fair sample |
+| 3. Learners and sets | Hand-made sets per idea (Slate and sets), with the solver proving each leap and flagging grinds; mastery per technique; review credited through the graph; restricted-solver student models; minimal-pair generator; discovery puzzles; design gradients in paint | After 2 | Student models predict a player's own times and stuck points better than one score per puzzle (a few hundred active players) | No gain with enough data |
+| 4. Adapt and test | Adaptivity in service of the sets (which set next, review, rest to taste); the solver-grounded tutor; making as learning; randomised comparisons | With players | Authored sets with leaps beat smooth adaptive practice on the far horizon: new puzzles and new types, uncued, weeks later; players keep coming back | No difference with a fair sample |
 
 ## Research horizon
 
@@ -251,6 +302,12 @@ on strategy synthesis; Sturtevant's lab on exhaustive generation; learning scien
 cases and transfer), and patience: the cheap signals come in weeks, the experiments in months.
 
 ## Sources
+
+- Evan Chen's blog and site, summarised in [research-evan-chen.md](research-evan-chen.md); Richard
+  Rusczyk on carefully sequenced problem sets (Art of Problem Solving, Beast Academy).
+- Bjork on performance versus learning and desirable difficulties; Bransford and Schwartz,
+  "Rethinking Transfer: A Simple Proposal with Multiple Implications" (1999), on preparation for
+  future learning; Hatano and Inagaki on routine and adaptive expertise.
 
 - Pelánek, "Difficulty Rating of Sudoku Puzzles: An Overview and Evaluation" (arXiv 1403.7373), and
   his work on human problem solving and the Problem Solving Tutor.
