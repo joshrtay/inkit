@@ -399,7 +399,7 @@ test("a grid, a stone and a number; undo and redo by key; the drawing downloaded
   // the picture: a PNG 1600px across on paper, cropped to the drawing (the 7 × 6 grid at (60, 60)
   // with a margin of 12 units: view.ts's fitBox), with the stone's ink where the stone is
   const download = page.waitForEvent("download");
-  await page.locator(".studio-top").getByRole("button", { name: "More" }).click();
+  await page.locator(".studio-top").getByRole("button", { name: "More", exact: true }).click();
   await page.getByRole("menuitem", { name: "Download a picture" }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe("untitled.png");

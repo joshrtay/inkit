@@ -217,7 +217,6 @@ function Drawer({ data, current, sheet, change, add, close, closeSheet, publishe
       </ol>
       {data.error && <p className="error" role="alert">{data.error}</p>}
       <div className="set-drawer-foot">
-        <p className="muted">After you publish, the puzzles and their order stay as they are.</p>
         <button type="button" className="btn primary" disabled={!puzzles.length} onClick={() => void publish()}>Publish</button>
         <Link to={`/s/${data.set.id}`} className="set-drawer-page">Open set page</Link>
       </div>

@@ -53,7 +53,8 @@ export async function listBar(db: Db, c: ListContext, game: { id: string }, view
   } else if (c.in === "set") {
     // a set: its own order, and how far through it the player is
     const found = await setById(db, c.set);
-    if (!found || found.set.state !== "published") return null;
+    // a published set, or its author's draft (played through before it's published)
+    if (!found || !(found.set.state === "published" || (found.set.state === "draft" && viewerId === found.set.authorId))) return null;
     const order = await setOrder(db, c.set);
     const at = order.indexOf(game.id);
     if (at < 0) return null;

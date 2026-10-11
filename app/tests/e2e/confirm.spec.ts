@@ -17,7 +17,7 @@ test("paint's Clear the page: the dialog, Cancel, Escape and Clear", async ({ pa
   await openPaint(page, id);
   const original = await puzzleKey(page);
   expect(original).not.toBe("");
-  const more = page.locator(".sp-doc-slot").getByRole("button", { name: "More" });
+  const more = page.locator(".sp-doc-slot").getByRole("button", { name: "More", exact: true });
   const dialog = page.getByRole("alertdialog", { name: "Clear the page?" });
   const clear = async () => { await more.click(); await page.getByRole("menuitem", { name: "Clear the page" }).click(); await expect(dialog).toBeVisible(); };
 
@@ -62,7 +62,7 @@ test("paint's Clear the page: the dialog, Cancel, Escape and Clear", async ({ pa
 test("on a phone, the dialog fits the screen", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await openPaint(page, draftOf("akari"));
-  const more = page.locator(".sp-doc:visible").getByRole("button", { name: "More" });
+  const more = page.locator(".sp-doc:visible").getByRole("button", { name: "More", exact: true });
   await more.click();
   await page.getByRole("menuitem", { name: "Clear the page" }).click();
   const box = await page.getByRole("alertdialog", { name: "Clear the page?" }).boundingBox();

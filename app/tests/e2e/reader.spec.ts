@@ -63,7 +63,7 @@ test.describe("the reader reads sketchpad drawings", () => {
       if (drawing.grid) await expect(page.locator(".sp-board")).toHaveAttribute("data-grid", `${drawing.grid.rows}x${drawing.grid.cols}`);
       else await expect(page.locator(".sp-board .sp-ink > *").first()).toBeAttached();
       const download = page.waitForEvent("download");
-      await page.locator(".studio-top").getByRole("button", { name: "More" }).click();
+      await page.locator(".studio-top").getByRole("button", { name: "More", exact: true }).click();
       await page.getByRole("menuitem", { name: "Download a picture" }).click();
       const picture = await (await download).path();
       // read as a photo, on /new

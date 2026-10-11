@@ -139,8 +139,12 @@ a.btn { text-decoration: none; display: inline-block; }
   /* tall boards: the paper's height is the screen minus the top bar and a --frame above and
      below; the board gets that minus the paper's top padding (6px), its strip (42px), the gap
      (4px), anything below the board on the paper (--below), anything under the paper (--after: the
-     list bar) and the bottom padding */
-  width: min(100%, calc((100dvh - var(--nav-h) - env(safe-area-inset-top, 0px) - 2 * var(--frame) - 52px - var(--below, 0px) - var(--after, 0px) - var(--pad)) * var(--ratio, 1) + 2 * var(--pad)));
+     list bar) and the bottom padding; and no wider than its cells need (--board-max: the grid player
+     sets it from the grid's size), so every puzzle's cells come out about the same size */
+  width: min(calc((100dvh - var(--nav-h) - env(safe-area-inset-top, 0px) - 2 * var(--frame) - 52px - var(--below, 0px) - var(--after, 0px) - var(--pad)) * var(--ratio, 1) + 2 * var(--pad)),
+    calc(var(--board-max, 100vw) + 2 * var(--pad)),
+    calc(100cqi - 32px));   /* the page's own width (its container, less the side padding): no % here, the page wraps itself around the paper */
+  max-width: 100%;
   padding: 6px var(--pad) var(--pad); background: var(--paper); color: var(--paper-ink); border-radius: 3px;
   box-shadow: 0 1px 2px var(--shadow), 0 12px 28px -10px var(--shadow);
 }

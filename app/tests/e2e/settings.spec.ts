@@ -10,7 +10,7 @@ test("More: settings, sign out, and the small print, opening over Puzzle types",
   await page.goto("/explore");
   // Puzzle types sits right above More, outside the menu
   const types = page.locator(".sidenav .nav-foot").getByRole("link", { name: "Puzzle types" });
-  const more = page.locator(".sidenav").getByRole("button", { name: "More" });
+  const more = page.locator(".sidenav").getByRole("button", { name: "More", exact: true });
   const [t, b] = [(await types.boundingBox())!, (await more.boundingBox())!];
   expect(t.y + t.height).toBeLessThanOrEqual(b.y);
   expect(b.y - (t.y + t.height)).toBeLessThan(20);
@@ -25,7 +25,7 @@ test("More: settings, sign out, and the small print, opening over Puzzle types",
   await expect(menu.locator(".menu-legal a")).toHaveText(["Privacy", "Terms"]);
   await page.keyboard.press("Escape");
   await expect(menu).toBeHidden();
-  await page.locator(".sidenav").getByRole("button", { name: "More" }).click();
+  await page.locator(".sidenav").getByRole("button", { name: "More", exact: true }).click();
   await menu.getByRole("menuitem", { name: "Settings" }).click();
   await expect(page).toHaveURL(/\/settings$/);
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();

@@ -61,7 +61,7 @@ test.describe.serial("bug reports", () => {
     await page.mouse.move(200, 200);
     await page.mouse.wheel(0, 300);
     await page.waitForTimeout(2500);
-    await page.getByRole("button", { name: "More" }).click();
+    await page.getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Report a bug" }).click();
     const dialog = page.getByRole("dialog", { name: "Report a bug" });
     await expect(dialog).toBeVisible();
@@ -118,7 +118,7 @@ test.describe.serial("bug reports", () => {
     await giveVerdict(page);
     const id = draftOf("akari");
     await openPaint(page, id);
-    await page.locator(".sp-doc-slot").getByRole("button", { name: "More" }).click();
+    await page.locator(".sp-doc-slot").getByRole("button", { name: "More", exact: true }).click();
     await page.getByRole("menuitem", { name: "Report a bug" }).click();
     const dialog = page.getByRole("dialog", { name: "Report a bug" });
     await dialog.getByLabel("What went wrong?").fill("The rocks moved");

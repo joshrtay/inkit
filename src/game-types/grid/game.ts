@@ -36,6 +36,7 @@ interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; tra
 type Change = [Layer, number, number];          // layer, index, previous value
 
 const S = 48, M = 26;                           // cell size and plain margin, in board units
+const CELL_PX = 64, BOARD_MIN = 400;             // a cell's size on screen, and the narrowest board, in CSS pixels
 const NS = "http://www.w3.org/2000/svg";
 const PREFS = "inkit:nonogram-prefs";            // nonogram helpers
 
@@ -107,6 +108,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const svg = q<SVGSVGElement>("svg.board");
   svg.setAttribute("viewBox", `0 0 ${ML + g.cols * S + MR} ${MT + g.rows * S + MB}`);
   addInk(svg, root);
+  // sized by its cells, not by the window: about CELL_PX a cell, so a 4 × 4 and a 15 × 15 look like
+  // the same paper and pen (at least BOARD_MIN across; the window still caps it: global.css .sheet)
+  root.style.setProperty("--board-max", `${Math.round(Math.max(BOARD_MIN, ((ML + g.cols * S + MR) / S) * CELL_PX))}px`);
   const el = (tag: string, attrs: Record<string, string | number>, parent: Element = svg) => {
     const n = document.createElementNS(NS, tag);
     for (const k in attrs) n.setAttribute(k, String(attrs[k]));
