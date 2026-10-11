@@ -245,6 +245,9 @@ export const likes = sqliteTable("likes", {
 export const solves = sqliteTable("solves", {
   creatorId: text("creator_id").notNull().references(() => creators.id),
   gameId: text("game_id").notNull().references(() => games.id),
+  /** how long it took to play, in milliseconds: from the first move to the solve, gaps of over a
+   *  minute and time in a hidden tab left out (components/solve-timer.ts); null when not known */
+  ms: integer("ms"),
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("solves_game").on(t.gameId)]);
 

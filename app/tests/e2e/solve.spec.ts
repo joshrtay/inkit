@@ -27,6 +27,10 @@ test("a solve is celebrated, kept and shown", async ({ page }) => {
   await expect(page.locator(".celebration .ink-drop").first()).toBeAttached();
   await expect(page.locator(".sheet .solved-stamp.landed")).toBeVisible({ timeout: 10_000 });
   await expect.poll(() => sql(`select 1 from solves where creator_id = ${q(run.userId)} and game_id = ${q(GAME)}`).length, { timeout: 10_000 }).toBe(1);
+  // with how long it took to play (components/solve-timer.ts)
+  const [{ ms }] = sql<{ ms: number | null }>(`select ms from solves where creator_id = ${q(run.userId)} and game_id = ${q(GAME)}`);
+  expect(ms).toBeGreaterThan(0);
+  expect(ms).toBeLessThan(5 * 60_000);
 
   await page.reload();
   await expect(page.locator(".game-head .solved-mark")).toBeVisible();

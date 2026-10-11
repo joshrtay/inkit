@@ -18,6 +18,10 @@ export async function action({ params, request, context }: Route.ActionArgs) {
   const game = await db.query.games.findFirst({ where: eq(schema.games.id, params.id) });
   const collection = game && await db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) });
   if (!game || !collection || game.state !== "published" || !canView(game, collection, me, await roleIn(db, collection.id, me.id))) throw data(null, { status: 404 });
-  if (game.authorId !== me.id) await db.insert(schema.solves).values({ creatorId: me.id, gameId: game.id }).onConflictDoNothing();
+  // how long it took (components/solve-timer.ts): kept if it's believable (under six hours; very
+  // short ones are left for the analysis to judge)
+  const ms = Number((await request.formData().catch(() => null))?.get("ms"));
+  const time = Number.isFinite(ms) && ms >= 1 && ms <= 6 * 3600_000 ? Math.round(ms) : null;
+  if (game.authorId !== me.id) await db.insert(schema.solves).values({ creatorId: me.id, gameId: game.id, ms: time }).onConflictDoNothing();
   return solvesOf(db, game.id, me.id);
 }

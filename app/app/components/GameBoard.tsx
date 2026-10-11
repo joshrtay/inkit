@@ -2,6 +2,7 @@
 // builds its board inside a container of plain HTML (its paper, controls and SVG), so the player
 // is plain TypeScript, independent of React. React only provides the spot; the game owns
 // everything inside it.
+import { clearTimer, loadTimer, pause, saveTimer, startTimer, tick } from "./solve-timer";
 import { useEffect, useRef } from "react";
 import { createGrid } from "~site/game-types/grid/game";
 import "~site/game-types/grid/styles.css";
@@ -59,7 +60,7 @@ function alignToBorder(root: HTMLElement) {
  *  (How to play), shown only when given. `tip`: a first-time note under it ("New to Akari?"),
  *  with its dismissal. */
 export function GameBoard({ play, saveId, onSolved, description = "", onRules, tip }: {
-  play: Playable; saveId?: string; onSolved?: () => void; description?: string;
+  play: Playable; saveId?: string; onSolved?: (ms: number | null) => void; description?: string;
   onRules?: () => void; tip?: { text: string; onDismiss: () => void } | null;
 }) {
   const spot = useRef<HTMLDivElement>(null);
@@ -82,7 +83,18 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     holder.innerHTML = markup(play.layout);
     const root = holder.firstElementChild as HTMLElement;
     spot.current.appendChild(root);
-    const host = createHost(saveId ?? "", () => solved.current?.(), !saveId);
+    // playing time (components/solve-timer.ts): moves on the board, nothing while the tab is hidden
+    let timer = saveId ? loadTimer(saveId) : startTimer();
+    const move = () => { timer = tick(timer, Date.now()); if (saveId) saveTimer(saveId, timer); };
+    const hide = () => { if (document.hidden) timer = pause(timer); };
+    // (keys go to the page: the board reads them there)
+    root.addEventListener("pointerdown", move); addEventListener("keydown", move);
+    document.addEventListener("visibilitychange", hide);
+    const host = createHost(saveId ?? "", () => {
+      const ms = timer.total > 0 ? Math.round(timer.total) : null;
+      if (saveId) clearTimer(saveId);
+      solved.current?.(ms);
+    }, !saveId);
     const cleanup = createGrid({ spec: play.spec })(root, host);
     const ask = root.querySelector<HTMLButtonElement>("[data-rules]");
     if (ask) { ask.hidden = !rules.current; ask.addEventListener("click", () => rules.current?.()); }
@@ -91,7 +103,7 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     const board = root.querySelector(".sheet > svg.board");
     const fit = new ResizeObserver(() => alignToBorder(root));
     if (board) fit.observe(board);
-    return () => { fit.disconnect(); cleanup?.(); root.remove(); };
+    return () => { fit.disconnect(); removeEventListener("keydown", move); document.removeEventListener("visibilitychange", hide); cleanup?.(); root.remove(); };
   }, [key, saveId]);
 
   // the description changes without rebuilding the board (the publish page edits it as you play)

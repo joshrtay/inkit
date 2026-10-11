@@ -98,9 +98,9 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   // just solved: the list bar's Next stands out
   const [won, setWon] = useState(false);
   useEffect(() => setWon(false), [game.id]);
-  const onSolved = () => {
+  const onSolved = (ms: number | null) => {
     setWon(true);
-    if (keep && solve.state === "idle" && !solve.data) solve.submit(null, { method: "post", action: `/g/${game.id}/solve` });
+    if (keep && solve.state === "idle" && !solve.data) solve.submit(ms ? { ms: String(ms) } : null, { method: "post", action: `/g/${game.id}/solve` });
   };
 
   return (
