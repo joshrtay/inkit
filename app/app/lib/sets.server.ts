@@ -179,3 +179,13 @@ export async function draftSetsOf(db: Db, authorId: string) {
   const rows = await db.select().from(schema.sets).where(and(eq(schema.sets.authorId, authorId), eq(schema.sets.state, "draft"))).orderBy(sql`${schema.sets.updatedAt} desc`).limit(30);
   return setCards(db, rows);
 }
+
+/** Published sets whose title or description has every word (Explore's search). */
+export async function searchSets(db: Db, words: string[], limit = 6) {
+  if (!words.length) return [];
+  const rows = await db.select().from(schema.sets).innerJoin(schema.collections, eq(schema.sets.collectionId, schema.collections.id))
+    .where(and(eq(schema.sets.state, "published"), isNull(schema.collections.deletedAt),
+      ...words.map((w) => sql`(lower(${schema.sets.title}) like ${`%${w}%`} or lower(${schema.sets.description}) like ${`%${w}%`})`)))
+    .orderBy(sql`${schema.sets.publishedAt} desc`).limit(limit);
+  return setCards(db, rows.map((r) => r.sets));
+}

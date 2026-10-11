@@ -4,6 +4,7 @@
 // At /explore, and at "/" for someone signed out (routes/home.tsx); the data is
 // lib/explore-page.server.ts (the shelves from lib/explore.server.ts, the formulas in lib/rank.ts).
 import { browse } from "~/lib/list-context";
+import { SetCard } from "./SetCard";
 import { Link } from "react-router";
 import type { ExploreData as Data } from "~/lib/explore-page.server";
 import { Avatar } from "./Avatar";
@@ -85,7 +86,7 @@ function Shelves({ d, s }: { d: Data; s: NonNullable<Data["shelves"]> }) {
 }
 
 function Results({ d, found }: { d: Data; found: NonNullable<Data["found"]> }) {
-  const nothing = !found.types.length && !found.creators.length && !found.puzzles.length;
+  const nothing = !found.types.length && !found.creators.length && !found.puzzles.length && !found.sets.length;
   return (
     <div className="x-search-page">
       {nothing && <p className="muted">Nothing matches &ldquo;{d.q}&rdquo;. <Link to="/explore">Back to Explore</Link></p>}
@@ -108,6 +109,10 @@ function Results({ d, found }: { d: Data; found: NonNullable<Data["found"]> }) {
               {d.me !== c.handle && <SubscribeButton slug={c.handle} subscribed={!!c.subscribed} signedIn={!!d.me} />}
             </li>
           ))}</ul></section>
+      )}
+      {found.sets.length > 0 && (
+        <section className="shelf" aria-labelledby="r-sets"><h2 className="group-h" id="r-sets">Sets</h2>
+          <ul className="cards x-cards">{found.sets.map((x) => <SetCard key={x.id} set={x} />)}</ul></section>
       )}
       {found.puzzles.length > 0 && (
         <section className="shelf" aria-labelledby="r-puzzles"><h2 className="group-h" id="r-puzzles">Puzzles</h2>

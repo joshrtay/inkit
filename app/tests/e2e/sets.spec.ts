@@ -77,3 +77,36 @@ test("a profile shows its sets; a draft only in its author's Drafts", async ({ p
   expect((await other.goto(`/s/${DRAFT}`))?.status()).toBe(404);
   await other.close();
 });
+
+test("a published set is found: Explore's search, the feed of its subscribers, the sitemap", async ({ page }) => {
+  await page.goto("/explore?q=three%20to%20start");
+  await expect(page.getByRole("region", { name: "Sets" }).locator(`a[href="/s/${SET}"]`)).toBeVisible();
+  sql(`insert or ignore into subscriptions (subscriber_id, collection_id, created_at) values (${q(run.userId)}, ${q(run.collectionId)}, ${Date.now()})`);
+  try {
+    await page.goto("/");
+    await expect(page.locator(`.set-feed-item a[href="/s/${SET}"]`)).toContainText("Three to start");
+  } finally {
+    sql(`delete from subscriptions where subscriber_id = ${q(run.userId)} and collection_id = ${q(run.collectionId)}`);
+  }
+  const map = await (await page.request.get("/sitemap.xml")).text();
+  expect(map).toContain(`/s/${SET}<`);
+  expect(map).not.toContain(`/s/${DRAFT}<`);
+});
+
+test("its author deletes a published set: off the profile, its link gone; the puzzles stay", async ({ page }) => {
+  const id = `${SET}-del`;
+  sql(`insert into sets (id, collection_id, author_id, title, state, published_at) values (${q(id)}, ${q(run.collectionId)}, ${q(run.userId)}, 'Short-lived', 'published', ${Date.now()});
+    insert into set_items (set_id, game_id, position) values (${q(id)}, 'akari-1', 0)`);
+  try {
+    await page.goto(`/s/${id}`);
+    await page.getByRole("button", { name: "More for this set" }).click();
+    await page.getByRole("menuitem", { name: "Delete…" }).click();
+    await page.getByRole("alertdialog", { name: "Delete “Short-lived”?" }).getByRole("button", { name: "Delete" }).click();
+    await expect(page).not.toHaveURL(/\/s\//, { timeout: 15_000 });
+    expect(sql<{ state: string }>(`select state from sets where id = ${q(id)}`)[0].state).toBe("deleted");
+    expect((await page.goto(`/s/${id}`))?.status()).toBe(410);
+    expect((await page.goto("/g/akari-1"))?.status()).toBe(200);
+  } finally {
+    sql(`delete from set_items where set_id = ${q(id)}; delete from sets where id = ${q(id)}`);
+  }
+});

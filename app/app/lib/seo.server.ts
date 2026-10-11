@@ -17,7 +17,7 @@ const GUIDES_CHANGED = Date.parse("2026-10-08");
  *  online) and the profiles that have any. Drafts and hidden games never appear. */
 export async function sitemapEntries(db: Db): Promise<SitemapEntry[]> {
   const live = and(eq(schema.games.state, "published"), isNull(schema.collections.deletedAt));
-  const [games, profiles] = await Promise.all([
+  const [games, profiles, sets] = await Promise.all([
     db.select({ id: schema.games.id, updated: schema.games.updatedAt, published: schema.games.publishedAt })
       .from(schema.games).innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
       .where(live).orderBy(desc(schema.games.publishedAt)).limit(SITEMAP_MAX - 1000),
@@ -26,6 +26,10 @@ export async function sitemapEntries(db: Db): Promise<SitemapEntry[]> {
       .leftJoin(schema.creators, eq(schema.collections.personalOf, schema.creators.id))
       .where(and(live, isNull(schema.creators.deletedAt)))
       .groupBy(schema.collections.slug).limit(900),
+    // published sets
+    db.select({ id: schema.sets.id, updated: schema.sets.updatedAt }).from(schema.sets)
+      .innerJoin(schema.collections, eq(schema.sets.collectionId, schema.collections.id))
+      .where(and(eq(schema.sets.state, "published"), isNull(schema.collections.deletedAt))).orderBy(desc(schema.sets.publishedAt)).limit(500),
   ]);
   const newest = games[0]?.updated?.getTime() ?? null;
   return [
@@ -36,6 +40,7 @@ export async function sitemapEntries(db: Db): Promise<SitemapEntry[]> {
     // each type's puzzles on Explore (RYB's are on its guide and profiles)
     ...ORDER.filter((k) => k !== "coats").map((k) => ({ path: explorePath(k), lastmod: newest })),
     ...profiles.map((p) => ({ path: `/${p.slug}`, lastmod: Number(p.last) || null })),
+    ...sets.map((x) => ({ path: `/s/${x.id}`, lastmod: x.updated.getTime() })),
     ...games.map((g) => ({ path: `/g/${g.id}`, lastmod: (g.updated ?? g.published)?.getTime() ?? null })),
   ];
 }

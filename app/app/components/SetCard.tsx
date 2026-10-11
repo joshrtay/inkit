@@ -39,3 +39,19 @@ export function SetCard({ set, draft = false }: { set: SetCardData; draft?: bool
     </li>
   );
 }
+
+/** A set in the Subscriptions feed: who made it and when, its title and numbers, its cover. */
+export function SetFeedItem({ set }: { set: SetCardData }) {
+  return (
+    <li className="feed-item set-feed-item">
+      <Link to={`/s/${set.id}`} className="feed-link">
+        <span className="feed-text">
+          <span className="by">@{set.authorHandle}{set.publishedAt && <> · {ago(set.publishedAt)}</>}</span>
+          <strong className="feed-title">{set.title}</strong>
+          <span className="kind">Set · {set.count} puzzle{set.count === 1 ? "" : "s"}{set.minutes > 0 && <> · ~{set.minutes} min</>}</span>
+        </span>
+        <SetCover cover={set.cover} className="feed-pic" />
+      </Link>
+    </li>
+  );
+}

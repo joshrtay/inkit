@@ -3,7 +3,8 @@
 // for someone signed out (routes/home.tsx).
 import { eq } from "drizzle-orm";
 import { schema, type Db } from "~/db";
-import { inks, search, shelves, type Creator, type Puzzle } from "./explore.server";
+import { inks, search, searchWords, shelves, type Creator, type Puzzle } from "./explore.server";
+import { searchSets } from "./sets.server";
 import { solvedAmong } from "./queries.server";
 
 type Viewer = { id: string; handle: string } | null;
@@ -12,7 +13,7 @@ type Viewer = { id: string; handle: string } | null;
 export async function explorePage(db: Db, url: URL, viewer: Viewer | Promise<Viewer>) {
   const q = (url.searchParams.get("q") ?? "").trim().slice(0, 80);
   const [me, s] = await Promise.all([viewer, shelves(db)]);
-  const found = q ? await search(db, q, s) : null;
+  const [found, sets] = q ? await Promise.all([search(db, q, s), searchSets(db, searchWords(q))]) : [null, []];
   // the viewer's own: what they've solved, whom they subscribe to
   const all = found ? found.puzzles : [...s.today, ...s.quick, ...s.hard];
   const [solved, subs] = me ? await Promise.all([
@@ -27,7 +28,7 @@ export async function explorePage(db: Db, url: URL, viewer: Viewer | Promise<Vie
   const shownTypes = found ? found.types.map((t) => t.kind) : [...s.starters.map((t) => t.kind), ...s.types.slice(0, 12).map((t) => t.kind)];
   const guidePictures = Object.fromEntries(shownTypes.filter((k) => s.guidePictures[k]).map((k) => [k, s.guidePictures[k]]));
   if (found) {
-    return { ...base, today: [], found: { ...found, puzzles: mark(found.puzzles), creators: sub(found.creators) }, guidePictures, shelves: null };
+    return { ...base, today: [], found: { ...found, puzzles: mark(found.puzzles), creators: sub(found.creators), sets }, guidePictures, shelves: null };
   }
   return {
     ...base, today: mark(s.today), found: null, guidePictures,

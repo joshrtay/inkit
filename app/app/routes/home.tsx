@@ -11,6 +11,7 @@ import { feedPage } from "~/lib/feed.server";
 import { explorePage } from "~/lib/explore-page.server";
 import { CollectionRow, FeedItem } from "~/components/GameCard";
 import { ExplorePage } from "~/components/ExplorePage";
+import { SetFeedItem } from "~/components/SetCard";
 import { exploreMeta, HOME_DESCRIPTION, HOME_TITLE, pageMeta, websiteJsonLd } from "~/lib/seo";
 import "~site/game-types/grid/styles.css";
 
@@ -33,15 +34,17 @@ type Page = Awaited<ReturnType<typeof feedPage>>;
 /** The feed, a page at a time: the next page loads as the end of the list comes into view. */
 function Feed({ first }: { first: Page }) {
   const [games, setGames] = useState(first.games);
+  const [sets, setSets] = useState(first.sets);
   const [next, setNext] = useState(first.next);
   const more = useFetcher<Page>();
   const end = useRef<HTMLLIElement>(null);
   // a fresh first page (the loader ran again): start over from it
-  useEffect(() => { setGames(first.games); setNext(first.next); }, [first]);
+  useEffect(() => { setGames(first.games); setSets(first.sets); setNext(first.next); }, [first]);
   useEffect(() => {
     if (!more.data) return;
     const page = more.data;
     setGames((g) => [...g, ...page.games.filter((n) => !g.some((o) => o.id === n.id))]);
+    setSets((ss) => [...ss, ...page.sets.filter((n) => !ss.some((o) => o.id === n.id))]);
     setNext(page.next);
   }, [more.data]);
   useEffect(() => {
@@ -53,7 +56,10 @@ function Feed({ first }: { first: Page }) {
   }, [next, more.state]);
   return (
     <ul className="feed">
-      {games.map((g) => <FeedItem key={g.id} game={g} liked={g.liked} signedIn list={{ in: "feed" }} />)}
+      {/* puzzles and sets together, newest first */}
+      {[...games.map((g) => ({ at: g.publishedAt ? new Date(g.publishedAt).getTime() : 0, g, x: null })), ...sets.map((x) => ({ at: x.publishedAt ?? 0, g: null, x }))]
+        .sort((a, b) => b.at - a.at)
+        .map(({ g, x }) => (x ? <SetFeedItem key={`s-${x.id}`} set={x} /> : <FeedItem key={g!.id} game={g!} liked={g!.liked} signedIn list={{ in: "feed" }} />))}
       {next && <li ref={end} className="feed-more muted" aria-hidden="true">{more.state === "idle" ? "" : "Loading…"}</li>}
     </ul>
   );
@@ -65,7 +71,7 @@ export default function Home({ loaderData: d }: Route.ComponentProps) {
   return (
     <main className="wrap feed-page">
       <h1 className="visually-hidden">Subscriptions</h1>
-      {f.games.length ? <Feed first={f} /> : (
+      {f.games.length || f.sets.length ? <Feed first={f} /> : (
         <section className="feed-empty">
           <h2>{f.subscribedTo ? "Nothing new yet" : "Your feed is empty"}</h2>
           <p className="muted">{f.subscribedTo ? "The creators you subscribe to haven't published puzzles yet." : "Subscribe to creators and their puzzles show up here."}</p>
