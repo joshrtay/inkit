@@ -1,4 +1,4 @@
-// The Subscriptions feed, a page at a time: home.tsx loads the first page, routes/feed.ts the
+// The Subscriptions feed, a page at a time: home.tsx loads the first page, routes/api.feed.ts (/api/feed) the
 // next ones as the player scrolls.
 import type { Db } from "~/db";
 import { feedGames, likedAmong, solvedAmong, type FeedCursor } from "~/lib/queries.server";

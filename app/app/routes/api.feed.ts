@@ -1,7 +1,7 @@
-// The Subscriptions feed's next page: GET /feed?before=<cursor>, fetched by home.tsx as the
+// The Subscriptions feed's next page: GET /api/feed?before=<cursor>, fetched by home.tsx as the
 // player scrolls to the end of what's loaded.
 import { data } from "react-router";
-import type { Route } from "./+types/feed";
+import type { Route } from "./+types/api.feed";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";

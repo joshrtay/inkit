@@ -99,7 +99,7 @@ function BugReportDialog({ opener, onClose }: { opener: Opener; onClose: () => v
       // the browser tests' own verdict (bugs.server.ts: development only), so they never call Claude
       const given = (window as { __inkitGivenVerdict?: string }).__inkitGivenVerdict;
       if (given) form.set("given-verdict", given);
-      const res = await fetch("/bugs", { method: "POST", body: form });
+      const res = await fetch("/api/bugs", { method: "POST", body: form });
       const body = await res.json().catch(() => ({})) as { ok?: boolean; error?: string };
       if (!res.ok || !body.ok) throw new Error(body.error || `That didn't send (${res.status}). Try again.`);
       setPhase("sent");

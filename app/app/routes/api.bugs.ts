@@ -1,6 +1,6 @@
-// POST /bugs: a bug report from "Report a bug" (components/BugReport.tsx; docs/bug-pipeline.md).
+// POST /api/bugs: a bug report from "Report a bug" (components/BugReport.tsx; docs/bug-pipeline.md).
 // Signed in only; the limits and the storing are in app/lib/bugs/bugs.server.ts.
-import type { Route } from "./+types/bugs";
+import type { Route } from "./+types/api.bugs";
 import { cloudflareContext } from "~/lib/context";
 import { currentCreator } from "~/lib/auth.server";
 import { BugError, createReport } from "~/lib/bugs/bugs.server";

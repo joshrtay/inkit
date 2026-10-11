@@ -28,6 +28,11 @@ site an npm workspace, so one `npm install` in the root installs both.
 
 ## The site (`app/`)
 
+**Addresses** follow [docs/url-design.md](docs/url-design.md): permanent ids for shared things
+(`/g/<id>`, `/s/<id>`), creators at the top level (every site path reserved, checked by a test),
+`/api/` for what only the site's pages call, one meaning per query parameter, one lowercase address
+per page.
+
 **The model** (`app/db/schema.ts`, Drizzle on D1): *creators* (handle, name, admin), *collections*
 (every creator has a personal one at their handle; studios exist but are set aside for now),
 *memberships*, *games* (a permanent `/g/<id>`, the sketch that is their "code", draft / published /
@@ -121,7 +126,7 @@ thumbnail (`sketchpad/picture.ts`).
 keeps the last two minutes as an rrweb recording in memory (`lib/bugs/capture.ts`; inputs masked,
 private pages skipped, off in Settings), with recent console errors and failed fetches. "Report a
 bug" (More menu, paint's … menu; `components/BugReport.tsx`) sends it only on Send, with the page's
-state (`lib/bugs/state.ts`: route, build SHA, the puzzle). `POST /bugs` stores the row in D1
+state (`lib/bugs/state.ts`: route, build SHA, the puzzle). `POST /api/bugs` stores the row in D1
 (`bug_reports`) and the files in R2 (`bugs/<id>/`), and a gatekeeper Claude call with no tools
 (`lib/bugs/gatekeeper.server.ts`) returns a verdict and a neutral restatement. Admins review them at
 `/admin/bugs` (with the replay) and can file a GitHub issue that holds no user text; the owner's

@@ -3,8 +3,10 @@
 import { eq } from "drizzle-orm";
 import { schema, type Db } from "../db";
 
-/** Paths the site itself uses; no handle or collection may take them. */
+/** Paths the site itself uses; no handle or collection may take them. Every top-level route in
+ *  routes.ts must be here (tests/unit/reserved.test.ts), and a few more the site may want. */
 const RESERVED = new Set([
+  "s", "bugs", "forgot-password", "reset-password", "robots", "sitemap", "llms", "llms-full", "types", "lists", "set",
   "g", "api", "app", "admin", "new", "edit", "settings", "signin", "signup", "signout", "login", "logout",
   "account", "about", "help", "featured", "explore", "feed", "sets", "search", "studios", "studio", "collections", "games",
   "assets", "static", "public", "www", "wyattsgames", "puzzles", "rules", "guide", "guides", "privacy", "terms", "legal",

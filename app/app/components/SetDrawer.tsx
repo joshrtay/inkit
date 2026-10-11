@@ -5,7 +5,7 @@
 // It hides (but stays open) on pages that aren't for browsing puzzles, and gives way to How to play.
 // On a phone it's a sheet, opened from the toast after adding or from a puzzle's ⋯.
 //
-// Server: routes/sets.ts (your drafts; make one), routes/set-edit.ts (one draft: read and change).
+// Server: routes/api.sets.ts (/api/sets: your drafts; make one), routes/api.set.ts (/api/sets/<id>: one draft).
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { useConfirm } from "./ConfirmDialog";
@@ -83,7 +83,7 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
   const { ask } = useConfirm();
 
   const load = useCallback(async (id: string) => {
-    const d = await call<DrawerData>(`/s/${id}/edit`);
+    const d = await call<DrawerData>(`/api/sets/${id}`);
     if (!d || d.set.state !== "draft") { setOpenId(null); setData(null); store.set(null); return; }
     setOpenId(id); setData(d); store.set(id);
   }, []);
@@ -100,14 +100,14 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
 
   const change = useCallback(async (body: Record<string, string>) => {
     if (!openId) return null;
-    const d = await call<DrawerData>(`/s/${openId}/edit`, body);
+    const d = await call<DrawerData>(`/api/sets/${openId}`, body);
     if (d) setData(d);
     return d;
   }, [openId]);
   const close = () => { setOpenId(null); setData(null); store.set(null); setSheet(false); };
 
   const addTo = useCallback(async (setId: string, gameId: string) => {
-    const d = await call<DrawerData>(`/s/${setId}/edit`, { intent: "add", game: gameId });
+    const d = await call<DrawerData>(`/api/sets/${setId}`, { intent: "add", game: gameId });
     if (!d) return;
     setOpenId(setId); setData(d); store.set(setId);
     dispatchEvent(new CustomEvent(GUIDE_EVENT + ":close"));
@@ -116,14 +116,14 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
   const add = useCallback((gameId: string) => { if (openId) void addTo(openId, gameId); }, [openId, addTo]);
   const pick = useCallback(async (gameId: string | null) => {
     setPicker({ gameId, sets: null });
-    const r = await call<{ sets: DraftSet[] }>("/sets");
+    const r = await call<{ sets: DraftSet[] }>("/api/sets");
     setPicker({ gameId, sets: r?.sets ?? [] });
   }, []);
   const make = useCallback(async (gameId: string | null) => {
     setPicker(null);
     const title = await ask({ title: "New set", action: "Make set", field: { label: "Name", required: true, maxLength: 80 } });
     if (!title) return;
-    const r = await call<{ id: string }>("/sets", { title, ...(gameId ? { game: gameId } : {}) });
+    const r = await call<{ id: string }>("/api/sets", { title, ...(gameId ? { game: gameId } : {}) });
     if (!r) return;
     await load(r.id);
     dispatchEvent(new CustomEvent(GUIDE_EVENT + ":close"));

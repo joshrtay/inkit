@@ -26,7 +26,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (!me) signInFirst(request);
   const db = getDb(env);
   const targets = await publishTargets(db, me.id);
-  const want = new URL(request.url).searchParams.get("in");
+  const url = new URL(request.url);
+  // the studio to make it in: ?studio= (an old link's ?in= moves over: docs/url-design.md)
+  if (url.searchParams.has("in")) throw redirect(`/new?studio=${encodeURIComponent(url.searchParams.get("in") ?? "")}`, 301);
+  const want = url.searchParams.get("studio");
   return {
     collection: targets.find((t) => t.slug === want)?.id ?? targets[0]?.id, slug: want,
     drafts: await draftPictures(db, await latestDrafts(db, me.id)),

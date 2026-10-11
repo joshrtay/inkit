@@ -154,7 +154,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
         <Avatar name={collection.title} seed={collection.slug} size={96} ai={!!person?.ai} />
         {collection.deleted && <p className="state hidden">This studio was deleted.</p>}
         <div className="profile-actions">
-          {mine ? <CreateMenu /> : role ? <Link className="btn primary" to={`/new?in=${collection.slug}`}>New puzzle here</Link>
+          {mine ? <CreateMenu /> : role ? <Link className="btn primary" to={`/new?studio=${collection.slug}`}>New puzzle here</Link>
             : <SubscribeButton slug={collection.slug} subscribed={subscribed} signedIn={!!me} />}
           {mine ? <Link className="btn" to="/settings">Edit profile</Link> : role && <Link className="btn" to={`/${collection.slug}/settings`}>Settings</Link>}
         </div>
@@ -203,7 +203,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
         <div className="empty-tab">
           <p>No drafts.</p>
           <p className="muted">Unpublished puzzles wait here.</p>
-          <Link className="btn primary" to={role && !mine ? `/new?in=${collection.slug}` : "/new"}>Make a puzzle</Link>
+          <Link className="btn primary" to={role && !mine ? `/new?studio=${collection.slug}` : "/new"}>Make a puzzle</Link>
         </div>
       ))}
       {tab === "recommends" && person && (recommends.length ? (

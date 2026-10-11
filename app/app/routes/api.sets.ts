@@ -1,8 +1,8 @@
-// Your draft sets: GET /sets, for "Add to set" (the one you last added to first); POST /sets to
+// Your draft sets: GET /api/sets, for "Add to set" (the one you last added to first); POST /api/sets to
 // make one (a title, and a first puzzle if given), on your own profile.
 import { data } from "react-router";
 import { eq } from "drizzle-orm";
-import type { Route } from "./+types/sets";
+import type { Route } from "./+types/api.sets";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";

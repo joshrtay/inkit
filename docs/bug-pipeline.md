@@ -6,7 +6,7 @@ design, and the safeguards in §9). This is what was built.
 
 ```
 browser                         Worker (inkit.games)                          GitHub (public)
-rrweb buffer, logs, state ──► POST /bugs ──► D1 bug_reports, R2 bugs/<id>/…
+rrweb buffer, logs, state ──► POST /api/bugs ──► D1 bug_reports, R2 bugs/<id>/…
   (sent only on "Send")         │ waitUntil: gatekeeper (Claude, no tools) → verdict on the row
                                 ▼
                     /admin/bugs/<id>: replay, state, logs ── Send to GitHub ──► issue: id, restatement,
@@ -42,7 +42,7 @@ puzzle: on paint the live drawing, type and settings (paint's own copy in this b
 `inkit:draw:<id>`), on the player the spec and the saved progress. A page with other state can
 add it with `registerBugState(name, getter)`.
 
-**The Worker** (`routes/bugs.ts`, `lib/bugs/bugs.server.ts`): signed in only (401), at most
+**The Worker** (`routes/api.bugs.ts` (`POST /api/bugs`), `lib/bugs/bugs.server.ts`): signed in only (401), at most
 `BUG_REPORTS_PER_DAY` (default 5) per person per day, counted from the `bug_reports` rows (429),
 size limits (`LIMITS` in `lib/bugs/report.ts`: text 4,000 / 2,000 characters, state 512 KB,
 replay 8 MB gzipped, screenshot 3 MB). The row goes to D1 (`bug_reports`, migration
@@ -158,7 +158,7 @@ nothing else.
 
 | Layer | Where |
 |---|---|
-| Signed-in reporters, 5 reports a day, size limits | `routes/bugs.ts`, `bugs.server.ts` |
+| Signed-in reporters, 5 reports a day, size limits | `routes/api.bugs.ts` (`POST /api/bugs`), `bugs.server.ts` |
 | Nothing recorded until Send; inputs masked; private pages skipped; opt-out | `capture.ts`, Settings |
 | The gatekeeper: no tools, quoted data, a schema, length caps, quarantine | `gatekeeper.server.ts`, `report.ts` |
 | No user text, replay or personal data on GitHub; route as a pattern | `issueBody()`, tested in `bug-pipeline.test.ts` and `bugs.spec.ts` |

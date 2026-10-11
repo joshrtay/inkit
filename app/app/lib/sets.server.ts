@@ -101,7 +101,7 @@ export async function setsOn(db: Db, collectionId: string, drafts = false) {
     .orderBy(sql`coalesce(${schema.sets.publishedAt}, ${schema.sets.updatedAt}) desc`, sql`${schema.sets.id} desc`);
 }
 
-// ---- changing a draft (the drawer: routes/set-edit.ts) ----
+// ---- changing a draft (the drawer: routes/api.set.ts, /api/sets/<id>) ----
 
 export const SET_MAX_PUZZLES = 100;
 const touch = (db: Db, id: string) => db.update(schema.sets).set({ updatedAt: new Date() }).where(eq(schema.sets.id, id));

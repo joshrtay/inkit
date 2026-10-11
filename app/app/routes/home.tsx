@@ -50,7 +50,7 @@ function Feed({ first }: { first: Page }) {
   useEffect(() => {
     const el = end.current;
     if (!el || !next || more.state !== "idle") return;
-    const seen = new IntersectionObserver(([e]) => { if (e.isIntersecting) more.load(`/feed?before=${next}`); }, { rootMargin: "800px 0px" });
+    const seen = new IntersectionObserver(([e]) => { if (e.isIntersecting) more.load(`/api/feed?before=${next}`); }, { rootMargin: "800px 0px" });
     seen.observe(el);
     return () => seen.disconnect();
   }, [next, more.state]);

@@ -1,10 +1,10 @@
-// A draft set, for the drawer (components/SetDrawer.tsx): GET /s/<id>/edit, its title, words and
+// A draft set, for the drawer (components/SetDrawer.tsx): GET /api/sets/<id>, its title, words and
 // puzzles in order; POST to change it: describe (title, description), add, remove, move (to a
 // position), publish, delete. Its author only, and only while it's a draft (deleting a published
 // set too).
 import { data } from "react-router";
 import { eq } from "drizzle-orm";
-import type { Route } from "./+types/set-edit";
+import type { Route } from "./+types/api.set";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";

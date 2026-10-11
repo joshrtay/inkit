@@ -137,7 +137,7 @@ test.describe.serial("bug reports", () => {
 
   test("the daily limit: past it, a report is turned away", async ({ page }) => {
     await page.goto("/explore");
-    const send = () => page.request.post("/bugs", {
+    const send = () => page.request.post("/api/bugs", {
       multipart: { what: "limit test", expected: "", state: JSON.stringify({ route: "/explore" }), "given-verdict": JSON.stringify(VERDICT) },
     });
     const statuses: number[] = [];
@@ -154,7 +154,7 @@ test.describe.serial("bug reports", () => {
 
   test("signed out: no reporting", async ({ browser }) => {
     const anon = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const res = await anon.request.post("/bugs", { multipart: { what: "x", state: "{}" } });
+    const res = await anon.request.post("/api/bugs", { multipart: { what: "x", state: "{}" } });
     expect(res.status()).toBe(401);
     await anon.close();
   });

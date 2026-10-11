@@ -5,6 +5,7 @@ import { publishDue } from "../app/lib/ai.server";
 import { backfillEstimates } from "../app/lib/estimates.server";
 import { isKind } from "../app/lib/guides.server";
 import { guideMarkdownOf, playableExamples, textResponse } from "../app/lib/seo.server";
+import { tidyPath } from "../app/lib/tidy-url";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -19,8 +20,12 @@ const MOVED: Record<string, string> = {
 
 export default {
   async fetch(request, env, ctx) {
-    const moved = MOVED[new URL(request.url).hostname];
+    const url = new URL(request.url);
+    const moved = MOVED[url.hostname];
     if (moved) return Response.redirect(moved, 301);
+    // one address per page: lowercase, no slash at the end (lib/tidy-url.ts)
+    const tidy = request.method === "GET" || request.method === "HEAD" ? tidyPath(url.pathname) : null;
+    if (tidy) return Response.redirect(new URL(tidy + url.search, url).toString(), 301);
     // a guide as Markdown, for agents (/puzzles/<kind>.md): React Router's segments can't end in ".md"
     const md = new URL(request.url).pathname.match(/^\/puzzles\/([a-z0-9-]+)\.md$/);
     if (md && isKind(md[1]) && (request.method === "GET" || request.method === "HEAD")) {

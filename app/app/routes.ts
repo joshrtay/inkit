@@ -12,14 +12,19 @@ export default [
   route("account", "routes/account.ts"),   // your profile (the nav's Profile, signed out, signs in to it)
   route("forgot-password", "routes/forgot-password.tsx"),
   route("reset-password", "routes/reset-password.tsx"),
+  // what only the site's own pages call (docs/url-design.md): under /api, never at a page's address
   route("api/auth/*", "routes/api.auth.ts"),
+  route("api/feed", "routes/api.feed.ts"),   // the Subscriptions feed's next page
+  route("api/sets", "routes/api.sets.ts"),   // your draft sets; make one
+  route("api/sets/:id", "routes/api.set.ts"),   // a draft set, for the drawer
+  route("api/bugs", "routes/api.bugs.ts"),   // Report a bug
+  // moved under /api: the old addresses keep working (308 keeps a POST's method and body)
+  route("feed", "routes/moved.ts", { id: "moved-feed" }),
+  route("bugs", "routes/moved.ts", { id: "moved-bugs" }),
   route("new", "routes/new.tsx"),
   route("new/draw", "routes/new-draw.tsx"),   // gone: redirects to /new
   route("studios/new", "routes/studio-new.tsx"),
-  route("feed", "routes/feed.ts"),
   route("s/:id", "routes/set.tsx"),   // a set of puzzles
-  route("s/:id/edit", "routes/set-edit.ts"),   // a draft set, for the drawer
-  route("sets", "routes/sets.ts"),   // your draft sets; make one
   route("explore", "routes/explore.tsx"),
   // a puzzle type's puzzles (New / Top, by difficulty), or every type's ("all": the quick chips)
   route("explore/:kind", "routes/explore-type.tsx"),
@@ -45,7 +50,6 @@ export default [
   route("admin/ai/backfill", "routes/admin-ai-backfill.ts"),
   route("admin/ai/recommendations", "routes/admin-ai-recommendations.ts"),
   // bug reports (docs/bug-pipeline.md): sent from "Report a bug", reviewed by admins
-  route("bugs", "routes/bugs.ts"),
   route("admin/bugs", "routes/admin-bugs.tsx"),
   route("admin/bugs/:id", "routes/admin-bug.tsx"),
   route("admin/bugs/:id/bundle", "routes/admin-bug-bundle.ts"),
