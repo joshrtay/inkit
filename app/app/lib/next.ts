@@ -15,6 +15,7 @@ export const SIGN_IN_FOR = {
   subscriptions: { title: "Sign in to see your subscriptions", next: "/" },
   profile: { title: "Sign in to see your profile", next: "/account" },
   signin: { title: "Sign in", next: "" },
+  sets: { title: "Sign in to make sets", next: "" },
 } as const;
 export type SignInFor = keyof typeof SIGN_IN_FOR;
 

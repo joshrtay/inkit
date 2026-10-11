@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import type { SetCard as SetCardData } from "~/lib/sets.server";
 import { Picture } from "./GameCard";
 import { Diff } from "./Explore";
+import { CardMore } from "./CardMore";
 
 /** The cover: up to four puzzles, each its own little card, in a 2 × 2 square. */
 export function SetCover({ cover, className = "" }: { cover: (string | null)[]; className?: string }) {
@@ -36,6 +37,7 @@ export function SetCard({ set, draft = false }: { set: SetCardData; draft?: bool
           </span>
         </span>
       </Link>
+      {!draft && <CardMore kind="set" id={set.id} title={set.title} />}
     </li>
   );
 }

@@ -249,16 +249,3 @@ function Picker({ state, choose, make, cancel }: { state: { gameId: string | nul
     </div>
   );
 }
-
-/** The + on a puzzle card while a set is open: adds it in one tap (✓ once it's in). */
-export function AddToSetButton({ gameId, title }: { gameId: string; title: string }) {
-  const d = useSetDrawer();
-  if (!d?.set || !d.shown) return null;
-  const inSet = d.has(gameId);
-  return (
-    <button type="button" className={`card-add${inSet ? " in" : ""}`} aria-label={inSet ? `${title} is in ${d.set.set.title}` : `Add ${title} to ${d.set.set.title}`}
-      title={inSet ? "In the set" : `Add to ${d.set.set.title}`} disabled={inSet} onClick={(e) => { e.preventDefault(); e.stopPropagation(); d.add(gameId); }}>
-      {inSet ? "✓" : "+"}
-    </button>
-  );
-}

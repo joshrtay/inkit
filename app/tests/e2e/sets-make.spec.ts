@@ -85,7 +85,7 @@ test("Create → Set makes an empty one and opens it, even from a page that isn'
 
   // Explore's shelves: each card has its own +, on the card
   await page.goto("/explore");
-  const cards = page.locator(".row > li:has(> .card-add)");
+  const cards = page.locator(".row > li:has(.card-add)");
   await expect(cards.first()).toBeVisible();   // once the tab's open set has loaded
   expect(await cards.count()).toBeGreaterThan(3);
   for (let i = 0; i < 4; i++) {
@@ -101,4 +101,28 @@ test("Create → Set makes an empty one and opens it, even from a page that isn'
   await page.goto(`/s/${mine()[0].id}`);
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(drawer(page)).toBeVisible();
+});
+
+test("each card's ⋮: Add to set and Copy link (signed out: sign in first); with a set open it's a +", async ({ page, browser }) => {
+  await page.goto("/explore/sudoku");
+  const card = page.locator(".x-cards > li").first();
+  const more = card.getByRole("button", { name: /^More for / });
+  await more.click();
+  await expect(page.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+  await page.getByRole("menuitem", { name: "Add to set" }).click();
+  await page.getByRole("dialog", { name: "Add to set" }).getByRole("button", { name: "+ New set" }).click();
+  await page.getByRole("dialog", { name: "New set" }).getByLabel("Name").fill("From a card");
+  await page.getByRole("dialog", { name: "New set" }).getByLabel("Name").press("Enter");
+  await expect(drawer(page)).toContainText("1 puzzle");
+  // the set's open: the corner is a ✓ on that card, a + on the others
+  await expect(card.locator(".card-add.in")).toHaveText("✓");
+  await expect(page.locator(".x-cards > li").nth(1).locator(".card-add")).toHaveText("+");
+  await expect(more).toHaveCount(0);
+
+  const anon = await browser.newPage({ storageState: { cookies: [], origins: [] } });
+  await anon.goto("/explore/sudoku");
+  await anon.locator(".x-cards > li").first().getByRole("button", { name: /^More for / }).click();
+  await anon.getByRole("menuitem", { name: "Add to set" }).click();
+  await expect(anon.getByRole("dialog", { name: "Sign in to make sets" })).toBeVisible();
+  await anon.close();
 });
