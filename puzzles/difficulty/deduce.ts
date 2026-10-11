@@ -28,6 +28,7 @@ import { blockFor } from "../../src/engine/rules.ts";
 import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
+import { localProgram } from "./local.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
 
@@ -186,8 +187,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const p = makePuzzle(spec), g = p.grid, n = g.cellCount, notes: string[] = [];
   let calls = 0;
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
-  const G: Ground = parseAspif(ground(taggedProgram(p)));
-  dbg(`ground: ${G.rules.length} rules`);
+  // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
+  const local = localProgram(p, spec.genre);
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : taggedProgram(p);
+  const G: Ground = parseAspif(ground(prog));
+  dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
 
   // ---- blocks: strip the rbk tags ----
@@ -228,19 +232,49 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     for (const h of r.head) defs[h].push(k);
     for (const l of r.body) usedIn[Math.abs(l)].push(k);
   });
+  // An atom's footprint is its own cells and those of every atom its defining rules' bodies use.
+  // Atoms that depend on each other in a loop (recursion: reachability, connectivity) share one
+  // footprint, so the atom graph's strongly connected components are each worked out once,
+  // dependencies first (Tarjan's order): one pass, where re-queueing rules till nothing changed
+  // took seconds on big shape puzzles.
   {
-    const queue: number[] = [];
-    rules.forEach((r, k) => { if (r.head.length) queue.push(k); });
-    const inQ = new Uint8Array(rules.length).fill(1);
-    while (queue.length) {
-      const k = queue.pop()!; inQ[k] = 0;
-      const r = rules[k];
-      let acc: Bits | null = null;
-      for (const l of r.body) { const f = fp[Math.abs(l)]; if (f) { acc ??= new Uint32Array(f.length); orInto(acc, f); } }
-      if (!acc) continue;
-      for (const h of r.head) {
-        if (!fp[h]) fp[h] = new Uint32Array(acc.length);
-        if (orInto(fp[h]!, acc)) for (const k2 of usedIn[h]) if (!inQ[k2] && rules[k2].head.length) { inQ[k2] = 1; queue.push(k2); }
+    const A = G.maxAtom + 1;
+    // an atom's dependencies: the body atoms of the rules that define it
+    const deps = (a: number) => { const out: number[] = []; for (const k of defs[a]) for (const l of rules[k].body) out.push(Math.abs(l)); return out; };
+    const index = new Int32Array(A).fill(-1), low = new Int32Array(A), onStack = new Uint8Array(A), comp = new Int32Array(A).fill(-1);
+    const stack: number[] = [];
+    let counter = 0, comps = 0;
+    const compFp: (Bits | null)[] = [];
+    for (let root = 1; root < A; root++) {
+      if (index[root] >= 0 || (!defs[root].length && !fp[root])) continue;
+      // iterative Tarjan: frames of [atom, its dependencies, next one to visit]
+      const frames: [number, number[], number][] = [];
+      const open = (a: number) => { index[a] = low[a] = counter++; stack.push(a); onStack[a] = 1; frames.push([a, deps(a), 0]); };
+      open(root);
+      while (frames.length) {
+        const f = frames[frames.length - 1], [a, ds] = f;
+        if (f[2] < ds.length) {
+          const b = ds[f[2]++];
+          if (index[b] < 0) open(b);
+          else if (onStack[b]) low[a] = Math.min(low[a], index[b]);
+          continue;
+        }
+        frames.pop();
+        if (frames.length) { const up = frames[frames.length - 1][0]; low[up] = Math.min(low[up], low[a]); }
+        if (low[a] !== index[a]) continue;
+        // a component: its members, then its footprint from theirs and their dependencies'
+        const members: number[] = [];
+        let x: number;
+        do { x = stack.pop()!; onStack[x] = 0; comp[x] = comps; members.push(x); } while (x !== a);
+        let acc: Bits | null = null;
+        const add = (b: Bits | null) => { if (b) { acc ??= new Uint32Array(b.length); orInto(acc, b); } };
+        for (const m of members) {
+          add(fp[m]);
+          for (const d of deps(m)) if (comp[d] !== comps) add(comp[d] >= 0 ? compFp[comp[d]] : fp[d]);
+        }
+        compFp.push(acc);
+        for (const m of members) fp[m] = acc ? (acc as Bits).slice() : null;
+        comps++;
       }
     }
   }
@@ -258,7 +292,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   dbg("constraints");
   // ---- the answer (to aim case splits at, and to check every deduction against) ----
   calls++;
-  const first = clingoJson(program(p), 1);
+  // (a local encoding gives the same answer as the engine's: tests/unit/deduce-local.test.ts)
+  const first = clingoJson(local ? local.plain : program(p), 1);
   if (first.Result !== "SATISFIABLE") throw new Error("the puzzle has no solution");
   const answer = new Uint8Array(M), markOf = new Map(markName.map((x, m) => [x, m]));
   for (let m = 0; m < M; m++) if (markAtom[m] === 0) answer[m] = 1;
@@ -559,7 +594,9 @@ end
     let chars = 0;
     for (const job of jobs) {
       const W = members.length, pr = progOf(job.w), mine: string[] = [];
-      const A = (a: number) => `a(${W},${a})`;
+      // atoms as short constants (a0_ya: window 0, atom 1234 in base 36): the same program in about
+      // half the text, which is most of what a whole-grid explanation costs clingo to read
+      const A = (a: number) => `a${W}_${a.toString(36)}`;
       const L = (l: number) => (l < 0 ? `not ${A(-l)}` : A(l));
       const gs = new Set<number>();
       for (const k of pr.rules) {
@@ -650,6 +687,10 @@ end
    *  entails it (the tier-0 windows through its cells, then those touching them, and so on),
    *  falling back to the whole grid. */
   const wideStep = (m: number, v: boolean, tier: Tier) => {
+    const tw = Date.now();
+    try { return wideStepIn(m, v, tier); } finally { dbg(`wide step: ${Date.now() - tw} ms`); }
+  };
+  const wideStepIn = (m: number, v: boolean, tier: Tier) => {
     let bits = bitsOf(n, markCells[m]);
     for (let level = 0; level < 4; level++) {
       const next = bits.slice();
@@ -735,7 +776,10 @@ function main(prg)
 end
 #end.
 `;
-    const { lines, status, errors } = clingoRaw(lua + program(p), "--outf=3 --stats --forget-on-step=varScores,signs,lemmaScores,lemmas");
+    const th = Date.now();
+    // the program case splits work on: the local encoding where there is one (small), else the engine's
+    const { lines, status, errors } = clingoRaw(lua + (local ? local.plain : program(p)), "--outf=3 --stats --forget-on-step=varScores,signs,lemmaScores,lemmas");
+    dbg(`hard round: ${cand.length} candidates, ${Date.now() - th} ms`);
     if (status === 33 || status === 65 || status === 128) throw new Error(`clingo failed (${status}): ${errors.join("\n").slice(0, 300)}`);
     return lines.flatMap((l) => {
       const x = /^C (\d+) (\w+) (\w+) (\d+) (\d+)$/.exec(l);
