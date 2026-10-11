@@ -68,22 +68,37 @@ test("make a set while browsing, put it in order and publish it", async ({ page 
   await expect(page.locator(".card-add")).toHaveCount(0);
 });
 
-test("Create → Set makes an empty one and opens it", async ({ page }) => {
-  await page.goto("/explore");
+test("Create → Set makes an empty one and opens it, even from a page that isn't for browsing", async ({ page }) => {
+  await page.goto("/puzzles");
   await page.locator(".sidenav").getByRole("button", { name: "Create" }).click();
   await page.getByRole("menuitem", { name: /^Set/ }).click();
   const name = page.getByRole("dialog", { name: "New set" });
+  // a name is one line: Enter makes it
+  await expect(name.locator("input[type=text]")).toBeVisible();
+  await expect(name.locator("textarea")).toHaveCount(0);
   await name.getByLabel("Name").fill("Empty for now");
-  await name.getByRole("button", { name: "Make set" }).click();
+  await name.getByLabel("Name").press("Enter");
   await expect(drawer(page)).toBeVisible();
   await expect(drawer(page)).toContainText("0 puzzles");
   await expect(drawer(page).getByRole("button", { name: "Publish" })).toBeDisabled();
   expect(mine().map((s) => s.title)).toEqual(["Empty for now"]);
-  // its page offers Edit, which opens it again after closing
+
+  // Explore's shelves: each card has its own +, on the card
+  await page.goto("/explore");
+  const cards = page.locator(".row > li:has(> .card-add)");
+  await expect(cards.first()).toBeVisible();   // once the tab's open set has loaded
+  expect(await cards.count()).toBeGreaterThan(3);
+  for (let i = 0; i < 4; i++) {
+    const li = await cards.nth(i).boundingBox(), plus = await cards.nth(i).locator(".card-add").boundingBox();
+    expect(plus!.x).toBeGreaterThan(li!.x);
+    expect(plus!.x + plus!.width).toBeLessThanOrEqual(li!.x + li!.width + 1);
+    expect(plus!.y).toBeGreaterThanOrEqual(li!.y);
+  }
+
+  // closed, then its page's Edit opens it again, on that page too
   await drawer(page).getByRole("button", { name: "Close the set" }).click();
   await expect(drawer(page)).toHaveCount(0);
   await page.goto(`/s/${mine()[0].id}`);
   await page.getByRole("button", { name: "Edit" }).click();
-  await page.goto("/explore");
   await expect(drawer(page)).toBeVisible();
 });

@@ -80,6 +80,8 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
   const [picker, setPicker] = useState<{ gameId: string | null; sets: DraftSet[] | null } | null>(null);
   const [toast, setToast] = useState<{ text: string; view?: string } | null>(null);
   const [sheet, setSheet] = useState(false);
+  // the page a set was just opened on (made, chosen, Edit): the drawer shows there whatever the page
+  const [here, setHere] = useState<string | null>(null);
   const { ask } = useConfirm();
 
   const load = useCallback(async (id: string) => {
@@ -90,7 +92,7 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
   // the tab's open set, after a reload or on the next page
   useEffect(() => { if (!signedIn) return; const id = store.get(); if (id) void load(id); }, [signedIn, load]);
   useEffect(() => {
-    const open = (e: Event) => { void load((e as CustomEvent<string>).detail); setGuide(false); };
+    const open = (e: Event) => { setHere(location.pathname); void load((e as CustomEvent<string>).detail).then(() => setSheet(true)); setGuide(false); };
     const g = (e: Event) => setGuide(!!(e as CustomEvent<boolean>).detail);
     addEventListener(SET_DRAWER_EVENT, open); addEventListener(GUIDE_EVENT, g);
     return () => { removeEventListener(SET_DRAWER_EVENT, open); removeEventListener(GUIDE_EVENT, g); };
@@ -108,7 +110,8 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
 
   const addTo = useCallback(async (setId: string, gameId: string) => {
     const d = await call<DrawerData>(`/api/sets/${setId}`, { intent: "add", game: gameId });
-    if (!d) return;
+    if (!d) { setToast({ text: "Couldn't add it. Try again." }); return; }
+    setHere(location.pathname);
     setOpenId(setId); setData(d); store.set(setId);
     dispatchEvent(new CustomEvent(GUIDE_EVENT + ":close"));
     setToast({ text: `Added to ${d.set.title} · ${d.summary.count}` });
@@ -121,16 +124,18 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
   }, []);
   const make = useCallback(async (gameId: string | null) => {
     setPicker(null);
-    const title = await ask({ title: "New set", action: "Make set", field: { label: "Name", required: true, maxLength: 80 } });
+    const title = await ask({ title: "New set", action: "Make set", field: { label: "Name", required: true, maxLength: 80, line: true } });
     if (!title) return;
     const r = await call<{ id: string }>("/api/sets", { title, ...(gameId ? { game: gameId } : {}) });
-    if (!r) return;
+    if (!r) { setToast({ text: "Couldn't make the set. Try again." }); return; }
+    setHere(location.pathname);
     await load(r.id);
+    setSheet(true);   // a phone: open it as a sheet
     dispatchEvent(new CustomEvent(GUIDE_EVENT + ":close"));
     if (gameId) setToast({ text: `Added to ${title} · 1` });
   }, [ask, load]);
 
-  const shown = !!data && isBrowsing(pathname, openId) && !guide;
+  const shown = !!data && (isBrowsing(pathname, openId) || pathname === here) && !guide;
   const ids = useMemo(() => new Set(data?.puzzles.map((p) => p.id) ?? []), [data]);
   const ctx: Ctx = {
     set: data, shown, has: (g) => ids.has(g), add, pick: (g) => void pick(g), create: () => void make(null),
@@ -143,12 +148,12 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
       {children}
       {data && shown && <Drawer data={data} current={current} sheet={sheet} change={change} add={add} close={close} closeSheet={() => setSheet(false)}
         published={(title, id) => { close(); setToast({ text: `Published · ${title}`, view: `/s/${id}` }); }} />}
-      {picker && <Picker state={picker} choose={(id) => { const g = picker.gameId; setPicker(null); if (g) void addTo(id, g); else void load(id); }} make={() => void make(picker.gameId)} cancel={() => setPicker(null)} />}
+      {picker && <Picker state={picker} choose={(id) => { const g = picker.gameId; setPicker(null); if (g) void addTo(id, g); else { setHere(location.pathname); void load(id).then(() => setSheet(true)); } }} make={() => void make(picker.gameId)} cancel={() => setPicker(null)} />}
       {toast && (
         <div className="set-toast" role="status">
-          <button type="button" className="set-toast-text" onClick={() => { if (!toast.view) setSheet(true); setToast(null); }}>{toast.text}</button>
+          <button type="button" className="set-toast-text" onClick={() => { if (!toast.view && data) setSheet(true); setToast(null); }}>{toast.text}</button>
           {toast.view ? <Link to={toast.view} onClick={() => setToast(null)}>View</Link>
-            : current && <button type="button" onClick={() => { setToast(null); void pick(current.id); }}>Change</button>}
+            : current && data && <button type="button" onClick={() => { setToast(null); void pick(current.id); }}>Change</button>}
         </div>
       )}
     </DrawerCtx.Provider>

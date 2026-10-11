@@ -10,7 +10,8 @@ export function focusStep(count: number, index: number, back: boolean): number {
 }
 
 /** A text field in the dialog (the take-down note). */
-export interface DialogField { label: string; placeholder?: string; maxLength?: number; required?: boolean }
+/** `line`: one line (a name), where Enter answers; else a few lines (a note), where Cmd/Ctrl+Enter does. */
+export interface DialogField { label: string; placeholder?: string; maxLength?: number; required?: boolean; line?: boolean }
 
 /** What the dialog answers when its primary action is pressed: null if it can't be pressed yet (a
  *  required field left empty), the field's text (trimmed, cut to its length) if it has one, or ""

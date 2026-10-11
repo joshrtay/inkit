@@ -128,7 +128,7 @@
 .set-drawer-page { justify-self: center; font-size: 13px; }
 
 /* the + on a card while a set is open */
-.cards > li, .x-cards > li, .feed-item { position: relative; }
+li:has(> .card-add) { position: relative; }   /* each card holds its own + (grids, shelves' rows, the feed) */
 .card-add {
   position: absolute; z-index: 3; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
   font: 700 18px/1 var(--body); color: var(--ink); background: var(--panel); border: 1.5px solid var(--line-strong); cursor: pointer; box-shadow: 0 2px 8px var(--shadow);

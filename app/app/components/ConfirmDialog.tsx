@@ -82,7 +82,7 @@ export function Modal({ className = "", role = "dialog", labelledBy, describedBy
 
 /** The confirm dialog itself: open while it's mounted; `onClose` gets the answer (null: cancelled). */
 export function ConfirmDialog({ title, body, action, cancel = "Cancel", danger = false, field, opener, onClose }: Options & { opener?: Opener; onClose: (answer: string | null) => void }) {
-  const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const fieldRef = useRef<HTMLTextAreaElement | HTMLInputElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const actionRef = useRef<HTMLButtonElement>(null);
   const [text, setText] = useState("");
@@ -101,9 +101,12 @@ export function ConfirmDialog({ title, body, action, cancel = "Cancel", danger =
         {body && <div id={`${id}-body`} className="confirm-body">{body}</div>}
         {field && (
           <label className="confirm-field">{field.label}
-            <textarea ref={fieldRef} rows={3} value={text} maxLength={field.maxLength ?? 500} placeholder={field.placeholder}
-              required={field.required} onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />
+            {field.line
+              ? <input ref={fieldRef as React.RefObject<HTMLInputElement>} type="text" value={text} maxLength={field.maxLength ?? 500} placeholder={field.placeholder}
+                  required={field.required} onChange={(e) => setText(e.target.value)} />
+              : <textarea ref={fieldRef as React.RefObject<HTMLTextAreaElement>} rows={3} value={text} maxLength={field.maxLength ?? 500} placeholder={field.placeholder}
+                  required={field.required} onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); e.currentTarget.form?.requestSubmit(); } }} />}
           </label>
         )}
         <div className="confirm-acts">
