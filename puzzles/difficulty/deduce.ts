@@ -94,7 +94,23 @@ export interface Options {
   maxSplits?: number;
   /** tier-3 candidates compared per round */
   maxDeep?: number;
+  /** record every window check (for learning which windows to check first) */
+  trace?: boolean;
 }
+
+/** One window check, for learning which windows find facts (puzzles/difficulty/ranker). */
+export interface TraceRow {
+  round: number; kind: string; size: number; marks: number; open: number;
+  /** marks settled since the window was last checked (all of them if never) */
+  changed: number;
+  /** whether its last check found a fact: 1, 0, or -1 if never checked */
+  before: number;
+  facts: number;
+}
+/** What kind of window a label names. */
+export const windowKind = (label: string) =>
+  / inside /.test(label) ? "count" : / \+ /.test(label) ? "pair" : /^(rows|columns) \d+–/.test(label) ? "strip"
+  : /^(row|column|area|box) /.test(label) ? label.split(" ")[0] : /^around /.test(label) ? "around" : "clue";
 
 /** clingo's conflict limits: a case split (tier 2) must need no search at all; tier 3's search is capped */
 const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
@@ -185,7 +201,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number } }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -497,6 +513,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the solve ----
   const path: Step[] = [];
   const decidedAt = new Int32Array(M).fill(-1);   // the round each mark was settled in
+  const trace: TraceRow[] = [], lastFound = new Map<Window, number>(), timing = { buildMs: 0, clingoMs: 0 };
   const evaluatedAt = new Map<Window, number>();
   let round = 0, undecided = known.filter((v) => v < 0).length, outOfTime = false;
   const settle = (m: number, v: boolean) => {
@@ -515,6 +532,13 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       return last === undefined || pr.marks.some((m) => decidedAt[m] >= last);
     });
     const found = new Map<Window, [number, boolean][]>();
+    const rowsHere: [Window, TraceRow][] = [];
+    if (opts.trace) for (const w of todo) {
+      const pr = progOf(w), last = evaluatedAt.get(w);
+      rowsHere.push([w, { round, kind: windowKind(w.label), size: w.size, marks: pr.marks.length, open: pr.marks.filter((m) => known[m] < 0).length,
+        changed: last === undefined ? pr.marks.length : pr.marks.filter((m) => decidedAt[m] >= last).length, before: lastFound.get(w) ?? -1, facts: 0 }]);
+    }
+    let tb = Date.now();
     // clingo-wasm takes the program on its stack, which holds about 2 MB: calls stay well under
     const CHUNK = 500_000;   // characters per clingo call
     let lines: string[] = [], chars = 0, members: Window[] = [], next = 1;
@@ -522,7 +546,9 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       if (!members.length) return;
       calls++;
       const tc = Date.now();
+      timing.buildMs += tc - tb;
       const res = clingoJson(["asp 1 0 0", ...lines, "0"].join("\n"), 0, ["--enum-mode=cautious", "--quiet=1"]);
+      timing.clingoMs += Date.now() - tc;
       dbg(`round ${round}: ${members.length} windows, ${chars} chars, ${res.Call?.[0]?.Witnesses?.length} models, ${Date.now() - tc} ms`);
       if (res.Result === "UNSATISFIABLE") throw new Error("a window has no answer: the known facts are wrong");
       const last = res.Call?.[0]?.Witnesses?.at(-1)?.Value ?? [];
@@ -535,6 +561,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
         found.get(w)!.push([m, mt[1] === "t"]);
       }
       lines = []; chars = 0; members = []; next = 1;
+      tb = Date.now();
     };
     for (const w of todo) {
       evaluatedAt.set(w, round);
@@ -554,6 +581,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       if (chars > CHUNK) flush();
     }
     flush();
+    for (const w of todo) lastFound.set(w, found.has(w) ? 1 : 0);
+    if (opts.trace) for (const [w, r] of rowsHere) { r.facts = found.get(w)?.length ?? 0; trace.push(r); }
     return found;
   };
 
@@ -896,7 +925,7 @@ end
   if (outOfTime) notes.push(`out of time after ${budget} ms with ${undecided} marks open`);
 
   const profile = profileOf(path, undecided === 0, entryPoints < 0 ? 0 : entryPoints, round, Date.now() - t0, calls, [...new Set(notes)]);
-  return { path, profile };
+  return { path, profile, ...(opts.trace ? { trace, timing } : { timing }) };
 }
 
 /** How step costs combine: a soft-max, D = (1/k)·log Σ exp(k·cost). One step costing Δ more than
