@@ -1,0 +1,134 @@
+/* Playing through a list, and a set's page (make-100.mjs). On top of the site's CSS, lists.css, flow-50.css and drawer-70/80.css. Same tokens, no new colours. */
+
+/* ---- the puzzle page: room for the bar under the paper ---- */
+.game-page.p100 { --bar: 56px; --nav-h: calc(84px + 22px + var(--bar) + var(--tabbar, 0px)); }
+.game-spot-wrap { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.game-spot-wrap .grid-game { --pad: 12px; }
+
+/* ---- the bar under the board: Prev · the list · Next ---- */
+.ub {
+  --pad: 12px; justify-self: center; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: min(100%, calc((100dvh - var(--nav-h) - 2 * var(--frame) - 52px - var(--below, 0px) - var(--pad)) + 2 * var(--pad)));
+}
+.has-pad .ub { --below: 46px; }
+.ub .btn { display: inline-flex; align-items: center; gap: 4px; height: 40px; padding: 0 14px; white-space: nowrap; }
+.ub .btn .mini-icon { width: 18px; height: 18px; stroke-width: 2.2; }
+.ub .btn.big { padding: 0 20px; height: 44px; font-size: 16px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 18%, transparent); }
+.ub-back .mini-icon { margin-right: 4px; }
+.ub-mid { display: grid; justify-items: center; gap: 7px; min-width: 0; text-decoration: none; padding: 4px 8px; border-radius: 10px; text-align: center; }
+.wrap .ub-mid { color: var(--ink); }
+a.ub-mid:hover .ctx-title { text-decoration: underline; text-underline-offset: 3px; }
+.ub-ctx { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; font: 700 14.5px/1.2 var(--body); }
+.ub-ctx > .mini-icon { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.ub-ctx .avatar { flex: none; }
+.ctx-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ctx-f { font-weight: 400; color: var(--muted); }
+.ub-ctx .ctx-by { font-size: 14px; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.ub-prog { display: inline-flex; align-items: center; gap: 10px; }
+.pbar { position: relative; width: 180px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--muted) 28%, transparent); }
+.pbar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--good); }
+.pbar b { position: absolute; top: -4px; width: 3px; height: 14px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+.ub-count { font: 700 13.5px/1 var(--body); color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ub-count.plain { font-size: 14px; color: var(--muted); }
+.ub-last { font: 700 14px/1.2 var(--body); color: var(--good); }
+
+@media (max-width: 640px) {
+  .game-page.p100 { --bar: 70px; --nav-h: calc(84px + 40px + var(--bar) + var(--tabbar, 0px)); }
+  .ub { gap: 8px; }
+  .ub .btn { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 50%; }
+  .ub .btn span { display: none; }
+  .ub .btn.big { width: 56px; height: 56px; }
+  .ub .btn.big .mini-icon { width: 24px; height: 24px; stroke-width: 2.6; }
+  .ub .ub-back { width: auto; padding: 0 14px; border-radius: 999px; }
+  .ub .ub-back span { display: inline; font-size: 14px; }
+  .ub-ctx { font-size: 14px; flex-wrap: wrap; justify-content: center; }
+  .ub-ctx .ctx-by { flex-basis: 100%; }
+  .ub-ctx .dot { display: none; }
+  .ctx-title { white-space: normal; }
+  .pbar { width: 110px; }
+}
+
+/* ---- the set's page ---- */
+.sp100 { display: grid; gap: 22px; max-width: 900px; padding-top: 28px; padding-bottom: 60px; }
+.s7-head { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 26px; align-items: start; }
+/* the cover: four small paper cards in a square, on a slightly darker ground */
+.s7-cover {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 12px;
+  aspect-ratio: 1; padding: 16px; border-radius: 12px; background: color-mix(in srgb, var(--bg) 55%, var(--panel)); border: 1px solid var(--line);
+}
+.s7-cover .cv-tile { position: relative; min-width: 0; min-height: 0; }
+.s7-cover .cv-pic { position: absolute; inset: 0; padding: 6px; display: grid; place-items: center; border-radius: 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 3px 8px -2px rgba(0, 0, 0, .45); }
+.s7-cover .cv-pic svg { width: 100%; height: 100%; }
+.s7-words { display: grid; gap: 8px; min-width: 0; }
+.s7-kick { display: flex; align-items: center; gap: 8px; font: 800 13px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.s7-kick > .mini-icon { width: 15px; height: 15px; }
+.s7-kick .game-more { margin-left: auto; }
+.sp100 h1 { margin: 0; font-size: 32px; line-height: 1.15; }
+.s7-by { display: flex; align-items: center; gap: 8px; margin: 0; }
+.wrap .s7-by a { color: var(--ink); text-decoration: none; }
+.s7-intro { margin: 2px 0 0; font-size: 16px; line-height: 1.45; }
+.s7-facts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; font-size: 14px; }
+.s7-facts .diff { color: var(--ink); }
+.s7-progress { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); }
+.s7-progress strong { color: var(--ink); }
+.pbar.wide { width: 220px; }
+.s7-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.s7-actions .btn { display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 18px; }
+.s7-actions .mini-icon { width: 17px; height: 17px; stroke-width: 2.2; }
+.s7-actions .mini-icon.fill { fill: currentColor; stroke: none; }
+.b-sub { margin-left: 4px; font-weight: 600; opacity: .7; }
+.s7-only { font-size: 14px; }
+
+/* the puzzles, in order: a list */
+.s7-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.s7-row > a { display: grid; grid-template-columns: 26px 72px minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 8px 16px 8px 10px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); text-decoration: none; }
+.wrap .s7-row > a { color: var(--ink); }
+.s7-row > a:hover { border-color: var(--line-strong); }
+.s7-row.next > a { border-color: var(--ink); box-shadow: 0 0 0 1px var(--ink); }
+.s7-n { font: 800 15px/1 var(--body); color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.s7-pic { position: relative; }
+.s7-pic .cthumb { width: 72px; height: 60px; padding: 4px; }
+.s7-ok, .spg-ok { position: absolute; top: -6px; right: -6px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--good); color: var(--bg); border: 2px solid var(--panel); }
+.s7-ok .mini-icon, .spg-ok .mini-icon { width: 13px; height: 13px; stroke-width: 3.2; }
+.s7-text { display: grid; gap: 4px; min-width: 0; }
+.s7-text strong { font: 800 16px/1.2 var(--display); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.s7-text .by { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.s7-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.s7-meta .diff { color: var(--ink); }
+.s7-row.solved .s7-n { color: var(--good); }
+
+/* the puzzles as a grid (107e) */
+.sp100.gridded { max-width: 1040px; }
+.s7-grid { padding: 0; }
+.spg { position: relative; }
+.spg-n { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; background: var(--ink); color: var(--panel); font: 800 13px/1 var(--body); }
+.spg-ok { top: 8px; right: 8px; width: 26px; height: 26px; }
+
+@media (max-width: 640px) {
+  .sp100 { padding-top: 16px; gap: 18px; }
+  .s7-head { grid-template-columns: 1fr; gap: 16px; }
+  .s7-cover { width: 180px; gap: 9px; padding: 12px; }
+  .sp100 h1 { font-size: 26px; }
+  .s7-intro { font-size: 15px; }
+  .pbar.wide { width: 150px; }
+  .s7-actions .btn { flex: 1; justify-content: center; height: 46px; }
+  .s7-row > a { grid-template-columns: 20px 56px minmax(0, 1fr); gap: 10px; padding: 6px 10px 6px 8px; }
+  .s7-pic .cthumb { width: 56px; height: 48px; }
+  .s7-meta { display: none; }
+  .s7-text .by .diff { display: inline-flex; }
+  .s7-text strong { font-size: 15px; }
+}
+
+/* ---- the contact sheet ---- */
+.c100 { max-width: 1500px; }
+.c100-grid { display: flex; flex-wrap: wrap; gap: 26px 22px; margin-top: 20px; align-items: start; }
+.c100 figure { margin: 0; display: grid; gap: 6px; }
+.c100 figure.dk { width: calc(37% - 15px); }
+.c100 figure.ph { width: calc(13% - 15px); }
+.c100 img { display: block; width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+.c100 figcaption { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.c100 figcaption strong { font: 800 17px/1 var(--display); color: var(--ink); margin-right: 5px; }
+.c100 code { display: block; margin-top: 3px; font: 600 11.5px/1.3 ui-monospace, Menlo, monospace; color: var(--ink); word-break: break-all; }
+
+/* the Draft pill (as in create-set.css) */
+.s7-kick .draft-pill { font: 800 11px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; padding: 5px 8px 4px; border-radius: 999px; border: 1.5px dashed var(--line-strong); color: var(--muted); margin-left: 4px; }
