@@ -299,7 +299,7 @@ A puzzle opened from a list carries that list in its query string. `in` names wh
 | All types | `/g/<id>?in=all&category=Shading&sort=new` | "All puzzles · Shading · Newest", "3 of 120" |
 | A profile | `/g/<id>?in=@wyatt` | avatar and name ("Wyatt"), "3 of 24" |
 | Subscriptions | `/g/<id>?in=feed` | "Subscriptions"; no count (the feed has no end) |
-| An Explore shelf | `/g/<id>?in=all&sort=new` (Today), `in=all&quick=1` (Quick ones), `in=all&level=3&period=week` (This week's hard ones) | the shelf's name ("Today"), "3 of 24" |
+| An Explore shelf | `/g/<id>?in=today`, `in=quick`, `in=hard` | the shelf's name ("Today") |
 
 - **Parameters:**
   - `level` is 1, 2 or 3;
@@ -309,7 +309,7 @@ A puzzle opened from a list carries that list in its query string. `in` names wh
   - `unsolved=1` (the signed-in player's own);
   - `category` (with `in=all`);
   - `q` is title text only, with no typed operators.
-- **Shelves don't get a parameter of their own.** A shelf is a preset of the all-types list, and the bar names it when the parameters match one.
+- **Shelves get their own `in`.** They're ranked picks (Today by likes and age, varied Quick and Hard ones), not filters, so the bar steps through the shelf as shown. Built that way: `in=today|quick|hard`.
 - **Next and back:**
   - Keyset paging on the sort key plus the id, as in the feed.
   - With `sort=top`, likes can move the order mid-play. Accept the odd skip; it isn't worth freezing.

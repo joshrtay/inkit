@@ -30,7 +30,7 @@ test("the feed loads more as you scroll", async ({ page }) => {
     expect(new Set(links).size).toBe(N);
     // newest first; at the same moment, the later id first
     const order = ids.map((id, i) => ({ id, at: Math.floor(i / 2) })).sort((a, b) => a.at - b.at || (a.id < b.id ? 1 : -1));
-    expect(links).toEqual(order.map((g) => `/g/${g.id}`));
+    expect(links).toEqual(order.map((g) => `/g/${g.id}?in=feed`));
     await expect(page.locator(".feed-more")).toHaveCount(0);
   } finally {
     sql(`delete from subscriptions where collection_id = ${q(coll)}; delete from games where collection_id = ${q(coll)}; delete from collections where id = ${q(coll)}`);

@@ -10,6 +10,7 @@ import { GuidePane } from "./GuidePane";
 import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
 import { useConfirm } from "./ConfirmDialog";
+import type { ListBar } from "~/lib/list-play.server";
 
 export interface GamePageProps {
   game: { id: string; title: string; description: string; kind: string; state: string; hiddenNote: string | null; when: number };
@@ -36,6 +37,10 @@ export interface GamePageProps {
   error?: string;
   /** the creator's drawing (paint's, as drawn: sketchpad/picture.ts) */
   drawnBy?: string | null;
+  /** the player hasn't solved a puzzle of this type yet (signed out: always): the paper's note */
+  newToType?: boolean;
+  /** opened from a list: the bar under the board (lib/list-play.server.ts) */
+  list?: ListBar | null;
 }
 
 // in UTC, so the server and the browser write the same date
@@ -43,7 +48,7 @@ const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "lo
 
 const RULES_OPEN = "inkit:rules-open";
 
-export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, drawnBy = null, editTo = null, canDelete = false, manage, error }: GamePageProps) {
+export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, drawnBy = null, editTo = null, canDelete = false, manage, error, newToType = false, list = null }: GamePageProps) {
   // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
   const [rulesOpen, setRulesOpen] = useState(false);
   // back: to wherever the player came from on this site, or else this creator's page
@@ -54,13 +59,32 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   useEffect(() => { try { setRulesOpen(localStorage.getItem(RULES_OPEN) === "1"); } catch { /* closed */ } }, []);
   const toggleRules = (v: boolean) => { setRulesOpen(v); if (!preview) try { localStorage.setItem(RULES_OPEN, v ? "1" : "0"); } catch { /* this page only */ } };
   const stay = (e: React.MouseEvent) => { if (preview) e.preventDefault(); };
+  const [typeName, ...rest] = summary.split(" · ");
+  // the first time someone meets a type: a note under the paper's ?, until they open the rules or
+  // dismiss it (signed in: also until they've solved one of the type; signed out: every visit)
+  const tipKey = `inkit:rules-seen:${game.kind}`;
+  const [tipShown, setTipShown] = useState(false);
+  useEffect(() => {
+    let seen = false;
+    try { seen = signedIn && localStorage.getItem(tipKey) === "1"; } catch { /* shown */ }
+    setTipShown(!preview && newToType && !seen);
+  }, [tipKey, newToType, signedIn, preview]);
+  const seenRules = () => { setTipShown(false); if (signedIn) try { localStorage.setItem(tipKey, "1"); } catch { /* this page only */ } };
+  const openRules = (v: boolean) => { toggleRules(v); if (v) seenRules(); };
+  const tip = tipShown ? { text: `New to ${typeName}?`, onDismiss: seenRules } : null;
+
   // a signed-in player's solve is kept (routes/game-solve.ts): it marks the puzzle solved for them
   // everywhere, and counts toward the puzzle's solves
   const solve = useFetcher<{ count: number; solved: boolean }>();
   const solved = solve.data ?? solves;
-  const onSolved = signedIn && !preview && game.state === "published" && !solves.solved
-    ? () => { if (solve.state === "idle" && !solve.data) solve.submit(null, { method: "post", action: `/g/${game.id}/solve` }); }
-    : undefined;
+  const keep = signedIn && !preview && game.state === "published" && !solves.solved;
+  // just solved: the list bar's Next stands out
+  const [won, setWon] = useState(false);
+  useEffect(() => setWon(false), [game.id]);
+  const onSolved = () => {
+    setWon(true);
+    if (keep && solve.state === "idle" && !solve.data) solve.submit(null, { method: "post", action: `/g/${game.id}/solve` });
+  };
 
   return (
     <div className={`game-layout${rulesOpen ? " rules-open" : ""}`}>
@@ -72,29 +96,37 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       )}
     <main className="wrap game-page">
       <header className="game-head">
-        <h1>{game.title}</h1>
-        <span className="muted">
-          {summary} · by{" "}
+        <div className="game-title-row">
+          <h1>{game.title}</h1>
+          <div className="game-actions">
+            {solved.solved && <span className="solved-mark" title="You've solved this">✓ Solved</span>}
+            {(game.state === "published" || preview) && <LikeButton gameId={game.id} count={likes.count} liked={likes.liked} signedIn={signedIn || preview} disabled={preview} />}
+            {editTo && !preview && <Link className="btn" to={editTo}>Edit</Link>}
+            {!preview && <MoreMenu game={game} manage={manage} canDelete={canDelete} solves={solved.count} likes={likes.count} />}
+          </div>
+        </div>
+        <p className="game-meta muted">
+          {/* the type's name opens How to play */}
+          <button type="button" className="type-link" aria-pressed={rulesOpen} title="How to play" onClick={() => openRules(!rulesOpen)}>{typeName}</button>
+          {rest.map((r) => <span key={r}> · {r}</span>)} · by{" "}
           {author.deleted ? author.name : <Link to={`/${author.handle}`} onClick={stay}>@{author.handle}</Link>}
           {author.ai && <> <AiBadge /></>}
           {!collection.personal && <> in <Link to={`/${collection.slug}`} onClick={stay}>{collection.title}</Link></>}
           {" · "}<time dateTime={new Date(game.when).toISOString()}>{date(game.when)}</time>
           {solved.count > 0 && <> · {solved.count} solve{solved.count === 1 ? "" : "s"}</>}
-        </span>
-        {solved.solved && <span className="solved-mark" title="You've solved this">✓ Solved</span>}
-        {(game.state === "published" || preview) && <LikeButton gameId={game.id} count={likes.count} liked={likes.liked} signedIn={signedIn || preview} disabled={preview} />}
-        <button className="btn rules-toggle" type="button" aria-pressed={rulesOpen} onClick={() => toggleRules(!rulesOpen)}>How to play</button>
-        {editTo && !preview && <Link className="btn" to={editTo}>Edit</Link>}
-        {canDelete && !preview && <DeleteButton title={game.title} published={game.state === "published"} solves={solved.count} likes={likes.count} />}
-        {manage && !preview && <ManageMenu manage={manage} />}
+        </p>
         {!preview && game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}
         {!preview && game.state === "hidden" && <span className="state hidden">Taken down{game.hiddenNote ? `: ${game.hiddenNote}` : "."}</span>}
         {error && <p className="error" role="alert">{error}</p>}
       </header>
 
       <div className={drawnBy ? "game-body with-aside" : "game-body"}>
-        {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description} />
-          : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
+        <div className="game-play">
+          {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description}
+              onRules={() => openRules(true)} tip={tip} />
+            : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
+          {list && !preview && <ListBarView bar={list} won={won} />}
+        </div>
         {drawnBy ? (
           <aside className="game-aside">
             <figure className="drawn-by">
@@ -116,29 +148,16 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   );
 }
 
-/** Delete: its author's one action on a published puzzle (it can't be changed). The confirm dialog
- *  first; then the server deletes it for good and goes back to the profile. */
-function DeleteButton({ title, published, solves, likes }: { title: string; published: boolean; solves: number; likes: number }) {
-  const { confirm } = useConfirm();
-  const submit = useSubmit();
-  const kept = [solves ? `${solves} solve${solves === 1 ? "" : "s"}` : "", likes ? `${likes} like${likes === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
-  const onClick = async () => {
-    const yes = await confirm({
-      title: `Delete “${title}”?`,
-      body: <p>{published ? "It comes off your profile and every feed, and its link stops working" : "The draft is gone"}{kept ? `, with its ${kept}` : ""}. This can&rsquo;t be undone.</p>,
-      action: "Delete", danger: true,
-    });
-    if (yes) submit({ intent: "delete" }, { method: "post" });
-  };
-  return <button type="button" className="btn danger game-delete" onClick={() => void onClick()}>Delete</button>;
-}
-
-/** The game's … menu, moderation only: take down (a collection's owners and admins, with a note its
- *  author sees, asked for in the confirm dialog), and restore. Shown
- *  only with something in it. */
-function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }) {
+/** The game's ⋯ menu: Copy link for everyone; Delete for its author (a published puzzle can't be
+ *  changed, only deleted: the confirm dialog first, then the server deletes it for good and goes
+ *  back to the profile); take down (a collection's owners and admins, with a note its author sees)
+ *  and restore. */
+function MoreMenu({ game, manage, canDelete, solves, likes }: {
+  game: GamePageProps["game"]; manage?: GamePageProps["manage"]; canDelete: boolean; solves: number; likes: number;
+}) {
   const [open, setOpen] = useState(false);
-  const { ask } = useConfirm();
+  const [copied, setCopied] = useState(false);
+  const { ask, confirm } = useConfirm();
   const submit = useSubmit();
   useEffect(() => {
     if (!open) return;
@@ -146,7 +165,21 @@ function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }
     addEventListener("pointerdown", away);
     return () => removeEventListener("pointerdown", away);
   }, [open]);
-  if (!manage.takeDown && !manage.restore) return null;
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(`${location.origin}/g/${game.id}`); setCopied(true); setTimeout(() => { setCopied(false); setOpen(false); }, 900); }
+    catch { setOpen(false); }
+  };
+  const del = async () => {
+    const kept = [solves ? `${solves} solve${solves === 1 ? "" : "s"}` : "", likes ? `${likes} like${likes === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
+    const yes = await confirm({
+      title: `Delete “${game.title}”?`,
+      body: <p>{game.state === "published" ? "It comes off your profile and every feed, and its link stops working" : "The draft is gone"}{kept ? `, with its ${kept}` : ""}. This can&rsquo;t be undone.</p>,
+      action: "Delete", danger: true,
+    });
+    if (!yes) return;   // cancelled: the menu stays open, its item focused again
+    setOpen(false);
+    submit({ intent: "delete" }, { method: "post" });
+  };
   const takeDown = async () => {
     const note = await ask({
       title: "Take this puzzle down?",
@@ -158,15 +191,48 @@ function ManageMenu({ manage }: { manage: NonNullable<GamePageProps["manage"]> }
     setOpen(false);
     submit({ intent: "hide", note }, { method: "post" });
   };
+  if (game.state !== "published" && !manage?.takeDown && !manage?.restore && !canDelete) return null;
   return (
     <div className="game-more">
       <button type="button" className="btn icon" aria-label="More for this puzzle" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
       {open && (
         <div className="menu" role="menu">
-          {manage.takeDown && <button type="button" role="menuitem" onClick={() => void takeDown()}>Take down…</button>}
-          {manage.restore && <Form method="post"><button role="menuitem" name="intent" value="unhide">Restore</button></Form>}
+          {game.state === "published" && <button type="button" role="menuitem" onClick={() => void copy()}>{copied ? "Copied" : "Copy link"}</button>}
+          {manage?.takeDown && <button type="button" role="menuitem" onClick={() => void takeDown()}>Take down…</button>}
+          {manage?.restore && <Form method="post"><button role="menuitem" name="intent" value="unhide">Restore</button></Form>}
+          {canDelete && <button type="button" role="menuitem" className="danger" onClick={() => void del()}>Delete…</button>}
         </div>
       )}
     </div>
+  );
+}
+
+const Chevron = ({ back = false }: { back?: boolean }) => (
+  <svg className="chev" viewBox="0 0 24 24" aria-hidden="true"><path d={back ? "M15 18l-6-6 6-6" : "M9 6l6 6-6 6"} /></svg>
+);
+
+const LIST_ICONS = {
+  set: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  search: "M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15zM16 16l5 5",
+  type: "M4 4h16v16H4zM4 10h16M10 4v16",
+  profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0",
+  feed: "M4 13l3-8h10l3 8v6H4zM4 13h5a3 3 0 0 0 6 0h5",
+  shelf: "M4 6h16M4 12h16M4 18h10",
+};
+
+/** The bar under the board for a puzzle opened from a list: back and on through it, and what the
+ *  list is (a link back to it). Next stands out once it's solved. */
+function ListBarView({ bar, won }: { bar: ListBar; won: boolean }) {
+  return (
+    <nav className="list-bar" aria-label="This list">
+      {bar.prev ? <Link className="btn list-step prev" to={bar.prev} rel="prev" aria-label="Previous puzzle"><Chevron back /><span className="step-word">Prev</span></Link>
+        : <span className="list-step prev" aria-hidden="true" />}
+      <Link className="list-ctx" to={bar.page}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={LIST_ICONS[bar.icon]} /></svg>
+        <span>{bar.text}</span>
+      </Link>
+      {bar.next ? <Link className={`btn list-step next${won ? " primary" : ""}`} to={bar.next} rel="next" aria-label="Next puzzle"><span className="step-word">Next</span><Chevron /></Link>
+        : <span className="list-step next" aria-hidden="true" />}
+    </nav>
   );
 }

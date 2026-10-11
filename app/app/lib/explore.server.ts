@@ -237,6 +237,17 @@ async function buildShelves(db: Db, now: number): Promise<Shelves> {
 /** Words to search for: up to five, lowercased. */
 export const searchWords = (q: string) => q.trim().toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
 
+/** What a search's puzzles match: every word in the title or description, or a type the words
+ *  name (its name, other names or category). Shared with playing through the results. */
+export function searchMatch(q: string): SQL | undefined {
+  const words = searchWords(q);
+  if (!words.length) return undefined;
+  const has = (text: string) => words.every((w) => text.toLowerCase().includes(w));
+  const kinds = ORDER.filter((k) => has([guides[k].name, k, ...(guides[k].aka ?? []), guides[k].category].join(" "))).slice(0, 30);
+  const text = and(...words.map((w) => or(like(sql`lower(${schema.games.title})`, `%${w}%`), like(sql`lower(${schema.games.description})`, `%${w}%`))));
+  return kinds.length ? or(text, inArray(schema.games.kind, kinds)) : text;
+}
+
 /** Search: the types, creators and puzzles that match every word (a type's puzzles match its name). */
 export async function search(db: Db, q: string, s: Shelves) {
   const words = searchWords(q);
@@ -244,9 +255,7 @@ export async function search(db: Db, q: string, s: Shelves) {
   const has = (text: string) => words.every((w) => text.toLowerCase().includes(w));
   const types = s.types.filter((t) => has([t.name, t.kind, ...(guides[t.kind as keyof typeof guides].aka ?? []), guides[t.kind as keyof typeof guides].category].join(" ")));
   const creators = s.everyone.filter((c) => has(`${c.name} @${c.handle} ${c.fullBio}`)).slice(0, 8);
-  const kinds = types.map((t) => t.kind).slice(0, 30);
-  const text = and(...words.map((w) => or(like(sql`lower(${schema.games.title})`, `%${w}%`), like(sql`lower(${schema.games.description})`, `%${w}%`))));
-  const rows = await puzzles(db).where(and(live, kinds.length ? or(text, inArray(schema.games.kind, kinds)) : text)).orderBy(desc(schema.games.publishedAt)).limit(24);
+  const rows = await puzzles(db).where(and(live, searchMatch(q))).orderBy(desc(schema.games.publishedAt), desc(schema.games.id)).limit(24);
   const pics: Pictures = {};
   return { types, creators, puzzles: toCards(rows as Row[], pics), pictures: pics };
 }
@@ -265,23 +274,34 @@ export interface ListFilter {
   quick: boolean;
   /** leave out what this viewer has solved */
   hideSolvedFor?: string | null;
+  /** Explore's search (titles, descriptions, types' names) */
+  q?: string;
   limit: number;
 }
 
-/** Puzzles for a type's page: New (newest first) or Top (most liked over a period), by difficulty. */
-export async function listPuzzles(db: Db, f: ListFilter, now = Date.now()) {
+/** What a type's page (or a search) lists: the conditions, and its order (ties broken by id, so
+ *  playing through it steps the same way: lib/list-play.server.ts). */
+export function listWhere(db: Db, f: Omit<ListFilter, "limit">, now = Date.now()): SQL | undefined {
   const where: (SQL | undefined)[] = [live];
   if (f.kind) where.push(eq(schema.games.kind, f.kind));
   else if (f.category) {
     const kinds = ORDER.filter((k) => guides[k].category === f.category);
     where.push(inArray(schema.games.kind, kinds.length ? kinds : ["-"]));
   }
+  if (f.q) where.push(searchMatch(f.q));
   if (f.level) where.push(eq(schema.games.level, f.level));
   if (f.quick) where.push(lte(schema.games.minutes, QUICK_MINUTES));
   if (f.sort === "top" && f.period !== "all") where.push(gte(schema.games.publishedAt, new Date(now - (f.period === "week" ? 7 : 30) * DAY)));
   if (f.hideSolvedFor) where.push(notExists(db.select({ x: sql`1` }).from(schema.solves).where(and(eq(schema.solves.gameId, schema.games.id), eq(schema.solves.creatorId, f.hideSolvedFor)))));
-  const order = f.sort === "top" ? [desc(sql`like_count`), desc(schema.games.publishedAt)] : [desc(schema.games.publishedAt)];
-  const rows = await puzzles(db).where(and(...where)).orderBy(...order).limit(f.limit + 1);
+  return and(...where);
+}
+/** The keys a list is sorted by, most significant first, all descending. */
+export const listKeys = (sort: ListFilter["sort"]) => (sort === "top" ? [likeCount, schema.games.publishedAt, schema.games.id] : [schema.games.publishedAt, schema.games.id]);
+export { likeCount };
+
+/** Puzzles for a type's page: New (newest first) or Top (most liked over a period), by difficulty. */
+export async function listPuzzles(db: Db, f: ListFilter, now = Date.now()) {
+  const rows = await puzzles(db).where(listWhere(db, f, now)).orderBy(...listKeys(f.sort).map((k) => desc(k))).limit(f.limit + 1);
   const pics: Pictures = {};
   return { puzzles: toCards(rows.slice(0, f.limit) as Row[], pics), more: rows.length > f.limit, pictures: pics };
 }

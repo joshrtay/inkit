@@ -175,7 +175,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           )}
         </section>
       )}
-      {tab === "puzzles" && (games.length ? <ul className="cards">{games.map((g) => <GameCard key={g.id} game={g} />)}</ul> : (
+      {tab === "puzzles" && (games.length ? <ul className="cards">{games.map((g) => <GameCard key={g.id} game={g} list={{ in: "profile", handle: collection.slug }} />)}</ul> : (
         <div className="empty-tab">
           <p>{mine ? "You haven't made any puzzles yet." : "No puzzles here yet."}</p>
           {mine && <p className="muted">Draw one on paper, take a photo, and upload it.</p>}

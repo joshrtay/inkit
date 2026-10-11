@@ -53,7 +53,7 @@ function Feed({ first }: { first: Page }) {
   }, [next, more.state]);
   return (
     <ul className="feed">
-      {games.map((g) => <FeedItem key={g.id} game={g} liked={g.liked} signedIn />)}
+      {games.map((g) => <FeedItem key={g.id} game={g} liked={g.liked} signedIn list={{ in: "feed" }} />)}
       {next && <li ref={end} className="feed-more muted" aria-hidden="true">{more.state === "idle" ? "" : "Loading…"}</li>}
     </ul>
   );

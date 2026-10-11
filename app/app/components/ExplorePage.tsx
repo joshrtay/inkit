@@ -3,6 +3,7 @@
 // creator's recommendations. A search (?q=) shows types, creators and puzzles that match.
 // At /explore, and at "/" for someone signed out (routes/home.tsx); the data is
 // lib/explore-page.server.ts (the shelves from lib/explore.server.ts, the formulas in lib/rank.ts).
+import { browse } from "~/lib/list-context";
 import { Link } from "react-router";
 import type { ExploreData as Data } from "~/lib/explore-page.server";
 import { Avatar } from "./Avatar";
@@ -31,12 +32,12 @@ function Shelves({ d, s }: { d: Data; s: NonNullable<Data["shelves"]> }) {
     <>
       {d.today.length > 0 && (
         <Shelf id="today" title="Today" sub="The newest puzzles." more="/explore/all">
-          {d.today.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} when />)}
+          {d.today.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} when list={{ in: "shelf", shelf: "today" }} />)}
         </Shelf>
       )}
       {s.quick.length > 0 && (
         <Shelf id="quick" title="Quick ones" sub="Five minutes or less." more="/explore/all?quick=1">
-          {s.quick.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} time />)}
+          {s.quick.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} time list={{ in: "shelf", shelf: "quick" }} />)}
         </Shelf>
       )}
       {s.starters.length > 0 && (
@@ -53,7 +54,7 @@ function Shelves({ d, s }: { d: Data; s: NonNullable<Data["shelves"]> }) {
       </section>
       {s.hard.length > 0 && (
         <Shelf id="hard" title="This week’s hard ones" sub="The week’s toughest." more="/explore/all?level=3">
-          {s.hard.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} />)}
+          {s.hard.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} list={{ in: "shelf", shelf: "hard" }} />)}
         </Shelf>
       )}
       {s.people.length > 0 && (
@@ -110,7 +111,7 @@ function Results({ d, found }: { d: Data; found: NonNullable<Data["found"]> }) {
       )}
       {found.puzzles.length > 0 && (
         <section className="shelf" aria-labelledby="r-puzzles"><h2 className="group-h" id="r-puzzles">Puzzles</h2>
-          <ul className="cards x-cards">{found.puzzles.map((p) => <PuzzleCard key={p.id} p={p} pics={found.pictures} inks={d.inks} now={d.now} when />)}</ul></section>
+          <ul className="cards x-cards">{found.puzzles.map((p) => <PuzzleCard key={p.id} p={p} pics={found.pictures} inks={d.inks} now={d.now} when list={browse("all", { q: d.q })} />)}</ul></section>
       )}
     </div>
   );

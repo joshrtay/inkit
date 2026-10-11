@@ -34,7 +34,7 @@ test("a solve is celebrated, kept and shown", async ({ page }) => {
 
   await page.goto("/wyatt");
   await expect(page.locator(".profile-stats")).toContainText(/\d+ solves?/);
-  await expect(page.locator(`a[href="/g/${GAME}"] .solved-badge`)).toBeVisible();
+  await expect(page.locator(`a[href^="/g/${GAME}?"] .solved-badge`)).toBeVisible();
 });
 
 test("a creator's own solve doesn't count", async ({ page }) => {

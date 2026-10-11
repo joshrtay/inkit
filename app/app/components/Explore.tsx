@@ -4,6 +4,7 @@
 // docs/explore-mockups/. Pictures come by id from the page's `pictures` (each drawn once).
 import { useRef } from "react";
 import { Form, Link } from "react-router";
+import { inList, type ListContext } from "~/lib/list-context";
 import type { Creator, Puzzle } from "~/lib/explore.server";
 import { kindName } from "~/games/kinds";
 import { ago } from "~/lib/rank";
@@ -38,10 +39,10 @@ const Check = () => (
 );
 
 /** A puzzle on a shelf or in a grid. `when`: say how long ago it went up; `time`: the minutes stand out (Quick ones). */
-export function PuzzleCard({ p, pics, inks, now, when = false, time = false }: { p: Puzzle; pics: Pics; inks: Inks; now: number; when?: boolean; time?: boolean }) {
+export function PuzzleCard({ p, pics, inks, now, when = false, time = false, list = null }: { p: Puzzle; pics: Pics; inks: Inks; now: number; when?: boolean; time?: boolean; list?: ListContext | null }) {
   return (
     <li>
-      <Link className="game-card pcard" to={`/g/${p.id}`}>
+      <Link className="game-card pcard" to={inList(p.id, list)}>
         <Pic pic={pics[p.id]} inks={inks} />
         {p.solved && <Check />}
         <span className="game-card-text">

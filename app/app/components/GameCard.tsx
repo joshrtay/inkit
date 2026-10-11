@@ -1,3 +1,4 @@
+import { inList, type ListContext } from "~/lib/list-context";
 import { Form, Link } from "react-router";
 import type { Thumbed } from "~/lib/thumbs.server";
 import type { CollectionCard } from "~/lib/queries.server";
@@ -14,7 +15,7 @@ const Picture = ({ svg, className }: { svg: string | null; className: string }) 
 /** A game in a grid: its puzzle, title, type, who made it, and its state if it isn't public. */
 /** `draft`: a card in your Drafts: it opens paint (RYB: its figure editor; a game taken down: its
  *  page), and says when you last edited it and how many of Claude's doubts are left to check. */
-export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boolean }) {
+export function GameCard({ game, draft = false, list = null }: { game: Thumbed; draft?: boolean; list?: ListContext | null }) {
   if (draft) {
     const left = doubtsOf(game.parseNotes).filter((d) => !d.done).length;
     return (
@@ -37,7 +38,7 @@ export function GameCard({ game, draft = false }: { game: Thumbed; draft?: boole
   }
   return (
     <li>
-      <Link className="game-card" to={`/g/${game.id}`}>
+      <Link className="game-card" to={inList(game.id, list)}>
         <Picture svg={game.picture} className="thumb" />
         {game.solved && <Solved />}
         <span className="game-card-text">
@@ -86,10 +87,10 @@ const when = (t: Date | number | null) => {
 };
 
 /** A game in the feed: where it's from, its title and description, and its puzzle on the right. */
-export function FeedItem({ game, liked = false, signedIn = false }: { game: Thumbed; liked?: boolean; signedIn?: boolean }) {
+export function FeedItem({ game, liked = false, signedIn = false, list = null }: { game: Thumbed; liked?: boolean; signedIn?: boolean; list?: ListContext | null }) {
   return (
     <li className="feed-item">
-      <Link to={`/g/${game.id}`} className="feed-link">
+      <Link to={inList(game.id, list)} className="feed-link">
         <span className="feed-text">
           <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} ai={!!game.authorAi && game.collectionSlug === game.authorHandle} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when">{when(game.publishedAt)}</span></span>
           <strong>{game.title}</strong>

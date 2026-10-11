@@ -93,7 +93,15 @@
 .puzzle-extra { padding: 14px 16px; background: var(--panel); border: var(--card-border); border-radius: var(--radius); }
 .puzzle-extra h3 { margin: 0 0 6px; font-size: 15px; }
 .puzzle-extra ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 15px; }
-.rules-toggle[aria-pressed="true"] { background: var(--ink); color: var(--panel); border-color: var(--ink); }
+/* the header: the title with ♡ and ⋯ on its row, then the meta line (the type's name opens How to play) */
+.game-page .game-head { display: grid; gap: 4px; }
+.game-title-row { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
+.game-title-row h1 { margin: 0; min-width: 0; }
+.game-actions { display: flex; align-items: center; gap: 10px; }
+.game-meta { margin: 0; }
+.type-link { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.type-link:hover, .type-link[aria-pressed="true"] { color: var(--ink); }
+.game-more .menu .danger { color: var(--bad, #e5484d); }
 
 /* the How to play pane slides in over the page from the right edge; the board stays put */
 .guide-pane.side {
@@ -164,3 +172,24 @@
 .game-more { position: relative; align-self: center; }
 .game-more .menu { right: 0; left: auto; min-width: 210px; }
 .game-more form { display: contents; }
+
+/* ---- a puzzle opened from a list: the bar under the paper, as wide as it (GameBoard measures it:
+   --sheet-w): back and on through the list, and what the list is ---- */
+.game-play { display: grid; justify-items: center; gap: 12px; min-width: 0; }
+.game-play > .game-spot { justify-self: stretch; }
+.list-bar { width: min(100%, var(--sheet-w, 100%)); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.list-bar .list-step { min-width: 84px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; }
+.list-bar .list-step .chev { display: block; flex: none; margin: 0; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* the paper leaves room for the bar under it */
+.game-play:has(.list-bar) { --after: 58px; }
+.list-step.next { justify-self: end; }
+.list-ctx { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; }
+.list-ctx span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-ctx:hover { color: var(--ink); }
+.list-ctx svg { flex: none; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* phones: round arrows */
+@media (max-width: 640px) {
+  .list-bar .list-step { min-width: 44px; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+  .list-step .step-word { display: none; }
+  .list-bar .list-step .chev { width: 22px; height: 22px; }
+}

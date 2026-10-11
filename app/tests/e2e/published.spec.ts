@@ -25,9 +25,12 @@ test("a published puzzle: no Edit, a red Delete that asks first, then gone every
   await expect(page.getByRole("heading", { name: "Doomed Sudoku" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Edit", exact: true })).toHaveCount(0);
   await expect(page.locator(`a[href="/g/${id}/draw"]`)).toHaveCount(0);
-  // its author's … menu has no Back to draft (they aren't a moderator of their own game)
-  await expect(page.getByRole("button", { name: "More for this puzzle" })).toHaveCount(0);
-  const del = page.getByRole("button", { name: "Delete", exact: true });
+  // its author's ⋯ menu: Copy link and a red Delete, no Back to draft (they aren't a moderator of their own game)
+  const more = page.getByRole("button", { name: "More for this puzzle" });
+  await more.click();
+  await expect(page.getByRole("menuitem", { name: "Copy link" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Back to draft" })).toHaveCount(0);
+  const del = page.getByRole("menuitem", { name: "Delete…" });
   await expect(del).toHaveClass(/\bdanger\b/);
 
   // Delete opens the dialog; Cancel keeps it, and focus goes back to Delete
@@ -60,7 +63,8 @@ test("a published puzzle: no Edit, a red Delete that asks first, then gone every
     for (const theme of ["dark", "light"]) {
       await page.evaluate((t) => { localStorage.setItem("inkit:theme", t); }, theme);
       await page.reload();
-      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await more.click();
+      await page.getByRole("menuitem", { name: "Delete…" }).click();
       await expect(dialog).toBeVisible();
       await page.waitForTimeout(300);
       await shot(page, `delete-${theme}`);
@@ -70,7 +74,8 @@ test("a published puzzle: no Edit, a red Delete that asks first, then gone every
   }
 
   // confirmed: deleted, back on the profile, and gone from it
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  if (!(await del.isVisible())) await more.click();
+  await del.click();
   await dialog.getByRole("button", { name: "Delete" }).click();
   await expect(page).toHaveURL(new RegExp(`/${slug()}$`), { timeout: 15_000 });
   expect(row(id).state).toBe("deleted");
@@ -140,8 +145,8 @@ test("the … menu: taking down asks for its note in the dialog", async ({ page 
     select ${q(id)}, ${q(run.collectionId)}, 'wyatt', 'Not yours', '', sketch, sketch_version, kind, '[]', '[]', 'published', ${Date.now()} from games where id = ${q(run.drafts.akari)}`);
   try {
     await page.goto(`/g/${id}`);
-    await expect(page.getByRole("button", { name: "Delete", exact: true })).toHaveCount(0);   // not its author
     await page.getByRole("button", { name: "More for this puzzle" }).click();
+    await expect(page.getByRole("menuitem", { name: "Delete…" })).toHaveCount(0);   // not its author
     const item = page.getByRole("menuitem", { name: "Take down…" });
     await expect(page.getByRole("menuitem", { name: "Back to draft" })).toHaveCount(0);
     await item.click();

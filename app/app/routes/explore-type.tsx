@@ -4,6 +4,7 @@
 // quick ones, or (signed in) to those you haven't solved. /explore/all is every type's (the quick
 // chips: Quick, Easy, Hard, a category).
 import { data, Form, Link, useSubmit } from "react-router";
+import { browse } from "~/lib/list-context";
 import type { Route } from "./+types/explore-type";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
@@ -61,6 +62,8 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 
 export default function ExploreType({ loaderData: d }: Route.ComponentProps) {
   const f = d.filter, here = `/explore/${d.kind}`;
+  // the list its puzzles are played through
+  const list = browse(d.kind, { level: f.level, quick: f.quick, sort: f.sort, period: f.period, category: f.category ?? null, unsolved: f.unsolved });
   // a link to this page with some settings changed (defaults left out of the address)
   const to = (change: Partial<Record<"sort" | "period" | "level" | "quick" | "unsolved" | "category", string | null>>) => {
     const p = new URLSearchParams(d.search);
@@ -116,7 +119,7 @@ export default function ExploreType({ loaderData: d }: Route.ComponentProps) {
       </div>
 
       {d.puzzles.length ? (
-        <ul className="cards x-cards">{d.puzzles.map((p) => <PuzzleCard key={p.id} p={p} pics={d.pictures} inks={d.inks} now={d.now} when />)}</ul>
+        <ul className="cards x-cards">{d.puzzles.map((p) => <PuzzleCard key={p.id} p={p} pics={d.pictures} inks={d.inks} now={d.now} when list={list} />)}</ul>
       ) : (
         <div className="empty-tab"><p>No puzzles here{f.level || f.quick || f.unsolved || f.sort === "top" ? " with these settings" : " yet"}.</p>{(f.level || f.quick || f.unsolved || f.sort === "top") && <Link className="btn" to={here}>Show them all</Link>}</div>
       )}

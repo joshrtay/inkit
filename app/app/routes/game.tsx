@@ -1,6 +1,6 @@
 // A game's permanent page: inkit.games/g/<id>.
 import { data, redirect } from "react-router";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Route } from "./+types/game";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
@@ -11,6 +11,9 @@ import { editPath, kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
 import { likesOf, solvesOf } from "~/lib/queries.server";
 import { GamePageView } from "~/components/GamePageView";
+import { readContext } from "~/lib/list-context";
+import { listBar } from "~/lib/list-play.server";
+import { isKind } from "~/lib/guides.server";
 import { readPaintSave } from "~/games/paint-save";
 import { drawingSvg } from "~/sketchpad/picture";
 import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
@@ -56,7 +59,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   if (!canView(game, collection, viewer, role)) throw data(null, { status: 404 });
 
   const parsed = parseSketch(game.sketch, game.sketchVersion);
+  // opened from a list (?in=…, ?set=…): the bar under the board, to step through it
+  const ctx = game.state === "published" ? readContext(new URL(request.url).searchParams, isKind) : null;
   return {
+    list: ctx ? await listBar(db, ctx, game, viewer?.id ?? null) : null,
     game: { id: game.id, title: game.title, description: game.description, kind: game.kind, state: game.state, hiddenNote: game.hiddenNote,
       when: (game.publishedAt ?? game.createdAt).getTime() },
     collection: { slug: collection.slug, title: collection.title, personal: !!collection.personalOf },
@@ -77,6 +83,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     likes: await likesOf(db, game.id, viewer?.id),
     solves: await solvesOf(db, game.id, viewer?.id),
     signedIn: !!viewer,
+    // the first-time note under the paper's ?: until they've solved one of this type (signed out: always)
+    newToType: !viewer || !(await db.select({ x: sql`1` }).from(schema.solves).innerJoin(schema.games, eq(schema.solves.gameId, schema.games.id))
+      .where(and(eq(schema.solves.creatorId, viewer.id), eq(schema.games.kind, game.kind))).limit(1)).length,
     dates: { created: game.createdAt.getTime(), published: game.publishedAt?.getTime() ?? null },
     // the creator's drawing beside the engine's picture (docs/creation-flow.md, decision 2)
     drawnBy: (() => { const save = readPaintSave(game.drawing); return save ? drawingSvg(save.drawing, `${game.title}, as drawn by @${author.handle}`) || null : null; })(),
