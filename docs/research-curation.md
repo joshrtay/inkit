@@ -286,3 +286,33 @@ differently.
   - Signed-in players see the note until they solve one of that type or open the rules. Signed-out players see it on every visit, with ×.
 - **Set cards:** show the set's average difficulty and the date it was published.
 - **Set cover:** four small paper cards in a 2×2 square, even gaps, on a slightly darker ground (`lists-mockups/90-a-*`). No order numbers on cards.
+
+## Playing through a list: the URL (decided)
+
+A puzzle opened from a list carries that list in its query string. `in` names where you came from. The other parameters are that page's own, with the same names and values its URL already uses (`app/app/routes/explore-type.tsx`, `app/app/lib/rank.ts`). The canonical URL stays `/g/<id>`.
+
+| From | Puzzle URL | Bar under the board |
+|---|---|---|
+| A set | `/g/<id>?set=<setId>` | set icon, the set's title · by @curator, thin progress bar "4 of 8 solved" |
+| Explore search | `/g/<id>?in=all&q=lamps&level=1&sort=new` | search icon, "Search: lamps" plus the filters as words ("Easy · Newest"), "3 of 41" |
+| A type page | `/g/<id>?in=akari&level=1&quick=1&sort=new` | the type's name plus the filters ("Akari · Easy · Quick · Newest"), "3 of 41" |
+| All types | `/g/<id>?in=all&category=Shading&sort=new` | "All puzzles · Shading · Newest", "3 of 120" |
+| A profile | `/g/<id>?in=@wyatt` | avatar and name ("Wyatt"), "3 of 24" |
+| Subscriptions | `/g/<id>?in=feed` | "Subscriptions"; no count (the feed has no end) |
+| An Explore shelf | `/g/<id>?in=all&sort=new` (Today), `in=all&quick=1` (Quick ones), `in=all&level=3&period=week` (This week's hard ones) | the shelf's name ("Today"), "3 of 24" |
+
+- **Parameters:**
+  - `level` is 1, 2 or 3;
+  - `sort` is `new` or `top`;
+  - `period` (with `top`) is `week`, `month` or `all`;
+  - `quick=1`;
+  - `unsolved=1` (the signed-in player's own);
+  - `category` (with `in=all`);
+  - `q` is title text only, with no typed operators.
+- **Shelves don't get a parameter of their own.** A shelf is a preset of the all-types list, and the bar names it when the parameters match one.
+- **Next and back:**
+  - Keyset paging on the sort key plus the id, as in the feed.
+  - With `sort=top`, likes can move the order mid-play. Accept the odd skip; it isn't worth freezing.
+  - `unsolved=1` drops a puzzle from the list once you solve it, so Next is computed from the puzzle you were on.
+- **Only a set shows a progress bar.** Every other list shows a plain position, or none for the feed.
+- **Not needed any more:** `before:`, `id:` and the typed search syntax. Curation is sets, so search lists stay live.
