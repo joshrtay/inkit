@@ -19,6 +19,8 @@ export interface Browse {
   period: "week" | "month" | "all";
   category: string | null;
   unsolved: boolean;
+  /** one creator's puzzles (a handle) */
+  by: string | null;
 }
 export type ListContext =
   | Browse
@@ -33,7 +35,7 @@ const ID = /^[\w-]{1,64}$/;
 
 /** A type or "all", with the defaults its page uses (Newest, Top over a month). */
 export function browse(kind: string, f: Partial<Omit<Browse, "in" | "kind">> = {}): Browse {
-  return { in: "browse", kind, q: "", level: null, quick: false, sort: "new", period: "month", category: null, unsolved: false, ...f };
+  return { in: "browse", kind, q: "", level: null, quick: false, sort: "new", period: "month", category: null, unsolved: false, by: null, ...f };
 }
 
 /** The list in a puzzle's URL, or null (opened on its own). `isKind`: the types there are. */
@@ -56,6 +58,7 @@ export function readContext(p: URLSearchParams, isKind: (k: string) => boolean):
     period: PERIODS.includes(period as never) ? (period as Browse["period"]) : "month",
     category: where === "all" ? p.get("category") || null : null,
     unsolved: p.get("unsolved") === "1",
+    by: HANDLE.test(p.get("by") ?? "") ? p.get("by") : null,
   });
 }
 
@@ -71,6 +74,7 @@ export function contextQuery(c: ListContext | null): string {
     p.set("in", c.kind);
     if (c.q) p.set("q", c.q);
     if (c.category) p.set("category", c.category);
+    if (c.by) p.set("by", c.by);
     if (c.level) p.set("level", String(c.level));
     if (c.quick) p.set("quick", "1");
     if (c.unsolved) p.set("unsolved", "1");
@@ -94,7 +98,7 @@ export function contextLabel(c: ListContext, names: { kindName: (k: string) => s
   if (c.in === "profile") return { icon: "profile" as const, text: names.who ?? `@${c.handle}` };
   const bits = [
     c.kind === "all" ? (c.q ? "" : "All puzzles") : names.kindName(c.kind),
-    c.category ?? "", c.level ? LEVELS[c.level] : "", c.quick ? "Quick" : "", c.unsolved ? "Not solved yet" : "",
+    c.category ?? "", c.by ? `By @${c.by}` : "", c.level ? LEVELS[c.level] : "", c.quick ? "Quick" : "", c.unsolved ? "Not solved yet" : "",
     c.sort === "top" ? `Top ${PERIOD_WORDS[c.period]}` : "Newest",
   ].filter(Boolean);
   return c.q

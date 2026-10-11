@@ -78,6 +78,8 @@ test("Create → Set makes an empty one and opens it, even from a page that isn'
   await expect(name.locator("textarea")).toHaveCount(0);
   await name.getByLabel("Name").fill("Empty for now");
   await name.getByLabel("Name").press("Enter");
+  // an empty set: off to find puzzles for it, your own first
+  await expect(page).toHaveURL(new RegExp(`/explore/all\\?by=`));
   await expect(drawer(page)).toBeVisible();
   await expect(drawer(page)).toContainText("0 puzzles");
   await expect(drawer(page).getByRole("button", { name: "Publish" })).toBeDisabled();
@@ -95,12 +97,18 @@ test("Create → Set makes an empty one and opens it, even from a page that isn'
     expect(plus!.y).toBeGreaterThanOrEqual(li!.y);
   }
 
-  // closed, then its page's Edit opens it again, on that page too
+  // its own page is where it's edited; Add puzzles goes back to your puzzles with the drawer open
   await drawer(page).getByRole("button", { name: "Close the set" }).click();
   await expect(drawer(page)).toHaveCount(0);
   await page.goto(`/s/${mine()[0].id}`);
-  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(drawer(page)).toHaveCount(0);
+  await page.getByLabel("Name").fill("Renamed here");
+  await page.getByLabel("Name").press("Enter");
+  await expect.poll(() => mine()[0].title).toBe("Renamed here");
+  await page.getByRole("button", { name: "Add puzzles" }).click();
+  await expect(page).toHaveURL(new RegExp(`/explore/all\\?by=`));
   await expect(drawer(page)).toBeVisible();
+  await expect(page.getByRole("link", { name: /Show everyone's/ })).toContainText("By you");
 });
 
 test("each card's ⋮: Add to set and Copy link (signed out: sign in first); with a set open it's a +", async ({ page, browser }) => {
@@ -125,4 +133,23 @@ test("each card's ⋮: Add to set and Copy link (signed out: sign in first); wit
   await anon.getByRole("menuitem", { name: "Add to set" }).click();
   await expect(anon.getByRole("dialog", { name: "Sign in to make sets" })).toBeVisible();
   await anon.close();
+});
+
+test("a draft set's page is its editor: order, take out, publish", async ({ page }) => {
+  const id = `draft-${process.env.E2E_RUN}`;
+  sql(`insert into sets (id, collection_id, author_id, title) values (${q(id)}, ${q(run.collectionId)}, ${q(run.userId)}, 'Three, to sort');
+    insert into set_items (set_id, game_id, position) values (${q(id)}, 'akari-1', 0), (${q(id)}, 'nurikabe-1', 1), (${q(id)}, 'sudoku-1', 2)`);
+  await page.goto(`/s/${id}`);
+  await page.getByRole("button", { name: /^Move .* down$/ }).first().click();
+  await expect.poll(() => items(id)).toEqual(["nurikabe-1", "akari-1", "sudoku-1"]);
+  await page.getByRole("button", { name: /^Take .* out$/ }).last().click();
+  await expect.poll(() => items(id)).toEqual(["nurikabe-1", "akari-1"]);
+  await expect(page.locator(".set-list li")).toHaveCount(2);
+  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("alertdialog", { name: "Publish “Three, to sort”?" }).getByRole("button", { name: "Publish" }).click();
+  await expect(page.locator(".set-meta")).toContainText("Published");
+  expect(sql<{ state: string }>(`select state from sets where id = ${q(id)}`)[0].state).toBe("published");
+  // published: no more editing here
+  await expect(page.getByRole("button", { name: /^Move / })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Three, to sort" })).toBeVisible();
 });

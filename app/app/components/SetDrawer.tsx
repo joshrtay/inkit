@@ -7,7 +7,7 @@
 //
 // Server: routes/api.sets.ts (/api/sets: your drafts; make one), routes/api.set.ts (/api/sets/<id>: one draft).
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate, useRouteLoaderData } from "react-router";
 import { useConfirm } from "./ConfirmDialog";
 import { Picture } from "./GameCard";
 import { SetCover } from "./SetCard";
@@ -18,6 +18,9 @@ export const GUIDE_EVENT = "inkit:guide";
 
 /** Open the drawer on a draft set (its author's): a set's Edit. */
 export const openSetDrawer = (setId: string) => window.dispatchEvent(new CustomEvent(SET_DRAWER_EVENT, { detail: setId }));
+/** A set changed somewhere else (its own page): the drawer, if it's on that set, reads it again. */
+export const SET_CHANGED_EVENT = "inkit:set-changed";
+export const setChanged = (setId: string) => window.dispatchEvent(new CustomEvent(SET_CHANGED_EVENT, { detail: setId }));
 
 interface DrawerPuzzle { id: string; title: string; picture: string | null; by: string; ai: boolean; level: number | null; minutes: number | null }
 interface DrawerData { set: { id: string; title: string; description: string; state: string }; puzzles: DrawerPuzzle[]; summary: { count: number; minutes: number; level: number }; error?: string | null }
@@ -40,6 +43,8 @@ interface Ctx {
   setCurrent: (p: { id: string; title: string } | null) => void;
   /** phones: open the set as a sheet */
   openSheet: () => void;
+  /** Add puzzles: open the drawer on this draft and go find puzzles (your own, on Explore) */
+  gather: (setId: string) => void;
 }
 const DrawerCtx = createContext<Ctx | null>(null);
 export const useSetDrawer = () => useContext(DrawerCtx);
@@ -73,6 +78,10 @@ async function call<T>(url: string, body?: Record<string, string>): Promise<T | 
 
 export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; children: ReactNode }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const me = (useRouteLoaderData("root") as { me: { handle: string } | null } | undefined)?.me ?? null;
+  // where to find puzzles for a set: your own, on Explore (remove the filter to see everyone's)
+  const yours = me ? `/explore/all?by=${me.handle}` : "/explore";
   const [openId, setOpenId] = useState<string | null>(null);
   const [data, setData] = useState<DrawerData | null>(null);
   const [guide, setGuide] = useState(false);
@@ -94,8 +103,9 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
   useEffect(() => {
     const open = (e: Event) => { setHere(location.pathname); void load((e as CustomEvent<string>).detail).then(() => setSheet(true)); setGuide(false); };
     const g = (e: Event) => setGuide(!!(e as CustomEvent<boolean>).detail);
-    addEventListener(SET_DRAWER_EVENT, open); addEventListener(GUIDE_EVENT, g);
-    return () => { removeEventListener(SET_DRAWER_EVENT, open); removeEventListener(GUIDE_EVENT, g); };
+    const changed = (e: Event) => { const id = (e as CustomEvent<string>).detail; if (id === store.get()) void load(id); };
+    addEventListener(SET_DRAWER_EVENT, open); addEventListener(GUIDE_EVENT, g); addEventListener(SET_CHANGED_EVENT, changed);
+    return () => { removeEventListener(SET_DRAWER_EVENT, open); removeEventListener(GUIDE_EVENT, g); removeEventListener(SET_CHANGED_EVENT, changed); };
   }, [load]);
   useEffect(() => setSheet(false), [pathname]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 4000); return () => clearTimeout(t); }, [toast]);
@@ -128,18 +138,21 @@ export function SetDrawerProvider({ signedIn, children }: { signedIn: boolean; c
     if (!title) return;
     const r = await call<{ id: string }>("/api/sets", { title, ...(gameId ? { game: gameId } : {}) });
     if (!r) { setToast({ text: "Couldn't make the set. Try again." }); return; }
-    setHere(location.pathname);
     await load(r.id);
-    setSheet(true);   // a phone: open it as a sheet
     dispatchEvent(new CustomEvent(GUIDE_EVENT + ":close"));
-    if (gameId) setToast({ text: `Added to ${title} · 1` });
-  }, [ask, load]);
+    if (gameId) {
+      // made from a puzzle: stay where you are, with it in
+      setHere(location.pathname); setSheet(true);
+      setToast({ text: `Added to ${title} · 1` });
+    } else navigate(yours);   // an empty set: go find puzzles for it
+  }, [ask, load, navigate, yours]);
 
   const shown = !!data && (isBrowsing(pathname, openId) || pathname === here) && !guide;
   const ids = useMemo(() => new Set(data?.puzzles.map((p) => p.id) ?? []), [data]);
   const ctx: Ctx = {
     set: data, shown, has: (g) => ids.has(g), add, pick: (g) => void pick(g), create: () => void make(null),
     setCurrent, openSheet: () => setSheet(true),
+    gather: (id) => { void load(id); navigate(yours); },
   };
   useEffect(() => { document.documentElement.classList.toggle("set-drawer-open", shown); }, [shown]);
 

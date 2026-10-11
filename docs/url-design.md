@@ -61,6 +61,7 @@ Old addresses that still work: `/feed` and `/bugs` (308 to `/api/…`), `/new/dr
 | `quick` | `1`: about five minutes or less | type pages; with `in` |
 | `unsolved` | `1`: only what the viewer hasn't solved | type pages; with `in` |
 | `category` | a group of types (Shading, Lines, …), with `all` | `/explore/all`; with `in` |
+| `by` | one creator's puzzles (a handle) | type pages, `/explore/all` (Add puzzles to a set: `?by=<you>`); with `in` |
 | `n` | how many puzzles a type page shows (Show more) | type pages |
 | `tab` | a profile's tab: `puzzles` (the default), `drafts`, `about`, `subscriptions`, `recommends`, `members` | `/<handle>` |
 | `studio` | the studio to make a puzzle in | `/new` |

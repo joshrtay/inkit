@@ -276,6 +276,8 @@ export interface ListFilter {
   hideSolvedFor?: string | null;
   /** Explore's search (titles, descriptions, types' names) */
   q?: string;
+  /** one creator's puzzles (their handle) */
+  by?: string | null;
   limit: number;
 }
 
@@ -289,6 +291,7 @@ export function listWhere(db: Db, f: Omit<ListFilter, "limit">, now = Date.now()
     where.push(inArray(schema.games.kind, kinds.length ? kinds : ["-"]));
   }
   if (f.q) where.push(searchMatch(f.q));
+  if (f.by) where.push(inArray(schema.games.authorId, db.select({ id: schema.creators.id }).from(schema.creators).where(eq(schema.creators.handle, f.by))));
   if (f.level) where.push(eq(schema.games.level, f.level));
   if (f.quick) where.push(lte(schema.games.minutes, QUICK_MINUTES));
   if (f.sort === "top" && f.period !== "all") where.push(gte(schema.games.publishedAt, new Date(now - (f.period === "week" ? 7 : 30) * DAY)));

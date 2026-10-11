@@ -67,12 +67,12 @@ test("a profile shows its sets; a draft only in its author's Drafts", async ({ p
   await page.goto(`/${slug}?tab=drafts`);
   await expect(page.locator(`a.set-card[href="/s/${DRAFT}"]`)).toBeVisible();
   await page.goto(`/s/${DRAFT}`);
-  await expect(page.getByRole("button", { name: "Edit" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add puzzles" })).toBeVisible();   // its page is its editor
 
   // someone else: the published set, not the draft
   const other = await browser.newPage({ storageState: { cookies: [], origins: [] } });
   expect((await other.goto(`/s/${SET}`))?.status()).toBe(200);
-  await expect(other.getByRole("button", { name: "Edit" })).toHaveCount(0);
+  await expect(other.getByRole("button", { name: "Add puzzles" })).toHaveCount(0);
   await expect(other.locator(".set-progress")).toHaveCount(0);
   expect((await other.goto(`/s/${DRAFT}`))?.status()).toBe(404);
   await other.close();

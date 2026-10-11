@@ -1,9 +1,11 @@
 // A set's page: inkit.games/s/<id>. Its cover (the first four puzzles), title, who made it, what
 // it's for, and its puzzles in order, each credited to whoever made it; Play opens the first one
 // you haven't solved, and the puzzle carries the set (?set=) so its bar steps through it. A draft
-// is seen only by its author, with Edit (the drawer: components/SetDrawer.tsx).
-import { useEffect, useState } from "react";
-import { data, Form, Link, redirect, useSubmit } from "react-router";
+// is seen only by its author, and this page is where it's edited: its name and words in place, its
+// puzzles put in order (drag, or up and down) or taken out, and Publish; Add puzzles opens the
+// drawer (components/SetDrawer.tsx) and goes to Explore, filtered to the author's own puzzles.
+import { useEffect, useRef, useState } from "react";
+import { data, Form, Link, redirect, useRevalidator, useSubmit } from "react-router";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/set";
 import { cloudflareContext } from "~/lib/context";
@@ -20,7 +22,7 @@ import { AiBadge } from "~/components/AiBadge";
 import { Picture } from "~/components/GameCard";
 import { Diff } from "~/components/Explore";
 import { SetCover } from "~/components/SetCard";
-import { openSetDrawer } from "~/components/SetDrawer";
+import { setChanged, useSetDrawer } from "~/components/SetDrawer";
 import "~site/game-types/grid/styles.css";
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
@@ -82,18 +84,45 @@ const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "lo
 export default function SetPage({ loaderData: d }: Route.ComponentProps) {
   const { set, author, puzzles, summary, progress } = d;
   const done = !!progress && progress.total > 0 && progress.solved === progress.total;
+  // a draft, its author's: this page is where it's edited (the drawer is for gathering puzzles)
+  const edit = d.canEdit;
+  const drawer = useSetDrawer();
+  const revalidator = useRevalidator();
+  const { confirm } = useConfirm();
+  const [title, setTitle] = useState(set.title);
+  const [desc, setDesc] = useState(set.description);
+  useEffect(() => { setTitle(set.title); setDesc(set.description); }, [set.title, set.description]);
+  const drag = useRef<string | null>(null);
+  const [over, setOver] = useState<number | null>(null);
+  const change = async (body: Record<string, string>) => {
+    const res = await fetch(`/api/sets/${set.id}`, { method: "POST", body: new URLSearchParams(body) });
+    revalidator.revalidate();
+    setChanged(set.id);
+    return res.ok ? ((await res.json()) as { error: string | null }) : { error: "That didn't work. Try again." };
+  };
+  const save = (k: "title" | "description", v: string) => { if (v.trim() !== (k === "title" ? set.title : set.description)) void change({ intent: "describe", [k]: v }); };
+  const publish = async () => {
+    if (!(await confirm({ title: `Publish “${set.title}”?`, body: <p>{summary.count} puzzle{summary.count === 1 ? "" : "s"}.</p>, action: "Publish" }))) return;
+    await change({ intent: "publish" });
+  };
   return (
     <main className="wrap set-page">
       <header className="set-head">
         <SetCover cover={puzzles.slice(0, 4).map((p) => p.picture)} className="set-head-cover" />
         <div className="set-head-text">
           <p className="set-label">Set{set.state === "draft" && <span className="state draft">Draft</span>}{set.state === "hidden" && <span className="state hidden">Taken down{set.hiddenNote ? `: ${set.hiddenNote}` : ""}</span>}</p>
-          <h1>{set.title}</h1>
+          {edit
+            ? <h1><input className="set-title-edit" aria-label="Name" value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)}
+                onBlur={() => save("title", title)} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} /></h1>
+            : <h1>{set.title}</h1>}
           <p className="set-by">
             <Avatar name={author.name} seed={author.handle} size={22} ai={author.ai} />
             {author.deleted ? author.name : <Link to={`/${author.handle}`}>{author.name}</Link>}{author.ai && <AiBadge />}
           </p>
-          {set.description && <p className="set-desc">{set.description}</p>}
+          {edit
+            ? <textarea className="set-desc-edit" aria-label="Description" placeholder="Description (optional)" rows={2} maxLength={280} value={desc}
+                onChange={(e) => setDesc(e.target.value)} onBlur={() => save("description", desc)} />
+            : set.description && <p className="set-desc">{set.description}</p>}
           <p className="set-meta muted">
             {summary.count} puzzle{summary.count === 1 ? "" : "s"}{summary.minutes > 0 && <> · ~{summary.minutes} min</>} · <Diff level={summary.level} />
             {set.publishedAt && <> · Published {date(set.publishedAt)}</>}
@@ -105,8 +134,9 @@ export default function SetPage({ loaderData: d }: Route.ComponentProps) {
             </p>
           )}
           <p className="set-actions">
-            {d.play && <Link className="btn primary" to={d.play}>Play</Link>}
-            {d.canEdit && <button type="button" className="btn" onClick={() => openSetDrawer(set.id)}>Edit</button>}
+            {edit && <button type="button" className={`btn${puzzles.length ? "" : " primary"}`} onClick={() => drawer?.gather(set.id)}>Add puzzles</button>}
+            {d.play && <Link className={`btn${edit ? "" : " primary"}`} to={d.play}>Play</Link>}
+            {edit && <button type="button" className="btn primary" disabled={!puzzles.length} onClick={() => void publish()}>Publish</button>}
             <SetMore id={set.id} title={set.title} state={set.state} canDelete={d.canDelete} admin={d.admin} />
           </p>
         </div>
@@ -114,7 +144,10 @@ export default function SetPage({ loaderData: d }: Route.ComponentProps) {
       {puzzles.length ? (
         <ol className="set-list">
           {puzzles.map((p, i) => (
-            <li key={p.id} className={p.solved ? "solved" : undefined}>
+            <li key={p.id} className={`${p.solved ? "solved" : ""}${edit ? " editing" : ""}${over === i ? " over" : ""}`}
+              draggable={edit} onDragStart={() => { drag.current = p.id; }} onDragEnter={() => edit && setOver(i)} onDragEnd={() => { drag.current = null; setOver(null); }}
+              onDragOver={(e) => edit && e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); const g = drag.current; setOver(null); if (edit && g && g !== p.id) void change({ intent: "move", game: g, to: String(i) }); }}>
               <Link to={inList(p.id, { in: "set", set: set.id })}>
                 <span className="set-n">{i + 1}</span>
                 <Picture svg={p.picture} className="set-row-pic" />
@@ -128,10 +161,17 @@ export default function SetPage({ loaderData: d }: Route.ComponentProps) {
                   {p.solved && <span className="set-check" role="img" aria-label="Solved">✓</span>}
                 </span>
               </Link>
+              {edit && (
+                <span className="set-row-tools">
+                  <button type="button" aria-label={`Move ${p.title} up`} disabled={i === 0} onClick={() => void change({ intent: "move", game: p.id, to: String(i - 1) })}>↑</button>
+                  <button type="button" aria-label={`Move ${p.title} down`} disabled={i === puzzles.length - 1} onClick={() => void change({ intent: "move", game: p.id, to: String(i + 1) })}>↓</button>
+                  <button type="button" aria-label={`Take ${p.title} out`} onClick={() => void change({ intent: "remove", game: p.id })}>×</button>
+                </span>
+              )}
             </li>
           ))}
         </ol>
-      ) : <p className="muted">No puzzles in it yet.</p>}
+      ) : <p className="muted">{edit ? "No puzzles yet. Add puzzles to find some." : "No puzzles in it yet."}</p>}
     </main>
   );
 }

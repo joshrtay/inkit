@@ -35,12 +35,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     sort: oneOf(SORTS, p.get("sort"), "new"), period: oneOf(PERIODS, p.get("period"), "month"),
     level: level === 1 || level === 2 || level === 3 ? level : null,
     quick: p.get("quick") === "1", hideSolvedFor: me && p.get("unsolved") === "1" ? me.id : null,
+    by: /^[a-z][a-z0-9-]{1,29}$/.test(p.get("by") ?? "") ? p.get("by") : null,
     limit: Math.min(240, Math.max(PAGE, Number(p.get("n")) || PAGE)),
   };
   const [list, stats] = await Promise.all([listPuzzles(db, filter), kind === "all" ? null : typeStats(db, kind)]);
   const g = kind === "all" ? null : guides[kind as keyof typeof guides];
   return {
-    kind, filter: { ...filter, hideSolvedFor: undefined, unsolved: !!filter.hideSolvedFor }, signedIn: !!me, search: url.search,
+    kind, filter: { ...filter, hideSolvedFor: undefined, unsolved: !!filter.hideSolvedFor }, signedIn: !!me, me: me?.handle ?? null, search: url.search,
     type: g && { name: g.name, aka: g.aka ?? [], category: g.category, summary: g.summary, starter: exampleGameId(kind as keyof typeof guides) },
     stats, now: Date.now(), inks: inks(), guidePicture: kind === "all" ? null : guidePictures()[kind] ?? null,
     puzzles: await markSolved(db, me?.id, list.puzzles), more: list.more, pictures: list.pictures,
@@ -63,9 +64,9 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 export default function ExploreType({ loaderData: d }: Route.ComponentProps) {
   const f = d.filter, here = `/explore/${d.kind}`;
   // the list its puzzles are played through
-  const list = browse(d.kind, { level: f.level, quick: f.quick, sort: f.sort, period: f.period, category: f.category ?? null, unsolved: f.unsolved });
+  const list = browse(d.kind, { level: f.level, quick: f.quick, sort: f.sort, period: f.period, category: f.category ?? null, unsolved: f.unsolved, by: f.by ?? null });
   // a link to this page with some settings changed (defaults left out of the address)
-  const to = (change: Partial<Record<"sort" | "period" | "level" | "quick" | "unsolved" | "category", string | null>>) => {
+  const to = (change: Partial<Record<"sort" | "period" | "level" | "quick" | "unsolved" | "category" | "by", string | null>>) => {
     const p = new URLSearchParams(d.search);
     p.delete("n");
     for (const [k, v] of Object.entries(change)) v ? p.set(k, v) : p.delete(k);
@@ -93,10 +94,11 @@ export default function ExploreType({ loaderData: d }: Route.ComponentProps) {
           </div>
         </header>
       ) : (
-        <header className="x-head"><h1>Every puzzle</h1><QuickChips current={chipFor} /></header>
+        <header className="x-head"><h1>{f.by ? (f.by === d.me ? "Your puzzles" : `Puzzles by @${f.by}`) : "Every puzzle"}</h1><QuickChips current={chipFor} /></header>
       )}
 
       <div className="toolbar">
+        {f.by && <nav className="filter" aria-label="Creator"><span className="chips"><Link to={to({ by: null })} className="by-chip" aria-label={`Show everyone's, not just ${f.by === d.me ? "yours" : `@${f.by}'s`}`}>{f.by === d.me ? "By you" : `By @${f.by}`} <span aria-hidden="true">×</span></Link></span></nav>}
         <nav className="seg" aria-label="Sort">
           {SORTS.map((s) => <Link key={s} to={to({ sort: s === "new" ? null : s, period: null })} aria-current={f.sort === s ? "page" : undefined}>{s === "new" ? "New" : "Top"}</Link>)}
         </nav>
@@ -121,7 +123,9 @@ export default function ExploreType({ loaderData: d }: Route.ComponentProps) {
       {d.puzzles.length ? (
         <ul className="cards x-cards">{d.puzzles.map((p) => <PuzzleCard key={p.id} p={p} pics={d.pictures} inks={d.inks} now={d.now} when list={list} />)}</ul>
       ) : (
-        <div className="empty-tab"><p>No puzzles here{f.level || f.quick || f.unsolved || f.sort === "top" ? " with these settings" : " yet"}.</p>{(f.level || f.quick || f.unsolved || f.sort === "top") && <Link className="btn" to={here}>Show them all</Link>}</div>
+        f.by && f.by === d.me && !f.level && !f.quick && !f.unsolved
+          ? <div className="empty-tab"><p>You haven&rsquo;t published any puzzles yet.</p><Link className="btn primary" to={to({ by: null })}>See everyone&rsquo;s</Link></div>
+          : <div className="empty-tab"><p>No puzzles here{f.level || f.quick || f.unsolved || f.by || f.sort === "top" ? " with these settings" : " yet"}.</p>{(f.level || f.quick || f.unsolved || f.by || f.sort === "top") && <Link className="btn" to={here}>Show them all</Link>}</div>
       )}
       {d.more && <p className="more-row"><Link className="btn" to={`${to({})}${to({}).includes("?") ? "&" : "?"}n=${f.limit + PAGE}`} preventScrollReset>Show more</Link></p>}
     </main>

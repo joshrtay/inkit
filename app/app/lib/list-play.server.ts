@@ -71,7 +71,7 @@ export async function listBar(db: Db, c: ListContext, game: { id: string }, view
     if (!cur?.publishedAt) return null;
     if (c.in === "browse") {
       const where = listWhere(db, {
-        kind: c.kind === "all" ? null : c.kind, category: c.category, q: c.q, sort: c.sort, period: c.period, level: c.level, quick: c.quick,
+        kind: c.kind === "all" ? null : c.kind, category: c.category, q: c.q, by: c.by, sort: c.sort, period: c.period, level: c.level, quick: c.quick,
         hideSolvedFor: c.unsolved ? viewerId : null,
       });
       around = await step(db, where, listKeys(c.sort), c.sort === "top" ? [cur.likes, cur.publishedAt, game.id] : [cur.publishedAt, game.id]);

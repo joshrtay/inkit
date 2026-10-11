@@ -19,6 +19,7 @@ describe("the list in a puzzle's URL", () => {
       browse("all", { q: "lamps", level: 2 }),
       browse("all", { category: "Shading", sort: "top", period: "week" }),
       browse("sudoku", { sort: "top" }),
+      browse("all", { by: "wyatt", level: 1 }),
     ];
     for (const c of lists) expect(read(contextQuery(c).slice(1))).toEqual(c);
   });
@@ -49,6 +50,7 @@ describe("the list in a puzzle's URL", () => {
     expect(contextLabel(browse("all", { category: "Shading", sort: "top", period: "week" }), names).text).toBe("All puzzles · Shading · Top this week");
     expect(contextLabel({ in: "profile", handle: "wyatt" }, { ...names, who: "Wyatt" }).text).toBe("Wyatt");
     expect(contextLabel({ in: "feed" }, names).text).toBe("Subscriptions");
+    expect(contextLabel(browse("all", { by: "wyatt" }), names).text).toBe("All puzzles · By @wyatt · Newest");
     expect(contextLabel({ in: "shelf", shelf: "today" }, names).text).toBe("Today");
     expect(contextLabel({ in: "set", set: "x" }, { ...names, setTitle: "Akari for beginners" }).text).toBe("Akari for beginners");
   });

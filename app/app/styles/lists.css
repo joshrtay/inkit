@@ -125,3 +125,15 @@
   .set-row-pic { width: 56px; height: 44px; }
   .set-row-foot .mins { display: none; }
 }
+
+/* a draft set's page is its editor: the name and words in place, rows that move and come out */
+.set-title-edit { width: 100%; font: inherit; color: var(--ink); background: none; border: 1px solid transparent; border-radius: 8px; padding: 2px 6px; margin-left: -7px; }
+.set-title-edit:hover, .set-title-edit:focus { border-color: var(--line-strong); outline: none; }
+.set-desc-edit { width: 100%; max-width: 60ch; font: 15px/1.45 var(--body); color: var(--ink); background: none; border: 1px dashed var(--line-strong); border-radius: 8px; padding: 6px 8px; resize: vertical; }
+.set-list li.editing { display: flex; align-items: center; gap: 8px; }
+.set-list li.editing > a { flex: 1; min-width: 0; cursor: grab; }
+.set-list li.over > a { border-color: var(--ink); border-style: dashed; }
+.set-row-tools { display: flex; gap: 2px; }
+.set-row-tools button { width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+.set-row-tools button:hover:not(:disabled) { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.set-row-tools button:disabled { opacity: .3; cursor: default; }
