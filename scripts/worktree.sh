@@ -19,7 +19,11 @@ fi
 
 if [[ "${1:-}" == "--remove" ]]; then
   name="${2:?name}"; dir="$(dir_of "$name")"
-  git -C "$root" worktree remove "$dir"
+  # its own database, port and test results go with it; changes to the code don't
+  if [[ -n "$(git -C "$dir" status --porcelain --untracked-files=no)" ]]; then
+    echo "$dir has changes that aren't committed. Commit or drop them first."; exit 1
+  fi
+  git -C "$root" worktree remove --force "$dir"
   git -C "$root" branch -d "claude/$name" 2>/dev/null || echo "Kept branch claude/$name: it isn't merged."
   exit 0
 fi
@@ -35,8 +39,10 @@ port=5180
 while lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 || grep -qx "$port" "$root"/.claude/worktrees/*/.worktree-port 2>/dev/null; do port=$((port + 1)); done
 echo "$port" > "$dir/.worktree-port"
 
-# local secrets (gitignored) come along; everything else is the branch's own
-[[ -e "$root/app/.dev.vars" ]] && cp "$root/app/.dev.vars" "$dir/app/.dev.vars"
+# local secrets (gitignored) come along, with sign-in at this worktree's port; everything else is the branch's own
+if [[ -e "$root/app/.dev.vars" ]]; then
+  sed "s#^BETTER_AUTH_URL=.*#BETTER_AUTH_URL=http://localhost:$port#" "$root/app/.dev.vars" > "$dir/app/.dev.vars"
+fi
 
 (cd "$dir" && npm ci --prefer-offline --no-audit --no-fund)
 (cd "$dir/app" && npm run db:migrate && python3 seed/make.py && npm run db:seed)

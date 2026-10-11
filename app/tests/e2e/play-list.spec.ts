@@ -6,16 +6,17 @@ import { expect, test, type Page } from "@playwright/test";
 const cardLinks = (page: Page) => page.locator("a.game-card").evaluateAll((as) => as.map((a) => a.getAttribute("href")!).filter((h) => h.includes("?")));
 
 test("a type's page: the bar names it and steps through it in its order", async ({ page }) => {
-  await page.goto("/explore/akari?level=1");
+  // every type's page, newest first, from one category: enough puzzles in the seed alone
+  await page.goto("/explore/all?category=Shading");
   const links = await cardLinks(page);
   expect(links.length).toBeGreaterThan(2);
-  expect(links[0]).toMatch(/\?in=akari&level=1$/);
+  expect(links[0]).toMatch(/\?in=all&category=Shading$/);
   await page.goto(links[1]);
   const bar = page.getByRole("navigation", { name: "This list" });
-  await expect(bar).toContainText("Akari · Easy · Newest");
+  await expect(bar).toContainText("All puzzles · Shading · Newest");
   await expect(bar.getByRole("link", { name: "Previous puzzle" })).toHaveAttribute("href", links[0]);
   await expect(bar.getByRole("link", { name: "Next puzzle" })).toHaveAttribute("href", links[2]);
-  await expect(bar.getByRole("link", { name: /Akari · Easy/ })).toHaveAttribute("href", "/explore/akari?level=1");
+  await expect(bar.getByRole("link", { name: /All puzzles · Shading/ })).toHaveAttribute("href", "/explore/all?category=Shading");
   // the first has nothing before it
   await page.goto(links[0]);
   await expect(bar.getByRole("link", { name: "Previous puzzle" })).toHaveCount(0);
