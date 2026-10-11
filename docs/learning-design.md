@@ -84,3 +84,87 @@ best-supported route to transfer.
 - Players who finish a contrasting-case sequence using the technique unprompted afterwards (seen
   in their solve paths), more than players who saw the same number of plain puzzles.
 - Longer streaks and more returns at the targeted success rate than at harder or easier settings.
+
+## The more ambitious version: a laboratory for learning to reason
+
+Puzzles are unusually good research material: every move is logged and checkable, difficulty can be
+computed exactly, and inkit can invent new puzzle types on demand. That supports a larger agenda.
+
+1. **A model of how people reason through puzzles** that predicts individual moves (where someone
+   looks next, when they hesitate, which wrong deduction tempts them), built from bounded solvers
+   (limited techniques, limited working memory, visual search) fit to play logs.
+2. **A periodic table of reasoning moves**: one formal language for techniques across all types
+   (below), discovered by mining and verified by the solver, linked to the mathematics underneath
+   (pigeonhole, parity, invariants, extremal arguments, case analysis).
+3. **Transfer experiments.** Randomised comparisons (contrasting cases or plain practice; interleaved
+   or blocked; told or discovered), with a transfer test no one else can run: a newly invented
+   puzzle type that needs an idea practised elsewhere.
+4. **Machine-invented puzzle types**: search the space of rules for types that are learnable,
+   interesting and exercise a target idea.
+5. **A solver-grounded tutor**: Socratic hints and prompts to reflect on strategy, every claim
+   checked by the solver, tested against no hints and fixed hints.
+6. **Open science and the AI side**: a public dataset of human solving traces (with consent); a
+   benchmark for learning a new puzzle type from a few examples as efficiently as people do; and
+   whether human-style curricula make AI reasoners learn faster (puzzles have checkable answers,
+   which suits reinforcement learning with verifiable rewards).
+
+### What would suggest it's worth pursuing (cheapest first)
+
+| Signal | Means | Stop if |
+|---|---|---|
+| Mining rediscovers most of Sudoku's, Akari's and Star Battle's documented techniques, plus verified new ones experts find meaningful | The technique language is real | Only trivial or uninterpretable patterns |
+| The same move shapes recur across types, non-trivially | There's a shared vocabulary to teach and transfer | Every type's techniques stay unrelated |
+| Student models predict a player's own times and stuck points clearly better than one score per puzzle (a few hundred active players) | Personal models are worth building | No gain with enough data |
+| Contrasting-case sequences beat plain practice on held-out puzzles, randomised | The teaching method works | No difference with a fair sample |
+| Transfer to an invented type, beyond a control group | The headline result | None after well-powered tries (near transfer is still the product) |
+| Invented types players rate well and learn smoothly | Type invention is viable | They feel arbitrary; nobody plays twice |
+| Human-style curricula improve an AI's sample efficiency on new types | Interest from AI labs, and funding | No gain over random order |
+
+It needs players (thousands, for the experiments), consent and an ethics review for anything
+published, collaborators (Pelánek on difficulty and adaptivity; the Butler, Torlak and Popović group
+on strategy synthesis; learning scientists on contrasting cases and transfer), and patience: the
+cheap signals come in weeks, the experiments in months.
+
+## A formal language for techniques
+
+The engine states every type's rules in ASP, so a technique is **a derived rule: a pattern that the
+rules force a conclusion from**. Three levels:
+
+1. **Concrete pattern**: a fixed local arrangement (Minesweeper's 1-2-1 along a wall: the outer
+   cells are mines).
+2. **Parameterised family**: the shape with variables ("fish of size k": a digit confined to the
+   same k columns in k rows leaves the rest of those columns; X-Wing, Swordfish and Jellyfish are
+   one entry).
+3. **Cross-type schema**: the idea beneath ("k units that must each hold one thing, whose places fit
+   in k other units, use those units up": pigeonhole, behind Sudoku's fish, Star Battle's region
+   counting and Binary Puzzle's half-and-half).
+
+Each entry has a premise (clues, marks and rule instances, with relative positions and quantifiers),
+a conclusion, a proof (clingo checks the premise entails the conclusion in every instance up to a
+size), and a name, picture and cost. Mining the solver's explanations fills levels 1 and 2; an LLM
+proposes level-3 schemas and clingo checks every instance. Level 3 is the periodic table, and the
+cross-type curriculum's unit.
+
+Precedents: Butler, Torlak and Popović synthesised Nonogram strategies as programs in a small
+language (2017); Ludii (Browne) writes hundreds of games in one formal vocabulary of "ludemes";
+PuzzleScript writes puzzle games as rewrite rules; Bogaerts et al.'s step-wise explanations are
+the cost model the solver already uses.
+
+## From the Snakebird work (Sturtevant's lab, University of Alberta)
+
+[The Snakebird project](https://www.movingai.com/snakebird.html) enumerated every single edit
+(one obstacle added or removed) to each designed level and found edits that doubled or tripled the
+shortest solution (23 moves to 50; 36 to 89); in a user study, players rated the modified levels
+more interesting and challenging ("The Unexpected Consequence of Incremental Design Changes",
+AIIDE 2020). Lessons:
+
+- **The one-edit neighbourhood of a designed puzzle is rich, and designers don't see it.** It's the
+  generator for contrasting cases: try every single-clue edit, run the solver, keep pairs that
+  differ the way we want (the key technique changes, the break-in moves).
+- **Design gradients for creators**: their follow-up showed designers what each edit would do. In
+  paint: an overlay saying where a clue would make it easier, break uniqueness, or change the key
+  step.
+- **Solution length isn't human difficulty** in general (it fits movement puzzles; Pelánek found it
+  fails for Sokoban). Our step and explanation costs are the right kind of measure, still to be
+  checked against people.
+- **Exhaustive study of The Witness's small panels** (the same lab) bears directly on Panels.
