@@ -53,3 +53,21 @@ step-by-step logic and no named techniques: the sequence is meant to do the teac
 - A test worth running: our deduction solver on these sets, to see whether its estimate rises
   within each set and across the four tiers. That would check our difficulty against a hand-made
   sequence from people who design for children.
+
+## Our difficulty against their order
+
+Our deduction solver on 88 of their puzzles (Akari, Fillomino, Spiral Galaxies: every set;
+`puzzles/difficulty/ba-run.ts`, data local only). Rank correlations of our estimate:
+
+| Type | With tier | With position inside sets | With size | Notes |
+|---|---|---|---|---|
+| Spiral Galaxies (26) | 0.61 | 0.81 | 0.90 | Rises with size, but every puzzle scores easy (0.09–0.17): the tiers are mostly bigger boards |
+| Fillomino (31) | 0.63 | 0.74 | 0.63 | 10 of the hardest (Quintets, large Stairs, two Nooks and Crannies) not solved within the caps, the known Fillomino weakness |
+| Akari (31) | 0.49 | −0.21 | 0.07 | Cipher letters replaced by their values, so the cipher's own difficulty is invisible to us |
+
+- Where a set grows its board, we agree with their order.
+- Where a set's order is a theme, we don't, and shouldn't: Akari's Countdown runs its clues 4s, then
+  3s, 2s, 1s, 0s, then mixed. Its order is a progression of an idea, not of difficulty; we score
+  the 2s and 1s hardest and the 4s and 0s easiest, which is right for Akari.
+- Their tiers rise by layered ideas (the cipher) that our solver can't see once decoded. A rule
+  twist adds difficulty that lives in the rules, not the grid: what we call rule load.
