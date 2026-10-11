@@ -3,34 +3,44 @@
 // likes per solver (a quality signal), solvers, and the site's 1–5 difficulty. Prints Spearman
 // correlations per type; writes each type's rows to references/psjp/interest-<type>.csv.
 //
-//   node puzzles/difficulty/interest-run.ts <type> [max] [budgetMs]
+// Each puzzle runs under a hard cap (deduce-guarded.ts, two minutes by default), prints a line, and
+// the CSV is rewritten after every puzzle, so a long run can be watched and stopped without loss.
+//
+//   node puzzles/difficulty/interest-run.ts <type> [max] [budgetMs] [capMs]
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { deduce } from "./deduce.ts";
+import { deduceGuarded } from "./deduce-guarded.ts";
 import { interestOf, type Interest } from "./interest.ts";
 import { spearman } from "./calibrate.ts";
 
 const root = new URL("../../references/psjp/", import.meta.url).pathname;
-const [type, maxArg, budgetArg] = process.argv.slice(2);
-const max = Number(maxArg) || Infinity, budgetMs = Number(budgetArg) || 15000;
+const [type, maxArg, budgetArg, capArg] = process.argv.slice(2);
+const max = Number(maxArg) || Infinity, budgetMs = Number(budgetArg) || 15000, capMs = Number(capArg) || 120000;
 const data = JSON.parse(readFileSync(`${root}data.json`, "utf8")) as Record<string, { favorite_n: number; answered_n: number; difficulty: number }>;
 const files = readdirSync(`${root}${type}`).filter((f) => f.endsWith(".json")).slice(0, max);
 
 type Row = Interest & { id: string; likes: number; solvers: number; perSolver: number; siteDifficulty: number; ms: number };
 const rows: Row[] = [];
-for (const f of files) {
+const save = () => {
+  const cols = Object.keys(rows[0] ?? {}) as (keyof Row)[];
+  // a run cut short by max writes beside the full results, never over them
+  writeFileSync(`${root}interest-${type}${Number.isFinite(max) ? "-sample" : ""}.csv`, [cols.join(","), ...rows.map((r) => cols.map((c) => r[c]).join(","))].join("\n"));
+};
+for (const [k, f] of files.entries()) {
   const d = JSON.parse(readFileSync(`${root}${type}/${f}`, "utf8"));
   const meta = data[d.source?.psjp];
   if (!meta || !meta.answered_n) continue;
   const t0 = Date.now();
+  let what: string;
   try {
-    const { path, profile } = await deduce({ ...d.grid, genre: d.grid.genre ?? type }, { budgetMs });
-    rows.push({ id: d.source.psjp, likes: meta.favorite_n, solvers: meta.answered_n, perSolver: meta.favorite_n / meta.answered_n, siteDifficulty: meta.difficulty, ms: Date.now() - t0, ...interestOf(path, profile) });
-    process.stderr.write(".");
-  } catch (e) { process.stderr.write("x"); }
+    const r = await deduceGuarded({ ...d.grid, genre: d.grid.genre ?? type }, { budgetMs }, capMs);
+    if (r) {
+      rows.push({ id: d.source.psjp, likes: meta.favorite_n, solvers: meta.answered_n, perSolver: meta.favorite_n / meta.answered_n, siteDifficulty: meta.difficulty, ms: Date.now() - t0, ...interestOf(r.path, r.profile) });
+      save();
+      what = r.profile.solved ? `estimate ${r.profile.estimate}` : `unsolved (${r.profile.notes.join("; ")})`;
+    } else what = `stopped at the ${capMs / 1000} s cap`;
+  } catch (e) { what = `failed: ${(e as Error).message.slice(0, 100)}`; }
+  console.error(`${k + 1}/${files.length} ${f} ${Math.round((Date.now() - t0) / 100) / 10} s: ${what}`);
 }
-process.stderr.write("\n");
-const cols = Object.keys(rows[0] ?? {}) as (keyof Row)[];
-writeFileSync(`${root}interest-${type}.csv`, [cols.join(","), ...rows.map((r) => cols.map((c) => r[c]).join(","))].join("\n"));
 
 const solved = rows.filter((r) => r.solved);
 const measures: (keyof Interest)[] = ["estimate", "steps", "busywork", "hardShare", "stuck", "breakIn", "keyAt", "keyCost", "flowMean", "flowSpread", "oneWay", "aimless", "theme", "variety", "ruleLoad"];

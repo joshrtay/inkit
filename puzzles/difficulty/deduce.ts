@@ -29,6 +29,7 @@ import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
 import { localProgram } from "./local.ts";
+import { countSets, countSystems } from "./counting.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
 
@@ -328,11 +329,17 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     for (let i = 0; i < n; i++) t0w.push(win(`around ${rc(i)}`, [i, ...g.cellLinks[i].map((l) => (g.links[l].cells[0] === i ? g.links[l].cells[1] : g.links[l].cells[0]))]));
   }
   p.areas?.cells.forEach((cs, a) => unit(win(`area ${String.fromCharCode(97 + (a % 26))}`, cs)));
+  const boxCells: number[][] = [];
   {
     const boxes = new Map<number, number[]>();
     for (const m of program(p).matchAll(/\bbox\((\d+),(\d+)\)\./g)) { const k = +m[2]; if (!boxes.has(k)) boxes.set(k, []); boxes.get(k)!.push(+m[1]); }
-    for (const [k, cs] of boxes) unit(win(`box ${k + 1}`, cs));
+    for (const [k, cs] of [...boxes].sort((x, y) => x[0] - y[0])) { unit(win(`box ${k + 1}`, cs)); boxCells.push(cs); }
   }
+  // 2 × 2 blocks: units for explaining only (a no-touch or no-pool rule's constraints at a corner
+  // belong to their block), not windows
+  if (g.kind === "square" && !p.figure)
+    for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++)
+      units.push(win(`2 × 2 at ${rc(g.cell(r, c))}`, [g.cell(r, c), g.cell(r, c + 1), g.cell(r + 1, c), g.cell(r + 1, c + 1)]));
   // each clue's or rule's own footprint, when it's local
   const cap0 = Math.max(g.rows, g.cols, 9);
   {
@@ -378,7 +385,29 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     pairs.sort((x, y) => x.size - y.size);
     if (pairs.length > maxPairs) notes.push(`tier 1: kept the ${maxPairs} smallest of ${pairs.length} window pairs`);
     T1 = pairs.slice(0, maxPairs);
+    // strips: two neighbouring rows, or columns, which share no cell (Star Battle's squeeze)
+    if (g.kind === "square" && !p.figure) {
+      for (let r = 0; r + 1 < g.rows; r++) T1.push(win(`rows ${r + 1}–${r + 2}`, Array.from({ length: 2 * g.cols }, (_, k) => g.cell(r + (k >= g.cols ? 1 : 0), k % g.cols))));
+      for (let c = 0; c + 1 < g.cols; c++) T1.push(win(`columns ${c + 1}–${c + 2}`, Array.from({ length: 2 * g.rows }, (_, k) => g.cell(k % g.rows, c + (k >= g.rows ? 1 : 0)))));
+    }
   }
+  // counting across units (./counting.ts): its windows are found afresh each round, from what's
+  // known, and kept by their cells so a window checked before isn't checked again for nothing
+  const systems = countSystems(p, boxCells);
+  const countCache = new Map<string, Window>();
+  const countWindows = (): Window[] => {
+    if (!systems.length) return [];
+    const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });
+    const out: Window[] = [];
+    for (const s of sets.sort((x, y) => x.size - y.size)) {
+      const key = s.cells.join(",");
+      let w = countCache.get(key);
+      if (!w) { w = win(s.label, s.cells); countCache.set(key, w); }
+      if (!out.includes(w)) out.push(w);
+      if (out.length >= 200) break;
+    }
+    return out;
+  };
 
   dbg("tier-1 windows");
 
@@ -393,7 +422,23 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     const byKey = new Map<string, number>();
     // a constraint inside several units (a pair of cells in both a row and a box) goes to the
     // unit holding most of its rule's constraints (the box, for the box rule)
-    const count = new Map<string, number>(), within = (j: number) => units.filter((w) => subset(cfp[j], w.bits));
+    // A rule whose constraints all fit in 2 × 2 blocks, some of them in nothing else (no-touch's
+    // diagonal pairs, a pool), is about blocks: its constraints go to their block. Other rules
+    // never go to a block (no-adjacent's pairs stay with their row or column).
+    const isBlock = (w: Window) => w.label.startsWith("2 × 2 ");
+    const local = new Map<number, boolean>(), onlyBlock = new Set<number>();
+    constraints.forEach((k, j) => {
+      const b = rules[k].block, cs = cellsOf(cfp[j]);
+      if (!cs.length) return;
+      const fits = units.some((w) => isBlock(w) && subset(cfp[j], w.bits));
+      local.set(b, (local.get(b) ?? true) && fits);
+      if (fits && !units.some((w) => !isBlock(w) && subset(cfp[j], w.bits))) onlyBlock.add(b);
+    });
+    for (const b of local.keys()) if (!onlyBlock.has(b)) local.set(b, false);
+    const count = new Map<string, number>(), within = (j: number) => {
+      const blockLocal = local.get(rules[constraints[j]].block) === true;
+      return units.filter((w) => isBlock(w) === blockLocal && subset(cfp[j], w.bits));
+    };
     constraints.forEach((k, j) => { if (cellsOf(cfp[j]).length) for (const w of within(j)) { const key = `${rules[k].block}|${w.label}`; count.set(key, (count.get(key) ?? 0) + 1); } });
     constraints.forEach((k, j) => {
       const cs = cellsOf(cfp[j]), block = rules[k].block;
@@ -750,7 +795,7 @@ end
   /** One clingo call (a Lua script over the engine's program): for each candidate mark, assume
    *  it the other way from the answer and see what it takes to refute. The first `deepCount`
    *  candidates get a real search (tier 3); the rest only propagation (tier 2). */
-  const hardRound = (cand: number[], deepCount: number) => {
+  const hardRound = (cand: number[], deepCount: number, deepLimit = DEEP_LIMIT) => {
     calls++;
     const lit = (m: number, v: boolean) => `{clingo.parse_term("${markName[m]}"), ${v}}`;
     const knowns: string[] = [];
@@ -774,7 +819,7 @@ function main(prg)
     return r, ch, co
   end
   for i, c in ipairs(cands) do
-    local r, ch, co = try(c, i <= ${deepCount} and "${DEEP_LIMIT}" or "${SPLIT_LIMIT}")
+    local r, ch, co = try(c, i <= ${deepCount} and "${deepLimit}" or "${SPLIT_LIMIT}")
     print(string.format("C %d %s %s %d %d", c[1], tostring(r.satisfiable), tostring(r.unsatisfiable), ch, co))
   end
 end
@@ -790,7 +835,7 @@ end
       return x ? [{ m: +x[1], sat: x[2] === "true", unsat: x[3] === "true", choices: +x[4], cost: +x[4] + +x[5] }] : [];
     });
   };
-  let pool: number[] = [], deep: { m: number; cost: number }[] = [], sat: number[] = [];
+  let pool: number[] = [], deep: { m: number; cost: number }[] = [], sat: number[] = [], escalated = false, escalatedDeep = false;
 
   while (undecided > 0) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
@@ -800,12 +845,14 @@ end
     if (entryPoints < 0) entryPoints = 0;
     f = runWindows(T1);
     if (f.size) { take(candidates(f, 1)); continue; }
+    f = runWindows(countWindows());
+    if (f.size) { take(candidates(f, 1)); continue; }
 
     // tier 2: assume a mark the other way; propagation alone must contradict it. What's
     // refutable this way stays so as more is known, so one clingo call fills a pool to draw on.
     pool = pool.filter((m) => known[m] < 0);
     const cand = order().slice(0, maxSplits);
-    if (!pool.length) {
+    if (!pool.length && !escalatedDeep) {
       const res = hardRound(cand, Math.min(cand.length, maxDeep));
       pool = res.filter((x) => x.unsat && x.choices === 0).map((x) => x.m);
       deep = res.filter((x) => x.unsat && x.choices > 0).sort((a, b) => a.cost - b.cost);
@@ -822,7 +869,7 @@ end
     // tier 3: the fact that takes the least search to prove
     deep = deep.filter((x) => known[x.m] < 0);
     const best = deep.length ? deep[0].m : -1, bestCost = deep.length ? deep[0].cost : 0;
-    deep = [];
+    deep = []; escalatedDeep = false;
     const free = sat.find((m) => known[m] < 0) ?? -1;
     if (best >= 0) {
       const v = answer[best] === 1;
@@ -832,6 +879,15 @@ end
       const v = answer[free] === 1;
       path.push({ tier: 0, where: "a free choice", cells: markCells[free], facts: [{ mark: markName[free], value: v, text: factText(free, v) }], uses: [], choice: true, cost: 0 });
       settle(free, v);
+    } else if (cand.length && !escalated) {
+      // nothing proved within the usual caps: once per solve, search every candidate, ten times
+      // as deep, before giving up (hard Fillominoes need it)
+      escalated = true;
+      const res = hardRound(cand, cand.length, DEEP_LIMIT * 10);
+      deep = res.filter((x) => x.unsat).sort((a, b) => a.cost - b.cost);
+      if (deep.length) { notes.push("needed a deeper search"); escalatedDeep = true; round--; continue; }
+      notes.push("stuck: no candidate could be proved within the caps");
+      break;
     } else if (cand.length) {
       notes.push("stuck: no candidate could be proved within the caps");
       break;

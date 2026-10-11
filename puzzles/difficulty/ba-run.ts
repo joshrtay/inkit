@@ -36,14 +36,15 @@ function convert(t: number, c: Record<string, any>) {
     return { genre: "akari", size: [h, w], givens };
   }
   if (t === 9) {
-    // grid rows: -1 a hole, 0 empty, n a clue; values: the sizes allowed
+    // grid rows: -1 a hole, 0 empty, n a clue; values: one region of each of these sizes (every
+    // answer has exactly that), which our rules say as those sizes only, and that many regions
     const g = c.grid as number[][];
     const givens: Givens = [];
     g.forEach((row, r) => row.forEach((v, col) => {
       if (v === -1) givens.push({ at: "cell", cell: [r, col], kind: "block" });
       else if (v > 0) givens.push({ at: "cell", cell: [r, col], kind: "number", value: v });
     }));
-    return { genre: "fillomino", size: [g.length, g[0].length], givens, rules: [{ rule: "size-clue" }, { rule: "neighbors-differ-size" }, { rule: "allowed-sizes", sizes: c.values }] };
+    return { genre: "fillomino", size: [g.length, g[0].length], givens, rules: [{ rule: "size-clue" }, { rule: "neighbors-differ-size" }, { rule: "allowed-sizes", sizes: c.values }, { rule: "region-count", is: c.values.length }] };
   }
   // galaxies [x, y] in cells (a half is on a border); our points count half-cells from the corner
   const [w, h] = c.gridSize as [number, number];
@@ -52,7 +53,7 @@ function convert(t: number, c: Record<string, any>) {
 
 type Row = { type: string; set: string; tier: number; setAt: number; at: number; cells: number; solved: boolean; estimate: number; maxCost: number; steps: number; ruleLoad: number; notes: string; ms: number };
 const rows: Row[] = [];
-for (const t of [9, 18, 14]) {
+for (const t of (process.env.BA_TYPES ?? "9,18,14").split(",").map(Number)) {
   for (const [setAt, [name, tier]] of ORDER[t].entries()) {
     const set = sets.find((s) => s.t === t && s.s === name);
     if (!set) { console.log(`missing ${name}`); continue; }
