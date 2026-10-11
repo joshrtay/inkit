@@ -88,10 +88,11 @@ export async function write(page: Page, p: m.XY, text: string) {
   await box.press("Enter");
 }
 export const verdict = (page: Page) => page.locator(".paint-verdict-btn");
-/** The puzzle paint makes of the drawing now (specKey: the same for two that mean the same). */
-export const puzzleKey = async (page: Page) => { const k = await page.locator(".paint").getAttribute("data-puzzle"); return k ? specKey(JSON.parse(k)) : ""; };
+/** The puzzle paint makes of the drawing now (specKey: the same for two that mean the same). The
+ *  studio, not just .paint: a coloured cell in a solution picture is a .paint rect too. */
+export const puzzleKey = async (page: Page) => { const k = await page.locator(".studio.paint").getAttribute("data-puzzle"); return k ? specKey(JSON.parse(k)) : ""; };
 export async function openPaint(page: Page, id: string) {
   await page.goto(`/g/${id}/draw`);
   await expect(page.locator(".sp-board")).toBeVisible();
-  await expect(page.locator(".paint")).not.toHaveAttribute("data-puzzle", "");
+  await expect(page.locator(".studio.paint")).not.toHaveAttribute("data-puzzle", "");
 }
