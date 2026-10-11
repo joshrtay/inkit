@@ -171,6 +171,8 @@
 /* the game's … menu (take down, restore) */
 .game-more { position: relative; align-self: center; }
 .game-more .menu { right: 0; left: auto; min-width: 210px; }
+/* phones: the menu is a sheet above the tab bar, wherever ⋯ ended up */
+@media (max-width: 640px) { .game-more .menu { position: fixed; left: 12px; right: 12px; top: auto; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); min-width: 0; z-index: 50; } }
 .game-more form { display: contents; }
 
 /* ---- a puzzle opened from a list: the bar under the paper, as wide as it (GameBoard measures it:

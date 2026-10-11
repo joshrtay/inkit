@@ -2,6 +2,7 @@
 // Profile, Create, and More at the bottom) and a bottom tab bar on phones, around the page.
 // Signed out, the same places: Subscriptions, Profile and Create open the sign-in dialog
 // (SignInDialog.tsx), Explore is home ("/"), and Sign in takes More's place.
+import { useSetDrawer } from "./SetDrawer";
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import { authClient } from "~/lib/auth-client";
@@ -25,8 +26,34 @@ export const Icon = ({ name }: { name: keyof typeof PATHS }) => (
 );
 
 /** Create: a new puzzle from a drawing. (Studios, shared collections, come back later.) */
-export function CreateMenu({ className = "" }: { className?: string }) {
-  return <Link className={`btn primary create-btn ${className}`} to="/new"><Icon name="plus" /><span>Create</span></Link>;
+/** Create: a puzzle (paint, /new) or a set (named, then open in the drawer: components/SetDrawer.tsx). */
+export function CreateMenu({ className = "", up = false }: { className?: string; up?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const drawer = useSetDrawer();
+  const { pathname } = useLocation();
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  return (
+    <div className={`create-menu ${className}`} ref={box}>
+      <button type="button" className="btn primary create-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Icon name="plus" /><span>Create</span>
+      </button>
+      {open && (
+        <div className={`menu${up ? " up" : ""}`} role="menu">
+          <Link role="menuitem" to="/new"><strong>Puzzle</strong><span className="muted">Draw a new one</span></Link>
+          <button role="menuitem" type="button" onClick={() => { setOpen(false); drawer?.create(); }}><strong>Set</strong><span className="muted">Puzzles in an order you pick</span></button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** More: a menu that opens upward from its button, over the Puzzle types link above it, after Substack's. */
@@ -90,6 +117,27 @@ export function SideNav({ me }: { me: Me | null }) {
   );
 }
 
+/** The tab bar's Create: the same two choices, in a menu above it. */
+function TabCreate() {
+  const [open, setOpen] = useState(false);
+  const drawer = useSetDrawer();
+  const { pathname } = useLocation();
+  useEffect(() => setOpen(false), [pathname]);
+  return (
+    <div className="tab-create-wrap">
+      {open && (
+        <div className="menu up tab-create-menu" role="menu">
+          <Link role="menuitem" to="/new"><strong>Puzzle</strong><span className="muted">Draw a new one</span></Link>
+          <button role="menuitem" type="button" onClick={() => { setOpen(false); drawer?.create(); }}><strong>Set</strong><span className="muted">Puzzles in an order you pick</span></button>
+        </div>
+      )}
+      <button type="button" className={`tab-create${pathname.startsWith("/new") ? " active" : ""}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <Icon name="plus" /><span>Create</span>
+      </button>
+    </div>
+  );
+}
+
 /** Phones: the same places as tabs along the bottom. */
 export function TabBar({ me }: { me: Me | null }) {
   const { pathname } = useLocation();
@@ -107,7 +155,7 @@ export function TabBar({ me }: { me: Me | null }) {
     <nav className="tabbar" aria-label="Main">
       <NavLink to="/" end><Icon name="feed" /><span>Feed</span></NavLink>
       <NavLink to="/explore"><Icon name="explore" /><span>Explore</span></NavLink>
-      <NavLink to="/new" className="tab-create"><Icon name="plus" /><span>Create</span></NavLink>
+      <TabCreate />
       <NavLink to="/puzzles"><Icon name="guide" /><span>Types</span></NavLink>
       <NavLink to={`/${me.handle}`}><Avatar name={me.name} seed={me.handle} size={24} /><span>Profile</span></NavLink>
     </nav>

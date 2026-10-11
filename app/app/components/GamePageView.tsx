@@ -11,6 +11,7 @@ import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
 import { useConfirm } from "./ConfirmDialog";
 import type { ListBar } from "~/lib/list-play.server";
+import { GUIDE_EVENT, useSetDrawer } from "./SetDrawer";
 
 export interface GamePageProps {
   game: { id: string; title: string; description: string; kind: string; state: string; hiddenNote: string | null; when: number };
@@ -56,7 +57,23 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   const cameFromSite = location.key !== "default";
   const home = `/${collection.slug}`;
   const [big, setBig] = useState(false);   // the drawing, enlarged
-  useEffect(() => { try { setRulesOpen(localStorage.getItem(RULES_OPEN) === "1"); } catch { /* closed */ } }, []);
+  // (not while a set is open in the drawer: the drawer has the right-hand side then)
+  useEffect(() => { try { setRulesOpen(localStorage.getItem(RULES_OPEN) === "1" && !sessionStorage.getItem("inkit:set-drawer")); } catch { /* closed */ } }, []);
+  const drawer = useSetDrawer();
+  const setCurrent = drawer?.setCurrent;
+  // the set drawer offers this puzzle while it's open (a published one, not the editor's preview)
+  useEffect(() => {
+    if (!setCurrent || preview || game.state !== "published") return;
+    setCurrent({ id: game.id, title: game.title });
+    return () => setCurrent(null);
+  }, [setCurrent, preview, game.id, game.title, game.state]);
+  // How to play and the set drawer share the right-hand side: one gives way to the other
+  useEffect(() => { dispatchEvent(new CustomEvent(GUIDE_EVENT, { detail: rulesOpen })); }, [rulesOpen]);
+  useEffect(() => {
+    const close = () => { setRulesOpen(false); try { localStorage.setItem(RULES_OPEN, "0"); } catch { /* this page only */ } };
+    addEventListener(GUIDE_EVENT + ":close", close);
+    return () => { removeEventListener(GUIDE_EVENT + ":close", close); dispatchEvent(new CustomEvent(GUIDE_EVENT, { detail: false })); };
+  }, []);
   const toggleRules = (v: boolean) => { setRulesOpen(v); if (!preview) try { localStorage.setItem(RULES_OPEN, v ? "1" : "0"); } catch { /* this page only */ } };
   const stay = (e: React.MouseEvent) => { if (preview) e.preventDefault(); };
   const [typeName, ...rest] = summary.split(" · ");
@@ -102,7 +119,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
             {solved.solved && <span className="solved-mark" title="You've solved this">✓ Solved</span>}
             {(game.state === "published" || preview) && <LikeButton gameId={game.id} count={likes.count} liked={likes.liked} signedIn={signedIn || preview} disabled={preview} />}
             {editTo && !preview && <Link className="btn" to={editTo}>Edit</Link>}
-            {!preview && <MoreMenu game={game} manage={manage} canDelete={canDelete} solves={solved.count} likes={likes.count} />}
+            {!preview && <MoreMenu game={game} manage={manage} canDelete={canDelete} solves={solved.count} likes={likes.count} signedIn={signedIn} />}
           </div>
         </div>
         <p className="game-meta muted">
@@ -152,9 +169,10 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
  *  changed, only deleted: the confirm dialog first, then the server deletes it for good and goes
  *  back to the profile); take down (a collection's owners and admins, with a note its author sees)
  *  and restore. */
-function MoreMenu({ game, manage, canDelete, solves, likes }: {
-  game: GamePageProps["game"]; manage?: GamePageProps["manage"]; canDelete: boolean; solves: number; likes: number;
+function MoreMenu({ game, manage, canDelete, solves, likes, signedIn }: {
+  game: GamePageProps["game"]; manage?: GamePageProps["manage"]; canDelete: boolean; solves: number; likes: number; signedIn: boolean;
 }) {
+  const drawer = useSetDrawer();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const { ask, confirm } = useConfirm();
@@ -197,6 +215,13 @@ function MoreMenu({ game, manage, canDelete, solves, likes }: {
       <button type="button" className="btn icon" aria-label="More for this puzzle" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
       {open && (
         <div className="menu" role="menu">
+          {/* phones: the set in progress in this tab, to open it */}
+          {drawer?.set && drawer.shown && (
+            <button type="button" role="menuitem" className="phone-only set-in-progress" onClick={() => { setOpen(false); drawer.openSheet(); }}>
+              {drawer.set.set.title} · {drawer.set.summary.count}
+            </button>
+          )}
+          {game.state === "published" && signedIn && drawer && <button type="button" role="menuitem" onClick={() => { setOpen(false); drawer.pick(game.id); }}>Add to set</button>}
           {game.state === "published" && <button type="button" role="menuitem" onClick={() => void copy()}>{copied ? "Copied" : "Copy link"}</button>}
           {manage?.takeDown && <button type="button" role="menuitem" onClick={() => void takeDown()}>Take down…</button>}
           {manage?.restore && <Form method="post"><button role="menuitem" name="intent" value="unhide">Restore</button></Form>}

@@ -100,3 +100,82 @@ export async function setsOn(db: Db, collectionId: string, drafts = false) {
     .where(and(eq(schema.sets.collectionId, collectionId), inArray(schema.sets.state, drafts ? ["draft"] : ["published"])))
     .orderBy(sql`coalesce(${schema.sets.publishedAt}, ${schema.sets.updatedAt}) desc`, sql`${schema.sets.id} desc`);
 }
+
+// ---- changing a draft (the drawer: routes/set-edit.ts) ----
+
+export const SET_MAX_PUZZLES = 100;
+const touch = (db: Db, id: string) => db.update(schema.sets).set({ updatedAt: new Date() }).where(eq(schema.sets.id, id));
+
+/** A new draft set on its author's own profile, with a first puzzle if given. */
+export async function createSet(db: Db, author: Creator, collectionId: string, title: string, newId: () => string, firstGame?: string) {
+  const id = newId();
+  await db.insert(schema.sets).values({ id, collectionId, authorId: author.id, title: title.trim().slice(0, SET_TITLE_MAX) || "Untitled set" });
+  if (firstGame) await addToSet(db, id, firstGame);
+  return id;
+}
+
+/** The ids in a set, in order, every one (playable or not). */
+const allIn = async (db: Db, setId: string) =>
+  (await db.select({ id: schema.setItems.gameId }).from(schema.setItems).where(eq(schema.setItems.setId, setId)).orderBy(asc(schema.setItems.position))).map((r) => r.id);
+
+/** Put the set's puzzles in this order (positions 0, 1, 2, …). */
+async function renumber(db: Db, setId: string, ids: string[]) {
+  for (let i = 0; i < ids.length; i++) {
+    await db.update(schema.setItems).set({ position: i }).where(and(eq(schema.setItems.setId, setId), eq(schema.setItems.gameId, ids[i])));
+  }
+}
+
+/** Add a published puzzle at the end. Refused (with why) if it can't be in a set. */
+export async function addToSet(db: Db, setId: string, gameId: string): Promise<string | null> {
+  const game = await db.query.games.findFirst({ where: eq(schema.games.id, gameId) });
+  if (!game || game.state !== "published") return "Only published puzzles go in a set.";
+  const ids = await allIn(db, setId);
+  if (ids.includes(gameId)) return null;
+  if (ids.length >= SET_MAX_PUZZLES) return `A set holds up to ${SET_MAX_PUZZLES} puzzles.`;
+  await db.insert(schema.setItems).values({ setId, gameId, position: ids.length });
+  await touch(db, setId);
+  return null;
+}
+
+export async function removeFromSet(db: Db, setId: string, gameId: string) {
+  await db.delete(schema.setItems).where(and(eq(schema.setItems.setId, setId), eq(schema.setItems.gameId, gameId)));
+  await renumber(db, setId, await allIn(db, setId));
+  await touch(db, setId);
+}
+
+/** Move a puzzle to position `to` (0 is first). */
+export async function moveInSet(db: Db, setId: string, gameId: string, to: number) {
+  const ids = (await allIn(db, setId)).filter((g) => g !== gameId);
+  if (ids.length === (await allIn(db, setId)).length) return;   // not in it
+  ids.splice(Math.max(0, Math.min(ids.length, to)), 0, gameId);
+  await renumber(db, setId, ids);
+  await touch(db, setId);
+}
+
+export async function describeSet(db: Db, setId: string, f: { title?: string; description?: string }) {
+  const change: Partial<SetRow> = { updatedAt: new Date() };
+  if (f.title !== undefined) change.title = f.title.trim().slice(0, SET_TITLE_MAX) || "Untitled set";
+  if (f.description !== undefined) change.description = f.description.trim().slice(0, SET_DESCRIPTION_MAX);
+  await db.update(schema.sets).set(change).where(eq(schema.sets.id, setId));
+}
+
+/** Publish: it needs a puzzle; from then on its puzzles and their order stay put. */
+export async function publishSet(db: Db, setId: string): Promise<string | null> {
+  if (!(await setOrder(db, setId)).length) return "Add a puzzle first.";
+  await db.update(schema.sets).set({ state: "published", publishedAt: new Date(), updatedAt: new Date() }).where(eq(schema.sets.id, setId));
+  return null;
+}
+
+/** Delete: a draft is gone for good; a published set goes offline (its link stops working). */
+export async function deleteSet(db: Db, set: SetRow) {
+  if (set.state === "draft") {
+    await db.delete(schema.setItems).where(eq(schema.setItems.setId, set.id));
+    await db.delete(schema.sets).where(eq(schema.sets.id, set.id));
+  } else await db.update(schema.sets).set({ state: "deleted", updatedAt: new Date() }).where(eq(schema.sets.id, set.id));
+}
+
+/** Someone's draft sets, the one they last added to first: the "Add to set" list. */
+export async function draftSetsOf(db: Db, authorId: string) {
+  const rows = await db.select().from(schema.sets).where(and(eq(schema.sets.authorId, authorId), eq(schema.sets.state, "draft"))).orderBy(sql`${schema.sets.updatedAt} desc`).limit(30);
+  return setCards(db, rows);
+}

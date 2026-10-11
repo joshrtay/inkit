@@ -1,3 +1,4 @@
+import { SetDrawerProvider } from "./components/SetDrawer";
 import { isRouteErrorResponse, Link, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useMatches, useRouteLoaderData } from "react-router";
 import type { Route } from "./+types/root";
 import "~site/styles/global.css";
@@ -68,11 +69,14 @@ export default function App() {
   if (bare) return <ConfirmProvider><Outlet /><TooltipLayer /><BugReportHost /></ConfirmProvider>;
   return (
     <ConfirmProvider>
+      {/* the set drawer (components/SetDrawer.tsx): a draft set open beside the page while you browse */}
+      <SetDrawerProvider signedIn={!!me && !preview}>
       <div className="shell">
         <div className="nav-wrap" inert={preview || undefined}><SideNav me={me} /></div>
         <div className="page"><Outlet /></div>
         <div className="nav-wrap" inert={preview || undefined}><TabBar me={me} /></div>
       </div>
+      </SetDrawerProvider>
       <TooltipLayer />
       {/* "Report a bug" (docs/bug-pipeline.md): its dialog, and the capture for signed-in people */}
       <BugReportHost />

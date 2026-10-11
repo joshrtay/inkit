@@ -1,4 +1,5 @@
 import { inList, type ListContext } from "~/lib/list-context";
+import { AddToSetButton } from "./SetDrawer";
 import { Form, Link } from "react-router";
 import type { Thumbed } from "~/lib/thumbs.server";
 import type { CollectionCard } from "~/lib/queries.server";
@@ -38,6 +39,7 @@ export function GameCard({ game, draft = false, list = null }: { game: Thumbed; 
   }
   return (
     <li>
+      {game.state === "published" && <AddToSetButton gameId={game.id} title={game.title} />}
       <Link className="game-card" to={inList(game.id, list)}>
         <Picture svg={game.picture} className="thumb" />
         {game.solved && <Solved />}
@@ -90,6 +92,7 @@ const when = (t: Date | number | null) => {
 export function FeedItem({ game, liked = false, signedIn = false, list = null }: { game: Thumbed; liked?: boolean; signedIn?: boolean; list?: ListContext | null }) {
   return (
     <li className="feed-item">
+      <AddToSetButton gameId={game.id} title={game.title} />
       <Link to={inList(game.id, list)} className="feed-link">
         <span className="feed-text">
           <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} ai={!!game.authorAi && game.collectionSlug === game.authorHandle} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when">{when(game.publishedAt)}</span></span>

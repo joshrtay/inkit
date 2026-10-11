@@ -5,6 +5,7 @@
 import { useRef } from "react";
 import { Form, Link } from "react-router";
 import { inList, type ListContext } from "~/lib/list-context";
+import { AddToSetButton } from "./SetDrawer";
 import type { Creator, Puzzle } from "~/lib/explore.server";
 import { kindName } from "~/games/kinds";
 import { ago } from "~/lib/rank";
@@ -42,6 +43,7 @@ const Check = () => (
 export function PuzzleCard({ p, pics, inks, now, when = false, time = false, list = null }: { p: Puzzle; pics: Pics; inks: Inks; now: number; when?: boolean; time?: boolean; list?: ListContext | null }) {
   return (
     <li>
+      <AddToSetButton gameId={p.id} title={p.title} />
       <Link className="game-card pcard" to={inList(p.id, list)}>
         <Pic pic={pics[p.id]} inks={inks} />
         {p.solved && <Check />}
