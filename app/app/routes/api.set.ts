@@ -21,7 +21,7 @@ async function mine(request: Request, context: Route.LoaderArgs["context"], id: 
 }
 
 /** What the drawer shows. */
-export async function drawerData(db: Parameters<typeof setPuzzles>[0], set: typeof schema.sets.$inferSelect) {
+async function drawerData(db: Parameters<typeof setPuzzles>[0], set: typeof schema.sets.$inferSelect) {
   const puzzles = await setPuzzles(db, set.id);
   return {
     set: { id: set.id, title: set.title, description: set.description, state: set.state },
