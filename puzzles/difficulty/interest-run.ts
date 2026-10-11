@@ -9,6 +9,7 @@
 //   node puzzles/difficulty/interest-run.ts <type> [max] [budgetMs] [capMs]
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { deduceGuarded } from "./deduce-guarded.ts";
+import { mapPool } from "./pool.ts";
 import { interestOf, type Interest } from "./interest.ts";
 import { spearman } from "./calibrate.ts";
 
@@ -25,10 +26,11 @@ const save = () => {
   // a run cut short by max writes beside the full results, never over them
   writeFileSync(`${root}interest-${type}${Number.isFinite(max) ? "-sample" : ""}.csv`, [cols.join(","), ...rows.map((r) => cols.map((c) => r[c]).join(","))].join("\n"));
 };
-for (const [k, f] of files.entries()) {
+let done = 0;
+await mapPool(files, async (f) => {
   const d = JSON.parse(readFileSync(`${root}${type}/${f}`, "utf8"));
   const meta = data[d.source?.psjp];
-  if (!meta || !meta.answered_n) continue;
+  if (!meta || !meta.answered_n) { done++; return; }
   const t0 = Date.now();
   let what: string;
   try {
@@ -39,8 +41,8 @@ for (const [k, f] of files.entries()) {
       what = r.profile.solved ? `estimate ${r.profile.estimate}` : `unsolved (${r.profile.notes.join("; ")})`;
     } else what = `stopped at the ${capMs / 1000} s cap`;
   } catch (e) { what = `failed: ${(e as Error).message.slice(0, 100)}`; }
-  console.error(`${k + 1}/${files.length} ${f} ${Math.round((Date.now() - t0) / 100) / 10} s: ${what}`);
-}
+  console.error(`${++done}/${files.length} ${f} ${Math.round((Date.now() - t0) / 100) / 10} s: ${what}`);
+});
 
 const solved = rows.filter((r) => r.solved);
 const measures: (keyof Interest)[] = ["estimate", "steps", "busywork", "hardShare", "stuck", "breakIn", "keyAt", "keyCost", "flowMean", "flowSpread", "oneWay", "aimless", "theme", "variety", "ruleLoad"];

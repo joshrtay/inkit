@@ -11,6 +11,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { deduce, estimateOf, softmax, type Profile } from "./deduce.ts";
+import { deduceGuarded } from "./deduce-guarded.ts";
+import { mapPool } from "./pool.ts";
 
 const root = new URL("../../", import.meta.url).pathname;
 const row = (name: string, p: Profile) => `${name.padEnd(28)} ${p.estimate.toFixed(2)}  D ${p.dSteps.toFixed(1).padStart(4)}  max ${p.maxCost.toFixed(1).padStart(4)}  bands ${Object.values(p.bands).join("/")}  T${p.hardestTier}  steps ${String(p.steps).padStart(3)}  load ${p.ruleLoad}  ${String(p.ms).padStart(6)} ms${p.solved ? "" : "  UNSOLVED"}${p.notes.length ? `  (${p.notes.join("; ").slice(0, 80)})` : ""}`;
@@ -35,17 +37,23 @@ export function auc(pos: number[], neg: number[]): number {
   return pos.length && neg.length ? s / (pos.length * neg.length) : NaN;
 }
 
+/** Every example, several at a time (pool.ts), printed in order. */
 async function examples(only: string[]) {
+  const jobs: { name: string; spec: GridSpec }[] = [];
   for (const genre of readdirSync(`${root}src/games`).sort()) {
     if (only.length && !only.includes(genre)) continue;
     for (const f of readdirSync(`${root}src/games/${genre}`).filter((x) => x.endsWith(".json")).sort((a, b) => parseInt(a) - parseInt(b))) {
       const d = JSON.parse(readFileSync(`${root}src/games/${genre}/${f}`, "utf8"));
-      if (!d.grid) continue;
-      const spec: GridSpec = { genre, ...d.grid };
-      try { console.log(row(`${genre}/${f} ${spec.size.join("x")}`, (await deduce(spec, { budgetMs: 15000 })).profile)); }
-      catch (e) { console.log(`${genre}/${f}: ${(e as Error).message.slice(0, 100)}`); }
+      if (d.grid) jobs.push({ name: `${genre}/${f}`, spec: { genre, ...d.grid } });
     }
   }
+  const lines = await mapPool(jobs, async ({ name, spec }) => {
+    try {
+      const r = await deduceGuarded(spec, { budgetMs: 15000 }, 120000);
+      return r ? row(`${name} ${spec.size.join("x")}`, r.profile) : `${name}: stopped at the 120 s cap`;
+    } catch (e) { return `${name}: ${(e as Error).message.slice(0, 100)}`; }
+  });
+  for (const l of lines) console.log(l);
 }
 
 async function psjp(genre: string, limit: number) {

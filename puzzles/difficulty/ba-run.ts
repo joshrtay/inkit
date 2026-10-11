@@ -5,7 +5,8 @@
 //
 //   node puzzles/difficulty/ba-run.ts
 import { readFileSync, writeFileSync } from "node:fs";
-import { deduce } from "./deduce.ts";
+import { deduceGuarded } from "./deduce-guarded.ts";
+import { mapPool } from "./pool.ts";
 import { spearman } from "./calibrate.ts";
 
 const root = new URL("../../references/beast-academy/", import.meta.url).pathname;
@@ -52,26 +53,29 @@ function convert(t: number, c: Record<string, any>) {
 }
 
 type Row = { type: string; set: string; tier: number; setAt: number; at: number; cells: number; solved: boolean; estimate: number; maxCost: number; steps: number; ruleLoad: number; notes: string; ms: number };
-const rows: Row[] = [];
+const jobs: { t: number; name: string; tier: number; setAt: number; at: number; c: Record<string, any> }[] = [];
 for (const t of (process.env.BA_TYPES ?? "9,18,14").split(",").map(Number)) {
   for (const [setAt, [name, tier]] of ORDER[t].entries()) {
     const set = sets.find((s) => s.t === t && s.s === name);
     if (!set) { console.log(`missing ${name}`); continue; }
-    for (const [at, c] of set.p.entries()) {
-      const spec = convert(t, c) as any;
-      const t0 = Date.now();
-      try {
-        const { profile } = await deduce(spec, { budgetMs: 15000 });
-        rows.push({ type: GENRE[t], set: name, tier, setAt, at, cells: spec.size[0] * spec.size[1], solved: profile.solved, estimate: profile.estimate, maxCost: profile.maxCost, steps: profile.steps, ruleLoad: profile.ruleLoad, notes: profile.notes.join("; "), ms: Date.now() - t0 });
-        process.stderr.write(profile.solved ? "." : "u");
-      } catch (e) {
-        rows.push({ type: GENRE[t], set: name, tier, setAt, at, cells: spec.size[0] * spec.size[1], solved: false, estimate: NaN, maxCost: NaN, steps: 0, ruleLoad: 0, notes: String(e).slice(0, 120), ms: Date.now() - t0 });
-        process.stderr.write("x");
-      }
-    }
+    set.p.forEach((c, at) => jobs.push({ t, name, tier, setAt, at, c }));
   }
-  process.stderr.write("\n");
 }
+const rows: Row[] = await mapPool(jobs, async ({ t, name, tier, setAt, at, c }) => {
+  const spec = convert(t, c) as any, t0 = Date.now();
+  const base = { type: GENRE[t], set: name, tier, setAt, at, cells: spec.size[0] * spec.size[1] };
+  try {
+    const r = await deduceGuarded(spec, { budgetMs: 15000 }, 120000);
+    if (!r) return { ...base, solved: false, estimate: NaN, maxCost: NaN, steps: 0, ruleLoad: 0, notes: "stopped at the 120 s cap", ms: Date.now() - t0 };
+    const { profile } = r;
+    process.stderr.write(profile.solved ? "." : "u");
+    return { ...base, solved: profile.solved, estimate: profile.estimate, maxCost: profile.maxCost, steps: profile.steps, ruleLoad: profile.ruleLoad, notes: profile.notes.join("; "), ms: Date.now() - t0 };
+  } catch (e) {
+    process.stderr.write("x");
+    return { ...base, solved: false, estimate: NaN, maxCost: NaN, steps: 0, ruleLoad: 0, notes: String(e).slice(0, 120), ms: Date.now() - t0 };
+  }
+});
+process.stderr.write("\n");
 const cols = Object.keys(rows[0]) as (keyof Row)[];
 writeFileSync(`${root}ba-difficulty.csv`, [cols.join(","), ...rows.map((r) => cols.map((c) => JSON.stringify(r[c])).join(","))].join("\n"));
 
