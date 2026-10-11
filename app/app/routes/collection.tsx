@@ -13,6 +13,8 @@ import { inks, newestPictures } from "~/lib/explore.server";
 import { recommendationsOf } from "~/lib/recommendations.server";
 import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, markSolved, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
 import { draftPictures, withPictures } from "~/lib/thumbs.server";
+import { setCards, setsOn } from "~/lib/sets.server";
+import { SetCard } from "~/components/SetCard";
 import { pageMeta, profileJsonLd } from "~/lib/seo";
 import { CollectionRow, GameCard, SubscribeButton } from "~/components/GameCard";
 import { Avatar } from "~/components/Avatar";
@@ -52,7 +54,14 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const published = games.filter((g) => g.state === "published");
   const drafts = games.filter((g) => g.state !== "published" && (owner || viewer?.isAdmin || g.authorHandle === viewer?.handle));
   const canSeeDrafts = !!role || !!viewer?.isAdmin;
+  // sets: in the grid with the puzzles; a draft set only for its author (and admins)
+  const [publishedSets, draftSets] = await Promise.all([
+    setsOn(db, collection.id),
+    canSeeDrafts ? setsOn(db, collection.id, true).then((ss) => ss.filter((x) => x.authorId === viewer?.id || viewer?.isAdmin)) : [],
+  ]);
   return {
+    sets: await setCards(db, publishedSets),
+    draftSets: canSeeDrafts ? await setCards(db, draftSets) : [],
     collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt, since: collection.createdAt },
     person: person && { handle: person.handle, name: person.name, ai: person.isAi },
     // an AI creator's "How I make puzzles" (app/ai/personas.ts)
@@ -112,7 +121,13 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 const verse = (text: string) => text.split(" / ").flatMap((line, i) => (i ? [<br key={i} />, line] : [line]));
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, persona, members, games, drafts, following, recommends, subscribers, subscribed, solves, role, me, tab } = d;
+  const { collection, person, persona, members, games, drafts, following, recommends, subscribers, subscribed, solves, role, me, tab, sets, draftSets } = d;
+  // the Puzzles grid: puzzles and sets together, newest first
+  const when = (t: string | number | Date | null | undefined) => (t ? new Date(t).getTime() : 0);
+  const grid = [
+    ...games.map((g) => ({ at: when(g.publishedAt), game: g, set: null })),
+    ...sets.map((x) => ({ at: x.publishedAt ?? 0, game: null, set: x })),
+  ].sort((a, b) => b.at - a.at);
   const mine = !!person && person.handle === me;
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
@@ -175,14 +190,16 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           )}
         </section>
       )}
-      {tab === "puzzles" && (games.length ? <ul className="cards">{games.map((g) => <GameCard key={g.id} game={g} list={{ in: "profile", handle: collection.slug }} />)}</ul> : (
+      {tab === "puzzles" && (games.length || sets.length ? <ul className="cards">{grid.map((x) => (x.set
+        ? <SetCard key={`s-${x.set.id}`} set={x.set} />
+        : <GameCard key={x.game!.id} game={x.game!} list={{ in: "profile", handle: collection.slug }} />))}</ul> : (
         <div className="empty-tab">
           <p>{mine ? "You haven't made any puzzles yet." : "No puzzles here yet."}</p>
           {mine && <p className="muted">Draw one on paper, take a photo, and upload it.</p>}
           {mine && <Link className="btn primary" to="/new">Make a puzzle</Link>}
         </div>
       ))}
-      {tab === "drafts" && drafts && (drafts.length ? <ul className="cards">{drafts.map((g) => <GameCard key={g.id} game={g} draft />)}</ul> : (
+      {tab === "drafts" && drafts && (drafts.length || draftSets.length ? <ul className="cards">{draftSets.map((x) => <SetCard key={`s-${x.id}`} set={x} draft />)}{drafts.map((g) => <GameCard key={g.id} game={g} draft />)}</ul> : (
         <div className="empty-tab">
           <p>No drafts.</p>
           <p className="muted">Unpublished puzzles wait here.</p>

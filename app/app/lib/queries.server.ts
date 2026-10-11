@@ -3,7 +3,7 @@ import { and, count, desc, eq, inArray, isNull, like, lt, ne, or, sql } from "dr
 import { schema, type Db } from "../db";
 
 /** A game card: the game plus its collection and author, for lists. */
-const cardColumns = {
+export const cardColumns = {
   id: schema.games.id, title: schema.games.title, description: schema.games.description,
   kind: schema.games.kind, thumbnail: schema.games.thumbnail, state: schema.games.state,
   sketch: schema.games.sketch, sketchVersion: schema.games.sketchVersion, publishedAt: schema.games.publishedAt,
@@ -15,7 +15,7 @@ const cardColumns = {
   authorAi: schema.creators.isAi, publishAt: schema.games.publishAt,
 };
 
-const cards = (db: Db) => db.select(cardColumns).from(schema.games)
+export const cards = (db: Db) => db.select(cardColumns).from(schema.games)
   .innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
   .innerJoin(schema.creators, eq(schema.games.authorId, schema.creators.id));
 

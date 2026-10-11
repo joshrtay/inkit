@@ -9,6 +9,9 @@
 //   recommendations  who a creator recommends (up to five, in order, each with a line why): the
 //                profile's Recommends tab and Explore's "… recommends" row
 //   bug_reports  "Report a bug": the report, the gatekeeper's verdict; its files are in R2 (docs/bug-pipeline.md)
+//   sets         a curated, ordered set of published puzzles (anyone's), made in the drawer and
+//                published like a puzzle: once published, its puzzles and their order stay put
+//   set_items    a set's puzzles, in order
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
@@ -159,6 +162,37 @@ export const games = sqliteTable("games", {
   index("games_author").on(t.authorId),
   index("games_published").on(t.state, t.publishedAt),
 ]);
+
+// ---- sets: a sequence of puzzles, curated (docs/research-curation.md) ----
+export const SET_STATES = ["draft", "published", "hidden", "deleted"] as const;
+export type SetState = (typeof SET_STATES)[number];
+
+export const sets = sqliteTable("sets", {
+  /** Permanent: its web address is inkit.games/s/<id>. */
+  id: text("id").primaryKey(),
+  /** the profile (or studio) it's on */
+  collectionId: text("collection_id").notNull().references(() => collections.id),
+  authorId: text("author_id").notNull().references(() => creators.id),
+  title: text("title").notNull().default("Untitled set"),
+  description: text("description").notNull().default(""),
+  state: text("state", { enum: SET_STATES }).notNull().default("draft"),
+  hiddenNote: text("hidden_note"),
+  publishedAt: integer("published_at", { mode: "timestamp_ms" }),
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [
+  index("sets_collection").on(t.collectionId, t.state),
+  index("sets_published").on(t.state, t.publishedAt),
+  index("sets_author").on(t.authorId),
+]);
+
+export const setItems = sqliteTable("set_items", {
+  setId: text("set_id").notNull().references(() => sets.id),
+  gameId: text("game_id").notNull().references(() => games.id),
+  /** 0, 1, 2, …: the order it's played in */
+  position: integer("position").notNull(),
+  addedAt: integer("added_at", { mode: "timestamp_ms" }).notNull().default(now),
+}, (t) => [primaryKey({ columns: [t.setId, t.gameId] }), index("set_items_game").on(t.gameId)]);
 
 // ---- subscriptions: creators following collections (a person's own, or a studio) ----
 export const subscriptions = sqliteTable("subscriptions", {

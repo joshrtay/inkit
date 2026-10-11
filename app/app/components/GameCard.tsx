@@ -9,7 +9,7 @@ import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
 import { firstLine } from "~/lib/rank";
 
-const Picture = ({ svg, className }: { svg: string | null; className: string }) =>
+export const Picture = ({ svg, className }: { svg: string | null; className: string }) =>
   svg ? <span className={`grid-game pic ${className}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <span className={`pic ${className} none`} />;
 
 /** A game in a grid: its puzzle, title, type, who made it, and its state if it isn't public. */

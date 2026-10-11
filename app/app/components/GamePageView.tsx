@@ -223,15 +223,30 @@ const LIST_ICONS = {
 /** The bar under the board for a puzzle opened from a list: back and on through it, and what the
  *  list is (a link back to it). Next stands out once it's solved. */
 function ListBarView({ bar, won }: { bar: ListBar; won: boolean }) {
+  const p = bar.progress;
+  // a set's last puzzle, just solved: back to the set instead of on
+  const last = !!p && !bar.next && won;
   return (
-    <nav className="list-bar" aria-label="This list">
+    <nav className={`list-bar${p ? " in-set" : ""}`} aria-label="This list">
       {bar.prev ? <Link className="btn list-step prev" to={bar.prev} rel="prev" aria-label="Previous puzzle"><Chevron back /><span className="step-word">Prev</span></Link>
         : <span className="list-step prev" aria-hidden="true" />}
       <Link className="list-ctx" to={bar.page}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d={LIST_ICONS[bar.icon]} /></svg>
-        <span>{bar.text}</span>
+        <span className="list-name">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d={LIST_ICONS[bar.icon]} /></svg>
+          <span>{bar.text}{bar.by && <span className="list-by"> · by @{bar.by}</span>}</span>
+        </span>
+        {p && (
+          <span className="list-progress">
+            <span className="set-bar" role="img" aria-label={p.solved === null ? `${p.at + 1} of ${p.total}` : `${p.solved} of ${p.total} solved`}>
+              {p.solved !== null && <i style={{ width: `${(100 * p.solved) / p.total}%` }} />}
+              <b style={{ left: `${(100 * (p.at + 0.5)) / p.total}%` }} />
+            </span>
+            <span className="list-count">{p.solved === null ? `${p.at + 1} of ${p.total}` : `${p.solved} of ${p.total} solved`}</span>
+          </span>
+        )}
       </Link>
       {bar.next ? <Link className={`btn list-step next${won ? " primary" : ""}`} to={bar.next} rel="next" aria-label="Next puzzle"><span className="step-word">Next</span><Chevron /></Link>
+        : last ? <Link className="btn list-step next primary back-to-set" to={bar.page}>Back to the set</Link>
         : <span className="list-step next" aria-hidden="true" />}
     </nav>
   );

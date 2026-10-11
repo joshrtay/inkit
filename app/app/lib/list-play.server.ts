@@ -8,6 +8,8 @@ import { schema, type Db } from "~/db";
 import { kindName } from "~/games/kinds";
 import { likeCount, listKeys, listWhere, shelves } from "./explore.server";
 import { contextLabel, contextQuery, inList, type ListContext } from "./list-context";
+import { setById, setOrder } from "./sets.server";
+import { solvedAmong } from "./queries.server";
 
 const live = and(eq(schema.games.state, "published"), isNull(schema.collections.deletedAt));
 
@@ -49,7 +51,20 @@ export async function listBar(db: Db, c: ListContext, game: { id: string }, view
     const at = list.indexOf(game.id);
     around = at < 0 ? { prev: null, next: null } : { prev: list[at - 1] ?? null, next: list[at + 1] ?? null };
   } else if (c.in === "set") {
-    return null;
+    // a set: its own order, and how far through it the player is
+    const found = await setById(db, c.set);
+    if (!found || found.set.state !== "published") return null;
+    const order = await setOrder(db, c.set);
+    const at = order.indexOf(game.id);
+    if (at < 0) return null;
+    const solved = viewerId ? (await solvedAmong(db, viewerId, order)).size : null;   // signed out: just where they are
+    return {
+      icon: "set" as const, text: found.set.title, by: found.author.handle,
+      page: listPage(c),
+      prev: at > 0 ? inList(order[at - 1], c) : null,
+      next: at < order.length - 1 ? inList(order[at + 1], c) : null,
+      progress: { solved, total: order.length, at },
+    };
   } else {
     const [cur] = await db.select({ publishedAt: schema.games.publishedAt, likes: likeCount }).from(schema.games).where(eq(schema.games.id, game.id));
     if (!cur?.publishedAt) return null;
@@ -78,9 +93,11 @@ export async function listBar(db: Db, c: ListContext, game: { id: string }, view
   }
   return {
     ...contextLabel(c, { kindName, who }),
+    by: null as string | null,
     page: listPage(c),
     prev: around.prev && inList(around.prev, c),
     next: around.next && inList(around.next, c),
+    progress: null as { solved: number | null; total: number; at: number } | null,
   };
 }
 
