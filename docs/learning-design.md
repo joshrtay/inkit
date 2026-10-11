@@ -50,6 +50,31 @@ Background: [research-evan-chen.md](research-evan-chen.md),
 [research-tutorials.md](research-tutorials.md), [tutorial-sequences.md](tutorial-sequences.md),
 [sudoku-techniques.md](sudoku-techniques.md).
 
+## How we get there: three structures
+
+The far horizon is hard to aim at directly: "puzzles nobody has seen" isn't something to practise
+or measure. So we build structure that makes it concrete, and that is where inkit can do what no
+one else can, because every rule is in a solver.
+
+1. **A technique language** says what an idea is: a pattern the rules force a conclusion from,
+   proved by clingo, at three levels (a concrete pattern; a family with variables; a schema across
+   types). Ideas become objects we can prove, find, cost, picture and teach.
+2. **A periodic table of ideas** maps them. Rows are schemas (pigeonhole, parity, only-way,
+   connectivity, uniqueness, contradiction...), grouped like the table's families; columns are
+   types; each cell holds that idea's family in that type, with its cost and prerequisites. It makes
+   the far horizon concrete: an unseen puzzle is mostly known ideas in a new cell or a new
+   combination, and transfer is recognising a row in a column you've never played. Gaps are
+   predictions: an empty cell is a technique to mine, or a type to invent, as Mendeleev's gaps were
+   elements.
+3. **Problem sets** are paths through the table, hand-made: along a row (one idea, new types), down
+   a column (deeper families in one type), or combining rows. Each leap is a step the table names
+   and the solver proves needed. The sets carry Rusczyk's artistry; the table keeps them honest and
+   shows what's covered and what isn't.
+
+Everything else measures and serves these three: the solver and difficulty, interest and taste, the
+learner model, the tutor. And the target gets tests we can run: a held-out cell of the table, and a
+newly invented type built to need a row a player has practised elsewhere.
+
 ## Principles
 
 1. **The sequence is the course.** A hand-made set, sequenced so each puzzle asks for a real leap,
@@ -95,7 +120,7 @@ Background: [research-evan-chen.md](research-evan-chen.md),
 
 Seven parts, each feeding the next.
 
-### 1. Technique language and ladders
+### 1. Technique language, ladders and the periodic table
 
 A technique is **a derived rule: a pattern from which the rules force a conclusion**. The engine
 states every type's rules in ASP, so techniques can be stated and proved in the same terms, at three
@@ -123,6 +148,20 @@ How entries are found:
   ones (the FunSearch and AlphaEvolve pattern).
 - **Schemas**: an LLM proposes the idea uniting families across types; clingo checks every instance.
   The LLM names and explains; it never decides what's true.
+
+**The periodic table** arranges the schemas. A first draft of its families, to be checked by mining:
+
+| Family | Rows (schemas) | Where they show |
+|---|---|---|
+| Counting | pigeonhole; parity; sums and bounds; area | Sudoku's fish and subsets, Star Battle's region counting, Binary Puzzle's half-and-half, Kakuro and Sum Blobs, Shikaku's sizes |
+| Local forcing | only one place; only one way; exclusion by neighbours | singles in Sudoku, Masyu's pearls and corners, Akari's lit cells, Minesweeper's 1-2-1 |
+| Topology | connectivity (no cut-off parts); loop closure (no early loops); no 2×2 | Nurikabe and Heyawake walls, Slitherlink and Masyu loops, Nurikabe pools |
+| Reasoning about the puzzle | uniqueness; contradiction (try and fail); case split; extremes first | everything, at different costs |
+
+Each cell records the family there, its cost by our solver, its prerequisites, and how often it
+appears in published puzzles. Rows run across types, so the table is also the cross-type map;
+columns are each type's ladder. A sparse row is a gap to mine; a type that sits only in one family
+is a candidate for a new type that crosses families.
 
 Of our 38 types about 16 have documented techniques, about 11 a few known tricks, and about 11
 (mostly the Beast Academy types, Panes, the Number Line Maze) none: mining matters most there.
@@ -266,8 +305,8 @@ point, and they'd rather a student solve two-thirds of a hard set than all of an
 | Phase | Work | Status | Shows it's working | Stop or rethink if |
 |---|---|---|---|---|
 | 1. Measure | Solve times; technique solvers (Sudoku first); interest measures and the Puzzle Square JP experiment; Sudoku Explainer comparison (needs SukakuExplainer and Java, local only) | Solve times live in code; Sudoku solver done (0.87); interest runs under way | Technique solvers track human labels; interest measures predict likes beyond difficulty | Interest measures add nothing beyond difficulty on the larger sets: rethink the measures |
-| 2. Techniques | Mining on Akari and Star Battle (documented, to check), then the undocumented types; the cross-type map of schemas | Next | Mining rediscovers most documented techniques, plus verified new ones experts find meaningful; non-trivial shapes recur across types | Only trivial or uninterpretable patterns; types stay unrelated |
-| 3. Learners and sets | Hand-made sets per idea (Slate and sets), with the solver proving each leap and flagging grinds; mastery per technique; review credited through the graph; restricted-solver student models; minimal-pair generator; discovery puzzles; design gradients in paint | After 2 | Student models predict a player's own times and stuck points better than one score per puzzle (a few hundred active players) | No gain with enough data |
+| 2. Techniques and the table | The technique language in code (premise, conclusion, proof, cost); mining on Akari and Star Battle (documented, to check), then the undocumented types; a first table: the counting and local-forcing families across ten types | Next | Mining rediscovers most documented techniques, plus verified new ones experts find meaningful; rows fill across types (the same schema proved in several) | Only trivial or uninterpretable patterns; rows stay one type wide |
+| 3. Learners and sets | Hand-made sets as paths through the table (a row across types, a column's ladder), in Slate and sets, with the solver proving each leap and flagging grinds; mastery per technique; review credited through the graph; restricted-solver student models; minimal-pair generator; discovery puzzles; design gradients in paint | After 2 | Student models predict a player's own times and stuck points better than one score per puzzle (a few hundred active players) | No gain with enough data |
 | 4. Adapt and test | Adaptivity in service of the sets (which set next, review, rest to taste); the solver-grounded tutor; making as learning; randomised comparisons | With players | Authored sets with leaps beat smooth adaptive practice on the far horizon: new puzzles and new types, uncued, weeks later; players keep coming back | No difference with a fair sample |
 
 ## Research horizon
@@ -279,8 +318,9 @@ only as far as the signals justify:
 1. **A model of how people reason through puzzles** that predicts individual moves (where they look,
    when they hesitate, which wrong deduction tempts them), built from bounded solvers fit to play
    logs.
-2. **A periodic table of reasoning moves**: the technique language across all types, linked to the
-   mathematics underneath (pigeonhole, parity, invariants, extremal arguments, case analysis).
+2. **The periodic table, completed**: every type's techniques placed, linked to the mathematics
+   underneath (pigeonhole, parity, invariants, extremal arguments, case analysis), and used to
+   predict techniques and invent types from its gaps.
 3. **Transfer experiments** with a test no one else can run: a newly invented type that needs an
    idea practised elsewhere.
 4. **Machine-invented puzzle types**: search the space of rules for types that are learnable,
