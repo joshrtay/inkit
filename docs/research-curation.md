@@ -274,7 +274,7 @@ differently.
 - **Starting:** ⋯ → Add to set on a puzzle page, or Create → Set. Cards have no + until a drawer is open. Then every card on every browsing page shows + (✓ if in). On a puzzle page the add is a row in the drawer.
 - **The drawer is the editor for a draft:** 280px, rows of number, picture and title. It shares the right-hand slot with How to play. Published sets can never be in it.
 - **The drawer shows** on browsing pages (Explore, type pages, search, profiles, feed, puzzle pages, other sets). It hides, but stays open, on settings, account, paint, publish, sign-in, legal, admin and the set's own page. It ends on publish, delete, ×, or sign-out.
-- **Drafts:** "Only you can see it." Reopen one with Edit on its page, or from the profile's Drafts tab.
+- **Drafts:** reopen one with Edit on its page, or from the profile's Drafts tab. The draft set page shows a Draft pill, with no extra wording.
 - **Profiles:** sets sit in the Puzzles grid with the puzzles, as a mosaic of their first four. A Drafts tab (owner only) holds draft puzzles and draft sets.
 - **Phone:**
   - ⋯ → Add to set, then a toast "Added to … · 7" with Change.
@@ -314,5 +314,11 @@ A puzzle opened from a list carries that list in its query string. `in` names wh
   - Keyset paging on the sort key plus the id, as in the feed.
   - With `sort=top`, likes can move the order mid-play. Accept the odd skip; it isn't worth freezing.
   - `unsolved=1` drops a puzzle from the list once you solve it, so Next is computed from the puzzle you were on.
-- **Only a set shows a progress bar.** Every other list shows a plain position, or none for the feed.
+- **Only a set shows a progress bar.** Search, type pages, shelves, profiles and the feed show no count at all, just the context and Prev / Next.
 - **Not needed any more:** `before:`, `id:` and the typed search syntax. Curation is sets, so search lists stay live.
+
+### The set page and the end of a set (decided)
+
+- **One button: Play.** It opens the first unsolved puzzle, or the first puzzle if none is solved, with no numbers on it. No "Play again" for now.
+- **At the last puzzle** the bar just turns Next into "Back to the set", with no "That's the last one" line.
+- **Draft set pages** show the Draft pill and Edit, with no "Only you can see it" line.
