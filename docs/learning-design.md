@@ -107,7 +107,27 @@ solver's cost model.
 - **Interest** is measured from how hard moments are placed (puzzles/difficulty/interest.ts:
   busywork, stuck rounds, break-in, the key step's place, flow, theme, variety), checked against
   likes per solver with difficulty held fixed (puzzles/difficulty/interest-analyze.ts). First result:
-  on 55 Sudokus, nothing predicts likes beyond difficulty. Larger sets for other types are being run.
+  on 55 Sudokus, nothing predicts likes beyond difficulty. Beside the path, how the puzzle looks
+  (puzzles/difficulty/looks.ts: clue density, symmetry) and its author's other puzzles.
+- **Taste differs by type.** On 235–295 puzzles each (beyond difficulty; chance reaches about ±0.12):
+
+  | Type | Likes vs difficulty | What predicts likes beyond difficulty |
+  |---|---|---|
+  | Sudoku (55) | 0.51 | nothing |
+  | Akari | 0.52 | bigger grids 0.20, sparse clues 0.15, length 0.16 |
+  | Masyu | 0.02 | sparse clues 0.35, busywork 0.29, bigger grids 0.21, variety 0.20, author 0.37 |
+  | Slitherlink | 0.27 | author 0.27, varied flow 0.20, length 0.17, getting stuck 0.15 |
+
+  Symmetry predicts nothing (most Sudoku, Akari and Slitherlink are exactly symmetric by
+  convention; most Masyu aren't). The author measure is biased downward (leaving a puzzle out of a
+  small group pulls its mean the other way, hence Sudoku's −0.47), so positive values are real
+  setter effects. Two readings: each type rewards a different pleasure (a hard step, or a long line
+  that keeps going), or each type draws its own crowd. Puzzle Square JP has only totals; inkit's
+  likes per player can tell them apart (a player's taste that holds across types is the crowd).
+
+  **Predictions, written before the results**: Star Battle (counting, like Sudoku) — likes follow
+  difficulty (0.4 or more) and little else beyond it. Nurikabe (islands grown across the grid) —
+  a weaker link to difficulty (0.2–0.4), with length, pacing or sparse clues mattering beyond it.
 
 ### 3. Learner model
 
