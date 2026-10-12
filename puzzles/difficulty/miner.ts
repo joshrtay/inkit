@@ -16,11 +16,11 @@ import { deduceGuarded } from "./deduce-guarded.ts";
 import { mapPool } from "./pool.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
-const stuckFile = `${repo}references/ml/stuck-set.json`;
-type Stuck = { genre: string; name: string; spec: GridSpec; search: number; estimate: number; ms: number };
+export const stuckFile = `${repo}references/ml/stuck-set.json`;
+export type Stuck = { genre: string; name: string; spec: GridSpec; search: number; estimate: number; ms: number };
 type Run = { search: number; estimate: number; ms: number; solved: boolean };
 
-async function solve(spec: GridSpec, families: FamilySpec[] = []): Promise<Run | null> {
+export async function solve(spec: GridSpec, families: FamilySpec[] = []): Promise<Run | null> {
   const t0 = Date.now();
   const r = await deduceGuarded(spec, { budgetMs: 20000, families }, 90000).catch(() => null);
   if (!r) return null;
@@ -28,7 +28,7 @@ async function solve(spec: GridSpec, families: FamilySpec[] = []): Promise<Run |
 }
 
 /** How a family does on the stuck set: searches removed, puzzles helped, time, per type. */
-async function measure(set: Stuck[], f: FamilySpec) {
+export async function measure(set: Stuck[], f: FamilySpec) {
   const runs = await mapPool(set, (s) => solve(s.spec, [f]));
   const byType = new Map<string, { before: number; after: number; helped: number; ms0: number; ms1: number }>();
   set.forEach((s, i) => {
@@ -42,8 +42,9 @@ async function measure(set: Stuck[], f: FamilySpec) {
   return { all, byType };
 }
 
-const name = (f: FamilySpec) => `${f.units.join(" + ")} (${f.relation})`;
-const mode = process.argv[2];
+export const name = (f: FamilySpec) => `${f.units.join(" + ")} (${f.relation})`;
+// run as a script only (miner-propose.ts imports the pieces above)
+const mode = import.meta.url === `file://${process.argv[1]}` ? process.argv[2] : "";
 
 if (mode === "stuck") {
   const items = corpus(Number(process.argv[3]) || 12).filter((x) => x.spec.size[0] <= 12);
