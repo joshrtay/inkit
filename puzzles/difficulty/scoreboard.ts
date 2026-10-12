@@ -44,7 +44,9 @@ const solve = async (name: string, spec: GridSpec): Promise<Solve> => {
 };
 const secs = (xs: Solve[]) => Math.round(xs.reduce((a, x) => a + x.ms, 0) / 1000);
 const t0 = Date.now();
-const board: Record<string, unknown> = { at: new Date().toISOString() };
+// budgets are wall-clock time, so results depend on how many solves share the machine: the board
+// records its job count, and a comparison at a different count is flagged
+const board: Record<string, unknown> = { at: new Date().toISOString(), jobs: JOBS };
 const last = existsSync(boardFile) ? JSON.parse(readFileSync(boardFile, "utf8")) : null;
 const out: string[] = [];
 
@@ -161,5 +163,6 @@ if (!quick && want("tatham") && existsSync(tathamDir)) {
 }
 
 out.push(`\n${Math.round((Date.now() - t0) / 1000)} s on ${JOBS} jobs${last ? `; compared with the board saved ${String(last.at).slice(0, 16)}` : "; no saved board to compare with"}.`);
+if (last && last.jobs !== JOBS) out.push(`Note: the saved board ran with ${last.jobs ?? "unknown"} jobs and this one with ${JOBS}; solves near their time budget can differ for that reason alone.`);
 console.log(out.join("\n\n"));
 if (save) { writeFileSync(boardFile, JSON.stringify({ ...(only ? last ?? {} : {}), ...board }, null, 1)); console.log("Saved as the board to compare against."); }

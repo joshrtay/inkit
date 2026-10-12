@@ -115,13 +115,16 @@ export interface Options {
 export interface FamilySpec { units: string[]; relation: "pivot" | "pairwise" | "touch"; maxCells?: number }
 
 /** Families the mining harness found worth keeping (docs/research-cross-type.md): three lines in a
- *  chain (565 of 3,205 searches on the stuck set), three lines crossed by a fourth (317), and two
- *  clues whose reach overlaps (Shikaku and Fillomino solve about twice as fast). */
+ *  chain (565 of 3,205 searches on the stuck set) and three lines crossed by a fourth (317). They
+ *  raised agreement with Star Battle's and Light Up's ratings and lowered none. */
 export const DEFAULT_FAMILIES: FamilySpec[] = [
   { units: ["line", "line", "line"], relation: "touch" },
   { units: ["line", "line", "line", "line"], relation: "pivot" },
-  { units: ["reach", "reach"], relation: "pairwise" },
 ];
+/** Found, but not yet priced: two clues whose reach overlaps (Shikaku and Fillomino solve about
+ *  twice as fast, but every Shikaku then rates easy; agreement with Puzzle Square JP fell from 0.35
+ *  to 0.19). Ask for it with `families`. */
+export const REACH_FAMILY: FamilySpec = { units: ["reach", "reach"], relation: "pairwise" };
 
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
 export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
@@ -262,8 +265,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
-  // DEDUCE_LEMMAS (default "component"; loop parity helped little for 11% more time) chooses lemmas
-  const lemmasOn = (process.env.DEDUCE_LEMMAS ?? "component").split(",");
+  // DEDUCE_LEMMAS chooses lemmas: "component" and "parity", both off by default. The component
+  // lemma finds Hitori's connectivity moves without search but prices them as easy, so Tatham's
+  // easy and tricky Singles grades rated alike (agreement 0.75 to 0.04): on once it's priced. Loop
+  // parity helped little for 11% more time.
+  const lemmasOn = (process.env.DEDUCE_LEMMAS ?? "").split(",");
   const parity = local || !lemmasOn.includes("parity") ? null : parityLemma(p, p.rules.length);
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
@@ -501,7 +507,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     };
     // families from the proposal language
     // the families the mining harness found worth keeping, then any asked for
-    const specs: FamilySpec[] = [...(process.env.DEDUCE_DEFAULT_FAMILIES === "0" ? [] : DEFAULT_FAMILIES), ...(opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []))];
+    // (the default line families only where lines carry rules: in Shikaku, say, a band of rows is
+    // just a big window, and cheapened unrelated steps)
+    const LINE_RULES = ["shaded-per-line", "latin", "letters", "skyscrapers", "first-seen", "line-totals", "line-shares", "unique-lines", "no-three-in-a-row", "lit", "sight", "runs"];
+    const linesRule = p.rules.some((r) => LINE_RULES.includes(r.rule));
+    const specs: FamilySpec[] = [...(process.env.DEDUCE_DEFAULT_FAMILIES === "0" || !linesRule ? [] : DEFAULT_FAMILIES), ...(opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []))];
     if (specs.length) {
       const kinds: Record<string, Window[]> = {
         line: units.filter((w) => /^(row|column) /.test(w.label)),
@@ -553,7 +563,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // known, and kept by their cells so a window checked before isn't checked again for nothing
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
-  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples+extra+components,count").split(",").map((x) => x.split("+").map((y) => y.trim()));
+  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples,count,extra+components").split(",").map((x) => x.split("+").map((y) => y.trim()));
   const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
