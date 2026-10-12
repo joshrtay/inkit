@@ -342,6 +342,25 @@ on strategy synthesis; Sturtevant's lab on exhaustive generation; learning scien
 cases and transfer), and patience: the cheap signals come in weeks, the experiments in months.
 
 
+### To pursue: chess puzzles as a sibling domain
+
+Chess puzzles aren't constraint problems: the board changes with every move, and a solution must
+work against every defence, so clingo and our windows don't apply; Stockfish (through
+python-chess) would be the exact checker. The rest of the system carries over: a human-like
+bounded search costed like our tiers for difficulty; a graph of squares and pieces with their
+relations (attacks, defences, pins, lines of sight) in place of cells and rule instances; tactical
+motifs (fork, pin, skewer, deflection) as technique signatures; the learner model, sequencing and
+one-change contrasting pairs. Our "sight along a line" primitive (Akari, Skyscrapers) is a rook's
+or bishop's line.
+
+- **Why:** Lichess's puzzle database (CC0) has millions of puzzles, each rated from millions of
+  attempts and labelled with its motifs: human difficulty data at a scale no grid type has, to test
+  whether bounded search predicts difficulty; and a far-transfer test for the shared
+  representation.
+- **First experiment (cheap):** a depth- and breadth-limited search with tier-like costs on a
+  sample of Lichess puzzles, against their ratings.
+- **Stop if** bounded search can't beat a simple baseline (solution length, material) on the ratings.
+
 ### To pursue: a puzzle encoder for a language model
 
 General language models read a grid as text, so they count by writing their counting out: in our
