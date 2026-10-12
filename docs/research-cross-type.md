@@ -65,3 +65,29 @@ More and harder data, evenly across types (generated at scale and kept for diffi
 hard grades; Janko's other types with their recorded human moves); finer signatures (how the units
 overlap); repeated runs to measure the spread; then the move space as the cross-type map in the
 learning design, and the held-out-type test as the machine version of its transfer experiment.
+
+## 5. Mining techniques (miner.ts, miner-propose.ts)
+
+A proposal language for window families in the solver (unit kinds line, region, 2 × 2 block,
+clue; relations pivot, pairwise, touch). Windows only gather true constraints, so anything a
+family finds is sound; the harness measures usefulness. Stuck set: 169 corpus puzzles (3,205
+searches), led by Slitherlink, Hitori, Fillomino, Shikaku, Akari and Cave.
+
+**Phase A**, every family of two or three units (116): the clear winner is three lines in a chain
+(each touching the next), removing 565 of the 3,205 searches (56 puzzles) for 17% more time; then
+two lines and a clue (171), a line and two blocks (170). Many families make solving faster
+overall, the searches they remove costing more than the windows they add.
+
+**Phase B**, Opus 5.5 with thinking on the stuck moments phase A's best families don't fix: $1.52
+for 40 rounds. Its best family was outside phase A's reach, four lines (three crossed by one):
+317 searches removed, 34 puzzles, faster (× 0.62). Its 34 ideas the language can't say fall into
+three groups, each aimed at our weakest types:
+- **loop parity** (7 times): a closed loop crosses any line an even number of times;
+  Slitherlink, Masyu, Simple Loop;
+- **components and their exits** (about 10): a joined group of cells and its few ways out,
+  so "the only exit is here" is local; Nurikabe, Cave, Hitori;
+- **clue reach** (about 5): every cell a clue could still cover, so "who owns this cell" is a
+  window; Shikaku, Fillomino.
+
+Next: the winning families into the solver's defaults (scoreboard first), then these three
+primitives, then a second phase B on what remains.
