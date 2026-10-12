@@ -201,7 +201,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[] }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[] }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -805,6 +805,8 @@ end
     const found = runWindows(singles);
     for (const fs of found.values()) for (const [m, v] of fs) settle(m, v);
   }
+  // what's known before the first step (settled in grounding, or by a given's own cell)
+  const initial = markName.flatMap((x, m) => (known[m] >= 0 ? [`${x}=${known[m] === 1}`] : []));
 
   let entryPoints = -1;
   const order = (): number[] => {
@@ -928,7 +930,7 @@ end
   // the answer's true marks (some are settled in grounding, before any step, so a path alone
   // doesn't hold them all)
   const answerMarks = markName.filter((_, m) => answer[m] === 1);
-  return { path, profile, answer: answerMarks, ...(opts.trace ? { trace, timing } : { timing }) };
+  return { path, profile, answer: answerMarks, initial, ...(opts.trace ? { trace, timing } : { timing }) };
 }
 
 /** How step costs combine: a soft-max, D = (1/k)·log Σ exp(k·cost). One step costing Δ more than
