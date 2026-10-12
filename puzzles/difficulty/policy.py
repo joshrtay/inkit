@@ -13,7 +13,7 @@
 # JP's rated ones; Star Battle, 91% on held-out generated 1-star puzzles but 38% on rated 2-star
 # ones (the generator makes only 1-star). At stuck states (tier 2 and up) it's much weaker.
 #
-#   references/ml/.venv/bin/python puzzles/difficulty/policy.py <sudoku|star-battle> [epochs] [rounds ahead]
+#   references/ml/.venv/bin/python puzzles/difficulty/policy.py <sudoku|star-battle> [epochs] [rounds ahead] [stuck weight]
 import json, sys, time, glob, random
 import numpy as np
 import torch, torch.nn as nn
@@ -23,6 +23,8 @@ epochs = int(sys.argv[2]) if len(sys.argv) > 2 else 8
 # a state's moves: the facts settled in its round and the next AHEAD-1 (the solver takes only the
 # cheapest each round, so an easy fact left for later still counts)
 AHEAD = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+# stuck states (tier 1 and up) are rare in generated puzzles: repeat them this many times in training
+HARD = int(sys.argv[4]) if len(sys.argv) > 4 else 1
 here = __file__.rsplit("/", 1)[0] + "/../../references/ml"
 S = 9 if genre == "sudoku" else 10
 
@@ -130,6 +132,7 @@ puzzles = load(sorted(glob.glob(f"{here}/data-{genre}-*.jsonl")))
 random.Random(1).shuffle(puzzles)
 cut = int(0.85 * len(puzzles))
 train = [s for p in puzzles[:cut] for s in p]; test = [s for p in puzzles[cut:] for s in p]
+train += [s for s in train if s[4] >= 1] * (HARD - 1)
 hard = [s for p in load(sorted(glob.glob(f"{here}/test-{genre}.jsonl"))) for s in p]
 print(f"{genre}: {len(puzzles)} puzzles, {len(train)} training states, {len(test)} test states, {len(hard)} rated-puzzle states")
 

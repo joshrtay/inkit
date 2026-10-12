@@ -7,8 +7,10 @@
 //                  per type: Spearman of our estimate with the site's 1–5 difficulty
 //   beast-academy  their Puzzle Lab sets (references/beast-academy, local only): our estimate
 //                  against their tiers, and its rank within each set against their order
+//   tatham         Simon Tatham's generators' graded puzzles (references/tatham, generated
+//                  locally): our estimate against his grade, per game and size
 //
-//   node puzzles/difficulty/scoreboard.ts [--quick] [--psjp N] [--save]
+//   node puzzles/difficulty/scoreboard.ts [--quick] [--only <section>] [--psjp N] [--save]
 //
 // --quick runs the examples only; --psjp sets the sample per type (default 20); --save makes this
 // board the one later runs compare against (references/scoreboard.json, local only, since the
@@ -16,6 +18,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { convert, GENRE, loadSets, ORDER } from "./ba-convert.ts";
+import { fromTatham, TATHAM } from "./tatham.ts";
 import { spearman } from "./calibrate.ts";
 import { genres } from "../../src/engine/puzzle.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
@@ -26,6 +29,8 @@ const boardFile = `${repo}references/scoreboard.json`;
 const args = process.argv.slice(2);
 const quick = args.includes("--quick"), save = args.includes("--save");
 const perType = Number(args[args.indexOf("--psjp") + 1]) || 20;
+const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
+const want = (section: string) => !only || only === section;
 const BUDGET = 15000, CAP = 120000;
 
 interface Solve { name: string; estimate: number; solved: boolean; ms: number; capped: boolean; note: string }
@@ -44,7 +49,7 @@ const last = existsSync(boardFile) ? JSON.parse(readFileSync(boardFile, "utf8"))
 const out: string[] = [];
 
 // ---- examples ----
-{
+if (want("examples")) {
   const jobs: { name: string; spec: GridSpec }[] = [];
   for (const genre of readdirSync(`${repo}src/games`).sort().filter((x) => x in genres))
     for (const f of readdirSync(`${repo}src/games/${genre}`).filter((x) => x.endsWith(".json")).sort((a, b) => parseInt(a) - parseInt(b))) {
@@ -65,7 +70,7 @@ const out: string[] = [];
 }
 
 // ---- Puzzle Square JP ----
-if (!quick && existsSync(`${repo}references/psjp/data.json`)) {
+if (!quick && want("psjp") && existsSync(`${repo}references/psjp/data.json`)) {
   const root = `${repo}references/psjp/`;
   const data = JSON.parse(readFileSync(`${root}data.json`, "utf8")) as Record<string, { difficulty: number }>;
   const types = readdirSync(root).filter((t) => existsSync(`${root}${t}`) && !t.includes(".") && t !== "scripts").sort();
@@ -98,7 +103,7 @@ if (!quick && existsSync(`${repo}references/psjp/data.json`)) {
 
 // ---- Beast Academy ----
 const ba = loadSets();
-if (!quick && ba.length) {
+if (!quick && want("beast-academy") && ba.length) {
   const jobs: { type: string; set: string; tier: number; at: number; spec: GridSpec }[] = [];
   for (const [t, order] of Object.entries(ORDER)) for (const [name, tier] of order) {
     const set = ba.find((s) => s.t === +t && s.s === name);
@@ -123,6 +128,38 @@ if (!quick && ba.length) {
   out.push(`## Beast Academy\n\nOur estimate against their tier, and within each set against their order (mean Spearman)\n\n| Type | Solved | With tier | Within sets |\n|---|---|---|---|\n${rows.join("\n")}`);
 }
 
+// ---- Tatham ----
+const tathamDir = `${repo}references/tatham/puzzles/`;
+if (!quick && want("tatham") && existsSync(tathamDir)) {
+  const perGrade = Math.max(4, Math.round(perType / 2));
+  const jobs: { game: string; size: string; grade: number; spec: GridSpec }[] = [];
+  for (const f of readdirSync(tathamDir).filter((x) => x.endsWith(".txt")).sort()) {
+    const game = f.split("-")[0];
+    if (!TATHAM[game]) continue;
+    for (const id of readFileSync(tathamDir + f, "utf8").trim().split("\n").slice(0, perGrade)) {
+      const r = fromTatham(game, id);
+      if (!r) continue;
+      const grade = TATHAM[game].grades.indexOf(r.grade);
+      if (grade >= 0) jobs.push({ game, size: r.spec.size.join("x"), grade, spec: r.spec });
+    }
+  }
+  const rs = await mapPool(jobs, (j) => solve(`${j.game} ${j.size} ${j.grade}`, j.spec));
+  const rows: string[] = [], tatham: Record<string, { rho: number; means: number[]; solved: number; n: number }> = {};
+  for (const key of [...new Set(jobs.map((j) => `${j.game} ${j.size}`))]) {
+    const idx = jobs.map((j, i) => [j, i] as const).filter(([j]) => `${j.game} ${j.size}` === key);
+    const ok = idx.filter(([, i]) => Number.isFinite(rs[i].estimate));
+    const rho = spearman(ok.map(([, i]) => rs[i].estimate), ok.map(([j]) => j.grade));
+    const grades = [...new Set(idx.map(([j]) => j.grade))].sort();
+    const means = grades.map((g) => { const e = ok.filter(([j]) => j.grade === g).map(([, i]) => rs[i].estimate); return +(e.reduce((a, b) => a + b, 0) / (e.length || 1)).toFixed(2); });
+    tatham[key] = { rho: +rho.toFixed(2), means, solved: idx.filter(([, i]) => rs[i].solved).length, n: idx.length };
+    const was = (last?.tatham as typeof tatham | undefined)?.[key]?.rho;
+    const game = key.split(" ")[0];
+    rows.push(`| ${key} | ${tatham[key].solved} of ${idx.length} | ${grades.map((g, k) => `${TATHAM[game].grades[g]} ${means[k].toFixed(2)}`).join(", ")} | ${rho.toFixed(2)}${was !== undefined ? ` (was ${was.toFixed(2)})` : ""} |`);
+  }
+  board.tatham = tatham;
+  out.push(`## Tatham's grades\n\nOur mean estimate per grade (easiest first), and Spearman of our estimate with his grade\n\n| Game and size | Solved | Mean estimate by grade | Spearman |\n|---|---|---|---|\n${rows.join("\n")}`);
+}
+
 out.push(`\n${Math.round((Date.now() - t0) / 1000)} s on ${JOBS} jobs${last ? `; compared with the board saved ${String(last.at).slice(0, 16)}` : "; no saved board to compare with"}.`);
 console.log(out.join("\n\n"));
-if (save) { writeFileSync(boardFile, JSON.stringify(board, null, 1)); console.log("Saved as the board to compare against."); }
+if (save) { writeFileSync(boardFile, JSON.stringify({ ...(only ? last ?? {} : {}), ...board }, null, 1)); console.log("Saved as the board to compare against."); }

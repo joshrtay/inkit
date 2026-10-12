@@ -23,7 +23,7 @@ export interface GenerateOptions {
   rules?: string;
   /** Panel: the symbol mix (PANEL_MIXES), or several joined with "+" ("squares+stars") */
   mix?: string;
-  /** Star Battle: stars per row, column and area (only 1 for now) */
+  /** Star Battle: stars per row, column and area (1 or 2) */
   stars?: number;
   /** Akari: a cipher, with letters for its numbers */
   cipher?: boolean;
@@ -369,14 +369,36 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const stars = await randomBoard({ ...base, genre: undefined, marks: ["shade"], rules: [{ rule: "shaded-per-line", n: k }, { rule: "no-touch" }] }, "");
       if (!stars) continue;
       const starCells = shuffle(Array.from({ length: rows * cols }, (_, i) => i).filter((i) => stars.shade[i] === 1));
-      // with k stars per area, areas start from k stars each: pair them up by nearness
-      if (k > 1) throw new Error("only 1 star per area for now");
-      const grown = growAreas(starCells.slice(0, rows));
+      // one area grows around each star; with 2 stars per area, neighbouring areas then merge in
+      // pairs (a random matching), so every area holds 2 stars and stays in one piece
+      if (k > 2) throw new Error("1 or 2 stars per area");
+      let grown = growAreas(k === 1 ? starCells.slice(0, rows) : starCells);
       if (!grown) continue;
+      if (k === 2) {
+        const flat = grown.join(""), letters = [...new Set(flat)];
+        const touch = new Map(letters.map((x) => [x, new Set<string>()]));
+        for (let i = 0; i < flat.length; i++) for (const j of [i % cols < cols - 1 ? i + 1 : -1, i + cols < flat.length ? i + cols : -1]) if (j >= 0 && flat[j] !== flat[i]) { touch.get(flat[i])!.add(flat[j]); touch.get(flat[j])!.add(flat[i]); }
+        let pairing: Map<string, string> | null = null;
+        for (let t = 0; t < 50 && !pairing; t++) {
+          const m = new Map<string, string>();
+          for (const x of shuffle(letters)) {
+            if (m.has(x)) continue;
+            const y = shuffle([...touch.get(x)!].filter((z) => !m.has(z)))[0];
+            if (!y) break;
+            m.set(x, y); m.set(y, x);
+          }
+          if (m.size === letters.length) pairing = m;
+        }
+        if (!pairing) continue;
+        const name = new Map<string, string>();
+        for (const x of letters) if (!name.has(x)) { const a = "abcdefghijklmnopqrstuvwxyz"[name.size / 2]; name.set(x, a); name.set(pairing.get(x)!, a); }
+        grown = grown.map((row) => [...row].map((x) => name.get(x)!).join(""));
+      }
       // hill-climb: move one cell (never a star) into a neighbouring area, keeping every area in one
       // piece, while that doesn't add solutions, until one is left
       let of = grown.join("").split("");
-      const count = async (o: string[]) => (await solve(makePuzzle({ genre, size: [rows, cols], areas: Array.from({ length: rows }, (_, r) => o.slice(r * cols, r * cols + cols).join("")) }), 40)).length;
+      const rules = k > 1 ? { rules: base.rules } : {};
+      const count = async (o: string[]) => (await solve(makePuzzle({ genre, size: [rows, cols], ...rules, areas: Array.from({ length: rows }, (_, r) => o.slice(r * cols, r * cols + cols).join("")) }), 40)).length;
       const connected = (o: string[], letter: string) => {
         const cells = o.flatMap((x, i) => (x === letter ? [i] : []));
         if (!cells.length) return false;
@@ -396,7 +418,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         const n = await count(next);
         if (n >= 1 && n <= now) { of = next; now = n; }
       }
-      if (now === 1) result = { genre, size: [rows, cols], areas: Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).join("")) };
+      if (now === 1) result = { genre, size: [rows, cols], ...rules, areas: Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).join("")) };
     } else if (genre === "irregular-sudoku") {
       // areas of n cells each, a random full grid, then given digits until it's the only one
       const areas = jigsaw();
