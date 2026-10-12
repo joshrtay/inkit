@@ -406,6 +406,21 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       for (let r = 0; r + 1 < g.rows; r++) T1.push(win(`rows ${r + 1}–${r + 2}`, Array.from({ length: 2 * g.cols }, (_, k) => g.cell(r + (k >= g.cols ? 1 : 0), k % g.cols))));
       for (let c = 0; c + 1 < g.cols; c++) T1.push(win(`columns ${c + 1}–${c + 2}`, Array.from({ length: 2 * g.rows }, (_, k) => g.cell(k % g.rows, c + (k >= g.rows ? 1 : 0)))));
     }
+    // two areas (or boxes) and a row or column through both: the move people make most where
+    // window pairs see nothing (Janko's Star Battles, puzzles/difficulty/janko-explain.ts)
+    {
+      const regions = units.filter((w) => /^(area|box) /.test(w.label)), lines = units.filter((w) => /^(row|column) /.test(w.label));
+      const meets = (a: Window, b: Window) => { for (let k = 0; k < a.bits.length; k++) if (a.bits[k] & b.bits[k]) return true; return false; };
+      const triples: Window[] = [];
+      for (let i = 0; i < regions.length; i++) for (let j = i + 1; j < regions.length; j++) for (const l of lines) {
+        if (!meets(regions[i], l) || !meets(regions[j], l)) continue;
+        const u = regions[i].bits.slice(); orInto(u, regions[j].bits); orInto(u, l.bits);
+        const cs = cellsOf(u);
+        triples.push({ label: `${regions[i].label} + ${regions[j].label} + ${l.label}`, cells: cs, bits: u, size: cs.length });
+      }
+      triples.sort((x, y) => x.size - y.size);
+      T1.push(...triples.slice(0, maxPairs));
+    }
   }
   // counting across units (./counting.ts): its windows are found afresh each round, from what's
   // known, and kept by their cells so a window checked before isn't checked again for nothing
