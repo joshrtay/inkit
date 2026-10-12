@@ -76,11 +76,20 @@ if (mode === "stuck") {
   const before = set.reduce((a, s) => a + s.search, 0);
   console.log(`${set.length} stuck puzzles, ${before} searches; ${families.length} families to try\n`);
   const rows: { f: FamilySpec; removed: number; helped: number; time: number }[] = [];
+  // MINER_RESUME=<an earlier run's log>: families it finished are taken from it, not run again
+  const done = new Map<string, { removed: number; helped: number; time: number }>();
+  if (process.env.MINER_RESUME) for (const line of readFileSync(process.env.MINER_RESUME, "utf8").split("\n")) {
+    const m = /^\d+\/\d+ (.+): (\d+) searches removed, (\d+) puzzles helped, time ×([\d.]+)$/.exec(line);
+    if (m) done.set(m[1], { removed: +m[2], helped: +m[3], time: +m[4] });
+  }
   for (const [k, f] of families.entries()) {
+    const old = done.get(name(f));
+    if (old) { rows.push({ f, ...old }); console.error(`${k + 1}/${families.length} ${name(f)}: ${old.removed} searches removed, ${old.helped} puzzles helped, time ×${old.time.toFixed(2)}`); continue; }
     const { all, byType } = await measure(set, f);
     const row = { f, removed: all.before - all.after, helped: all.helped, time: all.ms1 / Math.max(1, all.ms0) };
     rows.push(row);
     console.error(`${k + 1}/${families.length} ${name(f)}: ${row.removed} searches removed, ${row.helped} puzzles helped, time ×${row.time.toFixed(2)}`);
+    writeFileSync(`${repo}references/ml/miner-results.json`, JSON.stringify([...rows].sort((a, b) => b.removed - a.removed), null, 1));
     if (mode === "try") for (const [g, t] of [...byType].sort((a, b) => (b[1].before - b[1].after) - (a[1].before - a[1].after))) console.log(`  ${g}: ${t.before} → ${t.after} searches, ${t.helped} helped, time ×${(t.ms1 / Math.max(1, t.ms0)).toFixed(2)}`);
   }
   rows.sort((a, b) => b.removed - a.removed);
