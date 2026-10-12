@@ -8,6 +8,7 @@
 //   node puzzles/difficulty/miner.ts stuck [perSource]   build references/ml/stuck-set.json
 //   node puzzles/difficulty/miner.ts search [maxArity]   try every family; rank them
 //   node puzzles/difficulty/miner.ts try '<json spec>'   one family, per type
+//   node puzzles/difficulty/miner.ts ablate              the adopted families and lemmas, each and together
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { corpus } from "./corpus.ts";
@@ -55,10 +56,34 @@ if (mode === "stuck") {
   const by = new Map<string, number>();
   for (const s of set) by.set(s.genre, (by.get(s.genre) ?? 0) + 1);
   console.log(`${set.length} stuck puzzles (of ${items.length}): ${[...by].sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} ${n}`).join(", ")}`);
+} else if (mode === "ablate") {
+  // each new piece on its own and all together, against none of them, per type
+  const set = JSON.parse(readFileSync(stuckFile, "utf8")) as Stuck[];
+  const configs: [string, Record<string, string>][] = [
+    ["none", { DEDUCE_DEFAULT_FAMILIES: "0", DEDUCE_LEMMAS: "" }],
+    ["families", { DEDUCE_DEFAULT_FAMILIES: "1", DEDUCE_LEMMAS: "" }],
+    ["parity", { DEDUCE_DEFAULT_FAMILIES: "0", DEDUCE_LEMMAS: "parity" }],
+    ["component", { DEDUCE_DEFAULT_FAMILIES: "0", DEDUCE_LEMMAS: "component" }],
+    ["all", { DEDUCE_DEFAULT_FAMILIES: "1", DEDUCE_LEMMAS: "parity,component" }],
+  ];
+  const results = new Map<string, (Run | null)[]>();
+  for (const [label, env] of configs) {
+    Object.assign(process.env, env);
+    results.set(label, await mapPool(set, (s) => solve(s.spec)));
+    const rs = results.get(label)!;
+    console.error(`${label}: ${rs.reduce((a, r) => a + (r?.search ?? 0), 0)} searches, ${rs.filter((r) => r?.solved).length} solved, ${Math.round(rs.reduce((a, r) => a + (r?.ms ?? 0), 0) / 1000)} s`);
+  }
+  const types = [...new Set(set.map((s) => s.genre))].sort();
+  console.log(`| Type | ${configs.map(([l]) => l).join(" | ")} |\n|---|${configs.map(() => "---").join("|")}|`);
+  for (const t of [...types, "all"]) {
+    const idx = set.map((s, i) => [s, i] as const).filter(([s]) => t === "all" || s.genre === t).map(([, i]) => i);
+    if (t !== "all" && idx.length < 2) continue;
+    console.log(`| ${t} (${idx.length}) | ${configs.map(([l]) => results.get(l)!.reduce((a, r, i) => a + (idx.includes(i) ? r?.search ?? 0 : 0), 0)).join(" | ")} |`);
+  }
 } else if (mode === "search" || mode === "try") {
   if (!existsSync(stuckFile)) throw new Error("build the stuck set first: miner.ts stuck");
   const set = JSON.parse(readFileSync(stuckFile, "utf8")) as Stuck[];
-  const kinds = ["line", "region", "block", "clue"], relations: FamilySpec["relation"][] = ["pivot", "pairwise", "touch"];
+  const kinds = ["line", "region", "block", "clue", "reach"], relations: FamilySpec["relation"][] = ["pivot", "pairwise", "touch"];
   const families: FamilySpec[] = mode === "try" ? [JSON.parse(process.argv[3])] : [];
   if (mode === "search") {
     const maxArity = Number(process.argv[3]) || 3;

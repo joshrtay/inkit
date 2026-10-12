@@ -114,6 +114,15 @@ export interface Options {
  *  shares a cell or an edge with the next. A window is their cells together, up to maxCells. */
 export interface FamilySpec { units: string[]; relation: "pivot" | "pairwise" | "touch"; maxCells?: number }
 
+/** Families the mining harness found worth keeping (docs/research-cross-type.md): three lines in a
+ *  chain (565 of 3,205 searches on the stuck set), three lines crossed by a fourth (317), and two
+ *  clues whose reach overlaps (Shikaku and Fillomino solve about twice as fast). */
+export const DEFAULT_FAMILIES: FamilySpec[] = [
+  { units: ["line", "line", "line"], relation: "touch" },
+  { units: ["line", "line", "line", "line"], relation: "pivot" },
+  { units: ["reach", "reach"], relation: "pairwise" },
+];
+
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
 export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
 
@@ -154,6 +163,27 @@ interface Window { label: string; cells: number[]; bits: Bits; size: number }
 
 /** The engine's program with every rule of a rule block tagged by an external atom rbk(K), so
  *  the ground rules can be traced back to their block. */
+/** Loop parity (found by the mining harness, docs/research-cross-type.md): a closed loop crosses
+ *  every straight cut through the grid an even number of times. For a puzzle with a closed loop
+ *  (the loop rule), one constraint per cut between neighbouring rows or columns (loops through cells)
+ *  or through the middle of a row or column (loops along grid lines), as rule block `block`: implied
+ *  by the loop rule, so sound, and local, so a window over the cut can use it. */
+export function parityLemma(p: Puzzle, block: number): string | null {
+  const g = p.grid, loop = p.rules.find((r) => r.rule === "loop");
+  if (!loop || g.kind !== "square" || p.figure) return null;
+  const fence = loop.of === "fence", cuts: number[][] = [];
+  if (fence) {
+    for (let c = 0; c < g.cols; c++) cuts.push(g.borders.filter((b) => b.horizontal && g.cornerRC(b.corners[0])[1] === c).map((b) => b.id));
+    for (let r = 0; r < g.rows; r++) cuts.push(g.borders.filter((b) => !b.horizontal && g.cornerRC(b.corners[0])[0] === r).map((b) => b.id));
+  } else {
+    for (let c = 0; c + 1 < g.cols; c++) cuts.push(g.links.filter((l) => { const [a, b] = l.cells.map((i) => g.rc(i)); return a[0] === b[0] && Math.min(a[1], b[1]) === c; }).map((l) => l.id));
+    for (let r = 0; r + 1 < g.rows; r++) cuts.push(g.links.filter((l) => { const [a, b] = l.cells.map((i) => g.rc(i)); return a[1] === b[1] && Math.min(a[0], b[0]) === r; }).map((l) => l.id));
+  }
+  const on = fence ? "fence" : "line";
+  const facts = cuts.flatMap((es, k) => (es.length ? [`pk(${k}).`, ...es.map((e) => `pcut(${k},${e}).`)] : []));
+  return `% parity\n${facts.join(" ")}\n:- pk(K), N = #count{E: ${on}(E), pcut(K,E)}, N \\ 2 = 1, rbk(${block}).\n#external rbk(${block}).`;
+}
+
 function taggedProgram(p: Puzzle): string {
   let prog = program(p), from = 0;
   p.rules.forEach((s, k) => {
@@ -229,7 +259,16 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
   const local = localProgram(p, spec.genre);
-  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : taggedProgram(p);
+  // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
+  // their exits, added while solving)
+  const lemmaNames: string[] = [];
+  // DEDUCE_LEMMAS (default "component"; loop parity helped little for 11% more time) chooses lemmas
+  const lemmasOn = (process.env.DEDUCE_LEMMAS ?? "component").split(",");
+  const parity = local || !lemmasOn.includes("parity") ? null : parityLemma(p, p.rules.length);
+  if (parity) lemmaNames.push("parity");
+  const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
+  const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}`;
   const G: Ground = parseAspif(ground(prog));
   dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
@@ -441,14 +480,35 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       triples.sort((x, y) => x.size - y.size);
       triplesW.push(...triples.slice(0, maxPairs));
     }
+    // clue reach (found by the mining harness): the cells a size clue's region could still cover,
+    // within its size (by steps) or, for a square's side, within that many cells each way
+    const reachUnits = (): Window[] => {
+      if (g.kind !== "square" || p.figure) return [];
+      const size = p.rules.some((r) => r.rule === "size-clue"), side = p.rules.some((r) => r.rule === "side-clue");
+      if (!size && !side) return [];
+      const out: Window[] = [];
+      for (const [i, gs] of p.cellGivens) for (const x of gs) {
+        const v = (x as { value?: unknown }).value;
+        if (x.kind !== "number" || typeof v !== "number") continue;
+        const [r0, c0] = g.rc(i), cs: number[] = [];
+        for (let r = 0; r < g.rows; r++) for (let c = 0; c < g.cols; c++) {
+          const d = side ? Math.max(Math.abs(r - r0), Math.abs(c - c0)) : Math.abs(r - r0) + Math.abs(c - c0);
+          if (d <= v - 1) cs.push(g.cell(r, c));
+        }
+        out.push(win(`reach of ${rc(i)}`, cs));
+      }
+      return out;
+    };
     // families from the proposal language
-    const specs: FamilySpec[] = opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []);
+    // the families the mining harness found worth keeping, then any asked for
+    const specs: FamilySpec[] = [...(process.env.DEDUCE_DEFAULT_FAMILIES === "0" ? [] : DEFAULT_FAMILIES), ...(opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []))];
     if (specs.length) {
       const kinds: Record<string, Window[]> = {
         line: units.filter((w) => /^(row|column) /.test(w.label)),
         region: units.filter((w) => /^(area|box) /.test(w.label)),
         block: units.filter((w) => w.label.startsWith("2 × 2 ")),
         clue: T0.filter((w) => windowKind(w.label) === "clue"),
+        reach: reachUnits(),
       };
       const any = (a: Bits, b: Bits) => { for (let k = 0; k < a.length; k++) if (a[k] & b[k]) return true; return false; };
       const grown = new Map<Window, Bits>();
@@ -493,8 +553,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // known, and kept by their cells so a window checked before isn't checked again for nothing
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
-  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples+extra,count").split(",").map((x) => x.split("+").map((y) => y.trim()));
-  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "count" ? countWindows() : []);
+  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples+extra+components,count").split(",").map((x) => x.split("+").map((y) => y.trim()));
+  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
     const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });
@@ -514,10 +574,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- explanation units: each constraint belongs to a rule instance (a rule applied to a row,
   // a box, an area, one clue, or the whole grid); a cell's own bookkeeping ("one digit per
   // cell") is free ----
-  const consOf = new Int32Array(rules.length).fill(-1);
+  const ROOM = 4000;   // constraints the solver may add while solving (component lemmas)
+  const consOf = new Int32Array(rules.length + ROOM).fill(-1);
   constraints.forEach((k, j) => { consOf[k] = j; });
   interface Group { kind: string; label: string; cells: number[] }
-  const groups: Group[] = [], groupOf = new Int32Array(constraints.length).fill(-1);
+  const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM).fill(-1);
   {
     const byKey = new Map<string, number>();
     // a constraint inside several units (a pair of cells in both a row and a box) goes to the
@@ -543,7 +604,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     constraints.forEach((k, j) => {
       const cs = cellsOf(cfp[j]), block = rules[k].block;
       if (block < 0 && cs.length <= 1) return;
-      const kind = block >= 0 ? p.rules[block].rule : "regions";
+      const kind = block >= 0 ? ruleName(block) : "regions";
       const u = cs.length ? within(j).sort((a, b) => (count.get(`${block}|${b.label}`) ?? 0) - (count.get(`${block}|${a.label}`) ?? 0) || a.size - b.size)[0] : undefined;
       const label = u ? u.label : cs.length === 0 || cs.length > cap0 ? "the whole grid" : cs.length <= 3 ? cs.map(rc).join(" ") : `near ${rc(cs[0])}–${rc(cs.at(-1)!)}`;
       const key = `${kind}|${u ? u.label : cs.length > cap0 ? "*" : cs.join(",")}`;
@@ -882,6 +943,55 @@ end
     return count;
   };
 
+  // components and their exits (found by the mining harness): a group of known cells that must
+  // join another known cell of its kind (unshaded-connected: the unshaded cells; connected: the
+  // shaded ones) can't have every unknown neighbour go the other way. Added as constraints while
+  // solving, each with a window of the group and its neighbours; once true, true for good.
+  const componentW: Window[] = [], lemmaSeen = new Set<string>(), firstAdded = constraints.length;
+  const addComponentLemmas = () => {
+    if (g.kind !== "square" || p.figure || !lemmasOn.includes("component")) return;
+    const kinds: [boolean, boolean][] = [[false, p.rules.some((r) => r.rule === "unshaded-connected")], [true, p.rules.some((r) => r.rule === "connected")]];
+    // a cell's shading: true, false, null unknown, undefined blocked
+    const shadeOf = (i: number): boolean | null | undefined => {
+      if (p.blocked.has(i)) return undefined;
+      const m = markOf.get(`shaded(${i})`);
+      return m === undefined ? false : known[m] === 1 ? true : known[m] === 0 ? false : null;
+    };
+    for (const [want, active] of kinds) {
+      if (!active) continue;
+      const seen = new Uint8Array(n), comps: number[][] = [];
+      for (let i = 0; i < n; i++) {
+        if (seen[i] || shadeOf(i) !== want) continue;
+        const comp = [i]; seen[i] = 1;
+        for (let k = 0; k < comp.length; k++) for (const l of g.cellLinks[comp[k]]) for (const j of g.links[l].cells) if (!seen[j] && shadeOf(j) === want) { seen[j] = 1; comp.push(j); }
+        comps.push(comp);
+      }
+      if (comps.length < 2) continue;   // nothing known outside it to join
+      for (const comp of comps) {
+        const inS = new Set(comp), open = new Set<number>();
+        for (const c of comp) for (const l of g.cellLinks[c]) for (const j of g.links[l].cells) if (!inS.has(j) && shadeOf(j) === null) open.add(j);
+        if (!open.size) continue;
+        const key = `${want}|${[...comp].sort((a, b) => a - b).join(",")}`;
+        if (lemmaSeen.has(key) || constraints.length - firstAdded >= ROOM - 1) continue;
+        lemmaSeen.add(key);
+        // the violation: every unknown neighbour goes the other way
+        const body = [...open].map((j) => { const a = markAtom[markOf.get(`shaded(${j})`)!]; return want ? -a : a; });
+        const k = rules.length, jx = constraints.length;
+        rules.push({ choice: false, head: [], bound: null, body, weights: [], block: COMPONENT });
+        constraints.push(k); consOf[k] = jx;
+        const bits = new Uint32Array(empty.length);
+        for (const l of body) { const f = fp[Math.abs(l)]; if (f) orInto(bits, f); }
+        cfp.push(bits);
+        const cs = cellsOf(bits);
+        if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
+        groupOf[jx] = groups.length;
+        groups.push({ kind: "component", label: `around ${rc(comp[0])}`, cells: cs });
+        const cells = [...comp, ...open];
+        if (cells.length <= 3 * Math.max(g.rows, g.cols)) componentW.push(win(`the group at ${rc(comp[0])} and its ways out`, cells));
+      }
+    }
+  };
+
   dbg("setup");
   // single cells first, silently: a given's own cell (a printed digit rules out the others)
   {
@@ -955,6 +1065,7 @@ end
   while (undecided > 0) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
     round++;
+    addComponentLemmas();
     let progressed = false;
     for (const [k, stage] of stages.entries()) {
       const f = runWindows(stage.flatMap((fam) => family(fam)));

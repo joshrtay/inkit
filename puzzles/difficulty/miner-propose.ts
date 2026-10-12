@@ -57,10 +57,10 @@ async function moment(s: Stuck): Promise<string | null> {
 
 const LANGUAGE = `Our solver finds steps by checking small "windows": a set of cells whose rules are considered together; any fact forced inside a window is a step. Windows come in families described by a small language:
 {"units": [kinds...], "relation": "pivot" | "pairwise" | "touch", "maxCells": optional number}
-- kinds: "line" (a row or column), "region" (an outlined area or box), "block" (a 2 × 2 square), "clue" (the cells one clue's rule covers)
+- kinds: "line" (a row or column), "region" (an outlined area or box), "block" (a 2 × 2 square), "clue" (the cells one clue's rule covers), "reach" (the cells a size clue's region could still cover)
 - "pivot": the last unit meets (shares a cell with) every other unit; "pairwise": every two units share a cell; "touch": each unit shares a cell or an edge with the next.
 A window is the union of the units' cells. Example: {"units": ["region", "region", "line"], "relation": "pivot"} is "two areas and a row or column through both", which people use in Star Battle.
-Families the solver already has: single units and neighbourhoods; pairs of overlapping windows; two neighbouring rows or columns; two regions with a line through both; counting (k units of one family whose remaining marks all fall in k units of another)${accepted.length ? `; and, from a systematic search: ${accepted.map(name).join("; ")}` : ""}.`;
+Families the solver already has: single units and neighbourhoods; pairs of overlapping windows; two neighbouring rows or columns; two regions with a line through both; three lines in a chain; three lines crossed by a fourth; counting (k units of one family whose remaining marks all fall in k units of another); loop parity (a closed loop crosses every straight cut an even number of times); a known group of connected cells and its ways out (it must leave through one of them)${accepted.length ? `; and, from a systematic search: ${accepted.map(name).join("; ")}` : ""}.`;
 
 const ASK = `Here are moments where the solver had to search because no window family saw a step. Think about how a skilled human would make progress at each: which cells and rules they would look at together. Then propose up to 3 new window families in the language that would capture such reasoning (general, not tied to one puzzle), and separately up to 2 ideas the language can't express (a new unit kind or relation), each in a sentence.
 Reply with JSON only, at the end: {"families": [ {"units": [...], "relation": "...", "maxCells": n?, "why": "..."} ], "ideas": ["..."]}`;
@@ -79,9 +79,15 @@ for (let round = 1; round <= rounds && spent < budget - 0.5; round++) {
   const cost = res.usage.input_tokens * PRICE.input + res.usage.output_tokens * PRICE.output;
   spent += cost;
   const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
+  // the reply's answer: the last JSON object that parses and has "families" or "ideas" (a reply may
+  // reason first, quote JSON in its reasoning, or add a line after)
   let parsed: { families?: (FamilySpec & { why?: string })[]; ideas?: string[] } = {};
-  try { parsed = JSON.parse(/\{[\s\S]*\}\s*$/.exec(text.trim())?.[0] ?? "{}"); } catch { /* unparsed */ }
-  const valid = (parsed.families ?? []).filter((f) => Array.isArray(f.units) && f.units.length >= 2 && f.units.length <= 4 && f.units.every((u) => ["line", "region", "block", "clue"].includes(u)) && ["pivot", "pairwise", "touch"].includes(f.relation));
+  for (let end = text.lastIndexOf("}"); end >= 0 && !parsed.families && !parsed.ideas; end = text.lastIndexOf("}", end - 1)) {
+    for (let start = text.lastIndexOf("{", end); start >= 0; start = text.lastIndexOf("{", start - 1)) {
+      try { const j = JSON.parse(text.slice(start, end + 1)); if (j && (j.families || j.ideas)) { parsed = j; break; } } catch { /* not this span */ }
+    }
+  }
+  const valid = (parsed.families ?? []).filter((f) => Array.isArray(f.units) && f.units.length >= 2 && f.units.length <= 4 && f.units.every((u) => ["line", "region", "block", "clue", "reach"].includes(u)) && ["pivot", "pairwise", "touch"].includes(f.relation));
   const tested = [];
   for (const f of valid) {
     const { all } = await measure(set, { units: f.units, relation: f.relation, ...(f.maxCells ? { maxCells: f.maxCells } : {}) });
