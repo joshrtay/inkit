@@ -341,6 +341,30 @@ published, collaborators (Pelánek on difficulty and adaptivity; the Butler, Tor
 on strategy synthesis; Sturtevant's lab on exhaustive generation; learning scientists on contrasting
 cases and transfer), and patience: the cheap signals come in weeks, the experiments in months.
 
+
+### To pursue: a puzzle encoder for a language model
+
+General language models read a grid as text, so they count by writing their counting out: in our
+test (puzzles/difficulty/llm-move.ts) Opus 5.5 with thinking found a correct move at every
+breakthrough, but each call took 7–15 seconds. Our small move-predicting network
+(puzzles/difficulty/policy.py: convolutions plus pooling over each cell's rows, columns and areas)
+sees the grid as structure and answers in about 2 ms; its top guess at stuck states is true about
+90–99% of the time, but it can't say why.
+
+The idea joins the two the way vision-language models join an image encoder to a language model,
+and as Google's GraphToken (2024) did for graphs: train a small projector from the network's
+per-cell features into a frozen open model (7–8 billion parameters, e.g. Gemma), so it reasons
+about the puzzle in words while seeing its structure. If it works, it explains steps and gives
+hints in a player's language at a fraction of a large model's cost and delay.
+
+- **Pilot (a few hundred dollars of cloud compute):** template explanations written by the solver
+  for Star Battle and Sudoku (free), projector and adapters trained on a frozen small model, then
+  the move test against Opus: accuracy, cost, delay. Training is cheap (a run is roughly 5–10
+  GPU-hours); good explanation data is the real cost.
+- **When:** once the technique-mining harness shows explained breakthroughs are valuable, and the
+  network has human-path training (Janko's recorded solves).
+- **Stop if** it doesn't beat the network plus templates, or Opus, at a cost worth paying.
+
 ## Sources
 
 - Evan Chen's blog and site, summarised in [research-evan-chen.md](research-evan-chen.md); Richard
