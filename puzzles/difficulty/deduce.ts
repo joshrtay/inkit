@@ -104,7 +104,15 @@ export interface Options {
   stages?: string;
   /** also return the puzzle's structure: its marks and rule instances (for graph networks) */
   structure?: boolean;
+  /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
+  families?: FamilySpec[];
 }
+
+/** A window family in the proposal language (puzzles/difficulty/miner.ts): units of the given kinds
+ *  (line: a row or column; region: an area or box; block: a 2 × 2; clue: a clue's cells) related so:
+ *  "pivot", the last unit meets every other; "pairwise", every two share a cell; "touch", each
+ *  shares a cell or an edge with the next. A window is their cells together, up to maxCells. */
+export interface FamilySpec { units: string[]; relation: "pivot" | "pairwise" | "touch"; maxCells?: number }
 
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
 export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
@@ -392,7 +400,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   dbg("tier-0 windows");
   // tier 1: two overlapping tier-0 windows
   let T1: Window[] = [];
-  const strips: Window[] = [], triplesW: Window[] = [];
+  const strips: Window[] = [], triplesW: Window[] = [], extraW: Window[] = [];
   {
     const cap1 = 2 * Math.max(g.rows, g.cols, 5);
     const seen = new Set(T0.map((w) => w.cells.join(",")));
@@ -433,13 +441,60 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       triples.sort((x, y) => x.size - y.size);
       triplesW.push(...triples.slice(0, maxPairs));
     }
+    // families from the proposal language
+    const specs: FamilySpec[] = opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []);
+    if (specs.length) {
+      const kinds: Record<string, Window[]> = {
+        line: units.filter((w) => /^(row|column) /.test(w.label)),
+        region: units.filter((w) => /^(area|box) /.test(w.label)),
+        block: units.filter((w) => w.label.startsWith("2 × 2 ")),
+        clue: T0.filter((w) => windowKind(w.label) === "clue"),
+      };
+      const any = (a: Bits, b: Bits) => { for (let k = 0; k < a.length; k++) if (a[k] & b[k]) return true; return false; };
+      const grown = new Map<Window, Bits>();
+      const near = (w: Window) => {
+        let b = grown.get(w);
+        if (!b) { b = w.bits.slice(); for (const c of w.cells) for (const l of g.cellLinks[c]) for (const j of g.links[l].cells) b[j >>> 5] |= 1 << (j & 31); grown.set(w, b); }
+        return b;
+      };
+      for (const f of specs) {
+        const lists = f.units.map((k) => kinds[k] ?? []);
+        if (lists.some((l) => !l.length)) continue;
+        const cap = f.maxCells ?? 3 * Math.max(g.kind === "square" ? Math.max(g.rows, g.cols) : 9, 5);
+        const found = new Map<string, Window>(), pick: Window[] = [];
+        let tries = 0;
+        const fits = (k: number) => {
+          const w = pick[k];
+          if (pick.slice(0, k).includes(w)) return false;
+          if (f.relation === "pairwise") return pick.slice(0, k).every((x) => any(x.bits, w.bits));
+          if (f.relation === "touch") return k === 0 || any(near(pick[k - 1]), w.bits);
+          return k < lists.length - 1 || pick.slice(0, k).every((x) => any(x.bits, w.bits));
+        };
+        const walk = (k: number) => {
+          if (++tries > 200_000) return;
+          if (k === lists.length) {
+            const u = new Uint32Array(pick[0].bits.length);
+            for (const x of pick) orInto(u, x.bits);
+            const cs = cellsOf(u);
+            if (cs.length > cap) return;
+            const key = cs.join(",");
+            if (!found.has(key)) found.set(key, { label: pick.map((x) => x.label).join(" + "), cells: cs, bits: u, size: cs.length });
+            return;
+          }
+          for (const w of lists[k]) { pick[k] = w; if (fits(k)) walk(k + 1); }
+          pick.length = k;
+        };
+        walk(0);
+        extraW.push(...[...found.values()].sort((x, y) => x.size - y.size).slice(0, maxPairs));
+      }
+    }
   }
   // counting across units (./counting.ts): its windows are found afresh each round, from what's
   // known, and kept by their cells so a window checked before isn't checked again for nothing
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
-  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples,count").split(",").map((x) => x.split("+").map((y) => y.trim()));
-  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "count" ? countWindows() : []);
+  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples+extra,count").split(",").map((x) => x.split("+").map((y) => y.trim()));
+  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "count" ? countWindows() : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
     const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });

@@ -4,6 +4,8 @@
 // generator, a few types at small sizes. → references/ml/graphs.jsonl (local only)
 //
 //   node puzzles/difficulty/graph-data.ts [generatedPerType]
+//     GRAPH_TYPES="sudoku:9,akari:7,…" chooses the generated types and sizes; GRAPH_CORPUS=0 leaves
+//     the corpus out; GRAPH_OUT names the file (references/ml/<name>.jsonl)
 import { spawn } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -43,15 +45,15 @@ if (process.argv[2] === "--job") {
   run(JSON.parse(Buffer.from(process.argv[3], "base64").toString())).then((r) => process.stdout.write(JSON.stringify(r)), () => process.stdout.write("null"));
 } else {
   const per = Number(process.argv[2]) || 60;
-  const GENERATED: [string, number][] = [["sudoku", 9], ["star-battle", 8], ["akari", 7], ["hitori", 6], ["skyscrapers", 5], ["binary-puzzle", 6], ["minesweeper", 6],
+  const GENERATED: [string, number][] = process.env.GRAPH_TYPES ? process.env.GRAPH_TYPES.split(",").map((x) => { const [g, n] = x.split(":"); return [g, Number(n)] as [string, number]; }) : [["sudoku", 9], ["star-battle", 8], ["akari", 7], ["hitori", 6], ["skyscrapers", 5], ["binary-puzzle", 6], ["minesweeper", 6],
     ["shikaku", 6], ["easy-as-abc", 5], ["spiral-galaxies", 6], ["simple-loop", 6], ["masyu", 6], ["nurikabe", 6], ["cave", 6]];
   const jobs: Job[] = [
     ...(process.env.GRAPH_CORPUS === "0" ? [] : corpus(12)).filter((x) => x.spec.size[0] <= 12 && x.spec.size[1] <= 12).map((x) => ({ source: x.source, genre: x.genre, name: x.name, spec: x.spec })),
-    ...GENERATED.flatMap(([genre, size]) => Array.from({ length: per }, (_, k) => ({ source: "generated", genre, name: `${genre} ${size} #${k + 1}`, size, seed: 1000 + k }))),
+    ...GENERATED.flatMap(([genre, size]) => Array.from({ length: per }, (_, k) => ({ source: "generated", genre, name: `${genre} ${size} #${k + 1}`, size, seed: 1000 + size * 10000 + k }))),
   ];
   const repo = new URL("../../", import.meta.url).pathname;
   mkdirSync(`${repo}references/ml`, { recursive: true });
-  const file = `${repo}references/ml/graphs${process.env.GRAPH_CORPUS === "0" ? "-smoke" : ""}.jsonl`;
+  const file = `${repo}references/ml/${process.env.GRAPH_OUT ?? (process.env.GRAPH_CORPUS === "0" ? "graphs-smoke" : "graphs")}.jsonl`;
   writeFileSync(file, "");
   const live = new Set<ReturnType<typeof spawn>>();
   process.on("exit", () => { for (const c of live) c.kill("SIGKILL"); });

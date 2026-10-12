@@ -15,6 +15,7 @@ import numpy as np
 import torch, torch.nn as nn
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# one file, or several joined by commas
 DATA = os.environ.get("GRAPH_DATA") or os.path.join(HERE, "../../references/ml/graphs.jsonl")
 NEXT = 3
 dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -189,7 +190,7 @@ def evaluate(net, items):
     return hits / max(1, len(items)), base / max(1, len(items))
 
 def load():
-    pz = [Puzzle(json.loads(l)) for l in open(DATA) if l.strip()]
+    pz = [Puzzle(json.loads(l)) for f in DATA.split(",") for l in open(f) if l.strip()]
     # a few puzzles have very many marks (a big board's every digit, link or border): left out
     return [p for p in pz if p.states and len(p.marks) <= 4000]
 def states(puzzles): return [(p, k) for p in puzzles for k in range(len(p.states))]
