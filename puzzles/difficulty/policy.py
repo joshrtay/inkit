@@ -14,17 +14,19 @@
 # ones (the generator makes only 1-star). At stuck states (tier 2 and up) it's much weaker.
 #
 #   references/ml/.venv/bin/python puzzles/difficulty/policy.py <sudoku|star-battle> [epochs] [rounds ahead] [stuck weight]
-import json, sys, time, glob, random
+import json, os, sys, time, glob, random
 import numpy as np
 import torch, torch.nn as nn
 
-genre = sys.argv[1]
-epochs = int(sys.argv[2]) if len(sys.argv) > 2 else 8
+# run as a script, or imported (policy_human.py) with the type in POLICY_GENRE
+MAIN = __name__ == "__main__"
+genre = sys.argv[1] if MAIN else os.environ.get("POLICY_GENRE", "star-battle")
+epochs = int(sys.argv[2]) if MAIN and len(sys.argv) > 2 else 8
 # a state's moves: the facts settled in its round and the next AHEAD-1 (the solver takes only the
 # cheapest each round, so an easy fact left for later still counts)
-AHEAD = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+AHEAD = int(sys.argv[3]) if MAIN and len(sys.argv) > 3 else 1
 # stuck states (tier 1 and up) are rare in generated puzzles: repeat them this many times in training
-HARD = int(sys.argv[4]) if len(sys.argv) > 4 else 1
+HARD = int(sys.argv[4]) if MAIN and len(sys.argv) > 4 else 1
 here = __file__.rsplit("/", 1)[0] + "/../../references/ml"
 S = 9 if genre == "sudoku" else 10
 
@@ -128,13 +130,27 @@ def load(files):
             out.append([(d.get("seed", d.get("name")), *s) for s in states_of(d)])
     return out
 
-puzzles = load(sorted(glob.glob(f"{here}/data-{genre}-*.jsonl")))
-random.Random(1).shuffle(puzzles)
-cut = int(0.85 * len(puzzles))
-train = [s for p in puzzles[:cut] for s in p]; test = [s for p in puzzles[cut:] for s in p]
-train += [s for s in train if s[4] >= 1] * (HARD - 1)
-hard = [s for p in load(sorted(glob.glob(f"{here}/test-{genre}.jsonl"))) for s in p]
-print(f"{genre}: {len(puzzles)} puzzles, {len(train)} training states, {len(test)} test states, {len(hard)} rated-puzzle states")
+def main():
+  global net
+  puzzles = load(sorted(glob.glob(f"{here}/data-{genre}-*.jsonl")))
+  random.Random(1).shuffle(puzzles)
+  cut = int(0.85 * len(puzzles))
+  train = [s for p in puzzles[:cut] for s in p]; test = [s for p in puzzles[cut:] for s in p]
+  train += [s for s in train if s[4] >= 1] * (HARD - 1)
+  hard = [s for p in load(sorted(glob.glob(f"{here}/test-{genre}.jsonl"))) for s in p]
+  print(f"{genre}: {len(puzzles)} puzzles, {len(train)} training states, {len(test)} test states, {len(hard)} rated-puzzle states")
+  net = fit(train, epochs)
+  evaluate(net, test, "held-out generated")
+  evaluate(net, hard, "rated puzzles")
+  # speed: one state at a time on the CPU, as the solver would ask
+  Xtr, Mtr, Ytr, Utr = tensors(train[:1])
+  cpu = Net(Xtr.shape[1], Ytr.shape[1]); cpu.load_state_dict({k: v.cpu() for k, v in net.state_dict().items()}); cpu.eval()
+  with torch.no_grad():
+    for _ in range(5): cpu(Xtr, Utr)
+    t1 = time.time()
+    for _ in range(50): cpu(Xtr, Utr)
+  print(f"one prediction on the CPU: {(time.time() - t1) / 50 * 1000:.1f} ms")
+  torch.save(net.state_dict(), f"{here}/policy-{genre}.pt")
 
 K = 27 if genre == "sudoku" else 36   # units per state: rows, columns, and boxes or areas
 def units_of(info, n):
@@ -179,26 +195,36 @@ class Net(nn.Module):
         return self.out(h)
 
 dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-Xtr, Mtr, Ytr, Utr = tensors(train)
-net = Net(Xtr.shape[1], Ytr.shape[1]).to(dev)
-opt = torch.optim.AdamW(net.parameters(), 2e-3, weight_decay=1e-4)
-pos = (Ytr * Mtr).sum() / Mtr.sum()
-lossf = nn.BCEWithLogitsLoss(reduction="none", pos_weight=torch.tensor((1 - pos) / pos).clamp(max=50).to(dev))
-t0 = time.time()
-for ep in range(epochs):
-    net.train(); perm = torch.randperm(len(Xtr)); tot = 0
-    for i in range(0, len(perm), 128):
-        b = perm[i:i + 128]
-        x, m, y, u = Xtr[b].to(dev), Mtr[b].to(dev), Ytr[b].to(dev), Utr[b].to(dev)
-        loss = (lossf(net(x, u), y) * m).sum() / m.sum()
-        opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item() * len(b)
-    print(f"epoch {ep + 1}: loss {tot / len(perm):.4f} ({time.time() - t0:.0f} s)")
 
-def evaluate(states, label):
-    if not states: return
+def fit(train, epochs, net=None, lr=2e-3):
+    """Train a network (a new one, or `net` further) on states; returns it."""
+    Xtr, Mtr, Ytr, Utr = tensors(train)
+    net = net or Net(Xtr.shape[1], Ytr.shape[1]).to(dev)
+    opt = torch.optim.AdamW(net.parameters(), lr, weight_decay=1e-4)
+    pos = (Ytr * Mtr).sum() / Mtr.sum()
+    lossf = nn.BCEWithLogitsLoss(reduction="none", pos_weight=((1 - pos) / pos).clamp(max=50).to(dev))
+    t0 = time.time()
+    for ep in range(epochs):
+        net.train(); perm = torch.randperm(len(Xtr)); tot = 0
+        for i in range(0, len(perm), 128):
+            b = perm[i:i + 128]
+            x, m, y, u = Xtr[b].to(dev), Mtr[b].to(dev), Ytr[b].to(dev), Utr[b].to(dev)
+            loss = (lossf(net(x, u), y) * m).sum() / m.sum()
+            opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item() * len(b)
+        print(f"epoch {ep + 1}: loss {tot / len(perm):.4f} ({time.time() - t0:.0f} s)")
+    return net
+
+def scores(net, states):
+    """The network's scores for every mark of each state, open marks only (others -1e9)."""
     net.eval(); X, M, Y, U = tensors(states)
     with torch.no_grad(): logits = torch.cat([net(X[i:i + 256].to(dev), U[i:i + 256].to(dev)).cpu() for i in range(0, len(X), 256)])
     logits[M == 0] = -1e9
+    return logits, M, Y
+
+def evaluate(net, states, label):
+    if not states: return
+    X, M, Y, U = tensors(states)
+    logits, _, _ = scores(net, states)
     flat = logits.flatten(1); top = flat.argmax(1)
     hit = Y.flatten(1)[torch.arange(len(top)), top] == 1
     base = ((Y * M).flatten(1).sum(1) / M.flatten(1).sum(1).clamp(min=1)).mean()
@@ -212,14 +238,4 @@ def evaluate(states, label):
     print(f"{label} (moves = next {AHEAD} rounds): top-1 is a move {hit.float().mean():.0%} (random {base:.0%}), true {true.mean():.0%}"
           + "".join(f"; tier {t}: {hit[tiers == t].float().mean():.0%} move, {true[tiers == t].mean():.0%} true (n={int((tiers == t).sum())})" for t in sorted(set(tiers.tolist()))))
 
-evaluate(test, "held-out generated")
-evaluate(hard, "rated puzzles")
-# speed: one state at a time on the CPU, as the solver would ask
-cpu = Net(Xtr.shape[1], Ytr.shape[1]); cpu.load_state_dict({k: v.cpu() for k, v in net.state_dict().items()}); cpu.eval()
-x, u = Xtr[:1], Utr[:1]
-with torch.no_grad():
-    for _ in range(5): cpu(x, u)
-    t1 = time.time()
-    for _ in range(50): cpu(x, u)
-print(f"one prediction on the CPU: {(time.time() - t1) / 50 * 1000:.1f} ms")
-torch.save(net.state_dict(), f"{here}/policy-{genre}.pt")
+if MAIN: main()
