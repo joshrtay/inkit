@@ -96,7 +96,18 @@ export interface Options {
   maxDeep?: number;
   /** record every window check (for learning which windows to check first) */
   trace?: boolean;
+  /** the order window families are tried in each round, a later stage only when the earlier ones
+   *  found nothing: stages split by ",", families in a stage joined by "+" (t0 single units and
+   *  neighbourhoods, pairs, strips, triples (two areas and a line), count). A step found in the
+   *  first stage costs as tier 0, in later ones as tier 1. Default (or DEDUCE_STAGES):
+   *  "t0,pairs+strips+triples,count". */
+  stages?: string;
+  /** also return the puzzle's structure: its marks and rule instances (for graph networks) */
+  structure?: boolean;
 }
+
+/** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
+export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
 
 /** One window check, for learning which windows find facts (puzzles/difficulty/ranker). */
 export interface TraceRow {
@@ -201,7 +212,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[] }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -381,6 +392,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   dbg("tier-0 windows");
   // tier 1: two overlapping tier-0 windows
   let T1: Window[] = [];
+  const strips: Window[] = [], triplesW: Window[] = [];
   {
     const cap1 = 2 * Math.max(g.rows, g.cols, 5);
     const seen = new Set(T0.map((w) => w.cells.join(",")));
@@ -403,8 +415,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     T1 = pairs.slice(0, maxPairs);
     // strips: two neighbouring rows, or columns, which share no cell (Star Battle's squeeze)
     if (g.kind === "square" && !p.figure) {
-      for (let r = 0; r + 1 < g.rows; r++) T1.push(win(`rows ${r + 1}–${r + 2}`, Array.from({ length: 2 * g.cols }, (_, k) => g.cell(r + (k >= g.cols ? 1 : 0), k % g.cols))));
-      for (let c = 0; c + 1 < g.cols; c++) T1.push(win(`columns ${c + 1}–${c + 2}`, Array.from({ length: 2 * g.rows }, (_, k) => g.cell(k % g.rows, c + (k >= g.rows ? 1 : 0)))));
+      for (let r = 0; r + 1 < g.rows; r++) strips.push(win(`rows ${r + 1}–${r + 2}`, Array.from({ length: 2 * g.cols }, (_, k) => g.cell(r + (k >= g.cols ? 1 : 0), k % g.cols))));
+      for (let c = 0; c + 1 < g.cols; c++) strips.push(win(`columns ${c + 1}–${c + 2}`, Array.from({ length: 2 * g.rows }, (_, k) => g.cell(k % g.rows, c + (k >= g.rows ? 1 : 0)))));
     }
     // two areas (or boxes) and a row or column through both: the move people make most where
     // window pairs see nothing (Janko's Star Battles, puzzles/difficulty/janko-explain.ts)
@@ -419,13 +431,15 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
         triples.push({ label: `${regions[i].label} + ${regions[j].label} + ${l.label}`, cells: cs, bits: u, size: cs.length });
       }
       triples.sort((x, y) => x.size - y.size);
-      T1.push(...triples.slice(0, maxPairs));
+      triplesW.push(...triples.slice(0, maxPairs));
     }
   }
   // counting across units (./counting.ts): its windows are found afresh each round, from what's
   // known, and kept by their cells so a window checked before isn't checked again for nothing
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
+  const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples,count").split(",").map((x) => x.split("+").map((y) => y.trim()));
+  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "count" ? countWindows() : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
     const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });
@@ -886,13 +900,18 @@ end
   while (undecided > 0) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
     round++;
-    let f = runWindows(T0);
-    if (f.size) { const c = candidates(f, 0); if (entryPoints < 0) entryPoints = c.length; take(c, c.length); continue; }
-    if (entryPoints < 0) entryPoints = 0;
-    f = runWindows(T1);
-    if (f.size) { take(candidates(f, 1)); continue; }
-    f = runWindows(countWindows());
-    if (f.size) { take(candidates(f, 1)); continue; }
+    let progressed = false;
+    for (const [k, stage] of stages.entries()) {
+      const f = runWindows(stage.flatMap((fam) => family(fam)));
+      if (k === 0 && entryPoints < 0 && !f.size) entryPoints = 0;
+      if (!f.size) continue;
+      const c = candidates(f, k === 0 ? 0 : 1);
+      if (k === 0 && entryPoints < 0) entryPoints = c.length;
+      take(c, k === 0 ? c.length : 0);
+      progressed = true;
+      break;
+    }
+    if (progressed) continue;
 
     // tier 2: assume a mark the other way; propagation alone must contradict it. What's
     // refutable this way stays so as more is known, so one clingo call fills a pool to draw on.
@@ -945,7 +964,10 @@ end
   // the answer's true marks (some are settled in grounding, before any step, so a path alone
   // doesn't hold them all)
   const answerMarks = markName.filter((_, m) => answer[m] === 1);
-  return { path, profile, answer: answerMarks, initial, ...(opts.trace ? { trace, timing } : { timing }) };
+  const structure: Structure | undefined = opts.structure
+    ? { cells: n, rows: g.kind === "square" ? g.rows : 0, cols: g.kind === "square" ? g.cols : 0, marks: markName.map((name, m) => ({ name, cells: markCells[m] })), groups: groups.map((x) => ({ kind: x.kind, label: x.label, cells: x.cells })) }
+    : undefined;
+  return { path, profile, answer: answerMarks, initial, ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
 }
 
 /** How step costs combine: a soft-max, D = (1/k)·log Σ exp(k·cost). One step costing Δ more than
