@@ -94,7 +94,8 @@ class Puzzle:
                 for (name, v, sig, cost) in later["facts"]:
                     if name in self.mindex: y[self.mindex[name], 0 if v else 1] = 1
             for (name, v, sig, cost) in rd["facts"]:
-                if name in self.mindex: moves.append((self.mindex[name], v, sig, cost))
+                # "(none)" was the earlier name for cell-only moves
+                if name in self.mindex: moves.append((self.mindex[name], v, "cell-only" if sig == "(none)" else sig, cost))
             self.states.append((s, y, moves))
             apply([(f[0], f[1]) for f in rd["facts"]])
 
@@ -144,18 +145,32 @@ class GraphNet(nn.Module):
 
 def to(g): return tuple(x.to(dev) if torch.is_tensor(x) else x for x in g)
 
-def train(items, epochs, net=None, lr=2e-3, bs=24):
+BUDGET = 20000   # marks per batch: batches by size, not count, so memory stays even
+
+def chunks(items):
+    """Items in batches of at most BUDGET marks."""
+    out, cur, size = [], [], 0
+    for it in items:
+        m = len(it[0].marks)
+        if cur and size + m > BUDGET: out.append(cur); cur, size = [], 0
+        cur.append(it); size += m
+    if cur: out.append(cur)
+    return out
+
+def train(items, epochs, net=None, lr=2e-3):
     net = net or GraphNet().to(dev)
     opt = torch.optim.AdamW(net.parameters(), lr, weight_decay=1e-4)
     t0 = time.time()
     for ep in range(epochs):
         net.train(); random.shuffle(items); tot = n = 0
-        for i in range(0, len(items), bs):
-            g, y, mask, _ = batch(items[i:i + bs]); g, y, mask = to(g), y.to(dev), mask.to(dev)
+        for part in chunks(items):
+            g, y, mask, _ = batch(part); g, y, mask = to(g), y.to(dev), mask.to(dev)
             pos = (y.max(1).values * mask).sum() / mask.sum().clamp(min=1)
             w = 1 + y * ((1 - pos) / pos.clamp(min=1e-3)).clamp(max=30)
             loss = (nn.functional.binary_cross_entropy_with_logits(net(g), y, weight=w, reduction="none").sum(1) * mask).sum() / mask.sum().clamp(min=1)
             opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item(); n += 1
+            # Apple's GPU caches memory per tensor shape, and graph batches vary: release it
+            if dev.type == "mps" and n % 50 == 0: torch.mps.empty_cache()
         print(f"  epoch {ep + 1}: loss {tot / max(1, n):.3f} ({time.time() - t0:.0f} s)", flush=True)
     return net
 
@@ -163,8 +178,8 @@ def evaluate(net, items):
     """Share of states whose top-scored open mark (either way) is a move within the next rounds; random's share."""
     net.eval(); hits = base = 0
     with torch.no_grad():
-        for i in range(0, len(items), 48):
-            g, y, mask, offs = batch(items[i:i + 48]); logits = net(to(g)).cpu()
+        for part in chunks(items):
+            g, y, mask, offs = batch(part); logits = net(to(g)).cpu()
             for (o, n) in offs:
                 lg, yy, mm = logits[o:o + n], y[o:o + n], mask[o:o + n]
                 if mm.sum() == 0: continue
@@ -175,7 +190,8 @@ def evaluate(net, items):
 
 def load():
     pz = [Puzzle(json.loads(l)) for l in open(DATA) if l.strip()]
-    return [p for p in pz if p.states]
+    # a few puzzles have very many marks (a big board's every digit, link or border): left out
+    return [p for p in pz if p.states and len(p.marks) <= 4000]
 def states(puzzles): return [(p, k) for p in puzzles for k in range(len(p.states))]
 
 if __name__ == "__main__":
