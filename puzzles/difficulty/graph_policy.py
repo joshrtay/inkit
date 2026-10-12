@@ -170,7 +170,7 @@ def train(items, epochs, net=None, lr=2e-3):
             loss = (nn.functional.binary_cross_entropy_with_logits(net(g), y, weight=w, reduction="none").sum(1) * mask).sum() / mask.sum().clamp(min=1)
             opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item(); n += 1
             # Apple's GPU caches memory per tensor shape, and graph batches vary: release it
-            if dev.type == "mps" and n % 50 == 0: torch.mps.empty_cache()
+            if dev.type == "mps" and n % 10 == 0: torch.mps.empty_cache()
         print(f"  epoch {ep + 1}: loss {tot / max(1, n):.3f} ({time.time() - t0:.0f} s)", flush=True)
     return net
 
@@ -219,7 +219,10 @@ if __name__ == "__main__":
             withit, base = evaluate(full, te)
             net = train(states(tr_others), 8)
             zero, _ = evaluate(net, te)
-            net = train(states(split[g][0][:10]), 4, net, lr=5e-4)
+            # few-shot: 10 of its puzzles, mixed with as many states again from the other types, so
+            # the network learns the new type without forgetting the rest
+            new = states(split[g][0][:10]); replay = random.sample(states(tr_others), min(len(new), len(states(tr_others))))
+            net = train(new + replay, 4, net, lr=2e-4)
             few, _ = evaluate(net, te)
             print(f"| {g} | {withit:.0%} | {zero:.0%} | {few:.0%} | {base:.0%} |", flush=True)
     elif mode == "embed":
@@ -233,7 +236,8 @@ if __name__ == "__main__":
                         gr, _, _, offs = batch([(p, k)]); _, h = net(to(gr), hidden=True); h = h.cpu()
                         for (mi, v, sig, cost) in moves[:4]:
                             vecs.append(h[mi].numpy()); sigs.append(" ".join(sorted(set(sig.split(" "))))); genres.append(g); costs.append(cost)
-        V = np.stack(vecs); V = (V - V.mean(0)) / (V.std(0) + 1e-6); costs = np.array(costs)
+        V = np.stack(vecs); keep = V.std(0) > 1e-3   # nearly constant columns would blow up when scaled
+        V = (V[:, keep] - V[:, keep].mean(0)) / V[:, keep].std(0); costs = np.array(costs)
         sigs, genres = np.array(sigs), np.array(genres)
         # nearest neighbours by cosine
         U = V / np.linalg.norm(V, axis=1, keepdims=True); S = U @ U.T; np.fill_diagonal(S, -1)
@@ -250,10 +254,18 @@ if __name__ == "__main__":
             j = other[np.argmax(S[i, other])]; cross += sigs[j] == sigs[i]; n_cross += 1
         print(f"{len(V)} moves from {len(set(genres))} types, {len(freq)} signatures")
         print(f"nearest 5 share the move's signature: {same:.0%} (chance {chance:.0%})")
-        print(f"nearest move from another type shares it: {cross / max(1, n_cross):.0%} (n={n_cross})")
+        # chance: a random move of another type sharing the signature
+        by_g = defaultdict(lambda: defaultdict(int))
+        for s_, g_ in zip(sigs, genres): by_g[g_][s_] += 1
+        tot_g = {g_: sum(v.values()) for g_, v in by_g.items()}
+        ch = []
+        for s_, g_ in zip(sigs, genres):
+            other_n = len(sigs) - tot_g[g_]
+            if other_n and freq[s_] >= 3: ch.append((freq[s_] - by_g[g_][s_]) / other_n)
+        print(f"nearest move from another type shares it: {cross / max(1, n_cross):.0%} (chance {np.mean(ch):.0%}, n={n_cross})")
         # a difficulty direction: ridge regression of cost on the embedding, fit on half, tested on the other
         idx = np.random.RandomState(0).permutation(len(V)); a, b = idx[: len(V) // 2], idx[len(V) // 2:]
-        X = np.c_[V, np.ones(len(V))]; w = np.linalg.solve(X[a].T @ X[a] + 10 * np.eye(X.shape[1]), X[a].T @ costs[a])
+        X = np.c_[V, np.ones(len(V))]; w = np.linalg.lstsq(np.r_[X[a], np.sqrt(10) * np.eye(X.shape[1])], np.r_[costs[a], np.zeros(X.shape[1])], rcond=None)[0]
         pred = X[b] @ w; r2 = 1 - ((pred - costs[b]) ** 2).sum() / ((costs[b] - costs[b].mean()) ** 2).sum()
         print(f"step cost from a straight line through the space: R² {r2:.2f} on held-out moves")
         np.savez(os.path.join(HERE, "../../references/ml/move-embedding.npz"), V=V, sigs=sigs, genres=genres, costs=costs)
