@@ -9,6 +9,7 @@ import { spearman } from "./calibrate.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
 import { readStarBattle } from "./janko.ts";
 import { mapPool } from "./pool.ts";
+import { windowKind } from "./deduce.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
 const dir = `${repo}references/janko/Sternenschlacht/`;
@@ -25,9 +26,12 @@ const rows = await mapPool(puzzles, async ({ f, j }) => {
   if (!r || !r.profile.solved) return null;
   const n = j!.spec.size[0];
   // the round each cell was settled in by our solver (0: before the first step)
-  const round = new Map<number, number>();
-  for (const x of r.initial ?? []) { const m = /^shaded\((\d+)\)=/.exec(x); if (m) round.set(+m[1], 0); }
-  for (const s of r.path) for (const fact of s.facts) { const m = /^shaded\((\d+)\)$/.exec(fact.mark); if (m && !round.has(+m[1])) round.set(+m[1], s.round ?? 0); }
+  const round = new Map<number, number>(), how = new Map<number, string>();
+  for (const x of r.initial ?? []) { const m = /^shaded\((\d+)\)=/.exec(x); if (m) { round.set(+m[1], 0); how.set(+m[1], "start"); } }
+  for (const s of r.path) for (const fact of s.facts) {
+    const m = /^shaded\((\d+)\)$/.exec(fact.mark);
+    if (m && !round.has(+m[1])) { round.set(+m[1], s.round ?? 0); how.set(+m[1], `${fact.value ? "star" : "empty"}|T${s.tier}|${windowKind(s.where)}|${s.cost}`); }
+  }
   const cells = [...j!.settled.keys()].filter((i) => round.has(i));
   const human = cells.map((i) => j!.settled.get(i)!), ours = cells.map((i) => round.get(i)!);
   return {
@@ -35,6 +39,13 @@ const rows = await mapPool(puzzles, async ({ f, j }) => {
     rho: spearman(human, ours),
     rowMajor: spearman(human, cells),
     oursRowMajor: spearman(ours, cells),
+    // each cell: its share of the way through the person's solve and through ours (0 first, 1
+    // last, by rank), and how our solver settled it
+    detail: (() => {
+      const pct = (xs: number[]) => { const o = xs.map((x, k) => [x, k] as const).sort((a, b) => a[0] - b[0]); const out = new Array(xs.length); o.forEach(([, k], r) => { out[k] = r / Math.max(1, xs.length - 1); }); return out as number[]; };
+      const hp = pct(human), op = pct(ours);
+      return cells.map((c, k) => ({ cell: c, human: +hp[k].toFixed(3), ours: +op[k].toFixed(3), how: how.get(c) }));
+    })(),
   };
 });
 const ok = rows.filter((r): r is NonNullable<typeof r> => !!r && Number.isFinite(r.rho));
