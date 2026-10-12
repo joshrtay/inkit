@@ -193,7 +193,14 @@ def load():
     pz = [Puzzle(json.loads(l)) for f in DATA.split(",") for l in open(f) if l.strip()]
     # a few puzzles have very many marks (a big board's every digit, link or border): left out
     return [p for p in pz if p.states and len(p.marks) <= 4000]
-def states(puzzles): return [(p, k) for p in puzzles for k in range(len(p.states))]
+def states(puzzles, per=None):
+    """Every (puzzle, state), or at most `per` of each puzzle's states (spread through its solve)."""
+    out = []
+    for p in puzzles:
+        ks = list(range(len(p.states)))
+        if per and len(ks) > per: ks = ks[:: max(1, len(ks) // per)][:per]
+        out += [(p, k) for k in ks]
+    return out
 
 if __name__ == "__main__":
     random.seed(1); torch.manual_seed(1)
@@ -218,11 +225,12 @@ if __name__ == "__main__":
             tr_others = [p for k, (tr, _) in split.items() if k != g for p in tr]
             te = states(split[g][1])
             withit, base = evaluate(full, te)
-            net = train(states(tr_others), 8)
+            # without it: at most 8 states a puzzle, 4 epochs (the scaled data would take hours a run)
+            net = train(states(tr_others, 8), 4)
             zero, _ = evaluate(net, te)
             # few-shot: 10 of its puzzles, mixed with as many states again from the other types, so
             # the network learns the new type without forgetting the rest
-            new = states(split[g][0][:10]); replay = random.sample(states(tr_others), min(len(new), len(states(tr_others))))
+            new = states(split[g][0][:10]); pool_ = states(tr_others, 8); replay = random.sample(pool_, min(len(new), len(pool_)))
             net = train(new + replay, 4, net, lr=2e-4)
             few, _ = evaluate(net, te)
             print(f"| {g} | {withit:.0%} | {zero:.0%} | {few:.0%} | {base:.0%} |", flush=True)
