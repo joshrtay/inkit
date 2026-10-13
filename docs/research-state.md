@@ -149,16 +149,50 @@ per type mean agreement figures can be off by 0.15.
 
 - **Generation fleet:** 15 spot VMs, 480 vCPUs, until about 13:20 Pacific. A watchdog relaunches
   reclaimed machines; gather-gen.sh collects the results.
+- **Fair size test** (graph-20261013-1125): widths 64, 128 and 256 with the learning rate scaled.
+- **Labeller pilot:** Opus 5.5 and Fable 5.1 on difficulty, sequences, hints and interest against
+  answer keys; capped at $15.
 - **Expert-band trial:** the six genres that had no top band, now with the mined families.
 - **Evaluation changes:** held-out human puzzles first.
 
 ## Decisions waiting on you
 
 1. **Push main** (52+ commits): deploys the link importer. Everything else is research code.
-2. **Labeller pilot:** Opus and Fable on four jobs against answer keys, ~$10–15.
-3. **Fair size test** on the GPU: ~$3.
-4. **GPU quota:** the increase is still pending on Google's side.
+2. **GPU quota:** the increase to 4 was declined automatically (CPUs to 512 were approved). Ask
+   again smaller (1 → 2) with a short justification, or open a support case. A second option: the
+   approved Vertex AI quota (one preemptible L4 for training in us-west2) is a separate pool.
 5. **A budget alert** in Cloud Billing: optional insurance.
+
+## Sequence
+
+Two things first, since every later result rests on them: the **evaluation changes** (the network
+test is lenient and in-distribution) and **whether Janko's recordings hold solve times** (if so,
+about 4,000 human difficulty labels).
+
+Then three tracks in parallel. Each uses a different resource (the GPU, the CPUs, the API), so none
+waits on another:
+
+| Phase | GPU (one L4 until the quota rises) | CPU (Mac and fleet) | API | Decides |
+|---|---|---|---|---|
+| **0. Fix the ruler** | — | evaluation changes; gather the fleet, audit 1%, load data in pieces; check Janko's times | **labeller pilot** (running) | can a model's labels fill our data gaps? |
+| **1. What limits the network?** | **fair size test** (running), then the **learning curve** at the chosen size | **connectivity pricing**; **per-genre techniques** (an agent) | — | size or data or neither; can the component lemma go on? |
+| **2. Fix the weakest area** | **structure as input** for the whole-grid types; then **tuning on human moves** | **path order and difficulty** (once prices settle) | **labels at scale**, if the pilot passes | do hints and difficulty work on Nurikabe and the rest? |
+| **3. Build the products** | distill into a small model (the encoder), if labels and network justify it | sequences from the family map, judged against Beast Academy; the site shortlist; new genres in the generator | hint wording | what ships |
+
+**Why this order:**
+- **Size before the learning curve:** the curve should use the right size.
+- **Structure after both:** otherwise we can't tell what fixed Nurikabe.
+- **The pilot now:** it needs only existing answer keys, and it decides how phase 2 gets its labels.
+- **Connectivity pricing beside it, on CPU:** it unblocks the component lemma and hard Hitori and
+  Nurikabe from the generator.
+- **Path order after pricing:** it reads step costs.
+- **Products last:** each needs the core to be good enough.
+
+**Gates:**
+- **Neither size nor data helps:** skip more generation and go to structure as input.
+- **The pilot fails its answer keys:** labels must come from people, so inkit's own solve and like
+  data moves up, and so do the site features that collect it.
+- **Structure as input leaves Nurikabe under 40%:** rethink the network's input, not its size.
 
 ## Next, in order
 
