@@ -22,6 +22,7 @@
 // A step's cost counts the distinct rule and clue kinds, the instances and the earlier facts
 // (costOf). Each round takes the cheapest steps; the profile combines step costs by soft-max
 // (softmax) and adds rule load (estimateOf).
+import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
 import { blockFor } from "../../src/engine/rules.ts";
@@ -30,6 +31,7 @@ import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspi
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
 import { localProgram } from "./local.ts";
 import { countSets, countSystems } from "./counting.ts";
+import { PRIMITIVE, unitKind } from "./signatures.ts";
 
 export type Tier = 0 | 1 | 2 | 3;
 
@@ -53,6 +55,10 @@ export interface Step {
   cost: number;
   /** that explanation: the rule instances, the kinds held in mind, the earlier facts used */
   because?: { clues: string[]; kinds: string[]; facts: number; capped: boolean };
+  /** type-free features of the step, for pricing it (puzzles/difficulty/price.ts): rule instances
+   *  by primitive and unit kind, whether a global property (connection, a loop) is used, the
+   *  largest group held as one, the known facts relied on and how far apart, the window's size */
+  feat?: Record<string, number>;
 }
 
 export interface Profile {
@@ -107,6 +113,25 @@ export interface Options {
   /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
   families?: FamilySpec[];
 }
+
+/** Learned step prices (puzzles/difficulty/price.py → step-prices.json): a correction added to a
+ *  step's cost from its features, fitted so puzzles rank like their labels (Tatham's grades, Sudoku
+ *  ratings, Puzzle Square JP, Beast Academy). On with DEDUCE_PRICES=1 (off until the scoreboard
+ *  confirms them). The features are scaled exactly as price.py's vec. */
+export function priceCorrection(f: Record<string, number>, prices: { features: string[]; weights: number[] }): number {
+  const t = f.tier ?? 0, v: Record<string, number> = {
+    tier1: t === 1 ? 1 : 0, tier2: t === 2 ? 1 : 0, tier3: t === 3 ? 1 : 0, instances: (f.instances ?? 0) / 4, facts: (f.facts ?? 0) / 4,
+    global: f.global ?? 0, extent: Math.log1p(f.extent ?? 0) / 2, cells: Math.log1p(f.cells ?? 0) / 3, spread: (f.spread ?? 0) / 10,
+    window: Math.log1p(f.window ?? 0) / 4, capped: f.capped ?? 0,
+    connect_group: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) >= 2 ? 1 : 0,
+    connect_single: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) < 2 ? 1 : 0,
+  };
+  return prices.features.reduce((a, k, i) => a + prices.weights[i] * (v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? (f[k] ?? 0) / 2 : 0)), 0);
+}
+const PRICES: { features: string[]; weights: number[] } | null = (() => {
+  if (process.env.DEDUCE_PRICES !== "1") return null;
+  try { return JSON.parse(readFileSync(new URL("./step-prices.json", import.meta.url), "utf8")); } catch { return null; }
+})();
 
 /** A window family in the proposal language (puzzles/difficulty/miner.ts): units of the given kinds
  *  (line: a row or column; region: an area or box; block: a 2 × 2; clue: a clue's cells) related so:
@@ -587,7 +612,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const ROOM = 4000;   // constraints the solver may add while solving (component lemmas)
   const consOf = new Int32Array(rules.length + ROOM).fill(-1);
   constraints.forEach((k, j) => { consOf[k] = j; });
-  interface Group { kind: string; label: string; cells: number[] }
+  interface Group { kind: string; label: string; cells: number[]; extent?: number }
   const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM).fill(-1);
   {
     const byKey = new Map<string, number>();
@@ -879,6 +904,31 @@ end
     return per * e.groups.length + kindsOf(e).length + FACT_COST * e.facts.length + TIER_COST[tier];
   };
 
+  /** A step's type-free features (Step.feat). */
+  const featuresOf = (e: Expl | null, tier: Tier, w: Window): Record<string, number> => {
+    const f: Record<string, number> = { tier, window: w.size, capped: e ? 0 : 1 };
+    if (!e) return f;
+    f.instances = e.groups.length; f.facts = e.facts.length;
+    const cells = new Set<number>();
+    let extent = 0, global = 0;
+    for (const gi of e.groups) {
+      const gr = groups[gi], prim = gr.kind === "component" || gr.kind === "parity" ? "connect" : PRIMITIVE[gr.kind] ?? "other";
+      f[`p_${prim}`] = (f[`p_${prim}`] ?? 0) + 1;
+      const uk = unitKind(gr.label);
+      f[`u_${uk}`] = (f[`u_${uk}`] ?? 0) + 1;
+      if (prim === "connect" || uk === "grid") global = 1;
+      extent = Math.max(extent, gr.extent ?? (prim === "connect" ? gr.cells.length : 0));
+      for (const c of gr.cells) cells.add(c);
+    }
+    f.global = global; f.extent = extent; f.cells = cells.size;
+    // how far apart the facts relied on are (rows plus columns spanned), on square grids
+    if (g.kind === "square" && e.facts.length) {
+      const rcs = e.facts.flatMap((m) => markCells[m]).map((c) => g.rc(c));
+      f.spread = Math.max(...rcs.map((x) => x[0])) - Math.min(...rcs.map((x) => x[0])) + Math.max(...rcs.map((x) => x[1])) - Math.min(...rcs.map((x) => x[1]));
+    }
+    return f;
+  };
+
   /** Turn windows' facts into candidate steps: each fact goes to the smallest window that found
    *  it, and facts with the same explanation make one step. */
   const explained = new Map<string, { stamp: number; e: Expl | null }>();
@@ -905,7 +955,7 @@ end
         let st = byKey.get(key);
         if (!st) {
           const kinds = e ? kindsOf(e) : [...new Set(groups.map((x) => x.kind))];
-          st = { w, tier, where: w === ALL ? "the whole grid" : w.label, cells: w.cells, facts: [], uses: kinds, cost: +costOf(e, tier).toFixed(2),
+          st = { w, tier, where: w === ALL ? "the whole grid" : w.label, cells: w.cells, facts: [], uses: kinds, cost: +Math.max(0.3, costOf(e, tier) + (PRICES ? priceCorrection(featuresOf(e, tier, w), PRICES) : 0)).toFixed(2), feat: featuresOf(e, tier, w),
             because: e ? { clues: e.groups.map((gi) => `${groups[gi].kind} (${groups[gi].label})`), kinds, facts: e.facts.length, capped: e.capped } : { clues: ["(not found)"], kinds, facts: 0, capped: true } };
           byKey.set(key, st);
         }
@@ -995,7 +1045,7 @@ end
         const cs = cellsOf(bits);
         if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
         groupOf[jx] = groups.length;
-        groups.push({ kind: "component", label: `around ${rc(comp[0])}`, cells: cs });
+        groups.push({ kind: "component", label: `around ${rc(comp[0])}`, cells: cs, extent: comp.length });
         const cells = [...comp, ...open];
         if (cells.length <= 3 * Math.max(g.rows, g.cols)) componentW.push(win(`the group at ${rc(comp[0])} and its ways out`, cells));
       }
