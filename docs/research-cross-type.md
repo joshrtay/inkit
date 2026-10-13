@@ -180,3 +180,26 @@ under about five points are noise. Reach alone isn't what whole-grid types lack 
 every node the whole puzzle), and knowing what solutions look like doesn't carry to finding the
 next move of a new kind of puzzle; the next tries are the components-and-exits primitive (section 5) as input, and training
 long enough and on enough types that a family's reasoning appears elsewhere.
+
+## 8. Mining from people's moves (miner-propose.ts, MINER_SOURCE=janko)
+
+Opus 5.5 was shown 60 of 67 moments where today's solver (loop lemma on) had to search on Janko's
+Slitherlink, Masyu and Nurikabe, each with the person's next moves from there, loops drawn as a
+grid; 20 rounds, $0.98 (stopped by a network timeout with the set nearly used; the proposer now
+retries and skips a failed round). Best families, tested on the whole set:
+
+- three 2 × 2 blocks and a line through them, up to 16 cells (pivot): 83 searches removed, 8
+  moments helped, 45% slower; the blocks sit round the open ends of nearby line pieces;
+- two clues and a line through both (pivot): 35–55 removed, 12–20% slower;
+- three 2 × 2 blocks in a chain (touch), up to 12 cells: 36–40 removed (corridors and pockets);
+- a clue between two neighbours' reaches (Nurikabe): 34 removed.
+
+The ideas the language can't say converge on a few units, each proposed several times: the **ends
+of a line piece** with the open cells between and near them (does joining them close the loop
+early: the premature-loop lemma as a window); a **pocket** or **corridor**, an open area bounded
+by known lines with the loop ends entering it (they pair up, enter and leave an even number of
+times: parity round a closed boundary, which straight cuts can't say); a **frontier**, a known
+group with its open neighbours (the component lemma as a window, seen as soon as the group is
+known); a **vertex**, the edges at one grid point; and a **border** relation for units touching
+the grid's edge. Next: these units in the proposal language, the families above through the
+scoreboard.

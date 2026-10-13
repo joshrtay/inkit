@@ -25,7 +25,7 @@ const budget = Number(process.argv[2]) || 10, rounds = Number(process.argv[3]) |
 const PRICE = { input: 4 / 1e6, output: 20 / 1e6 };   // Opus 5.5, dollars per token (October 2026)
 const key = /^ANTHROPIC_API_KEY=(.*)$/m.exec(readFileSync(`${repo}app/.dev.vars`, "utf8"))?.[1]?.trim();
 if (!key) throw new Error("no ANTHROPIC_API_KEY in app/.dev.vars");
-const client = new Anthropic({ apiKey: key });
+const client = new Anthropic({ apiKey: key, timeout: 10 * 60 * 1000, maxRetries: 4 });   // long thinking: generous timeout, and retries
 // the stuck set: the miner's own, or Janko's moments with the person's next moves
 const source = process.env.MINER_SOURCE ?? "";
 const human = new Map<string, { mark: string; value: boolean }[]>();
@@ -147,10 +147,12 @@ for (let round = 1; round <= rounds && spent < budget - 0.5; round++) {
   const cases: string[] = [];
   while (cases.length < 3 && order.length) { const s = order.pop()!; if (s.spec.size[0] > 10) continue; const m = await moment(s); if (m) cases.push(m); }
   if (!cases.length) break;
+  // a request that fails even after retries loses that round's moments, not the run
   const res = await client.messages.create({
     model: "claude-opus-5-5", max_tokens: 16000, thinking: { type: "adaptive" },
     messages: [{ role: "user", content: `${LANGUAGE}\n\n${ASK}\n\n${cases.map((c, i) => `Moment ${i + 1}:\n${c}`).join("\n\n")}` }],
-  });
+  }).catch((e) => { console.error(`round ${round}: request failed (${(e as Error).message})`); return null; });
+  if (!res) continue;
   const cost = res.usage.input_tokens * PRICE.input + res.usage.output_tokens * PRICE.output;
   spent += cost;
   const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
