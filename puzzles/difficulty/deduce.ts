@@ -116,12 +116,17 @@ export interface Options {
 
 /** Learned step prices (puzzles/difficulty/price.py → step-prices.json): a correction added to a
  *  step's cost from its features, fitted so puzzles rank like their labels (Tatham's grades, Sudoku
- *  ratings, Puzzle Square JP, Beast Academy). On with DEDUCE_PRICES=1 (off until the scoreboard
- *  confirms them). The features are scaled exactly as price.py's vec. */
-export function priceCorrection(f: Record<string, number>, prices: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number> }, genre?: string): number {
+ *  ratings). On by default (DEDUCE_PRICES=0 turns them off): against the current solver they raised
+ *  agreement with Sudoku (Puzzle Square JP 0.71 to 0.86), Aquarium (0.22 to 0.58) and Light Up
+ *  (Tatham 0.80/0.82 to 0.88/0.84) and lowered none beyond noise. Centred per type on puzzle scores
+ *  (price_centre.py), features capped at the labelled range. Scaled exactly as price.py's vec. */
+export function priceCorrection(f: Record<string, number>, prices: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number>; caps?: number[] }, genre?: string): number {
   // steps over a loop or the whole grid weren't in the labelled data (Singles and Sudoku): no
   // correction for them, rather than a guess
   if ((f.global ?? 0) > 0 && !(f.extent ?? 0)) return 0;
+  // a type without its own centring wasn't measured: no correction (a shared offset pushed such
+  // types' easy puzzles to 0)
+  if (prices.offsets && !(genre && genre in prices.offsets)) return 0;
   const t = f.tier ?? 0, v: Record<string, number> = {
     tier1: t === 1 ? 1 : 0, tier2: t === 2 ? 1 : 0, tier3: t === 3 ? 1 : 0, instances: (f.instances ?? 0) / 4, facts: (f.facts ?? 0) / 4,
     global: f.global ?? 0, extent: Math.log1p(f.extent ?? 0) / 2, cells: Math.log1p(f.cells ?? 0) / 3, spread: (f.spread ?? 0) / 10,
@@ -130,10 +135,14 @@ export function priceCorrection(f: Record<string, number>, prices: { features: s
     connect_single: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) < 2 ? 1 : 0,
   };
   // centred per type: a type's average step keeps its cost; the corrections only reorder its steps
-  return (prices.offsets?.[genre ?? ""] ?? prices.offset ?? 0) + prices.features.reduce((a, k, i) => a + prices.weights[i] * (v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? (f[k] ?? 0) / 2 : 0)), 0);
+  // each feature capped at the largest seen in the labelled steps: no extrapolating past the evidence
+  return (prices.offsets?.[genre ?? ""] ?? prices.offset ?? 0) + prices.features.reduce((a, k, i) => {
+    const x = v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? (f[k] ?? 0) / 2 : 0);
+    return a + prices.weights[i] * Math.min(x, prices.caps?.[i] ?? Infinity);
+  }, 0);
 }
-const PRICES: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number> } | null = (() => {
-  if (process.env.DEDUCE_PRICES !== "1") return null;
+const PRICES: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number>; caps?: number[] } | null = (() => {
+  if (process.env.DEDUCE_PRICES === "0") return null;
   try { return JSON.parse(readFileSync(new URL("./step-prices.json", import.meta.url), "utf8")); } catch { return null; }
 })();
 
