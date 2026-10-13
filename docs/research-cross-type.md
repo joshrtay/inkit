@@ -221,3 +221,11 @@ wider networks did worse, and width 256's training diverged (loss 1.79 at epoch 
 start): the same learning rate for every width is too high for the wide ones, so this doesn't yet
 say whether size helps. A fair test scales the learning rate down with width (and warms it up).
 The whole-grid types stay under 40% at every width that trained.
+
+**The component lemma under step-label prices** (frontiers: a known group and its ways out, asked
+for again by the mining round): still opt-in. With it on (and the loop lemma): Puzzle Square JP
+Masyu 0.29 to 0.41, but Hitori 0.46 to 0.14, Tatham Singles 8×8 0.75 to 0.42 (6×6 0.69), Loopy
+10×10 0.50 to 0.44. Every Singles estimate falls (easy 0.63 to 0.35): the lemma replaces the
+searches that carried the difficulty, and its group steps (Tatham's tricky removesplits) are
+priced only +1.0 above single-cell ones. Next for it: price group steps from the Singles labels
+alone, and centre offsets on solves with it on.
