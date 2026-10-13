@@ -145,7 +145,7 @@ const FOLDERS = ["slitherlink", "nurikabe", "round-the-bend", "star-battle", "ak
 
 /** Read a link that should be a puzzle, and check it has exactly one solution. */
 async function opens(link: string) {
-  const got = readLink(link);
+  const got = await readLink(link);
   expect(got.kind, link).toBe("puzzle");
   const spec = (got as Extract<typeof got, { kind: "puzzle" }>).spec;
   expect((await solve(makePuzzle(spec), 2)).length, link).toBe(1);
@@ -188,34 +188,34 @@ describe("puzz.link's test puzzles", () => {
 });
 
 describe("other links", () => {
-  it("reads the address every way it's written", () => {
+  it("reads the address every way it's written", async () => {
     for (const link of ["http://pzv.jp/p.html?slither/5/5/cbcbcddad", "puzz.link/p?slither_edit/5/5/cbcbcddad",
       "https://puzz.link/p?type=editor&slither/5/5/cbcbcddad", "  https://puzz.link/p?slitherlink/5/5/cbcbcddad/  "])
-      expect(readLink(link).kind, link).toBe("puzzle");
+      expect((await readLink(link)).kind, link).toBe("puzzle");
   });
-  it("a type we don't have: unsupported, with puzz.link's name", () => {
-    expect(readLink("https://puzz.link/p?heyawake/6/6/aa0a0a00g0e0")).toEqual({ kind: "unsupported", source: "puzzlink", genreId: "heyawake", genreName: "Heyawake" });
-    expect(readLink("https://puzz.link/p?yajirin/5/5/a")).toMatchObject({ kind: "unsupported", genreId: "yajilin" });
+  it("a type we don't have: unsupported, with puzz.link's name", async () => {
+    expect(await readLink("https://puzz.link/p?heyawake/6/6/aa0a0a00g0e0")).toEqual({ kind: "unsupported", source: "puzzlink", genreId: "heyawake", genreName: "Heyawake" });
+    expect(await readLink("https://puzz.link/p?yajirin/5/5/a")).toMatchObject({ kind: "unsupported", genreId: "yajilin" });
   });
-  it("a variant ours doesn't match: unsupported, saying what differs", () => {
-    expect(readLink("https://puzz.link/p?nurikabe/3/3/.m")).toMatchObject({ kind: "unsupported", genreId: "nurikabe", genreName: "Nurikabe", variant: "with ? clues" });
+  it("a variant ours doesn't match: unsupported, saying what differs", async () => {
+    expect(await readLink("https://puzz.link/p?nurikabe/3/3/.m")).toMatchObject({ kind: "unsupported", genreId: "nurikabe", genreName: "Nurikabe", variant: "with ? clues" });
     // puzz.link's test Tentaisho has a hole in its grid
-    expect(readLink("https://puzz.link/p?tentaisho/5/5/6fl94fi65en8dbf10000")).toMatchObject({ kind: "unsupported", genreName: "Tentaisho", variant: "with holes" });
-    expect(readLink("https://puzz.link/p?slither/f/3/3/j")).toMatchObject({ kind: "unsupported", variant: "through every dot" });
-    expect(readLink("https://puzz.link/p?fillomino/2/2/3g1g80")).toMatchObject({ kind: "unsupported", variant: "with given borders" });
-    expect(readLink("https://puzz.link/p?sudoku/40/40/")).toMatchObject({ kind: "unsupported", variant: "over 30 × 30" });
+    expect(await readLink("https://puzz.link/p?tentaisho/5/5/6fl94fi65en8dbf10000")).toMatchObject({ kind: "unsupported", genreName: "Tentaisho", variant: "with holes" });
+    expect(await readLink("https://puzz.link/p?slither/f/3/3/j")).toMatchObject({ kind: "unsupported", variant: "through every dot" });
+    expect(await readLink("https://puzz.link/p?fillomino/2/2/3g1g80")).toMatchObject({ kind: "unsupported", variant: "with given borders" });
+    expect(await readLink("https://puzz.link/p?sudoku/40/40/")).toMatchObject({ kind: "unsupported", variant: "over 30 × 30" });
   });
-  it("Masyu through every cell keeps that rule", () => {
-    const got = readLink("https://puzz.link/p?mashu/f/6/6/1063000i3000");
+  it("Masyu through every cell keeps that rule", async () => {
+    const got = await readLink("https://puzz.link/p?mashu/f/6/6/1063000i3000");
     expect(got.kind === "puzzle" && got.spec.rules).toEqual([{ rule: "loop", of: "loop", cover: true }]);
   });
-  it("Star Battle with two stars", () => {
-    const got = readLink("https://puzz.link/p?starbattle/6/6/2/4ilbhgdnmhou");
+  it("Star Battle with two stars", async () => {
+    const got = await readLink("https://puzz.link/p?starbattle/6/6/2/4ilbhgdnmhou");
     expect(got.kind === "puzzle" && got.spec.rules).toEqual([{ rule: "shaded-per-line", n: 2 }, { rule: "shaded-per-area", n: 2 }]);
   });
-  it("garbage: unreadable", () => {
+  it("garbage: unreadable", async () => {
     for (const link of ["", "hello", "https://example.com/", "https://puzz.link/p?notatype/5/5/abc", "https://puzz.link/p?slither/x/y/abc",
       "https://puzz.link/p?nurikabe/5/5/~~~", "https://puzz.link/p?sudoku/5/5/1", "https://puzz.link/p?starbattle/6/6/zz/4ilbhgdnmhou"])
-      expect(readLink(link).kind, link).toBe("unreadable");
+      expect((await readLink(link)).kind, link).toBe("unreadable");
   });
 });

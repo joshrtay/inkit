@@ -1,7 +1,8 @@
-// A puzz.link link read into a puzzle (/new's "Or paste a link"): the link's puzzle type and its
-// clues, as the engine's spec (GridSpec), which paint then draws like any puzzle
+// A puzz.link or Penpa+ link read into a puzzle (/new's "Or paste a link"): the link's puzzle type
+// and its clues, as the engine's spec (GridSpec), which paint then draws like any puzzle
 // (games/paint-save.ts's paintFromSketch). A type we don't have, or a puzz.link variant ours doesn't
-// match, comes back as unsupported, with puzz.link's name for it, so the request can be noted.
+// match, comes back as unsupported, with the source's name for it, so the request can be noted.
+// Penpa+ records no type, so its links are read in import-penpa.ts, which may ask the creator.
 // Pure: no DOM, no database.
 //
 // The link format is pzprjs's (github.com/robx/pzprjs: src/pzpr/parser.js for the address,
@@ -12,6 +13,7 @@ import { makePuzzle, type GenreName } from "~site/engine/puzzle.ts";
 import { standardBox } from "~site/engine/rules.ts";
 import type { Given, GridSpec, Side } from "~site/engine/types.ts";
 import { PUZZLINK_ALIASES, PUZZLINK_NAMES } from "./puzzlink-genres";
+import { penpaPuzzle, readPenpaGrid } from "./import-penpa";
 
 export type LinkSource = "puzzlink" | "penpa";
 
@@ -21,13 +23,16 @@ export type LinkResult =
   /** a type we don't have (or a variant ours doesn't match): `genreId` and `genreName` are the
    *  source's; `variant` says what differs, when the type itself is one of ours */
   | { kind: "unsupported"; source: LinkSource; genreId: string; genreName: string; variant?: string }
+  /** a Penpa+ puzzle that could be any of these: the creator says which */
+  | { kind: "choose"; source: "penpa"; genres: GenreName[] }
   /** not a link we can read */
   | { kind: "unreadable" };
 
 /** What /new says when a link doesn't open as a puzzle. */
 export function linkNote(r: Exclude<LinkResult, { kind: "puzzle" }>): string {
   if (r.kind === "unreadable") return "That link didn't open. Check it's a puzz.link or Penpa+ link.";
-  return `We don't have ${r.genreName}${r.variant ? ` ${r.variant}` : ""} yet. We've noted the request.`;
+  if (r.kind === "choose") return "Which type is it?";
+  return `We don't have ${r.genreName || "that type"}${r.variant ? ` ${r.variant}` : ""} yet. We've noted the request.`;
 }
 
 /** The largest grid a sketch may have (games/sketch.ts). */
@@ -44,12 +49,24 @@ export const FROM_PUZZLINK: Record<string, GenreName> = {
   arukone: "numberlink",
 };
 
-/** What a link says, read; or why it can't be. */
-export function readLink(text: string): LinkResult {
+/** What a link says, read; or why it can't be. `chosen`: the type the creator said a Penpa+ puzzle is. */
+export async function readLink(text: string, chosen?: GenreName): Promise<LinkResult> {
   const link = text.trim();
-  if (!link || link.length > 20_000) return { kind: "unreadable" };
-  return readPuzzlink(link) ?? { kind: "unreadable" };
+  if (!link || link.length > MAX_LINK) return { kind: "unreadable" };
+  const puzzlink = readPuzzlink(link);
+  if (puzzlink) return puzzlink;
+  const grid = await readPenpaGrid(link);
+  const penpa = grid && penpaPuzzle(grid, chosen);
+  if (!penpa) return { kind: "unreadable" };
+  if (penpa.kind === "puzzle") {
+    if (penpa.spec.size[0] > MAX_SIZE || penpa.spec.size[1] > MAX_SIZE) return { kind: "unreadable" };
+    return { kind: "puzzle", source: "penpa", spec: penpa.spec };
+  }
+  return { ...penpa, source: "penpa" };
 }
+
+/** The longest link read (a big Penpa+ puzzle with its solution is a few kilobytes). */
+const MAX_LINK = 50_000;
 
 // ---- puzz.link ----
 

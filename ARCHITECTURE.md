@@ -59,8 +59,10 @@ creator's recommendations; the data in `lib/explore.server.ts`, the formulas in 
 type's puzzles (`/explore/<type>`: New or Top, by difficulty), Puzzle types (`/puzzles`, the
 guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Recommends, Subscriptions, About), games at
 `/g/<id>`, Create (`/new`: start from a photo or a blank page, or carry on with a draft; both
-open paint; or paste a puzz.link link, read by `lib/import-link.ts` into the engine's spec and
-drawn in paint like a photo's reading, a type we don't have being noted instead), Settings (`/settings`: profile, email, password, handle, recommendations, appearance),
+open paint; or paste a puzz.link or Penpa+ link, read by `lib/import-link.ts` and
+`lib/import-penpa.ts` into the engine's spec and drawn in paint like a photo's reading, a type we
+don't have being noted instead; Penpa+ records no type, so it's taken from its tags or what's drawn,
+narrowed by a stored solution, or the creator picks it), Settings (`/settings`: profile, email, password, handle, recommendations, appearance),
 sign-in (Better Auth: email + password, Google), privacy and terms.
 **For search engines and agents** (`app/lib/seo.ts`, pure and unit-tested): every public page's
 canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts and editors are

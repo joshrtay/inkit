@@ -5,7 +5,7 @@
 // page. Under them, a quiet row for a puzz.link or Penpa+ link (lib/import-link.ts: a type we have
 // opens in paint; one we don't is noted), then the creator's latest drafts to carry on with. No
 // type selector here.
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Form, Link, redirect, useNavigation, useSubmit } from "react-router";
 import type { Route } from "./+types/new";
 import { cloudflareContext } from "~/lib/context";
@@ -48,7 +48,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (form.get("intent") === "link") return attempt(async () => {
     const made = await createFromLink(db, me, form);
     if ("id" in made) return redirect(`/g/${made.id}/draw`);
-    return { link: { note: linkNote(made.result), error: made.result.kind === "unreadable" } };
+    const r = made.result;
+    return { link: { note: linkNote(r), error: r.kind === "unreadable", choose: r.kind === "choose" ? r.genres.map((id) => ({ id, name: kindName(id) })) : null } };
   });
   return attempt(async () => form.get("intent") === "blank"
     ? redirect(`/g/${await createBlank(db, me, form)}/draw`)
@@ -80,7 +81,10 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
   const [preview, setPreview] = useState<string>();
   const file = useRef<HTMLInputElement>(null);
   const error = actionData && "error" in actionData ? actionData.error : undefined;
-  const link = actionData && "link" in actionData ? actionData.link : undefined;
+  // what the last link said, until the link is changed
+  const [linkEdited, setLinkEdited] = useState(false);
+  useEffect(() => setLinkEdited(false), [actionData]);
+  const link = actionData && "link" in actionData && !linkEdited ? actionData.link : undefined;
 
   const send = async (f: File) => {
     const small = await shrink(f);
@@ -132,7 +136,13 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
         <strong id="new-link-h">Or paste a link</strong>
         <Form method="post" className="new-link-field">
           <input type="hidden" name="collection" value={collection ?? ""} />
-          <input type="text" inputMode="url" name="link" required placeholder="A Penpa+ or puzz.link link" aria-label="Puzzle link" autoComplete="off" />
+          <input type="text" inputMode="url" name="link" required placeholder="A Penpa+ or puzz.link link" aria-label="Puzzle link" autoComplete="off" onChange={() => setLinkEdited(true)} />
+          {link?.choose && (
+            <select name="genre" aria-label="Puzzle type" required defaultValue="">
+              <option value="" disabled>Type</option>
+              {link.choose.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          )}
           <button className="btn" name="intent" value="link" disabled={busy || !collection}>Open</button>
         </Form>
         {link && <p className={`new-link-note${link.error ? " error" : ""}`} role="status">{link.note}</p>}

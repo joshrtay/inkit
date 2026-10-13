@@ -220,12 +220,15 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
 
 /** A puzz.link or Penpa+ link pasted on /new (lib/import-link.ts): a puzzle of one of our types
  *  becomes a draft drawn in paint's ink, as a photo's reading is; a type we don't have (or a variant
- *  ours doesn't match) is noted for the admins (/admin/requests). */
+ *  ours doesn't match) is noted for the admins (/admin/requests); a Penpa+ puzzle that could be
+ *  several types comes back for the creator to say which (the form's `genre`). */
 export async function createFromLink(db: Db, me: Creator, form: FormData): Promise<{ id: string } | { result: Exclude<LinkResult, { kind: "puzzle" }> }> {
   const collectionId = String(form.get("collection") ?? "");
   if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
   const link = String(form.get("link") ?? "").trim();
-  const read = readLink(link);
+  // a Penpa+ puzzle's type, when the creator was asked
+  const kind = String(form.get("genre") ?? "");
+  const read = await readLink(link, (GENRE_NAMES as string[]).includes(kind) ? kind as GenreName : undefined);
   if (read.kind === "unsupported") await noteLinkRequest(db, me.id, link, read);
   if (read.kind !== "puzzle") return { result: read };
   const sketch = specToSketch(read.spec), id = newId();

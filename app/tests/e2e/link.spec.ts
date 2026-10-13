@@ -1,9 +1,11 @@
 // Starting from a link on /new (lib/import-link.ts): a puzz.link link of a type we have opens in
 // paint as a draft; one of a type we don't have says so and is noted (the admins' /admin/requests);
-// one we can't read says that. LINK_SHOTS=<folder> also saves a picture of the row in each state.
+// one we can't read says that; a Penpa+ puzzle that could be several types asks which.
+// LINK_SHOTS=<folder> also saves a picture of the row in each state.
 import { expect, test, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { q, RUN_FILE, sql, type Run } from "./db";
+import { drawn, penpaLink } from "../unit/penpa-link";
 
 const run = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
 const shot = async (page: Page, name: string) => {
@@ -27,6 +29,21 @@ test("a puzz.link Sudoku opens in paint as a draft", async ({ page }) => {
   expect(row.drawing).not.toBeNull();
   // its four given digits are on the paper
   await expect(page.locator(".sp-board text").filter({ hasText: /^[1-4]$/ })).toHaveCount(4);
+});
+
+test("a Penpa+ puzzle of numbers alone asks which type; chosen, it opens in paint", async ({ page }) => {
+  const nurikabe = JSON.parse(readFileSync("../src/games/nurikabe/1.json", "utf8"));
+  const link = await penpaLink(drawn({ genre: "nurikabe", ...nurikabe.grid }));
+  await page.goto("/new");
+  await paste(page, link);
+  await expect(page.locator(".new-link-note")).toHaveText("Which type is it?");
+  await shot(page, "4-choose");
+  await page.getByRole("combobox", { name: "Puzzle type" }).selectOption({ label: "Nurikabe" });
+  await page.locator(".new-link").getByRole("button", { name: "Open" }).click();
+  await expect(page).toHaveURL(/\/g\/[^/]+\/draw$/);
+  await expect(page.locator(".paint-type-name")).toHaveText("Nurikabe");
+  const id = /\/g\/([^/]+)\//.exec(page.url())![1];
+  expect(sql<{ kind: string }>(`select kind from games where id = ${q(id)}`)[0].kind).toBe("nurikabe");
 });
 
 test("a type we don't have is noted; a link we can't read says so", async ({ page }) => {
