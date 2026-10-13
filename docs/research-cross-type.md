@@ -108,7 +108,9 @@ encloses, so straight cuts were already its useful form. New: the premature-loop
 (`DEDUCE_LEMMAS=loop`, Tatham's loop deductions): a known chain that isn't all the known line
 can't close, so the gap between its ends stays empty; added while solving, like the component
 lemma. On three hard and three tricky 7×7 Loopy puzzles, searches fell from 19 to 2 and the
-estimates came off the 0.80 ceiling.
+estimates came off the 0.80 ceiling. Against Tatham's grades (2 jobs): 10×10 solved 39 of 40 in
+the budget instead of 29, agreement 0.42 to 0.48; but 7×7 fell 0.37 to 0.21 (every grade's
+estimate drops alike, easy and normal most). Opt-in until its steps are priced.
 
 **Loopy step labels** (references/tatham/build/loopy-one.c): one application of a deduction
 doesn't fit Loopy (a corner 3 takes two passes of its pair deductions), so a step's label is the
@@ -122,3 +124,14 @@ guess is a move 35–94% of the time (random 10–50%). Left out of training, a 
 Akari 54% (random 29%), Sudoku 40% (20%), Slitherlink 24% (14%), Star Battle 32% (28%), Nurikabe
 13% (14%, no better). Ten of its puzzles (few-shot) lift Star Battle to 57%. The move embedding ran
 out of memory on the VM; it needs batching before the next run.
+
+**The table from data** (technique_svd.py): types × techniques (each type's share of steps per
+signature, square-rooted), factored by SVD. Six factors hold 56%; past the first (steps on one cell
+alone: how much of a type is easy), each is a family of types no one listed: lines and loops (Simple
+Loop, Simple Path, Numberlink, Masyu, Slitherlink); order (Hive, Hidoku, Pythagorean Paths,
+Honeycomb Paths, alike at 0.99–1.00); regions by size (Shikaku, Square Jam, Spiral Galaxies,
+Polyomino Packing, Fillomino); counting along lines and regions (Star Battle, Aquarium, Abstract
+Art, Binary Puzzle); counting what's seen or near (Akari, Minesweeper, Cave, Wittgenstein Briquet);
+and each-once (the Sudokus, Skyscrapers, Easy as ABC, Hitori). Panel sits alone. These are the
+periodic table's groups, and the held-out tests should take them in turn (leave a family out, not
+a type).

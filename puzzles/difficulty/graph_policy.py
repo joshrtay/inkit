@@ -248,19 +248,28 @@ if __name__ == "__main__":
         V = np.stack(vecs); keep = V.std(0) > 1e-3   # nearly constant columns would blow up when scaled
         V = (V[:, keep] - V[:, keep].mean(0)) / V[:, keep].std(0); costs = np.array(costs)
         sigs, genres = np.array(sigs), np.array(genres)
-        # nearest neighbours by cosine
-        U = V / np.linalg.norm(V, axis=1, keepdims=True); S = U @ U.T; np.fill_diagonal(S, -1)
-        nn5 = np.argsort(-S, 1)[:, :5]
+        # nearest neighbours by cosine, a block of rows at a time (the whole table of every move
+        # against every move would be N² numbers: about 150 GB for the full corpus)
+        U = torch.tensor(V / np.linalg.norm(V, axis=1, keepdims=True), dtype=torch.float32, device=dev)
+        gcode = torch.tensor(np.unique(genres, return_inverse=True)[1], device=dev)
+        nn5, nn_other = np.zeros((len(V), 5), dtype=np.int64), np.zeros(len(V), dtype=np.int64)
+        for a0 in range(0, len(V), 2048):
+            S = U[a0:a0 + 2048] @ U.T
+            S[torch.arange(len(S)), torch.arange(a0, a0 + len(S))] = -2
+            nn5[a0:a0 + len(S)] = S.topk(5, 1).indices.cpu().numpy()
+            S[gcode[a0:a0 + len(S), None] == gcode[None, :]] = -3   # the nearest from another type
+            nn_other[a0:a0 + len(S)] = S.argmax(1).cpu().numpy()
+        del U
         same = (sigs[nn5] == sigs[:, None]).mean()
         freq = defaultdict(int)
         for s_ in sigs: freq[s_] += 1
         chance = sum((v / len(sigs)) ** 2 for v in freq.values())
         # across types: each move's nearest neighbour from another type
         cross, n_cross = 0, 0
+        single = len(set(genres)) == 1
         for i in range(len(V)):
-            other = np.where(genres != genres[i])[0]
-            if len(other) == 0 or freq[sigs[i]] < 3: continue
-            j = other[np.argmax(S[i, other])]; cross += sigs[j] == sigs[i]; n_cross += 1
+            if single or freq[sigs[i]] < 3: continue
+            cross += sigs[nn_other[i]] == sigs[i]; n_cross += 1
         print(f"{len(V)} moves from {len(set(genres))} types, {len(freq)} signatures")
         print(f"nearest 5 share the move's signature: {same:.0%} (chance {chance:.0%})")
         # chance: a random move of another type sharing the signature
