@@ -6,15 +6,16 @@
 //   medium  + two overlapping windows (pairs) and two neighbouring rows or columns (strips)
 //   hard    everything the solver has by default: + two areas and a line (triples), counting
 //           across units, the line families the mining harness kept, the premature-loop lemma
-//   expert  + the lemmas and family that are off by default, not yet priced: components and
-//           their exits (connection), loop parity, two clues' overlapping reach
+//   expert  + what's off by default, not yet priced: components and their exits (connection),
+//           loop parity, two clues' overlapping reach, the families mined from people's stuck
+//           moments (MINED_FAMILIES) and pockets (a loop's open areas)
 //
 // A technique is *required* by a puzzle when the band's solver solves it and gets stuck with that
 // one technique taken away (requiredOf). The checks use deduce's quick mode: facts are settled as
 // found, unexplained, which is all a yes or no needs.
 import { genres, makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { deduce, REACH_FAMILY, type Options } from "./deduce.ts";
+import { deduce, MINED_FAMILIES, REACH_FAMILY, type Options } from "./deduce.ts";
 
 export interface Band {
   name: string;
@@ -25,13 +26,15 @@ export interface Band {
   lines: boolean;
   /** the clue-reach family (technique "reach") */
   reach: boolean;
+  /** the mined families (technique "mined") */
+  mined?: boolean;
 }
 
 export const BAND_LIST: Band[] = [
   { name: "easy", stages: "t0", lemmas: [], lines: false, reach: false },
   { name: "medium", stages: "t0,pairs+strips", lemmas: [], lines: false, reach: false },
   { name: "hard", stages: "t0,pairs+strips+triples,count,extra+components", lemmas: ["loop"], lines: true, reach: false },
-  { name: "expert", stages: "t0,pairs+strips+triples,count,extra+components", lemmas: ["loop", "component", "parity"], lines: true, reach: true },
+  { name: "expert", stages: "t0,pairs+strips+triples,count,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true },
 ];
 export const bandNamed = (name: string) => {
   const b = BAND_LIST.find((x) => x.name === name);
@@ -44,7 +47,7 @@ export function techniquesOf(b: Band): string[] {
   const out = new Set<string>();
   for (const fam of b.stages.split(",").flatMap((s) => s.split("+"))) {
     if (fam === "t0") continue;
-    if (fam === "extra") { if (b.lines) out.add("lines"); if (b.reach) out.add("reach"); continue; }
+    if (fam === "extra") { if (b.lines) out.add("lines"); if (b.reach) out.add("reach"); if (b.mined) out.add("mined"); continue; }
     if (fam === "components") { for (const l of b.lemmas) if (l !== "parity") out.add(l); continue; }
     out.add(fam);
   }
@@ -54,27 +57,28 @@ export function techniquesOf(b: Band): string[] {
 
 /** A band with one technique taken away. */
 export function without(b: Band, technique: string): Band {
-  const stageFams = ["pairs", "strips", "triples", "count"];
+  const stageFams = ["pairs", "strips", "triples", "count", "pockets"];
   if (stageFams.includes(technique)) {
     const stages = b.stages.split(",").map((s) => s.split("+").filter((f) => f !== technique).join("+")).filter(Boolean).join(",");
     return { ...b, stages };
   }
   if (technique === "lines") return { ...b, lines: false };
   if (technique === "reach") return { ...b, reach: false };
+  if (technique === "mined") return { ...b, mined: false };
   if (["loop", "component", "parity"].includes(technique)) return { ...b, lemmas: b.lemmas.filter((l) => l !== technique) };
   throw new Error(`no technique "${technique}"`);
 }
 
-/** Whether expert adds a technique for a genre: a loop (parity), connection (components and their
- *  exits) or size clues (reach). Elsewhere expert is hard again. */
-export function expertApplies(genre: string): boolean {
-  const rules = ((genres as Record<string, { rules?: { rule: string }[] }>)[genre]?.rules ?? []).map((r) => r.rule);
-  return rules.some((r) => ["loop", "connected", "unshaded-connected", "size-clue", "side-clue"].includes(r));
+/** Whether expert adds a technique for a genre: since it holds the mined families (clue chains,
+ *  2 × 2 blocks with a line) as well as connection, parity and reach, every genre; a genre where
+ *  none of them bites stops after a few attempts that come out easier (gen-set.ts). */
+export function expertApplies(_genre: string): boolean {
+  return true;
 }
 
 /** deduce's options for a band. */
 export function optionsOf(b: Band, extra: Options = {}): Options {
-  return { stages: b.stages, lemmas: b.lemmas, defaultFamilies: b.lines, families: b.reach ? [REACH_FAMILY] : [], maxTier: 1, ...extra };
+  return { stages: b.stages, lemmas: b.lemmas, defaultFamilies: b.lines, families: [...(b.reach ? [REACH_FAMILY] : []), ...(b.mined ? MINED_FAMILIES : [])], maxTier: 1, ...extra };
 }
 
 export interface Quick { solved: boolean; ms: number; used: string[]; steps: number; error?: string }

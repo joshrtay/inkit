@@ -28,10 +28,10 @@ describe("bands", () => {
   it("never allows a case split or search", () => {
     for (const b of BAND_LIST) expect(optionsOf(b).maxTier).toBe(1);
   });
-  it("expert only where it adds something", () => {
-    expect(expertApplies("slitherlink")).toBe(true);    // loop parity
+  it("expert for every genre (it holds the mined families as well as the lemmas)", () => {
+    expect(expertApplies("slitherlink")).toBe(true);    // loop parity, pockets
     expect(expertApplies("hitori")).toBe(true);         // components
-    expect(expertApplies("sudoku")).toBe(false);
+    expect(expertApplies("minesweeper")).toBe(true);    // mined clue chains
   });
 });
 

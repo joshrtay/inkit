@@ -126,7 +126,7 @@ export interface Options {
    *  says unsolved, with a note). Default 3 */
   maxTier?: Tier;
   /** only whether it solves: every fact a stage finds is settled at once, unexplained (cost 0, no
-   *  shape; `uses` names the technique: the stage family, "lines" or "reach" for extra families, "loop"
+   *  shape; `uses` names the technique: the stage family, "lines", "reach" or "mined" for extra families, "loop"
    *  or "component" for a lemma's window), for a quick check (puzzles/difficulty/bands.ts). Window deductions only grow as more
    *  is known, so it solves when the full solver does with the same options (but for a lemma seen
    *  only in a state one of them passes through: loop chains join) */
@@ -171,7 +171,7 @@ const PRICES: { features: string[]; weights: number[]; offset?: number; offsets?
  *  (line: a row or column; region: an area or box; block: a 2 × 2; clue: a clue's cells) related so:
  *  "pivot", the last unit meets every other; "pairwise", every two share a cell; "touch", each
  *  shares a cell or an edge with the next. A window is their cells together, up to maxCells. */
-export interface FamilySpec { units: string[]; relation: "pivot" | "pairwise" | "touch"; maxCells?: number }
+export interface FamilySpec { units: string[]; relation: "pivot" | "pairwise" | "touch"; maxCells?: number; tag?: string }
 
 /** Families the mining harness found worth keeping (docs/research-cross-type.md): three lines in a
  *  chain (565 of 3,205 searches on the stuck set) and three lines crossed by a fourth (317). They
@@ -184,6 +184,16 @@ export const DEFAULT_FAMILIES: FamilySpec[] = [
  *  twice as fast, but every Shikaku then rates easy; agreement with Puzzle Square JP fell from 0.35
  *  to 0.19). Ask for it with `families`. */
 export const REACH_FAMILY: FamilySpec = { units: ["reach", "reach"], relation: "pairwise" };
+/** The families the mining rounds on people's stuck moments proposed and measured best
+ *  (docs/research-cross-type.md §8), tagged "mined": not priced, so off by default; the
+ *  generator's expert band uses them (bands.ts). */
+export const MINED_FAMILIES: FamilySpec[] = [
+  { units: ["block", "block", "block", "line"], relation: "pivot", maxCells: 16, tag: "mined" },
+  { units: ["clue", "clue", "line"], relation: "pivot", maxCells: 20, tag: "mined" },
+  { units: ["block", "block", "block"], relation: "touch", maxCells: 12, tag: "mined" },
+  { units: ["clue", "reach", "reach"], relation: "touch", maxCells: 16, tag: "mined" },
+  { units: ["clue", "clue", "clue"], relation: "touch", tag: "mined" },
+];
 
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
 export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
@@ -611,7 +621,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
             const cs = cellsOf(u);
             if (cs.length > cap) return;
             const key = cs.join(",");
-            if (!found.has(key)) found.set(key, { label: pick.map((x) => x.label).join(" + "), cells: cs, bits: u, size: cs.length });
+            if (!found.has(key)) found.set(key, { label: (f.tag ? `${f.tag}: ` : "") + pick.map((x) => x.label).join(" + "), cells: cs, bits: u, size: cs.length });
             return;
           }
           for (const w of lists[k]) { pick[k] = w; if (fits(k)) walk(k + 1); }
@@ -1304,7 +1314,7 @@ end
         if (k === 0 && entryPoints < 0) entryPoints = f.size;
         // each step's family (bands.ts's techniques): the stage family, the lemma or the extra family
         const famOf = new Map<Window, string>();
-        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : "lines") : fam);
+        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : w.label.startsWith("mined: ") ? "mined" : "lines") : fam);
         for (const [w, fs] of f) {
           const facts = fs.filter(([m]) => known[m] < 0);
           if (!facts.length) continue;
