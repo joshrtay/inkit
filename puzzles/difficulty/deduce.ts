@@ -200,7 +200,7 @@ export interface TraceRow {
 /** What kind of window a label names. */
 export const windowKind = (label: string) =>
   / inside /.test(label) ? "count" : / \+ /.test(label) ? "pair" : /^(rows|columns) \d+–/.test(label) ? "strip"
-  : /^(row|column|area|box) /.test(label) ? label.split(" ")[0] : /^around /.test(label) ? "around" : "clue";
+  : /^(row|column|area|box) /.test(label) ? label.split(" ")[0] : /^around /.test(label) ? "around" : /^pocket /.test(label) ? "pocket" : "clue";
 
 /** clingo's conflict limits: a case split (tier 2) must need no search at all; tier 3's search is capped */
 const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
@@ -627,7 +627,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
   const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples,count,extra+components").split(",").map((x) => x.split("+").map((y) => y.trim()));
-  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : []);
+  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : name === "pockets" ? pocketWindows() : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
     const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });
@@ -1173,6 +1173,49 @@ end
       groups.push({ kind: "premature", label: `the line through ${rc(mid)}`, cells: cs, extent: chain.length });
       if (cs.length <= 4 * Math.max(g.rows, g.cols)) componentW.push(win(`the line ending at ${rc(mid)}`, cs));
     }
+  };
+
+  // pockets (asked for again and again by the mining harness): for a loop, an open area of its
+  // graph, the points (or cells) that still need line, joined by undecided edges, with the loose
+  // ends of drawn line pieces that enter it. Whatever enters must leave (the line pairs up inside or
+  // passes through), so a window over the pocket sees moves no fixed window holds. Found afresh each
+  // round, like counting's windows; a stage names them ("pockets"), off unless asked for.
+  const pocketCache = new Map<string, Window>();
+  const pocketWindows = (): Window[] => {
+    const loop = p.rules.find((r) => r.rule === "loop");
+    if (!loop || g.kind !== "square" || p.figure) return [];
+    const fence = loop.of === "fence";
+    const nodes = fence ? (g.rows + 1) * (g.cols + 1) : n, count = fence ? g.borders.length : g.links.length;
+    const ends = (e: number): [number, number] => (fence ? g.borders[e].corners : g.links[e].cells) as [number, number];
+    const state = (e: number) => { const m = markOf.get(`${fence ? "fence" : "line"}(${e})`); return m === undefined ? 0 : known[m]; };
+    const yes = new Int8Array(nodes), adj: number[][] = Array.from({ length: nodes }, () => []);
+    for (let e = 0; e < count; e++) {
+      const s = state(e), [a, b] = ends(e);
+      if (s === 1) { yes[a]++; yes[b]++; } else if (s < 0) { adj[a].push(b); adj[b].push(a); }
+    }
+    // a corner's cells: the up to four around it
+    const cellsAt = (v: number) => {
+      if (!fence) return [v];
+      const r = Math.floor(v / (g.cols + 1)), c = v % (g.cols + 1), out: number[] = [];
+      for (const [y, x] of [[r - 1, c - 1], [r - 1, c], [r, c - 1], [r, c]]) if (y >= 0 && x >= 0 && y < g.rows && x < g.cols) out.push(g.cell(y, x));
+      return out;
+    };
+    const open = (v: number) => adj[v].length > 0 && yes[v] < 2;
+    const seen = new Uint8Array(nodes), out: Window[] = [], cap = 4 * Math.max(g.rows, g.cols);
+    for (let v0 = 0; v0 < nodes; v0++) {
+      if (seen[v0] || !open(v0)) continue;
+      const comp = [v0]; seen[v0] = 1;
+      for (let k = 0; k < comp.length; k++) for (const w of adj[comp[k]]) if (!seen[w] && open(w)) { seen[w] = 1; comp.push(w); }
+      // small ones are inside the fixed windows already; big ones aren't a step a person takes
+      if (comp.length < 3 || !comp.some((v) => yes[v] === 1)) continue;
+      const cs = [...new Set(comp.flatMap(cellsAt))].sort((a, b) => a - b);
+      if (cs.length > cap) continue;
+      const key = cs.join(",");
+      let w = pocketCache.get(key);
+      if (!w) { w = win(`pocket at ${rc(cs[0])}`, cs); pocketCache.set(key, w); }
+      out.push(w);
+    }
+    return out.sort((a, b) => a.size - b.size).slice(0, 100);
   };
 
   dbg("setup");

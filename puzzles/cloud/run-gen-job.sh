@@ -13,7 +13,8 @@
 #   family  n2 (default) or c3
 #   resume  an earlier run to carry on from (its results are copied in first)
 #
-# GEN_GENRES and GEN_BANDS in the environment pass through (gen-set.ts's defaults otherwise).
+# GEN_GENRES and GEN_BANDS in the environment pass through (gen-set.ts's defaults otherwise);
+# GEN_RUN names the run, GEN_NO_UPLOAD=1 skips uploading the code.
 #
 # Quota: 32 vCPUs across all regions, 8 of them taken by the GPU VM, so 24 are free. Spot VMs draw
 # on the regular CPU quota (the preemptible quota is 0), so 16 fits beside the GPU VM; 24 is the
@@ -25,9 +26,10 @@ PER=${3:-20}
 ZONE=${4:-us-central1-a}
 FAMILY=${5:-n2}
 RESUME=${6:-}
-RUN=gen-$(date +%Y%m%d-%H%M)
+RUN=${GEN_RUN:-gen-$(date +%Y%m%d-%H%M)}   # GEN_RUN names it (the fleet launcher does)
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-gcloud storage cp -r "$ROOT/src" "$ROOT/puzzles" "$ROOT/package.json" gs://inkit-research-ml/code/
+# GEN_NO_UPLOAD=1 when the code is already up (the fleet launcher uploads once)
+[ -n "${GEN_NO_UPLOAD:-}" ] || gcloud storage cp -r "$ROOT/src" "$ROOT/puzzles" "$ROOT/package.json" gs://inkit-research-ml/code/
 gcloud compute instances create "$RUN" --project inkit-research --zone "$ZONE" \
   --machine-type "$FAMILY-highcpu-$CPUS" --provisioning-model SPOT \
   --image-family debian-12 --image-project debian-cloud --boot-disk-size 20GB \
