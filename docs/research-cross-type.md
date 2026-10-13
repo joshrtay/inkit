@@ -253,8 +253,15 @@ beside the per-type table (unchanged, so earlier results stay comparable):
 - **Human test set** (graph-human.ts → references/ml/graphs-human.jsonl): Janko's puzzles of the
   eight types janko.ts reads (up to 10 × 10, with recorded moves, up to 150 a type) and Puzzle Square
   JP's (up to 12 × 12, up to 100 a type). Never trained on: a corpus copy of one of its puzzles
-  (same type, givens and rule instances) stays in the per-type split but leaves training. Per type,
-  with random's line, and per source.
+  (same type, givens and rule instances) stays in the per-type split but leaves training (123 of
+  graphs.jsonl's puzzles were such copies: the earlier runs trained on part of this test). Per
+  type, with random's line, and per source. Built: 1,322 puzzles, 54,690 states; Janko 660
+  (Akari 148, Hitori 150, Masyu 150, Star Battle 115, Slitherlink 55, Nurikabe 36, Spiral Galaxies
+  4, Fillomino 2), Puzzle Square JP 662 over 17 types (Masyu 100, Slitherlink 99, Akari 97,
+  Shikaku 73, Simple Loop 56, Sudoku 56, Skyscrapers 37, Star Battle 37, Hitori 26, Spiral Galaxies
+  22, Cave 19, Aquarium 14, Nonogram 11, and under 10 of Minesweeper, Easy as ABC, Numberlink and
+  Nurikabe). Only puzzles our solver finishes in 30 s are in: few Fillomino, Nurikabe, Spiral
+  Galaxies and Numberlink.
 - **Agreement with people:** on Janko's states, the share where the top guess is among the
   person's next 3 moves (of the marks they settled, the first 3 still open, as janko-stuck.ts),
   beside our solver's next step (any of its facts, and its first fact alone) and random; per type
