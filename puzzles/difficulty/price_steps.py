@@ -29,6 +29,15 @@ for g in games:
     ls = [r["label"] for r in rows if r["game"] == g]
     print(f"  {g} labels: " + ", ".join(f"{v}: {ls.count(v)}" for v in sorted(set(ls))))
 
+# which of Tatham's deductions our connection (component lemma) steps correspond to, by group size
+conn = [r for r in rows if r["game"] == "singles" and r["feat"].get("p_connect", 0) > 0]
+if conn:
+    print(f"\nSingles steps using the component lemma ({len(conn)}): Tatham's deduction applied once, by group size")
+    by = defaultdict(lambda: defaultdict(int))
+    for r in conn: by["one cell" if r["feat"].get("extent", 0) < 2 else "a group"][r.get("by", "-")] += 1
+    for k, v in by.items(): print(f"  {k}: " + ", ".join(f"{b} {n}" for b, n in sorted(v.items(), key=lambda x: -x[1])))
+    print("  their cost today: " + ", ".join(f"{k} {np.mean([r['cost'] for r in conn if (r['feat'].get('extent', 0) < 2) == (k == 'one cell')]):.1f}" for k in by))
+
 cost = torch.tensor([r["cost"] for r in rows], dtype=torch.float32)
 X = torch.tensor([vec(r["feat"]) for r in rows], dtype=torch.float32)
 label = np.array([r["label"] for r in rows]); game = np.array([r["game"] for r in rows])
