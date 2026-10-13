@@ -125,8 +125,14 @@ per type mean agreement figures can be off by 0.15.
   a call.
 - **As a technique proposer, Opus did well:** its families removed searches the systematic search
   couldn't (line × 4 pivot; three blocks and a line).
-- **Untested:** whether it labels difficulty, hints, interest or sequences well from the solver's
-  explanations.
+- **The labeller pilot** ([research-llm-labels.md](research-llm-labels.md), $14.45), given the
+  solver's explanations:
+  - difficulty: no better than our estimate (0.59 against 0.59);
+  - hints: every judged hint correct and well graded; at stuck moments Opus's own move was among
+    the person's next 3 in 44% of cases, against 17% for our solver's case split;
+  - interest: the only signal beyond difficulty so far (Fable 0.34, Opus 0.18; ours −0.15), on 72
+    puzzles, to confirm at scale;
+  - sequences: beat our estimate (0.59 against 0.16) but not sorting by grid size (0.69).
 
 ## Open questions, by product
 
@@ -139,7 +145,7 @@ per type mean agreement figures can be off by 0.15.
 | Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
 | Does the order of a solve carry difficulty? | difficulty | path features against ratings (solves as vectors, step 1) | after pricing |
 | Do Janko's recordings hold solve times? | difficulty | check the files | quick |
-| Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | ready, ~$10–15, needs approval |
+| Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints and interest yes, difficulty no, sequences unclear (research-llm-labels.md) |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
 | Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | expert band now holds the mined families; per-genre work to do |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
@@ -155,10 +161,9 @@ per type mean agreement figures can be off by 0.15.
 ## Decisions waiting on you
 
 1. **Push main** (52+ commits): deploys the link importer. Everything else is research code.
-2. **Labeller pilot:** Opus and Fable on four jobs against answer keys, ~$10–15.
-3. **Fair size test** on the GPU: ~$3.
-4. **GPU quota:** the increase is still pending on Google's side.
-5. **A budget alert** in Cloud Billing: optional insurance.
+2. **Fair size test** on the GPU: ~$3.
+3. **GPU quota:** the increase is still pending on Google's side.
+4. **A budget alert** in Cloud Billing: optional insurance.
 
 ## Next, in order
 
@@ -166,8 +171,8 @@ per type mean agreement figures can be off by 0.15.
 2. **Evaluation changes:** human-made test set, next-move agreement, key-move score, results by
    band and family, seeds.
 3. **On the GPU, back to back:** the fair size test and the learning curve.
-4. **Labeller pilot,** if approved. Where a model passes, label at scale; distill into our own
-   network and a small open model later (the encoder).
+4. **Labels from models where the pilot passed:** interest at scale with Opus (100+ a type, about
+   $0.01 a puzzle) to confirm; hint text from solver steps; stuck-moment moves for the miner.
 5. **Connectivity pricing** (CPU, alongside).
 6. **Structure as network input** for the whole-grid types.
 7. **Per-genre techniques** for the generator's missing bands and genres.
@@ -178,5 +183,6 @@ per type mean agreement figures can be off by 0.15.
 | Item | Approx. |
 |---|---|
 | Anthropic API: mining rounds | $2.50 of $10 approved |
+| Anthropic API: labeller pilot | $14.45 of $15 approved |
 | GPU runs (5) | ~$8 |
 | CPU generation (first batch + fleet) | ~$16–21 when the fleet ends |
