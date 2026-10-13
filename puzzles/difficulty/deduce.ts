@@ -25,7 +25,7 @@
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
-import { blockFor } from "../../src/engine/rules.ts";
+import { blockFor, pathEnds } from "../../src/engine/rules.ts";
 import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
@@ -207,6 +207,10 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   rects: (p, genre) => genre === "shikaku" && p.rules.map((r) => r.rule).join(",") === "rectangles,one-each,size-clue",
   // Minesweeper: two or three overlapping numbers together
   mines: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "mine-count"),
+  // Simple Path: loose ends that mustn't close up
+  ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path"),
+  // Simple Path and Simple Loop: a part of the grid with one or two ways out
+  cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || (r.rule === "loop" && r.of === "loop"))),
 };
 export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
@@ -1369,7 +1373,135 @@ end
     });
     return ws;
   };
-  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound };
+  // lines through cells (Simple Path, Simple Loop, Numberlink): each link's state and atom
+  const lineState = (l: number) => { const m = markOf.get(`line(${l})`); return m === undefined ? 0 : known[m]; };
+  const lineAtom = (l: number) => { const m = markOf.get(`line(${l})`); return m === undefined ? undefined : markAtom[m]; };
+  const otherEnd = (l: number, c: number) => (g.links[l].cells[0] === c ? g.links[l].cells[1] : g.links[l].cells[0]);
+  /** The drawn pieces of line: each piece's links and its cells, and the cells at its two ends (a
+   *  lone cell in `alone` counts as a piece with no links, both its ends itself). */
+  const linePieces = (alone: number[] = []) => {
+    const seen = new Uint8Array(n), out: { links: number[]; cells: number[]; tips: number[] }[] = [];
+    const onAt = (c: number) => g.cellLinks[c].filter((l) => lineState(l) === 1);
+    for (let c0 = 0; c0 < n; c0++) {
+      if (seen[c0] || !(onAt(c0).length || alone.includes(c0))) continue;
+      const cells = [c0], links = new Set<number>(); seen[c0] = 1;
+      for (let k = 0; k < cells.length; k++) for (const l of onAt(cells[k])) { links.add(l); const d = otherEnd(l, cells[k]); if (!seen[d]) { seen[d] = 1; cells.push(d); } }
+      const tips = cells.filter((c) => onAt(c).length <= 1);
+      out.push({ links: [...links], cells, tips: tips.length === 1 ? [tips[0], tips[0]] : tips });
+    }
+    return out;
+  };
+
+  // Simple Path (technique "ends"): loose ends that mustn't close up. A piece of line whose two
+  // ends are side by side can't be joined into a ring (the path has none); and with every cell to
+  // visit, the piece from the way in can't join the piece from the way out while a cell is left
+  // over. Both said of the drawn line itself (its links in the constraint), so they hold by the
+  // rules alone, like the premature-loop lemma for loops.
+  const endsRound = (): Window[] => {
+    const path = p.rules.find((r) => r.rule === "path");
+    if (!path) return [];
+    const ends = pathEnds(p), pieces = linePieces(ends), ws: Window[] = [];
+    const gapOf = (a: number, b: number) => g.cellLinks[a].find((l) => otherEnd(l, a) === b && lineState(l) < 0);
+    const open = [...Array(n).keys()].filter((c) => !p.blocked.has(c));
+    for (const pc of pieces) {
+      const [a, b] = pc.tips;
+      if (a === b || ends.includes(a) || ends.includes(b)) continue;
+      const gap = gapOf(a, b);
+      if (gap === undefined) continue;
+      const bits = addTech("ends", [LIT(lineAtom(gap), true), ...pc.links.map((l) => LIT(lineAtom(l), true))], `the line ending at ${rc(a)}`, pc.links.length);
+      if (bits) ws.push(techWin(`ends: the line ending at ${rc(a)}`, bits));
+    }
+    if (path.cover) {
+      const A = pieces.find((pc) => pc.cells.includes(ends[0])), B = pieces.find((pc) => pc.cells.includes(ends[1]));
+      if (A && B && A !== B && A.cells.length + B.cells.length < open.length) {
+        const x = A.tips.find((c) => c !== ends[0]) ?? ends[0], y = B.tips.find((c) => c !== ends[1]) ?? ends[1];
+        const gap = gapOf(x, y);
+        if (gap !== undefined) {
+          const bits = addTech("ends", [LIT(lineAtom(gap), true), ...[...A.links, ...B.links].map((l) => LIT(lineAtom(l), true))], `the way in and out at ${rc(x)}`, A.links.length + B.links.length);
+          if (bits) ws.push(techWin(`ends: the way in and out at ${rc(x)}`, bits));
+        }
+      }
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Simple Path and Simple Loop with every cell visited (technique "cuts"): a part of the grid
+  // that the line can only leave by one, two or three links (what's undecided and drawn; walls,
+  // rocks and links ruled out don't count). The line must cross into it and out again: a loop an
+  // even number of times, at least two; a path the same, or an odd number if one of its ends is
+  // inside. Said of every link round the part (the counts it can't have), so it holds by the rules
+  // alone; the windows are the part's edge.
+  const cutsRound = (): Window[] => {
+    const rule = p.rules.find((r) => (r.rule === "path" || r.rule === "loop") && r.cover && (r.rule === "path" || r.of === "loop"));
+    if (!rule) return [];
+    const ends = rule.rule === "path" ? pathEnds(p) : [];
+    const V = [...Array(n).keys()].filter((c) => !p.blocked.has(c));
+    const possible = (l: number) => lineState(l) !== 0 && !g.links[l].cells.some((c) => p.blocked.has(c));
+    const E = g.links.map((_, l) => l).filter(possible);
+    if (!V.length || E.length > 250) return [];
+    // the bridges of what's possible with some links taken out (Tarjan's low points, iteratively)
+    const bridges = (removed: Set<number>): number[] => {
+      const disc = new Int32Array(n).fill(-1), low = new Int32Array(n), out: number[] = [];
+      let t = 0;
+      const frames: [number, number, number][] = [[V[0], -1, 0]];   // cell, link in, next link index
+      disc[V[0]] = low[V[0]] = t++;
+      while (frames.length) {
+        const f = frames[frames.length - 1], [c, inL] = f, ls = g.cellLinks[c];
+        if (f[2] < ls.length) {
+          const l = ls[f[2]++];
+          if (l === inL || removed.has(l) || !possible(l)) continue;
+          const d = otherEnd(l, c);
+          if (disc[d] < 0) { disc[d] = low[d] = t++; frames.push([d, l, 0]); }
+          else low[c] = Math.min(low[c], disc[d]);
+          continue;
+        }
+        frames.pop();
+        if (frames.length) { const up = frames[frames.length - 1][0]; low[up] = Math.min(low[up], low[c]); if (low[c] > disc[up]) out.push(inL); }
+      }
+      return out;
+    };
+    // cuts of one, two and three links (each link of a cut crossing it)
+    const cuts = new Map<string, number[]>();
+    const note = (R: number[]) => { const k = [...R].sort((x, y) => x - y); cuts.set(k.join(","), k); };
+    const b0 = new Set(bridges(new Set()));
+    for (const e of b0) note([e]);
+    const rest = E.filter((e) => !b0.has(e));
+    const b1 = new Map(rest.map((e) => [e, bridges(new Set([e])).filter((f) => !b0.has(f))]));
+    for (const [e, fs] of b1) for (const f of fs) note([e, f]);
+    if (rest.length <= 150) for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) {
+      const e = rest[i], f = rest[j];
+      if (b1.get(e)!.includes(f)) continue;
+      for (const h of bridges(new Set([e, f]))) if (!b0.has(h) && !b1.get(e)!.includes(h) && !b1.get(f)!.includes(h)) note([e, f, h]);
+    }
+    const sideOf = (R: number[]) => {
+      const removed = new Set(R), seen = new Uint8Array(n), st = [V[0]]; seen[V[0]] = 1;
+      while (st.length) { const c = st.pop()!; for (const l of g.cellLinks[c]) if (possible(l) && !removed.has(l)) { const d = otherEnd(l, c); if (!seen[d]) { seen[d] = 1; st.push(d); } } }
+      const inS = V.filter((c) => seen[c]), outS = V.filter((c) => !seen[c]);
+      return inS.length <= outS.length ? inS : outS;
+    };
+    // a loop's single cell is its own degree rule (a path's cells may have none, as far as the
+    // cell's own rule goes: being on the path is the global part)
+    const least = rule.rule === "loop" ? 2 : 1;
+    const parts = [...cuts.values()].map((R) => ({ R, S: sideOf(R) })).filter(({ S }) => S.length >= least && V.length - S.length >= least)
+      .sort((x, y) => x.S.length - y.S.length).slice(0, 300);
+    const ws: Window[] = [];
+    for (const { R, S } of parts) {
+      const inSet = new Set(S), boundary = new Set<number>();
+      for (const c of S) for (const l of g.cellLinks[c]) if (!inSet.has(otherEnd(l, c))) boundary.add(l);
+      const parity = ends.filter((e) => inSet.has(e)).length % 2, need = parity ? 1 : 2;
+      let bits: Bits | null = null;
+      for (let mask = 0; mask < 1 << R.length; mask++) {
+        const on = new Set(R.filter((_, k) => mask & (1 << k)));
+        if (on.size >= need && on.size % 2 === parity) continue;
+        const b = addTech("cuts", [...boundary].map((l) => LIT(lineAtom(l), on.has(l))), `the part at ${rc(S[0])}`, S.length);
+        if (b) bits = bits ? unionBits(bits, b) : b;
+      }
+      if (bits) ws.push(techWin(`cuts: the part at ${rc(S[0])}`, bits));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));

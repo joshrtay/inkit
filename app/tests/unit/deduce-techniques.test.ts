@@ -16,6 +16,8 @@ const examples = (genre: string) => readdirSync(new URL(`../../../src/games/${ge
 const GENRES: Record<string, string[]> = {
   rects: ["shikaku"],
   mines: ["minesweeper"],
+  ends: ["simple-path"],
+  cuts: ["simple-path"],
 };
 const expert = bandNamed("expert");
 

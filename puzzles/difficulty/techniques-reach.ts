@@ -4,6 +4,8 @@
 // generator's expert band can make.
 //
 //   node puzzles/difficulty/techniques-reach.ts <genre> <size> [count] [firstSeed]
+//   REACH_DUMP=file   append the puzzles that still need search to it
+import { appendFileSync } from "node:fs";
 import { generate } from "../grid/generate.ts";
 import { BAND_LIST, quickSolve, without } from "./bands.ts";
 import { TECHNIQUES } from "./deduce.ts";
@@ -24,6 +26,8 @@ for (let k = 0; k < +count; k++) {
   const withoutT = band === "-" ? await quickSolve(spec, bare, 60000) : null;
   const key = band !== "-" ? band : `${withoutT!.solved ? "expert" : "-"} → ${withT!.solved ? "expert" : "-"}`;
   tally.set(key, (tally.get(key) ?? 0) + 1);
+  // REACH_DUMP: a file to append the puzzles still needing search to (gen-set's line format)
+  if (process.env.REACH_DUMP && withT && !withT.solved) appendFileSync(process.env.REACH_DUMP, JSON.stringify({ genre, size: +size, seed, band: "-", spec }) + "\n");
   console.log(`#${seed}: ${key}${withT ? ` (${(ms / 1000).toFixed(1)} s${withT.error ? `, ${withT.error}` : ""}; ${withT.used.join(" ")})` : ""}`);
 }
 console.log([...tally].map(([k, v]) => `${k}: ${v}`).join(", "));
