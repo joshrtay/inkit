@@ -25,7 +25,11 @@ const PIECES: RC[][] = [
   [[0, 0], [1, 0], [1, 1], [1, 2], [2, 2]], [[0, 1], [1, 0], [1, 1], [1, 2], [2, 1]], [[0, 0], [0, 1], [0, 2], [1, 0], [1, 2]], [[0, 0], [1, 0], [2, 0], [3, 0], [3, 1]], [[0, 0], [0, 1], [1, 1], [1, 2], [2, 1]],
 ];
 
-export async function makePieceGenre(genre: string, rows: number, cols: number, rand: () => number, settings?: string): Promise<GridSpec | null> {
+/** `accept` (Fillomino only; the solver in the loop, generate.ts): every number true of the answer
+ *  goes in, then each is taken out (in random order) only if it stays unique and accepted, as
+ *  generate.ts's narrow does; without it, numbers are added until unique and the extra ones taken
+ *  out, and the puzzle is accepted or not as it comes. */
+export async function makePieceGenre(genre: string, rows: number, cols: number, rand: () => number, settings?: string, accept?: (spec: GridSpec) => Promise<boolean>): Promise<GridSpec | null> {
   const clingo = await import("clingo-wasm");
   const shuffle = <T,>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(rand() * xs.length)];
@@ -104,6 +108,17 @@ export async function makePieceGenre(genre: string, rows: number, cols: number, 
       if (!target) continue;
       const reg = regionsOf(makePuzzle(base), target);
       const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: reg.cells[reg.of[i]].length }));
+      if (accept) {
+        // solver in the loop: from every number down (uniqueness by clingo here, uncached)
+        const uniqueHere = async (s: GridSpec) => ((await clingo.run(program(makePuzzle(s)), 2, ["--project=show"])) as { Call?: { Witnesses?: unknown[] }[] }).Call?.[0]?.Witnesses?.length === 1;
+        const spec: GridSpec = { ...base, givens: [...pool] };
+        if (!(await uniqueHere(spec)) || !(await accept(spec))) continue;
+        for (const c of shuffle([...pool])) {
+          const fewer = { ...spec, givens: spec.givens!.filter((x) => x !== c) };
+          if ((await uniqueHere(fewer)) && (await accept(fewer))) spec.givens = fewer.givens;
+        }
+        return spec;
+      }
       const spec = await narrow(base, target, pool);
       if (spec) return spec;
     } else if (genre === "sum-blobs") {

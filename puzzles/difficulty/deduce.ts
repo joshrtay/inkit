@@ -218,6 +218,8 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || r.rule === "links" || (r.rule === "loop" && r.of === "loop"))),
   // Numberlink: the cells each pair can still reach
   owners: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links"),
+  // Fillomino (regions cut by borders, numbers their sizes): parts that close, stay apart or must grow
+  sizes: (p, genre) => genre !== "shikaku" && !p.figure && p.marks.includes("regions") && p.rules.some((r) => r.rule === "size-clue"),
   // Spiral Galaxies: the cells each galaxy can still reach, by symmetry (needs Options.cellAtoms)
   mirror: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "galaxies"),
   // Hidoku and Honeycomb Paths: how far a number can be from the placed ones; a number needs the
@@ -1323,6 +1325,24 @@ end
     return bits;
   };
   const techGroup = new Map<string, number>();
+  /** A new atom for a technique, true exactly when every literal of `body` holds (a candidate
+   *  region, say); its footprint is theirs. The same body gives the same atom. */
+  let nextAtom = G.maxAtom + 1;
+  const techAtoms = new Map<string, number>();
+  const defineAtom = (t: string, lits: number[]): number => {
+    const body = [...new Set(lits)].sort((a, b) => a - b), key = `${t}|${body.join(",")}`;
+    let a = techAtoms.get(key);
+    if (a !== undefined) return a;
+    a = nextAtom++;
+    techAtoms.set(key, a);
+    const k = rules.length;
+    rules.push({ choice: false, head: [a], bound: null, body, weights: [], block: techBlock.get(t)! });
+    defs[a] = [k];
+    const bits = new Uint32Array(empty.length);
+    for (const l of body) { const f = fp[Math.abs(l)]; if (f) orInto(bits, f); }
+    fp[a] = bits;
+    return a;
+  };
   // windows over the techniques' constraints: kept by their cells, made again when a constraint
   // added since lies inside (a window's program is fixed when first built)
   const techCache = new Map<string, { w: Window; at: number }>();
@@ -1791,7 +1811,101 @@ end
     return ws.filter((w) => w.size <= techCap);
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { owners: ownersRound, slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  // Fillomino (technique "sizes"): the known parts of regions (cells joined by links known not to
+  // be cut), with the number in them if any. A part that has reached its number closes (every
+  // link out is cut); parts with different numbers, or whose sizes together pass the number, stay
+  // apart (the link between them is cut); a part short of its number with every way out into one
+  // cell takes that cell in (those links aren't cut), and with one way out, takes it. Each holds
+  // given the known links; windows are each part with the cells round it.
+  const sizesRound = (): Window[] => {
+    if (!p.marks.includes("regions") || !p.rules.some((r) => r.rule === "size-clue")) return [];
+    const cutState = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? -1 : known[m]; };
+    const cutAtom = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? undefined : markAtom[m]; };
+    const num = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number" && typeof x.value === "number") num.set(i, x.value);
+    const part = new Int32Array(n).fill(-1), parts: { cells: number[]; value: number | undefined }[] = [];
+    for (let c0 = 0; c0 < n; c0++) {
+      if (part[c0] >= 0 || p.blocked.has(c0)) continue;
+      const k = parts.length, cells = [c0]; part[c0] = k;
+      for (let q = 0; q < cells.length; q++) for (const l of g.cellLinks[cells[q]]) { const d = otherEnd(l, cells[q]); if (cutState(l) === 0 && part[d] < 0 && !p.blocked.has(d)) { part[d] = k; cells.push(d); } }
+      const vs = [...new Set(cells.filter((c) => num.has(c)).map((c) => num.get(c)!))];
+      parts.push({ cells, value: vs.length === 1 ? vs[0] : undefined });
+    }
+    const ws: Window[] = [], label = (k: number) => `the region at ${rc(parts[k].cells[0])}`, differ = p.rules.some((r) => r.rule === "neighbors-differ-size");
+    const cutIt = (l: number, k: number) => addTech("sizes", [LIT(cutAtom(l), false)], label(k), parts[k].cells.length);
+    const joinIt = (l: number, k: number) => addTech("sizes", [LIT(cutAtom(l), true)], label(k), parts[k].cells.length);
+    parts.forEach((pt, k) => {
+      const exits: number[] = [];
+      for (const c of pt.cells) for (const l of g.cellLinks[c]) if (cutState(l) < 0 && part[otherEnd(l, c)] !== k && !p.blocked.has(otherEnd(l, c))) exits.push(l);
+      if (!exits.length) return;
+      const v = pt.value;
+      if (v !== undefined && pt.cells.length >= v) for (const l of exits) cutIt(l, k);
+      for (const l of exits) {
+        const c = pt.cells.includes(g.links[l].cells[0]) ? g.links[l].cells[0] : g.links[l].cells[1], o = part[otherEnd(l, c)], w = parts[o].value;
+        if (v !== undefined && w !== undefined && v !== w) cutIt(l, k);
+        const cap = v ?? w;
+        if (cap !== undefined && pt.cells.length + parts[o].cells.length > cap) cutIt(l, k);
+      }
+      if (v !== undefined && pt.cells.length < v) {
+        const into = new Set(exits.map((l) => part[g.links[l].cells.find((c) => part[c] !== k)!]));
+        if (into.size === 1) for (const l of exits) joinIt(l, k);
+      }
+      const around = new Set(pt.cells);
+      for (const c of pt.cells) for (const l of g.cellLinks[c]) around.add(otherEnd(l, c));
+      if (around.size <= techCap) ws.push(techWin(`sizes: ${label(k)}`, bitsOf(n, around)));
+      // a numbered part short of its number: the regions it can still grow into (every shape of
+      // that size holding it, whole parts at a time, none with another number, no link inside
+      // known cut, none beside a part of the same number outside it). Its region is one of them,
+      // as Shikaku's rectangles.
+      if (v === undefined || pt.cells.length >= v || v > 8) return;
+      const shapes: number[][] = [], seen = new Set<string>();
+      const grow = (cells: number[]) => {
+        if (seen.size > 4000) return;
+        const key = [...cells].sort((a, b) => a - b).join(",");
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (cells.length === v) { shapes.push(cells); return; }
+        const inS = new Set(cells);
+        for (const c of cells) for (const l of g.cellLinks[c]) {
+          const d = otherEnd(l, c);
+          if (inS.has(d) || p.blocked.has(d) || cutState(l) === 1) continue;
+          const o = parts[part[d]];
+          if (o.value !== undefined && o.value !== v) continue;
+          if (cells.length + o.cells.length > v) continue;
+          grow([...cells, ...o.cells]);
+        }
+      };
+      grow(pt.cells);
+      const ok = shapes.filter((cs) => {
+        const inS = new Set(cs);
+        for (const c of cs) for (const l of g.cellLinks[c]) {
+          const d = otherEnd(l, c);
+          if (inS.has(d)) { if (cutState(l) === 1) return false; }
+          else if (differ && !p.blocked.has(d) && parts[part[d]].value === v) return false;
+        }
+        return true;
+      });
+      if (seen.size > 4000 || !ok.length || ok.length > 300) return;
+      const atoms = ok.map((cs) => {
+        const inS = new Set(cs), lits: number[] = [];
+        for (const c of cs) for (const l of g.cellLinks[c]) {
+          const d = otherEnd(l, c);
+          if (p.blocked.has(d) || (inS.has(d) && d < c)) continue;
+          const a = cutAtom(l), want = !inS.has(d);
+          if (a === undefined) { if (want) return -1; continue; }   // no such cut: never a border
+          if (a === 0) { if (!want) return -1; continue; }          // cut for sure
+          lits.push(want ? a : -a);
+        }
+        return defineAtom("sizes", lits);
+      }).filter((a) => a >= 0);
+      if (!atoms.length) return;
+      const b = addTech("sizes", atoms.map((a) => -a), `the shapes for ${rc(pt.cells[0])}`, atoms.length);
+      if (b && cellsOf(b).length <= 2 * techCap) ws.push(techWin(`sizes: the shapes for ${label(k)}`, b));
+    });
+    return ws;
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { sizes: sizesRound, owners: ownersRound, slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));

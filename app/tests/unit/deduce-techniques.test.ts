@@ -24,8 +24,9 @@ const GENRES: Record<string, string[]> = {
   deadends: ["hidoku"],
   fish: ["easy-as-abc"],
   slots: ["fill-in"],
+  sizes: ["fillomino"],
 };
-const UNSOLVED = new Set(["numberlink/1.json"]);
+const UNSOLVED = new Set(["numberlink/1.json", "fillomino/1.json", "fillomino/2.json", "fillomino/3.json"]);
 const expert = bandNamed("expert");
 
 describe("per-genre techniques", () => {
