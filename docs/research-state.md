@@ -40,7 +40,7 @@ the research must deliver three products, all built on one shared core:
 
 | Data | Size | Whose judgement | Use |
 |---|---|---|---|
-| Janko's puzzles with recorded solves | ~4,000 solves, 8 types | people solving (move order; times to check) | human order, hints, stuck moments |
+| Janko's puzzles with recorded solves | ~6,700 solves, 12 types (8 read so far) | 7 experienced solvers' move order; no times | human order, hints, stuck moments |
 | Puzzle Square JP | ratings for 17 types, ~20 sampled per type on the board; likes for 4 types | the site | difficulty, taste |
 | Tatham's generators | ~270 graded puzzles, 4 games | his solver (an algorithm) | difficulty |
 | Beast Academy Puzzle Lab | 88 puzzles in ordered sets | curriculum designers | difficulty, sequences |
@@ -114,10 +114,15 @@ per type mean agreement figures can be off by 0.15.
 - **The solver in the loop removes searching.** With the deduction solver inside the generator, no
   puzzle needs search, against 12 of 12 Slitherlink and Cave puzzles from the old generator.
 - **About 100–150 puzzles per CPU-hour**, mostly easy unless aimed higher.
-- **Some genres can't reach hard:** the solver has no advanced technique for Minesweeper, Hidoku,
-  Spiral Galaxies, Simple Path, Easy as ABC or Fill-in.
-- **Some genres can't be generated:** Shikaku, Numberlink, Fillomino and Nonogram need techniques
-  the solver lacks.
+- **Per-genre techniques, in the expert band only** (deduce.ts TECHNIQUES, off by default and
+  unpriced): Shikaku's candidate rectangles, Minesweeper's clue chains, paths' loose ends and cuts,
+  Galaxies' symmetry reach, Hidoku's distances and dead ends, Easy as ABC's X-wing, Fill-in's slots,
+  Numberlink's owners, Fillomino's region shapes. Shikaku, Numberlink and Fillomino now generate
+  (expert); Simple Path, Spiral Galaxies (fast now), Hidoku and Easy as ABC 6 × 6 reach expert.
+  Galaxies' and Fill-in's helper atoms now have footprints in every band (each window had held
+  the whole puzzle).
+- **Still short:** Minesweeper and Fill-in (the generator's minimal puzzles are nearly all easy),
+  Simple Loop expert (comes out hard), Galaxies hard, Nonogram (fixed pictures).
 
 ### Labels from language models
 
@@ -139,15 +144,15 @@ per type mean agreement figures can be off by 0.15.
 | Question | Product | What would answer it | Status |
 |---|---|---|---|
 | Is data the network's limit? | core | learning curve on the generated set (10–100%) | after the fleet |
-| Does size matter? | core | fair size test: learning rate scaled with width | ready, ~$3 |
+| Does size matter? | core | fair size test: learning rate scaled with width | **yes**: 69.4% (width 64), 73.5% (128), 76.0% (256), still rising; whole-grid types gain less |
 | Does structure as input fix whole-grid types? | core, hints | give the network groups, their sizes and exits | to build |
 | Do our tests measure the right thing? | all | human-made puzzles held out, agreement with people's next moves, key-move score, results by band and family, repeated seeds | building now |
 | Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
 | Does the order of a solve carry difficulty? | difficulty | path features against ratings (solves as vectors, step 1) | after pricing |
-| Do Janko's recordings hold solve times? | difficulty | check the files | quick |
+| Do Janko's recordings hold solve times? | difficulty | check the files | **no**: moves only, no times. And the ~6,700 recorded solves are by 7 experienced solvers (Rainer 2,109; Steve C 1,125; Jürgen Helbig 996; Angela Janko 784; Otto Janko 711; Groffin 562; Emma 410), so "human order" means expert order, a third of it one person: report agreement per solver. inkit's own solve times are the human difficulty source |
 | Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints yes; difficulty no; interest no at scale (Slitherlink a little); sequences unclear (research-llm-labels.md) |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
-| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | expert band now holds the mined families; per-genre work to do |
+| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band); pricing them, and a hard band for Galaxies, open |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
 | Why is Beast Academy's Akari backwards? | difficulty | look at their sets | open |
 
@@ -155,7 +160,6 @@ per type mean agreement figures can be off by 0.15.
 
 - **Generation fleet:** 15 spot VMs, 480 vCPUs, until about 13:20 Pacific. A watchdog relaunches
   reclaimed machines; gather-gen.sh collects the results.
-- **Fair size test** (graph-20261013-1125): widths 64, 128 and 256 with the learning rate scaled.
 - **Expert-band trial:** the six genres that had no top band, now with the mined families.
 - **Evaluation changes:** held-out human puzzles first.
 

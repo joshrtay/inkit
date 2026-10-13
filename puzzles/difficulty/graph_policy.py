@@ -50,6 +50,12 @@ FLAGS = {a for a in sys.argv[1:] if a.startswith("--")}
 H = int(os.environ.get("GRAPH_H", 64)); HEADS = int(os.environ.get("GRAPH_HEADS", 4))
 POS = os.environ.get("GRAPH_POS") == "1"
 NPOS = 10 if POS else 0
+# GRAPH_STRUCTURE=1: what a person sees at a glance (structure.py: known groups, their size and ways
+# out, a number's room and reach, line pieces and their ends), computed from each state, as extra
+# inputs for cells and marks
+STRUCT = os.environ.get("GRAPH_STRUCTURE") == "1"
+if STRUCT: import structure
+NSC, NSM = (structure.CELL, structure.MARK) if STRUCT else (0, 0)
 sys.argv = [a for a in sys.argv if not a.startswith("--")]
 dev = torch.device(os.environ["GRAPH_DEVICE"]) if os.environ.get("GRAPH_DEVICE") else torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -95,6 +101,7 @@ class Puzzle:
         for (c, kind, v) in d["givens"]:
             if kind in GIVENS: cf[c, GIVENS.index(kind)] = 1
             if v: cf[c, len(GIVENS)] = v / 9
+        self.layout = structure.Layout(d) if STRUCT else None
         if POS:
             # where each cell is (rows and columns from the cell's number; grids that aren't rows
             # of cells get none): row and column as fractions, distance to the nearest edge, and
@@ -188,17 +195,20 @@ def batch(items, attention=False):
 
 def batch_states(items, attention=False):
     """Several (puzzle, state array, targets) as one graph; with attention, also its groups."""
-    mfs, cfs, gfs, mes, ges, ys, masks, offs = [], [], [], [], [], [], [], []
+    mfs, cfs, gfs, mes, ges, ys, masks, offs, sms, scs = [], [], [], [], [], [], [], [], [], []
     om = oc = og = 0
     for (pz, s, y) in items:
         state = np.zeros((len(s), 3), np.float32); state[np.arange(len(s)), s] = 1
+        if STRUCT: xc, xm = pz.layout.features(s); scs.append(torch.from_numpy(xc).float()); sms.append(torch.from_numpy(xm).float())
         mfs.append(torch.cat([pz.mf, torch.tensor(state)], 1)); cfs.append(pz.cf); gfs.append(pz.gf)
         mes.append(pz.me.long() + torch.tensor([om, oc])); ges.append(pz.ge.long() + torch.tensor([og, oc]))
         ys.append(torch.tensor(y)); masks.append(torch.tensor((s == 0).astype(np.float32)))
         offs.append((om, len(s)))
         om += len(s); oc += pz.nc; og += len(pz.gf)
+    mf, cf = torch.cat(mfs), torch.cat(cfs)
+    if STRUCT: mf, cf = torch.cat([mf, torch.cat(sms)], 1), torch.cat([cf, torch.cat(scs)], 1)
     groups = attention_groups(items, om, oc) if attention else None
-    return (torch.cat(mfs), torch.cat(cfs), torch.cat(gfs), torch.cat(mes), torch.cat(ges), oc, groups), torch.cat(ys), torch.cat(masks), offs
+    return (mf, cf, torch.cat(gfs), torch.cat(mes), torch.cat(ges), oc, groups), torch.cat(ys), torch.cat(masks), offs
 
 ATT_CAP = 1 << 24   # padded query × key pairs per attention call
 def attention_groups(items, M, C):
@@ -260,7 +270,7 @@ class GraphNet(nn.Module):
         # global attention after rounds 2, 4 and 6
         self.att = nn.ModuleList([GlobalAttention(h, HEADS) for _ in range(rounds // 2)]) if attention else None
         self.fill = nn.Linear(h, 1)   # hide and fill: is this hidden mark true?
-        self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3, h), nn.Linear(len(GIVENS) + 1 + NPOS, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
+        self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3 + NSM, h), nn.Linear(len(GIVENS) + 1 + NPOS + NSC, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
         self.rounds = rounds
         self.m2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2g = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
         self.g2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2m = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])

@@ -189,7 +189,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
   let result: GridSpec | null = null;
   // Fillomino, Sum Blobs, Polyomino Packing, Connect the Critters, Find the Cut Line, Twins and Triplets: ./pieces.ts
   if (PIECE_GENRES.includes(genre)) {
-    const made = await makePieceGenre(genre, rows, cols, rand, o.rules);
+    const made = await makePieceGenre(genre, rows, cols, rand, o.rules, o.accept);
     return made && (await accepts(made)) ? made : null;
   }
 
