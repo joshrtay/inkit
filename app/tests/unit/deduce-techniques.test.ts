@@ -12,18 +12,20 @@ import type { GridSpec } from "../../../src/engine/types.ts";
 const examples = (genre: string) => readdirSync(new URL(`../../../src/games/${genre}/`, import.meta.url)).filter((f) => f.endsWith(".json"))
   .map((f) => [`${genre}/${f}`, { genre, ...JSON.parse(readFileSync(new URL(`../../../src/games/${genre}/${f}`, import.meta.url), "utf8")).grid } as GridSpec] as const);
 
-/** each technique's genres, and whether the expert band solves all their examples */
+/** each technique's genres (the expert band, with every technique, solves their examples but these) */
 const GENRES: Record<string, string[]> = {
   rects: ["shikaku"],
   mines: ["minesweeper"],
-  ends: ["simple-path"],
-  cuts: ["simple-path"],
+  ends: ["simple-path", "numberlink"],
+  cuts: ["simple-path", "numberlink"],
+  owners: ["numberlink"],
   mirror: ["spiral-galaxies"],
   distance: ["hidoku"],
   deadends: ["hidoku"],
   fish: ["easy-as-abc"],
   slots: ["fill-in"],
 };
+const UNSOLVED = new Set(["numberlink/1.json"]);
 const expert = bandNamed("expert");
 
 describe("per-genre techniques", () => {
@@ -34,17 +36,16 @@ describe("per-genre techniques", () => {
     expect(without(expert, "rects").techniques).not.toContain("rects");
   });
 
-  for (const [t, genres] of Object.entries(GENRES)) {
-    it.each(genres.flatMap(examples))(`${t}: %s, sound and solved in the expert band`, async (_name, spec) => {
-      expect(techniqueApplies(t, makePuzzle(spec), spec.genre)).toBe(true);
-      const q = await quickSolve(spec, expert, 60000);
-      expect(q.error).toBeUndefined();
-      expect(q.solved).toBe(true);
-      // explained too (the full solve the generator records)
-      const full = await deduce(spec, optionsOf(expert, { budgetMs: 60000 }));
-      expect(full.profile.solved).toBe(true);
-    }, 120000);
-  }
+  const genres = [...new Set(Object.values(GENRES).flat())];
+  it.each(genres.flatMap(examples))("%s: sound, and solved in the expert band", async (name, spec) => {
+    for (const [t, gs] of Object.entries(GENRES)) expect(techniqueApplies(t, makePuzzle(spec), spec.genre)).toBe(gs.includes(spec.genre!));
+    const q = await quickSolve(spec, expert, 60000);
+    expect(q.error).toBeUndefined();
+    expect(q.solved).toBe(!UNSOLVED.has(name));
+    // explained too (the full solve the generator records)
+    const full = await deduce(spec, optionsOf(expert, { budgetMs: 60000 }));
+    expect(full.profile.solved).toBe(!UNSOLVED.has(name));
+  }, 120000);
 
   it("rects: Shikaku needs it (no band solves the examples without it), and steps name it", async () => {
     const [, spec] = examples("shikaku")[0];

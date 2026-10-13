@@ -212,10 +212,12 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   rects: (p, genre) => genre === "shikaku" && p.rules.map((r) => r.rule).join(",") === "rectangles,one-each,size-clue",
   // Minesweeper: two or three overlapping numbers together
   mines: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "mine-count"),
-  // Simple Path: loose ends that mustn't close up
-  ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path"),
-  // Simple Path and Simple Loop: a part of the grid with one or two ways out
-  cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || (r.rule === "loop" && r.of === "loop"))),
+  // Simple Path and Numberlink: loose ends that mustn't close up (or join different numbers)
+  ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path" || r.rule === "links"),
+  // Simple Path, Simple Loop and Numberlink with every cell used: a part of the grid with few ways out
+  cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || r.rule === "links" || (r.rule === "loop" && r.of === "loop"))),
+  // Numberlink: the cells each pair can still reach
+  owners: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links"),
   // Spiral Galaxies: the cells each galaxy can still reach, by symmetry (needs Options.cellAtoms)
   mirror: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "galaxies"),
   // Hidoku and Honeycomb Paths: how far a number can be from the placed ones; a number needs the
@@ -1430,6 +1432,7 @@ end
   // over. Both said of the drawn line itself (its links in the constraint), so they hold by the
   // rules alone, like the premature-loop lemma for loops.
   const endsRound = (): Window[] => {
+    if (p.rules.some((r) => r.rule === "links")) return linkEndsRound();
     const path = p.rules.find((r) => r.rule === "path");
     if (!path) return [];
     const ends = pathEnds(p), pieces = linePieces(ends), ws: Window[] = [];
@@ -1457,6 +1460,61 @@ end
     return ws.filter((w) => w.size <= techCap);
   };
 
+  // Numberlink's numbers: cell → its number
+  const linkNums = new Map<number, number>();
+  if (p.rules.some((r) => r.rule === "links")) for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number" && typeof x.value === "number") linkNums.set(i, x.value);
+  /** A known-implied constraint said of the drawn line (`lits`, rule-level) when its footprint fits
+   *  a window, else of `short` alone (it holds given what's known) */
+  const addTechFitting = (t: string, lits: (number | null)[], short: (number | null)[], label: string, extent?: number) => {
+    const full = addTech(t, lits, label, extent);
+    return full && cellsOf(full).length <= techCap ? full : addTech(t, short, label, extent);
+  };
+  // Numberlink (technique "ends"): two pieces of line can't be joined if they carry different
+  // numbers (a line would join them), and a piece with no number can't close into a ring (a ring
+  // reaches no number).
+  const linkEndsRound = (): Window[] => {
+    const pieces = linePieces([...linkNums.keys()]), pieceOf = new Int32Array(n).fill(-1), ws: Window[] = [];
+    pieces.forEach((pc, k) => { for (const c of pc.cells) pieceOf[c] = k; });
+    const label = pieces.map((pc) => [...new Set(pc.cells.filter((c) => linkNums.has(c)).map((c) => linkNums.get(c)!))]);
+    const free = (k: number, c: number) => pieces[k].tips.includes(c) && (!linkNums.has(c) || !pieces[k].links.length);
+    for (let l = 0; l < g.links.length; l++) {
+      if (lineState(l) >= 0) continue;
+      const [x, y] = g.links[l].cells, A = pieceOf[x], B = pieceOf[y];
+      if (A < 0 || B < 0 || !free(A, x) || !free(B, y)) continue;
+      const ring = A === B && !label[A].length, clash = A !== B && label[A].length > 0 && label[B].length > 0 && label[A][0] !== label[B][0];
+      if (!ring && !clash) continue;
+      const links = A === B ? pieces[A].links : [...pieces[A].links, ...pieces[B].links];
+      const bits = addTechFitting("ends", [LIT(lineAtom(l), true), ...links.map((k) => LIT(lineAtom(k), true))], [LIT(lineAtom(l), true)], `the line ending at ${rc(x)}`, links.length);
+      if (bits) ws.push(techWin(`ends: the line ending at ${rc(x)}`, bits));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+  // Numberlink (technique "owners"): the cells each pair's line can still reach, from either of
+  // its numbers, through cells no other pair has taken (another number, or a piece of line joined
+  // to one) by links not ruled out. A link can be drawn only by a pair that reaches both its cells.
+  const ownersRound = (): Window[] => {
+    if (!linkNums.size) return [];
+    const pieces = linePieces([...linkNums.keys()]), owner = new Int32Array(n).fill(-1);
+    for (const pc of pieces) { const vs = [...new Set(pc.cells.filter((c) => linkNums.has(c)).map((c) => linkNums.get(c)!))]; if (vs.length === 1) for (const c of pc.cells) owner[c] = vs[0]; }
+    const values = [...new Set(linkNums.values())];
+    const reach = new Map<number, Uint8Array>();
+    for (const v of values) {
+      const seen = new Uint8Array(n), st = [...linkNums].filter(([, w]) => w === v).map(([c]) => c);
+      for (const c of st) seen[c] = 1;
+      while (st.length) { const c = st.pop()!; for (const l of g.cellLinks[c]) { if (lineState(l) === 0) continue; const d = otherEnd(l, c); if (!seen[d] && !p.blocked.has(d) && (owner[d] < 0 || owner[d] === v)) { seen[d] = 1; st.push(d); } } }
+      reach.set(v, seen);
+    }
+    const ws: Window[] = [];
+    for (let l = 0; l < g.links.length; l++) {
+      if (lineState(l) >= 0) continue;
+      const [x, y] = g.links[l].cells;
+      if (values.some((v) => reach.get(v)![x] && reach.get(v)![y])) continue;
+      addTech("owners", [LIT(lineAtom(l), true)], `the pairs that reach ${rc(x)}`);
+    }
+    for (let i = 0; i < n; i++) if (g.cellLinks[i].some((l) => lineState(l) < 0)) ws.push(techWin(`owners: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
+    return ws;
+  };
+
   // Simple Path and Simple Loop with every cell visited (technique "cuts"): a part of the grid
   // that the line can only leave by one, two or three links (what's undecided and drawn; walls,
   // rocks and links ruled out don't count). The line must cross into it and out again: a loop an
@@ -1464,9 +1522,9 @@ end
   // inside. Said of every link round the part (the counts it can't have), so it holds by the rules
   // alone; the windows are the part's edge.
   const cutsRound = (): Window[] => {
-    const rule = p.rules.find((r) => (r.rule === "path" || r.rule === "loop") && r.cover && (r.rule === "path" || r.of === "loop"));
+    const rule = p.rules.find((r) => (r.rule === "path" || r.rule === "loop" || r.rule === "links") && r.cover && (r.rule !== "loop" || r.of === "loop"));
     if (!rule) return [];
-    const ends = rule.rule === "path" ? pathEnds(p) : [];
+    const ends = rule.rule === "path" ? pathEnds(p) : rule.rule === "links" ? [...linkNums.keys()] : [];
     const V = [...Array(n).keys()].filter((c) => !p.blocked.has(c));
     const possible = (l: number) => lineState(l) !== 0 && !g.links[l].cells.some((c) => p.blocked.has(c));
     const E = g.links.map((_, l) => l).filter(possible);
@@ -1513,14 +1571,14 @@ end
     };
     // a loop's single cell is its own degree rule (a path's cells may have none, as far as the
     // cell's own rule goes: being on the path is the global part)
-    const least = rule.rule === "loop" ? 2 : 1;
+    const least = rule.rule === "path" ? 1 : 2;
     const parts = [...cuts.values()].map((R) => ({ R, S: sideOf(R) })).filter(({ S }) => S.length >= least && V.length - S.length >= least)
       .sort((x, y) => x.S.length - y.S.length).slice(0, 300);
     const ws: Window[] = [];
     for (const { R, S } of parts) {
       const inSet = new Set(S), boundary = new Set<number>();
       for (const c of S) for (const l of g.cellLinks[c]) if (!inSet.has(otherEnd(l, c))) boundary.add(l);
-      const parity = ends.filter((e) => inSet.has(e)).length % 2, need = parity ? 1 : 2;
+      const inside = ends.filter((e) => inSet.has(e)).length, parity = inside % 2, need = parity ? 1 : rule.rule === "links" && inside ? 0 : 2;
       let bits: Bits | null = null;
       for (let mask = 0; mask < 1 << R.length; mask++) {
         const on = new Set(R.filter((_, k) => mask & (1 << k)));
@@ -1733,7 +1791,7 @@ end
     return ws.filter((w) => w.size <= techCap);
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  const ROUNDS: Record<string, () => Window[]> = { owners: ownersRound, slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
