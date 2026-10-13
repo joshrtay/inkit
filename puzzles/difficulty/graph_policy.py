@@ -9,6 +9,15 @@
 #                                             after fine-tuning on 10 of its puzzles (few-shot)
 #   python graph_policy.py embed              move embeddings: do moves with the same signature sit
 #                                             together, across types? does cost lie along a line?
+#   python graph_policy.py family <family>... like holdout, a whole family of types at once (FAMILIES)
+#   python graph_policy.py grid [family...]   every version (base, attention, pretrain, both): the
+#                                             per-type table, then each family left out in turn;
+#                                             results to GRID_OUT as they come (summary.md)
+#
+#   --attention  global self-attention over all of a puzzle's nodes after every other round of
+#                message passing (a GPS-style hybrid)
+#   --pretrain   hide and fill first: solved puzzles with 15-50% of their marks hidden, the network
+#                fills them in from the rest; then move prediction as usual
 import json, os, random, sys, time
 from collections import defaultdict
 import numpy as np
@@ -18,7 +27,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # one file, or several joined by commas
 DATA = os.environ.get("GRAPH_DATA") or os.path.join(HERE, "../../references/ml/graphs.jsonl")
 NEXT = 3
-dev = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+# families of types from the types × techniques SVD (technique_svd.py); other types are in none
+FAMILIES = {
+    "lines-loops": ["simple-loop", "simple-path", "numberlink", "masyu", "slitherlink"],
+    "counting": ["star-battle", "aquarium", "abstract-art", "binary-puzzle"],
+    "each-once": ["sudoku", "irregular-sudoku", "thermo-sudoku", "skyscrapers", "easy-as-abc", "hitori"],
+    "sight-near": ["akari", "minesweeper", "cave", "wittgenstein-briquet"],
+    "regions-size": ["shikaku", "square-jam", "spiral-galaxies", "polyomino-packing", "fillomino"],
+    "order": ["hive", "hidoku", "pythagorean-paths", "honeycomb-paths"],
+}
+FLAGS = {a for a in sys.argv[1:] if a.startswith("--")}
+sys.argv = [a for a in sys.argv if not a.startswith("--")]
+dev = torch.device(os.environ["GRAPH_DEVICE"]) if os.environ.get("GRAPH_DEVICE") else torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
 PRIMS = ["count", "each-once", "pattern", "connect", "size", "sum", "sight", "order"]
 UNITS = ["line", "strip", "region", "block", "grid", "local"]
@@ -100,19 +120,45 @@ class Puzzle:
             self.states.append((s, y, moves))
             apply([(f[0], f[1]) for f in rd["facts"]])
 
-def batch(items):
+def batch(items, attention=False):
     """Several (puzzle, state index) as one graph."""
+    return batch_states([(pz, pz.states[k][0], pz.states[k][1]) for (pz, k) in items], attention)
+
+def batch_states(items, attention=False):
+    """Several (puzzle, state array, targets) as one graph; with attention, also its groups."""
     mfs, cfs, gfs, mes, ges, ys, masks, offs = [], [], [], [], [], [], [], []
     om = oc = og = 0
-    for (pz, k) in items:
-        s, y, _ = pz.states[k]
+    for (pz, s, y) in items:
         state = np.zeros((len(s), 3), np.float32); state[np.arange(len(s)), s] = 1
         mfs.append(torch.cat([pz.mf, torch.tensor(state)], 1)); cfs.append(pz.cf); gfs.append(pz.gf)
         mes.append(pz.me + torch.tensor([om, oc])); ges.append(pz.ge + torch.tensor([og, oc]))
         ys.append(torch.tensor(y)); masks.append(torch.tensor((s == 0).astype(np.float32)))
         offs.append((om, len(s)))
         om += len(s); oc += pz.nc; og += len(pz.gf)
-    return (torch.cat(mfs), torch.cat(cfs), torch.cat(gfs), torch.cat(mes), torch.cat(ges), oc), torch.cat(ys), torch.cat(masks), offs
+    groups = attention_groups(items, om, oc) if attention else None
+    return (torch.cat(mfs), torch.cat(cfs), torch.cat(gfs), torch.cat(mes), torch.cat(ges), oc, groups), torch.cat(ys), torch.cat(masks), offs
+
+ATT_CAP = 1 << 24   # padded query × key pairs per attention call
+def attention_groups(items, M, C):
+    """Each puzzle's nodes (its marks, cells and rule instances, as rows of cat(marks, cells,
+    rules)); puzzles sorted by size and padded together in groups of like size: (index, valid)."""
+    nodes, om, oc, og = [], 0, 0, 0
+    for (pz, s, _) in items:
+        nodes.append(np.r_[np.arange(om, om + len(s)), M + np.arange(oc, oc + pz.nc), M + C + np.arange(og, og + len(pz.gf))])
+        om += len(s); oc += pz.nc; og += len(pz.gf)
+    groups, cur = [], []
+    for i in sorted(range(len(nodes)), key=lambda i: len(nodes[i])):
+        L = len(nodes[i])
+        if cur and ((len(cur) + 1) * L * L > ATT_CAP or L > 1.25 * len(nodes[cur[0]]) + 16): groups.append(cur); cur = []
+        cur.append(i)
+    if cur: groups.append(cur)
+    out = []
+    for g in groups:
+        L = max(len(nodes[i]) for i in g)
+        idx = np.zeros((len(g), L), np.int64); valid = np.zeros((len(g), L), bool)
+        for r, i in enumerate(g): idx[r, :len(nodes[i])] = nodes[i]; valid[r, :len(nodes[i])] = True
+        out.append((torch.tensor(idx), torch.tensor(valid)))
+    return out
 
 # ---- the network ----
 def pool(src, index, n):
@@ -125,26 +171,60 @@ def pool(src, index, n):
     return torch.cat([s / cnt[:, None], mx], 1)
 
 def mlp(i, o): return nn.Sequential(nn.Linear(i, o), nn.ReLU(), nn.Linear(o, o))
-class GraphNet(nn.Module):
-    def __init__(self, h=64, rounds=6):
+
+class GlobalAttention(nn.Module):
+    """Multi-head self-attention over every node of each puzzle, then a feed-forward block (both
+    pre-norm, residual); puzzles padded in groups of like size."""
+    def __init__(self, h, heads=4):
         super().__init__()
+        self.heads, self.n1, self.n2 = heads, nn.LayerNorm(h), nn.LayerNorm(h)
+        self.qkv, self.o = nn.Linear(h, 3 * h), nn.Linear(h, h)
+        self.ff = nn.Sequential(nn.Linear(h, 2 * h), nn.ReLU(), nn.Linear(2 * h, h))
+    def forward(self, x, groups):
+        h = x.shape[1]; d = h // self.heads
+        z, upd = self.n1(x), torch.zeros_like(x)
+        for idx, valid in groups:
+            G, L = idx.shape
+            q, k, v = self.qkv(z[idx]).view(G, L, 3, self.heads, d).permute(2, 0, 3, 1, 4)
+            a = nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=valid[:, None, None, :].expand(G, 1, L, L))
+            a = self.o(a.transpose(1, 2).reshape(G, L, h))
+            upd = upd.index_copy(0, idx[valid], a[valid])
+        x = x + upd
+        return x + self.ff(self.n2(x))
+
+class GraphNet(nn.Module):
+    def __init__(self, h=64, rounds=6, attention=False):
+        super().__init__()
+        # global attention after rounds 2, 4 and 6
+        self.att = nn.ModuleList([GlobalAttention(h) for _ in range(rounds // 2)]) if attention else None
+        self.fill = nn.Linear(h, 1)   # hide and fill: is this hidden mark true?
         self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3, h), nn.Linear(len(GIVENS) + 1, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
         self.rounds = rounds
         self.m2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2g = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
         self.g2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2m = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
         self.out = nn.Linear(h, 2)
-    def forward(self, g, hidden=False):
-        mf, cf, gf, me, ge, nc = g
+    def forward(self, g, hidden=False, fill=False):
+        mf, cf, gf, me, ge, nc, groups = g
         m, c, q = self.em(mf), self.ec(cf), self.eg(gf)
         for t in range(self.rounds):
             c = c + self.m2c[t](torch.cat([c, pool(m[me[:, 0]], me[:, 1], nc)], 1))
             q = q + self.c2g[t](torch.cat([q, pool(c[ge[:, 1]], ge[:, 0], len(q))], 1)) if len(q) else q
             c = c + self.g2c[t](torch.cat([c, pool(q[ge[:, 0]], ge[:, 1], nc)], 1)) if len(q) else c
             m = m + self.c2m[t](torch.cat([m, pool(c[me[:, 1]], me[:, 0], len(m))], 1))
+            if self.att is not None and t % 2 == 1:
+                x = self.att[t // 2](torch.cat([m, c, q]), groups)
+                m, c, q = x[:len(m)], x[len(m):len(m) + len(c)], x[len(m) + len(c):]
             m, c = torch.relu(m), torch.relu(c)
+        if fill: return self.fill(m)[:, 0]
         return (self.out(m), m) if hidden else self.out(m)
 
-def to(g): return tuple(x.to(dev) if torch.is_tensor(x) else x for x in g)
+def to(g):
+    mv = lambda x: x.to(dev) if torch.is_tensor(x) else [tuple(t.to(dev) for t in p) for p in x] if isinstance(x, list) else x
+    return tuple(mv(x) for x in g)
+def attends(net): return net.att is not None
+def new_net(): return GraphNet(attention="--attention" in FLAGS).to(dev)
+def version(): return "both" if {"--attention", "--pretrain"} <= FLAGS else "attention" if "--attention" in FLAGS else "pretrain" if "--pretrain" in FLAGS else "base"
+def weights(): return os.path.join(HERE, "../../references/ml/graph-policy" + ("" if version() == "base" else "-" + version()) + ".pt")
 
 BUDGET = 20000   # marks per batch: batches by size, not count, so memory stays even
 
@@ -158,14 +238,40 @@ def chunks(items):
     if cur: out.append(cur)
     return out
 
+def pretrain(puzzles, epochs, net=None, lr=2e-3):
+    """Hide and fill: each epoch, every solved puzzle with a fresh 15-50% of its marks hidden; the
+    network says which hidden marks are true."""
+    net = net or new_net()
+    opt = torch.optim.AdamW(net.parameters(), lr, weight_decay=1e-4)
+    t0 = time.time()
+    for ep in range(epochs):
+        net.train(); items = []
+        for p in puzzles:
+            truth = np.array([m in p.answer for m in p.marks])
+            s = np.where(truth, 1, 2).astype(np.int8)
+            s[np.random.rand(len(s)) < random.uniform(0.15, 0.5)] = 0
+            items.append((p, s, truth.astype(np.float32)[:, None]))
+        random.shuffle(items); tot = n = right = seen = 0
+        for part in chunks(items):
+            g, y, mask, _ = batch_states(part, attends(net)); g, y, mask = to(g), y[:, 0].to(dev), mask.to(dev)
+            logit = net(g, fill=True)
+            # true marks are rarer (one digit in nine): weighted to count as much as the false
+            pos = (y * mask).sum() / mask.sum().clamp(min=1)
+            w = torch.where(y > 0, 0.5 / pos.clamp(min=1e-3), 0.5 / (1 - pos).clamp(min=1e-3))
+            loss = (nn.functional.binary_cross_entropy_with_logits(logit, y, weight=w, reduction="none") * mask).sum() / mask.sum().clamp(min=1)
+            opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item(); n += 1
+            right += (((logit > 0).float() == y).float() * mask).sum().item(); seen += mask.sum().item()
+        print(f"  fill epoch {ep + 1}: loss {tot / max(1, n):.3f}, hidden marks right {right / max(1, seen):.0%} ({time.time() - t0:.0f} s)", flush=True)
+    return net
+
 def train(items, epochs, net=None, lr=2e-3):
-    net = net or GraphNet().to(dev)
+    net = net or new_net()
     opt = torch.optim.AdamW(net.parameters(), lr, weight_decay=1e-4)
     t0 = time.time()
     for ep in range(epochs):
         net.train(); random.shuffle(items); tot = n = 0
         for part in chunks(items):
-            g, y, mask, _ = batch(part); g, y, mask = to(g), y.to(dev), mask.to(dev)
+            g, y, mask, _ = batch(part, attends(net)); g, y, mask = to(g), y.to(dev), mask.to(dev)
             pos = (y.max(1).values * mask).sum() / mask.sum().clamp(min=1)
             w = 1 + y * ((1 - pos) / pos.clamp(min=1e-3)).clamp(max=30)
             loss = (nn.functional.binary_cross_entropy_with_logits(net(g), y, weight=w, reduction="none").sum(1) * mask).sum() / mask.sum().clamp(min=1)
@@ -180,7 +286,7 @@ def evaluate(net, items):
     net.eval(); hits = base = 0
     with torch.no_grad():
         for part in chunks(items):
-            g, y, mask, offs = batch(part); logits = net(to(g)).cpu()
+            g, y, mask, offs = batch(part, attends(net)); logits = net(to(g)).cpu()
             for (o, n) in offs:
                 lg, yy, mm = logits[o:o + n], y[o:o + n], mask[o:o + n]
                 if mm.sum() == 0: continue
@@ -202,6 +308,43 @@ def states(puzzles, per=None):
         out += [(p, k) for k in ks]
     return out
 
+EPOCHS = int(os.environ.get("GRAPH_EPOCHS", 8))         # training on every type
+HOLD_EPOCHS = int(os.environ.get("GRAPH_HOLD_EPOCHS", 4))  # training without a type or family
+PRE_EPOCHS = int(os.environ.get("GRAPH_PRE_EPOCHS", 30))   # hide and fill, before either
+MIN_TYPE = int(os.environ.get("GRAPH_MIN_TYPE", 20))   # types with fewer puzzles are left out of the means (and get no few-shot)
+
+def load_net(path):
+    net = new_net(); missing, extra = net.load_state_dict(torch.load(path, map_location=dev), strict=False)
+    assert not extra and all(k.startswith("fill.") for k in missing), (missing, extra)
+    return net
+
+def run_all(split):
+    """Train on every type (after hide and fill, with --pretrain); test on each type's held-out puzzles."""
+    train_pz = [p for tr, _ in split.values() for p in tr]
+    net = pretrain(train_pz, PRE_EPOCHS) if "--pretrain" in FLAGS else None
+    net = train(states(train_pz), EPOCHS, net)
+    out = {}
+    for g, (_, te) in sorted(split.items()):
+        if te: out[g] = (len(states(te)),) + evaluate(net, states(te))
+    return net, out
+
+def run_without(split, held):
+    """Train without the types in `held` (after hide and fill on the others' puzzles, with
+    --pretrain); test on each held type (zero-shot); fine-tune on 10 puzzles of each held type, and
+    test again (few-shot). {type: (zero, few, random)}"""
+    others = [p for k, (tr, _) in split.items() if k not in held for p in tr]
+    held = [g for g in held if g in split]
+    # at most 8 states a puzzle (the scaled data would take hours a run)
+    net = pretrain(others, PRE_EPOCHS) if "--pretrain" in FLAGS else None
+    net = train(states(others, 8), HOLD_EPOCHS, net)
+    zero = {g: evaluate(net, states(split[g][1])) for g in held}
+    # few-shot: 10 of each held type's puzzles, mixed with as many states again from the other
+    # types, so the network learns the new types without forgetting the rest
+    new = states([p for g in held if len(split[g][0]) + len(split[g][1]) >= MIN_TYPE or len(held) == 1 for p in split[g][0][:10]])
+    pool_ = states(others, 8); replay = random.sample(pool_, min(len(new), len(pool_)))
+    net = train(new + replay, 4, net, lr=2e-4)
+    return {g: (zero[g][0], evaluate(net, states(split[g][1]))[0], zero[g][1]) for g in held}
+
 if __name__ == "__main__":
     random.seed(1); torch.manual_seed(1)
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
@@ -212,30 +355,81 @@ if __name__ == "__main__":
     print(f"{len(pzs)} puzzles, {sum(len(p.states) for p in pzs)} states, {len(by)} types: " + ", ".join(f"{g} {len(v)}" for g, v in sorted(by.items())))
     split = {g: (v[:int(0.8 * len(v))], v[int(0.8 * len(v)):]) for g, v in by.items()}
     if mode == "all":
-        net = train(states([p for tr, _ in split.values() for p in tr]), 8)
+        net, out = run_all(split)
         print("\n| Type | Test states | Top guess is a move | Random |\n|---|---|---|---|")
-        for g, (_, te) in sorted(split.items()):
-            if not te: continue
-            h, b = evaluate(net, states(te)); print(f"| {g} | {len(states(te))} | {h:.0%} | {b:.0%} |")
-        torch.save(net.state_dict(), os.path.join(HERE, "../../references/ml/graph-policy.pt"))
-    elif mode == "holdout":
+        for g, (n, h, b) in out.items(): print(f"| {g} | {n} | {h:.0%} | {b:.0%} |")
+        torch.save(net.state_dict(), weights())
+    elif mode in ("holdout", "family"):
         print("\n| Held-out type | Trained with it | Without it (zero-shot) | + 10 of its puzzles (few-shot) | Random |\n|---|---|---|---|---|")
-        full = GraphNet().to(dev); full.load_state_dict(torch.load(os.path.join(HERE, "../../references/ml/graph-policy.pt"), map_location=dev))
-        for g in sys.argv[2:]:
-            tr_others = [p for k, (tr, _) in split.items() if k != g for p in tr]
-            te = states(split[g][1])
-            withit, base = evaluate(full, te)
-            # without it: at most 8 states a puzzle, 4 epochs (the scaled data would take hours a run)
-            net = train(states(tr_others, 8), 4)
-            zero, _ = evaluate(net, te)
-            # few-shot: 10 of its puzzles, mixed with as many states again from the other types, so
-            # the network learns the new type without forgetting the rest
-            new = states(split[g][0][:10]); pool_ = states(tr_others, 8); replay = random.sample(pool_, min(len(new), len(pool_)))
-            net = train(new + replay, 4, net, lr=2e-4)
-            few, _ = evaluate(net, te)
-            print(f"| {g} | {withit:.0%} | {zero:.0%} | {few:.0%} | {base:.0%} |", flush=True)
+        full = load_net(weights()) if os.path.exists(weights()) else None
+        for name in sys.argv[2:]:
+            for g, (zero, few, base) in run_without(split, FAMILIES[name] if mode == "family" else [name]).items():
+                withit = f"{evaluate(full, states(split[g][1]))[0]:.0%}" if full else "–"
+                print(f"| {g} | {withit} | {zero:.0%} | {few:.0%} | {base:.0%} |", flush=True)
+    elif mode == "grid":
+        # every version: the per-type table, then each family left out; GRID_DEADLINE (seconds) stops
+        # starting new runs, so a time limit loses little
+        out_dir = os.environ.get("GRID_OUT") or os.path.join(HERE, "../../references/ml/grid")
+        os.makedirs(out_dir, exist_ok=True)
+        deadline = time.time() + float(os.environ.get("GRID_DEADLINE", 1e9))
+        versions = os.environ.get("GRID_VERSIONS", "base attention pretrain both").split()
+        fams = sys.argv[2:] or ["lines-loops", "counting", "each-once", "sight-near", "regions-size", "order"]
+        flags = {"base": set(), "attention": {"--attention"}, "pretrain": {"--pretrain"}, "both": {"--attention", "--pretrain"}}
+        big = {g for g, v in by.items() if len(v) >= MIN_TYPE}
+        indist, held, times = {}, {}, {}
+        def summary():
+            mean = lambda xs: f"{np.mean(xs):.0%}" if xs else "–"
+            lines = ["| Version | In-distribution (mean of types) | Random | " + " | ".join(f"{f} zero-shot | {f} few-shot | {f} random" for f in fams) + " |",
+                     "|---" * (3 + 3 * len(fams)) + "|"]
+            for v in versions:
+                row = [v, mean([indist[v][g][1] for g in indist.get(v, {}) if g in big]), mean([indist[v][g][2] for g in indist.get(v, {}) if g in big])]
+                for f in fams:
+                    r = held.get((v, f), {}); ts = [g for g in r if g in big]
+                    row += [mean([r[g][0] for g in ts]), mean([r[g][1] for g in ts]), mean([r[g][2] for g in ts])]
+                lines.append("| " + " | ".join(row) + " |")
+            lines += ["", "Per type, left out with its family (trained with it / zero-shot / few-shot / random):", "",
+                      "| Family | Type | " + " | ".join(versions) + " |", "|---" * (2 + len(versions)) + "|"]
+            for f in fams:
+                for g in FAMILIES[f]:
+                    if g not in by: continue
+                    cell = lambda v: (f"{indist[v][g][1]:.0%} / " if g in indist.get(v, {}) else "– / ") + (" / ".join(f"{x:.0%}" for x in held[(v, f)][g]) if g in held.get((v, f), {}) else "–")
+                    lines.append(f"| {f} | {g}{'' if g in big else ' (few puzzles)'} | " + " | ".join(cell(v) for v in versions) + " |")
+            lines += ["", "In distribution, per type (top guess is a move; random):", "", "| Type | Test states | " + " | ".join(versions) + " | Random |", "|---" * (3 + len(versions)) + "|"]
+            for g in sorted(by):
+                have = [indist[v][g] for v in versions if g in indist.get(v, {})]
+                if have: lines.append(f"| {g} | {have[0][0]} | " + " | ".join(f"{indist[v][g][1]:.0%}" if g in indist.get(v, {}) else "–" for v in versions) + f" | {have[0][2]:.0%} |")
+            lines += ["", "Minutes per run: " + ", ".join(f"{k} {t / 60:.1f}" for k, t in times.items())]
+            open(os.path.join(out_dir, "summary.md"), "w").write("\n".join(lines) + "\n")
+        def reset(v):
+            FLAGS.clear(); FLAGS.update(flags[v]); random.seed(1); np.random.seed(1); torch.manual_seed(1)
+        failed = set()   # a version that fails (out of memory, say) is skipped from then on
+        def attempt(v, fn):
+            try: return fn()
+            except Exception:
+                import traceback; traceback.print_exc(); failed.add(v); torch.cuda.empty_cache() if dev.type == "cuda" else None
+        for v in versions:
+            if time.time() > deadline: break
+            reset(v); t0 = time.time(); print(f"\n## {v}: every type", flush=True)
+            r = attempt(v, lambda: run_all(split))
+            if r is None: continue
+            net, indist[v] = r; times[f"{v} all"] = time.time() - t0
+            torch.save(net.state_dict(), os.path.join(out_dir, f"graph-policy-{v}.pt"))
+            with open(os.path.join(out_dir, "indist.txt"), "a") as fh:
+                for g, (n, h, b) in indist[v].items(): fh.write(f"| {v} | {g} | {n} | {h:.0%} | {b:.0%} |\n")
+            summary()
+        for f in fams:
+            for v in versions:
+                if time.time() > deadline or v in failed: continue
+                reset(v); t0 = time.time(); print(f"\n## {v}: without {f}", flush=True)
+                r = attempt(v, lambda: run_without(split, FAMILIES[f]))
+                if r is None: continue
+                held[(v, f)] = r; times[f"{v} −{f}"] = time.time() - t0
+                with open(os.path.join(out_dir, "family.txt"), "a") as fh:
+                    for g, (z, fw, b) in held[(v, f)].items(): fh.write(f"| {v} | {f} | {g} | {z:.0%} | {fw:.0%} | {b:.0%} |\n")
+                summary()
+        summary(); print(open(os.path.join(out_dir, "summary.md")).read())
     elif mode == "embed":
-        net = GraphNet().to(dev); net.load_state_dict(torch.load(os.path.join(HERE, "../../references/ml/graph-policy.pt"), map_location=dev)); net.eval()
+        net = load_net(weights()); net.eval()
         vecs, sigs, genres, costs = [], [], [], []
         with torch.no_grad():
             for g, (_, te) in sorted(split.items()):

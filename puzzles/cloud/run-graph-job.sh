@@ -4,10 +4,12 @@
 # must be in gs://inkit-research-ml (code/, data/); results come back to results/<run>/. The VM
 # shuts itself down when done and is deleted by Google after 4 hours at most.
 #
-#   puzzles/cloud/run-graph-job.sh [zone] [steps] [model run]
+#   puzzles/cloud/run-graph-job.sh [zone] [steps] [model run] [families]
 #
-# steps: any of "all holdout embed" (default all three); model run: an earlier run whose trained
-# network to use when "all" isn't among them, e.g. run-graph-job.sh us-central1-a embed graph-20261012-2218
+# steps: any of "all holdout embed grid" (default the first three); model run: an earlier run whose
+# trained network to use when "all" isn't among them, e.g. run-graph-job.sh us-central1-a embed
+# graph-20261012-2218; families: for grid, the families to leave out (graph_policy.py FAMILIES;
+# default all six), e.g. run-graph-job.sh us-central1-b grid "" "lines-loops counting"
 set -e
 ZONE=${1:-us-central1-a}
 RUN=graph-$(date +%Y%m%d-%H%M)
@@ -16,5 +18,5 @@ gcloud compute instances create "$RUN" --project inkit-research --zone "$ZONE" \
   --image-family pytorch-2-9-cu129-ubuntu-2204-nvidia-580 --image-project deeplearning-platform-release \
   --boot-disk-size 100GB --scopes storage-rw,logging-write \
   --max-run-duration 4h --instance-termination-action DELETE \
-  --metadata run="$RUN",steps="${2:-all holdout embed}",model="${3:-}" --metadata-from-file startup-script="$(dirname "$0")/graph-job.sh"
+  --metadata run="$RUN",steps="${2:-all holdout embed}",model="${3:-}",families="${4:-}" --metadata-from-file startup-script="$(dirname "$0")/graph-job.sh"
 echo "$RUN"

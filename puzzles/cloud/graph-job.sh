@@ -8,6 +8,7 @@ meta() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/
 RUN=$(meta run)
 STEPS=$(meta steps || echo "all holdout embed")   # which steps to run
 MODEL=$(meta model || true)                        # a run whose trained network to use (without "all")
+FAMILIES=$(meta families || true)                  # for "grid": the families to leave out (default all six)
 exec > /var/log/graph-job.log 2>&1
 set -x
 finish() { gcloud storage cp /var/log/graph-job.log "$BUCKET/results/$RUN/job.log"; shutdown -h now; }
@@ -26,6 +27,19 @@ fi
   python3 puzzles/difficulty/graph_policy.py holdout $t 2>&1 | grep "^| [a-z]" >> results/holdout.txt
   gcloud storage cp results/holdout.txt "$BUCKET/results/$RUN/"
 done
+# every version of the network (base, attention, pretrain, both) × each family left out in turn;
+# partial results go to the bucket every two minutes, and no run starts after 3½ hours
+if [[ " $STEPS " == *" grid "* ]]; then
+  mkdir -p results/grid
+  ( set +x; while sleep 120; do
+      gcloud storage cp -q results/grid.txt results/grid/*.md results/grid/*.txt "$BUCKET/results/$RUN/grid/"
+      gcloud storage cp -q /var/log/graph-job.log "$BUCKET/results/$RUN/job.log"
+    done ) &
+  SYNC=$!
+  GRID_OUT=/work/results/grid GRID_DEADLINE=$((12600 - SECONDS)) python3 puzzles/difficulty/graph_policy.py grid $FAMILIES > results/grid.txt 2>&1
+  kill $SYNC
+  gcloud storage cp results/grid.txt results/grid/* "$BUCKET/results/$RUN/grid/"
+fi
 if [[ " $STEPS " == *" embed "* ]]; then
   python3 puzzles/difficulty/graph_policy.py embed > results/embed.txt 2>&1
   gcloud storage cp results/embed.txt references/ml/move-embedding.npz "$BUCKET/results/$RUN/"
