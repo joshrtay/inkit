@@ -403,6 +403,34 @@ prover, since it's already a written language with plenty to learn from. Graph e
 exist in research (choosing lemmas for provers). A grid's meaning is in its layout, which is closer
 to a picture than to a sentence.
 
+### To pursue: solves as vectors
+
+If a move is a vector (the graph network's move embedding: 61% of a move's five nearest neighbours
+share its reasoning, chance 6%), a solve is a sequence of them, and a sequence model makes that a
+vector too, as words make sentences. A solve vector could carry what one step can't: how long a
+solver goes without an easy move, whether the hard steps come early (a wall) or late (a climb);
+recurring short sequences as candidate techniques (chains, forcing arguments); puzzles compared by
+how they're solved rather than how they look, for sets; and later players as their move histories
+(knowledge tracing).
+
+A solve isn't truly a sequence: independent moves can come in any order, and what matters is which
+earlier facts each step used, which the solver records. So the honest form is the solve's
+dependency graph, with human order (Janko's recorded solves) saying which of its orders people
+choose.
+
+1. **Does the path carry difficulty? (cheap, no GPU).** Describe each solve by its sequence of step
+   shapes and costs (deduce.ts shape, cost) and test whether path features (runs without an easy
+   move, where the hard steps fall, how many distinct shapes) predict Tatham's and Puzzle Square
+   JP's grades better than today's estimate (a soft maximum of step costs, blind to order), with
+   the same held-out comparison as the scoreboard. **When:** after pricing settles. **Stop if** the
+   path adds nothing beyond the hardest steps.
+2. **A sequence model over move vectors (GPU, after the attention experiment).** A transformer over
+   solve paths (moves as its words), trained to predict the next move on solver paths; then compared
+   with Janko's human paths: does it choose as people do? Better: read the dependency graph with
+   the same graph-plus-attention network, one level up. **When:** after the attention experiment
+   shows whether attention and pretraining help. **Stop if** it doesn't beat the solver's own
+   order against human order (0.75 on Star Battle).
+
 ## Sources
 
 - Evan Chen's blog and site, summarised in [research-evan-chen.md](research-evan-chen.md); Richard
