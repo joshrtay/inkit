@@ -51,16 +51,19 @@ export function readingKey(g: Grid, mark: string): number {
   return y * (g.width + 1) + x;
 }
 
-/** The round our solver settled each mark in (0: before the first step), and how. */
+/** The round our solver settled each mark in (0: before the first step), how, and a finer order:
+ *  within a round, by the step's cost (a round takes every step near the cheapest, so a type
+ *  whose windows see everything at once, like Spiral Galaxies, settles all in round 1). */
 export function rounds(r: { initial?: string[]; path: { round?: number; tier: number; where: string; cost: number; facts: { mark: string; value: boolean }[] }[] }) {
-  const round = new Map<string, number>(), how = new Map<string, string>();
-  for (const x of r.initial ?? []) { const m = /^(.*)=(true|false)$/.exec(x); if (m && !round.has(m[1])) { round.set(m[1], 0); how.set(m[1], "start"); } }
+  const round = new Map<string, number>(), how = new Map<string, string>(), fine = new Map<string, number>();
+  for (const x of r.initial ?? []) { const m = /^(.*)=(true|false)$/.exec(x); if (m && !round.has(m[1])) { round.set(m[1], 0); fine.set(m[1], 0); how.set(m[1], "start"); } }
   for (const s of r.path) for (const fact of s.facts) {
     if (round.has(fact.mark)) continue;
     round.set(fact.mark, s.round ?? 0);
+    fine.set(fact.mark, (s.round ?? 0) * 1e4 + s.cost);
     how.set(fact.mark, `${fact.value}|T${s.tier}|${windowKind(s.where)}|${s.cost}`);
   }
-  return { round, how };
+  return { round, how, fine };
 }
 
 /** Our solver on a puzzle (30 s budget, killed at 2 min), its result kept in
@@ -71,7 +74,8 @@ export async function deduceCached(spec: GridSpec) {
   const dir = `${JANKO_DIR}deduce/`, file = `${dir}${key}.json`;
   if (!process.env.JANKO_FRESH && existsSync(file)) return JSON.parse(readFileSync(file, "utf8")) as Awaited<ReturnType<typeof deduceGuarded>>;
   const r = await deduceGuarded(spec, { budgetMs: 30000 }, 120000);
-  if (r) { mkdirSync(dir, { recursive: true }); writeFileSync(file, JSON.stringify({ ...r, trace: undefined })); }
+  // killed at the cap: kept as null, so a rerun doesn't wait for it again
+  mkdirSync(dir, { recursive: true }); writeFileSync(file, JSON.stringify(r ? { ...r, trace: undefined } : null));
   return r;
 }
 
@@ -90,21 +94,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       console.error(`${type} ${++done}/${puzzles.length} ${f}${r?.profile.solved ? "" : " (not solved)"}`);
       if (!r || !r.profile.solved) return null;
       const g = makePuzzle(j.spec).grid;
-      const { round, how } = rounds(r);
+      const { round, how, fine } = rounds(r);
       const marks = [...j.settled.keys()].filter((m) => round.has(m));
       const human = marks.map((m) => j.settled.get(m)!), ours = marks.map((m) => round.get(m)!), reading = marks.map((m) => readingKey(g, m));
       const pct = (xs: number[]) => { const o = xs.map((x, k) => [x, k] as const).sort((a, b) => a[0] - b[0]); const out = new Array<number>(xs.length); o.forEach(([, k], rk) => { out[k] = rk / Math.max(1, xs.length - 1); }); return out; };
       const hp = pct(human), op = pct(ours);
       return {
         f, size: j.spec.size, solver: j.solver, marks: marks.length, estimate: r.profile.estimate,
-        rho: spearman(human, ours), rowMajor: spearman(human, reading), oursRowMajor: spearman(ours, reading),
+        rho: spearman(human, ours), rhoFine: spearman(human, marks.map((m) => fine.get(m)!)), rowMajor: spearman(human, reading), oursRowMajor: spearman(ours, reading),
         // each mark: its share of the way through the person's solve and through ours (0 first,
         // 1 last, by rank), and how our solver settled it
         detail: marks.map((m, k) => ({ mark: m, human: +hp[k].toFixed(3), ours: +op[k].toFixed(3), how: how.get(m) })),
       };
     });
     const ok = rows.filter((r): r is NonNullable<typeof r> => !!r && Number.isFinite(r.rho) && r.marks >= 3);
-    const line = `${type}: ${ok.length} compared (of ${puzzles.length}); human vs our rounds mean ${mean(ok.map((r) => r.rho)).toFixed(2)}, median ${median(ok.map((r) => r.rho)).toFixed(2)}; human vs row by row ${mean(ok.map((r) => r.rowMajor)).toFixed(2)}; ours vs row by row ${mean(ok.map((r) => r.oursRowMajor)).toFixed(2)}`;
+    const line = `${type}: ${ok.length} compared (of ${puzzles.length}); human vs our rounds mean ${mean(ok.map((r) => r.rho)).toFixed(2)}, median ${median(ok.map((r) => r.rho)).toFixed(2)}; by round then step cost mean ${mean(ok.map((r) => r.rhoFine)).toFixed(2)}, median ${median(ok.map((r) => r.rhoFine)).toFixed(2)}; human vs row by row ${mean(ok.map((r) => r.rowMajor)).toFixed(2)}; ours vs row by row ${mean(ok.map((r) => r.oursRowMajor)).toFixed(2)}`;
     console.log(line);
     summary.push(line);
     const bySolver = new Map<string, number[]>();
