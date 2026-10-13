@@ -203,3 +203,21 @@ group with its open neighbours (the component lemma as a window, seen as soon as
 known); a **vertex**, the edges at one grid point; and a **border** relation for units touching
 the grid's edge. Next: these units in the proposal language, the families above through the
 scoreboard.
+
+## 9. Is the network too small? (graph-20261013-0640, scale step)
+
+The attention network with each cell's position as input, trained 16 epochs on every type, at
+three widths (8 heads, learning rate 2e-3 for all):
+
+| Width | Parameters | All types (31 with ≥ 20 puzzles) | Sudoku | Skyscrapers | Irregular Sudoku | Nurikabe | Cave |
+|---|---|---|---|---|---|---|---|
+| 64, earlier (8 epochs, no positions) | 0.5M | 63% | 53% | 55% | 45% | 35% | 36% |
+| 64 | 0.5M | 67% | 67% | 70% | 69% | 39% | 38% |
+| 128 | 2.0M | 64% | 51% | 53% | 43% | 36% | 37% |
+| 256 | 7.9M | 29% (diverged) | 20% | 29% | 21% | 9% | 12% |
+
+Positions and longer training help (each-once types most: knowing a cell's row and column). The
+wider networks did worse, and width 256's training diverged (loss 1.79 at epoch 16, above its
+start): the same learning rate for every width is too high for the wide ones, so this doesn't yet
+say whether size helps. A fair test scales the learning rate down with width (and warms it up).
+The whole-grid types stay under 40% at every width that trained.
