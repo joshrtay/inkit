@@ -135,3 +135,33 @@ Art, Binary Puzzle); counting what's seen or near (Akari, Minesweeper, Cave, Wit
 and each-once (the Sudokus, Skyscrapers, Easy as ABC, Hitori). Panel sits alone. These are the
 periodic table's groups, and the held-out tests should take them in turn (leave a family out, not
 a type).
+
+## 7. Attention, hide-and-fill, and leaving out a family (graph_policy.py grid)
+
+Four versions of the graph network on the same 8,780 puzzles, one cloud run (graph-20261012-2311,
+one L4, 1 h 50 min): **base**; **attention**, global self-attention over all of a puzzle's nodes
+after every other round of message passing (GPS-style; no positional encodings); **pretrain**,
+hide and fill first (solved puzzles with 15–50% of their marks hidden, the network fills them in,
+84–85% right) then move prediction; **both**. Each is scored on every type (trained on all), and
+with each family of section 6 left out in turn (trained on the rest, hide and fill too; then ten of
+each left-out type's puzzles). Top guess is a move, mean over the family's types:
+
+| Version | All types | Lines, loops | Counting | Each-once | Sight, near | Regions by size | Order |
+|---|---|---|---|---|---|---|---|
+| base | 60% | 30% / 51% | 40% / 47% | 36% / 41% | 34% / 41% | 29% / 48% | 37% / 60% |
+| attention | 63% | 27% / 53% | 35% / 47% | 29% / 44% | 36% / 42% | 29% / 38% | 43% / 52% |
+| pretrain | 61% | 30% / 48% | 30% / 45% | 34% / 40% | 31% / 35% | 29% / 43% | 45% / 57% |
+| both | 62% | 31% / 50% | 34% / 46% | 28% / 43% | 35% / 39% | 26% / 44% | 39% / 47% |
+| random | 25% | 14% | 32% | 23% | 28% | 25% | 34% |
+
+(zero-shot / few-shot.) Attention helps a little in distribution (60% to 63%, spread over many
+types: Honeycomb Paths 54% to 65%, Skyscrapers 48% to 55%), but not the whole-grid types it was
+meant for: Slitherlink 59% to 63%, Nurikabe 34% to 35%, Cave 34% to 36%. Neither attention nor hide
+and fill lifts a left-out family: zero-shot is level with base or below on five of six (each-once
+36% to 28–34%, counting 40% to 30–35%), and few-shot moves both ways. A whole family left out
+still beats random on most of its types (Lines and loops 30% against 14%, Akari 42–51% against 29%),
+but some fall to chance (Aquarium, Abstract Art, Square Jam, Minesweeper). One seed, so differences
+under about five points are noise. Reach alone isn't what whole-grid types lack (attention gives
+every node the whole puzzle), and knowing what solutions look like doesn't carry to finding the
+next move of a new kind of puzzle; the next tries are the components-and-exits primitive (section 5) as input, and training
+long enough and on enough types that a family's reasoning appears elsewhere.
