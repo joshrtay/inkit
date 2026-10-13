@@ -3,15 +3,17 @@
 // ranks, and one real band-limited puzzle from the generator.
 import { describe, expect, it } from "vitest";
 import { BAND_LIST, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, techniquesOf, without } from "../../../puzzles/difficulty/bands.ts";
-import { pickArm, rarityOf, seedOf, type ArmStats } from "../../../puzzles/difficulty/gen-set.ts";
+import { aimHigher, pickArm, rarityOf, seedOf, type ArmStats } from "../../../puzzles/difficulty/gen-set.ts";
 import { ranks01, scoreGenre, type Generated } from "../../../puzzles/difficulty/gen-best.ts";
 import { generate } from "../../../puzzles/grid/generate.ts";
 
 describe("bands", () => {
   it("each band holds the techniques of the one before", () => {
     for (let k = 1; k < BAND_LIST.length; k++) {
-      const lower = techniquesOf(BAND_LIST[k - 1]), upper = techniquesOf(BAND_LIST[k]);
-      expect(lower.every((t) => upper.includes(t))).toBe(true);
+      for (const g of [undefined, "sudoku", "spiral-galaxies", "minesweeper", "numberlink"]) {
+        const lower = techniquesOf(BAND_LIST[k - 1], g), upper = techniquesOf(BAND_LIST[k], g);
+        expect(lower.every((t) => upper.includes(t))).toBe(true);
+      }
     }
     expect(techniquesOf(bandNamed("easy"))).toEqual([]);
     expect(techniquesOf(bandNamed("medium")).sort()).toEqual(["pairs", "strips"]);
@@ -19,8 +21,9 @@ describe("bands", () => {
   });
   it("takes one technique away", () => {
     const hard = bandNamed("hard");
-    expect(without(hard, "pairs").stages).toBe("t0,strips+triples,count,extra+components");
-    expect(without(hard, "count").stages).toBe("t0,pairs+strips+triples,extra+components");
+    expect(without(hard, "pairs").stages).toBe("t0,strips+triples,count,techniques,extra+components");
+    expect(without(hard, "count").stages).toBe("t0,pairs+strips+triples,techniques,extra+components");
+    expect(without(hard, "mirror").byGenre?.["spiral-galaxies"]).toEqual([]);
     expect(without(hard, "loop").lemmas).toEqual([]);
     expect(without(hard, "lines").lines).toBe(false);
     expect(() => without(hard, "magic")).toThrow();
@@ -51,6 +54,14 @@ describe("balancing", () => {
     expect(pickArm(["x", "y", "z"], stats, (a) => a === "y")).toBe("x");
     expect(pickArm(["x"], stats, () => true)).toBeNull();
   });
+  it("aims higher with the generator's options only above easy, for the genres that need them", () => {
+    expect(aimHigher("fill-in", 2)).toHaveProperty("digits");
+    expect(aimHigher("minesweeper", 1)).toEqual({ denseMines: true });
+    expect(aimHigher("minesweeper", 3).insistMs).toBeGreaterThan(0);
+    expect(aimHigher("simple-loop", 3).insistMs).toBeGreaterThan(0);
+    expect(aimHigher("simple-loop", 1)).toEqual({});
+    expect(aimHigher("akari", 2)).toEqual({});
+  });
   it("seeds differ between arms and repeat within one", () => {
     expect(seedOf("akari|7|easy", 0)).toBe(seedOf("akari|7|easy", 0));
     expect(seedOf("akari|7|easy", 0)).not.toBe(seedOf("akari|7|hard", 0));
@@ -80,5 +91,13 @@ describe("generating with the solver in the loop", () => {
     expect(spec).not.toBeNull();
     expect((await quickSolve(spec!, easy)).solved).toBe(true);
     expect(await bandOf(spec!)).toBe(0);
+  }, 60000);
+  it("Fill-in from few digits, and denser Minesweeper with no 0 shown", async () => {
+    const fill = await generate({ genre: "fill-in", rows: 5, cols: 5, seed: 7, digits: 3 });
+    expect(fill).not.toBeNull();
+    expect(new Set(fill!.entries!.join("")).size).toBeLessThanOrEqual(3);
+    const mines = await generate({ genre: "minesweeper", rows: 6, cols: 6, seed: 7, denseMines: true });
+    expect(mines).not.toBeNull();
+    expect(mines!.givens!.every((x) => !("value" in x) || x.value !== 0)).toBe(true);
   }, 60000);
 });

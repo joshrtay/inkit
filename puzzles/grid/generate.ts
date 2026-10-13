@@ -46,6 +46,17 @@ export interface GenerateOptions {
    *  the others are only kept when it holds */
   harder?: (spec: GridSpec) => Promise<boolean>;
   climbTries?: number;
+  /** With `harder`: a puzzle the swaps leave too easy is dropped and another board tried, until
+   *  this many milliseconds have gone; then the last one is kept. For the genres made by adding
+   *  clues. Default off (the first board's puzzle is kept) */
+  insistMs?: number;
+  /** Fill-in: the digits are drawn from this many (at random, 1 to 9 for an entry's first), so
+   *  entries share starts and ends and slots compete. Default all ten */
+  digits?: number;
+  /** Minesweeper: more mines (a quarter to two-fifths of the cells, not 15–25%) and no 0 among the
+   *  numbers that can be shown, so every number shown has mines around it and their neighbourhoods
+   *  overlap. Default off */
+  denseMines?: boolean;
 }
 
 /** Up to `limit` solutions, by clingo-wasm in this process (puzzles/difficulty/clingo.ts). */
@@ -64,6 +75,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
   const clingo = await import("clingo-wasm");
   // with a solver in the loop: solutions found in this process, uncached (a run makes millions of calls)
   const solveN = o.accept ? solveHere : solve;
+  const insistUntil = o.insistMs ? Date.now() + o.insistMs : 0;
+  let tooEasy: GridSpec | null = null;   // with insistMs: the last puzzle dropped as too easy
   // the genres made whole (not by adding clues) can only be kept or not: kept when accepted and,
   // with `harder`, hard enough
   const accepts = async (spec: GridSpec) => !o.accept || ((await o.accept(spec)) && (!o.harder || (await o.harder(spec))));
@@ -176,6 +189,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         spec.givens = swapped.givens;
         await minimize(spec.givens.filter((c) => c !== into && pool.includes(c)));
       }
+      // still too easy: another board, while there's time
+      if (insistUntil && o.harder && Date.now() < insistUntil && !(await o.harder(spec))) { tooEasy = spec; return null; }
       return spec;
     }
     for (const c of shuffle([...added])) {        // minimize
@@ -193,7 +208,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return made && (await accepts(made)) ? made : null;
   }
 
-  for (let attempt = 0; attempt < 40 && !result; attempt++) {
+  // (insisting, boards are tried until the time's up, not 40 only)
+  for (let attempt = 0; (attempt < 40 || Date.now() < insistUntil) && !result; attempt++) {
     const near4 = (i: number) => { const r = Math.floor(i / cols), c = i % cols; return [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1].filter((j) => j >= 0); };
     const near8 = (i: number) => { const r = Math.floor(i / cols), c = i % cols, out: number[] = []; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if ((dr || dc) && r + dr >= 0 && c + dc >= 0 && r + dr < rows && c + dc < cols) out.push((r + dr) * cols + c + dc); return out; };
     /** Every clue outside the grid, read off a finished digit board. */
@@ -220,12 +236,13 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     } else if (genre === "wittgenstein-briquet" || genre === "minesweeper") {
       // a random answer (blocks with the rest connected / mines), then numbers in the other cells
       const n = rows * cols, base: GridSpec = { genre, size: [rows, cols], givens: [] };
-      const [lo, hi] = genre === "minesweeper" ? [0.15, 0.25] : [0.25, 0.4];
+      const [lo, hi] = genre === "minesweeper" ? (o.denseMines ? [0.25, 0.4] : [0.15, 0.25]) : [0.25, 0.4];
       const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * lo)}.\n:- #count{I: shaded(I)} > ${Math.round(n * hi)}.`);
       if (!target) continue;
       const around = genre === "minesweeper" ? near8 : near4;
       const pool: Given[] = Array.from({ length: n }, (_, i) => i).filter((i) => target.shade[i] !== 1)
-        .map((i) => ({ at: "cell", cell: at(i), kind: "number", value: around(i).filter((j) => target.shade[j] === 1).length }));
+        .map((i): Given => ({ at: "cell", cell: at(i), kind: "number", value: around(i).filter((j) => target.shade[j] === 1).length }))
+        .filter((x) => !(o.denseMines && genre === "minesweeper" && "value" in x && x.value === 0));
       result = await narrow(base, target, pool);
     } else if (genre === "hitori") {
       // a shading (no two side by side, the rest connected); numbers from a latin square, then each
@@ -676,13 +693,24 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       while (stack.length) for (const j of near4(stack.pop()!)) if (!black.has(j) && !seen.has(j)) { seen.add(j); stack.push(j); }
       if (seen.size !== white.length) continue;
       const lead = new Set(slots.map((s) => s[0])), target = emptyBoard(p0.grid);
-      for (const i of white) target.digit[i] = lead.has(i) ? 2 + Math.floor(rand() * 9) : 1 + Math.floor(rand() * 10);
-      const entries = slots.map((s) => s.map((i) => "0123456789"[target.digit[i] - 1]).join(""));
+      // board digits: 1 is 0, 2 is 1, ...; with `digits`, a few of them (one at least not 0)
+      const few = o.digits ? shuffle(Array.from({ length: 10 }, (_, d) => d + 1)).slice(0, Math.max(2, o.digits)) : null;
+      const leads = few?.filter((d) => d > 1) ?? [];
+      const draw = () => {
+        for (const i of white) target.digit[i] = few
+          ? (lead.has(i) ? leads[Math.floor(rand() * leads.length)] : few[Math.floor(rand() * few.length)])
+          : lead.has(i) ? 2 + Math.floor(rand() * 9) : 1 + Math.floor(rand() * 10);
+        return slots.map((s) => s.map((i) => "0123456789"[target.digit[i] - 1]).join(""));
+      };
+      // with few digits two entries are often the same: draw again (a few times) rather than
+      // spend one of the attempts
+      let entries = draw();
+      for (let t = 0; few && t < 30 && new Set(entries).size !== entries.length; t++) entries = draw();
       if (new Set(entries).size !== entries.length) continue;
       entries.sort((a, b) => a.length - b.length || Number(a) - Number(b));
       const pool: Given[] = white.map((i) => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] }));
       result = await narrow({ genre, size: [rows, cols], givens, entries }, target, pool);
     } else throw new Error(`no generator for genre "${genre}"`);
   }
-  return result;
+  return result ?? tooEasy;
 }

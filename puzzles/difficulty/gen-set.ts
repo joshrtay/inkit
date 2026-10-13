@@ -33,7 +33,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync } fro
 import { fileURLToPath } from "node:url";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { generate } from "../grid/generate.ts";
+import { generate, type GenerateOptions } from "../grid/generate.ts";
 import { BAND_LIST, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, requiredOf } from "./bands.ts";
 import { deduce } from "./deduce.ts";
 import { graphRecord } from "./graph-data.ts";
@@ -48,10 +48,11 @@ const FIXED = new Set(["block", "door", "peg", "lengths", "start", "end", "gap",
 
 /** The genres and sizes that come out without search, and the bands each can reach (all by
  *  default), from a trial of every generated genre at one puzzle per band. Hitori, Nurikabe and
- *  Square Jam only in expert: they need its connection lemma or clue reach; Shikaku, Numberlink
- *  and Fillomino too: they need its per-genre techniques (deduce.ts TECHNIQUES: candidate
- *  rectangles; pieces that can't join, the cells each pair reaches; the shapes a numbered part
- *  can grow into), which no lower band has. Easy as ABC at 6 as well: 5 × 5 has no room past
+ *  Square Jam only in expert: they need its connection lemma or clue reach. Shikaku, Numberlink
+ *  and Fillomino in hard and expert: they need their per-genre techniques (deduce.ts TECHNIQUES:
+ *  candidate rectangles; pieces that can't join, the cells each pair reaches; the shapes a
+ *  numbered part can grow into), which hard has for them (bands.ts HARD_TECHNIQUES) and the
+ *  bands below don't. Easy as ABC at 6 as well: 5 × 5 has no room past
  *  easy. Left out: Nonogram (its pictures are fixed: easy or nothing) and the other piece genres
  *  (case splits). */
 export const GENRES: [string, number[], string[]?][] = [
@@ -60,7 +61,7 @@ export const GENRES: [string, number[], string[]?][] = [
   ["aquarium", [6]], ["minesweeper", [6]], ["wittgenstein-briquet", [6]], ["binary-puzzle", [6]], ["star-battle", [6, 8]],
   ["spiral-galaxies", [6]], ["hidoku", [5]], ["fill-in", [5]],
   ["hitori", [6], ["expert"]], ["nurikabe", [6], ["expert"]], ["square-jam", [6], ["expert"]],
-  ["shikaku", [5, 6], ["expert"]], ["numberlink", [5, 6], ["expert"]], ["fillomino", [5], ["expert"]],
+  ["shikaku", [5, 6], ["hard", "expert"]], ["numberlink", [5, 6], ["hard", "expert"]], ["fillomino", [5], ["hard", "expert"]],
 ];
 
 export interface Job { genre: string; size: number; target: string; seed: number; k: number }
@@ -74,6 +75,21 @@ export const seedOf = (arm: string, k: number) => {
 };
 
 // ---------- one job (in its own process) ----------
+
+/** The generator's options for aiming above easy (band index `target`), for the genres whose
+ *  plain boards come out easy: Fill-in's entries from three digits, so they share starts and slots
+ *  compete; Minesweeper's denser mines with no 0 shown, so numbers' neighbourhoods overlap; for
+ *  both, at hard and expert, another board while one stays too easy, for 3 minutes (a board takes
+ *  seconds); at expert, Simple Loop's wider search (more swaps, and other boards for 5 minutes,
+ *  inside gen-set's 10-minute cap). */
+export function aimHigher(genre: string, target: number): Partial<GenerateOptions> {
+  const insist = target >= 2 ? { insistMs: 180000 } : {};
+  if (genre === "fill-in") return { digits: 3, ...insist };
+  if (genre === "minesweeper") return { denseMines: true, ...insist };
+  // (medium too would only waste the 5 minutes: its puzzles jump from easy to hard, 0 of 8)
+  if (genre === "simple-loop" && target >= 3) return { climbTries: 120, insistMs: 300000 };
+  return {};
+}
 
 async function runJob(job: Job) {
   const t0 = Date.now(), target = BAND_LIST.findIndex((b) => b.name === job.target);
@@ -91,7 +107,7 @@ async function runJob(job: Job) {
     checkMs += q.ms;
     return !q.solved;
   } : undefined;
-  const spec = await generate({ genre: job.genre, rows: job.size, cols: job.size, seed: job.seed, accept, harder });
+  const spec = await generate({ genre: job.genre, rows: job.size, cols: job.size, seed: job.seed, accept, harder, ...(target > 0 ? aimHigher(job.genre, target) : {}) });
   const genMs = Date.now() - t0;
   const base = { key: keyOf(job), genre: job.genre, size: job.size, target: job.target, seed: job.seed, k: job.k, genMs, checks, checkMs };
   if (!spec) return { ...base, status: "none", ms: Date.now() - t0 };
@@ -100,7 +116,7 @@ async function runJob(job: Job) {
   const q = await quickSolve(spec, band, 20000);
   const required = await requiredOf(spec, band, q.used);
   // the full solve, explained, for the measures and the training data
-  const full = await deduce(spec, optionsOf(band, { structure: true, budgetMs: 60000 }));
+  const full = await deduce(spec, optionsOf(band, { structure: true, budgetMs: 60000 }, spec.genre));
   if (!full.profile.solved) return { ...base, status: "unsolved", band: band.name, ms: Date.now() - t0 };
   const real = full.path.filter((s) => !s.choice);
   const tally = (xs: string[]) => { const m: Record<string, number> = {}; for (const x of xs) if (x) m[x] = (m[x] ?? 0) + 1; return m; };

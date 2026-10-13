@@ -41,7 +41,7 @@ for (const { name, spec } of puzzles) {
   if (full) {
     const t = Date.now();
     try {
-      const r = await deduce(spec, optionsOf(BAND_LIST.at(-1)!, { budgetMs: 120000 }));
+      const r = await deduce(spec, optionsOf(BAND_LIST.at(-1)!, { budgetMs: 120000 }, spec.genre));
       row.push(`full ${r.profile.solved ? "yes" : "no"} ${((Date.now() - t) / 1000).toFixed(1)}s est ${r.profile.estimate}`);
     } catch (e) { errors++; row.push(`full: ERROR ${String((e as Error).message).slice(0, 200)}`); }
   }
