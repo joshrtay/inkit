@@ -18,7 +18,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # one file, or several joined by commas
 DATA = os.environ.get("GRAPH_DATA") or os.path.join(HERE, "../../references/ml/graphs.jsonl")
 NEXT = 3
-dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+dev = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
 PRIMS = ["count", "each-once", "pattern", "connect", "size", "sum", "sight", "order"]
 UNITS = ["line", "strip", "region", "block", "grid", "local"]
