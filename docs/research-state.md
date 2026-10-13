@@ -40,7 +40,7 @@ the research must deliver three products, all built on one shared core:
 
 | Data | Size | Whose judgement | Use |
 |---|---|---|---|
-| Janko's puzzles with recorded solves | ~4,000 solves, 8 types | people solving (move order; times to check) | human order, hints, stuck moments |
+| Janko's puzzles with recorded solves | ~6,700 solves, 12 types (8 read so far) | 7 experienced solvers' move order; no times | human order, hints, stuck moments |
 | Puzzle Square JP | ratings for 17 types, ~20 sampled per type on the board; likes for 4 types | the site | difficulty, taste |
 | Tatham's generators | ~270 graded puzzles, 4 games | his solver (an algorithm) | difficulty |
 | Beast Academy Puzzle Lab | 88 puzzles in ordered sets | curriculum designers | difficulty, sequences |
@@ -144,7 +144,7 @@ per type mean agreement figures can be off by 0.15.
 | Do our tests measure the right thing? | all | human-made puzzles held out, agreement with people's next moves, key-move score, results by band and family, repeated seeds | building now |
 | Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
 | Does the order of a solve carry difficulty? | difficulty | path features against ratings (solves as vectors, step 1) | after pricing |
-| Do Janko's recordings hold solve times? | difficulty | check the files | quick |
+| Do Janko's recordings hold solve times? | difficulty | check the files | **no**: moves only, no times. And the ~6,700 recorded solves are by 7 experienced solvers (Rainer 2,109; Steve C 1,125; Jürgen Helbig 996; Angela Janko 784; Otto Janko 711; Groffin 562; Emma 410), so "human order" means expert order, a third of it one person: report agreement per solver. inkit's own solve times are the human difficulty source |
 | Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints yes; difficulty no; interest no at scale (Slitherlink a little); sequences unclear (research-llm-labels.md) |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
 | Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | expert band now holds the mined families; per-genre work to do |
