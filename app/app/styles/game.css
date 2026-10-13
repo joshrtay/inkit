@@ -157,6 +157,20 @@
 .new-way-body p { margin: 0; color: var(--muted); line-height: 1.5; }
 .new-way-body .btn { justify-self: start; position: relative; cursor: pointer; }
 .new-way-body .btn.disabled { opacity: .5; pointer-events: none; }
+/* a puzz.link or Penpa+ link: a quiet row under the two ways in */
+.new-link { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; align-items: center; padding: 14px 18px; background: var(--panel); border: 1px solid var(--line-strong); border-radius: 14px; }
+.new-link > svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.new-link > strong { font: 800 17px/1.2 var(--display); }
+.new-link-field { grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; margin: 0; }
+.new-link-field input, .new-link-field select { flex: 1 1 200px; min-width: 0; font: 400 15px/1.2 var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 9px 10px; }
+.new-link-field select { flex: 0 1 220px; }
+.new-link-field input::placeholder { color: var(--muted); opacity: .8; }
+.new-link-note { grid-column: 1 / -1; margin: 0; font-size: 14px; color: var(--muted); }
+.new-link-note.error { color: var(--red); }
+@media (min-width: 760px) {
+  .new-link { grid-template-columns: auto auto 1fr; }
+  .new-link-field { grid-column: auto; }
+}
 .new-drafts { display: grid; gap: 10px; }
 .new-drafts h2 { margin: 0; font: 800 13px/1 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .new-drafts ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px; }

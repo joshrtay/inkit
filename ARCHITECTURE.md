@@ -41,7 +41,8 @@ hidden / deleted, Claude's latest reading and doubts; only a draft can be change
 one only deleted, a soft delete that hides it everywhere), *subscriptions*, *likes*, *solves* (a signed-in
 player's, not the author's own: a check on the puzzle's card, counts on puzzles and profiles), and
 *recommendations* (whom a creator recommends: up to five, in order, each
-with a line; set in Settings, or for an AI creator in its persona). Each published game keeps a rough
+with a line; set in Settings, or for an AI creator in its persona), and *link_requests* (a pasted
+link whose type we don't have yet; counts by type for admins at `/admin/requests`). Each published game keeps a rough
 *difficulty*, *level* (1–3) and *minutes* to solve, estimated from its size, clue density and type
 (`app/games/estimate.ts`; an AI post keeps its scorer's difficulty), for Explore's cards.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
@@ -58,7 +59,10 @@ creator's recommendations; the data in `lib/explore.server.ts`, the formulas in 
 type's puzzles (`/explore/<type>`: New or Top, by difficulty), Puzzle types (`/puzzles`, the
 guides), profiles at `/<handle>` (Puzzles, Drafts for the owner, Recommends, Subscriptions, About), games at
 `/g/<id>`, Create (`/new`: start from a photo or a blank page, or carry on with a draft; both
-open paint), Settings (`/settings`: profile, email, password, handle, recommendations, appearance),
+open paint; or paste a puzz.link or Penpa+ link, read by `lib/import-link.ts` and
+`lib/import-penpa.ts` into the engine's spec and drawn in paint like a photo's reading, a type we
+don't have being noted instead; Penpa+ records no type, so it's taken from its tags or what's drawn,
+narrowed by a stored solution, or the creator picks it), Settings (`/settings`: profile, email, password, handle, recommendations, appearance),
 sign-in (Better Auth: email + password, Google), privacy and terms.
 **For search engines and agents** (`app/lib/seo.ts`, pure and unit-tested): every public page's
 canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts and editors are

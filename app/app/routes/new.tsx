@@ -2,14 +2,17 @@
 // (or, from a studio's link, ?in=<collection slug>, that studio).
 // Two ways in, both ending in paint (/g/<id>/draw), where the type is chosen: a photo of a puzzle
 // drawn on paper (Claude reads it, and it's drawn in ink with the type it was read as), or a blank
-// page. Under them, the creator's latest drafts to carry on with. No type selector here.
-import { useRef, useState } from "react";
+// page. Under them, a quiet row for a puzz.link or Penpa+ link (lib/import-link.ts: a type we have
+// opens in paint; one we don't is noted), then the creator's latest drafts to carry on with. No
+// type selector here.
+import { useEffect, useRef, useState } from "react";
 import { Form, Link, redirect, useNavigation, useSubmit } from "react-router";
 import type { Route } from "./+types/new";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { createBlank, createFromDrawing, publishTargets } from "~/lib/games.server";
+import { createBlank, createFromDrawing, createFromLink, publishTargets } from "~/lib/games.server";
+import { linkNote } from "~/lib/import-link";
 import { latestDrafts } from "~/lib/queries.server";
 import { draftPictures } from "~/lib/thumbs.server";
 import { attempt, signInFirst } from "~/lib/http.server";
@@ -42,6 +45,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!me) signInFirst(request);
   const db = getDb(env);
   const form = await request.formData();
+  if (form.get("intent") === "link") return attempt(async () => {
+    const made = await createFromLink(db, me, form);
+    if ("id" in made) return redirect(`/g/${made.id}/draw`);
+    const r = made.result;
+    return { link: { note: linkNote(r), error: r.kind === "unreadable", choose: r.kind === "choose" ? r.genres.map((id) => ({ id, name: kindName(id) })) : null } };
+  });
   return attempt(async () => form.get("intent") === "blank"
     ? redirect(`/g/${await createBlank(db, me, form)}/draw`)
     // ?read: paint opens its panel at the photo and what Claude wasn't sure of
@@ -72,6 +81,10 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
   const [preview, setPreview] = useState<string>();
   const file = useRef<HTMLInputElement>(null);
   const error = actionData && "error" in actionData ? actionData.error : undefined;
+  // what the last link said, until the link is changed
+  const [linkEdited, setLinkEdited] = useState(false);
+  useEffect(() => setLinkEdited(false), [actionData]);
+  const link = actionData && "link" in actionData && !linkEdited ? actionData.link : undefined;
 
   const send = async (f: File) => {
     const small = await shrink(f);
@@ -118,6 +131,22 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
           </div>
         </section>
       </div>
+      <section className="new-link" aria-labelledby="new-link-h">
+        <Icon d={["M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1", "M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"]} />
+        <strong id="new-link-h">Or paste a link</strong>
+        <Form method="post" className="new-link-field">
+          <input type="hidden" name="collection" value={collection ?? ""} />
+          <input type="text" inputMode="url" name="link" required placeholder="A Penpa+ or puzz.link link" aria-label="Puzzle link" autoComplete="off" onChange={() => setLinkEdited(true)} />
+          {link?.choose && (
+            <select name="genre" aria-label="Puzzle type" required defaultValue="">
+              <option value="" disabled>Type</option>
+              {link.choose.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          )}
+          <button className="btn" name="intent" value="link" disabled={busy || !collection}>Open</button>
+        </Form>
+        {link && <p className={`new-link-note${link.error ? " error" : ""}`} role="status">{link.note}</p>}
+      </section>
       {drafts.length > 0 && (
         <section className="new-drafts" aria-labelledby="new-drafts-h">
           <h2 id="new-drafts-h" className="eyebrow">Carry on with a draft</h2>
