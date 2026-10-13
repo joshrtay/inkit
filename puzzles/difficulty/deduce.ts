@@ -25,7 +25,7 @@
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
-import { blockFor, pathEnds } from "../../src/engine/rules.ts";
+import { blockFor, galaxyCore, pathEnds } from "../../src/engine/rules.ts";
 import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
@@ -124,6 +124,11 @@ export interface Options {
    *  each implies from what's known, added each round like the lemmas, with windows over them (the
    *  stage family "techniques"). Default none */
   techniques?: string[];
+  /** helper atoms named by a cell take that cell as their footprint (Spiral Galaxies' gal(I,G)):
+   *  otherwise, made from facts alone, they have none, the constraints over them hold in every
+   *  window, and every window holds the whole puzzle (each solves a Spiral Galaxies in a round or
+   *  two). For the generator's bands (bands.ts); default off */
+  cellAtoms?: boolean;
   /** the line families (DEFAULT_FAMILIES) where lines carry rules; default on (DEDUCE_DEFAULT_FAMILIES=0: off) */
   defaultFamilies?: boolean;
   /** the hardest tier allowed: 1 stops where only a case split or search would go on (the profile
@@ -211,6 +216,8 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path"),
   // Simple Path and Simple Loop: a part of the grid with one or two ways out
   cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || (r.rule === "loop" && r.of === "loop"))),
+  // Spiral Galaxies: the cells each galaxy can still reach, by symmetry (needs Options.cellAtoms)
+  mirror: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "galaxies"),
 };
 export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
@@ -369,7 +376,10 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const techBlock = new Map<string, number>();
   for (const t of techOn) { techBlock.set(t, p.rules.length + lemmaNames.length); lemmaNames.push(t); }
   const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
-  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}`;
+  // Options.cellAtoms: Spiral Galaxies' gal(I,G) (cell I is in galaxy G) shown, to take cell I as
+  // its footprint
+  const galAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "galaxies") && !local;
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}`;
   const G: Ground = parseAspif(ground(prog));
   dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
@@ -404,6 +414,10 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- footprints ----
   const fp: (Bits | null)[] = new Array(G.maxAtom + 1).fill(null);
   for (let m = 0; m < M; m++) if (markAtom[m] > 0) fp[markAtom[m]] = bitsOf(n, markCells[m]);
+  // helper atoms named by their cell (Options.cellAtoms): without a footprint of their own (they're
+  // chosen freely, from facts), every constraint over them would hold in every window, so each
+  // window would hold the whole puzzle
+  if (galAtoms) for (const [name, lit] of G.outputs) { const x = /^gal\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); }
   const defs: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const usedIn: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const constraints: number[] = [];
@@ -1501,7 +1515,58 @@ end
     return ws.filter((w) => w.size <= techCap);
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound };
+  // Spiral Galaxies (technique "mirror", with Options.cellAtoms): the cells each galaxy can still
+  // reach. A cell can be in a galaxy only if its mirror through the centre is in the grid and can
+  // be too, and it joins the centre through cells that can be, by sides not known to be borders;
+  // two cells with no border between them are in the same galaxy; a cell only one galaxy can reach
+  // is that galaxy's, and its known borders keep that galaxy out of the cells beyond. Repeated
+  // till nothing changes; each cell kept out of a galaxy is a constraint, and each cell with its
+  // four neighbours a window (where the borders follow).
+  const mirrorRound = (): Window[] => {
+    if (!galAtoms || g.kind !== "square") return [];
+    const K = p.galaxies.length, gal = (i: number, k: number) => G.outputs.get(`gal(${i},${k})`);
+    const cutState = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? -1 : known[m]; };
+    const mirror = (i: number, [y, x]: [number, number]) => {
+      const [r, c] = g.rc(i), r2 = y - r - 1, c2 = x - c - 1;
+      return r2 >= 0 && c2 >= 0 && r2 < g.rows && c2 < g.cols ? g.cell(r2, c2) : -1;
+    };
+    const can: Uint8Array[] = p.galaxies.map((gx, k) => Uint8Array.from({ length: n }, (_, i) => (gal(i, k) !== undefined && mirror(i, gx) >= 0 && !p.blocked.has(i) ? 1 : 0)));
+    const cores = p.galaxies.map((gx) => galaxyCore(p, gx));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const drop = (k: number, i: number) => { if (can[k][i]) { can[k][i] = 0; changed = true; } };
+      for (let k = 0; k < K; k++) {
+        // symmetry
+        for (let i = 0; i < n; i++) if (can[k][i] && !can[k][mirror(i, p.galaxies[k])]) drop(k, i);
+        // reach from the centre, not through a known border
+        const seen = new Uint8Array(n), st = cores[k].filter((i) => can[k][i]);
+        for (const i of st) seen[i] = 1;
+        while (st.length) { const i = st.pop()!; for (const l of g.cellLinks[i]) { if (cutState(l) === 1) continue; const j = otherEnd(l, i); if (can[k][j] && !seen[j]) { seen[j] = 1; st.push(j); } } }
+        for (let i = 0; i < n; i++) if (can[k][i] && !seen[i]) drop(k, i);
+      }
+      for (let l = 0; l < g.links.length; l++) {
+        const [a, b] = g.links[l].cells, s = cutState(l);
+        if (s === 0) for (let k = 0; k < K; k++) if (can[k][a] !== can[k][b]) { drop(k, a); drop(k, b); }
+        if (s === 1) for (const [x, y] of [[a, b], [b, a]]) {
+          const ks = [...Array(K).keys()].filter((k) => can[k][x]);
+          if (ks.length === 1) drop(ks[0], y);
+        }
+      }
+    }
+    const ws: Window[] = [];
+    for (let i = 0; i < n; i++) {
+      if (p.blocked.has(i)) continue;
+      for (let k = 0; k < K; k++) {
+        const a = gal(i, k);
+        if (!can[k][i] && a !== undefined) addTech("mirror", [LIT(a, true)], `${rc(i)} out of galaxy ${k + 1}`);
+      }
+      if (g.cellLinks[i].some((l) => cutState(l) < 0)) ws.push(techWin(`mirror: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
+    }
+    return ws;
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));

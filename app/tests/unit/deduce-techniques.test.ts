@@ -18,6 +18,7 @@ const GENRES: Record<string, string[]> = {
   mines: ["minesweeper"],
   ends: ["simple-path"],
   cuts: ["simple-path"],
+  mirror: ["spiral-galaxies"],
 };
 const expert = bandNamed("expert");
 

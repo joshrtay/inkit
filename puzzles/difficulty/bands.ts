@@ -86,7 +86,9 @@ export function expertApplies(_genre: string): boolean {
 
 /** deduce's options for a band. */
 export function optionsOf(b: Band, extra: Options = {}): Options {
-  return { stages: b.stages, lemmas: b.lemmas, defaultFamilies: b.lines, families: [...(b.reach ? [REACH_FAMILY] : []), ...(b.mined ? MINED_FAMILIES : [])], techniques: b.techniques ?? [], maxTier: 1, ...extra };
+  // cellAtoms in every band: Spiral Galaxies' windows are local only with it (without, each
+  // holds the whole puzzle, every band solves every puzzle, and aiming above easy never ends)
+  return { stages: b.stages, lemmas: b.lemmas, defaultFamilies: b.lines, families: [...(b.reach ? [REACH_FAMILY] : []), ...(b.mined ? MINED_FAMILIES : [])], techniques: b.techniques ?? [], cellAtoms: true, maxTier: 1, ...extra };
 }
 
 export interface Quick { solved: boolean; ms: number; used: string[]; steps: number; error?: string }
