@@ -2,7 +2,8 @@
 # the soft maximum of its steps' costs (deduce.ts SOFTMAX_K), and adding the same amount to every
 # step adds exactly that to the soft maximum; so each type's offset is the gap between its puzzles'
 # mean score today and with the corrections, measured on puzzles solved with the solver's defaults
-# (references/ml/price-data-defaults.jsonl, from price-data.ts with PRICE_LEMMAS=""). A type then
+# (references/ml/price-data-defaults.jsonl, from price-data.ts with PRICE_DEFAULTS=1 DEDUCE_PRICES=0
+# PRICE_OUT=price-data-defaults: the defaults, raw costs). A type then
 # keeps its place in the estimate's range, and the corrections only reorder steps within it (holding
 # the average step instead pushed small hard puzzles against the ceiling).
 #

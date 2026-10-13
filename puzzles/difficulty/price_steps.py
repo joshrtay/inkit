@@ -77,4 +77,7 @@ for k, v in sorted(zip(FEATURES, w_all.tolist()), key=lambda x: -abs(x[1])): pri
 # scale (an overall rise pushed puzzles against the estimate's ceiling: every Loopy rated 0.80)
 offset = float((X @ w_all).mean())
 print(f"\nmean correction {offset:+.2f}, taken off so the average step costs what it did")
-json.dump({"features": FEATURES, "weights": [round(x, 4) for x in w_all.tolist()], "offset": round(-offset, 4), "from": "step labels"}, open(os.path.join(HERE, "step-prices.json"), "w"), indent=1)
+# each feature capped at the largest seen in the labelled steps (deduce.ts priceCorrection): no
+# extrapolating past the evidence; per-type offsets come after, from price_centre.py
+caps = X.max(0).values
+json.dump({"features": FEATURES, "weights": [round(x, 4) for x in w_all.tolist()], "offset": round(-offset, 4), "from": "step labels", "caps": [round(float(c), 4) for c in caps]}, open(os.path.join(HERE, "step-prices.json"), "w"), indent=1)

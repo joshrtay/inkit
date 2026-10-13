@@ -65,10 +65,12 @@ for (const set of loadSets()) {
 console.error(`${jobs.length} labelled puzzles in ${new Set(jobs.map((j) => j.group)).size} groups`);
 
 // every technique on, so all steps are priced: the component lemma (DEDUCE_LEMMAS) and clue reach
-process.env.DEDUCE_LEMMAS = process.env.PRICE_LEMMAS ?? "component";   // PRICE_LEMMAS="" for the solver's defaults
+// PRICE_DEFAULTS=1 for the solver's own defaults (what price_centre.py centres on)
+const defaults = process.env.PRICE_DEFAULTS === "1";
+if (!defaults) process.env.DEDUCE_LEMMAS = process.env.PRICE_LEMMAS ?? "component";
 let done = 0;
 const rows = await mapPool(jobs, async (j) => {
-  const r = await deduceGuarded(j.spec, { budgetMs: 30000, families: process.env.PRICE_LEMMAS === "" ? [] : [REACH_FAMILY] }, 120000).catch(() => null);
+  const r = await deduceGuarded(j.spec, { budgetMs: 30000, families: defaults || process.env.PRICE_LEMMAS === "" ? undefined : [REACH_FAMILY] }, 120000).catch(() => null);
   if (++done % 50 === 0) console.error(`${done}/${jobs.length}`);
   if (!r || !r.profile.solved) return null;
   const steps = r.path.filter((s) => !s.choice).map((s) => ({ cost: s.cost, feat: s.feat ?? {} }));

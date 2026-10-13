@@ -134,16 +134,18 @@ export function priceCorrection(f: Record<string, number>, prices: { features: s
   // types' easy puzzles to 0)
   if (prices.offsets && !(genre && genre in prices.offsets)) return 0;
   const t = f.tier ?? 0, v: Record<string, number> = {
-    tier1: t === 1 ? 1 : 0, tier2: t === 2 ? 1 : 0, tier3: t === 3 ? 1 : 0, instances: (f.instances ?? 0) / 4, facts: (f.facts ?? 0) / 4,
+    tier1: t === 1 ? 1 : 0, tier2: t === 2 ? 1 : 0, tier3: t === 3 ? 1 : 0, instances: Math.log1p(f.instances ?? 0) / 2, facts: (f.facts ?? 0) / 4,
     global: f.global ?? 0, extent: Math.log1p(f.extent ?? 0) / 2, cells: Math.log1p(f.cells ?? 0) / 3, spread: (f.spread ?? 0) / 10,
     window: Math.log1p(f.window ?? 0) / 4, capped: f.capped ?? 0,
     connect_group: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) >= 2 ? 1 : 0,
     connect_single: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) < 2 ? 1 : 0,
+    premature: (f.premature ?? 0) > 0 ? 1 : 0, premature_length: (f.premature ?? 0) > 0 ? Math.log1p(f.extent ?? 0) / 2 : 0,
   };
   // centred per type: a type's average step keeps its cost; the corrections only reorder its steps
   // each feature capped at the largest seen in the labelled steps: no extrapolating past the evidence
   return (prices.offsets?.[genre ?? ""] ?? prices.offset ?? 0) + prices.features.reduce((a, k, i) => {
-    const x = v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? (f[k] ?? 0) / 2 : 0);
+    // instance counts on a log scale (price.py LOG_COUNTS): a Loopy step can use 70 corner rules at once
+    const x = v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? Math.log1p(f[k] ?? 0) / 2 : 0);
     return a + prices.weights[i] * Math.min(x, prices.caps?.[i] ?? Infinity);
   }, 0);
 }
@@ -309,11 +311,13 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
-  // DEDUCE_LEMMAS chooses lemmas: "component", "parity" and "loop" (premature loops), all off by default. The component
+  // DEDUCE_LEMMAS chooses lemmas: "component", "parity" and "loop" (premature loops); "loop" alone by
+  // default (DEDUCE_LEMMAS="" for none): priced from Tatham's Loopy levels (its chains are easy
+  // however long), it raised agreement with his Loopy grades (10x10 0.42 to 0.53, 7x7 0.37 to 0.40). The component
   // lemma finds Hitori's connectivity moves without search but prices them as easy, so Tatham's
   // easy and tricky Singles grades rated alike (agreement 0.75 to 0.04): on once it's priced. Loop
   // parity helped little for 11% more time.
-  const lemmasOn = (process.env.DEDUCE_LEMMAS ?? "").split(",");
+  const lemmasOn = (process.env.DEDUCE_LEMMAS ?? "loop").split(",");
   const parity = local || !lemmasOn.includes("parity") ? null : parityLemma(p, p.rules.length);
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
@@ -932,8 +936,9 @@ end
     const cells = new Set<number>();
     let extent = 0, global = 0;
     for (const gi of e.groups) {
-      const gr = groups[gi], prim = gr.kind === "component" || gr.kind === "parity" || gr.kind === "loop" ? "connect" : PRIMITIVE[gr.kind] ?? "other";
+      const gr = groups[gi], prim = gr.kind === "component" || gr.kind === "parity" || gr.kind === "premature" ? "connect" : PRIMITIVE[gr.kind] ?? "other";
       f[`p_${prim}`] = (f[`p_${prim}`] ?? 0) + 1;
+      if (gr.kind === "premature") f.premature = (f.premature ?? 0) + 1;   // a chain that can't close yet
       const uk = unitKind(gr.label);
       f[`u_${uk}`] = (f[`u_${uk}`] ?? 0) + 1;
       if (prim === "connect" || uk === "grid") global = 1;
@@ -953,7 +958,7 @@ end
    *  primitive@unit kind; edges say how two relate ("in" one inside the other, "x" overlapping,
    *  "t" touching); two rounds of colour refinement (Weisfeiler–Lehman) make it canonical. */
   const shapeOf = (e: Expl, target: number[]): { shape: string; text: string } => {
-    const prim = (k: string) => (k === "component" || k === "parity" || k === "loop" ? "connect" : PRIMITIVE[k] ?? k);
+    const prim = (k: string) => (k === "component" || k === "parity" || k === "premature" ? "connect" : PRIMITIVE[k] ?? k);
     const nodes = e.groups.map((gi) => ({ label: `${prim(groups[gi].kind)}@${unitKind(groups[gi].label)}`, cells: new Set(groups[gi].cells) }));
     nodes.push({ label: "decided", cells: new Set(target) });
     const touch = (a: Set<number>, b: Set<number>) => { for (const c of a) for (const l of g.cellLinks[c] ?? []) for (const j of g.links[l].cells) if (b.has(j)) return true; return false; };
@@ -1151,7 +1156,7 @@ end
       const cs = cellsOf(bits);
       if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
       groupOf[jx] = groups.length;
-      groups.push({ kind: "loop", label: `the line through ${rc(mid)}`, cells: cs, extent: chain.length });
+      groups.push({ kind: "premature", label: `the line through ${rc(mid)}`, cells: cs, extent: chain.length });
       if (cs.length <= 4 * Math.max(g.rows, g.cols)) componentW.push(win(`the line ending at ${rc(mid)}`, cs));
     }
   };

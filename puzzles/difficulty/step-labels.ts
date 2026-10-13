@@ -40,7 +40,7 @@ for (const f of readdirSync(tdir).filter((x) => new RegExp(`^(${process.argv[3] 
 }
 console.error(`${jobs.length} puzzles`);
 
-process.env.DEDUCE_LEMMAS = "component";
+process.env.DEDUCE_LEMMAS = process.env.LABEL_LEMMAS ?? "component";   // LABEL_LEMMAS="component,loop" for premature loops too
 const cellOf = (mark: string) => Number(/^shaded\((\d+)\)$/.exec(mark)?.[1] ?? -1);
 // a Loopy edge for Tatham's driver: its two end corners as "r1,c1,r2,c2"
 const edgeOf = (spec: GridSpec) => {

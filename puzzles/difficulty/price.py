@@ -22,19 +22,27 @@ FEATURES = ["tier1", "tier2", "tier3", "instances", "facts", "global", "extent",
             # combinations a sum of single features can't say: connection reasoning about a group of
             # several cells (Tatham's Singles "tricky": removesplits) or about one cell ("easy":
             # allblackbutone)
-            "connect_group", "connect_single"]
+            "connect_group", "connect_single",
+            # a loop's chain that can't close yet (the premature-loop lemma), and how long it is
+            "premature", "premature_length"]
+
+# instance counts on a log scale: a Loopy step can use 70 corner rules at once, which a linear count
+# turns into a correction of -30
+LOG_COUNTS = os.environ.get("PRICE_LOG_COUNTS", "1") != "0"
 
 def vec(f):
     """A step's features as numbers on similar scales."""
     t = f.get("tier", 0)
-    v = {"tier1": t == 1, "tier2": t == 2, "tier3": t == 3, "instances": f.get("instances", 0) / 4, "facts": f.get("facts", 0) / 4,
+    v = {"tier1": t == 1, "tier2": t == 2, "tier3": t == 3, "instances": (np.log1p(f.get("instances", 0)) / 2 if LOG_COUNTS else f.get("instances", 0) / 4), "facts": f.get("facts", 0) / 4,
          "global": f.get("global", 0), "extent": np.log1p(f.get("extent", 0)) / 2, "cells": np.log1p(f.get("cells", 0)) / 3,
          "spread": f.get("spread", 0) / 10, "window": np.log1p(f.get("window", 0)) / 4, "capped": f.get("capped", 0)}
     for k in FEATURES:
-        if k.startswith(("p_", "u_")): v[k] = f.get(k, 0) / 2
+        if k.startswith(("p_", "u_")): v[k] = np.log1p(f.get(k, 0)) / 2 if LOG_COUNTS else f.get(k, 0) / 2
     conn = f.get("p_connect", 0) > 0
     v["connect_group"] = float(conn and f.get("extent", 0) >= 2)
     v["connect_single"] = float(conn and f.get("extent", 0) < 2)
+    pre = f.get("premature", 0) > 0
+    v["premature"] = float(pre); v["premature_length"] = float(np.log1p(f.get("extent", 0)) / 2) if pre else 0.0
     return [float(v[k]) for k in FEATURES]
 
 def main():

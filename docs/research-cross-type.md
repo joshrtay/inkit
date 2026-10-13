@@ -135,3 +135,18 @@ Art, Binary Puzzle); counting what's seen or near (Akari, Minesweeper, Cave, Wit
 and each-once (the Sudokus, Skyscrapers, Easy as ABC, Hitori). Panel sits alone. These are the
 periodic table's groups, and the held-out tests should take them in turn (leave a family out, not
 a type).
+
+**Pricing loops** (on by default): Loopy step labels with the premature-loop lemma on showed its
+steps are all Tatham-easy (255 of 255, in every grade) though they cost 7.7 against 2.6 for other
+easy steps: a long chain makes a big explanation, but a person follows the line. Two new features
+(a premature-loop step; its chain's length) get a discount of −1.25 and −1.47. Loopy also exposed
+linear instance counts in the prices (a step can use 70 corner rules: corrections of −30, undone by
+offsets of +9): counts are now on a log scale. Prices are refitted, caps written by the fit,
+offsets recentred on the new defaults (the loop lemma on). Full scoreboard against the board saved
+2026-10-12 (before the learned prices): Puzzle Square JP Simple Loop −0.01 to 0.63, Masyu 0.19 to
+0.29, Sudoku 0.71 to 0.80, Star Battle 0.66 to 0.73, Skyscrapers 0.61 to 0.66, Spiral Galaxies 0.20
+to 0.50 (5 solved); Tatham Light Up 0.77/0.79 to 0.91/0.85, Loopy 7×7 0.37 to 0.41 (10×10 0.50,
+39 of 40 solved, against 0.42 and 29 at the same job count before). Drops: Easy as ABC 0.93 to 0.80
+(5 puzzles; from the earlier prices) and Minesweeper 0.58 to 0.48 (8 puzzles); Beast Academy's Akari
+within sets −0.30 to −0.57 against the previous commit, on sets of a few puzzles and already
+backwards (its tier agreement 0.20 to 0.23).
