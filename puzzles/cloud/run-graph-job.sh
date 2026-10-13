@@ -12,8 +12,9 @@
 # default all six), e.g. run-graph-job.sh us-central1-b grid "" "lines-loops counting"
 #
 # curve: the learning curve (data/graphs-gen.jsonl and data/graphs-human.jsonl must be in the
-# bucket); CURVE_EPOCHS (default 7), CURVE_STATES_PER (states per generated puzzle, default 4) and
-# CURVE_SHARES (default "0 1 0.1 0.25 0.5", the ends first) change it, e.g. run-graph-job.sh us-central1-a curve
+# bucket); CURVE_WIDTH (default 128), CURVE_STATES_PER (states per generated puzzle, default 4),
+# CURVE_SHARES (default "1 0.1 0.5 0.25", the ends first) and CURVE_EPOCHS (default: the same
+# training time for every share, the corpus's 16 epochs) change it, e.g. run-graph-job.sh us-central1-a curve
 #
 # The network's code (graph_policy.py and signatures.ts) is uploaded first, so the job runs this
 # checkout's.
@@ -24,6 +25,7 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 gcloud storage cp "$ROOT/puzzles/difficulty/graph_policy.py" "$ROOT/puzzles/difficulty/signatures.ts" gs://inkit-research-ml/code/puzzles/difficulty/
 META="run=$RUN,steps=${2:-all holdout embed},model=${3:-},families=${4:-},lrscale=${GRAPH_LR_SCALE:-0}"
 [ -n "${CURVE_EPOCHS:-}" ] && META="$META,epochs=$CURVE_EPOCHS"
+[ -n "${CURVE_WIDTH:-}" ] && META="$META,width=$CURVE_WIDTH"
 [ -n "${CURVE_STATES_PER:-}" ] && META="$META,statesper=$CURVE_STATES_PER"
 [ -n "${CURVE_SHARES:-}" ] && META="$META,shares=$CURVE_SHARES"
 gcloud compute instances create "$RUN" --project inkit-research --zone "$ZONE" \

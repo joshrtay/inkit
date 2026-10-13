@@ -52,29 +52,34 @@ if [[ " $STEPS " == *" scale "* ]]; then
   done
 fi
 if [[ " $STEPS " == *" curve "* ]]; then
-  # the learning curve: the attention network at width 64 (8 heads, positions, learning rate
-  # scaled) trained on the corpus plus 0, 100, 10, 25 and 50% of the generated set (nested; the
+  # the learning curve: the attention network (width 128 by default, 8 heads, positions, learning
+  # rate scaled) trained on the corpus plus 100, 10, 50 and 25% of the generated set (nested; the
   # ends first, so a short run still has them), each scored on the per-type split, the human test
-  # set, agreement with people and held-out generated puzzles. 7 epochs at 4 states a generated
-  # puzzle: about 3¼ hours for all five (the same epochs for every share, so more data is also
-  # more steps). Partial results go to the bucket every two minutes; a share starts only if its
-  # estimated time fits before 3 h 50 min (the VM is deleted at 4 h)
+  # set, agreement with people and held-out generated puzzles. Every share gets the same training
+  # time, the size test's 16 epochs of the corpus alone (44 min at width 128), so the curve
+  # measures more data, not more steps; its 0% point is the size test (73.5% at 128). At 4 states a
+  # generated puzzle, an epoch of all of them is 3.3 corpus epochs, so the epochs are
+  # 16 / (1 + 3.3 × share): 12, 9, 6 and 4 for 10, 25, 50 and 100%. About 3.4 hours for the four. Partial results go to
+  # the bucket every two minutes; a share starts only if its estimated time fits before 3 h 50 min
+  # (the VM is deleted at 4 h)
   mkdir -p results/curve
   ( set +x; while sleep 120; do
       gcloud storage cp -q results/curve/*.txt "$BUCKET/results/$RUN/curve/"
       gcloud storage cp -q /var/log/graph-job.log "$BUCKET/results/$RUN/job.log"
     done ) &
   SYNC=$!
-  EPOCHS=$(meta epochs || echo 7); PER=$(meta statesper || echo 4)
-  for share in $(meta shares || echo "0 1 0.1 0.25 0.5"); do
-    # minutes: about 4 for loading and scoring, 2.2 an epoch for the corpus, 7.2 an epoch for all
-    # the generated set at 4 states a puzzle (from the scale step's 130 s an epoch on 18.6M mark-states)
-    est=$(awk -v s="$share" -v e="$EPOCHS" -v p="$PER" 'BEGIN { print int(60 * (4 + e * (2.2 + 7.2 * s * p / 4))) }')
+  W=$(meta width || echo 128); PER=$(meta statesper || echo 4); FIXED=$(meta epochs || true)
+  # minutes a corpus epoch on the L4 (size test, learning rate scaled: 36, 44 and 81 min for 16)
+  C=$(case $W in (64) echo 2.25;; (128) echo 2.75;; (256) echo 5.07;; (*) awk -v w="$W" 'BEGIN { print 5.07 * w / 256 }';; esac)
+  for share in $(meta shares || echo "1 0.1 0.5 0.25"); do
+    EPOCHS=${FIXED:-$(awk -v s="$share" -v p="$PER" 'BEGIN { e = int(16 / (1 + 0.825 * s * p) + 0.5); print e < 1 ? 1 : e }')}
+    # minutes: about 4 for loading and scoring, then the epochs (generated mark-states as fast as the corpus's)
+    est=$(awk -v s="$share" -v e="$EPOCHS" -v p="$PER" -v c="$C" 'BEGIN { print int(60 * (4 + e * c * (1 + 0.825 * s * p))) }')
     if [ $((SECONDS + est)) -gt 13800 ]; then echo "skipping share $share (about $((est / 60)) min): out of time"; continue; fi
     GRAPH_DATA=/work/references/ml/graphs.jsonl,/work/references/ml/graphs-scale.jsonl,/work/references/ml/graphs-gen.jsonl \
-      GRAPH_GEN_SHARE=$share GRAPH_STATES_PER=$PER GRAPH_EPOCHS=$EPOCHS GRAPH_LR_SCALE=1 GRAPH_H=64 GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_TAG=curve-$share \
+      GRAPH_GEN_SHARE=$share GRAPH_STATES_PER=$PER GRAPH_EPOCHS=$EPOCHS GRAPH_LR_SCALE=1 GRAPH_H=$W GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_TAG=curve-w$W-$share \
       python3 puzzles/difficulty/graph_policy.py all --attention > results/curve/share-$share.txt 2>&1
-    gcloud storage cp results/curve/share-$share.txt references/ml/graph-policy-attention-curve-$share.pt "$BUCKET/results/$RUN/curve/"
+    gcloud storage cp results/curve/share-$share.txt references/ml/graph-policy-attention-curve-w$W-$share.pt "$BUCKET/results/$RUN/curve/"
   done
   kill $SYNC
 fi

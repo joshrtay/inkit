@@ -401,7 +401,9 @@ KEEP_MOVES = sys.argv[1:2] == ["embed"]   # each round's moves with their signat
 MAX_MARKS = 4000   # a few puzzles have very many marks (a big board's every digit, link or border): left out
 
 def draw(name):
-    """A generated puzzle's fixed place in [0, 1), from its name."""
+    """A generated puzzle's fixed place in [0, 1), from its name without its band (gen-set.ts names
+    a puzzle "<genre> <size> <band> #<seed>"; a re-banding mustn't move it between slices)."""
+    name = re.sub(r" (easy|medium|hard|expert) #", " #", name)
     return int(hashlib.md5(("graph-gen:" + name).encode()).hexdigest()[:12], 16) / 16 ** 12
 
 def content_key(d):
@@ -489,6 +491,7 @@ def run_all(split, rows=None):
 def family_of(g): return next((f for f, ts in FAMILIES.items() if g in ts), "other")
 MIN_HUMAN = int(os.environ.get("GRAPH_MIN_HUMAN", 10))   # human test types with fewer puzzles are left out of its means
 BANDS = ["easy", "medium", "hard", "expert"]
+BAND_SKIP = set(filter(None, os.environ.get("GRAPH_BAND_SKIP", "spiral-galaxies,fill-in").split(",")))
 
 def report(net, rows, by, gen_te, human):
     """The measures beyond the per-type table: the key move, the human test set, agreement with
@@ -549,10 +552,12 @@ def report(net, rows, by, gen_te, human):
     # held-out generated puzzles, by band
     if gen_te:
         gr = score(net, states(gen_te))
-        bb = group(gr, lambda p: p.band or "?")
-        print(f"\n### Generated, held out ({len(gen_te)} puzzles, GRAPH_GEN_TEST {GEN_TEST:g})\n\n| Band | Puzzles | States | Top guess is a move | Random | Key move | Random key |\n|---|---|---|---|---|---|---|")
+        # bands as the records have them (read at load); types whose bands are being redone are left
+        # out of this table (GRAPH_BAND_SKIP)
+        bb = group([x for x in gr if x[0].genre not in BAND_SKIP], lambda p: p.band or "?")
+        print(f"\n### Generated, held out ({len(gen_te)} puzzles, GRAPH_GEN_TEST {GEN_TEST:g}; by band without {', '.join(sorted(BAND_SKIP)) or 'none'})\n\n| Band | Puzzles | States | Top guess is a move | Random | Key move | Random key |\n|---|---|---|---|---|---|---|")
         for b in [b for b in BANDS if b in bb] + sorted(set(bb) - set(BANDS)):
-            print(f"| {b} | {sum(1 for p in gen_te if (p.band or '?') == b)} | {len(bb[b])} | {pct(col(bb[b], 0))} | {pct(col(bb[b], 1))} | {pct(col(bb[b], 2))} | {pct(col(bb[b], 3))} |")
+            print(f"| {b} | {sum(1 for p in gen_te if (p.band or '?') == b and p.genre not in BAND_SKIP)} | {len(bb[b])} | {pct(col(bb[b], 0))} | {pct(col(bb[b], 1))} | {pct(col(bb[b], 2))} | {pct(col(bb[b], 3))} |")
         gt = group(gr, lambda p: p.genre)
         head["generated"] = mean([col(gt[g], 0) for g in gt]); head["generated key move"] = mean([col(gt[g], 2) for g in gt])
         print(f"\ngenerated held out, mean over {len(gt)} types: {pct(head['generated'])} (random {pct(mean([col(gt[g], 1) for g in gt]))}); key move {pct(head['generated key move'])}")

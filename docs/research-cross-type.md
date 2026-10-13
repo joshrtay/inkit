@@ -262,8 +262,15 @@ a share of the generated set by the same hash (so 10% ⊂ 25% ⊂ 50% ⊂ 100%; 
 parsed), and GRAPH_STATES_PER keeps at most N states of each generated puzzle, spread through its
 solve. The whole set (130,503 to train, 1,291 held out) loads in 61 s on the Mac at a peak of 2.0 GB.
 
-**The learning curve** (graph-job.sh step `curve`): the width-64 attention network (8 heads,
-positions, GRAPH_LR_SCALE=1) on the corpus plus 0, 100, 10, 25 and 50% of the generated set, 7
-epochs, 4 states a generated puzzle (516,787 states, 62M mark-states at 100%, against the corpus's
-18.6M a training epoch). At the scale step's 130 s an epoch for the corpus, about 19, 70, 24, 32 and
-45 minutes: 3¼ hours on one L4. Results to come.
+**The learning curve** (graph-job.sh step `curve`): the attention network at width 128 (8 heads,
+positions, GRAPH_LR_SCALE=1; the fair size test gave 69.4% at 64, 73.5% at 128 and 76.0% at 256,
+still rising, and a network too small to use more data would hide the answer) on the corpus plus
+100, 10, 50 and 25% of the generated set, 4 states a generated puzzle (516,787 states, 62M
+mark-states at 100%: 3.3 times the corpus's 18.6M a training epoch). Every share gets the same
+training time as the size test's 16 corpus epochs (44 minutes at 128): 12, 9, 6 and 4 epochs for
+10, 25, 50 and 100%, so the curve measures more data rather than more steps, and the size test is
+its 0% point. About 50 minutes a share, 3.4 hours in all. Width 256 at the same time per share
+(81 minutes) would need about 5.6 hours: two VMs, two shares each. Bands are read from the records
+when scored (a re-banding changes nothing else; the held-out slice is hashed on the name without
+its band), and Spiral Galaxies and Fill-in are left out of the by-band table while their bands are
+redone (GRAPH_BAND_SKIP). Results to come.
