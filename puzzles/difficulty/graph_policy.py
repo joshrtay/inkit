@@ -273,23 +273,36 @@ def pretrain(puzzles, epochs, net=None, lr=2e-3):
             pos = (y * mask).sum() / mask.sum().clamp(min=1)
             w = torch.where(y > 0, 0.5 / pos.clamp(min=1e-3), 0.5 / (1 - pos).clamp(min=1e-3))
             loss = (nn.functional.binary_cross_entropy_with_logits(logit, y, weight=w, reduction="none") * mask).sum() / mask.sum().clamp(min=1)
-            opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item(); n += 1
+            opt.zero_grad(); loss.backward()
+            if LR_SCALE: nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+            opt.step(); tot += loss.item(); n += 1
             right += (((logit > 0).float() == y).float() * mask).sum().item(); seen += mask.sum().item()
         print(f"  fill epoch {ep + 1}: loss {tot / max(1, n):.3f}, hidden marks right {right / max(1, seen):.0%} ({time.time() - t0:.0f} s)", flush=True)
     return net
 
+# GRAPH_LR_SCALE=1: the learning rate scaled down with width (2e-3 at width 64, half that at 128,
+# a quarter at 256) and warmed up over the first epoch, with gradients clipped. One rate for every
+# width made the wide networks diverge (graph-20261013-0640, width 256)
+LR_SCALE = os.environ.get("GRAPH_LR_SCALE") == "1"
+
 def train(items, epochs, net=None, lr=2e-3):
     net = net or new_net()
+    if LR_SCALE: lr = lr * 64 / H
     opt = torch.optim.AdamW(net.parameters(), lr, weight_decay=1e-4)
-    t0 = time.time()
+    t0 = time.time(); steps_per_epoch = max(1, len(chunks(items))); step = 0
     for ep in range(epochs):
         net.train(); random.shuffle(items); tot = n = 0
         for part in chunks(items):
+            if LR_SCALE and ep == 0:
+                step += 1
+                for gr in opt.param_groups: gr["lr"] = lr * min(1.0, step / steps_per_epoch)
             g, y, mask, _ = batch(part, attends(net)); g, y, mask = to(g), y.to(dev), mask.to(dev)
             pos = (y.max(1).values * mask).sum() / mask.sum().clamp(min=1)
             w = 1 + y * ((1 - pos) / pos.clamp(min=1e-3)).clamp(max=30)
             loss = (nn.functional.binary_cross_entropy_with_logits(net(g), y, weight=w, reduction="none").sum(1) * mask).sum() / mask.sum().clamp(min=1)
-            opt.zero_grad(); loss.backward(); opt.step(); tot += loss.item(); n += 1
+            opt.zero_grad(); loss.backward()
+            if LR_SCALE: nn.utils.clip_grad_norm_(net.parameters(), 1.0)
+            opt.step(); tot += loss.item(); n += 1
             # Apple's GPU caches memory per tensor shape, and graph batches vary: release it
             if dev.type == "mps" and n % 10 == 0: torch.mps.empty_cache()
         print(f"  epoch {ep + 1}: loss {tot / max(1, n):.3f} ({time.time() - t0:.0f} s)", flush=True)
@@ -337,7 +350,7 @@ def run_all(split):
     train_pz = [p for tr, _ in split.values() for p in tr]
     net = pretrain(train_pz, PRE_EPOCHS) if "--pretrain" in FLAGS else None
     if net is None: net = new_net()
-    print(f"network: {sum(x.numel() for x in net.parameters()):,} parameters, width {H}, {HEADS} heads, positions {'on' if POS else 'off'}, {EPOCHS} epochs", flush=True)
+    print(f"network: {sum(x.numel() for x in net.parameters()):,} parameters, width {H}, {HEADS} heads, positions {'on' if POS else 'off'}, {EPOCHS} epochs, learning rate {2e-3 * 64 / H if LR_SCALE else 2e-3:.1e}{' scaled and warmed up' if LR_SCALE else ''}", flush=True)
     net = train(states(train_pz), EPOCHS, net)
     out = {}
     for g, (_, te) in sorted(split.items()):

@@ -18,5 +18,5 @@ gcloud compute instances create "$RUN" --project inkit-research --zone "$ZONE" \
   --image-family pytorch-2-9-cu129-ubuntu-2204-nvidia-580 --image-project deeplearning-platform-release \
   --boot-disk-size 100GB --scopes storage-rw,logging-write \
   --max-run-duration 4h --instance-termination-action DELETE \
-  --metadata run="$RUN",steps="${2:-all holdout embed}",model="${3:-}",families="${4:-}" --metadata-from-file startup-script="$(dirname "$0")/graph-job.sh"
+  --metadata run="$RUN",steps="${2:-all holdout embed}",model="${3:-}",families="${4:-}",lrscale="${GRAPH_LR_SCALE:-0}" --metadata-from-file startup-script="$(dirname "$0")/graph-job.sh"
 echo "$RUN"

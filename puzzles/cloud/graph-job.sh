@@ -47,7 +47,7 @@ if [[ " $STEPS " == *" scale "* ]]; then
   mkdir -p results/scale
   for h in 64 128 256; do
     [ $SECONDS -gt 11900 ] && echo "skipping width $h: out of time" && break
-    GRAPH_H=$h GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_EPOCHS=16 GRAPH_TAG=w$h python3 puzzles/difficulty/graph_policy.py all --attention > results/scale/width-$h.txt 2>&1
+    GRAPH_LR_SCALE=$(meta lrscale || echo 0) GRAPH_H=$h GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_EPOCHS=16 GRAPH_TAG=w$h python3 puzzles/difficulty/graph_policy.py all --attention > results/scale/width-$h.txt 2>&1
     gcloud storage cp results/scale/width-$h.txt "$BUCKET/results/$RUN/scale/"
   done
 fi
