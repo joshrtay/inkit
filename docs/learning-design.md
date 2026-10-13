@@ -75,6 +75,114 @@ Everything else measures and serves these three: the solver and difficulty, inte
 learner model, the tutor. And the target gets tests we can run: a held-out cell of the table, and a
 newly invented type built to need a row a player has practised elsewhere.
 
+## Three products and their shared core
+
+What the research has to deliver, for players, comes down to three products. They share one core,
+and every experiment should say which product it serves and how we'd know it worked.
+
+**The core: a model of how people solve.** Which moves a person can see from a position, how hard
+each is, which they reach for first, and where they stall. Today it is our deduction solver
+(windows, tiers, lemmas; puzzles/difficulty/deduce.ts) with learned step prices, checked against
+human order on Janko's recorded solves (0.77 on Star Battle and Akari, about 0.5 on Hitori, Masyu,
+Slitherlink and Nurikabe), plus a graph network that predicts next moves across types (67% top
+guess against 25% random, but under 40% on whole-grid types). The network should be pre-trained on
+solver moves, which are plentiful, and tuned and tested on human moves, which are scarce.
+
+### 1. Difficulty
+
+- **Needs from the core:** the whole solve read as a person would meet it: the hardest step,
+  stretches with no easy move, where people stall, the rules held in mind.
+- **How we'd know:** agreement with human judgement of difficulty, by type, on puzzles never
+  used for fitting; later, solve times on inkit.
+- **What we have (thin, and mostly not human):**
+  - Puzzle Square JP ratings, about 20 a type for 17 types;
+  - Tatham's grades (his solver's levels: an algorithm), about 270;
+  - Sudoku Explainer ratings (an algorithm);
+  - Beast Academy's tiers (curriculum designers), 88 puzzles;
+  - about 14,000 step labels from expert solvers (Singles, Solo, Loopy).
+
+  With 5–20 puzzles a type, an agreement figure can be off by 0.15 or more. Real human difficulty
+  is the gap: solve times in Janko's recordings, if their timestamps hold (about 4,000 solves), and
+  inkit's own solve times (recorded already), which grow with players.
+- **Status:** the scoreboard (puzzles/difficulty/scoreboard.ts); learned step prices; the loop
+  lemma priced and on.
+- **Open:**
+  - connectivity steps (the component lemma) are found but mispriced, so they flatten Hitori and
+    Singles;
+  - does the order of the solve carry difficulty beyond its hardest steps (solves as vectors)?
+  - Beast Academy's Akari order runs backwards under every solver.
+
+### 2. Hints
+
+- **Needs from the core:** one position: the move a person would find next and the technique
+  behind it, so a hint can climb from "look here" to "think about this technique" to "this cell".
+- **How we'd know:** the hinted move is among a person's next moves (Janko, held out); later,
+  players finish after a hint, and need fewer hints over time.
+- **What we have:** about 4,000 human solves with move order across 8 types; the solver's
+  explanations, which say why a move is forced.
+- **Status:** the solver explains every step; the network predicts next moves but isn't yet tuned
+  on people.
+- **Open:**
+  - tuning the network on human moves;
+  - a stricter test (the key move, not any next move);
+  - the whole-grid types, where neither solver nor network sees the move cheaply.
+
+### 3. Interesting puzzles and sequences
+
+- **Needs from the core:**
+  - which techniques a solve requires;
+  - whether it has a break-in (one costly step that opens the rest) or is busywork;
+  - economy of clues;
+  - for sequences, how techniques build on each other (the families and the periodic table).
+- **How we'd know:** signals from many people, never one person's taste:
+  - public puzzle sites' likes and ratings (Puzzle Square JP's counts, Logic Masters Deutschland's
+    ratings: to confirm);
+  - inkit's own likes, completions and abandonment;
+  - for sequences, real curricula as answer keys (Beast Academy's ordered sets).
+- **What we have:** Puzzle Square JP likes for four types (taste differs by type, see "Measuring
+  difficulty and interest"); Beast Academy's sets; the generator, which makes puzzles that require
+  chosen techniques, by band (gen-set.ts), with the techniques each needs recorded; the six families
+  of types from the technique table (docs/research-cross-type.md §6).
+- **Status:** generation at scale (more than 100,000 puzzles, docs/generation-plan.md); a shortlist
+  ranked by our interest measures, which so far predict likes only for some types.
+- **Open:**
+  - a taste signal broad enough to trust;
+  - techniques the solver lacks, so some genres have no hard band (Minesweeper, Hidoku, Spiral
+    Galaxies, Simple Path) and some can't be generated (Shikaku, Numberlink, Fillomino, Nonogram);
+  - sequences built from the family map, judged against curricula.
+
+### Where labels come from
+
+Each product is limited by labels more than by models. In order of trust:
+
+1. **People solving:** solve times, move order, likes and completions (inkit, Janko, public sites).
+   Best, scarce.
+2. **Expert artefacts:** curricula (Beast Academy's order), expert solvers' grades (Tatham's), site
+   ratings. Good, small, partly algorithmic.
+3. **Our solver:** unlimited, but it carries its own blind spots into anything trained on it.
+4. **A language model as labeller (Opus, Fable):** promising where the job is language over the
+   solver's explanation rather than reading a raw grid. Our move test showed models read grids
+   slowly and expensively.
+   - **Hints:** turning a step into graded nudges: probably strong.
+   - **Difficulty:** ranking solves from their step explanations: plausible.
+   - **Interest:** plausible, but it's the model's taste.
+   - **Sequences:** it knows the principles (Rusczyk, Evan Chen); whether it can apply them is
+     open.
+
+   **Pilot, before any use at scale (about $10–15, needs approval):** both models on all four jobs,
+   each against an answer key:
+   - Puzzle Square JP difficulty rankings;
+   - Beast Academy sets, shuffled, to put back in order;
+   - hints checked against Janko's next moves;
+   - interest against public likes.
+
+   Use a model where it matches the key; never where it doesn't.
+
+Every experiment in the plan below names its product. When two compete for time, the one that
+unblocks more products wins, which today means the core: human-move tuning and the evaluation that
+tests it (human-made puzzles held out, agreement with people's next moves, the key-move score,
+results by band and family, repeated seeds).
+
 ## Principles
 
 1. **The sequence is the course.** A hand-made set, sequenced so each puzzle asks for a real leap,
