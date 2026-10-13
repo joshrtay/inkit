@@ -120,6 +120,10 @@ export interface Options {
   families?: FamilySpec[];
   /** the lemmas the solver adds ("component", "parity", "loop"); default DEDUCE_LEMMAS, else "loop" */
   lemmas?: string[];
+  /** per-genre techniques (TECHNIQUES), for the generator's bands only (bands.ts): constraints
+   *  each implies from what's known, added each round like the lemmas, with windows over them (the
+   *  stage family "techniques"). Default none */
+  techniques?: string[];
   /** the line families (DEFAULT_FAMILIES) where lines carry rules; default on (DEDUCE_DEFAULT_FAMILIES=0: off) */
   defaultFamilies?: boolean;
   /** the hardest tier allowed: 1 stops where only a case split or search would go on (the profile
@@ -194,6 +198,17 @@ export const MINED_FAMILIES: FamilySpec[] = [
   { units: ["clue", "reach", "reach"], relation: "touch", maxCells: 16, tag: "mined" },
   { units: ["clue", "clue", "clue"], relation: "touch", tag: "mined" },
 ];
+
+/** The per-genre techniques (Options.techniques), each named as quick steps and `requiredOf` name
+ *  it, and the puzzles it applies to. Off by default (unpriced); the generator's expert band uses
+ *  them (bands.ts). */
+export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> = {
+  // Shikaku: a number's candidate rectangles
+  rects: (p, genre) => genre === "shikaku" && p.rules.map((r) => r.rule).join(",") === "rectangles,one-each,size-clue",
+  // Minesweeper: two or three overlapping numbers together
+  mines: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "mine-count"),
+};
+export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
 export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
@@ -330,7 +345,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   let calls = 0;
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
-  const local = localProgram(p, spec.genre);
+  const techOn = new Set((opts.techniques ?? []).filter((t) => techniqueApplies(t, p, spec.genre)));
+  const local = localProgram(p, spec.genre, techOn.has("rects"));
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
@@ -345,6 +361,9 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
   if (!local && lemmasOn.includes("loop")) lemmaNames.push("loop");
+  // the per-genre techniques' blocks, one each
+  const techBlock = new Map<string, number>();
+  for (const t of techOn) { techBlock.set(t, p.rules.length + lemmaNames.length); lemmaNames.push(t); }
   const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
   const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}`;
   const G: Ground = parseAspif(ground(prog));
@@ -637,7 +656,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
   const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples,count,extra+components").split(",").map((x) => x.split("+").map((y) => y.trim()));
-  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : name === "pockets" ? pocketWindows() : []);
+  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : name === "pockets" ? pocketWindows() : name === "techniques" ? techW : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
     const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });
@@ -658,10 +677,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // a box, an area, one clue, or the whole grid); a cell's own bookkeeping ("one digit per
   // cell") is free ----
   const ROOM = 4000;   // constraints the solver may add while solving (component lemmas)
-  const consOf = new Int32Array(rules.length + ROOM).fill(-1);
+  const TECH_ROOM = techOn.size ? 60000 : 0;   // and for the per-genre techniques
+  const consOf = new Int32Array(rules.length + ROOM + TECH_ROOM).fill(-1);
   constraints.forEach((k, j) => { consOf[k] = j; });
   interface Group { kind: string; label: string; cells: number[]; extent?: number }
-  const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM).fill(-1);
+  const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM + TECH_ROOM).fill(-1);
   {
     const byKey = new Map<string, number>();
     // a constraint inside several units (a pair of cells in both a row and a box) goes to the
@@ -1086,6 +1106,7 @@ end
   // shaded ones) can't have every unknown neighbour go the other way. Added as constraints while
   // solving, each with a window of the group and its neighbours; once true, true for good.
   const componentW: Window[] = [], lemmaSeen = new Set<string>(), firstAdded = constraints.length;
+  let techAdded = 0;   // constraints the per-genre techniques added (counted apart from ROOM)
   const addComponentLemmas = () => {
     if (g.kind !== "square" || p.figure || !lemmasOn.includes("component")) return;
     const kinds: [boolean, boolean][] = [[false, p.rules.some((r) => r.rule === "unshaded-connected")], [true, p.rules.some((r) => r.rule === "connected")]];
@@ -1110,7 +1131,7 @@ end
         for (const c of comp) for (const l of g.cellLinks[c]) for (const j of g.links[l].cells) if (!inS.has(j) && shadeOf(j) === null) open.add(j);
         if (!open.size) continue;
         const key = `${want}|${[...comp].sort((a, b) => a - b).join(",")}`;
-        if (lemmaSeen.has(key) || constraints.length - firstAdded >= ROOM - 1) continue;
+        if (lemmaSeen.has(key) || constraints.length - firstAdded - techAdded >= ROOM - 1) continue;
         lemmaSeen.add(key);
         // the violation: every unknown neighbour goes the other way
         const body = [...open].map((j) => { const a = markAtom[markOf.get(`shaded(${j})`)!]; return want ? -a : a; });
@@ -1162,7 +1183,7 @@ end
       const e = gap.get(`${a},${b}`);
       if (e === undefined) continue;
       const key = `loop|${chain.slice().sort((x, y) => x - y).join(",")}`;
-      if (lemmaSeen.has(key) || constraints.length - firstAdded >= ROOM - 1) continue;
+      if (lemmaSeen.has(key) || constraints.length - firstAdded - techAdded >= ROOM - 1) continue;
       lemmaSeen.add(key);
       // the line elsewhere: the known piece nearest the gap
       const inChain = new Set(chain), mid = markCells[markOf.get(name(e))!][0];
@@ -1226,6 +1247,132 @@ end
       out.push(w);
     }
     return out.sort((a, b) => a.size - b.size).slice(0, 100);
+  };
+
+  // ---- per-genre techniques (Options.techniques: the generator's bands, bands.ts) ----
+  // Each adds, every round, constraints that the genre's rules imply from what's known now (so
+  // they hold in every solution that agrees with the known facts, as the component lemma's do),
+  // with windows that hold them: the windows' facts come from the puzzle's own constraints plus
+  // these, so whatever they find is implied too. The stage family "techniques" checks the windows;
+  // quick steps name the technique (the window label's prefix).
+  // A literal for a technique's constraint body: an atom (undefined: no such atom, so false; 0: true
+  // in grounding) taken true or false; null holds always (left out), NaN never (no constraint).
+  const LIT = (atom: number | undefined, value: boolean): number | null => {
+    if (atom === undefined) return value ? NaN : null;
+    if (atom === 0) return value ? null : NaN;
+    return value ? atom : -atom;
+  };
+  const techKeys = new Set<string>(), techCons: number[] = [];
+  /** A technique's constraint ("not all of these at once"); its footprint, or null if it holds
+   *  anyway or was added before. */
+  const addTech = (t: string, lits: (number | null)[], label: string, extent?: number): Bits | null => {
+    if (lits.some((l) => Number.isNaN(l))) return null;
+    const body = [...new Set(lits.filter((l): l is number => l !== null))].sort((a, b) => a - b);
+    if (!body.length) throw new Error(`technique ${t}: the known facts contradict ${label}`);
+    const block = techBlock.get(t)!, key = `${block}|${body.join(",")}`;
+    const bits = new Uint32Array(empty.length);
+    for (const l of body) { const f = fp[Math.abs(l)]; if (f) orInto(bits, f); }
+    if (techKeys.has(key) || techAdded >= TECH_ROOM - 1) return bits;
+    techKeys.add(key);
+    const k = rules.length, jx = constraints.length;
+    rules.push({ choice: false, head: [], bound: null, body, weights: [], block });
+    constraints.push(k); consOf[k] = jx;
+    cfp.push(bits);
+    const cs = cellsOf(bits);
+    if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
+    groupOf[jx] = groups.length;
+    groups.push({ kind: t, label, cells: cs, ...(extent !== undefined ? { extent } : {}) });
+    techAdded++; techCons.push(jx);
+    return bits;
+  };
+  // windows over the techniques' constraints: kept by their cells, made again when a constraint
+  // added since lies inside (a window's program is fixed when first built)
+  const techCache = new Map<string, { w: Window; at: number }>();
+  let techW: Window[] = [];
+  const techWin = (label: string, bits: Bits): Window => {
+    const cs = cellsOf(bits), key = cs.join(",");
+    const hit = techCache.get(key);
+    if (hit && !techCons.some((j) => j >= hit.at && subset(cfp[j], bits))) return hit.w;
+    const w: Window = { label, cells: cs, bits: bits.slice(), size: cs.length };
+    techCache.set(key, { w, at: constraints.length });
+    return w;
+  };
+  const techCap = 4 * (g.kind === "square" ? Math.max(g.rows, g.cols) : 9);
+  const pushTechWindows = (ws: Window[]) => {
+    const seen = new Set<Window>();
+    techW = ws.filter((w) => !seen.has(w) && (seen.add(w), true)).sort((a, b) => a.size - b.size).slice(0, 400);
+  };
+  const unionBits = (...bs: Bits[]) => { const u = new Uint32Array(empty.length); for (const b of bs) orInto(u, b); return u; };
+
+  // Shikaku (technique "rects"): a number's candidate rectangles (of its area, holding it and no
+  // other number: local.ts's shapes) that the known borders still allow. Its region is one of them;
+  // a cell is covered by one of the candidates through it. Windows: each number's candidates, each
+  // cell whose candidates belong to several numbers, and two numbers whose candidates overlap.
+  // Within them, cells every candidate covers join the number, a cell only one number can reach
+  // is its, and a candidate that would leave a cell uncovered goes.
+  const rectsRound = (): Window[] => {
+    const shapes = local?.shapes;
+    if (!shapes) return [];
+    const state = (lk: number) => { const m = markOf.get(`cut(${lk})`); return m === undefined ? -1 : known[m]; };
+    const pick = (id: number) => G.outputs.get(`pick(${id})`);
+    const live = shapes.map((s, id) => pick(id) !== undefined && s.inside.every((lk) => state(lk) !== 1) && s.border.every((lk) => state(lk) !== 0));
+    const byClue = new Map<number, number[]>(), byCell: number[][] = Array.from({ length: n }, () => []);
+    shapes.forEach((s, id) => { if (!live[id]) return; if (!byClue.has(s.clue)) byClue.set(s.clue, []); byClue.get(s.clue)!.push(id); for (const c of s.cells) byCell[c].push(id); });
+    const ws: Window[] = [], clueBits = new Map<number, Bits>();
+    for (const [i, ids] of byClue) {
+      const b = addTech("rects", ids.map((id) => LIT(pick(id), false)), `the number at ${rc(i)}`, ids.length);
+      if (!b) continue;
+      clueBits.set(i, b);
+      ws.push(techWin(`rects: the number at ${rc(i)}`, b));
+    }
+    for (let c = 0; c < n; c++) {
+      const ids = byCell[c];
+      if (!ids.length) continue;
+      const b = addTech("rects", ids.map((id) => LIT(pick(id), false)), `who covers ${rc(c)}`, ids.length);
+      if (b && new Set(ids.map((id) => shapes[id].clue)).size > 1) ws.push(techWin(`rects: who covers ${rc(c)}`, b));
+    }
+    // two numbers whose candidates overlap
+    const clues = [...clueBits.keys()];
+    for (let a = 0; a < clues.length; a++) for (let b = a + 1; b < clues.length; b++) {
+      const A = byClue.get(clues[a])!, B = byClue.get(clues[b])!;
+      const cellsA = new Set(A.flatMap((id) => shapes[id].cells));
+      if (!B.some((id) => shapes[id].cells.some((c) => cellsA.has(c)))) continue;
+      ws.push(techWin(`rects: the numbers at ${rc(clues[a])} and ${rc(clues[b])}`, unionBits(clueBits.get(clues[a])!, clueBits.get(clues[b])!)));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Minesweeper (technique "mines"): two or three numbers whose open neighbours overlap, in a
+  // chain (each sharing an open cell with the next), taken together: subsets and differences of
+  // their counts, and chains of three. The fixed windows hold two numbers only when side by side
+  // (a pair of neighbourhoods two apart is past the pairs' size cap). No total mine count: the
+  // rules have none.
+  const minesRound = (): Window[] => {
+    const shadeOf = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
+    const clues: { i: number; open: Set<number>; bits: Bits }[] = [];
+    for (const [i, gs] of p.cellGivens) {
+      if (!gs.some((x) => x.kind === "number")) continue;
+      const [r, c] = g.rc(i), around: number[] = [];
+      for (let y = r - 1; y <= r + 1; y++) for (let x = c - 1; x <= c + 1; x++) if (y >= 0 && x >= 0 && y < g.rows && x < g.cols) around.push(g.cell(y, x));
+      const open = new Set(around.filter((j) => j !== i && shadeOf(j) < 0));
+      if (open.size) clues.push({ i, open, bits: bitsOf(n, around) });
+    }
+    const meets = (a: Set<number>, b: Set<number>) => { for (const x of a) if (b.has(x)) return true; return false; };
+    const nb = clues.map((a) => clues.flatMap((b, k) => (a !== b && meets(a.open, b.open) ? [k] : [])));
+    const ws: Window[] = [];
+    clues.forEach((a, ka) => {
+      for (const kb of nb[ka]) {
+        if (kb > ka) ws.push(techWin(`mines: ${rc(a.i)} and ${rc(clues[kb].i)}`, unionBits(a.bits, clues[kb].bits)));
+        // chains of three with a in the middle
+        for (const kc of nb[ka]) if (kc > kb) ws.push(techWin(`mines: ${rc(clues[kb].i)}, ${rc(a.i)} and ${rc(clues[kc].i)}`, unionBits(a.bits, clues[kb].bits, clues[kc].bits)));
+      }
+    });
+    return ws;
+  };
+  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound };
+  const addTechniques = () => {
+    if (!techOn.size) return;
+    pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
   };
 
   dbg("setup");
@@ -1303,6 +1450,7 @@ end
     round++;
     addComponentLemmas();
     addLoopLemmas();
+    addTechniques();
     let progressed = false;
     for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
@@ -1314,7 +1462,7 @@ end
         if (k === 0 && entryPoints < 0) entryPoints = f.size;
         // each step's family (bands.ts's techniques): the stage family, the lemma or the extra family
         const famOf = new Map<Window, string>();
-        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : w.label.startsWith("mined: ") ? "mined" : "lines") : fam);
+        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : w.label.startsWith("mined: ") ? "mined" : "lines") : fam === "techniques" ? w.label.split(":")[0] : fam);
         for (const [w, fs] of f) {
           const facts = fs.filter(([m]) => known[m] < 0);
           if (!facts.length) continue;
