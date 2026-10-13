@@ -118,6 +118,19 @@ export interface Options {
   structure?: boolean;
   /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
   families?: FamilySpec[];
+  /** the lemmas the solver adds ("component", "parity", "loop"); default DEDUCE_LEMMAS, else "loop" */
+  lemmas?: string[];
+  /** the line families (DEFAULT_FAMILIES) where lines carry rules; default on (DEDUCE_DEFAULT_FAMILIES=0: off) */
+  defaultFamilies?: boolean;
+  /** the hardest tier allowed: 1 stops where only a case split or search would go on (the profile
+   *  says unsolved, with a note). Default 3 */
+  maxTier?: Tier;
+  /** only whether it solves: every fact a stage finds is settled at once, unexplained (cost 0, no
+   *  shape; `uses` names the technique: the stage family, "lines" or "reach" for extra families, "loop"
+   *  or "component" for a lemma's window), for a quick check (puzzles/difficulty/bands.ts). Window deductions only grow as more
+   *  is known, so it solves when the full solver does with the same options (but for a lemma seen
+   *  only in a state one of them passes through: loop chains join) */
+  quick?: boolean;
 }
 
 /** Learned step prices (puzzles/difficulty/price.py → step-prices.json): a correction added to a
@@ -317,7 +330,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // lemma finds Hitori's connectivity moves without search but prices them as easy, so Tatham's
   // easy and tricky Singles grades rated alike (agreement 0.75 to 0.04): on once it's priced. Loop
   // parity helped little for 11% more time.
-  const lemmasOn = (process.env.DEDUCE_LEMMAS ?? "loop").split(",");
+  const lemmasOn = opts.lemmas ?? (process.env.DEDUCE_LEMMAS ?? "loop").split(",");
   const parity = local || !lemmasOn.includes("parity") ? null : parityLemma(p, p.rules.length);
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
@@ -560,7 +573,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     // just a big window, and cheapened unrelated steps)
     const LINE_RULES = ["shaded-per-line", "latin", "letters", "skyscrapers", "first-seen", "line-totals", "line-shares", "unique-lines", "no-three-in-a-row", "lit", "sight", "runs"];
     const linesRule = p.rules.some((r) => LINE_RULES.includes(r.rule));
-    const specs: FamilySpec[] = [...(process.env.DEDUCE_DEFAULT_FAMILIES === "0" || !linesRule ? [] : DEFAULT_FAMILIES), ...(opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []))];
+    const lineFamilies = opts.defaultFamilies ?? process.env.DEDUCE_DEFAULT_FAMILIES !== "0";
+    const specs: FamilySpec[] = [...(!lineFamilies || !linesRule ? [] : DEFAULT_FAMILIES), ...(opts.families ?? (process.env.DEDUCE_FAMILIES ? JSON.parse(process.env.DEDUCE_FAMILIES) : []))];
     if (specs.length) {
       const kinds: Record<string, Window[]> = {
         line: units.filter((w) => /^(row|column) /.test(w.label)),
@@ -1238,9 +1252,25 @@ end
     addLoopLemmas();
     let progressed = false;
     for (const [k, stage] of stages.entries()) {
-      const f = runWindows(stage.flatMap((fam) => family(fam)));
+      const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
+      const f = runWindows(tagged.map(([w]) => w));
       if (k === 0 && entryPoints < 0 && !f.size) entryPoints = 0;
       if (!f.size) continue;
+      if (opts.quick) {
+        // settled at once, unexplained: one step per window
+        if (k === 0 && entryPoints < 0) entryPoints = f.size;
+        // each step's family (bands.ts's techniques): the stage family, the lemma or the extra family
+        const famOf = new Map<Window, string>();
+        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : "lines") : fam);
+        for (const [w, fs] of f) {
+          const facts = fs.filter(([m]) => known[m] < 0);
+          if (!facts.length) continue;
+          path.push({ tier: k === 0 ? 0 : 1, round, where: w.label, cells: w.cells, facts: facts.map(([m, v]) => ({ mark: markName[m], value: v, text: factText(m, v) })), uses: [famOf.get(w) ?? "?"], cost: 0 });
+          for (const [m, v] of facts) settle(m, v);
+        }
+        progressed = true;
+        break;
+      }
       const c = candidates(f, k === 0 ? 0 : 1);
       if (k === 0 && entryPoints < 0) entryPoints = c.length;
       take(c, k === 0 ? c.length : 0);
@@ -1248,6 +1278,7 @@ end
       break;
     }
     if (progressed) continue;
+    if ((opts.maxTier ?? 3) < 2) { notes.push("stuck: only a case split or search would go on"); break; }
 
     // tier 2: assume a mark the other way; propagation alone must contradict it. What's
     // refutable this way stays so as more is known, so one clingo call fills a pool to draw on.

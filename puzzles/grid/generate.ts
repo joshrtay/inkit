@@ -4,11 +4,15 @@
 //    a set of panes), 2. every clue that's true of that board goes in a pool, 3. clues
 //    that rule out the other solutions are added until only one is left, 4. clues that
 //    aren't needed are taken out again.
+// With `accept` (puzzles/difficulty/gen-set.ts), the deduction solver is in the loop: a puzzle must
+// also be solvable without search within a band's techniques, and step 4 starts from every clue in
+// the pool, so it can end up harder.
 import { makePuzzle, check, BALANCE_COLORS } from "../../src/engine/puzzle.ts";
 import { program, boardOf, solve } from "../../src/engine/solve.ts";
 import { regionsOf, shapeKey } from "../../src/engine/derive.ts";
 import { fillSlots } from "../../src/engine/rules.ts";
-import { emptyBoard, type Board, type Given, type GridSpec, type RuleSpec } from "../../src/engine/types.ts";
+import { emptyBoard, type Board, type Given, type GridSpec, type Puzzle, type RuleSpec } from "../../src/engine/types.ts";
+import { clingoJson, loadClingo } from "../difficulty/clingo.ts";
 import { makePanel, PANEL_MIXES } from "./panels.ts";
 import { makePieceGenre, PIECE_GENRES } from "./pieces.ts";
 import { PICTURES } from "./pictures.ts";
@@ -30,6 +34,25 @@ export interface GenerateOptions {
   /** Pythagorean Paths: how segments may run (queen, knight; any if not given), and how many dots */
   moves?: string;
   dots?: number;
+  /** Solver in the loop (puzzles/difficulty/gen-set.ts): a puzzle is kept only if this accepts it
+   *  (the deduction solver, limited to a band's techniques, solves it without search). Clues are
+   *  then added until it does, and a clue is taken out only if it still does; uniqueness is checked
+   *  in this process (clingo-wasm called directly, nothing cached on disk). Without it, every clue
+   *  that isn't needed for one solution is taken out, as always. */
+  accept?: (spec: GridSpec) => Promise<boolean>;
+  /** With `accept`: whether the puzzle is as hard as wanted (say, the band below can't solve it).
+   *  For the genres made by adding clues, if not, clues are swapped at random, one out and another
+   *  true of the answer in, while it stays unique and accepted, up to `climbTries` (default 40);
+   *  the others are only kept when it holds */
+  harder?: (spec: GridSpec) => Promise<boolean>;
+  climbTries?: number;
+}
+
+/** Up to `limit` solutions, by clingo-wasm in this process (puzzles/difficulty/clingo.ts). */
+async function solveHere(p: Puzzle, limit = 2): Promise<Board[]> {
+  await loadClingo();
+  const res = clingoJson(program(p), limit, ["--project=show"]);
+  return (res.Call?.[0]?.Witnesses ?? []).map((w) => boardOf(p, w.Value));
 }
 
 /** A puzzle with exactly one solution (a panel: one line), or null if none was found in 40 tries. */
@@ -39,6 +62,11 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
   const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
   const shuffle = <T>(xs: T[]) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
   const clingo = await import("clingo-wasm");
+  // with a solver in the loop: solutions found in this process, uncached (a run makes millions of calls)
+  const solveN = o.accept ? solveHere : solve;
+  // the genres made whole (not by adding clues) can only be kept or not: kept when accepted and,
+  // with `harder`, hard enough
+  const accepts = async (spec: GridSpec) => !o.accept || ((await o.accept(spec)) && (!o.harder || (await o.harder(spec))));
 
   /** A random finished board for this puzzle's rules, plus extra constraints. */
   async function randomBoard(spec: GridSpec, extra: string): Promise<Board | null> {
@@ -104,7 +132,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     let tk = boardKey(spec, target);
     const added: Given[] = [];
     for (let round = 0; round < 120; round++) {
-      const sols = await solve(makePuzzle(spec), 2);
+      const sols = await solveN(makePuzzle(spec), 2);
       const alt = sols.find((s) => boardKey(spec, s) !== tk);
       if (!alt) break;
       const useful = shuffle(pool.filter((c) => !added.includes(c))).find((c) => {
@@ -120,11 +148,39 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       if (!useful) { if (process.env.DEBUG) console.error(`narrow: no pool clue rules out the other solution after ${added.length} clues`); return null; }
       added.push(useful); spec.givens!.push(useful);
     }
-    const sols = await solve(makePuzzle(spec), 2);
+    const sols = await solveN(makePuzzle(spec), 2);
     if (sols.length !== 1) return null;
+    if (o.accept) {
+      // solver in the loop, top down: every clue true of the target, then each taken out (in random
+      // order) only if it stays unique (cheap) and the technique set still solves it. Starting from
+      // all of them, not the few that made it unique, leaves room to end up harder; a removal that
+      // fails once fails for good (fewer clues never help)
+      for (const c of pool) if (!added.includes(c)) { added.push(c); spec.givens!.push(c); }
+      if (!(await o.accept(spec))) return null;
+      const fits = async (s: GridSpec) => (await solveN(makePuzzle(s), 2)).length === 1 && (await o.accept!(s));
+      const minimize = async (cs: Given[]) => {
+        for (const c of shuffle([...cs])) {
+          const fewer = { ...spec, givens: spec.givens!.filter((x) => x !== c) };
+          if (await fits(fewer)) spec.givens = fewer.givens;
+        }
+      };
+      await minimize(added);
+      // not as hard as wanted: a random walk of swaps (one clue out, another true of the target in)
+      // that stay unique and solved, each followed by taking out what's no longer needed
+      for (let t = 0; o.harder && t < (o.climbTries ?? 40) && !(await o.harder(spec)); t++) {
+        const inside = pool.filter((c) => spec.givens!.includes(c)), outside = pool.filter((c) => !spec.givens!.includes(c));
+        if (!inside.length || !outside.length) break;
+        const out = inside[Math.floor(rand() * inside.length)], into = outside[Math.floor(rand() * outside.length)];
+        const swapped = { ...spec, givens: [...spec.givens!.filter((x) => x !== out), into] };
+        if (!(await fits(swapped))) continue;
+        spec.givens = swapped.givens;
+        await minimize(spec.givens.filter((c) => c !== into && pool.includes(c)));
+      }
+      return spec;
+    }
     for (const c of shuffle([...added])) {        // minimize
       const fewer = { ...spec, givens: spec.givens!.filter((x) => x !== c) };
-      if ((await solve(makePuzzle(fewer), 2)).length === 1) spec.givens = fewer.givens;
+      if ((await solveN(makePuzzle(fewer), 2)).length === 1) spec.givens = fewer.givens;
     }
     return spec;
   }
@@ -132,7 +188,10 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
   const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
   let result: GridSpec | null = null;
   // Fillomino, Sum Blobs, Polyomino Packing, Connect the Critters, Find the Cut Line, Twins and Triplets: ./pieces.ts
-  if (PIECE_GENRES.includes(genre)) return makePieceGenre(genre, rows, cols, rand, o.rules);
+  if (PIECE_GENRES.includes(genre)) {
+    const made = await makePieceGenre(genre, rows, cols, rand, o.rules);
+    return made && (await accepts(made)) ? made : null;
+  }
 
   for (let attempt = 0; attempt < 40 && !result; attempt++) {
     const near4 = (i: number) => { const r = Math.floor(i / cols), c = i % cols; return [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1].filter((j) => j >= 0); };
@@ -183,7 +242,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
           v[i] = latin.digit[mates[Math.floor(rand() * mates.length)]];
         }
         const spec: GridSpec = { genre, size: [rows, cols], givens: v.map((value, i) => ({ at: "cell", cell: at(i), kind: "number", value })) };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "spiral-galaxies") {
       // grow symmetric regions: a centre on a cell, an edge or a corner, then pairs of mirrored cells
@@ -211,7 +270,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
           }
         }
         const spec: GridSpec = { genre, size: [rows, cols], givens: points.map((point) => ({ at: "point", point, kind: "galaxy" })) };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "thermo-sudoku") {
       // a full grid, thermometers traced up rising digits, then given digits until it's the only one
@@ -295,7 +354,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
           k += len; v++;
         }
         const spec: GridSpec = { genre, size: [rows, cols], rules: [{ rule: "links", cover: true }], givens };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "masyu") {
       // a random loop over most of the grid, then pearls that are true of it until it's the only one
@@ -359,7 +418,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       for (let t = 0; t < 40 && !result; t++) {
         const givens: Given[] = rects.map((cs) => ({ at: "cell", cell: at(cs[Math.floor(rand() * cs.length)]), kind: "number", value: cs.length }));
         const spec: GridSpec = { genre, size: [rows, cols], givens };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "star-battle") {
       // stars first (n per row and column, never touching), then areas grown around them, one per
@@ -398,7 +457,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       // piece, while that doesn't add solutions, until one is left
       let of = grown.join("").split("");
       const rules = k > 1 ? { rules: base.rules } : {};
-      const count = async (o: string[]) => (await solve(makePuzzle({ genre, size: [rows, cols], ...rules, areas: Array.from({ length: rows }, (_, r) => o.slice(r * cols, r * cols + cols).join("")) }), 40)).length;
+      const count = async (o: string[]) => (await solveN(makePuzzle({ genre, size: [rows, cols], ...rules, areas: Array.from({ length: rows }, (_, r) => o.slice(r * cols, r * cols + cols).join("")) }), 40)).length;
       const connected = (o: string[], letter: string) => {
         const cells = o.flatMap((x, i) => (x === letter ? [i] : []));
         if (!cells.length) return false;
@@ -418,7 +477,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         const n = await count(next);
         if (n >= 1 && n <= now) { of = next; now = n; }
       }
-      if (now === 1) result = { genre, size: [rows, cols], ...rules, areas: Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).join("")) };
+      const made: GridSpec = { genre, size: [rows, cols], ...rules, areas: Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).join("")) };
+      if (now === 1 && await accepts(made)) result = made;
     } else if (genre === "irregular-sudoku") {
       // areas of n cells each, a random full grid, then given digits until it's the only one
       const areas = jigsaw();
@@ -467,14 +527,14 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       for (const pic of fits.slice(0, 6)) {
         const flip = rand() < 0.5, rowsOf = flip ? pic.rows.map((r) => [...r].reverse().join("")) : pic.rows;
         const spec: GridSpec = { genre, size: [rows, cols], picture: { rows: rowsOf, palette: pic.palette, title: pic.title } };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) { result = spec; break; }
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) { result = spec; break; }
       }
       if (result) break;
       const half = (n: number) => Math.ceil(n / 2), cell = Array.from({ length: half(rows) }, () => Array.from({ length: half(cols) }, () => rand() < 0.55));
       const on = (r: number, c: number) => cell[Math.min(r, rows - 1 - r)][Math.min(c, cols - 1 - c)];
       const quilt = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => (on(r, c) ? ((r + c) % 3 ? "q" : "p") : ".")).join(""));
       const spec: GridSpec = { genre, size: [rows, cols], picture: { rows: quilt, palette: { ".": "#f6efe2", q: "#3f6fb0", p: "#d8443a" }, title: "Quilt block" } };
-      if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+      if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
     } else if (genre === "slitherlink") {
       const base: GridSpec = { genre, size: [rows, cols], givens: [] };
       const target = await randomBoard(base, `:- #count{B: fence(B)} < ${Math.round(rows * cols * 0.9)}.`);
@@ -499,7 +559,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       for (let t = 0; t < 12 && !result; t++) {
         const givens: Given[] = islands.map((cs) => ({ at: "cell", cell: at(cs[Math.floor(rand() * cs.length)]), kind: "number", value: cs.length }));
         const spec: GridSpec = { genre, size: [rows, cols], givens };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "panes") {
       const want = (o.rules ?? "size=4,twins,opposites").split(",").map((s) => s.trim()).filter(Boolean);
@@ -541,7 +601,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         // a cell can hold only one clue: keep the first
         const seen = new Set<string>();
         spec.givens = spec.givens!.filter((x) => { const k = x.at === "cell" ? `c${x.cell}` : x.at === "border" ? `b${x.cells}` : x.at === "corner" ? `v${x.corner}` : x.at === "edge" ? `e${x.cell}${x.side}` : x.at === "cells" ? `t${x.cells}` : x.at === "point" ? `p${x.point}` : x.at === "line" ? `l${x.corners}` : x.at === "aside" ? `a${x.value}` : `${x.at}${x.index}${x.kind}`; if (seen.has(k)) return false; seen.add(k); return true; });
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "hidoku" || genre === "honeycomb-paths") {
       // sometimes a rock or two (squares only), a random path of numbers through the rest, then given
@@ -580,12 +640,13 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         // a few different lengths, so the list says something
         if (new Set(lengths).size < Math.min(3, lengths.length) && o.moves !== "knight") continue;
         const spec: GridSpec = { ...base, givens: [...pegs, { at: "aside", kind: "lengths", value: lengths }] };
-        if ((await solve(makePuzzle(spec), 2)).length === 1) result = spec;
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
     } else if (genre === "panel") {
       const mix = o.mix ?? "squares";
       if (!mix.split("+").every((m) => (PANEL_MIXES as readonly string[]).includes(m))) throw new Error(`--mix is one of ${PANEL_MIXES.join(", ")}, or several joined with +`);
       result = await makePanel(mix, rows, cols, rand);
+      if (result && !(await accepts(result))) result = null;
     } else if (genre === "binary-puzzle" || genre === "abstract-art") {
       // a random painting, then printed colors until it's the only one. Abstract Art's --rules:
       // "parts=1:2" (the shares; three parts, three colors), and no-three-in-a-row, unique-lines
