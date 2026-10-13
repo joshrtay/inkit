@@ -17,7 +17,7 @@
 // they don't cross out) stay unsettled.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
-import type { Board, Given, GridSpec } from "../../src/engine/types.ts";
+import { emptyBoard, type Board, type Given, type GridSpec } from "../../src/engine/types.ts";
 import type { Grid } from "../../src/engine/geometry.ts";
 
 export interface Janko {
@@ -299,6 +299,18 @@ export function matches(j: Janko, grid: Grid, b: Board): boolean {
     if (on !== v) return false;
   }
   return true;
+}
+
+/** Janko's solution as a board of ours. */
+export function boardOfTruth(j: Janko, grid: Grid): Board {
+  const b = emptyBoard(grid);
+  for (const [mark, v] of j.truth) {
+    if (!v) continue;
+    const m = /^(\w+)\((\d+)\)$/.exec(mark)!, id = Number(m[2]);
+    if (m[1] === "shaded") b.shade[id] = 1; else if (m[1] === "fence") b.fence[id] = 1;
+    else if (m[1] === "line") b.loop[id] = 1; else b.cut[grid.links[id].border] = 1;
+  }
+  return b;
 }
 
 /** A type's puzzles (file names sorted), read; those that don't convert left out. */
