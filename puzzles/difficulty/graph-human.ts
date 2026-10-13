@@ -4,7 +4,7 @@
 // each mark its final value) and who solved it, so the network's guesses can be compared with what
 // people did next. → references/ml/graphs-human.jsonl (local only; the puzzles are others')
 //
-//   DEDUCE_JOBS=3 node puzzles/difficulty/graph-human.ts [--janko 150] [--psjp 100] [--write]
+//   DEDUCE_JOBS=3 node puzzles/difficulty/graph-human.ts [--janko 150] [--psjp 100] [--write] [--no-skip]
 //
 // Each solve is cached in references/ml/human-cache/ (a rerun picks up where the last stopped;
 // --write only writes the file from the cache). Puzzle Square JP up to 12 × 12, as graph-data.ts.
@@ -14,7 +14,7 @@ import type { GridSpec } from "../../src/engine/types.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
 import { graphRecord } from "./graph-data.ts";
 import { JANKO_TYPES } from "./janko.ts";
-import { studied } from "./janko-order.ts";
+import { deduceCacheFile, studied } from "./janko-order.ts";
 import { JOBS, mapPool } from "./pool.ts";
 
 const argv = process.argv.slice(2);
@@ -64,16 +64,29 @@ const write = () => {
 
 if (!argv.includes("--write")) {
   console.error(`${all.length} puzzles (${all.filter((j) => j.source === "janko").length} Janko), ${JOBS} at a time`);
-  let done = 0;
+  let done = 0, skipped = 0;
+  const tally = new Map<string, { tried: number; kept: number }>();   // per source and type
   await mapPool(all, async (job) => {
-    const f = `${cache}${keyOf(job.spec)}.json`;
+    const f = `${cache}${keyOf(job.spec)}.json`, type = `${job.source} ${job.genre}`;
+    const t = tally.get(type) ?? { tried: 0, kept: 0 };
+    tally.set(type, t);
+    // known not to solve in janko-order.ts's cached solve (the same budget): not tried again, and
+    // not counted below
+    const known = job.source === "janko" && existsSync(deduceCacheFile(job.spec)) ? JSON.parse(readFileSync(deduceCacheFile(job.spec), "utf8")) : undefined;
+    if (known !== undefined && !known?.profile?.solved) { if (!existsSync(f)) writeFileSync(f, "null"); done++; return; }
     if (!existsSync(f)) {
+      // a type the solver rarely finishes in time (Nurikabe, Numberlink): after 12 tries with under
+      // a quarter kept, the rest are skipped (not cached; --no-skip tries them)
+      if (!argv.includes("--no-skip") && t.tried >= 12 && t.kept < 0.25 * t.tried) { skipped++; done++; return; }
       const r = await deduceGuarded(job.spec, { budgetMs: 30000, structure: true }, 120000).catch(() => null);
       // kept even when unsolved (as null), so a rerun doesn't wait for it again
       const rec = r ? graphRecord({ source: job.source, genre: job.genre, name: job.name }, job.spec, r) : null;
       writeFileSync(f, JSON.stringify(rec));
     }
-    if (++done % 25 === 0) console.error(`${done}/${all.length} (${write()} kept)`);
+    t.tried++;
+    if (readFileSync(f, "utf8") !== "null") t.kept++;
+    if (++done % 25 === 0) console.error(`${done}/${all.length} (${write()} kept, ${skipped} skipped)`);
   });
+  console.error([...tally].map(([k, v]) => `${k} ${v.kept}/${v.tried}`).join(", "));
 }
 console.log(`${write()} puzzles in ${out}`);

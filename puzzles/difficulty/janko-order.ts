@@ -66,12 +66,17 @@ export function rounds(r: { initial?: string[]; path: { round?: number; tier: nu
   return { round, how, fine };
 }
 
+/** Where deduceCached keeps a puzzle's result. */
+export function deduceCacheFile(spec: GridSpec) {
+  const key = createHash("sha256").update(JSON.stringify([spec, process.env.DEDUCE_LEMMAS ?? "", process.env.DEDUCE_PRICES ?? ""])).digest("hex").slice(0, 24);
+  return `${JANKO_DIR}deduce/${key}.json`;
+}
+
 /** Our solver on a puzzle (30 s budget, killed at 2 min), its result kept in
  *  references/janko/deduce/ so janko-stuck.ts reuses janko-order.ts's solves. Keyed by the puzzle
  *  and the solver's switches, not its code: JANKO_FRESH=1 solves again after changing deduce.ts. */
 export async function deduceCached(spec: GridSpec) {
-  const key = createHash("sha256").update(JSON.stringify([spec, process.env.DEDUCE_LEMMAS ?? "", process.env.DEDUCE_PRICES ?? ""])).digest("hex").slice(0, 24);
-  const dir = `${JANKO_DIR}deduce/`, file = `${dir}${key}.json`;
+  const dir = `${JANKO_DIR}deduce/`, file = deduceCacheFile(spec);
   if (!process.env.JANKO_FRESH && existsSync(file)) return JSON.parse(readFileSync(file, "utf8")) as Awaited<ReturnType<typeof deduceGuarded>>;
   const r = await deduceGuarded(spec, { budgetMs: 30000 }, 120000);
   // killed at the cap: kept as null, so a rerun doesn't wait for it again
