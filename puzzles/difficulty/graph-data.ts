@@ -7,7 +7,7 @@
 //     GRAPH_TYPES="sudoku:9,akari:7,…" chooses the generated types and sizes; GRAPH_CORPUS=0 leaves
 //     the corpus out; GRAPH_OUT names the file (references/ml/<name>.jsonl)
 import { spawn } from "node:child_process";
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
@@ -23,7 +23,14 @@ type Job = { source: string; genre: string; name: string; spec?: GridSpec; size?
 async function run(job: Job) {
   const spec = job.spec ?? (await generate({ genre: job.genre, rows: job.size!, cols: job.size!, seed: job.seed! }));
   if (!spec) return null;
-  const { path, profile, initial, answer, structure } = await deduce(spec, { budgetMs: 20000, structure: true });
+  return graphRecord(job, spec, await deduce(spec, { budgetMs: 20000, structure: true }));
+}
+
+/** A solved puzzle as one line of training data: deduce's result (with `structure: true`) as a
+ *  graph, the starting givens, and each round's settled facts with their signatures and costs.
+ *  Also used by gen-set.ts for generated puzzles. */
+export function graphRecord<J extends object>(job: J, spec: GridSpec, result: Awaited<ReturnType<typeof deduce>>) {
+  const { path, profile, initial, answer, structure } = result;
   if (!profile.solved || !structure) return null;
   // what each cell shows at the start: a printed number, a block, or another clue
   const p = makePuzzle(spec), givens: [number, string, number][] = [];
@@ -40,7 +47,9 @@ async function run(job: Job) {
   return { ...job, spec: undefined, estimate: profile.estimate, structure, givens, initial, answer, rounds: [...rounds.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r) };
 }
 
-if (process.argv[2] === "--job") {
+if (!process.argv[1] || realpathSync(process.argv[1]) !== self) {
+  // imported (gen-set.ts): nothing to run
+} else if (process.argv[2] === "--job") {
   process.stdout.on("error", () => process.exit(0));
   run(JSON.parse(Buffer.from(process.argv[3], "base64").toString())).then((r) => process.stdout.write(JSON.stringify(r)), () => process.stdout.write("null"));
 } else {
