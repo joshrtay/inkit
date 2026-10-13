@@ -229,3 +229,41 @@ Masyu 0.29 to 0.41, but Hitori 0.46 to 0.14, Tatham Singles 8×8 0.75 to 0.42 (6
 searches that carried the difficulty, and its group steps (Tatham's tricky removesplits) are
 priced only +1.0 above single-cell ones. Next for it: price group steps from the Singles labels
 alone, and centre offsets on solves with it on.
+
+## 10. A fairer ruler (graph-human.ts; graph_policy.py report, load; cloud step curve)
+
+The test so far was lenient (a top guess counts if it's settled in any of the next three rounds)
+and in distribution (an 80/20 split of the same sources, nearly all ours). Before training on the
+133,000 generated puzzles, which could teach the network our generator's habits, `all` now reports,
+beside the per-type table (unchanged, so earlier results stay comparable):
+
+- **Human test set** (graph-human.ts → references/ml/graphs-human.jsonl): Janko's puzzles of the
+  eight types janko.ts reads (up to 10 × 10, with recorded moves, up to 150 a type) and Puzzle Square
+  JP's (up to 12 × 12, up to 100 a type). Never trained on: a corpus copy of one of its puzzles
+  (same type, givens and rule instances) stays in the per-type split but leaves training. Per type,
+  with random's line, and per source.
+- **Agreement with people:** on Janko's states, the share where the top guess is among the
+  person's next 3 moves (of the marks they settled, the first 3 still open, as janko-stuck.ts),
+  beside our solver's next step (any of its facts, and its first fact alone) and random; per type
+  and per person (seven people made the ~6,700 recorded solves, Rainer about a third, so the pooled
+  number leans on one person's habits). The states are the solver's rounds, not the person's own
+  positions. Janko's files hold no solve times: no difficulty labels from them.
+- **Key move:** the share where the top guess is the round's key fact, a fact of its costliest
+  step (the costs the records already carry), with random's line.
+- **By band and by family:** a fixed 1% of the generated puzzles (by a hash of the name) held out,
+  by band; each set by family (FAMILIES).
+- **Seeds:** GRAPH_SEEDS=n runs `all` n times (seeds 1…n; seed 1 is the old run) and reports the
+  mean and spread of each headline number.
+
+**Loading at 133,000 puzzles.** States are no longer stored: each mark's settling round and value
+give every state and its targets on demand (checked identical to the old states on graphs.jsonl),
+mark names are dropped after reading, and the files are read a line at a time. GRAPH_GEN_SHARE takes
+a share of the generated set by the same hash (so 10% ⊂ 25% ⊂ 50% ⊂ 100%; skipped lines aren't
+parsed), and GRAPH_STATES_PER keeps at most N states of each generated puzzle, spread through its
+solve. The whole set (130,503 to train, 1,291 held out) loads in 61 s on the Mac at a peak of 2.0 GB.
+
+**The learning curve** (graph-job.sh step `curve`): the width-64 attention network (8 heads,
+positions, GRAPH_LR_SCALE=1) on the corpus plus 0, 100, 10, 25 and 50% of the generated set, 7
+epochs, 4 states a generated puzzle (516,787 states, 62M mark-states at 100%, against the corpus's
+18.6M a training epoch). At the scale step's 130 s an epoch for the corpus, about 19, 70, 24, 32 and
+45 minutes: 3¼ hours on one L4. Results to come.

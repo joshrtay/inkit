@@ -14,11 +14,19 @@
 #                                             per-type table, then each family left out in turn;
 #                                             results to GRID_OUT as they come (summary.md)
 #
+#   `all` also reports (report()): the key move (the top guess is the round's costliest step); the
+#   human test set (graph-human.ts → graphs-human.jsonl: Janko's and Puzzle Square JP's puzzles,
+#   never trained on), per type; agreement with people on Janko's states (the top guess among the
+#   person's next 3 moves, beside our solver's next step and random), per type and per person;
+#   held-out generated puzzles by band; and each set by family. GRAPH_SEEDS=n: n seeds, mean and
+#   spread. Generated puzzles (gen-set.ts) with GRAPH_GEN_SHARE, GRAPH_GEN_TEST and
+#   GRAPH_STATES_PER (load())
+#
 #   --attention  global self-attention over all of a puzzle's nodes after every other round of
 #                message passing (a GPS-style hybrid)
 #   --pretrain   hide and fill first: solved puzzles with 15-50% of their marks hidden, the network
 #                fills them in from the rest; then move prediction as usual
-import json, os, random, sys, time
+import hashlib, json, os, random, re, sys, time
 from collections import defaultdict
 import numpy as np
 import torch, torch.nn as nn
@@ -66,13 +74,14 @@ def unit_kind(label):
 
 # ---- a puzzle as tensors, and its states ----
 class Puzzle:
-    def __init__(self, d):
+    def __init__(self, d, keep_moves=False):
         self.genre, self.source, self.name = d["genre"], d["source"], d["name"]
         st = d["structure"]
         self.nc = st["cells"]
-        self.marks = [m["name"] for m in st["marks"]]
-        self.mindex = {m: i for i, m in enumerate(self.marks)}
-        M = len(self.marks)
+        # mark names are kept only while reading (133,000 puzzles' worth of strings would fill memory)
+        marks = [m["name"] for m in st["marks"]]
+        mindex = {m: i for i, m in enumerate(marks)}
+        M = self.M = len(marks)
         # static features
         mf = np.zeros((M, len(MARKS) + 1), np.float32)
         me = []   # mark–cell edges
@@ -107,36 +116,75 @@ class Puzzle:
             for c in g["cells"]: ge.append((j, c))
         self.mf, self.cf = torch.tensor(mf), torch.tensor(cf)
         self.gf = torch.tensor(np.stack(gf)) if gf else torch.zeros((0, len(PRIMS) + len(UNITS) + 2))
-        self.me = torch.tensor(me, dtype=torch.long).reshape(-1, 2)
-        self.ge = torch.tensor(ge, dtype=torch.long).reshape(-1, 2)
-        self.answer = set(d["answer"])
-        # states: known before each round; labels: the next NEXT rounds' facts
-        known = {}
-        def apply(facts):
-            for f in facts:
-                if isinstance(f, str): name, v = f.rsplit("=", 1); known[name] = v == "true"
-                else: known[f[0]] = f[1]
-        apply(d["initial"])
-        self.states = []
-        rounds = d["rounds"]
+        # edges as 32-bit (made 64-bit per batch): the generated set is 133,000 puzzles
+        self.me = torch.tensor(me, dtype=torch.int32).reshape(-1, 2)
+        self.ge = torch.tensor(ge, dtype=torch.int32).reshape(-1, 2)
+        answer = set(d["answer"])
+        self.truth = np.array([m in answer for m in marks])   # the solution's true marks
+        self.band, self.solver = d.get("band"), d.get("solver")
+        # States aren't stored: each mark's round (-1 known at the start, R never settled) and value
+        # (1 true, 2 false) give every state and its targets (state k: known if settled before
+        # round k; a target if settled in rounds k … k + NEXT - 1), so memory grows with marks, not
+        # marks × rounds. The first round that settles a mark counts.
+        rounds = d["rounds"]; R = self.R = len(rounds)
+        rnd, val = np.full(M, R, np.int32), np.zeros(M, np.int8)
+        for f in d["initial"]:
+            name, v = f.rsplit("=", 1) if isinstance(f, str) else (f[0], "true" if f[1] else "false")
+            i = mindex.get(name)
+            if i is not None and rnd[i] == R: rnd[i], val[i] = -1, 1 if v == "true" else 2
+        # per round, as codes (mark × 2 + 0 true / 1 false): the key facts (the costliest step's)
+        # and the first step's facts (a step's facts sit together, with one signature and cost)
+        key, first, koff, foff = [], [], [0], [0]
+        self.moves = [] if keep_moves else None
         for ri, rd in enumerate(rounds):
-            s = np.zeros(M, np.int8)   # 0 open, 1 true, 2 false
-            for name, v in known.items():
-                if name in self.mindex: s[self.mindex[name]] = 1 if v else 2
-            y = np.zeros((M, 2), np.float32)
-            moves = []
-            for later in rounds[ri:ri + NEXT]:
-                for (name, v, sig, cost) in later["facts"]:
-                    if name in self.mindex: y[self.mindex[name], 0 if v else 1] = 1
-            for (name, v, sig, cost) in rd["facts"]:
-                # "(none)" was the earlier name for cell-only moves
-                if name in self.mindex: moves.append((self.mindex[name], v, "cell-only" if sig == "(none)" else sig, cost))
-            self.states.append((s, y, moves))
-            apply([(f[0], f[1]) for f in rd["facts"]])
+            fs = [(mindex[name], v, "cell-only" if sig == "(none)" else sig, cost) for (name, v, sig, cost) in rd["facts"] if name in mindex]
+            for (i, v, _, _) in fs:
+                if rnd[i] == R: rnd[i], val[i] = ri, 1 if v else 2
+            top = max((c for (_, _, _, c) in fs), default=None)
+            key += [2 * i + (0 if v else 1) for (i, v, _, c) in fs if c == top]
+            if fs:
+                s0, c0 = fs[0][2], fs[0][3]
+                for (i, v, sg, c) in fs:
+                    if (sg, c) != (s0, c0): break
+                    first.append(2 * i + (0 if v else 1))
+            koff.append(len(key)); foff.append(len(first))
+            if keep_moves: self.moves.append(fs)
+        self.rnd, self.val = rnd, val
+        self.key_codes, self.key_off = np.array(key, np.int32), np.array(koff, np.int32)
+        self.first_codes, self.first_off = np.array(first, np.int32), np.array(foff, np.int32)
+        # Janko's records: the person's order (marks they settled, earliest first) as codes
+        ho = [(mindex[m], k) for (m, k) in d.get("humanOrder") or [] if m in mindex]
+        self.human = np.array([2 * i + (0 if self.truth[i] else 1) for (i, _) in ho], np.int32) if d.get("humanOrder") is not None else None
+        self.keep, self.dup = None, False   # the states kept (GRAPH_STATES_PER), or all; in the human test set
+        self.states = States(self)
+
+    def state(self, k):
+        """State k (0 open, 1 true, 2 false) and its targets (settled in the next NEXT rounds)."""
+        s = np.where(self.rnd < k, self.val, 0).astype(np.int8)
+        y = np.zeros((len(s), 2), np.float32)
+        sel = (self.rnd >= k) & (self.rnd < k + NEXT)
+        y[np.nonzero(sel)[0], self.val[sel] - 1] = 1
+        return s, y
+    def key(self, k): return self.key_codes[self.key_off[k]:self.key_off[k + 1]]
+    def first(self, k): return self.first_codes[self.first_off[k]:self.first_off[k + 1]]
+    def people(self, s):
+        """The person's next 3 moves from state s: of the marks they settled, the first 3 still open."""
+        if self.human is None: return None
+        return self.human[s[self.human // 2] == 0][:3]
+
+class States:
+    """A puzzle's states as a sequence of (state, targets, moves); moves only with keep_moves."""
+    def __init__(self, p): self.p = p
+    def __len__(self): return self.p.R
+    def __getitem__(self, k):
+        if not -self.p.R <= k < self.p.R: raise IndexError(k)
+        k %= self.p.R
+        return self.p.state(k) + (self.p.moves[k] if self.p.moves is not None else [],)
+    def __iter__(self): return (self[k] for k in range(len(self)))
 
 def batch(items, attention=False):
     """Several (puzzle, state index) as one graph."""
-    return batch_states([(pz, pz.states[k][0], pz.states[k][1]) for (pz, k) in items], attention)
+    return batch_states([(pz,) + pz.state(k) for (pz, k) in items], attention)
 
 def batch_states(items, attention=False):
     """Several (puzzle, state array, targets) as one graph; with attention, also its groups."""
@@ -145,7 +193,7 @@ def batch_states(items, attention=False):
     for (pz, s, y) in items:
         state = np.zeros((len(s), 3), np.float32); state[np.arange(len(s)), s] = 1
         mfs.append(torch.cat([pz.mf, torch.tensor(state)], 1)); cfs.append(pz.cf); gfs.append(pz.gf)
-        mes.append(pz.me + torch.tensor([om, oc])); ges.append(pz.ge + torch.tensor([og, oc]))
+        mes.append(pz.me.long() + torch.tensor([om, oc])); ges.append(pz.ge.long() + torch.tensor([og, oc]))
         ys.append(torch.tensor(y)); masks.append(torch.tensor((s == 0).astype(np.float32)))
         offs.append((om, len(s)))
         om += len(s); oc += pz.nc; og += len(pz.gf)
@@ -246,7 +294,7 @@ def chunks(items):
     """Items in batches of at most BUDGET marks."""
     out, cur, size = [], [], 0
     for it in items:
-        m = len(it[0].marks)
+        m = it[0].M
         if cur and size + m > BUDGET: out.append(cur); cur, size = [], 0
         cur.append(it); size += m
     if cur: out.append(cur)
@@ -261,7 +309,7 @@ def pretrain(puzzles, epochs, net=None, lr=2e-3):
     for ep in range(epochs):
         net.train(); items = []
         for p in puzzles:
-            truth = np.array([m in p.answer for m in p.marks])
+            truth = p.truth
             s = np.where(truth, 1, 2).astype(np.int8)
             s[np.random.rand(len(s)) < random.uniform(0.15, 0.5)] = 0
             items.append((p, s, truth.astype(np.float32)[:, None]))
@@ -308,31 +356,106 @@ def train(items, epochs, net=None, lr=2e-3):
         print(f"  epoch {ep + 1}: loss {tot / max(1, n):.3f} ({time.time() - t0:.0f} s)", flush=True)
     return net
 
-def evaluate(net, items):
-    """Share of states whose top-scored open mark (either way) is a move within the next rounds; random's share."""
-    net.eval(); hits = base = 0
+def score(net, items):
+    """Each state's results, (puzzle, state, row); row: the top guess is a move within the next NEXT
+    rounds, and random's chance of one; the top guess is the round's key fact (the costliest step's),
+    and random's chance; and on Janko's puzzles (else None): the top guess is among the person's
+    next 3 moves, random's chance, and whether our solver's next step (any of its facts) or its first
+    fact is. A state with nothing open counts as a miss, as it always has."""
+    net.eval(); out = []
     with torch.no_grad():
         for part in chunks(items):
             g, y, mask, offs = batch(part, attends(net)); logits = net(to(g)).cpu()
-            for (o, n) in offs:
+            for (pz, k), (o, n) in zip(part, offs):
                 lg, yy, mm = logits[o:o + n], y[o:o + n], mask[o:o + n]
-                if mm.sum() == 0: continue
-                lg = lg.masked_fill(mm[:, None] == 0, -1e9).flatten(); top = lg.argmax().item()
-                hits += yy.flatten()[top].item() > 0
-                base += ((yy * mm[:, None]).sum() / (2 * mm.sum())).item()
-    return hits / max(1, len(items)), base / max(1, len(items))
+                if mm.sum() == 0: out.append((pz, k, (0, 0, 0, 0, None))); continue
+                top = lg.masked_fill(mm[:, None] == 0, -1e9).flatten().argmax().item()
+                n_open = 2 * mm.sum().item(); s = (mm.numpy() == 0).astype(np.int8)   # 0: open
+                key = pz.key(k); key = key[s[key // 2] == 0]
+                row = [yy.flatten()[top].item() > 0, ((yy * mm[:, None]).sum() / n_open).item(), bool(np.isin(top, key)), len(key) / n_open, None]
+                nxt = pz.people(s)
+                if nxt is not None and len(nxt):
+                    first = pz.first(k)
+                    row[4] = (bool(np.isin(top, nxt)), len(nxt) / n_open, bool(np.isin(first, nxt).any()), bool(len(first) and np.isin(first[0], nxt)))
+                out.append((pz, k, tuple(row)))
+    return out
 
+def evaluate(net, items):
+    """Share of states whose top-scored open mark (either way) is a move within the next rounds; random's share."""
+    rows = score(net, items)
+    return sum(r[0] for _, _, r in rows) / max(1, len(items)), sum(r[1] for _, _, r in rows) / max(1, len(items))
+
+# ---- the data ----
+# GRAPH_DATA's generated puzzles (gen-set.ts, source "gen-set"): a fixed slice of GRAPH_GEN_TEST
+# held out for testing, and GRAPH_GEN_SHARE of the rest for training, both chosen by a hash of the
+# puzzle's name, so the slices are the same in every run and 10% ⊂ 25% ⊂ 50% ⊂ 100%. At most
+# GRAPH_STATES_PER of each generated puzzle's states, spread through its solve (0: all). The human
+# test set (GRAPH_HUMAN, graph-human.ts) is never trained on: corpus copies of its puzzles stay in
+# the per-type split (so the earlier test sets don't change) but leave training.
+GEN_SOURCES = {"gen-set"}
+GEN_SHARE = float(os.environ.get("GRAPH_GEN_SHARE", 1))
+GEN_TEST = float(os.environ.get("GRAPH_GEN_TEST", 0.01))
+STATES_PER = int(os.environ.get("GRAPH_STATES_PER", 0))
+HUMAN = os.environ.get("GRAPH_HUMAN") or os.path.join(HERE, "../../references/ml/graphs-human.jsonl")
+KEEP_MOVES = sys.argv[1:2] == ["embed"]   # each round's moves with their signatures, for the embedding
+MAX_MARKS = 4000   # a few puzzles have very many marks (a big board's every digit, link or border): left out
+
+def draw(name):
+    """A generated puzzle's fixed place in [0, 1), from its name."""
+    return int(hashlib.md5(("graph-gen:" + name).encode()).hexdigest()[:12], 16) / 16 ** 12
+
+def content_key(d):
+    """The same puzzle, whatever its source or name: type, givens and rule instances."""
+    st = d["structure"]
+    return hashlib.md5(json.dumps([d["genre"], st["cells"], d["givens"], sorted(g["cells"] for g in st["groups"])]).encode()).hexdigest()
+
+def lines(path):
+    """A file's lines one at a time (the generated set is 1.6 GB: never all in memory)."""
+    with open(path) as fh:
+        for line in fh:
+            if line.strip(): yield line
+
+def spread(ks, per):
+    """At most `per` of ks, spread evenly."""
+    ks = list(ks)
+    return ks[:: max(1, len(ks) // per)][:per] if per and len(ks) > per else ks
+
+NAME = re.compile(r'"name":("(?:[^"\\]|\\.)*")')
 def load():
-    pz = [Puzzle(json.loads(l)) for f in DATA.split(",") for l in open(f) if l.strip()]
-    # a few puzzles have very many marks (a big board's every digit, link or border): left out
-    return [p for p in pz if p.states and len(p.marks) <= 4000]
-def states(puzzles, per=None):
-    """Every (puzzle, state), or at most `per` of each puzzle's states (spread through its solve)."""
+    """(corpus puzzles, generated for training, generated held out), streamed a line at a time."""
+    human = {content_key(json.loads(l)) for l in lines(HUMAN)} if os.path.exists(HUMAN) else set()
+    pz, gen_tr, gen_te = [], [], []
+    for f in DATA.split(","):
+        for line in lines(f):
+            m = re.search(r'"source":"([^"]*)"', line[:300])
+            gen, dest = bool(m and m.group(1) in GEN_SOURCES), pz
+            if gen:
+                # lines left out aren't parsed
+                nm = NAME.search(line[:300])
+                u = draw(json.loads(nm.group(1)) if nm else json.loads(line)["name"])
+                dest = gen_te if u < GEN_TEST else gen_tr if u < GEN_TEST + (1 - GEN_TEST) * GEN_SHARE else None
+                if dest is None: continue
+            d = json.loads(line); p = Puzzle(d, keep_moves=KEEP_MOVES)
+            if not p.R or p.M > MAX_MARKS: continue
+            p.dup = content_key(d) in human
+            if gen:
+                if p.dup: continue
+                if STATES_PER: p.keep = spread(range(p.R), STATES_PER)
+            dest.append(p)
+    return pz, gen_tr, gen_te
+
+def load_human():
     out = []
-    for p in puzzles:
-        ks = list(range(len(p.states)))
-        if per and len(ks) > per: ks = ks[:: max(1, len(ks) // per)][:per]
-        out += [(p, k) for k in ks]
+    for l in lines(HUMAN):
+        p = Puzzle(json.loads(l))
+        if p.R and p.M <= MAX_MARKS: out.append(p)
+    return out
+
+def states(puzzles, per=None):
+    """Every (puzzle, state) (those kept, for generated puzzles with GRAPH_STATES_PER), or at most
+    `per` of each puzzle's states (spread through its solve)."""
+    out = []
+    for p in puzzles: out += [(p, k) for k in spread(p.keep if p.keep is not None else range(p.R), per)]
     return out
 
 EPOCHS = int(os.environ.get("GRAPH_EPOCHS", 8))         # training on every type
@@ -345,17 +468,106 @@ def load_net(path):
     assert not extra and all(k.startswith("fill.") for k in missing), (missing, extra)
     return net
 
-def run_all(split):
-    """Train on every type (after hide and fill, with --pretrain); test on each type's held-out puzzles."""
+def run_all(split, rows=None):
+    """Train on every type (after hide and fill, with --pretrain); test on each type's held-out
+    puzzles. `rows`, a dict, gets each type's per-state results (score)."""
     train_pz = [p for tr, _ in split.values() for p in tr]
     net = pretrain(train_pz, PRE_EPOCHS) if "--pretrain" in FLAGS else None
     if net is None: net = new_net()
     print(f"network: {sum(x.numel() for x in net.parameters()):,} parameters, width {H}, {HEADS} heads, positions {'on' if POS else 'off'}, {EPOCHS} epochs, learning rate {2e-3 * 64 / H if LR_SCALE else 2e-3:.1e}{' scaled and warmed up' if LR_SCALE else ''}", flush=True)
-    net = train(states(train_pz), EPOCHS, net)
+    items = states(train_pz)
+    print(f"training on {len(train_pz)} puzzles, {len(items)} states", flush=True)
+    net = train(items, EPOCHS, net)
     out = {}
     for g, (_, te) in sorted(split.items()):
-        if te: out[g] = (len(states(te)),) + evaluate(net, states(te))
+        if not te: continue
+        r = score(net, states(te)); n = len(r)
+        out[g] = (n, sum(x[2][0] for x in r) / max(1, n), sum(x[2][1] for x in r) / max(1, n))
+        if rows is not None: rows[g] = r
     return net, out
+
+def family_of(g): return next((f for f, ts in FAMILIES.items() if g in ts), "other")
+MIN_HUMAN = int(os.environ.get("GRAPH_MIN_HUMAN", 10))   # human test types with fewer puzzles are left out of its means
+BANDS = ["easy", "medium", "hard", "expert"]
+
+def report(net, rows, by, gen_te, human):
+    """The measures beyond the per-type table: the key move, the human test set, agreement with
+    people (Janko), held-out generated puzzles by band, and each set by family. Returns the
+    headline numbers (means over types)."""
+    nan = float("nan")
+    mean = lambda xs: float(np.mean(xs)) if len(xs) else nan
+    pct = lambda x: "–" if x != x else f"{x:.0%}"
+    col = lambda rs, i: mean([r[i] for r in rs])
+    def group(rs, f):
+        out = defaultdict(list)
+        for pz, k, r in rs: out[f(pz)].append(r)
+        return out
+    head = {}
+    # in distribution: the key move, per type
+    big = sorted(g for g in rows if len(by[g]) >= MIN_TYPE)
+    print("\n### Key move (top guess is the round's costliest step), held-out puzzles\n\n| Type | Family | Test states | Top guess is a move | Key move | Random key |\n|---|---|---|---|---|---|")
+    for g in sorted(rows):
+        rs = [r for _, _, r in rows[g]]
+        print(f"| {g} | {family_of(g)} | {len(rs)} | {pct(col(rs, 0))} | {pct(col(rs, 2))} | {pct(col(rs, 3))} |")
+    head["in-distribution"] = mean([col([r for _, _, r in rows[g]], 0) for g in big])
+    head["in-distribution key move"] = mean([col([r for _, _, r in rows[g]], 2) for g in big])
+    print(f"\nkey move, mean over the {len(big)} types with at least {MIN_TYPE} puzzles: {pct(head['in-distribution key move'])} (random {pct(mean([col([r for _, _, r in rows[g]], 3) for g in big]))})")
+    fam = {"in distribution": {g: [r for _, _, r in rows[g]] for g in big}}
+    # the human test set: per type, then by source
+    if human:
+        hr = score(net, states(human))
+        bt = group(hr, lambda p: p.genre)
+        npz = defaultdict(lambda: defaultdict(int))
+        for p in human: npz[p.genre][p.source] += 1
+        hbig = sorted(g for g in bt if sum(npz[g].values()) >= MIN_HUMAN)
+        print("\n### Human test set (graphs-human.jsonl, never trained on)\n\n| Type | Family | Puzzles (Janko / Puzzle Square JP) | States | Top guess is a move | Random | Key move | Random key |\n|---|---|---|---|---|---|---|---|")
+        for g in sorted(bt):
+            rs = bt[g]
+            print(f"| {g} | {family_of(g)} | {npz[g]['janko']} / {npz[g]['psjp']} | {len(rs)} | {pct(col(rs, 0))} | {pct(col(rs, 1))} | {pct(col(rs, 2))} | {pct(col(rs, 3))} |")
+        head["human"] = mean([col(bt[g], 0) for g in hbig]); head["human random"] = mean([col(bt[g], 1) for g in hbig])
+        head["human key move"] = mean([col(bt[g], 2) for g in hbig])
+        print(f"\nhuman test, mean over the {len(hbig)} types with at least {MIN_HUMAN} puzzles: {pct(head['human'])} (random {pct(head['human random'])}); key move {pct(head['human key move'])} (random {pct(mean([col(bt[g], 3) for g in hbig]))})")
+        for src in ("janko", "psjp"):
+            bs = group([x for x in hr if x[0].source == src], lambda p: p.genre)
+            ts = [g for g in bs if npz[g][src] >= MIN_HUMAN]
+            print(f"  {src}: {len(ts)} types, mean {pct(mean([col(bs[g], 0) for g in ts]))} (random {pct(mean([col(bs[g], 1) for g in ts]))})")
+        fam["human"] = {g: bt[g] for g in hbig}
+        # agreement with people: Janko's states where the person has a next move still open
+        pr = [(pz, k, r) for pz, k, r in hr if r[4] is not None]
+        if pr:
+            print("\n### Agreement with people (Janko): the top guess among the person's next 3 moves\n\n| Type / person | Puzzles | States | Network | Solver's next step (any fact) | Solver's first fact | Random |\n|---|---|---|---|---|---|---|")
+            def line(name, rs, n):
+                ps = [r[4] for r in rs]
+                print(f"| {name} | {n} | {len(ps)} | {pct(col(ps, 0))} | {pct(col(ps, 2))} | {pct(col(ps, 3))} | {pct(col(ps, 1))} |")
+            bt_p = group(pr, lambda p: p.genre); bs_p = group(pr, lambda p: p.solver or "?")
+            for g in sorted(bt_p): line(g, bt_p[g], len({id(p) for p, _, _ in pr if p.genre == g}))
+            for s_ in sorted(bs_p, key=lambda s_: -len(bs_p[s_])): line(f"*{s_}*", bs_p[s_], len({id(p) for p, _, _ in pr if (p.solver or "?") == s_}))
+            line("**all states**", [r for _, _, r in pr], len({id(p) for p, _, _ in pr}))
+            tm = lambda i: mean([col([r[4] for r in bt_p[g]], i) for g in bt_p])
+            head["people"], head["people solver step"], head["people solver fact"], head["people random"] = tm(0), tm(2), tm(3), tm(1)
+            print(f"\nagreement with people, mean over {len(bt_p)} types: network {pct(head['people'])}, solver's next step {pct(head['people solver step'])}, its first fact {pct(head['people solver fact'])}, random {pct(head['people random'])}")
+    # held-out generated puzzles, by band
+    if gen_te:
+        gr = score(net, states(gen_te))
+        bb = group(gr, lambda p: p.band or "?")
+        print(f"\n### Generated, held out ({len(gen_te)} puzzles, GRAPH_GEN_TEST {GEN_TEST:g})\n\n| Band | Puzzles | States | Top guess is a move | Random | Key move | Random key |\n|---|---|---|---|---|---|---|")
+        for b in [b for b in BANDS if b in bb] + sorted(set(bb) - set(BANDS)):
+            print(f"| {b} | {sum(1 for p in gen_te if (p.band or '?') == b)} | {len(bb[b])} | {pct(col(bb[b], 0))} | {pct(col(bb[b], 1))} | {pct(col(bb[b], 2))} | {pct(col(bb[b], 3))} |")
+        gt = group(gr, lambda p: p.genre)
+        head["generated"] = mean([col(gt[g], 0) for g in gt]); head["generated key move"] = mean([col(gt[g], 2) for g in gt])
+        print(f"\ngenerated held out, mean over {len(gt)} types: {pct(head['generated'])} (random {pct(mean([col(gt[g], 1) for g in gt]))}); key move {pct(head['generated key move'])}")
+        fam["generated"] = dict(gt)
+    # by family: the mean over each family's types, for each set
+    sets = list(fam)
+    print("\n### By family (mean over the family's types: top guess is a move / key move)\n\n| Family | " + " | ".join(sets) + " |\n|---" * 1 + "|---" * len(sets) + "|")
+    for f in list(FAMILIES) + ["other"]:
+        cells = []
+        for s_ in sets:
+            ts = [g for g in fam[s_] if family_of(g) == f]
+            cells.append(f"{pct(mean([col(fam[s_][g], 0) for g in ts]))} / {pct(mean([col(fam[s_][g], 2) for g in ts]))} ({len(ts)})" if ts else "–")
+        print(f"| {f} | " + " | ".join(cells) + " |")
+    print("", flush=True)
+    return head
 
 def run_without(split, held):
     """Train without the types in `held` (after hide and fill on the others' puzzles, with
@@ -377,19 +589,42 @@ def run_without(split, held):
 if __name__ == "__main__":
     random.seed(1); torch.manual_seed(1)
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
-    pzs = load()
+    t_load = time.time()
+    pzs, gen_tr, gen_te = load()
     by = defaultdict(list)
     for p in pzs: by[p.genre].append(p)
     for v in by.values(): random.Random(2).shuffle(v)
     print(f"{len(pzs)} puzzles, {sum(len(p.states) for p in pzs)} states, {len(by)} types: " + ", ".join(f"{g} {len(v)}" for g, v in sorted(by.items())))
     split = {g: (v[:int(0.8 * len(v))], v[int(0.8 * len(v)):]) for g, v in by.items()}
+    # the human test set's puzzles never train; generated puzzles add to training only
+    dups = sum(p.dup for tr, _ in split.values() for p in tr)
+    split = {g: ([p for p in tr if not p.dup], te) for g, (tr, te) in split.items()}
+    for p in gen_tr: split.setdefault(p.genre, ([], []))[0].append(p)
+    if gen_tr or gen_te: print(f"generated: {len(gen_tr)} puzzles to train on ({sum(len(p.keep or range(p.R)) for p in gen_tr)} states, GRAPH_GEN_SHARE {GEN_SHARE:g}, GRAPH_STATES_PER {STATES_PER or 'all'}), {len(gen_te)} held out")
+    print(f"{dups} training puzzles left out as copies of human test puzzles; loaded in {time.time() - t_load:.0f} s", flush=True)
     if mode == "all":
-        net, out = run_all(split)
-        print("\n| Type | Test states | Top guess is a move | Random |\n|---|---|---|---|")
-        for g, (n, h, b) in out.items(): print(f"| {g} | {n} | {h:.0%} | {b:.0%} |")
-        big = [g for g in out if len(by[g]) >= MIN_TYPE]
-        print(f"\nmean over the {len(big)} types with at least {MIN_TYPE} puzzles: {np.mean([out[g][1] for g in big]):.1%} (random {np.mean([out[g][2] for g in big]):.1%})")
-        torch.save(net.state_dict(), weights())
+        # GRAPH_SEEDS=n: n runs from different starting weights and batch orders (same data and split)
+        seeds = int(os.environ.get("GRAPH_SEEDS", 1))
+        human = load_human() if os.path.exists(HUMAN) else []
+        if human: print(f"human test set: {len(human)} puzzles, {sum(p.R for p in human)} states ({sum(p.source == 'janko' for p in human)} Janko)")
+        heads = []
+        for i in range(seeds):
+            random.seed(1 + i); torch.manual_seed(1 + i)
+            if seeds > 1: print(f"\n## Seed {1 + i}", flush=True)
+            t0, rows = time.time(), {}
+            net, out = run_all(split, rows)
+            print("\n| Type | Test states | Top guess is a move | Random |\n|---|---|---|---|")
+            for g, (n, h, b) in out.items(): print(f"| {g} | {n} | {h:.0%} | {b:.0%} |")
+            big = [g for g in out if len(by[g]) >= MIN_TYPE]
+            print(f"\nmean over the {len(big)} types with at least {MIN_TYPE} puzzles: {np.mean([out[g][1] for g in big]):.1%} (random {np.mean([out[g][2] for g in big]):.1%})")
+            heads.append(report(net, rows, by, gen_te, human))
+            print(f"run took {(time.time() - t0) / 60:.1f} min", flush=True)
+            if i == 0: torch.save(net.state_dict(), weights())
+        if seeds > 1:
+            print(f"\n### Over {seeds} seeds (means over types)\n\n| Measure | Mean | Spread (sd) | Each seed |\n|---|---|---|---|")
+            for k in heads[0]:
+                xs = [h_.get(k, float("nan")) for h_ in heads]
+                print(f"| {k} | {np.mean(xs):.1%} | {np.std(xs, ddof=1):.1%} | " + ", ".join(f"{x:.1%}" for x in xs) + " |")
     elif mode in ("holdout", "family"):
         print("\n| Held-out type | Trained with it | Without it (zero-shot) | + 10 of its puzzles (few-shot) | Random |\n|---|---|---|---|---|")
         full = load_net(weights()) if os.path.exists(weights()) else None
