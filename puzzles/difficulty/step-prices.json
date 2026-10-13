@@ -57,5 +57,27 @@
   1.2095,
   -0.5737
  ],
- "from": "step labels"
+ "offset": -1.4463,
+ "from": "step labels",
+ "offsetFrom": "per type: minus the mean correction over that type's steps (price-data), so a type's average step costs what it did; offset for types not seen",
+ "offsets": {
+  "akari": -0.1586,
+  "slitherlink": -3.428,
+  "hitori": -0.3831,
+  "sudoku": 0.4991,
+  "aquarium": 0.3824,
+  "cave": -2.6663,
+  "easy-as-abc": -0.1533,
+  "masyu": -2.9541,
+  "minesweeper": -0.6689,
+  "nonogram": -0.065,
+  "numberlink": -4.9642,
+  "nurikabe": -1.2922,
+  "shikaku": -0.4464,
+  "simple-loop": -3.7861,
+  "skyscrapers": 0.0375,
+  "spiral-galaxies": -0.3825,
+  "star-battle": 0.2068,
+  "fillomino": -0.2924
+ }
 }

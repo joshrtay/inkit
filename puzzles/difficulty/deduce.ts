@@ -118,7 +118,7 @@ export interface Options {
  *  step's cost from its features, fitted so puzzles rank like their labels (Tatham's grades, Sudoku
  *  ratings, Puzzle Square JP, Beast Academy). On with DEDUCE_PRICES=1 (off until the scoreboard
  *  confirms them). The features are scaled exactly as price.py's vec. */
-export function priceCorrection(f: Record<string, number>, prices: { features: string[]; weights: number[] }): number {
+export function priceCorrection(f: Record<string, number>, prices: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number> }, genre?: string): number {
   const t = f.tier ?? 0, v: Record<string, number> = {
     tier1: t === 1 ? 1 : 0, tier2: t === 2 ? 1 : 0, tier3: t === 3 ? 1 : 0, instances: (f.instances ?? 0) / 4, facts: (f.facts ?? 0) / 4,
     global: f.global ?? 0, extent: Math.log1p(f.extent ?? 0) / 2, cells: Math.log1p(f.cells ?? 0) / 3, spread: (f.spread ?? 0) / 10,
@@ -126,9 +126,10 @@ export function priceCorrection(f: Record<string, number>, prices: { features: s
     connect_group: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) >= 2 ? 1 : 0,
     connect_single: (f.p_connect ?? 0) > 0 && (f.extent ?? 0) < 2 ? 1 : 0,
   };
-  return prices.features.reduce((a, k, i) => a + prices.weights[i] * (v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? (f[k] ?? 0) / 2 : 0)), 0);
+  // centred per type: a type's average step keeps its cost; the corrections only reorder its steps
+  return (prices.offsets?.[genre ?? ""] ?? prices.offset ?? 0) + prices.features.reduce((a, k, i) => a + prices.weights[i] * (v[k] ?? (k.startsWith("p_") || k.startsWith("u_") ? (f[k] ?? 0) / 2 : 0)), 0);
 }
-const PRICES: { features: string[]; weights: number[] } | null = (() => {
+const PRICES: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number> } | null = (() => {
   if (process.env.DEDUCE_PRICES !== "1") return null;
   try { return JSON.parse(readFileSync(new URL("./step-prices.json", import.meta.url), "utf8")); } catch { return null; }
 })();
@@ -955,7 +956,7 @@ end
         let st = byKey.get(key);
         if (!st) {
           const kinds = e ? kindsOf(e) : [...new Set(groups.map((x) => x.kind))];
-          st = { w, tier, where: w === ALL ? "the whole grid" : w.label, cells: w.cells, facts: [], uses: kinds, cost: +Math.max(0.3, costOf(e, tier) + (PRICES ? priceCorrection(featuresOf(e, tier, w), PRICES) : 0)).toFixed(2), feat: featuresOf(e, tier, w),
+          st = { w, tier, where: w === ALL ? "the whole grid" : w.label, cells: w.cells, facts: [], uses: kinds, cost: +Math.max(0.3, costOf(e, tier) + (PRICES ? priceCorrection(featuresOf(e, tier, w), PRICES, spec.genre) : 0)).toFixed(2), feat: featuresOf(e, tier, w),
             because: e ? { clues: e.groups.map((gi) => `${groups[gi].kind} (${groups[gi].label})`), kinds, facts: e.facts.length, capped: e.capped } : { clues: ["(not found)"], kinds, facts: 0, capped: true } };
           byKey.set(key, st);
         }

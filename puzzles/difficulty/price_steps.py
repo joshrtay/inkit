@@ -72,4 +72,8 @@ for g in games:
     print(f"| {g} | {agreement(zero, g):.2f} | {agreement(w_all, g):.2f} | {agreement(fit([x for x in games if x != g]), g):.2f} |")
 print("\nCorrections:")
 for k, v in sorted(zip(FEATURES, w_all.tolist()), key=lambda x: -abs(x[1])): print(f"  {k:15s} {v:+.2f}")
-json.dump({"features": FEATURES, "weights": [round(x, 4) for x in w_all.tolist()], "from": "step labels"}, open(os.path.join(HERE, "step-prices.json"), "w"), indent=1)
+# centred: the corrections move steps against each other (all the labels say), not the whole
+# scale (an overall rise pushed puzzles against the estimate's ceiling: every Loopy rated 0.80)
+offset = float((X @ w_all).mean())
+print(f"\nmean correction {offset:+.2f}, taken off so the average step costs what it did")
+json.dump({"features": FEATURES, "weights": [round(x, 4) for x in w_all.tolist()], "offset": round(-offset, 4), "from": "step labels"}, open(os.path.join(HERE, "step-prices.json"), "w"), indent=1)
