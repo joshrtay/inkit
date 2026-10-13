@@ -712,7 +712,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // cell") is free ----
   const ROOM = 4000;   // constraints the solver may add while solving (component lemmas)
   const TECH_ROOM = techOn.size ? 60000 : 0;   // and for the per-genre techniques
-  const consOf = new Int32Array(rules.length + ROOM + TECH_ROOM).fill(-1);
+  const consOf = new Int32Array(rules.length + ROOM + 2 * TECH_ROOM).fill(-1);
   constraints.forEach((k, j) => { consOf[k] = j; });
   interface Group { kind: string; label: string; cells: number[]; extent?: number }
   const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM + TECH_ROOM).fill(-1);
@@ -1333,6 +1333,7 @@ end
     const body = [...new Set(lits)].sort((a, b) => a - b), key = `${t}|${body.join(",")}`;
     let a = techAtoms.get(key);
     if (a !== undefined) return a;
+    if (techAtoms.size >= TECH_ROOM) return NaN;   // no room: the caller says nothing
     a = nextAtom++;
     techAtoms.set(key, a);
     const k = rules.length;
@@ -1897,7 +1898,9 @@ end
           lits.push(want ? a : -a);
         }
         return defineAtom("sizes", lits);
-      }).filter((a) => a >= 0);
+      });
+      if (atoms.some((a) => Number.isNaN(a))) return;
+      atoms.splice(0, atoms.length, ...atoms.filter((a) => a >= 0));
       if (!atoms.length) return;
       const b = addTech("sizes", atoms.map((a) => -a), `the shapes for ${rc(pt.cells[0])}`, atoms.length);
       if (b && cellsOf(b).length <= 2 * techCap) ws.push(techWin(`sizes: the shapes for ${label(k)}`, b));
