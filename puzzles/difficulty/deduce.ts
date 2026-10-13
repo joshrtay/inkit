@@ -119,6 +119,9 @@ export interface Options {
  *  ratings, Puzzle Square JP, Beast Academy). On with DEDUCE_PRICES=1 (off until the scoreboard
  *  confirms them). The features are scaled exactly as price.py's vec. */
 export function priceCorrection(f: Record<string, number>, prices: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number> }, genre?: string): number {
+  // steps over a loop or the whole grid weren't in the labelled data (Singles and Sudoku): no
+  // correction for them, rather than a guess
+  if ((f.global ?? 0) > 0 && !(f.extent ?? 0)) return 0;
   const t = f.tier ?? 0, v: Record<string, number> = {
     tier1: t === 1 ? 1 : 0, tier2: t === 2 ? 1 : 0, tier3: t === 3 ? 1 : 0, instances: (f.instances ?? 0) / 4, facts: (f.facts ?? 0) / 4,
     global: f.global ?? 0, extent: Math.log1p(f.extent ?? 0) / 2, cells: Math.log1p(f.cells ?? 0) / 3, spread: (f.spread ?? 0) / 10,

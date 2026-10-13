@@ -65,14 +65,14 @@ for (const set of loadSets()) {
 console.error(`${jobs.length} labelled puzzles in ${new Set(jobs.map((j) => j.group)).size} groups`);
 
 // every technique on, so all steps are priced: the component lemma (DEDUCE_LEMMAS) and clue reach
-process.env.DEDUCE_LEMMAS = "component";
+process.env.DEDUCE_LEMMAS = process.env.PRICE_LEMMAS ?? "component";   // PRICE_LEMMAS="" for the solver's defaults
 let done = 0;
 const rows = await mapPool(jobs, async (j) => {
-  const r = await deduceGuarded(j.spec, { budgetMs: 30000, families: [REACH_FAMILY] }, 120000).catch(() => null);
+  const r = await deduceGuarded(j.spec, { budgetMs: 30000, families: process.env.PRICE_LEMMAS === "" ? [] : [REACH_FAMILY] }, 120000).catch(() => null);
   if (++done % 50 === 0) console.error(`${done}/${jobs.length}`);
   if (!r || !r.profile.solved) return null;
   const steps = r.path.filter((s) => !s.choice).map((s) => ({ cost: s.cost, feat: s.feat ?? {} }));
   return JSON.stringify({ ...j, spec: undefined, estimate: r.profile.estimate, ruleLoad: r.profile.ruleLoad, steps });
 });
-writeFileSync(`${repo}references/ml/price-data.jsonl`, rows.filter(Boolean).join("\n") + "\n");
+writeFileSync(`${repo}references/ml/${process.env.PRICE_OUT ?? "price-data"}.jsonl`, rows.filter(Boolean).join("\n") + "\n");
 console.log(`${rows.filter(Boolean).length} of ${jobs.length} solved and saved`);

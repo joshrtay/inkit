@@ -57,27 +57,27 @@
   1.2095,
   -0.5737
  ],
- "offset": -1.4463,
+ "offset": -1.3935,
  "from": "step labels",
- "offsetFrom": "per type: minus the mean correction over that type's steps (price-data), so a type's average step costs what it did; offset for types not seen",
+ "offsetFrom": "per type, over steps solved with the solver's defaults (price-data-defaults); loop and whole-grid steps uncorrected",
  "offsets": {
-  "akari": -0.1586,
+  "akari": -0.142,
   "slitherlink": -3.428,
-  "hitori": -0.3831,
+  "hitori": -0.7193,
   "sudoku": 0.4991,
   "aquarium": 0.3824,
-  "cave": -2.6663,
+  "cave": -1.4164,
   "easy-as-abc": -0.1533,
   "masyu": -2.9541,
   "minesweeper": -0.6689,
-  "nonogram": -0.065,
+  "nonogram": 0.0977,
   "numberlink": -4.9642,
-  "nurikabe": -1.2922,
-  "shikaku": -0.4464,
+  "nurikabe": -0.7867,
+  "shikaku": 0.0036,
   "simple-loop": -3.7861,
   "skyscrapers": 0.0375,
-  "spiral-galaxies": -0.3825,
+  "spiral-galaxies": 0.0216,
   "star-battle": 0.2068,
-  "fillomino": -0.2924
+  "fillomino": -0.0945
  }
 }
