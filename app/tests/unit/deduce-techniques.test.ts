@@ -19,6 +19,8 @@ const GENRES: Record<string, string[]> = {
   ends: ["simple-path"],
   cuts: ["simple-path"],
   mirror: ["spiral-galaxies"],
+  distance: ["hidoku"],
+  deadends: ["hidoku"],
 };
 const expert = bandNamed("expert");
 

@@ -25,7 +25,7 @@
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
-import { blockFor, galaxyCore, pathEnds } from "../../src/engine/rules.ts";
+import { blockFor, galaxyCore, pathEnds, pathNeighbours } from "../../src/engine/rules.ts";
 import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
@@ -218,6 +218,10 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || (r.rule === "loop" && r.of === "loop"))),
   // Spiral Galaxies: the cells each galaxy can still reach, by symmetry (needs Options.cellAtoms)
   mirror: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "galaxies"),
+  // Hidoku and Honeycomb Paths: how far a number can be from the placed ones; a number needs the
+  // one before it beside it too (dead ends)
+  distance: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
+  deadends: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
 };
 export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
@@ -1298,11 +1302,17 @@ end
     cfp.push(bits);
     const cs = cellsOf(bits);
     if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
-    groupOf[jx] = groups.length;
-    groups.push({ kind: t, label, cells: cs, ...(extent !== undefined ? { extent } : {}) });
+    // constraints with one label are one rule instance (a cell's dead-end rules, say), so an
+    // explanation weighs them as one, and deletion has fewer to try
+    const gk = `${t}|${label}`;
+    let gi = techGroup.get(gk);
+    if (gi === undefined) { gi = groups.length; techGroup.set(gk, gi); groups.push({ kind: t, label, cells: cs, ...(extent !== undefined ? { extent } : {}) }); }
+    else { const gr = groups[gi], have = new Set(gr.cells); for (const c of cs) if (!have.has(c)) gr.cells.push(c); }
+    groupOf[jx] = gi;
     techAdded++; techCons.push(jx);
     return bits;
   };
+  const techGroup = new Map<string, number>();
   // windows over the techniques' constraints: kept by their cells, made again when a constraint
   // added since lies inside (a window's program is fixed when first built)
   const techCache = new Map<string, { w: Window; at: number }>();
@@ -1559,14 +1569,85 @@ end
       if (p.blocked.has(i)) continue;
       for (let k = 0; k < K; k++) {
         const a = gal(i, k);
-        if (!can[k][i] && a !== undefined) addTech("mirror", [LIT(a, true)], `${rc(i)} out of galaxy ${k + 1}`);
+        if (!can[k][i] && a !== undefined) addTech("mirror", [LIT(a, true)], `the galaxies that reach ${rc(i)}`);
       }
       if (g.cellLinks[i].some((l) => cutState(l) < 0)) ws.push(techWin(`mirror: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
     }
     return ws;
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound };
+  // Hidoku and the other number paths (techniques "distance" and "deadends"). Distance: between
+  // two placed numbers a < b with none placed between, k can only be in a cell within k - a steps
+  // of a and b - k of b, counting steps through cells that can still hold a number between them
+  // (below the smallest placed or above the largest, one side only); each cell kept from k is a
+  // constraint, and so is "k is in one of the cells left". Dead ends: k (past 1) needs k - 1
+  // beside it as well as k + 1 (the rules only ask for k + 1 next to k), so a cell with one open
+  // neighbour can only be an end; said of the cell and its neighbours, by the rules alone.
+  // Windows: each number's cells with the next and last numbers' cells, and each cell with its
+  // neighbours.
+  const numberPath = p.rules.find((r) => r.rule === "number-path");
+  const N = p.digits;
+  const digitState = (i: number, d: number) => { const m = markOf.get(`digit(${i},${d})`); return m === undefined ? 0 : known[m]; };
+  const digitAtom = (i: number, d: number) => { const m = markOf.get(`digit(${i},${d})`); return m === undefined ? undefined : markAtom[m]; };
+  const pnOf = numberPath ? Array.from({ length: n }, (_, i) => pathNeighbours(numberPath, p, i)) : [];
+  const nearBits = (i: number) => bitsOf(n, [i, ...pnOf[i]]);
+  let deadendsDone = false;
+  const deadendsRound = (): Window[] => {
+    if (!numberPath) return [];
+    if (!deadendsDone) {
+      deadendsDone = true;
+      for (let i = 0; i < n; i++) if (!p.blocked.has(i)) for (let d = 2; d <= N; d++)
+        addTech("deadends", [LIT(digitAtom(i, d), true), ...pnOf[i].map((j) => LIT(digitAtom(j, d - 1), false))], `the number before ${rc(i)}`);
+    }
+    const ws: Window[] = [];
+    for (let i = 0; i < n; i++) if (!p.blocked.has(i) && [...Array(N).keys()].some((k) => digitState(i, k + 1) < 0)) ws.push(techWin(`deadends: around ${rc(i)}`, nearBits(i)));
+    return ws;
+  };
+  const distanceRound = (): Window[] => {
+    if (!numberPath) return [];
+    const open = [...Array(n).keys()].filter((i) => !p.blocked.has(i));
+    const placedAt = new Int32Array(N + 1).fill(-1), valueOf = new Int32Array(n).fill(0);
+    for (const i of open) for (let d = 1; d <= N; d++) if (digitState(i, d) === 1) { placedAt[d] = i; valueOf[i] = d; }
+    const placed = [...Array(N).keys()].map((k) => k + 1).filter((d) => placedAt[d] >= 0);
+    // steps from a placed cell through cells that can hold a number in (lo, hi)
+    const stepsFrom = (src: number, lo: number, hi: number) => {
+      const dist = new Int32Array(n).fill(-1), st = [src]; dist[src] = 0;
+      const through = (j: number) => !valueOf[j] && [...Array(hi - lo - 1).keys()].some((x) => digitState(j, lo + 1 + x) !== 0);
+      for (let q = 0; q < st.length; q++) { const i = st[q]; for (const j of pnOf[i]) if (dist[j] < 0 && through(j)) { dist[j] = dist[i] + 1; st.push(j); } }
+      return dist;
+    };
+    const cand = new Map<number, number[]>();
+    const segments: [number, number][] = [];
+    if (!placed.length) return [];
+    if (placed[0] > 1) segments.push([0, placed[0]]);
+    for (let x = 0; x + 1 < placed.length; x++) if (placed[x + 1] > placed[x] + 1) segments.push([placed[x], placed[x + 1]]);
+    if (placed.at(-1)! < N) segments.push([placed.at(-1)!, N + 1]);
+    for (const [a, b] of segments) {
+      const dA = a >= 1 ? stepsFrom(placedAt[a], a, b) : null, dB = b <= N ? stepsFrom(placedAt[b], a, b) : null;
+      for (let k = a + 1; k < b; k++) {
+        const cs: number[] = [];
+        for (const i of open) {
+          if (valueOf[i] || digitState(i, k) === 0) continue;
+          const ok = (!dA || (dA[i] >= 0 && dA[i] <= k - a)) && (!dB || (dB[i] >= 0 && dB[i] <= b - k));
+          if (ok) cs.push(i);
+          else addTech("distance", [LIT(digitAtom(i, k), true)], `how far ${rc(i)} is`);
+        }
+        cand.set(k, cs);
+        if (cs.length) addTech("distance", cs.map((i) => LIT(digitAtom(i, k), false)), `where ${k} goes`, cs.length);
+      }
+    }
+    const ws: Window[] = [];
+    const cellsFor = (k: number) => (placedAt[k] >= 0 ? [placedAt[k]] : cand.get(k) ?? []);
+    for (const [k, cs] of cand) {
+      if (!cs.length) continue;
+      const cells = [...cellsFor(k - 1), ...cs, ...cellsFor(k + 1)];
+      ws.push(techWin(`distance: ${k}`, bitsOf(n, cells)));
+    }
+    for (let i = 0; i < n; i++) if (!valueOf[i] && !p.blocked.has(i)) ws.push(techWin(`distance: around ${rc(i)}`, nearBits(i)));
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));

@@ -23,7 +23,7 @@ export const PRIMITIVE: Record<string, string> = {
   // a region's size or shape
   "size-clue": "size", "side-clue": "size", size: "size", "allowed-sizes": "size", "size-compare": "size", "size-difference": "size",
   rectangles: "size", squares: "size", "region-shape": "size", "shape-bank": "size", "symmetric-regions": "size", galaxies: "size",
-  pieces: "size", tiles: "size", rects: "size", ends: "connect", cuts: "connect", mirror: "size", twins: "size", opposites: "size", "regions-at-corner": "size",
+  pieces: "size", tiles: "size", rects: "size", ends: "connect", cuts: "connect", mirror: "size", distance: "order", deadends: "order", twins: "size", opposites: "size", "regions-at-corner": "size",
   // sums
   "region-sum": "sum", runs: "sum",
   // what a cell sees along a line
