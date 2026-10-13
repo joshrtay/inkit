@@ -381,7 +381,7 @@ def score(net, items):
                 if mm.sum() == 0: out.append((pz, k, (0, 0, 0, 0, None))); continue
                 top = lg.masked_fill(mm[:, None] == 0, -1e9).flatten().argmax().item()
                 n_open = 2 * mm.sum().item(); s = (mm.numpy() == 0).astype(np.int8)   # 0: open
-                key = pz.key(k); key = key[s[key // 2] == 0]
+                key = np.unique(pz.key(k)); key = key[s[key // 2] == 0]   # a mark can sit in several steps
                 row = [yy.flatten()[top].item() > 0, ((yy * mm[:, None]).sum() / n_open).item(), bool(np.isin(top, key)), len(key) / n_open, None]
                 nxt = pz.people(s)
                 if nxt is not None and len(nxt):
