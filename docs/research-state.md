@@ -1,0 +1,182 @@
+# Research: where things stand
+
+A snapshot of the research agenda (2026-10-13): the aim, what's built, what we've learned, what's
+open, what's running and what's next. The design behind it is
+[learning-design.md](learning-design.md); detailed results are in
+[research-cross-type.md](research-cross-type.md) and the research-*.md files. Keep this file
+current; the others keep the history.
+
+## The aim
+
+Players who can solve puzzles they've never seen, long after practice: the far horizon. For that,
+the research must deliver three products, all built on one shared core:
+
+- **The core: a model of how people solve.** Which moves a person can see from a position, how hard
+  each is, which they reach for first, and where they stall.
+- **Difficulty:** how hard a puzzle is for a person, and why.
+- **Hints:** the move a person would find next, and the technique behind it, given in steps.
+- **Interesting puzzles and sequences:** puzzles that hinge on an idea, and sets that build ideas in
+  order.
+
+## What we have
+
+### Tools
+
+| Tool | What it does | Where |
+|---|---|---|
+| Deduction solver | Solves like a person: small windows of rules first, then bigger ones, then case splits; explains each step; prices it | puzzles/difficulty/deduce.ts |
+| Step prices | A step's cost, corrected by expert step labels (Singles, Sudoku, Loopy) | price_steps.py, price_centre.py, step-prices.json |
+| Lemmas | Premature loop (on); components (frontiers), parity (off: unpriced) | deduce.ts |
+| Window families | Counting across units, line families, mined families (expert band only), pockets (opt-in) | deduce.ts, counting.ts |
+| Step signatures | What a step uses (primitive@unit), its shape and family | signatures.ts, techniques-table.ts |
+| Scoreboard | Every judge of difficulty in one command | scoreboard.ts |
+| Mining harness | Finds stuck moments and proposes techniques (systematic, then Opus, now from people's moves) | miner.ts, miner-propose.ts |
+| Generator | Puzzles solvable by reasoning alone, in bands (easy, medium, hard, expert), recording the techniques each requires | generate.ts, bands.ts, gen-set.ts |
+| Graph network | Predicts next moves across all types from one graph of marks, cells and rules | graph_policy.py, graph-data.ts |
+| Cloud | GPU jobs (one L4) and a CPU fleet (512 vCPUs), with results in a private bucket | puzzles/cloud |
+| Link importer | Opens puzz.link and Penpa+ links in paint; records requests for types we don't have | app (merged, not deployed) |
+
+### Data (local only; much of it others' and never published)
+
+| Data | Size | Whose judgement | Use |
+|---|---|---|---|
+| Janko's puzzles with recorded solves | ~4,000 solves, 8 types | people solving (move order; times to check) | human order, hints, stuck moments |
+| Puzzle Square JP | ratings for 17 types, ~20 sampled per type on the board; likes for 4 types | the site | difficulty, taste |
+| Tatham's generators | ~270 graded puzzles, 4 games | his solver (an algorithm) | difficulty |
+| Beast Academy Puzzle Lab | 88 puzzles in ordered sets | curriculum designers | difficulty, sequences |
+| Expert step labels | ~14,000 steps (Singles, Solo, Loopy) | expert solvers (algorithms) | step prices |
+| Our examples and corpus | 8,780 puzzles, 173,000 positions | our solver | network training |
+| Generated (fleet, running) | 42,000 at 80 minutes, aiming for 120,000+ | our solver, by band | network training, site shortlist |
+| inkit solve times | growing with players | people solving | the long-term difficulty source |
+
+**The honest gap:** almost none of the difficulty data is people solving. Samples of 5–20 puzzles
+per type mean agreement figures can be off by 0.15.
+
+## What we've learned
+
+### Difficulty
+
+| Judge | Agreement now | Notes |
+|---|---|---|
+| Puzzle Square JP Sudoku | 0.80 | the Sudoku technique solver reaches 0.87 |
+| Puzzle Square JP Akari, Nonogram, Star Battle | 0.85, 0.83, 0.73 | |
+| Puzzle Square JP Simple Loop | 0.63 | was −0.01 before the loop lemma |
+| Puzzle Square JP Masyu, Shikaku, Hitori | 0.29, 0.34, 0.46 | weak |
+| Tatham Light Up | 0.91 / 0.85 | |
+| Tatham Solo | 0.80 | |
+| Tatham Singles | 0.75 | |
+| Tatham Loopy | 0.41–0.50 | |
+| Beast Academy Spiral Galaxies, Fillomino | 0.70, 0.57 | |
+| Beast Academy Akari | 0.23 | the order within sets runs backwards (−0.57) |
+
+- **Learned step prices work where the labels fit:** Sudoku, Aquarium, Light Up, Loopy.
+- **New reasoning tools change difficulty.** Each new tool (a lemma, a family) lets the solver skip
+  searches that had been carrying the "this is hard" signal. A tool is only safe once its steps are
+  priced. The loop lemma passed that test; the component lemma still flattens Hitori and Singles.
+
+### The core: how people solve
+
+- **The solver's order against people's (Janko):** 0.77 on Star Battle and Akari, 0.55 on
+  Slitherlink, 0.52 on Hitori, 0.49 on Masyu, 0.46 on Nurikabe. Not yet usable for Fillomino (solver
+  timeouts) or Galaxies (solved in one round).
+- **Where the solver gets stuck, people often move elsewhere first.** The mining rounds proposed
+  the same missing units again and again: the ends of a line piece, pockets and corridors,
+  frontiers (a group and its ways out), vertices, the border.
+- **The network:**
+  - 67% top guess against 25% random (width 64, with positions, 16 epochs).
+  - Positions help the each-once types most.
+  - Attention and hide-and-fill pretraining don't help.
+  - Width is untested: the wider runs had the wrong learning rate.
+  - Whole-grid types stay under 40% (Nurikabe, Cave).
+- **Transfer:** within families, yes; across them, barely.
+  - The network's nearest move from another type shares its reasoning 29% of the time (chance 5%).
+  - Left-out families still beat chance (lines and loops 30% against 14%), but four types fall to
+    chance.
+
+### Techniques and the periodic table
+
+- **Shared across types: small shapes, not whole techniques.**
+  - 2,223 step shapes; 89 appear in two or more types.
+  - What's shared is one rule instance and the decided cell (a count along a line, each-once in a
+    row, a loop at a corner).
+- **Six families of types emerge from data** (an SVD of types × techniques):
+  - lines and loops;
+  - order;
+  - regions by size;
+  - counting;
+  - sight and nearness;
+  - each-once.
+
+  These are the table's groups, and the natural unit for transfer tests and learning paths.
+
+### Generation
+
+- **The solver in the loop removes searching.** With the deduction solver inside the generator, no
+  puzzle needs search, against 12 of 12 Slitherlink and Cave puzzles from the old generator.
+- **About 100–150 puzzles per CPU-hour**, mostly easy unless aimed higher.
+- **Some genres can't reach hard:** the solver has no advanced technique for Minesweeper, Hidoku,
+  Spiral Galaxies, Simple Path, Easy as ABC or Fill-in.
+- **Some genres can't be generated:** Shikaku, Numberlink, Fillomino and Nonogram need techniques
+  the solver lacks.
+
+### Labels from language models
+
+- **Opus 5.5 reads a raw grid slowly:** it found correct moves at every breakthrough, at 7–15 seconds
+  a call.
+- **As a technique proposer, Opus did well:** its families removed searches the systematic search
+  couldn't (line × 4 pivot; three blocks and a line).
+- **Untested:** whether it labels difficulty, hints, interest or sequences well from the solver's
+  explanations.
+
+## Open questions, by product
+
+| Question | Product | What would answer it | Status |
+|---|---|---|---|
+| Is data the network's limit? | core | learning curve on the generated set (10–100%) | after the fleet |
+| Does size matter? | core | fair size test: learning rate scaled with width | ready, ~$3 |
+| Does structure as input fix whole-grid types? | core, hints | give the network groups, their sizes and exits | to build |
+| Do our tests measure the right thing? | all | human-made puzzles held out, agreement with people's next moves, key-move score, results by band and family, repeated seeds | building now |
+| Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
+| Does the order of a solve carry difficulty? | difficulty | path features against ratings (solves as vectors, step 1) | after pricing |
+| Do Janko's recordings hold solve times? | difficulty | check the files | quick |
+| Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | ready, ~$10–15, needs approval |
+| What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
+| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | expert band now holds the mined families; per-genre work to do |
+| Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
+| Why is Beast Academy's Akari backwards? | difficulty | look at their sets | open |
+
+## Running now
+
+- **Generation fleet:** 15 spot VMs, 480 vCPUs, until about 13:20 Pacific. A watchdog relaunches
+  reclaimed machines; gather-gen.sh collects the results.
+- **Expert-band trial:** the six genres that had no top band, now with the mined families.
+- **Evaluation changes:** held-out human puzzles first.
+
+## Decisions waiting on you
+
+1. **Push main** (52+ commits): deploys the link importer. Everything else is research code.
+2. **Labeller pilot:** Opus and Fable on four jobs against answer keys, ~$10–15.
+3. **Fair size test** on the GPU: ~$3.
+4. **GPU quota:** the increase is still pending on Google's side.
+5. **A budget alert** in Cloud Billing: optional insurance.
+
+## Next, in order
+
+1. **Gather the fleet;** audit 1%; make training load data in pieces.
+2. **Evaluation changes:** human-made test set, next-move agreement, key-move score, results by
+   band and family, seeds.
+3. **On the GPU, back to back:** the fair size test and the learning curve.
+4. **Labeller pilot,** if approved. Where a model passes, label at scale; distill into our own
+   network and a small open model later (the encoder).
+5. **Connectivity pricing** (CPU, alongside).
+6. **Structure as network input** for the whole-grid types.
+7. **Per-genre techniques** for the generator's missing bands and genres.
+8. **For the site:** review the generated shortlist; build learning paths from the family map.
+
+## Spending to date
+
+| Item | Approx. |
+|---|---|
+| Anthropic API: mining rounds | $2.50 of $10 approved |
+| GPU runs (5) | ~$8 |
+| CPU generation (first batch + fleet) | ~$16–21 when the fleet ends |
