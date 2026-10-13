@@ -260,12 +260,12 @@ give every state and its targets on demand (checked identical to the old states 
 mark names are dropped after reading, and the files are read a line at a time. GRAPH_GEN_SHARE takes
 a share of the generated set by the same hash (so 10% ⊂ 25% ⊂ 50% ⊂ 100%; skipped lines aren't
 parsed), and GRAPH_STATES_PER keeps at most N states of each generated puzzle, spread through its
-solve. The whole set (130,503 to train, 1,291 held out) loads in 61 s on the Mac at a peak of 2.0 GB.
+solve. The whole set (about 1,300 held out, the rest to train) loads in 61 s on the Mac at a peak of 2.0 GB.
 
 **The learning curve** (graph-job.sh step `curve`): the attention network at width 128 (8 heads,
 positions, GRAPH_LR_SCALE=1; the fair size test gave 69.4% at 64, 73.5% at 128 and 76.0% at 256,
 still rising, and a network too small to use more data would hide the answer) on the corpus plus
-100, 10, 50 and 25% of the generated set, 4 states a generated puzzle (516,787 states, 62M
+100, 10, 50 and 25% of the generated set, 4 states a generated puzzle (516,523 states, 62M
 mark-states at 100%: 3.3 times the corpus's 18.6M a training epoch). Every share gets the same
 training time as the size test's 16 corpus epochs (44 minutes at 128): 12, 9, 6 and 4 epochs for
 10, 25, 50 and 100%, so the curve measures more data rather than more steps, and the size test is
