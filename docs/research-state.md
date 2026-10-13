@@ -114,10 +114,15 @@ per type mean agreement figures can be off by 0.15.
 - **The solver in the loop removes searching.** With the deduction solver inside the generator, no
   puzzle needs search, against 12 of 12 Slitherlink and Cave puzzles from the old generator.
 - **About 100–150 puzzles per CPU-hour**, mostly easy unless aimed higher.
-- **Some genres can't reach hard:** the solver has no advanced technique for Minesweeper, Hidoku,
-  Spiral Galaxies, Simple Path, Easy as ABC or Fill-in.
-- **Some genres can't be generated:** Shikaku, Numberlink, Fillomino and Nonogram need techniques
-  the solver lacks.
+- **Per-genre techniques, in the expert band only** (deduce.ts TECHNIQUES, off by default and
+  unpriced): Shikaku's candidate rectangles, Minesweeper's clue chains, paths' loose ends and cuts,
+  Galaxies' symmetry reach, Hidoku's distances and dead ends, Easy as ABC's X-wing, Fill-in's slots,
+  Numberlink's owners, Fillomino's region shapes. Shikaku, Numberlink and Fillomino now generate
+  (expert); Simple Path, Spiral Galaxies (fast now), Hidoku and Easy as ABC 6 × 6 reach expert.
+  Galaxies' and Fill-in's helper atoms now have footprints in every band (each window had held
+  the whole puzzle).
+- **Still short:** Minesweeper and Fill-in (the generator's minimal puzzles are nearly all easy),
+  Simple Loop expert (comes out hard), Galaxies hard, Nonogram (fixed pictures).
 
 ### Labels from language models
 
@@ -141,7 +146,7 @@ per type mean agreement figures can be off by 0.15.
 | Do Janko's recordings hold solve times? | difficulty | check the files | quick |
 | Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | ready, ~$10–15, needs approval |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
-| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | expert band now holds the mined families; per-genre work to do |
+| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band); pricing them, and a hard band for Galaxies, open |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
 | Why is Beast Academy's Akari backwards? | difficulty | look at their sets | open |
 
