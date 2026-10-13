@@ -294,3 +294,32 @@ its 0% point. About 50 minutes a share, 3.4 hours in all. Width 256 at the same 
 when scored (a re-banding changes nothing else; the held-out slice is hashed on the name without
 its band), and Spiral Galaxies and Fill-in are left out of the by-band table while their bands are
 redone (GRAPH_BAND_SKIP). Results to come.
+
+## 11. Structure as input (graph-20261013-1435)
+
+Each cell's structure, computed from the position (puzzles/difficulty/structure.py, GRAPH_STRUCTURE=1):
+- the known group it's in, the group's size and its ways out;
+- the room a clue still needs, and what it can still reach;
+- for lines, the ends of each piece, its length and how far apart the ends are, and the open edges
+  that would close a loop early;
+- for marks, whether they join two ends or close a piece.
+
+All of it is keyed on rule primitives, not genre names. The run is the fair size test's width-128
+run with only these features added (16 epochs, attention, positions, learning rate scaled):
+
+| Type | Without | With |
+|---|---|---|
+| Hitori | 67% | 83% |
+| Slitherlink | 65% | 79% |
+| Nurikabe | 48% | 60% |
+| Cave | 43% | 54% |
+| Shikaku | 84% | 88% |
+| Sudoku | 79% | 82% |
+| Masyu, Star Battle, Akari | 84%, 96%, 85% | 84%, 96%, 86% |
+| Fillomino (52 test states) | 60% | 54% |
+| All types (31) | 73.5% | 77.1% |
+
+The whole-grid types gain 11–16 points, more than width 256 gave them, and the mean beats width 256
+(76.0%) at a quarter of the size. What the network lacked was sight of groups and their exits, not
+reach or size. One seed each; both runs on the same data (which still held the 123 puzzles later
+found to be copies of human test puzzles), so the comparison is fair.
