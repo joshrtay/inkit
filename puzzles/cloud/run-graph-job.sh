@@ -6,7 +6,7 @@
 #
 #   puzzles/cloud/run-graph-job.sh [zone] [steps] [model run] [families]
 #
-# steps: any of "all holdout embed grid scale" (default the first three); model run: an earlier run whose
+# steps: any of "all holdout embed grid scale structure" (default the first three); model run: an earlier run whose
 # trained network to use when "all" isn't among them, e.g. run-graph-job.sh us-central1-a embed
 # graph-20261012-2218; families: for grid, the families to leave out (graph_policy.py FAMILIES;
 # default all six), e.g. run-graph-job.sh us-central1-b grid "" "lines-loops counting"

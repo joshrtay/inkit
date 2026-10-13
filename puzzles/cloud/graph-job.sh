@@ -51,6 +51,23 @@ if [[ " $STEPS " == *" scale "* ]]; then
     gcloud storage cp results/scale/width-$h.txt "$BUCKET/results/$RUN/scale/"
   done
 fi
+if [[ " $STEPS " == *" structure "* ]]; then
+  # the size test's width-128 run (attention, positions, 16 epochs, learning rate scaled) with what
+  # a person sees at a glance as input: known groups, their size and ways out, a number's room and
+  # reach, line pieces and their ends (structure.py, GRAPH_STRUCTURE=1); results synced as they come
+  mkdir -p results/structure
+  # the bucket's code must carry the hook (another upload may have replaced it)
+  grep -q GRAPH_STRUCTURE puzzles/difficulty/graph_policy.py || { echo "graph_policy.py in the bucket has no GRAPH_STRUCTURE: upload the code again" | tee results/structure/width-128.txt; exit 1; }
+  ( set +x; while sleep 120; do
+      gcloud storage cp -q results/structure/*.txt "$BUCKET/results/$RUN/structure/"
+      gcloud storage cp -q /var/log/graph-job.log "$BUCKET/results/$RUN/job.log"
+    done ) &
+  SYNC=$!
+  python3 puzzles/difficulty/structure.py --selftest > results/structure/selftest.txt 2>&1
+  GRAPH_STRUCTURE=1 GRAPH_LR_SCALE=1 GRAPH_H=128 GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_EPOCHS=16 GRAPH_TAG=structure python3 puzzles/difficulty/graph_policy.py all --attention > results/structure/width-128.txt 2>&1
+  kill $SYNC
+  gcloud storage cp results/structure/*.txt references/ml/graph-policy-attention-structure.pt "$BUCKET/results/$RUN/structure/"
+fi
 if [[ " $STEPS " == *" embed "* ]]; then
   python3 puzzles/difficulty/graph_policy.py embed > results/embed.txt 2>&1
   gcloud storage cp results/embed.txt references/ml/move-embedding.npz "$BUCKET/results/$RUN/"
