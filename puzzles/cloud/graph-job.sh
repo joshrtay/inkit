@@ -40,6 +40,17 @@ if [[ " $STEPS " == *" grid "* ]]; then
   kill $SYNC
   gcloud storage cp results/grid.txt results/grid/* "$BUCKET/results/$RUN/grid/"
 fi
+if [[ " $STEPS " == *" scale "* ]]; then
+  # does a bigger network help? the attention network at widths 64, 128, 256 (8 heads, each cell's
+  # position as input, 16 epochs); each trained on every type, scored per type. No new width
+  # starts after 3.3 hours, so the VM's 4-hour limit doesn't cut one off half-trained
+  mkdir -p results/scale
+  for h in 64 128 256; do
+    [ $SECONDS -gt 11900 ] && echo "skipping width $h: out of time" && break
+    GRAPH_H=$h GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_EPOCHS=16 GRAPH_TAG=w$h python3 puzzles/difficulty/graph_policy.py all --attention > results/scale/width-$h.txt 2>&1
+    gcloud storage cp results/scale/width-$h.txt "$BUCKET/results/$RUN/scale/"
+  done
+fi
 if [[ " $STEPS " == *" embed "* ]]; then
   python3 puzzles/difficulty/graph_policy.py embed > results/embed.txt 2>&1
   gcloud storage cp results/embed.txt references/ml/move-embedding.npz "$BUCKET/results/$RUN/"

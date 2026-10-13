@@ -37,6 +37,11 @@ FAMILIES = {
     "order": ["hive", "hidoku", "pythagorean-paths", "honeycomb-paths"],
 }
 FLAGS = {a for a in sys.argv[1:] if a.startswith("--")}
+# the network's size (GRAPH_H numbers per node, GRAPH_HEADS attention heads) and GRAPH_POS=1 for
+# each cell's position (row and column, and waves across the grid) as input
+H = int(os.environ.get("GRAPH_H", 64)); HEADS = int(os.environ.get("GRAPH_HEADS", 4))
+POS = os.environ.get("GRAPH_POS") == "1"
+NPOS = 10 if POS else 0
 sys.argv = [a for a in sys.argv if not a.startswith("--")]
 dev = torch.device(os.environ["GRAPH_DEVICE"]) if os.environ.get("GRAPH_DEVICE") else torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -77,10 +82,19 @@ class Puzzle:
             args = m["name"][m["name"].index("(") + 1:-1].split(",")
             if len(args) > 1: mf[i, -1] = int(args[1]) / 9
             for c in m["cells"]: me.append((i, c))
-        cf = np.zeros((self.nc, len(GIVENS) + 1), np.float32)
+        cf = np.zeros((self.nc, len(GIVENS) + 1 + NPOS), np.float32)
         for (c, kind, v) in d["givens"]:
             if kind in GIVENS: cf[c, GIVENS.index(kind)] = 1
-            if v: cf[c, -1] = v / 9
+            if v: cf[c, len(GIVENS)] = v / 9
+        if POS:
+            # where each cell is (rows and columns from the cell's number; grids that aren't rows
+            # of cells get none): row and column as fractions, distance to the nearest edge, and
+            # two waves across each axis, so attention can tell near from far
+            R, C = st.get("rows") or 0, st.get("cols") or 0
+            if R and C and R * C >= self.nc:
+                for c in range(self.nc):
+                    r, q = divmod(c, C); fr, fc = (r + .5) / R, (q + .5) / C
+                    cf[c, -NPOS:] = [fr, fc, min(fr, 1 - fr), min(fc, 1 - fc)] + [np.sin(np.pi * fr), np.cos(np.pi * fr), np.sin(2 * np.pi * fr), np.sin(np.pi * fc), np.cos(np.pi * fc), np.sin(2 * np.pi * fc)]
         gf, ge = [], []
         for j, g in enumerate(st["groups"]):
             f = np.zeros(len(PRIMS) + len(UNITS) + 2, np.float32)
@@ -193,12 +207,12 @@ class GlobalAttention(nn.Module):
         return x + self.ff(self.n2(x))
 
 class GraphNet(nn.Module):
-    def __init__(self, h=64, rounds=6, attention=False):
+    def __init__(self, h=H, rounds=6, attention=False):
         super().__init__()
         # global attention after rounds 2, 4 and 6
-        self.att = nn.ModuleList([GlobalAttention(h) for _ in range(rounds // 2)]) if attention else None
+        self.att = nn.ModuleList([GlobalAttention(h, HEADS) for _ in range(rounds // 2)]) if attention else None
         self.fill = nn.Linear(h, 1)   # hide and fill: is this hidden mark true?
-        self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3, h), nn.Linear(len(GIVENS) + 1, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
+        self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3, h), nn.Linear(len(GIVENS) + 1 + NPOS, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
         self.rounds = rounds
         self.m2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2g = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
         self.g2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2m = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
@@ -224,7 +238,7 @@ def to(g):
 def attends(net): return net.att is not None
 def new_net(): return GraphNet(attention="--attention" in FLAGS).to(dev)
 def version(): return "both" if {"--attention", "--pretrain"} <= FLAGS else "attention" if "--attention" in FLAGS else "pretrain" if "--pretrain" in FLAGS else "base"
-def weights(): return os.path.join(HERE, "../../references/ml/graph-policy" + ("" if version() == "base" else "-" + version()) + ".pt")
+def weights(): return os.path.join(HERE, "../../references/ml/graph-policy" + ("" if version() == "base" else "-" + version()) + (f"-{os.environ['GRAPH_TAG']}" if os.environ.get("GRAPH_TAG") else "") + ".pt")
 
 BUDGET = 20000   # marks per batch: batches by size, not count, so memory stays even
 
@@ -322,6 +336,8 @@ def run_all(split):
     """Train on every type (after hide and fill, with --pretrain); test on each type's held-out puzzles."""
     train_pz = [p for tr, _ in split.values() for p in tr]
     net = pretrain(train_pz, PRE_EPOCHS) if "--pretrain" in FLAGS else None
+    if net is None: net = new_net()
+    print(f"network: {sum(x.numel() for x in net.parameters()):,} parameters, width {H}, {HEADS} heads, positions {'on' if POS else 'off'}, {EPOCHS} epochs", flush=True)
     net = train(states(train_pz), EPOCHS, net)
     out = {}
     for g, (_, te) in sorted(split.items()):
@@ -358,6 +374,8 @@ if __name__ == "__main__":
         net, out = run_all(split)
         print("\n| Type | Test states | Top guess is a move | Random |\n|---|---|---|---|")
         for g, (n, h, b) in out.items(): print(f"| {g} | {n} | {h:.0%} | {b:.0%} |")
+        big = [g for g in out if len(by[g]) >= MIN_TYPE]
+        print(f"\nmean over the {len(big)} types with at least {MIN_TYPE} puzzles: {np.mean([out[g][1] for g in big]):.1%} (random {np.mean([out[g][2] for g in big]):.1%})")
         torch.save(net.state_dict(), weights())
     elif mode in ("holdout", "family"):
         print("\n| Held-out type | Trained with it | Without it (zero-shot) | + 10 of its puzzles (few-shot) | Random |\n|---|---|---|---|---|")
