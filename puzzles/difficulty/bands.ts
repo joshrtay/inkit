@@ -10,8 +10,9 @@
 //           loop parity, two clues' overlapping reach, the families mined from people's stuck
 //           moments (MINED_FAMILIES), pockets (a loop's open areas), and the per-genre
 //           techniques (deduce's TECHNIQUES: Shikaku's candidate rectangles, Minesweeper's clue
-//           chains, ...), each a technique of its own, in a last stage of their own so they're
-//           used only where nothing else goes on
+//           chains, ...), each a technique of its own, in a stage of their own after counting
+//           and before the mined families and pockets (those check thousands of windows a
+//           round; the genre's own reasoning is cheaper, and nearer what a person reaches for)
 //
 // A technique is *required* by a puzzle when the band's solver solves it and gets stuck with that
 // one technique taken away (requiredOf). The checks use deduce's quick mode: facts are settled as
@@ -40,7 +41,7 @@ export const BAND_LIST: Band[] = [
   { name: "easy", stages: "t0", lemmas: [], lines: false, reach: false },
   { name: "medium", stages: "t0,pairs+strips", lemmas: [], lines: false, reach: false },
   { name: "hard", stages: "t0,pairs+strips+triples,count,extra+components", lemmas: ["loop"], lines: true, reach: false },
-  { name: "expert", stages: "t0,pairs+strips+triples,count,extra+components+pockets,techniques", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES) },
+  { name: "expert", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES) },
 ];
 export const bandNamed = (name: string) => {
   const b = BAND_LIST.find((x) => x.name === name);

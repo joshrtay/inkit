@@ -21,6 +21,7 @@ const GENRES: Record<string, string[]> = {
   mirror: ["spiral-galaxies"],
   distance: ["hidoku"],
   deadends: ["hidoku"],
+  fish: ["easy-as-abc"],
 };
 const expert = bandNamed("expert");
 

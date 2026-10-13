@@ -222,6 +222,8 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   // one before it beside it too (dead ends)
   distance: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
   deadends: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
+  // Easy as ABC: a letter's places in two rows and two columns (an X-wing)
+  fish: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "letters"),
 };
 export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
@@ -1647,7 +1649,41 @@ end
     return ws.filter((w) => w.size <= techCap);
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  // Easy as ABC (technique "fish"): each letter is once in every row and column, so for one
+  // letter the rows and columns are matched up; two rows and two columns together (with the clues
+  // that look along them) see an X-wing: the letter's two places in two rows fill both columns.
+  // The fixed windows hold three lines in a chain or crossed by a fourth, not two by two. Windows
+  // only, over the puzzle's own rules: the pairs of rows and pairs of columns still open.
+  const fishRound = (): Window[] => {
+    if (g.kind !== "square" || !p.rules.some((r) => r.rule === "letters")) return [];
+    const openLine = (cells: number[]) => cells.some((i) => [...Array(p.digits).keys()].some((d) => digitState(i, d + 1) < 0));
+    const rows = [...Array(g.rows).keys()].map((r) => [...Array(g.cols).keys()].map((c) => g.cell(r, c))).filter(openLine);
+    const cols = [...Array(g.cols).keys()].map((c) => [...Array(g.rows).keys()].map((r) => g.cell(r, c))).filter(openLine);
+    // two lines one way where some letter's places fall in at most three lines the other way:
+    // those lines, two at a time
+    const ws: Window[] = [];
+    const name = (cells: number[], across: boolean) => (across ? `row ${g.rc(cells[0])[0] + 1}` : `column ${g.rc(cells[0])[1] + 1}`);
+    for (const [ls, others, across] of [[rows, cols, true], [cols, rows, false]] as const) {
+      const at = (cell: number) => (across ? g.rc(cell)[1] : g.rc(cell)[0]);
+      for (let a = 0; a < ls.length; a++) for (let b = a + 1; b < ls.length; b++) {
+        const pairs = new Set<string>();
+        for (let d = 1; d <= p.digits; d++) {
+          const where = new Set([...ls[a], ...ls[b]].filter((i) => digitState(i, d) !== 0).map(at));
+          if (where.size > 3) continue;
+          const xs = [...where].sort((u, v) => u - v);
+          for (let x = 0; x < xs.length; x++) for (let y = x + 1; y < xs.length; y++) pairs.add(`${xs[x]},${xs[y]}`);
+        }
+        for (const key of pairs) {
+          const [x, y] = key.split(",").map(Number), ox = others.find((o) => at(o[0]) !== undefined && (across ? g.rc(o[0])[1] : g.rc(o[0])[0]) === x), oy = others.find((o) => (across ? g.rc(o[0])[1] : g.rc(o[0])[0]) === y);
+          if (!ox || !oy) continue;
+          ws.push(techWin(`fish: ${name(ls[a], across)} and ${name(ls[b], across)}, ${name(ox, !across)} and ${name(oy, !across)}`, bitsOf(n, [...ls[a], ...ls[b], ...ox, ...oy])));
+        }
+      }
+    }
+    return ws;
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
