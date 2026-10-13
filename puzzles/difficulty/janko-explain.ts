@@ -6,11 +6,20 @@
 //
 //   node puzzles/difficulty/janko-explain.ts
 import { readFileSync, writeFileSync } from "node:fs";
+import type { GridSpec } from "../../src/engine/types.ts";
 import { clingoRaw, loadClingo } from "./clingo.ts";
+import { JANKO_DIR } from "./janko.ts";
 
-const repo = new URL("../../", import.meta.url).pathname;
 type Stuck = { f: string; n: number; stars: number; areas: string[]; known: [number, number][]; searched: { cell: number; star: boolean }[]; humanNext: { cell: number; star: boolean }[] };
-const stuck = JSON.parse(readFileSync(`${repo}references/janko/stuck-star-battle.json`, "utf8")) as Stuck[];
+// janko-stuck.ts's records, on marks ("shaded(12)"), as cells
+type Fact = { mark: string; value: boolean };
+type Saved = { f: string; spec: GridSpec; known: [string, number][]; searched: Fact[]; humanNext: Fact[] };
+const cellOf = (mark: string) => Number(/^shaded\((\d+)\)$/.exec(mark)![1]);
+const asCell = (x: Fact) => ({ cell: cellOf(x.mark), star: x.value });
+const stuck: Stuck[] = (JSON.parse(readFileSync(`${JANKO_DIR}stuck-star-battle.json`, "utf8")) as Saved[]).map((p) => ({
+  f: p.f, n: p.spec.size[0], stars: Number(p.spec.rules!.find((x) => x.rule === "shaded-per-line")!.n), areas: p.spec.areas!,
+  known: p.known.map(([m, v]) => [cellOf(m), v] as [number, number]), searched: p.searched.map(asCell), humanNext: p.humanNext.map(asCell),
+}));
 await loadClingo();
 
 /** The smallest unit set forcing `cell` to `star`, trying sets of 1, 2, 3 units: their names, or null. */
@@ -60,7 +69,7 @@ for (const p of stuck) {
   for (const h of p.humanNext) results.push({ f: p.f, who: "person", units: minimalUnits(p, h.cell, h.star) });
   for (const s of p.searched.slice(0, 1)) results.push({ f: p.f, who: "our search", units: minimalUnits(p, s.cell, s.star) });
 }
-writeFileSync(`${repo}references/janko/explain-star-battle.json`, JSON.stringify(results, null, 1));
+writeFileSync(`${JANKO_DIR}explain-star-battle.json`, JSON.stringify(results, null, 1));
 for (const who of ["person", "our search"]) {
   const rs = results.filter((r) => r.who === who), counts = new Map<string, number>();
   for (const r of rs) counts.set(shape(r.units), (counts.get(shape(r.units)) ?? 0) + 1);

@@ -1,49 +1,53 @@
-// What do people do where our solver gets stuck? For each of Janko's Star Battles (local only):
-// the first moment our solver needed a case split or search, what it knew then, the fact it
-// searched for, and the person's next moves from there (of the cells still open, the ones they
-// settled earliest). Saved for study in references/janko/stuck-star-battle.json.
+// What do people do where our solver gets stuck? For each of Janko's puzzles of a type (local
+// only; the puzzles janko-order.ts studies): the first moment our solver needed a case split or
+// search, what it knew then, the facts it searched for, and the person's next moves from there (of
+// the marks still open, the ones they settled earliest). Saved for study in
+// references/janko/stuck-<type>.json.
 //
-//   node puzzles/difficulty/janko-stuck.ts [maxSize]
-import { readdirSync, writeFileSync } from "node:fs";
-import { deduceGuarded } from "./deduce-guarded.ts";
-import { readStarBattle } from "./janko.ts";
+//   node puzzles/difficulty/janko-stuck.ts [type …] [--max-size 10] [--limit 80]
+import { writeFileSync } from "node:fs";
+import { JANKO_DIR } from "./janko.ts";
+import { deduceCached, jankoArgs, studied } from "./janko-order.ts";
 import { mapPool } from "./pool.ts";
 
-const repo = new URL("../../", import.meta.url).pathname;
-const dir = `${repo}references/janko/Sternenschlacht/`;
-const maxSize = Number(process.argv[2]) || 10;
-const puzzles = readdirSync(dir).filter((f) => f.endsWith(".txt")).sort()
-  .map((f) => ({ f, j: readStarBattle(dir + f) }))
-  .filter((x) => x.j && x.j.spec.size[0] <= maxSize && x.j.settled.size > x.j.spec.size[0] ** 2 * 0.6);
-
-const cellOf = (mark: string) => Number(/^shaded\((\d+)\)$/.exec(mark)?.[1] ?? -1);
-const rows = await mapPool(puzzles, async ({ f, j }) => {
-  const r = await deduceGuarded(j!.spec, { budgetMs: 30000 }, 120000).catch(() => null);
-  if (!r || !r.profile.solved) return null;
-  const steps = r.path.filter((s) => !s.choice);
-  const k = steps.findIndex((s) => s.tier >= 2);
-  if (k < 0) return null;
-  // what our solver knew just before: cell → star?
-  const known = new Map<number, boolean>();
-  for (const x of r.initial ?? []) { const m = /^shaded\((\d+)\)=(\w+)$/.exec(x); if (m) known.set(+m[1], m[2] === "true"); }
-  for (const s of steps.slice(0, k)) for (const x of s.facts) { const c = cellOf(x.mark); if (c >= 0) known.set(c, x.value); }
-  const searched = steps[k].facts.flatMap((x) => (cellOf(x.mark) >= 0 ? [{ cell: cellOf(x.mark), star: x.value }] : []));
-  const answer = new Set((r.answer ?? []).map(cellOf).filter((c) => c >= 0));
-  const n = j!.spec.size[0];
-  const open = [...j!.settled.keys()].filter((c) => !known.has(c)).sort((a, b) => j!.settled.get(a)! - j!.settled.get(b)!);
-  const humanNext = open.slice(0, 3).map((c) => ({ cell: c, star: answer.has(c) }));
-  const humanRank = (c: number) => open.indexOf(c);
-  return {
-    f, n, stars: j!.spec.rules!.find((x) => x.rule === "shaded-per-line")!.n, areas: j!.spec.areas, solver: j!.solver, tier: steps[k].tier, where: steps[k].where,
-    known: [...known].map(([c, s]) => [c, s ? 1 : 0]), searched, humanNext,
-    // where our searched cells sit in the person's order of the open cells (0: their very next)
-    searchedRank: searched.map((x) => humanRank(x.cell)),
-    open: open.length,
-  };
-});
-const ok = rows.filter((r): r is NonNullable<typeof r> => !!r);
-writeFileSync(`${repo}references/janko/stuck-star-battle.json`, JSON.stringify(ok, null, 1));
-const ranks = ok.map((r) => Math.min(...r.searchedRank.filter((x) => x >= 0)) / Math.max(1, r.open - 1)).filter(Number.isFinite);
-const median = [...ranks].sort((a, b) => a - b)[Math.floor(ranks.length / 2)];
-console.log(`${ok.length} puzzles where our solver got stuck (of ${puzzles.length})`);
-console.log(`our searched fact among the person's next 3: ${ok.filter((r) => r.searchedRank.some((x) => x >= 0 && x < 3)).length}; its place in the person's order of the open cells: median ${(100 * median).toFixed(0)}% of the way through`);
+const { types, maxSize, limit } = jankoArgs(process.argv.slice(2));
+const summary: string[] = [];
+for (const type of types) {
+  const puzzles = studied(type, maxSize, limit);
+  let done = 0;
+  const rows = await mapPool(puzzles, async ({ f, j }) => {
+    const r = await deduceCached(j.spec).catch(() => null);
+    console.error(`${type} ${++done}/${puzzles.length} ${f}`);
+    if (!r || !r.profile.solved) return { f, solved: false as const };
+    const steps = r.path.filter((s) => !s.choice);
+    const k = steps.findIndex((s) => s.tier >= 2);
+    if (k < 0) return { f, solved: true as const, stuck: false as const };
+    // what our solver knew just before: mark → value
+    const known = new Map<string, boolean>();
+    for (const x of r.initial ?? []) { const m = /^(.*)=(true|false)$/.exec(x); if (m) known.set(m[1], m[2] === "true"); }
+    for (const s of steps.slice(0, k)) for (const x of s.facts) known.set(x.mark, x.value);
+    const searched = steps[k].facts.map((x) => ({ mark: x.mark, value: x.value }));
+    // the marks the person settled that were still open, in their order
+    const open = [...j.settled.keys()].filter((m) => !known.has(m)).sort((a, b) => j.settled.get(a)! - j.settled.get(b)!);
+    const humanNext = open.slice(0, 3).map((m) => ({ mark: m, value: j.truth.get(m)! }));
+    return {
+      f, solved: true as const, stuck: true as const, size: j.spec.size, spec: j.spec, solver: j.solver, tier: steps[k].tier, where: steps[k].where,
+      known: [...known].map(([m, v]) => [m, v ? 1 : 0] as [string, number]), searched, humanNext,
+      // where our searched marks sit in the person's order of the open marks (0: their very next;
+      // -1: a mark the person never settled)
+      searchedRank: searched.map((x) => open.indexOf(x.mark)),
+      open: open.length,
+    };
+  });
+  const solved = rows.filter((r) => r.solved);
+  const ok = rows.filter((r): r is Extract<typeof r, { stuck: true }> => r.solved && "stuck" in r && r.stuck);
+  writeFileSync(`${JANKO_DIR}stuck-${type}.json`, JSON.stringify(ok, null, 1));
+  const ranks = ok.map((r) => Math.min(...r.searchedRank.filter((x) => x >= 0)) / Math.max(1, r.open - 1)).filter(Number.isFinite);
+  const median = [...ranks].sort((a, b) => a - b)[Math.floor(ranks.length / 2)];
+  const next3 = ok.filter((r) => r.searchedRank.some((x) => x >= 0 && x < 3)).length;
+  const never = ok.filter((r) => r.searchedRank.every((x) => x < 0)).length;
+  const line = `${type}: stuck on ${ok.length} of ${solved.length} solved (${puzzles.length} tried); searched fact among the person's next 3: ${next3}; never settled by the person: ${never}; its place in the person's order of the open marks: median ${ranks.length ? (100 * median).toFixed(0) : "–"}% of the way through`;
+  console.log(line);
+  summary.push(line);
+}
+if (summary.length > 1) console.log(summary.join("\n"));
