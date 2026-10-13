@@ -48,16 +48,19 @@ const FIXED = new Set(["block", "door", "peg", "lengths", "start", "end", "gap",
 
 /** The genres and sizes that come out without search, and the bands each can reach (all by
  *  default), from a trial of every generated genre at one puzzle per band. Hitori, Nurikabe and
- *  Square Jam only in expert: they need its connection lemma or clue reach. Left out: Shikaku (no
- *  puzzle in 5 minutes in any band: the windows can't do its rectangles, and a random placement of
- *  its numbers is rarely solvable without case splits), Numberlink (none in any band), Nonogram
- *  (its pictures are fixed: easy or nothing), Fillomino and the other piece genres (case splits). */
+ *  Square Jam only in expert: they need its connection lemma or clue reach; Shikaku, Numberlink
+ *  and Fillomino too: they need its per-genre techniques (deduce.ts TECHNIQUES: candidate
+ *  rectangles; pieces that can't join, the cells each pair reaches; the shapes a numbered part
+ *  can grow into), which no lower band has. Easy as ABC at 6 as well: 5 × 5 has no room past
+ *  easy. Left out: Nonogram (its pictures are fixed: easy or nothing) and the other piece genres
+ *  (case splits). */
 export const GENRES: [string, number[], string[]?][] = [
-  ["sudoku", [9]], ["irregular-sudoku", [6]], ["thermo-sudoku", [6]], ["skyscrapers", [5, 6]], ["easy-as-abc", [5]],
+  ["sudoku", [9]], ["irregular-sudoku", [6]], ["thermo-sudoku", [6]], ["skyscrapers", [5, 6]], ["easy-as-abc", [5, 6]],
   ["akari", [7, 10]], ["slitherlink", [5, 6]], ["masyu", [6]], ["simple-loop", [6]], ["simple-path", [6]], ["cave", [6]],
   ["aquarium", [6]], ["minesweeper", [6]], ["wittgenstein-briquet", [6]], ["binary-puzzle", [6]], ["star-battle", [6, 8]],
   ["spiral-galaxies", [6]], ["hidoku", [5]], ["fill-in", [5]],
   ["hitori", [6], ["expert"]], ["nurikabe", [6], ["expert"]], ["square-jam", [6], ["expert"]],
+  ["shikaku", [5, 6], ["expert"]], ["numberlink", [5, 6], ["expert"]], ["fillomino", [5], ["expert"]],
 ];
 
 export interface Job { genre: string; size: number; target: string; seed: number; k: number }

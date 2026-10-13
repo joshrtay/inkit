@@ -25,7 +25,7 @@
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
-import { blockFor } from "../../src/engine/rules.ts";
+import { blockFor, fillSlots, galaxyCore, pathEnds, pathNeighbours, symbolOf } from "../../src/engine/rules.ts";
 import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
@@ -120,6 +120,15 @@ export interface Options {
   families?: FamilySpec[];
   /** the lemmas the solver adds ("component", "parity", "loop"); default DEDUCE_LEMMAS, else "loop" */
   lemmas?: string[];
+  /** per-genre techniques (TECHNIQUES), for the generator's bands only (bands.ts): constraints
+   *  each implies from what's known, added each round like the lemmas, with windows over them (the
+   *  stage family "techniques"). Default none */
+  techniques?: string[];
+  /** helper atoms named by a cell take that cell as their footprint (Spiral Galaxies' gal(I,G)):
+   *  otherwise, made from facts alone, they have none, the constraints over them hold in every
+   *  window, and every window holds the whole puzzle (each solves a Spiral Galaxies in a round or
+   *  two). For the generator's bands (bands.ts); default off */
+  cellAtoms?: boolean;
   /** the line families (DEFAULT_FAMILIES) where lines carry rules; default on (DEDUCE_DEFAULT_FAMILIES=0: off) */
   defaultFamilies?: boolean;
   /** the hardest tier allowed: 1 stops where only a case split or search would go on (the profile
@@ -194,6 +203,35 @@ export const MINED_FAMILIES: FamilySpec[] = [
   { units: ["clue", "reach", "reach"], relation: "touch", maxCells: 16, tag: "mined" },
   { units: ["clue", "clue", "clue"], relation: "touch", tag: "mined" },
 ];
+
+/** The per-genre techniques (Options.techniques), each named as quick steps and `requiredOf` name
+ *  it, and the puzzles it applies to. Off by default (unpriced); the generator's expert band uses
+ *  them (bands.ts). */
+export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> = {
+  // Shikaku: a number's candidate rectangles
+  rects: (p, genre) => genre === "shikaku" && p.rules.map((r) => r.rule).join(",") === "rectangles,one-each,size-clue",
+  // Minesweeper: two or three overlapping numbers together
+  mines: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "mine-count"),
+  // Simple Path and Numberlink: loose ends that mustn't close up (or join different numbers)
+  ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path" || r.rule === "links"),
+  // Simple Path, Simple Loop and Numberlink with every cell used: a part of the grid with few ways out
+  cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || r.rule === "links" || (r.rule === "loop" && r.of === "loop"))),
+  // Numberlink: the cells each pair can still reach
+  owners: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links"),
+  // Fillomino (regions cut by borders, numbers their sizes): parts that close, stay apart or must grow
+  sizes: (p, genre) => genre !== "shikaku" && !p.figure && p.marks.includes("regions") && p.rules.some((r) => r.rule === "size-clue"),
+  // Spiral Galaxies: the cells each galaxy can still reach, by symmetry (needs Options.cellAtoms)
+  mirror: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "galaxies"),
+  // Hidoku and Honeycomb Paths: how far a number can be from the placed ones; a number needs the
+  // one before it beside it too (dead ends)
+  distance: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
+  deadends: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
+  // Easy as ABC: a letter's places in two rows and two columns (an X-wing)
+  fish: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "letters"),
+  // Fill-in: the entries each slot still fits, the slots each entry still fits (needs Options.cellAtoms)
+  slots: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "fill-in"),
+};
+export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
 export interface Structure { cells: number; rows: number; cols: number; marks: { name: string; cells: number[] }[]; groups: { kind: string; label: string; cells: number[] }[] }
@@ -330,7 +368,8 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   let calls = 0;
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
-  const local = localProgram(p, spec.genre);
+  const techOn = new Set((opts.techniques ?? []).filter((t) => techniqueApplies(t, p, spec.genre)));
+  const local = localProgram(p, spec.genre, techOn.has("rects"));
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
@@ -345,8 +384,17 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
   if (!local && lemmasOn.includes("loop")) lemmaNames.push("loop");
+  // the per-genre techniques' blocks, one each
+  const techBlock = new Map<string, number>();
+  for (const t of techOn) { techBlock.set(t, p.rules.length + lemmaNames.length); lemmaNames.push(t); }
   const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
-  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}`;
+  // Options.cellAtoms: Spiral Galaxies' gal(I,G) (cell I is in galaxy G) shown, to take cell I as
+  // its footprint
+  const galAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "galaxies") && !local;
+  // and Fill-in's put(E,S) (entry E goes in slot S), footprint the slot's cells
+  const putAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "fill-in") && !local;
+  const slots = putAtoms ? fillSlots(p) : [];
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
   const G: Ground = parseAspif(ground(prog));
   dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
@@ -381,6 +429,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- footprints ----
   const fp: (Bits | null)[] = new Array(G.maxAtom + 1).fill(null);
   for (let m = 0; m < M; m++) if (markAtom[m] > 0) fp[markAtom[m]] = bitsOf(n, markCells[m]);
+  // helper atoms named by their cell (Options.cellAtoms): without a footprint of their own (they're
+  // chosen freely, from facts), every constraint over them would hold in every window, so each
+  // window would hold the whole puzzle
+  if (galAtoms) for (const [name, lit] of G.outputs) { const x = /^gal\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); }
+  if (putAtoms) for (const [name, lit] of G.outputs) { const x = /^put\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, slots[+x[2]]); }
   const defs: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const usedIn: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const constraints: number[] = [];
@@ -637,7 +690,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const systems = countSystems(p, boxCells);
   const countCache = new Map<string, Window>();
   const stages = (opts.stages ?? process.env.DEDUCE_STAGES ?? "t0,pairs+strips+triples,count,extra+components").split(",").map((x) => x.split("+").map((y) => y.trim()));
-  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : name === "pockets" ? pocketWindows() : []);
+  const family = (name: string): Window[] => (name === "t0" ? T0 : name === "pairs" ? T1 : name === "strips" ? strips : name === "triples" ? triplesW : name === "extra" ? extraW : name === "components" ? componentW : name === "count" ? countWindows() : name === "pockets" ? pocketWindows() : name === "techniques" ? techW : []);
   const countWindows = (): Window[] => {
     if (!systems.length) return [];
     const sets = countSets(systems, (name) => { const m = markOf.get(name); return m === undefined ? undefined : known[m]; });
@@ -658,10 +711,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // a box, an area, one clue, or the whole grid); a cell's own bookkeeping ("one digit per
   // cell") is free ----
   const ROOM = 4000;   // constraints the solver may add while solving (component lemmas)
-  const consOf = new Int32Array(rules.length + ROOM).fill(-1);
+  const TECH_ROOM = techOn.size ? 60000 : 0;   // and for the per-genre techniques
+  const consOf = new Int32Array(rules.length + ROOM + 2 * TECH_ROOM).fill(-1);
   constraints.forEach((k, j) => { consOf[k] = j; });
   interface Group { kind: string; label: string; cells: number[]; extent?: number }
-  const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM).fill(-1);
+  const groups: Group[] = [], groupOf = new Int32Array(constraints.length + ROOM + TECH_ROOM).fill(-1);
   {
     const byKey = new Map<string, number>();
     // a constraint inside several units (a pair of cells in both a row and a box) goes to the
@@ -1086,6 +1140,7 @@ end
   // shaded ones) can't have every unknown neighbour go the other way. Added as constraints while
   // solving, each with a window of the group and its neighbours; once true, true for good.
   const componentW: Window[] = [], lemmaSeen = new Set<string>(), firstAdded = constraints.length;
+  let techAdded = 0;   // constraints the per-genre techniques added (counted apart from ROOM)
   const addComponentLemmas = () => {
     if (g.kind !== "square" || p.figure || !lemmasOn.includes("component")) return;
     const kinds: [boolean, boolean][] = [[false, p.rules.some((r) => r.rule === "unshaded-connected")], [true, p.rules.some((r) => r.rule === "connected")]];
@@ -1110,7 +1165,7 @@ end
         for (const c of comp) for (const l of g.cellLinks[c]) for (const j of g.links[l].cells) if (!inS.has(j) && shadeOf(j) === null) open.add(j);
         if (!open.size) continue;
         const key = `${want}|${[...comp].sort((a, b) => a - b).join(",")}`;
-        if (lemmaSeen.has(key) || constraints.length - firstAdded >= ROOM - 1) continue;
+        if (lemmaSeen.has(key) || constraints.length - firstAdded - techAdded >= ROOM - 1) continue;
         lemmaSeen.add(key);
         // the violation: every unknown neighbour goes the other way
         const body = [...open].map((j) => { const a = markAtom[markOf.get(`shaded(${j})`)!]; return want ? -a : a; });
@@ -1162,7 +1217,7 @@ end
       const e = gap.get(`${a},${b}`);
       if (e === undefined) continue;
       const key = `loop|${chain.slice().sort((x, y) => x - y).join(",")}`;
-      if (lemmaSeen.has(key) || constraints.length - firstAdded >= ROOM - 1) continue;
+      if (lemmaSeen.has(key) || constraints.length - firstAdded - techAdded >= ROOM - 1) continue;
       lemmaSeen.add(key);
       // the line elsewhere: the known piece nearest the gap
       const inChain = new Set(chain), mid = markCells[markOf.get(name(e))!][0];
@@ -1226,6 +1281,637 @@ end
       out.push(w);
     }
     return out.sort((a, b) => a.size - b.size).slice(0, 100);
+  };
+
+  // ---- per-genre techniques (Options.techniques: the generator's bands, bands.ts) ----
+  // Each adds, every round, constraints that the genre's rules imply from what's known now (so
+  // they hold in every solution that agrees with the known facts, as the component lemma's do),
+  // with windows that hold them: the windows' facts come from the puzzle's own constraints plus
+  // these, so whatever they find is implied too. The stage family "techniques" checks the windows;
+  // quick steps name the technique (the window label's prefix).
+  // A literal for a technique's constraint body: an atom (undefined: no such atom, so false; 0: true
+  // in grounding) taken true or false; null holds always (left out), NaN never (no constraint).
+  const LIT = (atom: number | undefined, value: boolean): number | null => {
+    if (atom === undefined) return value ? NaN : null;
+    if (atom === 0) return value ? null : NaN;
+    return value ? atom : -atom;
+  };
+  const techKeys = new Set<string>(), techCons: number[] = [];
+  /** A technique's constraint ("not all of these at once"); its footprint, or null if it holds
+   *  anyway or was added before. */
+  const addTech = (t: string, lits: (number | null)[], label: string, extent?: number): Bits | null => {
+    if (lits.some((l) => Number.isNaN(l))) return null;
+    const body = [...new Set(lits.filter((l): l is number => l !== null))].sort((a, b) => a - b);
+    if (!body.length) throw new Error(`technique ${t}: the known facts contradict ${label}`);
+    const block = techBlock.get(t)!, key = `${block}|${body.join(",")}`;
+    const bits = new Uint32Array(empty.length);
+    for (const l of body) { const f = fp[Math.abs(l)]; if (f) orInto(bits, f); }
+    if (techKeys.has(key) || techAdded >= TECH_ROOM - 1) return bits;
+    techKeys.add(key);
+    const k = rules.length, jx = constraints.length;
+    rules.push({ choice: false, head: [], bound: null, body, weights: [], block });
+    constraints.push(k); consOf[k] = jx;
+    cfp.push(bits);
+    const cs = cellsOf(bits);
+    if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
+    // constraints with one label are one rule instance (a cell's dead-end rules, say), so an
+    // explanation weighs them as one, and deletion has fewer to try
+    const gk = `${t}|${label}`;
+    let gi = techGroup.get(gk);
+    if (gi === undefined) { gi = groups.length; techGroup.set(gk, gi); groups.push({ kind: t, label, cells: cs, ...(extent !== undefined ? { extent } : {}) }); }
+    else { const gr = groups[gi], have = new Set(gr.cells); for (const c of cs) if (!have.has(c)) gr.cells.push(c); }
+    groupOf[jx] = gi;
+    techAdded++; techCons.push(jx);
+    return bits;
+  };
+  const techGroup = new Map<string, number>();
+  /** A new atom for a technique, true exactly when every literal of `body` holds (a candidate
+   *  region, say); its footprint is theirs. The same body gives the same atom. */
+  let nextAtom = G.maxAtom + 1;
+  const techAtoms = new Map<string, number>();
+  const defineAtom = (t: string, lits: number[]): number => {
+    const body = [...new Set(lits)].sort((a, b) => a - b), key = `${t}|${body.join(",")}`;
+    let a = techAtoms.get(key);
+    if (a !== undefined) return a;
+    if (techAtoms.size >= TECH_ROOM) return NaN;   // no room: the caller says nothing
+    a = nextAtom++;
+    techAtoms.set(key, a);
+    const k = rules.length;
+    rules.push({ choice: false, head: [a], bound: null, body, weights: [], block: techBlock.get(t)! });
+    defs[a] = [k];
+    const bits = new Uint32Array(empty.length);
+    for (const l of body) { const f = fp[Math.abs(l)]; if (f) orInto(bits, f); }
+    fp[a] = bits;
+    return a;
+  };
+  // windows over the techniques' constraints: kept by their cells, made again when a constraint
+  // added since lies inside (a window's program is fixed when first built)
+  const techCache = new Map<string, { w: Window; at: number }>();
+  let techW: Window[] = [];
+  const techWin = (label: string, bits: Bits): Window => {
+    const cs = cellsOf(bits), key = cs.join(",");
+    const hit = techCache.get(key);
+    if (hit && !techCons.some((j) => j >= hit.at && subset(cfp[j], bits))) return hit.w;
+    const w: Window = { label, cells: cs, bits: bits.slice(), size: cs.length };
+    techCache.set(key, { w, at: constraints.length });
+    return w;
+  };
+  const techCap = 4 * (g.kind === "square" ? Math.max(g.rows, g.cols) : 9);
+  const pushTechWindows = (ws: Window[]) => {
+    const seen = new Set<Window>();
+    techW = ws.filter((w) => !seen.has(w) && (seen.add(w), true)).sort((a, b) => a.size - b.size).slice(0, 400);
+  };
+  const unionBits = (...bs: Bits[]) => { const u = new Uint32Array(empty.length); for (const b of bs) orInto(u, b); return u; };
+
+  // Shikaku (technique "rects"): a number's candidate rectangles (of its area, holding it and no
+  // other number: local.ts's shapes) that the known borders still allow. Its region is one of them;
+  // a cell is covered by one of the candidates through it. Windows: each number's candidates, each
+  // cell whose candidates belong to several numbers, and two numbers whose candidates overlap.
+  // Within them, cells every candidate covers join the number, a cell only one number can reach
+  // is its, and a candidate that would leave a cell uncovered goes.
+  const rectsRound = (): Window[] => {
+    const shapes = local?.shapes;
+    if (!shapes) return [];
+    const state = (lk: number) => { const m = markOf.get(`cut(${lk})`); return m === undefined ? -1 : known[m]; };
+    const pick = (id: number) => G.outputs.get(`pick(${id})`);
+    const live = shapes.map((s, id) => pick(id) !== undefined && s.inside.every((lk) => state(lk) !== 1) && s.border.every((lk) => state(lk) !== 0));
+    const byClue = new Map<number, number[]>(), byCell: number[][] = Array.from({ length: n }, () => []);
+    shapes.forEach((s, id) => { if (!live[id]) return; if (!byClue.has(s.clue)) byClue.set(s.clue, []); byClue.get(s.clue)!.push(id); for (const c of s.cells) byCell[c].push(id); });
+    const ws: Window[] = [], clueBits = new Map<number, Bits>();
+    for (const [i, ids] of byClue) {
+      const b = addTech("rects", ids.map((id) => LIT(pick(id), false)), `the number at ${rc(i)}`, ids.length);
+      if (!b) continue;
+      clueBits.set(i, b);
+      ws.push(techWin(`rects: the number at ${rc(i)}`, b));
+    }
+    for (let c = 0; c < n; c++) {
+      const ids = byCell[c];
+      if (!ids.length) continue;
+      const b = addTech("rects", ids.map((id) => LIT(pick(id), false)), `who covers ${rc(c)}`, ids.length);
+      if (b && new Set(ids.map((id) => shapes[id].clue)).size > 1) ws.push(techWin(`rects: who covers ${rc(c)}`, b));
+    }
+    // two numbers whose candidates overlap
+    const clues = [...clueBits.keys()];
+    for (let a = 0; a < clues.length; a++) for (let b = a + 1; b < clues.length; b++) {
+      const A = byClue.get(clues[a])!, B = byClue.get(clues[b])!;
+      const cellsA = new Set(A.flatMap((id) => shapes[id].cells));
+      if (!B.some((id) => shapes[id].cells.some((c) => cellsA.has(c)))) continue;
+      ws.push(techWin(`rects: the numbers at ${rc(clues[a])} and ${rc(clues[b])}`, unionBits(clueBits.get(clues[a])!, clueBits.get(clues[b])!)));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Minesweeper (technique "mines"): two or three numbers whose open neighbours overlap, in a
+  // chain (each sharing an open cell with the next), taken together: subsets and differences of
+  // their counts, and chains of three. The fixed windows hold two numbers only when side by side
+  // (a pair of neighbourhoods two apart is past the pairs' size cap). No total mine count: the
+  // rules have none.
+  const minesRound = (): Window[] => {
+    const shadeOf = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
+    const clues: { i: number; open: Set<number>; bits: Bits }[] = [];
+    for (const [i, gs] of p.cellGivens) {
+      if (!gs.some((x) => x.kind === "number")) continue;
+      const [r, c] = g.rc(i), around: number[] = [];
+      for (let y = r - 1; y <= r + 1; y++) for (let x = c - 1; x <= c + 1; x++) if (y >= 0 && x >= 0 && y < g.rows && x < g.cols) around.push(g.cell(y, x));
+      const open = new Set(around.filter((j) => j !== i && shadeOf(j) < 0));
+      if (open.size) clues.push({ i, open, bits: bitsOf(n, around) });
+    }
+    const meets = (a: Set<number>, b: Set<number>) => { for (const x of a) if (b.has(x)) return true; return false; };
+    const nb = clues.map((a) => clues.flatMap((b, k) => (a !== b && meets(a.open, b.open) ? [k] : [])));
+    const ws: Window[] = [];
+    clues.forEach((a, ka) => {
+      for (const kb of nb[ka]) {
+        if (kb > ka) ws.push(techWin(`mines: ${rc(a.i)} and ${rc(clues[kb].i)}`, unionBits(a.bits, clues[kb].bits)));
+        // chains of three with a in the middle
+        for (const kc of nb[ka]) if (kc > kb) ws.push(techWin(`mines: ${rc(clues[kb].i)}, ${rc(a.i)} and ${rc(clues[kc].i)}`, unionBits(a.bits, clues[kb].bits, clues[kc].bits)));
+      }
+    });
+    return ws;
+  };
+  // lines through cells (Simple Path, Simple Loop, Numberlink): each link's state and atom
+  const lineState = (l: number) => { const m = markOf.get(`line(${l})`); return m === undefined ? 0 : known[m]; };
+  const lineAtom = (l: number) => { const m = markOf.get(`line(${l})`); return m === undefined ? undefined : markAtom[m]; };
+  const otherEnd = (l: number, c: number) => (g.links[l].cells[0] === c ? g.links[l].cells[1] : g.links[l].cells[0]);
+  /** The drawn pieces of line: each piece's links and its cells, and the cells at its two ends (a
+   *  lone cell in `alone` counts as a piece with no links, both its ends itself). */
+  const linePieces = (alone: number[] = []) => {
+    const seen = new Uint8Array(n), out: { links: number[]; cells: number[]; tips: number[] }[] = [];
+    const onAt = (c: number) => g.cellLinks[c].filter((l) => lineState(l) === 1);
+    for (let c0 = 0; c0 < n; c0++) {
+      if (seen[c0] || !(onAt(c0).length || alone.includes(c0))) continue;
+      const cells = [c0], links = new Set<number>(); seen[c0] = 1;
+      for (let k = 0; k < cells.length; k++) for (const l of onAt(cells[k])) { links.add(l); const d = otherEnd(l, cells[k]); if (!seen[d]) { seen[d] = 1; cells.push(d); } }
+      const tips = cells.filter((c) => onAt(c).length <= 1);
+      out.push({ links: [...links], cells, tips: tips.length === 1 ? [tips[0], tips[0]] : tips });
+    }
+    return out;
+  };
+
+  // Simple Path (technique "ends"): loose ends that mustn't close up. A piece of line whose two
+  // ends are side by side can't be joined into a ring (the path has none); and with every cell to
+  // visit, the piece from the way in can't join the piece from the way out while a cell is left
+  // over. Both said of the drawn line itself (its links in the constraint), so they hold by the
+  // rules alone, like the premature-loop lemma for loops.
+  const endsRound = (): Window[] => {
+    if (p.rules.some((r) => r.rule === "links")) return linkEndsRound();
+    const path = p.rules.find((r) => r.rule === "path");
+    if (!path) return [];
+    const ends = pathEnds(p), pieces = linePieces(ends), ws: Window[] = [];
+    const gapOf = (a: number, b: number) => g.cellLinks[a].find((l) => otherEnd(l, a) === b && lineState(l) < 0);
+    const open = [...Array(n).keys()].filter((c) => !p.blocked.has(c));
+    for (const pc of pieces) {
+      const [a, b] = pc.tips;
+      if (a === b || ends.includes(a) || ends.includes(b)) continue;
+      const gap = gapOf(a, b);
+      if (gap === undefined) continue;
+      const bits = addTech("ends", [LIT(lineAtom(gap), true), ...pc.links.map((l) => LIT(lineAtom(l), true))], `the line ending at ${rc(a)}`, pc.links.length);
+      if (bits) ws.push(techWin(`ends: the line ending at ${rc(a)}`, bits));
+    }
+    if (path.cover) {
+      const A = pieces.find((pc) => pc.cells.includes(ends[0])), B = pieces.find((pc) => pc.cells.includes(ends[1]));
+      if (A && B && A !== B && A.cells.length + B.cells.length < open.length) {
+        const x = A.tips.find((c) => c !== ends[0]) ?? ends[0], y = B.tips.find((c) => c !== ends[1]) ?? ends[1];
+        const gap = gapOf(x, y);
+        if (gap !== undefined) {
+          const bits = addTech("ends", [LIT(lineAtom(gap), true), ...[...A.links, ...B.links].map((l) => LIT(lineAtom(l), true))], `the way in and out at ${rc(x)}`, A.links.length + B.links.length);
+          if (bits) ws.push(techWin(`ends: the way in and out at ${rc(x)}`, bits));
+        }
+      }
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Numberlink's numbers: cell → its number
+  const linkNums = new Map<number, number>();
+  if (p.rules.some((r) => r.rule === "links")) for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number" && typeof x.value === "number") linkNums.set(i, x.value);
+  /** A known-implied constraint said of the drawn line (`lits`, rule-level) when its footprint fits
+   *  a window, else of `short` alone (it holds given what's known) */
+  const addTechFitting = (t: string, lits: (number | null)[], short: (number | null)[], label: string, extent?: number) => {
+    const full = addTech(t, lits, label, extent);
+    return full && cellsOf(full).length <= techCap ? full : addTech(t, short, label, extent);
+  };
+  // Numberlink (technique "ends"): two pieces of line can't be joined if they carry different
+  // numbers (a line would join them), and a piece with no number can't close into a ring (a ring
+  // reaches no number).
+  const linkEndsRound = (): Window[] => {
+    const pieces = linePieces([...linkNums.keys()]), pieceOf = new Int32Array(n).fill(-1), ws: Window[] = [];
+    pieces.forEach((pc, k) => { for (const c of pc.cells) pieceOf[c] = k; });
+    const label = pieces.map((pc) => [...new Set(pc.cells.filter((c) => linkNums.has(c)).map((c) => linkNums.get(c)!))]);
+    const free = (k: number, c: number) => pieces[k].tips.includes(c) && (!linkNums.has(c) || !pieces[k].links.length);
+    for (let l = 0; l < g.links.length; l++) {
+      if (lineState(l) >= 0) continue;
+      const [x, y] = g.links[l].cells, A = pieceOf[x], B = pieceOf[y];
+      if (A < 0 || B < 0 || !free(A, x) || !free(B, y)) continue;
+      const ring = A === B && !label[A].length, clash = A !== B && label[A].length > 0 && label[B].length > 0 && label[A][0] !== label[B][0];
+      if (!ring && !clash) continue;
+      const links = A === B ? pieces[A].links : [...pieces[A].links, ...pieces[B].links];
+      const bits = addTechFitting("ends", [LIT(lineAtom(l), true), ...links.map((k) => LIT(lineAtom(k), true))], [LIT(lineAtom(l), true)], `the line ending at ${rc(x)}`, links.length);
+      if (bits) ws.push(techWin(`ends: the line ending at ${rc(x)}`, bits));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+  // Numberlink (technique "owners"): the cells each pair's line can still reach, from either of
+  // its numbers, through cells no other pair has taken (another number, or a piece of line joined
+  // to one) by links not ruled out. A link can be drawn only by a pair that reaches both its cells.
+  const ownersRound = (): Window[] => {
+    if (!linkNums.size) return [];
+    const pieces = linePieces([...linkNums.keys()]), owner = new Int32Array(n).fill(-1);
+    for (const pc of pieces) { const vs = [...new Set(pc.cells.filter((c) => linkNums.has(c)).map((c) => linkNums.get(c)!))]; if (vs.length === 1) for (const c of pc.cells) owner[c] = vs[0]; }
+    const values = [...new Set(linkNums.values())];
+    const reach = new Map<number, Uint8Array>();
+    for (const v of values) {
+      const seen = new Uint8Array(n), st = [...linkNums].filter(([, w]) => w === v).map(([c]) => c);
+      for (const c of st) seen[c] = 1;
+      while (st.length) { const c = st.pop()!; for (const l of g.cellLinks[c]) { if (lineState(l) === 0) continue; const d = otherEnd(l, c); if (!seen[d] && !p.blocked.has(d) && (owner[d] < 0 || owner[d] === v)) { seen[d] = 1; st.push(d); } } }
+      reach.set(v, seen);
+    }
+    const ws: Window[] = [];
+    for (let l = 0; l < g.links.length; l++) {
+      if (lineState(l) >= 0) continue;
+      const [x, y] = g.links[l].cells;
+      if (values.some((v) => reach.get(v)![x] && reach.get(v)![y])) continue;
+      addTech("owners", [LIT(lineAtom(l), true)], `the pairs that reach ${rc(x)}`);
+    }
+    for (let i = 0; i < n; i++) if (g.cellLinks[i].some((l) => lineState(l) < 0)) ws.push(techWin(`owners: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
+    return ws;
+  };
+
+  // Simple Path and Simple Loop with every cell visited (technique "cuts"): a part of the grid
+  // that the line can only leave by one, two or three links (what's undecided and drawn; walls,
+  // rocks and links ruled out don't count). The line must cross into it and out again: a loop an
+  // even number of times, at least two; a path the same, or an odd number if one of its ends is
+  // inside. Said of every link round the part (the counts it can't have), so it holds by the rules
+  // alone; the windows are the part's edge.
+  const cutsRound = (): Window[] => {
+    const rule = p.rules.find((r) => (r.rule === "path" || r.rule === "loop" || r.rule === "links") && r.cover && (r.rule !== "loop" || r.of === "loop"));
+    if (!rule) return [];
+    const ends = rule.rule === "path" ? pathEnds(p) : rule.rule === "links" ? [...linkNums.keys()] : [];
+    const V = [...Array(n).keys()].filter((c) => !p.blocked.has(c));
+    const possible = (l: number) => lineState(l) !== 0 && !g.links[l].cells.some((c) => p.blocked.has(c));
+    const E = g.links.map((_, l) => l).filter(possible);
+    if (!V.length || E.length > 250) return [];
+    // the bridges of what's possible with some links taken out (Tarjan's low points, iteratively)
+    const bridges = (removed: Set<number>): number[] => {
+      const disc = new Int32Array(n).fill(-1), low = new Int32Array(n), out: number[] = [];
+      let t = 0;
+      const frames: [number, number, number][] = [[V[0], -1, 0]];   // cell, link in, next link index
+      disc[V[0]] = low[V[0]] = t++;
+      while (frames.length) {
+        const f = frames[frames.length - 1], [c, inL] = f, ls = g.cellLinks[c];
+        if (f[2] < ls.length) {
+          const l = ls[f[2]++];
+          if (l === inL || removed.has(l) || !possible(l)) continue;
+          const d = otherEnd(l, c);
+          if (disc[d] < 0) { disc[d] = low[d] = t++; frames.push([d, l, 0]); }
+          else low[c] = Math.min(low[c], disc[d]);
+          continue;
+        }
+        frames.pop();
+        if (frames.length) { const up = frames[frames.length - 1][0]; low[up] = Math.min(low[up], low[c]); if (low[c] > disc[up]) out.push(inL); }
+      }
+      return out;
+    };
+    // cuts of one, two and three links (each link of a cut crossing it)
+    const cuts = new Map<string, number[]>();
+    const note = (R: number[]) => { const k = [...R].sort((x, y) => x - y); cuts.set(k.join(","), k); };
+    const b0 = new Set(bridges(new Set()));
+    for (const e of b0) note([e]);
+    const rest = E.filter((e) => !b0.has(e));
+    const b1 = new Map(rest.map((e) => [e, bridges(new Set([e])).filter((f) => !b0.has(f))]));
+    for (const [e, fs] of b1) for (const f of fs) note([e, f]);
+    if (rest.length <= 150) for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) {
+      const e = rest[i], f = rest[j];
+      if (b1.get(e)!.includes(f)) continue;
+      for (const h of bridges(new Set([e, f]))) if (!b0.has(h) && !b1.get(e)!.includes(h) && !b1.get(f)!.includes(h)) note([e, f, h]);
+    }
+    const sideOf = (R: number[]) => {
+      const removed = new Set(R), seen = new Uint8Array(n), st = [V[0]]; seen[V[0]] = 1;
+      while (st.length) { const c = st.pop()!; for (const l of g.cellLinks[c]) if (possible(l) && !removed.has(l)) { const d = otherEnd(l, c); if (!seen[d]) { seen[d] = 1; st.push(d); } } }
+      const inS = V.filter((c) => seen[c]), outS = V.filter((c) => !seen[c]);
+      return inS.length <= outS.length ? inS : outS;
+    };
+    // a loop's single cell is its own degree rule (a path's cells may have none, as far as the
+    // cell's own rule goes: being on the path is the global part)
+    const least = rule.rule === "path" ? 1 : 2;
+    const parts = [...cuts.values()].map((R) => ({ R, S: sideOf(R) })).filter(({ S }) => S.length >= least && V.length - S.length >= least)
+      .sort((x, y) => x.S.length - y.S.length).slice(0, 300);
+    const ws: Window[] = [];
+    for (const { R, S } of parts) {
+      const inSet = new Set(S), boundary = new Set<number>();
+      for (const c of S) for (const l of g.cellLinks[c]) if (!inSet.has(otherEnd(l, c))) boundary.add(l);
+      const inside = ends.filter((e) => inSet.has(e)).length, parity = inside % 2, need = parity ? 1 : rule.rule === "links" && inside ? 0 : 2;
+      let bits: Bits | null = null;
+      for (let mask = 0; mask < 1 << R.length; mask++) {
+        const on = new Set(R.filter((_, k) => mask & (1 << k)));
+        if (on.size >= need && on.size % 2 === parity) continue;
+        const b = addTech("cuts", [...boundary].map((l) => LIT(lineAtom(l), on.has(l))), `the part at ${rc(S[0])}`, S.length);
+        if (b) bits = bits ? unionBits(bits, b) : b;
+      }
+      if (bits) ws.push(techWin(`cuts: the part at ${rc(S[0])}`, bits));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Spiral Galaxies (technique "mirror", with Options.cellAtoms): the cells each galaxy can still
+  // reach. A cell can be in a galaxy only if its mirror through the centre is in the grid and can
+  // be too, and it joins the centre through cells that can be, by sides not known to be borders;
+  // two cells with no border between them are in the same galaxy; a cell only one galaxy can reach
+  // is that galaxy's, and its known borders keep that galaxy out of the cells beyond. Repeated
+  // till nothing changes; each cell kept out of a galaxy is a constraint, and each cell with its
+  // four neighbours a window (where the borders follow).
+  const mirrorRound = (): Window[] => {
+    if (!galAtoms || g.kind !== "square") return [];
+    const K = p.galaxies.length, gal = (i: number, k: number) => G.outputs.get(`gal(${i},${k})`);
+    const cutState = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? -1 : known[m]; };
+    const mirror = (i: number, [y, x]: [number, number]) => {
+      const [r, c] = g.rc(i), r2 = y - r - 1, c2 = x - c - 1;
+      return r2 >= 0 && c2 >= 0 && r2 < g.rows && c2 < g.cols ? g.cell(r2, c2) : -1;
+    };
+    const can: Uint8Array[] = p.galaxies.map((gx, k) => Uint8Array.from({ length: n }, (_, i) => (gal(i, k) !== undefined && mirror(i, gx) >= 0 && !p.blocked.has(i) ? 1 : 0)));
+    const cores = p.galaxies.map((gx) => galaxyCore(p, gx));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const drop = (k: number, i: number) => { if (can[k][i]) { can[k][i] = 0; changed = true; } };
+      for (let k = 0; k < K; k++) {
+        // symmetry
+        for (let i = 0; i < n; i++) if (can[k][i] && !can[k][mirror(i, p.galaxies[k])]) drop(k, i);
+        // reach from the centre, not through a known border
+        const seen = new Uint8Array(n), st = cores[k].filter((i) => can[k][i]);
+        for (const i of st) seen[i] = 1;
+        while (st.length) { const i = st.pop()!; for (const l of g.cellLinks[i]) { if (cutState(l) === 1) continue; const j = otherEnd(l, i); if (can[k][j] && !seen[j]) { seen[j] = 1; st.push(j); } } }
+        for (let i = 0; i < n; i++) if (can[k][i] && !seen[i]) drop(k, i);
+      }
+      for (let l = 0; l < g.links.length; l++) {
+        const [a, b] = g.links[l].cells, s = cutState(l);
+        if (s === 0) for (let k = 0; k < K; k++) if (can[k][a] !== can[k][b]) { drop(k, a); drop(k, b); }
+        if (s === 1) for (const [x, y] of [[a, b], [b, a]]) {
+          const ks = [...Array(K).keys()].filter((k) => can[k][x]);
+          if (ks.length === 1) drop(ks[0], y);
+        }
+      }
+    }
+    const ws: Window[] = [];
+    for (let i = 0; i < n; i++) {
+      if (p.blocked.has(i)) continue;
+      for (let k = 0; k < K; k++) {
+        const a = gal(i, k);
+        if (!can[k][i] && a !== undefined) addTech("mirror", [LIT(a, true)], `the galaxies that reach ${rc(i)}`);
+      }
+      if (g.cellLinks[i].some((l) => cutState(l) < 0)) ws.push(techWin(`mirror: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
+    }
+    return ws;
+  };
+
+  // Hidoku and the other number paths (techniques "distance" and "deadends"). Distance: between
+  // two placed numbers a < b with none placed between, k can only be in a cell within k - a steps
+  // of a and b - k of b, counting steps through cells that can still hold a number between them
+  // (below the smallest placed or above the largest, one side only); each cell kept from k is a
+  // constraint, and so is "k is in one of the cells left". Dead ends: k (past 1) needs k - 1
+  // beside it as well as k + 1 (the rules only ask for k + 1 next to k), so a cell with one open
+  // neighbour can only be an end; said of the cell and its neighbours, by the rules alone.
+  // Windows: each number's cells with the next and last numbers' cells, and each cell with its
+  // neighbours.
+  const numberPath = p.rules.find((r) => r.rule === "number-path");
+  const N = p.digits;
+  const digitState = (i: number, d: number) => { const m = markOf.get(`digit(${i},${d})`); return m === undefined ? 0 : known[m]; };
+  const digitAtom = (i: number, d: number) => { const m = markOf.get(`digit(${i},${d})`); return m === undefined ? undefined : markAtom[m]; };
+  const pnOf = numberPath ? Array.from({ length: n }, (_, i) => pathNeighbours(numberPath, p, i)) : [];
+  const nearBits = (i: number) => bitsOf(n, [i, ...pnOf[i]]);
+  let deadendsDone = false;
+  const deadendsRound = (): Window[] => {
+    if (!numberPath) return [];
+    if (!deadendsDone) {
+      deadendsDone = true;
+      for (let i = 0; i < n; i++) if (!p.blocked.has(i)) for (let d = 2; d <= N; d++)
+        addTech("deadends", [LIT(digitAtom(i, d), true), ...pnOf[i].map((j) => LIT(digitAtom(j, d - 1), false))], `the number before ${rc(i)}`);
+    }
+    const ws: Window[] = [];
+    for (let i = 0; i < n; i++) if (!p.blocked.has(i) && [...Array(N).keys()].some((k) => digitState(i, k + 1) < 0)) ws.push(techWin(`deadends: around ${rc(i)}`, nearBits(i)));
+    return ws;
+  };
+  const distanceRound = (): Window[] => {
+    if (!numberPath) return [];
+    const open = [...Array(n).keys()].filter((i) => !p.blocked.has(i));
+    const placedAt = new Int32Array(N + 1).fill(-1), valueOf = new Int32Array(n).fill(0);
+    for (const i of open) for (let d = 1; d <= N; d++) if (digitState(i, d) === 1) { placedAt[d] = i; valueOf[i] = d; }
+    const placed = [...Array(N).keys()].map((k) => k + 1).filter((d) => placedAt[d] >= 0);
+    // steps from a placed cell through cells that can hold a number in (lo, hi)
+    const stepsFrom = (src: number, lo: number, hi: number) => {
+      const dist = new Int32Array(n).fill(-1), st = [src]; dist[src] = 0;
+      const through = (j: number) => !valueOf[j] && [...Array(hi - lo - 1).keys()].some((x) => digitState(j, lo + 1 + x) !== 0);
+      for (let q = 0; q < st.length; q++) { const i = st[q]; for (const j of pnOf[i]) if (dist[j] < 0 && through(j)) { dist[j] = dist[i] + 1; st.push(j); } }
+      return dist;
+    };
+    const cand = new Map<number, number[]>();
+    const segments: [number, number][] = [];
+    if (!placed.length) return [];
+    if (placed[0] > 1) segments.push([0, placed[0]]);
+    for (let x = 0; x + 1 < placed.length; x++) if (placed[x + 1] > placed[x] + 1) segments.push([placed[x], placed[x + 1]]);
+    if (placed.at(-1)! < N) segments.push([placed.at(-1)!, N + 1]);
+    for (const [a, b] of segments) {
+      const dA = a >= 1 ? stepsFrom(placedAt[a], a, b) : null, dB = b <= N ? stepsFrom(placedAt[b], a, b) : null;
+      for (let k = a + 1; k < b; k++) {
+        const cs: number[] = [];
+        for (const i of open) {
+          if (valueOf[i] || digitState(i, k) === 0) continue;
+          const ok = (!dA || (dA[i] >= 0 && dA[i] <= k - a)) && (!dB || (dB[i] >= 0 && dB[i] <= b - k));
+          if (ok) cs.push(i);
+          else addTech("distance", [LIT(digitAtom(i, k), true)], `how far ${rc(i)} is`);
+        }
+        cand.set(k, cs);
+        if (cs.length) addTech("distance", cs.map((i) => LIT(digitAtom(i, k), false)), `where ${k} goes`, cs.length);
+      }
+    }
+    const ws: Window[] = [];
+    const cellsFor = (k: number) => (placedAt[k] >= 0 ? [placedAt[k]] : cand.get(k) ?? []);
+    for (const [k, cs] of cand) {
+      if (!cs.length) continue;
+      const cells = [...cellsFor(k - 1), ...cs, ...cellsFor(k + 1)];
+      ws.push(techWin(`distance: ${k}`, bitsOf(n, cells)));
+    }
+    for (let i = 0; i < n; i++) if (!valueOf[i] && !p.blocked.has(i)) ws.push(techWin(`distance: around ${rc(i)}`, nearBits(i)));
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Easy as ABC (technique "fish"): each letter is once in every row and column, so for one
+  // letter the rows and columns are matched up; two rows and two columns together (with the clues
+  // that look along them) see an X-wing: the letter's two places in two rows fill both columns.
+  // The fixed windows hold three lines in a chain or crossed by a fourth, not two by two. Windows
+  // only, over the puzzle's own rules: the pairs of rows and pairs of columns still open.
+  const fishRound = (): Window[] => {
+    if (g.kind !== "square" || !p.rules.some((r) => r.rule === "letters")) return [];
+    const openLine = (cells: number[]) => cells.some((i) => [...Array(p.digits).keys()].some((d) => digitState(i, d + 1) < 0));
+    const rows = [...Array(g.rows).keys()].map((r) => [...Array(g.cols).keys()].map((c) => g.cell(r, c))).filter(openLine);
+    const cols = [...Array(g.cols).keys()].map((c) => [...Array(g.rows).keys()].map((r) => g.cell(r, c))).filter(openLine);
+    // two lines one way where some letter's places fall in at most three lines the other way:
+    // those lines, two at a time
+    const ws: Window[] = [];
+    const name = (cells: number[], across: boolean) => (across ? `row ${g.rc(cells[0])[0] + 1}` : `column ${g.rc(cells[0])[1] + 1}`);
+    for (const [ls, others, across] of [[rows, cols, true], [cols, rows, false]] as const) {
+      const at = (cell: number) => (across ? g.rc(cell)[1] : g.rc(cell)[0]);
+      for (let a = 0; a < ls.length; a++) for (let b = a + 1; b < ls.length; b++) {
+        const pairs = new Set<string>();
+        for (let d = 1; d <= p.digits; d++) {
+          const where = new Set([...ls[a], ...ls[b]].filter((i) => digitState(i, d) !== 0).map(at));
+          if (where.size > 3) continue;
+          const xs = [...where].sort((u, v) => u - v);
+          for (let x = 0; x < xs.length; x++) for (let y = x + 1; y < xs.length; y++) pairs.add(`${xs[x]},${xs[y]}`);
+        }
+        for (const key of pairs) {
+          const [x, y] = key.split(",").map(Number), ox = others.find((o) => at(o[0]) !== undefined && (across ? g.rc(o[0])[1] : g.rc(o[0])[0]) === x), oy = others.find((o) => (across ? g.rc(o[0])[1] : g.rc(o[0])[0]) === y);
+          if (!ox || !oy) continue;
+          ws.push(techWin(`fish: ${name(ls[a], across)} and ${name(ls[b], across)}, ${name(ox, !across)} and ${name(oy, !across)}`, bitsOf(n, [...ls[a], ...ls[b], ...ox, ...oy])));
+        }
+      }
+    }
+    return ws;
+  };
+
+  // Fill-in (technique "slots", with Options.cellAtoms): which entries still fit each slot (its
+  // length, and the digits known in it and known not to be), and which slots each entry still
+  // fits. An entry with one slot left goes there, and a slot with one entry left takes it, and
+  // neither is then anywhere else; repeated till nothing changes. Each pair ruled out is a
+  // constraint, and so are "this slot takes one of these" and "this entry goes in one of these".
+  // Windows: each slot with the slots crossing it, and each entry's slots.
+  const slotsRound = (): Window[] => {
+    if (!putAtoms) return [];
+    const put = (e: number, s: number) => G.outputs.get(`put(${e},${s})`);
+    const E = p.entries.length, S = slots.length;
+    const fits = Array.from({ length: E }, (_, e) => Array.from({ length: S }, (_, s) =>
+      put(e, s) !== undefined && slots[s].length === p.entries[e].length && slots[s].every((i, k) => digitState(i, p.entries[e][k]) !== 0
+        && [...Array(p.digits).keys()].every((d) => d + 1 === p.entries[e][k] || digitState(i, d + 1) !== 1))));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let e = 0; e < E; e++) {
+        const ss = [...Array(S).keys()].filter((s) => fits[e][s]);
+        if (ss.length === 1) for (let f = 0; f < E; f++) if (f !== e && fits[f][ss[0]]) { fits[f][ss[0]] = false; changed = true; }
+      }
+      for (let s = 0; s < S; s++) {
+        const es = [...Array(E).keys()].filter((e) => fits[e][s]);
+        if (es.length === 1) for (let t = 0; t < S; t++) if (t !== s && fits[es[0]][t]) { fits[es[0]][t] = false; changed = true; }
+      }
+    }
+    const ws: Window[] = [], slotName = (s: number) => `the slot at ${rc(slots[s][0])} ${g.rc(slots[s][1])[0] === g.rc(slots[s][0])[0] ? "across" : "down"}`;
+    for (let s = 0; s < S; s++) {
+      for (let e = 0; e < E; e++) if (!fits[e][s] && put(e, s) !== undefined) addTech("slots", [LIT(put(e, s), true)], slotName(s));
+      const es = [...Array(E).keys()].filter((e) => fits[e][s]);
+      if (es.length) addTech("slots", es.map((e) => LIT(put(e, s), false)), slotName(s), es.length);
+      if (slots[s].some((i) => [...Array(p.digits).keys()].some((d) => digitState(i, d + 1) < 0))) {
+        const crossing = slots.filter((t, k) => k !== s && t.some((i) => slots[s].includes(i)));
+        ws.push(techWin(`slots: ${slotName(s)}`, bitsOf(n, [...slots[s], ...crossing.flat()])));
+      }
+    }
+    for (let e = 0; e < E; e++) {
+      const ss = [...Array(S).keys()].filter((s) => fits[e][s]);
+      if (ss.length < 2) continue;
+      const b = addTech("slots", ss.map((s) => LIT(put(e, s), false)), `where ${p.entries[e].map((d) => symbolOf(p, d)).join("")} goes`, ss.length);
+      if (b) ws.push(techWin(`slots: where ${p.entries[e].map((d) => symbolOf(p, d)).join("")} goes`, b));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  // Fillomino (technique "sizes"): the known parts of regions (cells joined by links known not to
+  // be cut), with the number in them if any. A part that has reached its number closes (every
+  // link out is cut); parts with different numbers, or whose sizes together pass the number, stay
+  // apart (the link between them is cut); a part short of its number with every way out into one
+  // cell takes that cell in (those links aren't cut), and with one way out, takes it. Each holds
+  // given the known links; windows are each part with the cells round it.
+  const sizesRound = (): Window[] => {
+    if (!p.marks.includes("regions") || !p.rules.some((r) => r.rule === "size-clue")) return [];
+    const cutState = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? -1 : known[m]; };
+    const cutAtom = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? undefined : markAtom[m]; };
+    const num = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number" && typeof x.value === "number") num.set(i, x.value);
+    const part = new Int32Array(n).fill(-1), parts: { cells: number[]; value: number | undefined }[] = [];
+    for (let c0 = 0; c0 < n; c0++) {
+      if (part[c0] >= 0 || p.blocked.has(c0)) continue;
+      const k = parts.length, cells = [c0]; part[c0] = k;
+      for (let q = 0; q < cells.length; q++) for (const l of g.cellLinks[cells[q]]) { const d = otherEnd(l, cells[q]); if (cutState(l) === 0 && part[d] < 0 && !p.blocked.has(d)) { part[d] = k; cells.push(d); } }
+      const vs = [...new Set(cells.filter((c) => num.has(c)).map((c) => num.get(c)!))];
+      parts.push({ cells, value: vs.length === 1 ? vs[0] : undefined });
+    }
+    const ws: Window[] = [], label = (k: number) => `the region at ${rc(parts[k].cells[0])}`, differ = p.rules.some((r) => r.rule === "neighbors-differ-size");
+    const cutIt = (l: number, k: number) => addTech("sizes", [LIT(cutAtom(l), false)], label(k), parts[k].cells.length);
+    const joinIt = (l: number, k: number) => addTech("sizes", [LIT(cutAtom(l), true)], label(k), parts[k].cells.length);
+    parts.forEach((pt, k) => {
+      const exits: number[] = [];
+      for (const c of pt.cells) for (const l of g.cellLinks[c]) if (cutState(l) < 0 && part[otherEnd(l, c)] !== k && !p.blocked.has(otherEnd(l, c))) exits.push(l);
+      if (!exits.length) return;
+      const v = pt.value;
+      if (v !== undefined && pt.cells.length >= v) for (const l of exits) cutIt(l, k);
+      for (const l of exits) {
+        const c = pt.cells.includes(g.links[l].cells[0]) ? g.links[l].cells[0] : g.links[l].cells[1], o = part[otherEnd(l, c)], w = parts[o].value;
+        if (v !== undefined && w !== undefined && v !== w) cutIt(l, k);
+        const cap = v ?? w;
+        if (cap !== undefined && pt.cells.length + parts[o].cells.length > cap) cutIt(l, k);
+      }
+      if (v !== undefined && pt.cells.length < v) {
+        const into = new Set(exits.map((l) => part[g.links[l].cells.find((c) => part[c] !== k)!]));
+        if (into.size === 1) for (const l of exits) joinIt(l, k);
+      }
+      const around = new Set(pt.cells);
+      for (const c of pt.cells) for (const l of g.cellLinks[c]) around.add(otherEnd(l, c));
+      if (around.size <= techCap) ws.push(techWin(`sizes: ${label(k)}`, bitsOf(n, around)));
+      // a numbered part short of its number: the regions it can still grow into (every shape of
+      // that size holding it, whole parts at a time, none with another number, no link inside
+      // known cut, none beside a part of the same number outside it). Its region is one of them,
+      // as Shikaku's rectangles.
+      if (v === undefined || pt.cells.length >= v || v > 8) return;
+      const shapes: number[][] = [], seen = new Set<string>();
+      const grow = (cells: number[]) => {
+        if (seen.size > 4000) return;
+        const key = [...cells].sort((a, b) => a - b).join(",");
+        if (seen.has(key)) return;
+        seen.add(key);
+        if (cells.length === v) { shapes.push(cells); return; }
+        const inS = new Set(cells);
+        for (const c of cells) for (const l of g.cellLinks[c]) {
+          const d = otherEnd(l, c);
+          if (inS.has(d) || p.blocked.has(d) || cutState(l) === 1) continue;
+          const o = parts[part[d]];
+          if (o.value !== undefined && o.value !== v) continue;
+          if (cells.length + o.cells.length > v) continue;
+          grow([...cells, ...o.cells]);
+        }
+      };
+      grow(pt.cells);
+      const ok = shapes.filter((cs) => {
+        const inS = new Set(cs);
+        for (const c of cs) for (const l of g.cellLinks[c]) {
+          const d = otherEnd(l, c);
+          if (inS.has(d)) { if (cutState(l) === 1) return false; }
+          else if (differ && !p.blocked.has(d) && parts[part[d]].value === v) return false;
+        }
+        return true;
+      });
+      if (seen.size > 4000 || !ok.length || ok.length > 300) return;
+      const atoms = ok.map((cs) => {
+        const inS = new Set(cs), lits: number[] = [];
+        for (const c of cs) for (const l of g.cellLinks[c]) {
+          const d = otherEnd(l, c);
+          if (p.blocked.has(d) || (inS.has(d) && d < c)) continue;
+          const a = cutAtom(l), want = !inS.has(d);
+          if (a === undefined) { if (want) return -1; continue; }   // no such cut: never a border
+          if (a === 0) { if (!want) return -1; continue; }          // cut for sure
+          lits.push(want ? a : -a);
+        }
+        return defineAtom("sizes", lits);
+      });
+      if (atoms.some((a) => Number.isNaN(a))) return;
+      atoms.splice(0, atoms.length, ...atoms.filter((a) => a >= 0));
+      if (!atoms.length) return;
+      const b = addTech("sizes", atoms.map((a) => -a), `the shapes for ${rc(pt.cells[0])}`, atoms.length);
+      if (b && cellsOf(b).length <= 2 * techCap) ws.push(techWin(`sizes: the shapes for ${label(k)}`, b));
+    });
+    return ws;
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { sizes: sizesRound, owners: ownersRound, slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  const addTechniques = () => {
+    if (!techOn.size) return;
+    pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
   };
 
   dbg("setup");
@@ -1303,6 +1989,7 @@ end
     round++;
     addComponentLemmas();
     addLoopLemmas();
+    addTechniques();
     let progressed = false;
     for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
@@ -1314,7 +2001,7 @@ end
         if (k === 0 && entryPoints < 0) entryPoints = f.size;
         // each step's family (bands.ts's techniques): the stage family, the lemma or the extra family
         const famOf = new Map<Window, string>();
-        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : w.label.startsWith("mined: ") ? "mined" : "lines") : fam);
+        for (const [w, fam] of tagged) if (!famOf.has(w)) famOf.set(w, fam === "components" ? (w.label.startsWith("the group") ? "component" : "loop") : fam === "extra" ? (w.label.startsWith("reach") ? "reach" : w.label.startsWith("mined: ") ? "mined" : "lines") : fam === "techniques" ? w.label.split(":")[0] : fam);
         for (const [w, fs] of f) {
           const facts = fs.filter(([m]) => known[m] < 0);
           if (!facts.length) continue;
