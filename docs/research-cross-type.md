@@ -91,3 +91,34 @@ three groups, each aimed at our weakest types:
 
 Next: the winning families into the solver's defaults (scoreboard first), then these three
 primitives, then a second phase B on what remains.
+
+## 6. Finer signatures, loops and the first cloud run
+
+**Shapes.** A step's shape (deduce.ts `shapeOf`) is how its rule instances and the decided cell
+relate: inside, overlapping or touching, refined twice (Weisfeiler–Lehman) and hashed; its family
+(signatures.ts `family`) folds alike instances into one. Over 24,388 steps of 446 puzzles in 37
+types: 2,223 shapes, 89 in two or more types; 2,157 families, 94 shared. What's shared is small:
+one instance holding the decided cell (a loop around a corner, a count along a line, each-once in a
+row: the same shape in 5–9 types), and two loop pieces overlapping (5 types). Larger shapes stay
+within a type or its family (Sudoku's pointing and claiming in Sudoku, Thermo and Irregular), so
+the cross-type language is in the primitives and their small shapes, not in whole techniques.
+
+**Loops.** Parity over any closed curve is the sum of the corner rule round each corner it
+encloses, so straight cuts were already its useful form. New: the premature-loop lemma
+(`DEDUCE_LEMMAS=loop`, Tatham's loop deductions): a known chain that isn't all the known line
+can't close, so the gap between its ends stays empty; added while solving, like the component
+lemma. On three hard and three tricky 7×7 Loopy puzzles, searches fell from 19 to 2 and the
+estimates came off the 0.80 ceiling.
+
+**Loopy step labels** (references/tatham/build/loopy-one.c): one application of a deduction
+doesn't fit Loopy (a corner 3 takes two passes of its pair deductions), so a step's label is the
+lowest level of Tatham's solver that, run to the end from the position, settles the edge. 7,139
+steps: harder levels appear only in harder grades. Today's costs already order them on average
+(easy 3.1; normal, tricky, hard 4.7–4.9), but within easy they spread widely (agreement 0.13), and
+fitting the step features doesn't help (0.13), so prices stay as they were.
+
+**Cloud run** (puzzles/cloud, one L4): the graph network on 8,780 puzzles of 37 types; its top
+guess is a move 35–94% of the time (random 10–50%). Left out of training, a type still beats chance:
+Akari 54% (random 29%), Sudoku 40% (20%), Slitherlink 24% (14%), Star Battle 32% (28%), Nurikabe
+13% (14%, no better). Ten of its puzzles (few-shot) lift Star Battle to 57%. The move embedding ran
+out of memory on the VM; it needs batching before the next run.

@@ -59,6 +59,12 @@ export interface Step {
    *  by primitive and unit kind, whether a global property (connection, a loop) is used, the
    *  largest group held as one, the known facts relied on and how far apart, the window's size */
   feat?: Record<string, number>;
+  /** the explanation's shape, the same in any type (puzzles/difficulty/signatures.ts, fine): each
+   *  rule instance as primitive@unit kind, how instances relate (one inside another, overlapping,
+   *  touching), and where the decided cells sit; canonical by colour refinement. `shape` is short
+   *  (a hash), `shapeText` readable */
+  shape?: string;
+  shapeText?: string;
 }
 
 export interface Profile {
@@ -303,7 +309,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
-  // DEDUCE_LEMMAS chooses lemmas: "component" and "parity", both off by default. The component
+  // DEDUCE_LEMMAS chooses lemmas: "component", "parity" and "loop" (premature loops), all off by default. The component
   // lemma finds Hitori's connectivity moves without search but prices them as easy, so Tatham's
   // easy and tricky Singles grades rated alike (agreement 0.75 to 0.04): on once it's priced. Loop
   // parity helped little for 11% more time.
@@ -311,6 +317,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const parity = local || !lemmasOn.includes("parity") ? null : parityLemma(p, p.rules.length);
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
+  if (!local && lemmasOn.includes("loop")) lemmaNames.push("loop");
   const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
   const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}`;
   const G: Ground = parseAspif(ground(prog));
@@ -925,7 +932,7 @@ end
     const cells = new Set<number>();
     let extent = 0, global = 0;
     for (const gi of e.groups) {
-      const gr = groups[gi], prim = gr.kind === "component" || gr.kind === "parity" ? "connect" : PRIMITIVE[gr.kind] ?? "other";
+      const gr = groups[gi], prim = gr.kind === "component" || gr.kind === "parity" || gr.kind === "loop" ? "connect" : PRIMITIVE[gr.kind] ?? "other";
       f[`p_${prim}`] = (f[`p_${prim}`] ?? 0) + 1;
       const uk = unitKind(gr.label);
       f[`u_${uk}`] = (f[`u_${uk}`] ?? 0) + 1;
@@ -940,6 +947,30 @@ end
       f.spread = Math.max(...rcs.map((x) => x[0])) - Math.min(...rcs.map((x) => x[0])) + Math.max(...rcs.map((x) => x[1])) - Math.min(...rcs.map((x) => x[1]));
     }
     return f;
+  };
+
+  /** The explanation's shape (Step.shape): nodes are the rule instances and the decided cells, as
+   *  primitive@unit kind; edges say how two relate ("in" one inside the other, "x" overlapping,
+   *  "t" touching); two rounds of colour refinement (Weisfeiler–Lehman) make it canonical. */
+  const shapeOf = (e: Expl, target: number[]): { shape: string; text: string } => {
+    const prim = (k: string) => (k === "component" || k === "parity" || k === "loop" ? "connect" : PRIMITIVE[k] ?? k);
+    const nodes = e.groups.map((gi) => ({ label: `${prim(groups[gi].kind)}@${unitKind(groups[gi].label)}`, cells: new Set(groups[gi].cells) }));
+    nodes.push({ label: "decided", cells: new Set(target) });
+    const touch = (a: Set<number>, b: Set<number>) => { for (const c of a) for (const l of g.cellLinks[c] ?? []) for (const j of g.links[l].cells) if (b.has(j)) return true; return false; };
+    const rel = (a: Set<number>, b: Set<number>) => {
+      let common = 0; for (const c of a) if (b.has(c)) common++;
+      if (common && (common === a.size || common === b.size)) return "in";
+      if (common) return "x";
+      return touch(a, b) ? "t" : "";
+    };
+    const adj = nodes.map((a, i) => nodes.flatMap((b, j) => { if (i === j) return []; const r = rel(a.cells, b.cells); return r ? [[j, r] as const] : []; }));
+    let colour = nodes.map((x) => x.label);
+    for (let round = 0; round < 2; round++) colour = nodes.map((_, i) => `${colour[i]}{${adj[i].map(([j, r]) => `${r}:${colour[j]}`).sort().join(",")}}`);
+    const text = [...colour].sort().join(" | ");
+    let h = 2166136261; for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    // readable: each instance with how it meets the others, one level deep
+    const readable = nodes.map((x, i) => `${x.label}[${adj[i].map(([j, r]) => `${r} ${nodes[j].label}`).sort().join(", ")}]`).sort().join("; ");
+    return { shape: (h >>> 0).toString(36), text: readable };
   };
 
   /** Turn windows' facts into candidate steps: each fact goes to the smallest window that found
@@ -974,6 +1005,11 @@ end
         }
         st.facts.push({ mark: markName[m], value: v, text: factText(m, v) });
       });
+      // each step's shape, now that its decided cells are known
+      for (const [key, st] of byKey) {
+        const e = key === "none" ? null : es[facts.findIndex(([m]) => st.facts.some((f) => f.mark === markName[m]))];
+        if (e) { const sh = shapeOf(e, st.facts.flatMap((f) => markCells[markOf.get(f.mark)!])); st.shape = sh.shape; st.shapeText = sh.text; }
+      }
       steps.push(...byKey.values());
     }
     return steps;
@@ -1065,6 +1101,61 @@ end
     }
   };
 
+  // premature loops (Tatham's loop deductions): for a single loop, a known chain of line that isn't
+  // all the line known can't close on itself, so the gap between its two ends stays empty. Added
+  // as constraints while solving (the chain, the gap and one known piece of line elsewhere), each
+  // with a window of the chain; once true, true for good.
+  const LOOP = lemmaNames.indexOf("loop") >= 0 ? p.rules.length + lemmaNames.indexOf("loop") : -1;
+  const addLoopLemmas = () => {
+    const loop = p.rules.find((r) => r.rule === "loop");
+    if (LOOP < 0 || !loop || g.kind !== "square" || p.figure) return;
+    const fence = loop.of === "fence";
+    // the loop's graph: corners joined by borders, or cells joined by links
+    const ends = (e: number): [number, number] => (fence ? g.borders[e].corners : g.links[e].cells) as [number, number];
+    const count = fence ? g.borders.length : g.links.length, name = (e: number) => `${fence ? "fence" : "line"}(${e})`;
+    const state = (e: number) => { const m = markOf.get(name(e)); return m === undefined ? 0 : known[m]; };
+    const yes: number[] = [];
+    for (let e = 0; e < count; e++) if (state(e) === 1) yes.push(e);
+    if (yes.length < 2) return;
+    const at = new Map<number, number[]>();
+    for (const e of yes) for (const v of ends(e)) { if (!at.has(v)) at.set(v, []); at.get(v)!.push(e); }
+    const gap = new Map<string, number>();
+    for (let e = 0; e < count; e++) if (state(e) < 0) { const [a, b] = ends(e); gap.set(a < b ? `${a},${b}` : `${b},${a}`, e); }
+    const used = new Set<number>();
+    for (const e0 of yes) {
+      if (used.has(e0)) continue;
+      // the chain through e0
+      const chain = [e0], vs = new Set(ends(e0)); used.add(e0);
+      for (let k = 0; k < chain.length; k++) for (const v of ends(chain[k])) for (const f of at.get(v) ?? []) if (!used.has(f)) { used.add(f); chain.push(f); for (const w of ends(f)) vs.add(w); }
+      const tips = [...vs].filter((v) => at.get(v)!.length === 1);
+      if (tips.length !== 2 || chain.length === yes.length) continue;
+      const [a, b] = tips[0] < tips[1] ? tips : [tips[1], tips[0]];
+      const e = gap.get(`${a},${b}`);
+      if (e === undefined) continue;
+      const key = `loop|${chain.slice().sort((x, y) => x - y).join(",")}`;
+      if (lemmaSeen.has(key) || constraints.length - firstAdded >= ROOM - 1) continue;
+      lemmaSeen.add(key);
+      // the line elsewhere: the known piece nearest the gap
+      const inChain = new Set(chain), mid = markCells[markOf.get(name(e))!][0];
+      const other = yes.filter((x) => !inChain.has(x)).map((x) => ({ x, d: Math.min(...markCells[markOf.get(name(x))!].map((c) => Math.abs(g.rc(c)[0] - g.rc(mid)[0]) + Math.abs(g.rc(c)[1] - g.rc(mid)[1]))) })).sort((u, w) => u.d - w.d)[0].x;
+      const lit = (x: number) => markAtom[markOf.get(name(x))!];
+      // the violation: the gap filled, with the chain and the other line as they are (atoms fixed
+      // true in grounding drop out)
+      const body = [lit(e), ...[...chain, other].map(lit).filter((l) => l > 0)];
+      const k = rules.length, jx = constraints.length;
+      rules.push({ choice: false, head: [], bound: null, body, weights: [], block: LOOP });
+      constraints.push(k); consOf[k] = jx;
+      const bits = new Uint32Array(empty.length);
+      for (const l of body) { const f = fp[Math.abs(l)]; if (f) orInto(bits, f); }
+      cfp.push(bits);
+      const cs = cellsOf(bits);
+      if (cs.length) byCell[cs[0]].push(jx); else everywhere.push(jx);
+      groupOf[jx] = groups.length;
+      groups.push({ kind: "loop", label: `the line through ${rc(mid)}`, cells: cs, extent: chain.length });
+      if (cs.length <= 4 * Math.max(g.rows, g.cols)) componentW.push(win(`the line ending at ${rc(mid)}`, cs));
+    }
+  };
+
   dbg("setup");
   // single cells first, silently: a given's own cell (a printed digit rules out the others)
   {
@@ -1139,6 +1230,7 @@ end
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
     round++;
     addComponentLemmas();
+    addLoopLemmas();
     let progressed = false;
     for (const [k, stage] of stages.entries()) {
       const f = runWindows(stage.flatMap((fam) => family(fam)));

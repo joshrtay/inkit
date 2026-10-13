@@ -55,3 +55,19 @@ export function signature(step: Step): string {
 
 /** A coarser signature: the distinct primitive@unit kinds, without multiplicity. */
 export const coarse = (sig: string) => [...new Set(sig.split(" "))].join(" ");
+
+/** A shape's family (Step.shapeText): alike instances reduced to one, with "+" when there were
+ *  several, and the relations each has reduced to a set, so "two blocks" and "three blocks" in
+ *  the same arrangement are one family. */
+export function family(shapeText: string): string {
+  if (!shapeText) return "";
+  const parts = shapeText.split("; ").map((p) => {
+    const m = /^(.*?)\[(.*)\]$/.exec(p);
+    if (!m) return p;
+    const rels = [...new Set(m[2].split(", ").filter(Boolean))].sort();
+    return `${m[1]}[${rels.join(", ")}]`;
+  });
+  const counts = new Map<string, number>();
+  for (const p of parts) counts.set(p, (counts.get(p) ?? 0) + 1);
+  return [...counts].map(([p, n]) => (n > 1 ? `${p}+` : p)).sort().join("; ");
+}

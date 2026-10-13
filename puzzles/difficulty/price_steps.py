@@ -1,5 +1,5 @@
-# Pricing steps from step-level labels (step-labels.ts → references/ml/step-labels.jsonl): each of
-# our steps with an expert's verdict from the same position (Tatham's Singles and Light Up levels;
+# Pricing steps from step-level labels (step-labels.ts → references/ml/step-labels*.jsonl): each of
+# our steps with an expert's verdict from the same position (Tatham's Singles deductions and Loopy levels;
 # Sudoku's community rating). A step's price is today's cost plus a learned correction from its
 # features (price.py's vec); fitted so that, within each game, steps the experts call harder cost
 # more. Reported: agreement (Spearman) between price and label per game, today and fitted, and
@@ -16,7 +16,8 @@ sys.path.insert(0, HERE)
 sys.argv = sys.argv[:1]
 from price import FEATURES, vec   # noqa: E402  (price.py runs its own fit when imported as a script only)
 
-rows = [json.loads(l) for l in open(os.path.join(HERE, "../../references/ml/step-labels.jsonl")) if l.strip()]
+import glob
+rows = [json.loads(l) for f in sorted(glob.glob(os.path.join(HERE, "../../references/ml/step-labels*.jsonl"))) for l in open(f) if l.strip()]
 # a step no expert level reached is harder than the highest level
 top = defaultdict(float)
 for r in rows: top[r["game"]] = max(top[r["game"]], r["label"])

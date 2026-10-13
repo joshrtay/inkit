@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { corpus } from "./corpus.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
 import { mapPool } from "./pool.ts";
-import { coarse, signature } from "./signatures.ts";
+import { coarse, family, signature } from "./signatures.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
 const items = corpus(Number(process.argv[2]) || 12);
@@ -17,7 +17,7 @@ let done = 0;
 const steps = (await mapPool(items, async (it) => {
   const r = await deduceGuarded(it.spec, { budgetMs: 20000 }, 90000).catch(() => null);
   if (++done % 50 === 0) console.error(`${done}/${items.length}`);
-  return (r?.path ?? []).filter((s) => !s.choice).map((s) => ({ genre: it.genre, source: it.source, puzzle: it.name, sig: signature(s), tier: s.tier, cost: s.cost }));
+  return (r?.path ?? []).filter((s) => !s.choice).map((s) => ({ genre: it.genre, source: it.source, puzzle: it.name, sig: signature(s), shape: s.shape ?? "", shapeText: s.shapeText ?? "", tier: s.tier, cost: s.cost }));
 })).flat();
 mkdirSync(`${repo}references/ml`, { recursive: true });
 writeFileSync(`${repo}references/ml/steps.jsonl`, steps.map((s) => JSON.stringify(s)).join("\n") + "\n");
@@ -35,3 +35,19 @@ const rows = [...table].map(([sig, by]) => ({ sig, by, types: by.size, total: [.
 console.log(`${steps.length} steps from ${items.length} puzzles, ${types.length} types, ${table.size} signatures (${rows.filter((r) => r.types >= 2).length} in two or more types)\n`);
 console.log("| Signature | Types | Steps | Where |\n|---|---|---|---|");
 for (const r of rows.slice(0, 40)) console.log(`| ${r.sig} | ${r.types} | ${r.total} | ${[...r.by].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([g, n]) => `${g} ${n}`).join(", ")} |`);
+
+// the finer levels: shapes (how instances relate) and their families (counts of alike instances
+// reduced to one or several)
+for (const [level, keyOf] of [["shape", (s: typeof steps[number]) => s.shape], ["family", (s: typeof steps[number]) => family(s.shapeText)]] as const) {
+  const t = new Map<string, { by: Map<string, number>; text: string }>();
+  for (const s of steps) {
+    const k = keyOf(s);
+    if (!k) continue;
+    if (!t.has(k)) t.set(k, { by: new Map(), text: family(s.shapeText) });
+    t.get(k)!.by.set(s.genre, (t.get(k)!.by.get(s.genre) ?? 0) + 1);
+  }
+  const shared = [...t.values()].filter((x) => x.by.size >= 2);
+  console.log(`\n${level}s: ${t.size}, ${shared.length} in two or more types`);
+  for (const x of shared.sort((a, b) => b.by.size - a.by.size || [...b.by.values()].reduce((p, q) => p + q, 0) - [...a.by.values()].reduce((p, q) => p + q, 0)).slice(0, level === "family" ? 25 : 12))
+    console.log(`- ${x.by.size} types (${[...x.by].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([g, n]) => `${g} ${n}`).join(", ")}): ${x.text.slice(0, 220)}`);
+}

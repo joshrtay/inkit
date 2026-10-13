@@ -7,7 +7,7 @@
 // on (the component lemma, clue reach), so those are labelled too.
 // → references/ml/step-labels.jsonl (local only)
 //
-//   node puzzles/difficulty/step-labels.ts [puzzlesPerFile]
+//   node puzzles/difficulty/step-labels.ts [puzzlesPerFile] [games, e.g. loopy: → step-labels-loopy.jsonl]
 import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
@@ -18,6 +18,7 @@ import { bit, boardOf, fromSpec, place } from "./sudoku/grid.ts";
 import { apply, nextStep, TECHNIQUES } from "./sudoku/techniques.ts";
 
 const LEVELS = [...new Set(TECHNIQUES.map((t) => t.se))].sort((a, b) => a - b);
+import { squareGrid } from "../../src/engine/geometry.ts";
 import { fromTatham } from "./tatham.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
@@ -27,8 +28,10 @@ type Job = { game: string; id?: string; grade: string; spec: GridSpec; name: str
 const jobs: Job[] = [];
 const tdir = `${repo}references/tatham/puzzles/`;
 // Singles (one application of each of Tatham's deductions: references/tatham/build/singles-one) and
-// Sudoku; Light Up's deductions are too entangled to apply one at a time, so it's left out
-for (const f of readdirSync(tdir).filter((x) => /^(singles|solo)-/.test(x) && x.endsWith(".txt")).sort()) {
+// Sudoku; Loopy by the lowest level of Tatham's solver, run to the end, that settles the edge
+// (references/tatham/build/loopy-one); Light Up's deductions are too entangled to apply one at a
+// time, so it's left out
+for (const f of readdirSync(tdir).filter((x) => new RegExp(`^(${process.argv[3] ?? "singles|solo|loopy"})-`).test(x) && x.endsWith(".txt")).sort()) {
   const game = f.split("-")[0];
   for (const id of readFileSync(tdir + f, "utf8").trim().split("\n").slice(0, per)) {
     const r = fromTatham(game, id);
@@ -39,6 +42,16 @@ console.error(`${jobs.length} puzzles`);
 
 process.env.DEDUCE_LEMMAS = "component";
 const cellOf = (mark: string) => Number(/^shaded\((\d+)\)$/.exec(mark)?.[1] ?? -1);
+// a Loopy edge for Tatham's driver: its two end corners as "r1,c1,r2,c2"
+const edgeOf = (spec: GridSpec) => {
+  const cols = spec.size[1], g = squareGrid(spec.size[0], cols);
+  return (mark: string) => {
+    const m = /^fence\((\d+)\)$/.exec(mark);
+    if (!m) return null;
+    const [a, b] = g.borders[Number(m[1])].corners;
+    return `${Math.floor(a / (cols + 1))},${a % (cols + 1)},${Math.floor(b / (cols + 1))},${b % (cols + 1)}`;
+  };
+};
 let done = 0;
 const out = (await mapPool(jobs, async (j) => {
   const r = await deduceGuarded(j.spec, { budgetMs: 30000, families: [REACH_FAMILY] }, 120000).catch(() => null);
@@ -77,9 +90,17 @@ const out = (await mapPool(jobs, async (j) => {
   } else {
     // Singles and Light Up: ask Tatham's solver from the same position
     const lines: string[] = [], meta: { cost: number; feat: Record<string, number> }[] = [];
+    const edge = j.game === "loopy" ? edgeOf(j.spec) : null;
     for (const s of steps) {
       const f = s.facts[0], c = cellOf(f.mark);
-      if (c >= 0) {
+      if (edge) {
+        const t = edge(f.mark);
+        if (t) {
+          const k = known.flatMap((x) => { const m = /^(fence\(\d+\))=(\w+)$/.exec(x); const e = m && edge(m[1]); return e ? [`${e}=${m![2] === "true" ? "y" : "n"}`] : []; });
+          lines.push(`${j.id}\t${k.join(";") || "-"}\t${t}=${f.value ? "y" : "n"}`);
+          meta.push({ cost: s.cost, feat: s.feat ?? {} });
+        }
+      } else if (c >= 0) {
         const tok = (v: boolean) => (j.game === "singles" ? (v ? "b" : "w") : v ? "b" : "x");
         const k = known.flatMap((x) => { const m = /^shaded\((\d+)\)=(\w+)$/.exec(x); return m ? [`${m[1]}:${tok(m[2] === "true")}`] : []; });
         lines.push(`${j.id}\t${k.join(",") || "-"}\t${c}:${tok(f.value)}`);
@@ -93,5 +114,5 @@ const out = (await mapPool(jobs, async (j) => {
   }
   return rows.map((x) => JSON.stringify({ game: j.game, grade: j.grade, puzzle: `${j.name} ${j.id?.slice(-20)}`, ...x }));
 })).flat();
-writeFileSync(`${repo}references/ml/step-labels.jsonl`, out.join("\n") + "\n");
+writeFileSync(`${repo}references/ml/step-labels${process.argv[3] ? `-${process.argv[3].replace(/\|/g, "-")}` : ""}.jsonl`, out.join("\n") + "\n");
 console.log(`${out.length} steps labelled`);

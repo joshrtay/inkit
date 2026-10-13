@@ -384,6 +384,25 @@ hints in a player's language at a fraction of a large model's cost and delay.
   network has human-path training (Janko's recorded solves).
 - **Stop if** it doesn't beat the network plus templates, or Opus, at a cost worth paying.
 
+The encoder should be the type-free graph network (puzzles/difficulty/graph_policy.py: marks,
+cells and rule instances as one graph), not the per-type one, so every type shares one space. Its
+first cloud run (37 types, 8,780 puzzles, one L4): with each held-out type left out of training,
+its top guess is still a move well above chance (Akari 54% against 29% random, Sudoku 40% against
+20%).
+
+Two directions, as in images: encode into the model whose output you want.
+- **Puzzle into language** (the pilot above): the language model does the reasoning and the
+  talking; the network is its eye, as a vision encoder is.
+- **Language into puzzle:** a new type's written rules, embedded by a language model, condition
+  the graph network, as text conditions an image generator. The output is moves, so the network
+  stays the solver, and an unseen type gets its rules from their description rather than from
+  training on its puzzles. This is the shorter road to new types.
+
+Math is mostly not encoded this way: models read it as text (LaTeX, Lean), checked by a symbolic
+prover, since it's already a written language with plenty to learn from. Graph encoders of formulas
+exist in research (choosing lemmas for provers). A grid's meaning is in its layout, which is closer
+to a picture than to a sentence.
+
 ## Sources
 
 - Evan Chen's blog and site, summarised in [research-evan-chen.md](research-evan-chen.md); Richard
