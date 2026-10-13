@@ -7,7 +7,9 @@
 // re-proving on the server is for later.)
 import { eq } from "drizzle-orm";
 import { schema, type Db } from "../db";
-import { looseSpec, parseSketch, SKETCH_VERSION } from "../games/sketch";
+import { looseSpec, parseSketch, SKETCH_VERSION, specToSketch } from "../games/sketch";
+import { readLink, type LinkResult } from "./import-link";
+import { noteLinkRequest } from "./link-requests.server";
 import { newId } from "./names.server";
 import { canChange, canDelete, canHide, canPublishInto, Forbidden, roleIn } from "./permissions.server";
 import { cropTo, prepare } from "./photos.server";
@@ -214,6 +216,24 @@ export async function createFromDrawing(db: Db, env: Env, me: Creator, form: For
   });
   await recordRead(db, { ...record, imageKey: key, gameId: id, result: { reading, sketch, puzzleKind: reading.genre, model: log.at(-1)!.model } });
   return id;
+}
+
+/** A puzz.link or Penpa+ link pasted on /new (lib/import-link.ts): a puzzle of one of our types
+ *  becomes a draft drawn in paint's ink, as a photo's reading is; a type we don't have (or a variant
+ *  ours doesn't match) is noted for the admins (/admin/requests). */
+export async function createFromLink(db: Db, me: Creator, form: FormData): Promise<{ id: string } | { result: Exclude<LinkResult, { kind: "puzzle" }> }> {
+  const collectionId = String(form.get("collection") ?? "");
+  if (!canPublishInto(await roleIn(db, collectionId, me.id))) throw new Forbidden("You can only add games to collections you belong to.");
+  const link = String(form.get("link") ?? "").trim();
+  const read = readLink(link);
+  if (read.kind === "unsupported") await noteLinkRequest(db, me.id, link, read);
+  if (read.kind !== "puzzle") return { result: read };
+  const sketch = specToSketch(read.spec), id = newId();
+  await db.insert(schema.games).values({
+    id, collectionId, authorId: me.id, sketch, sketchVersion: SKETCH_VERSION, kind: read.spec.genre, state: "draft", title: "Untitled",
+    parseNotes: [], kindChoices: [], drawing: paintFromSketch(sketch),
+  });
+  return { id };
 }
 
 /** Read the drawing again, with the creator's corrections. */

@@ -12,6 +12,7 @@
 //   sets         a curated, ordered set of published puzzles (anyone's), made in the drawer and
 //                published like a puzzle: once published, its puzzles and their order stay put
 //   set_items    a set's puzzles, in order
+//   link_requests  a puzz.link or Penpa+ link pasted on /new whose type we don't have yet
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
@@ -296,3 +297,19 @@ export const bugReports = sqliteTable("bug_reports", {
   issueNumber: integer("issue_number"),
   issueUrl: text("issue_url"),
 }, (t) => [index("bug_reports_creator").on(t.creatorId, t.createdAt), index("bug_reports_created").on(t.createdAt)]);
+
+// ---- link requests: a puzz.link or Penpa+ link pasted on /new whose type we don't have (or a
+//      variant ours doesn't match); admins see the counts by type at /admin/requests ----
+export const linkRequests = sqliteTable("link_requests", {
+  id: text("id").primaryKey(),
+  creatorId: text("creator_id").notNull().references(() => creators.id),
+  /** where the link is from: "puzzlink" (and other pzprjs sites) or "penpa" */
+  source: text("source", { enum: ["puzzlink", "penpa"] }).notNull(),
+  /** the source's id and English name for the type ("heyawake", "Heyawake") */
+  genreId: text("genre_id").notNull(),
+  genreName: text("genre_name").notNull(),
+  /** for a type we have, what about this puzzle we don't ("with ? clues") */
+  variant: text("variant"),
+  link: text("link").notNull(),
+  createdAt: created(),
+}, (t) => [index("link_requests_genre").on(t.genreId)]);

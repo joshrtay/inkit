@@ -54,6 +54,8 @@ export default [
   route("admin/bugs/:id", "routes/admin-bug.tsx"),
   route("admin/bugs/:id/bundle", "routes/admin-bug-bundle.ts"),
   route("admin/bugs/:id/files/:file", "routes/admin-bug-file.ts"),
+  // puzzle types asked for by a pasted link (/new) that we don't have yet
+  route("admin/requests", "routes/admin-requests.tsx"),
   route(":slug/settings", "routes/collection-settings.tsx"),
   // Collections live at the top level (inkit.games/<slug>), so this route comes last.
   route(":slug", "routes/collection.tsx"),
