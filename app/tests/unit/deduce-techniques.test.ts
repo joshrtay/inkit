@@ -22,6 +22,7 @@ const GENRES: Record<string, string[]> = {
   distance: ["hidoku"],
   deadends: ["hidoku"],
   fish: ["easy-as-abc"],
+  slots: ["fill-in"],
 };
 const expert = bandNamed("expert");
 

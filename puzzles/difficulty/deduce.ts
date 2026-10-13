@@ -25,7 +25,7 @@
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
-import { blockFor, galaxyCore, pathEnds, pathNeighbours } from "../../src/engine/rules.ts";
+import { blockFor, fillSlots, galaxyCore, pathEnds, pathNeighbours, symbolOf } from "../../src/engine/rules.ts";
 import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
@@ -224,6 +224,8 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   deadends: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
   // Easy as ABC: a letter's places in two rows and two columns (an X-wing)
   fish: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "letters"),
+  // Fill-in: the entries each slot still fits, the slots each entry still fits (needs Options.cellAtoms)
+  slots: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "fill-in"),
 };
 export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
@@ -385,7 +387,10 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // Options.cellAtoms: Spiral Galaxies' gal(I,G) (cell I is in galaxy G) shown, to take cell I as
   // its footprint
   const galAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "galaxies") && !local;
-  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}`;
+  // and Fill-in's put(E,S) (entry E goes in slot S), footprint the slot's cells
+  const putAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "fill-in") && !local;
+  const slots = putAtoms ? fillSlots(p) : [];
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
   const G: Ground = parseAspif(ground(prog));
   dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
@@ -424,6 +429,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // chosen freely, from facts), every constraint over them would hold in every window, so each
   // window would hold the whole puzzle
   if (galAtoms) for (const [name, lit] of G.outputs) { const x = /^gal\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); }
+  if (putAtoms) for (const [name, lit] of G.outputs) { const x = /^put\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, slots[+x[2]]); }
   const defs: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const usedIn: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const constraints: number[] = [];
@@ -1683,7 +1689,51 @@ end
     return ws;
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  // Fill-in (technique "slots", with Options.cellAtoms): which entries still fit each slot (its
+  // length, and the digits known in it and known not to be), and which slots each entry still
+  // fits. An entry with one slot left goes there, and a slot with one entry left takes it, and
+  // neither is then anywhere else; repeated till nothing changes. Each pair ruled out is a
+  // constraint, and so are "this slot takes one of these" and "this entry goes in one of these".
+  // Windows: each slot with the slots crossing it, and each entry's slots.
+  const slotsRound = (): Window[] => {
+    if (!putAtoms) return [];
+    const put = (e: number, s: number) => G.outputs.get(`put(${e},${s})`);
+    const E = p.entries.length, S = slots.length;
+    const fits = Array.from({ length: E }, (_, e) => Array.from({ length: S }, (_, s) =>
+      put(e, s) !== undefined && slots[s].length === p.entries[e].length && slots[s].every((i, k) => digitState(i, p.entries[e][k]) !== 0
+        && [...Array(p.digits).keys()].every((d) => d + 1 === p.entries[e][k] || digitState(i, d + 1) !== 1))));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let e = 0; e < E; e++) {
+        const ss = [...Array(S).keys()].filter((s) => fits[e][s]);
+        if (ss.length === 1) for (let f = 0; f < E; f++) if (f !== e && fits[f][ss[0]]) { fits[f][ss[0]] = false; changed = true; }
+      }
+      for (let s = 0; s < S; s++) {
+        const es = [...Array(E).keys()].filter((e) => fits[e][s]);
+        if (es.length === 1) for (let t = 0; t < S; t++) if (t !== s && fits[es[0]][t]) { fits[es[0]][t] = false; changed = true; }
+      }
+    }
+    const ws: Window[] = [], slotName = (s: number) => `the slot at ${rc(slots[s][0])} ${g.rc(slots[s][1])[0] === g.rc(slots[s][0])[0] ? "across" : "down"}`;
+    for (let s = 0; s < S; s++) {
+      for (let e = 0; e < E; e++) if (!fits[e][s] && put(e, s) !== undefined) addTech("slots", [LIT(put(e, s), true)], slotName(s));
+      const es = [...Array(E).keys()].filter((e) => fits[e][s]);
+      if (es.length) addTech("slots", es.map((e) => LIT(put(e, s), false)), slotName(s), es.length);
+      if (slots[s].some((i) => [...Array(p.digits).keys()].some((d) => digitState(i, d + 1) < 0))) {
+        const crossing = slots.filter((t, k) => k !== s && t.some((i) => slots[s].includes(i)));
+        ws.push(techWin(`slots: ${slotName(s)}`, bitsOf(n, [...slots[s], ...crossing.flat()])));
+      }
+    }
+    for (let e = 0; e < E; e++) {
+      const ss = [...Array(S).keys()].filter((s) => fits[e][s]);
+      if (ss.length < 2) continue;
+      const b = addTech("slots", ss.map((s) => LIT(put(e, s), false)), `where ${p.entries[e].map((d) => symbolOf(p, d)).join("")} goes`, ss.length);
+      if (b) ws.push(techWin(`slots: where ${p.entries[e].map((d) => symbolOf(p, d)).join("")} goes`, b));
+    }
+    return ws.filter((w) => w.size <= techCap);
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
