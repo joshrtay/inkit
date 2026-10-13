@@ -206,20 +206,24 @@ export const MINED_FAMILIES: FamilySpec[] = [
 
 /** The per-genre techniques (Options.techniques), each named as quick steps and `requiredOf` name
  *  it, and the puzzles it applies to. Off by default (unpriced); the generator's expert band uses
- *  them (bands.ts). */
+ *  them all, and its hard band each genre's basic ones (bands.ts HARD_TECHNIQUES). */
 export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> = {
-  // Shikaku: a number's candidate rectangles
+  // Shikaku: a number's candidate rectangles (rects); two numbers' candidates together (rectpairs)
   rects: (p, genre) => genre === "shikaku" && p.rules.map((r) => r.rule).join(",") === "rectangles,one-each,size-clue",
-  // Minesweeper: two or three overlapping numbers together
+  rectpairs: (p, genre) => genre === "shikaku" && p.rules.map((r) => r.rule).join(",") === "rectangles,one-each,size-clue",
+  // Minesweeper: two overlapping numbers together (mines); chains of three (chains)
   mines: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "mine-count"),
+  chains: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "mine-count"),
   // Simple Path and Numberlink: loose ends that mustn't close up (or join different numbers)
   ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path" || r.rule === "links"),
   // Simple Path, Simple Loop and Numberlink with every cell used: a part of the grid with few ways out
   cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || r.rule === "links" || (r.rule === "loop" && r.of === "loop"))),
   // Numberlink: the cells each pair can still reach
   owners: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links"),
-  // Fillomino (regions cut by borders, numbers their sizes): parts that close, stay apart or must grow
+  // Fillomino (regions cut by borders, numbers their sizes): parts that close, stay apart or must
+  // grow (sizes); the shapes a numbered part can still grow into (shapes)
   sizes: (p, genre) => genre !== "shikaku" && !p.figure && p.marks.includes("regions") && p.rules.some((r) => r.rule === "size-clue"),
+  shapes: (p, genre) => genre !== "shikaku" && !p.figure && p.marks.includes("regions") && p.rules.some((r) => r.rule === "size-clue"),
   // Spiral Galaxies: the cells each galaxy can still reach, by symmetry (needs Options.cellAtoms)
   mirror: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "galaxies"),
   // Hidoku and Honeycomb Paths: how far a number can be from the placed ones; a number needs the
@@ -369,7 +373,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
   const techOn = new Set((opts.techniques ?? []).filter((t) => techniqueApplies(t, p, spec.genre)));
-  const local = localProgram(p, spec.genre, techOn.has("rects"));
+  const local = localProgram(p, spec.genre, techOn.has("rects") || techOn.has("rectpairs"));
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
@@ -1363,13 +1367,15 @@ end
   };
   const unionBits = (...bs: Bits[]) => { const u = new Uint32Array(empty.length); for (const b of bs) orInto(u, b); return u; };
 
-  // Shikaku (technique "rects"): a number's candidate rectangles (of its area, holding it and no
+  // Shikaku (techniques "rects" and "rectpairs"): a number's candidate rectangles (of its area, holding it and no
   // other number: local.ts's shapes) that the known borders still allow. Its region is one of them;
   // a cell is covered by one of the candidates through it. Windows: each number's candidates, each
   // cell whose candidates belong to several numbers, and two numbers whose candidates overlap.
   // Within them, cells every candidate covers join the number, a cell only one number can reach
-  // is its, and a candidate that would leave a cell uncovered goes.
-  const rectsRound = (): Window[] => {
+  // is its, and a candidate that would leave a cell uncovered goes. rects: the windows of one number
+  // or one cell; rectpairs: of two numbers (with rects off, its constraints are its own).
+  const rectsRound = (single: boolean, pairs: boolean): Window[] => {
+    const T = single ? "rects" : "rectpairs";
     const shapes = local?.shapes;
     if (!shapes) return [];
     const state = (lk: number) => { const m = markOf.get(`cut(${lk})`); return m === undefined ? -1 : known[m]; };
@@ -1379,34 +1385,34 @@ end
     shapes.forEach((s, id) => { if (!live[id]) return; if (!byClue.has(s.clue)) byClue.set(s.clue, []); byClue.get(s.clue)!.push(id); for (const c of s.cells) byCell[c].push(id); });
     const ws: Window[] = [], clueBits = new Map<number, Bits>();
     for (const [i, ids] of byClue) {
-      const b = addTech("rects", ids.map((id) => LIT(pick(id), false)), `the number at ${rc(i)}`, ids.length);
+      const b = addTech(T, ids.map((id) => LIT(pick(id), false)), `the number at ${rc(i)}`, ids.length);
       if (!b) continue;
       clueBits.set(i, b);
-      ws.push(techWin(`rects: the number at ${rc(i)}`, b));
+      if (single) ws.push(techWin(`rects: the number at ${rc(i)}`, b));
     }
     for (let c = 0; c < n; c++) {
       const ids = byCell[c];
       if (!ids.length) continue;
-      const b = addTech("rects", ids.map((id) => LIT(pick(id), false)), `who covers ${rc(c)}`, ids.length);
-      if (b && new Set(ids.map((id) => shapes[id].clue)).size > 1) ws.push(techWin(`rects: who covers ${rc(c)}`, b));
+      const b = addTech(T, ids.map((id) => LIT(pick(id), false)), `who covers ${rc(c)}`, ids.length);
+      if (single && b && new Set(ids.map((id) => shapes[id].clue)).size > 1) ws.push(techWin(`rects: who covers ${rc(c)}`, b));
     }
     // two numbers whose candidates overlap
-    const clues = [...clueBits.keys()];
+    const clues = pairs ? [...clueBits.keys()] : [];
     for (let a = 0; a < clues.length; a++) for (let b = a + 1; b < clues.length; b++) {
       const A = byClue.get(clues[a])!, B = byClue.get(clues[b])!;
       const cellsA = new Set(A.flatMap((id) => shapes[id].cells));
       if (!B.some((id) => shapes[id].cells.some((c) => cellsA.has(c)))) continue;
-      ws.push(techWin(`rects: the numbers at ${rc(clues[a])} and ${rc(clues[b])}`, unionBits(clueBits.get(clues[a])!, clueBits.get(clues[b])!)));
+      ws.push(techWin(`rectpairs: the numbers at ${rc(clues[a])} and ${rc(clues[b])}`, unionBits(clueBits.get(clues[a])!, clueBits.get(clues[b])!)));
     }
     return ws.filter((w) => w.size <= techCap);
   };
 
-  // Minesweeper (technique "mines"): two or three numbers whose open neighbours overlap, in a
-  // chain (each sharing an open cell with the next), taken together: subsets and differences of
-  // their counts, and chains of three. The fixed windows hold two numbers only when side by side
-  // (a pair of neighbourhoods two apart is past the pairs' size cap). No total mine count: the
-  // rules have none.
-  const minesRound = (): Window[] => {
+  // Minesweeper (techniques "mines" and "chains"): two numbers whose open neighbours overlap
+  // (mines: subsets and differences of their counts, the 1-2 patterns), or three in a chain, each
+  // sharing an open cell with the next (chains), taken together. The fixed windows hold two
+  // numbers only when side by side (a pair of neighbourhoods two apart is past the pairs' size
+  // cap). No total mine count: the rules have none.
+  const minesRound = (pairs: boolean, chains: boolean): Window[] => {
     const shadeOf = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
     const clues: { i: number; open: Set<number>; bits: Bits }[] = [];
     for (const [i, gs] of p.cellGivens) {
@@ -1421,9 +1427,9 @@ end
     const ws: Window[] = [];
     clues.forEach((a, ka) => {
       for (const kb of nb[ka]) {
-        if (kb > ka) ws.push(techWin(`mines: ${rc(a.i)} and ${rc(clues[kb].i)}`, unionBits(a.bits, clues[kb].bits)));
+        if (pairs && kb > ka) ws.push(techWin(`mines: ${rc(a.i)} and ${rc(clues[kb].i)}`, unionBits(a.bits, clues[kb].bits)));
         // chains of three with a in the middle
-        for (const kc of nb[ka]) if (kc > kb) ws.push(techWin(`mines: ${rc(clues[kb].i)}, ${rc(a.i)} and ${rc(clues[kc].i)}`, unionBits(a.bits, clues[kb].bits, clues[kc].bits)));
+        if (chains) for (const kc of nb[ka]) if (kc > kb) ws.push(techWin(`chains: ${rc(clues[kb].i)}, ${rc(a.i)} and ${rc(clues[kc].i)}`, unionBits(a.bits, clues[kb].bits, clues[kc].bits)));
       }
     });
     return ws;
@@ -1812,13 +1818,13 @@ end
     return ws.filter((w) => w.size <= techCap);
   };
 
-  // Fillomino (technique "sizes"): the known parts of regions (cells joined by links known not to
-  // be cut), with the number in them if any. A part that has reached its number closes (every
+  // Fillomino (techniques "sizes", and "shapes" for the shapes a part can grow into): the known
+  // parts of regions (cells joined by links known not to be cut), with the number in them if any. A part that has reached its number closes (every
   // link out is cut); parts with different numbers, or whose sizes together pass the number, stay
   // apart (the link between them is cut); a part short of its number with every way out into one
   // cell takes that cell in (those links aren't cut), and with one way out, takes it. Each holds
   // given the known links; windows are each part with the cells round it.
-  const sizesRound = (): Window[] => {
+  const sizesRound = (basic: boolean, shaped: boolean): Window[] => {
     if (!p.marks.includes("regions") || !p.rules.some((r) => r.rule === "size-clue")) return [];
     const cutState = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? -1 : known[m]; };
     const cutAtom = (l: number) => { const m = markOf.get(`cut(${l})`); return m === undefined ? undefined : markAtom[m]; };
@@ -1840,6 +1846,11 @@ end
       for (const c of pt.cells) for (const l of g.cellLinks[c]) if (cutState(l) < 0 && part[otherEnd(l, c)] !== k && !p.blocked.has(otherEnd(l, c))) exits.push(l);
       if (!exits.length) return;
       const v = pt.value;
+      if (basic) basicMoves(pt, k, exits, v);
+      if (shaped) shapesOf(pt, k, v);
+    });
+    return ws;
+    function basicMoves(pt: { cells: number[] }, k: number, exits: number[], v: number | undefined) {
       if (v !== undefined && pt.cells.length >= v) for (const l of exits) cutIt(l, k);
       for (const l of exits) {
         const c = pt.cells.includes(g.links[l].cells[0]) ? g.links[l].cells[0] : g.links[l].cells[1], o = part[otherEnd(l, c)], w = parts[o].value;
@@ -1854,7 +1865,9 @@ end
       const around = new Set(pt.cells);
       for (const c of pt.cells) for (const l of g.cellLinks[c]) around.add(otherEnd(l, c));
       if (around.size <= techCap) ws.push(techWin(`sizes: ${label(k)}`, bitsOf(n, around)));
-      // a numbered part short of its number: the regions it can still grow into (every shape of
+    }
+    function shapesOf(pt: { cells: number[] }, k: number, v: number | undefined) {
+      // (technique "shapes") a numbered part short of its number: the regions it can still grow into (every shape of
       // that size holding it, whole parts at a time, none with another number, no link inside
       // known cut, none beside a part of the same number outside it). Its region is one of them,
       // as Shikaku's rectangles.
@@ -1897,18 +1910,17 @@ end
           if (a === 0) { if (!want) return -1; continue; }          // cut for sure
           lits.push(want ? a : -a);
         }
-        return defineAtom("sizes", lits);
+        return defineAtom("shapes", lits);
       });
       if (atoms.some((a) => Number.isNaN(a))) return;
       atoms.splice(0, atoms.length, ...atoms.filter((a) => a >= 0));
       if (!atoms.length) return;
-      const b = addTech("sizes", atoms.map((a) => -a), `the shapes for ${rc(pt.cells[0])}`, atoms.length);
-      if (b && cellsOf(b).length <= 2 * techCap) ws.push(techWin(`sizes: the shapes for ${label(k)}`, b));
-    });
-    return ws;
+      const b = addTech("shapes", atoms.map((a) => -a), `the shapes for ${rc(pt.cells[0])}`, atoms.length);
+      if (b && cellsOf(b).length <= 2 * techCap) ws.push(techWin(`shapes: the shapes for ${label(k)}`, b));
+    }
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { sizes: sizesRound, owners: ownersRound, slots: slotsRound, fish: fishRound, rects: rectsRound, mines: minesRound, ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
