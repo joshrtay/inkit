@@ -145,7 +145,7 @@ per type mean agreement figures can be off by 0.15.
 | Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
 | Does the order of a solve carry difficulty? | difficulty | path features against ratings (solves as vectors, step 1) | after pricing |
 | Do Janko's recordings hold solve times? | difficulty | check the files | quick |
-| Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints and interest yes, difficulty no, sequences unclear (research-llm-labels.md) |
+| Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints yes; difficulty no; interest no at scale (Slitherlink a little); sequences unclear (research-llm-labels.md) |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
 | Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | expert band now holds the mined families; per-genre work to do |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
@@ -178,7 +178,7 @@ waits on another:
 
 | Phase | GPU (one L4 until the quota rises) | CPU (Mac and fleet) | API | Decides |
 |---|---|---|---|---|
-| **0. Fix the ruler** | — | evaluation changes; gather the fleet, audit 1%, load data in pieces; check Janko's times | **labeller pilot** (done: hints and interest yes, difficulty no) | can a model's labels fill our data gaps? |
+| **0. Fix the ruler** | — | evaluation changes; gather the fleet, audit 1%, load data in pieces; check Janko's times | **labeller pilot** (done: hints yes; difficulty and interest no) | can a model's labels fill our data gaps? |
 | **1. What limits the network?** | **fair size test** (running), then the **learning curve** at the chosen size | **connectivity pricing**; **per-genre techniques** (an agent) | — | size or data or neither; can the component lemma go on? |
 | **2. Fix the weakest area** | **structure as input** for the whole-grid types; then **tuning on human moves** | **path order and difficulty** (once prices settle) | **labels at scale**, if the pilot passes | do hints and difficulty work on Nurikabe and the rest? |
 | **3. Build the products** | distill into a small model (the encoder), if labels and network justify it | sequences from the family map, judged against Beast Academy; the site shortlist; new genres in the generator | hint wording | what ships |
@@ -204,8 +204,9 @@ waits on another:
 2. **Evaluation changes:** human-made test set, next-move agreement, key-move score, results by
    band and family, seeds.
 3. **On the GPU, back to back:** the fair size test and the learning curve.
-4. **Labels from models where the pilot passed:** interest at scale with Opus (100+ a type, about
-   $0.01 a puzzle) to confirm; hint text from solver steps; stuck-moment moves for the miner.
+4. **Labels from models where the pilot passed:** hint text from solver steps; stuck-moment moves
+   for the miner. (Interest at scale didn't hold: 0.06 beyond difficulty on 372 puzzles, Slitherlink
+   0.27; interest needs people's signals.)
 5. **Connectivity pricing** (CPU, alongside).
 6. **Structure as network input** for the whole-grid types.
 7. **Per-genre techniques** for the generator's missing bands and genres.
@@ -216,6 +217,6 @@ waits on another:
 | Item | Approx. |
 |---|---|
 | Anthropic API: mining rounds | $2.50 of $10 approved |
-| Anthropic API: labeller pilot | $14.45 of $15 approved |
+| Anthropic API: labeller pilot and interest confirmation | $17.69 ($15 pilot, then ~$5.50 more approved) |
 | GPU runs (5) | ~$8 |
 | CPU generation (first batch + fleet) | ~$16–21 when the fleet ends |

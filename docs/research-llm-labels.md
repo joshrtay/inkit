@@ -132,3 +132,13 @@ scale.
   site's CSS, and no SVG-to-PNG tool is installed.
 - **Budget shaped the sample.** Each job × model had an equal share, but stuck moments cost far more
   than expected, so Fable did 16 of 23 ordinary positions and 3 of 18 stuck ones.
+
+## Interest, confirmed at scale (Opus 5.5, 120 puzzles a type)
+
+The pilot's interest signal (72 puzzles) didn't hold on 372. With the site's difficulty held fixed:
+Slitherlink 0.27 (pilot 0.77), Akari 0.07, Masyu 0.09, Sudoku −0.18 (only 12 with likes); mean
+0.06 (pilot 0.18). Slitherlink's 0.27 is modest but real at this size, and above simple features
+(sparse clues 0.13). Elsewhere one feature does as well or better: Masyu's likes follow sparse clues
+(0.46), as found before. So a model isn't a general judge of interest; it may help on Slitherlink.
+Interest needs people's signals: inkit's likes and completions, and more public sites. $3.23 (API
+total $17.69).
