@@ -144,7 +144,7 @@ per type mean agreement figures can be off by 0.15.
 | Question | Product | What would answer it | Status |
 |---|---|---|---|
 | Is data the network's limit? | core | learning curve on the generated set (10–100%) | after the fleet |
-| Does size matter? | core | fair size test: learning rate scaled with width | ready, ~$3 |
+| Does size matter? | core | fair size test: learning rate scaled with width | **yes**: 69.4% (width 64), 73.5% (128), 76.0% (256), still rising; whole-grid types gain less |
 | Does structure as input fix whole-grid types? | core, hints | give the network groups, their sizes and exits | to build |
 | Do our tests measure the right thing? | all | human-made puzzles held out, agreement with people's next moves, key-move score, results by band and family, repeated seeds | building now |
 | Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
@@ -160,7 +160,6 @@ per type mean agreement figures can be off by 0.15.
 
 - **Generation fleet:** 15 spot VMs, 480 vCPUs, until about 13:20 Pacific. A watchdog relaunches
   reclaimed machines; gather-gen.sh collects the results.
-- **Fair size test** (graph-20261013-1125): widths 64, 128 and 256 with the learning rate scaled.
 - **Expert-band trial:** the six genres that had no top band, now with the mined families.
 - **Evaluation changes:** held-out human puzzles first.
 

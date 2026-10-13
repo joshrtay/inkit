@@ -229,3 +229,16 @@ Masyu 0.29 to 0.41, but Hitori 0.46 to 0.14, Tatham Singles 8×8 0.75 to 0.42 (6
 searches that carried the difficulty, and its group steps (Tatham's tricky removesplits) are
 priced only +1.0 above single-cell ones. Next for it: price group steps from the Singles labels
 alone, and centre offsets on solves with it on.
+
+**The fair size test** (graph-20261013-1125: the learning rate scaled down with width, warmed up
+over the first epoch, gradients clipped; 16 epochs; attention and positions): size helps.
+
+| Width | Parameters | Hours | All types | Sudoku | Skyscrapers | Slitherlink | Cave | Nurikabe |
+|---|---|---|---|---|---|---|---|---|
+| 64 | 0.5M | 0.6 | 69.4% | 76% | 79% | 61% | 40% | 39% |
+| 128 | 2.0M | 0.7 | 73.5% | 79% | 82% | 65% | 43% | 48% |
+| 256 | 7.9M | 1.3 | 76.0% | 85% | 86% | 69% | 46% | 43% |
+
+Still rising at 256. The whole-grid types gain less and stay far below the rest (one seed each:
+Nurikabe's 48% then 43% is within noise), so size isn't their answer alone. The warm-up and
+clipping also lifted width 64 (66.8% to 69.4%).
