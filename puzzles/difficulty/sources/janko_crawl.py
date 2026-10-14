@@ -121,6 +121,8 @@ def puzzles():
         log(f"done {folder}: {done}/{len(ids)}")
 
 if __name__ == "__main__":
+    # kill <pid> ends it cleanly (state saved as it goes; crawl.pid removed)
+    import signal; signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     open(os.path.join(OUT, "crawl.pid"), "w").write(str(os.getpid()))
     only_discover = "--discover" in sys.argv
     try:

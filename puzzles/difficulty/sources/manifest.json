@@ -64,7 +64,7 @@
     "connections": 1,
     "userAgent": "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)",
     "cache": "every response, gzipped",
-    "stopsOn": "HTTP errors other than 404, 429s, network errors; 20 missing pages in a row",
+    "stopsOn": "HTTP errors other than 404 (a 5xx after one retry a minute later), 429s, network errors; 20 missing pages in a row",
     "robots": "obeyed: /Forum/, /Blog/, /Shariff/ never requested"
    },
    "local": "references/janko-full/ (references/janko/ untouched)",
@@ -72,7 +72,7 @@
    "counts": {
     "folders": 423,
     "listed": 66053,
-    "fetched": 40,
+    "fetched": 80,
     "converted": 32,
     "byGenre": {
      "star-battle": 32
@@ -96,7 +96,7 @@
     "connections": 1,
     "userAgent": "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)",
     "cache": "every response, gzipped",
-    "stopsOn": "HTTP errors other than 404, 429s, network errors",
+    "stopsOn": "HTTP errors other than 404 (a 5xx after one retry a minute later), 429s, network errors",
     "login": "never; nothing needed one",
     "images": "never downloaded"
    },
@@ -104,7 +104,7 @@
    "reader": "puzzles/difficulty/sources/psjp.ts (the app's link reader, app/app/lib/import-link.ts)",
    "counts": {
     "days": 2713,
-    "daysFetched": 221,
+    "daysFetched": 235,
     "puzzles": 4340,
     "withLink": 4251,
     "converted": 1024,

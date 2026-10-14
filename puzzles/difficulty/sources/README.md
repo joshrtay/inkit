@@ -33,7 +33,8 @@ counts and what it left out and why.
 Both crawlers use `polite.py`: one connection, a fixed gap between requests, the User-Agent
 `inkit-research/1.0 (non-commercial research; contact josh@carina.fund)`, every response cached on
 disk (gzipped, under the source's `cache/`), and a stop on any HTTP error but a 404, on a 429, or on
-a network error. A 404 is noted and skipped; 20 in a row stop the crawl. Both are resumable: rerun
+a network error. A 404 is noted and skipped; 20 in a row stop the crawl. A server error (5xx) is
+retried once, a minute later, then stops it. Both are resumable: rerun
 the same command and they continue from the cache and `state.json`. Never log in; never fetch
 images; never use site copiers such as HTTrack (Janko's robots.txt blocks them).
 

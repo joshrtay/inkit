@@ -75,6 +75,8 @@ def plan(kinds):
     return sorted(days_ours) + sorted(days_any - days_ours) + tail
 
 if __name__ == "__main__":
+    # kill <pid> ends it cleanly (state saved as it goes; crawl.pid removed)
+    import signal; signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     open(os.path.join(OUT, "crawl.pid"), "w").write(str(os.getpid()))
     t0 = time.time()
     try:

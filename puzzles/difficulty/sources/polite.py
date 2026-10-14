@@ -3,8 +3,8 @@
 # hard stop on errors. Standard library only.
 #
 # Errors: a 404 or 410 is cached as missing and the crawl goes on (a dead link on an index page);
-# 20 of those in a row, a 429, any other HTTP error, or a network failure raises Stop, and the
-# crawl ends there. Rerunning resumes from the cache.
+# a server error (5xx) is retried once, a minute later; 20 missing pages in a row, a 429, any other
+# HTTP error, a second server error, or a network failure raises Stop, and the crawl ends there. Rerunning resumes from the cache.
 import gzip, hashlib, os, re, ssl, time, urllib.error, urllib.request
 
 UA = "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)"
@@ -50,11 +50,22 @@ class Fetcher:
             return None
         return False
 
-    def get(self, url):
+    def get(self, url, retry=True):
         """The body (bytes), None when the page is missing (404/410), from the cache when we have it."""
         hit = self.cached(url)
         if hit is not False:
             return hit
+        try:
+            return self._fetch(url)
+        except Stop as e:
+            # a server error (5xx) is often passing: one retry a minute later, then stop
+            if retry and getattr(e, "code", 0) >= 500:
+                self.log(f"{e}; retrying once in 60 s")
+                time.sleep(60)
+                return self.get(url, retry=False)
+            raise
+
+    def _fetch(self, url):
         wait = self.last + self.delay - time.time()
         if wait > 0:
             time.sleep(wait)
@@ -77,7 +88,9 @@ class Fetcher:
                 if self.missing_run >= 20:
                     raise Stop(f"20 missing pages in a row, last {url}")
                 return None
-            raise Stop(f"HTTP {e.code} on {url}")
+            stop = Stop(f"HTTP {e.code} on {url}")
+            stop.code = e.code
+            raise stop
         except Exception as e:
             self.last = time.time()
             raise Stop(f"{type(e).__name__} on {url}: {e}")
