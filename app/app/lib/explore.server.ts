@@ -152,25 +152,45 @@ export const inks = () => Object.fromEntries(ORDER.map((k) => [k, guides[k].ink]
 const QUICK_MINUTES = 5;
 /** How long a worked-out set of shelves is used (per Worker); none in development, so changes show at once. */
 const TTL = import.meta.env.DEV ? 0 : 60_000;
-let cache: { at: number; data: Promise<Shelves> } | null = null;
+let cache: { at: number; today: Promise<TodayShelf>; data: Promise<Shelves> } | null = null;
 
-/** The shelves, worked out at most once a minute. */
-export function shelves(db: Db, now = Date.now()): Promise<Shelves> {
-  if (cache && now - cache.at < TTL) return cache.data;
-  const data = buildShelves(db, now);
-  cache = { at: now, data };
-  data.catch(() => { cache = null; });
-  return data;
+/** Today, the first shelf, on its own: Explore shows it first and the other shelves after it. */
+export interface TodayShelf { now: number; today: Puzzle[]; pictures: Pictures }
+
+function cached(db: Db, now: number) {
+  if (cache && now - cache.at < TTL) return cache;
+  const built = buildShelves(db, now);
+  const c = { at: now, ...built };
+  cache = c;
+  built.data.catch(() => { if (cache === c) cache = null; });
+  built.today.catch(() => {});
+  return c;
 }
 
-async function buildShelves(db: Db, now: number): Promise<Shelves> {
-  // older games get their estimate, a batch at a time (the cron does the rest)
-  await backfillEstimates(db, 100);
-  const pics: Pictures = {};
+/** The shelves, worked out at most once a minute. */
+export const shelves = (db: Db, now = Date.now()): Promise<Shelves> => cached(db, now).data;
+/** Today's shelf, ready before the rest, and all the shelves (one working-out for both). */
+export const shelvesSoon = (db: Db, now = Date.now()): { today: Promise<TodayShelf>; data: Promise<Shelves> } => cached(db, now);
+
+function buildShelves(db: Db, now: number): { today: Promise<TodayShelf>; data: Promise<Shelves> } {
   const weekAgo = new Date(now - 7 * DAY);
+  // the newest week's puzzles: Today, and later This week's hard ones
+  // (a real promise: a query builder runs again each time it's awaited)
+  const weekQ = Promise.resolve(puzzles(db).where(and(live, gte(schema.games.publishedAt, weekAgo))).orderBy(desc(schema.games.publishedAt)).limit(400));
+  const today = weekQ.then((week) => {
+    const pictures: Pictures = {};
+    // Today: newest weighted by likes (rank.ts)
+    const recent = (week as Row[]).filter((r) => r.publishedAt && now - r.publishedAt.getTime() <= TODAY_WINDOW_DAYS * DAY)
+      .map((row) => ({ row, likes: row.likes, publishedAt: row.publishedAt!.getTime(), authorId: row.authorId }));
+    return { now, today: toCards(rankToday(recent, now).map((x) => x.row), pictures), pictures };
+  });
+  return { today, data: buildRest(db, now, weekQ, today) };
+}
+
+async function buildRest(db: Db, now: number, weekQ: Promise<unknown>, todayP: Promise<TodayShelf>): Promise<Shelves> {
   const starterIds = ORDER.filter((k) => k !== "coats").map(exampleGameId);
-  const [week, quickRows, starterRows, counts, stats, recs] = await Promise.all([
-    puzzles(db).where(and(live, gte(schema.games.publishedAt, weekAgo))).orderBy(desc(schema.games.publishedAt)).limit(400),
+  const [week, { today, pictures: todayPics }, quickRows, starterRows, counts, stats, recs] = await Promise.all([
+    weekQ, todayP,
     puzzles(db).where(and(live, lte(schema.games.minutes, QUICK_MINUTES))).orderBy(desc(schema.games.publishedAt)).limit(120),
     db.select({ id: schema.games.id, kind: schema.games.kind, minutes: schema.games.minutes }).from(schema.games)
       .where(and(inArray(schema.games.id, starterIds), eq(schema.games.state, "published"))),
@@ -179,12 +199,10 @@ async function buildShelves(db: Db, now: number): Promise<Shelves> {
     creatorStats(db, now),
     db.select({ by: schema.recommendations.recommenderId, to: schema.recommendations.recommendedId, note: schema.recommendations.note })
       .from(schema.recommendations).orderBy(schema.recommendations.recommenderId, schema.recommendations.position),
+    // older games get their estimate, a batch at a time (the cron does the rest; until then a card estimates its own)
+    backfillEstimates(db, 100),
   ]);
-
-  // Today: newest weighted by likes (rank.ts)
-  const recent = (week as Row[]).filter((r) => r.publishedAt && now - r.publishedAt.getTime() <= TODAY_WINDOW_DAYS * DAY)
-    .map((row) => ({ row, likes: row.likes, publishedAt: row.publishedAt!.getTime(), authorId: row.authorId }));
-  const today = toCards(rankToday(recent, now).map((x) => x.row), pics);
+  const pics: Pictures = { ...todayPics };
   const shown = new Set(today.map((p) => p.id));
   // Quick ones: ~5 minutes or less, newest first, a different type each
   const quick = pickVaried(toCards((quickRows as Row[]).filter((r) => !shown.has(r.id)), null), 12);
@@ -302,9 +320,15 @@ export function listWhere(db: Db, f: Omit<ListFilter, "limit">, now = Date.now()
 export const listKeys = (sort: ListFilter["sort"]) => (sort === "top" ? [likeCount, schema.games.publishedAt, schema.games.id] : [schema.games.publishedAt, schema.games.id]);
 export { likeCount };
 
-/** Puzzles for a type's page: New (newest first) or Top (most liked over a period), by difficulty. */
-export async function listPuzzles(db: Db, f: ListFilter, now = Date.now()) {
-  const rows = await puzzles(db).where(listWhere(db, f, now)).orderBy(...listKeys(f.sort).map((k) => desc(k))).limit(f.limit + 1);
+/** Puzzles for a type's page: New (newest first) or Top (most liked over a period), by difficulty;
+ *  each marked with whether `viewerId` has solved it (in the same query). */
+export async function listPuzzles(db: Db, f: ListFilter, now = Date.now(), viewerId: string | null = null) {
+  const solved = viewerId
+    ? sql<number>`exists(select 1 from solves s where s.game_id = ${schema.games.id} and s.creator_id = ${viewerId})`.mapWith(Boolean)
+    : sql<number>`0`.mapWith(Boolean);
+  const rows = await db.select({ ...columns, solved: solved.as("solved") }).from(schema.games)
+    .innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
+    .innerJoin(schema.creators, eq(schema.games.authorId, schema.creators.id)).where(listWhere(db, f, now)).orderBy(...listKeys(f.sort).map((k) => desc(k))).limit(f.limit + 1);
   const pics: Pictures = {};
   return { puzzles: toCards(rows.slice(0, f.limit) as Row[], pics), more: rows.length > f.limit, pictures: pics };
 }

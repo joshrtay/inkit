@@ -1,7 +1,7 @@
 // "Forgot your password?": ask for a reset link by email. The answer is the same whether or not
 // the email has an account, so the page can't be used to find out who's signed up.
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/forgot-password";
 import { authClient } from "~/lib/auth-client";
 

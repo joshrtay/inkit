@@ -64,6 +64,19 @@ open paint; or paste a puzz.link or Penpa+ link, read by `lib/import-link.ts` an
 don't have being noted instead; Penpa+ records no type, so it's taken from its tags or what's drawn,
 narrowed by a stored solution, or the creator picks it), Settings (`/settings`: profile, email, password, handle, recommendations, appearance),
 sign-in (Better Auth: email + password, Google), privacy and terms.
+**Speed**: a click shows at once: a line in the pen's ink across the top while the next page loads
+(after a tenth of a second) and the clicked link or button marked pending (`components/NavProgress.tsx`).
+Links load their page ahead on hover or focus: import `Link` and `NavLink` from `components/Link.tsx`,
+never React Router's (a unit test checks; editors, admin, `/new`, sign-in and settings aren't
+prefetched), and `lib/prefetch.ts` makes the click use the prefetched data rather than load it
+again. The slow pages switch as soon as what they can't do without is in, and send the rest after
+(a loader's unawaited promise, wrapped in `later()`, `lib/stream.server.ts`, shown with
+`components/Later.tsx`: a skeleton the section's size, a quiet nothing if it fails): a puzzle's
+likes, solves and list bar; Explore's shelves after Today; a profile's numbers. `meta` and JSON-LD
+use only awaited data. The root's middleware (`lib/timing.server.ts`) gives every response a
+`Server-Timing` header (db, auth, total) and shares one session lookup (`currentCreator`) among a
+request's loaders. Locally, `DB_DELAY_MS=40` in `.dev.vars` makes every query wait as a round trip
+to D1 does.
 **For search engines and agents** (`app/lib/seo.ts`, pure and unit-tested): every public page's
 canonical, Open Graph and JSON-LD come from `pageMeta()`; private pages, drafts and editors are
 `noindex`. `/robots.txt` (AI crawlers welcome), `/sitemap.xml` (published games and profiles from
@@ -124,8 +137,8 @@ shared with RYB's editor). **A published puzzle can't be changed, only deleted**
 go to its page, which has no Edit; its author gets a red Delete (a soft delete: state `deleted`),
 and the … menu holds moderation only: Take down and Restore. Confirmations and the
 take-down note use the site's dialog (`components/ConfirmDialog.tsx`, `useConfirm()`), never the
-browser's `confirm()` or `prompt()`. Published pages show the drawing as a "Drawn by"
-thumbnail (`sketchpad/picture.ts`).
+browser's `confirm()` or `prompt()`. A draft's card with no type yet shows the drawing itself
+(`sketchpad/picture.ts`).
 
 **Bug reports** ([docs/bug-pipeline.md](docs/bug-pipeline.md)): for signed-in people the browser
 keeps the last two minutes as an rrweb recording in memory (`lib/bugs/capture.ts`; inputs masked,

@@ -1,5 +1,6 @@
 import { SetDrawerProvider } from "./components/SetDrawer";
-import { isRouteErrorResponse, Link, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useMatches, useRouteLoaderData } from "react-router";
+import { isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData, useMatches, useRouteLoaderData } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/root";
 import "~site/styles/global.css";
 import "./site.css";
@@ -9,11 +10,20 @@ import { SideNav, TabBar } from "./components/Shell";
 import { ConfirmProvider } from "./components/ConfirmDialog";
 import { TooltipLayer } from "./components/Tooltips";
 import { BugReportHost } from "./components/BugReport";
+import { NavProgress } from "./components/NavProgress";
+import { timingMiddleware } from "./lib/timing.server";
+import { installPrefetchUse } from "./lib/prefetch";
+
+// a page's prefetched data is used by the click it was fetched for, once (lib/prefetch.ts)
+if (typeof window !== "undefined") installPrefetchUse();
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Kalam:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" },
 ];
+
+// every request: its queries timed, and Server-Timing on the response (lib/timing.server.ts)
+export const middleware: Route.MiddlewareFunction[] = [timingMiddleware];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -66,9 +76,11 @@ export default function App() {
   const preview = matches.some((m) => (m.handle as { preview?: boolean } | undefined)?.preview);
   // the site's confirm dialog (components/ConfirmDialog.tsx: useConfirm), for every page
   // and its one tooltip layer (components/Tooltips.tsx: every data-tip)
-  if (bare) return <ConfirmProvider><Outlet /><TooltipLayer /><BugReportHost /></ConfirmProvider>;
+  if (bare) return <ConfirmProvider><NavProgress /><Outlet /><TooltipLayer /><BugReportHost /></ConfirmProvider>;
   return (
     <ConfirmProvider>
+      {/* a line across the top while the next page loads */}
+      <NavProgress />
       {/* the set drawer (components/SetDrawer.tsx): a draft set open beside the page while you browse */}
       <SetDrawerProvider signedIn={!!me && !preview}>
       <div className="shell">

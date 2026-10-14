@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "../db";
 import { HANDLE_HINT, isReserved, isValidHandle, newId, slugTaken } from "./names.server";
 import { newEmailEmail, resetEmail, sendEmail } from "./email.server";
+import { timingOf, type Timing } from "./timing.server";
 
 export function createAuth(env: Env) {
   const db = getDb(env);
@@ -83,13 +84,46 @@ export function createAuth(env: Env) {
 
 export type Auth = ReturnType<typeof createAuth>;
 
+// A page's loaders (the root's and the route's) run side by side on one request: they share one
+// lookup. Only a request's own `env` (lib/timing.server.ts) is a key, so nothing is shared between
+// requests; and only for reads, since an action may sign someone in or out, or change them.
+const lookups = new WeakMap<object, { cookie: string; creator: ReturnType<typeof lookUp> }>();
+
 /** The signed-in creator for a request, or null (deleted accounts can't sign in). */
-export async function currentCreator(env: Env, request: Request) {
-  const session = await createAuth(env).api.getSession({ headers: request.headers });
-  if (!session) return null;
-  const db = getDb(env);
-  const creator = await db.query.creators.findFirst({ where: eq(schema.creators.id, session.user.id) });
-  return creator && !creator.deletedAt ? creator : null;
+export function currentCreator(env: Env, request: Request) {
+  const timing = timingOf(env);
+  const reading = request.method === "GET" || request.method === "HEAD";
+  const cookie = request.headers.get("cookie") ?? "";
+  const seen = timing && reading ? lookups.get(env) : undefined;
+  if (seen && seen.cookie === cookie) return seen.creator;
+  const creator = lookUp(env, request, timing);
+  if (timing && reading) lookups.set(env, { cookie, creator });
+  return creator;
+}
+
+const SESSION_COOKIE = /(?:^|;\s*)(?:__Secure-)?better-auth[.-]session_token=([^;]*)/;
+
+async function lookUp(env: Env, request: Request, timing: Timing | null) {
+  // signed out: no session to look up
+  const token = request.headers.get("cookie")?.match(SESSION_COOKIE);
+  if (!token) return null;
+  const started = performance.now();
+  try {
+    const db = getDb(env);
+    // Better Auth checks the session (the cookie's signature, then the session and its user); the
+    // creator's row is read alongside it, by the cookie's token, and used only if it's the same person
+    const raw = decodeURIComponent(token[1]).split(".")[0];
+    const [session, byToken] = await Promise.all([
+      createAuth(env).api.getSession({ headers: request.headers }),
+      db.select({ creator: schema.creators }).from(schema.sessions).innerJoin(schema.creators, eq(schema.creators.id, schema.sessions.userId))
+        .where(eq(schema.sessions.token, raw)).then((r) => r[0]?.creator ?? null, () => null),
+    ]);
+    if (!session) return null;
+    const creator = byToken?.id === session.user.id ? byToken : await db.query.creators.findFirst({ where: eq(schema.creators.id, session.user.id) });
+    return creator && !creator.deletedAt ? creator : null;
+  } finally {
+    if (timing) timing.auth += performance.now() - started;
+  }
 }
 
 async function freeHandle(db: ReturnType<typeof getDb>, from: string) {

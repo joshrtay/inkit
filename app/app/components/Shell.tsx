@@ -4,7 +4,8 @@
 // (SignInDialog.tsx), Explore is home ("/"), and Sign in takes More's place.
 import { useSetDrawer } from "./SetDrawer";
 import { useEffect, useRef, useState } from "react";
-import { Link, NavLink, useLocation } from "react-router";
+import { useLocation } from "react-router";
+import { Link, NavLink } from "~/components/Link";
 import { authClient } from "~/lib/auth-client";
 import { Avatar } from "./Avatar";
 import { ReportBugItem } from "./BugReport";

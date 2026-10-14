@@ -5,7 +5,8 @@
 // puzzles put in order (drag, or up and down) or taken out, and Publish; Add puzzles opens the
 // drawer (components/SetDrawer.tsx) and goes to Explore, filtered to the author's own puzzles.
 import { useEffect, useRef, useState } from "react";
-import { data, Form, Link, redirect, useRevalidator, useSubmit } from "react-router";
+import { data, Form, redirect, useRevalidator, useSubmit } from "react-router";
+import { Link } from "~/components/Link";
 import { eq } from "drizzle-orm";
 import type { Route } from "./+types/set";
 import { cloudflareContext } from "~/lib/context";

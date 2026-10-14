@@ -1,9 +1,9 @@
 // A game's page as players see it: back, the title and who made it, How to play, the board and
-// the description, and the creator's drawing ("Drawn by", for a puzzle drawn in paint). The game
-// route shows it, and the editor's Preview shows the same thing. (A draft drawn in paint is
+// the description. The game route shows it, and the editor's Preview shows the same thing. (A draft drawn in paint is
 // published from its own page in paint's chrome: routes/game-publish.tsx.)
 import { useEffect, useState } from "react";
-import { Form, Link, useFetcher, useLocation, useNavigate, useSubmit } from "react-router";
+import { Form, useFetcher, useLocation, useNavigate, useSubmit } from "react-router";
+import { Link } from "~/components/Link";
 import type { Playable } from "~/games/layout";
 import { GameBoard } from "./GameBoard";
 import { GuidePane } from "./GuidePane";
@@ -12,6 +12,7 @@ import { AiBadge } from "./AiBadge";
 import { useConfirm } from "./ConfirmDialog";
 import type { ListBar } from "~/lib/list-play.server";
 import { GUIDE_EVENT, useSetDrawer } from "./SetDrawer";
+import { Later, SkelText, type MaybeLater } from "./Later";
 
 export interface GamePageProps {
   game: { id: string; title: string; description: string; kind: string; state: string; hiddenNote: string | null; when: number };
@@ -21,9 +22,10 @@ export interface GamePageProps {
   summary: string;
   extra: string[];
   errors: string[];
-  likes: { count: number; liked: boolean };
+  /** (these may come after the page: components/Later.tsx) */
+  likes: MaybeLater<{ count: number; liked: boolean }>;
   /** how many players have solved it, and whether this one has (signed in) */
-  solves: { count: number; solved: boolean };
+  solves: MaybeLater<{ count: number; solved: boolean }>;
   signedIn: boolean;
   /** shown in the editor's preview: nothing is saved, and links don't leave the editor */
   preview?: boolean;
@@ -36,12 +38,10 @@ export interface GamePageProps {
   manage?: { takeDown: boolean; restore: boolean };
   /** the … menu's last action went wrong */
   error?: string;
-  /** the creator's drawing (paint's, as drawn: sketchpad/picture.ts) */
-  drawnBy?: string | null;
   /** the player hasn't solved a puzzle of this type yet (signed out: always): the paper's note */
-  newToType?: boolean;
+  newToType?: MaybeLater<boolean>;
   /** opened from a list: the bar under the board (lib/list-play.server.ts) */
-  list?: ListBar | null;
+  list?: MaybeLater<ListBar | null> | null;
 }
 
 // in UTC, so the server and the browser write the same date
@@ -49,14 +49,13 @@ const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "lo
 
 const RULES_OPEN = "inkit:rules-open";
 
-export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, drawnBy = null, editTo = null, canDelete = false, manage, error, newToType = false, list = null }: GamePageProps) {
+export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, editTo = null, canDelete = false, manage, error, newToType = false, list = null }: GamePageProps) {
   // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
   const [rulesOpen, setRulesOpen] = useState(false);
   // back: to wherever the player came from on this site, or else this creator's page
   const navigate = useNavigate(), location = useLocation();
   const cameFromSite = location.key !== "default";
   const home = `/${collection.slug}`;
-  const [big, setBig] = useState(false);   // the drawing, enlarged
   // (not while a set is open in the drawer: the drawer has the right-hand side then)
   useEffect(() => { try { setRulesOpen(localStorage.getItem(RULES_OPEN) === "1" && !sessionStorage.getItem("inkit:set-drawer")); } catch { /* closed */ } }, []);
   const drawer = useSetDrawer();
@@ -82,9 +81,10 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   const tipKey = `inkit:rules-seen:${game.kind}`;
   const [tipShown, setTipShown] = useState(false);
   useEffect(() => {
-    let seen = false;
+    let seen = false, gone = false;
     try { seen = signedIn && localStorage.getItem(tipKey) === "1"; } catch { /* shown */ }
-    setTipShown(!preview && newToType && !seen);
+    Promise.resolve(newToType).then((v) => { if (!gone) setTipShown(!preview && v && !seen); }, () => {});
+    return () => { gone = true; };
   }, [tipKey, newToType, signedIn, preview]);
   const seenRules = () => { setTipShown(false); if (signedIn) try { localStorage.setItem(tipKey, "1"); } catch { /* this page only */ } };
   const openRules = (v: boolean) => { toggleRules(v); if (v) seenRules(); };
@@ -93,8 +93,14 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   // a signed-in player's solve is kept (routes/game-solve.ts): it marks the puzzle solved for them
   // everywhere, and counts toward the puzzle's solves
   const solve = useFetcher<{ count: number; solved: boolean }>();
-  const solved = solve.data ?? solves;
-  const keep = signedIn && !preview && game.state === "published" && !solves.solved;
+  // (the solves may still be on their way: kept once they're in, unless this player had solved it)
+  const [hadSolved, setHadSolved] = useState<boolean | null>(null);
+  useEffect(() => {
+    let gone = false;
+    Promise.resolve(solves).then((s) => { if (!gone) setHadSolved(s.solved); }, () => {});
+    return () => { gone = true; };
+  }, [solves]);
+  const keep = signedIn && !preview && game.state === "published" && hadSolved !== true;
   // just solved: the list bar's Next stands out
   const [won, setWon] = useState(false);
   useEffect(() => setWon(false), [game.id]);
@@ -116,10 +122,14 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
         <div className="game-title-row">
           <h1>{game.title}</h1>
           <div className="game-actions">
-            {solved.solved && <span className="solved-mark" title="You've solved this">✓ Solved</span>}
-            {(game.state === "published" || preview) && <LikeButton gameId={game.id} count={likes.count} liked={likes.liked} signedIn={signedIn || preview} disabled={preview} />}
+            <Later value={solves} fallback={null}>{(s) => (solve.data ?? s).solved && <span className="solved-mark" title="You've solved this">✓ Solved</span>}</Later>
+            {(game.state === "published" || preview) && (
+              <Later value={likes} fallback={<span className="like-btn skel-like" aria-hidden="true"><svg viewBox="0 0 24 24"><path d={HEART} /></svg><SkelText w="1ch" className="inline small" /></span>}>
+                {(l) => <LikeButton gameId={game.id} count={l.count} liked={l.liked} signedIn={signedIn || preview} disabled={preview} />}
+              </Later>
+            )}
             {editTo && !preview && <Link className="btn" to={editTo}>Edit</Link>}
-            {!preview && <MoreMenu game={game} manage={manage} canDelete={canDelete} solves={solved.count} likes={likes.count} signedIn={signedIn} />}
+            {!preview && <MoreMenu game={game} manage={manage} canDelete={canDelete} solves={solve.data ?? solves} likes={likes} signedIn={signedIn} />}
           </div>
         </div>
         <p className="game-meta muted">
@@ -130,35 +140,25 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
           {author.ai && <> <AiBadge /></>}
           {!collection.personal && <> in <Link to={`/${collection.slug}`} onClick={stay}>{collection.title}</Link></>}
           {" · "}<time dateTime={new Date(game.when).toISOString()}>{date(game.when)}</time>
-          {solved.count > 0 && <> · {solved.count} solve{solved.count === 1 ? "" : "s"}</>}
+          <Later value={solves} fallback={null}>{(s) => { const n = (solve.data ?? s).count; return n > 0 && <> · {n} solve{n === 1 ? "" : "s"}</>; }}</Later>
         </p>
         {!preview && game.state === "draft" && <span className="state draft">Draft: only you and the collection's owners can see this.</span>}
         {!preview && game.state === "hidden" && <span className="state hidden">Taken down{game.hiddenNote ? `: ${game.hiddenNote}` : "."}</span>}
         {error && <p className="error" role="alert">{error}</p>}
       </header>
 
-      <div className={drawnBy ? "game-body with-aside" : "game-body"}>
+      <div className="game-body">
         <div className="game-play">
           {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description}
               onRules={() => openRules(true)} tip={tip} />
             : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
-          {list && !preview && <ListBarView bar={list} won={won} />}
+          {list && !preview && (
+            <Later value={list} fallback={<div className="list-bar skel-list-bar" aria-hidden="true"><span className="skel" /></div>}>
+              {(bar) => bar && <ListBarView bar={bar} won={won} />}
+            </Later>
+          )}
         </div>
-        {drawnBy ? (
-          <aside className="game-aside">
-            <figure className="drawn-by">
-              <button type="button" className="drawn-by-pic grid-game" aria-label="The drawing, larger" onClick={() => setBig(true)} dangerouslySetInnerHTML={{ __html: drawnBy }} />
-              <figcaption>Drawn by {author.deleted ? author.name : <Link to={`/${author.handle}`} onClick={stay}>@{author.handle}</Link>}</figcaption>
-            </figure>
-          </aside>
-        ) : null}
       </div>
-      {big && drawnBy && (
-        <div className="drawn-by-big" role="dialog" aria-label={`Drawn by @${author.handle}`} onClick={() => setBig(false)}>
-          <div className="grid-game" dangerouslySetInnerHTML={{ __html: drawnBy }} />
-          <button type="button" className="pane-close" aria-label="Close">×</button>
-        </div>
-      )}
     </main>
     <GuidePane key={game.kind} start={game.kind} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra} />
     </div>
@@ -169,8 +169,8 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
  *  changed, only deleted: the confirm dialog first, then the server deletes it for good and goes
  *  back to the profile); take down (a collection's owners and admins, with a note its author sees)
  *  and restore. */
-function MoreMenu({ game, manage, canDelete, solves, likes, signedIn }: {
-  game: GamePageProps["game"]; manage?: GamePageProps["manage"]; canDelete: boolean; solves: number; likes: number; signedIn: boolean;
+function MoreMenu({ game, manage, canDelete, solves: solvesIn, likes: likesIn, signedIn }: {
+  game: GamePageProps["game"]; manage?: GamePageProps["manage"]; canDelete: boolean; solves: GamePageProps["solves"]; likes: GamePageProps["likes"]; signedIn: boolean;
 }) {
   const drawer = useSetDrawer();
   const [open, setOpen] = useState(false);
@@ -188,6 +188,7 @@ function MoreMenu({ game, manage, canDelete, solves, likes, signedIn }: {
     catch { setOpen(false); }
   };
   const del = async () => {
+    const [solves, likes] = await Promise.all([Promise.resolve(solvesIn).then((s) => s.count, () => 0), Promise.resolve(likesIn).then((l) => l.count, () => 0)]);
     const kept = [solves ? `${solves} solve${solves === 1 ? "" : "s"}` : "", likes ? `${likes} like${likes === 1 ? "" : "s"}` : ""].filter(Boolean).join(" and ");
     const yes = await confirm({
       title: `Delete “${game.title}”?`,
@@ -231,6 +232,8 @@ function MoreMenu({ game, manage, canDelete, solves, likes, signedIn }: {
     </div>
   );
 }
+
+const HEART = "M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.6 1.1 5 3 1.4-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z";
 
 const Chevron = ({ back = false }: { back?: boolean }) => (
   <svg className="chev" viewBox="0 0 24 24" aria-hidden="true"><path d={back ? "M15 18l-6-6 6-6" : "M9 6l6 6-6 6"} /></svg>

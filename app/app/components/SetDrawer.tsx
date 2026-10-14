@@ -7,7 +7,8 @@
 //
 // Server: routes/api.sets.ts (/api/sets: your drafts; make one), routes/api.set.ts (/api/sets/<id>: one draft).
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useRouteLoaderData } from "react-router";
+import { useLocation, useNavigate, useRouteLoaderData } from "react-router";
+import { Link } from "~/components/Link";
 import { useConfirm } from "./ConfirmDialog";
 import { Picture } from "./GameCard";
 import { SetCover } from "./SetCard";

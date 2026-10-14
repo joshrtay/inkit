@@ -1,7 +1,8 @@
 // Your settings: inkit.games/settings. Account (profile, email, password, handle), each row with
 // an Edit that opens it in place, and Appearance (light, dark, or the device's). After Substack's.
 import { useEffect, useState } from "react";
-import { data, Form, Link, useNavigation, useRevalidator } from "react-router";
+import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { Link } from "~/components/Link";
 import { and, eq } from "drizzle-orm";
 import type { Route } from "./+types/settings";
 import { cloudflareContext } from "~/lib/context";

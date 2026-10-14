@@ -28,6 +28,12 @@ export function withPictures(games: GameCard[]): Thumbed[] {
   });
 }
 
+/** Game cards for a page that doesn't show them (a profile's other tabs count them): as
+ *  withPictures, without drawing any. */
+export function withoutPictures(games: GameCard[]): Thumbed[] {
+  return games.map(({ sketch: _sketch, sketchVersion: _v, ...g }) => ({ ...g, picture: null, size: null }));
+}
+
 /** Drafts for a list: as withPictures, with the drawing as the picture of one that isn't a puzzle yet. */
 export async function draftPictures(db: Db, games: GameCard[]): Promise<Thumbed[]> {
   const cards = withPictures(games);

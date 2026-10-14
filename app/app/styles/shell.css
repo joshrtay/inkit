@@ -173,3 +173,19 @@ li:has(> .card-more) .card-foot { padding-right: 30px; }
   .set-drawer-list .row-tools { position: static; transform: none; display: flex; box-shadow: none; background: none; }
   .set-toast { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); max-width: calc(100vw - 32px); }
 }
+
+/* ---- while the next page loads (components/NavProgress.tsx) ---- */
+/* a line in the pen's ink across the top, slowing as it goes, finished when the page is in */
+.nav-progress { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; height: 3px; pointer-events: none;
+  background: var(--ink); transform-origin: 0 50%; transform: scaleX(0); opacity: 0; }
+.nav-progress[data-state="loading"] { opacity: 1; animation: nav-grow 10s cubic-bezier(.05, .7, .2, 1) forwards; }
+.nav-progress[data-state="done"] { transform: scaleX(1); opacity: 0; transition: transform .2s ease-out, opacity .25s ease .2s; }
+@keyframes nav-grow { from { transform: scaleX(.06); } to { transform: scaleX(.9); } }
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress[data-state="loading"] { animation: none; transform: scaleX(.5); }
+  .nav-progress[data-state="done"] { transition: none; }
+}
+/* the link or button that was clicked, until its page is in */
+[data-pending] { opacity: .65; cursor: progress; }
+.nav-item[data-pending], .tabbar a[data-pending] { opacity: 1; color: var(--ink); background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.btn[data-pending] { opacity: .75; transform: translateY(1px); }

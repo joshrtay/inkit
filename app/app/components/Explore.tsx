@@ -3,7 +3,8 @@
 // sideways, Start here's cards, type tiles, creator cards and recommendations. After the mockups in
 // docs/explore-mockups/. Pictures come by id from the page's `pictures` (each drawn once).
 import { useRef } from "react";
-import { Form, Link } from "react-router";
+import { Form } from "react-router";
+import { Link } from "~/components/Link";
 import { inList, type ListContext } from "~/lib/list-context";
 import { CardMore } from "./CardMore";
 import type { Creator, Puzzle } from "~/lib/explore.server";

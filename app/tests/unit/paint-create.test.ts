@@ -112,7 +112,7 @@ describe("What type is this? (no AI)", () => {
   });
 });
 
-describe("the drawing as a picture (Drawn by)", () => {
+describe("the drawing as a picture", () => {
   it("crops to the ink, square, and draws the grid, the stamp and the writing", () => {
     const b = drawingBounds(akari())!;
     expect(b.w).toBe(b.h);

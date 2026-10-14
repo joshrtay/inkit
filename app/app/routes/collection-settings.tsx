@@ -1,6 +1,7 @@
 // A collection's settings: inkit.games/<slug>/settings.
 // Owners change its details and members; any member can leave; owners can delete a studio.
-import { data, Form, Link, redirect, useNavigation } from "react-router";
+import { data, Form, redirect, useNavigation } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/collection-settings";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";

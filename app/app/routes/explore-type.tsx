@@ -3,7 +3,8 @@
 // (newest first) or Top (most liked this week, this month or ever), filtered by difficulty, to
 // quick ones, or (signed in) to those you haven't solved. /explore/all is every type's (the quick
 // chips: Quick, Easy, Hard, a category).
-import { data, Form, Link, useSubmit } from "react-router";
+import { data, Form, useSubmit } from "react-router";
+import { Link } from "~/components/Link";
 import { browse } from "~/lib/list-context";
 import type { Route } from "./+types/explore-type";
 import { cloudflareContext } from "~/lib/context";
@@ -12,7 +13,7 @@ import { currentCreator } from "~/lib/auth.server";
 import { exampleGameId, isKind } from "~/lib/guides.server";
 import { guidePictures, inks, listPuzzles, typeStats, type ListFilter } from "~/lib/explore.server";
 import { PERIODS, SORTS } from "~/lib/rank";
-import { markSolved } from "~/lib/queries.server";
+import { later } from "~/lib/stream.server";
 import { guides, CATEGORIES } from "~site/guides/guides.ts";
 import { guidePath, pageMeta, typePuzzlesJsonLd } from "~/lib/seo";
 import { Diff, Pic, PuzzleCard, QuickChips } from "~/components/Explore";
@@ -27,6 +28,8 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const url = new URL(request.url), p = url.searchParams;
+  // the type's numbers don't wait for the session; the list does (it marks what the viewer has solved)
+  const stats = later(kind === "all" ? Promise.resolve(null) : typeStats(db, kind));
   const me = await currentCreator(env, request);
   const level = Number(p.get("level"));
   const category = kind === "all" ? (CATEGORIES as string[]).find((c) => c === p.get("category")) ?? null : null;
@@ -38,13 +41,13 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     by: /^[a-z][a-z0-9-]{1,29}$/.test(p.get("by") ?? "") ? p.get("by") : null,
     limit: Math.min(240, Math.max(PAGE, Number(p.get("n")) || PAGE)),
   };
-  const [list, stats] = await Promise.all([listPuzzles(db, filter), kind === "all" ? null : typeStats(db, kind)]);
+  const list = await listPuzzles(db, filter, Date.now(), me?.id ?? null);
   const g = kind === "all" ? null : guides[kind as keyof typeof guides];
   return {
     kind, filter: { ...filter, hideSolvedFor: undefined, unsolved: !!filter.hideSolvedFor }, signedIn: !!me, me: me?.handle ?? null, search: url.search,
     type: g && { name: g.name, aka: g.aka ?? [], category: g.category, summary: g.summary, starter: exampleGameId(kind as keyof typeof guides) },
-    stats, now: Date.now(), inks: inks(), guidePicture: kind === "all" ? null : guidePictures()[kind] ?? null,
-    puzzles: await markSolved(db, me?.id, list.puzzles), more: list.more, pictures: list.pictures,
+    stats: await stats, now: Date.now(), inks: inks(), guidePicture: kind === "all" ? null : guidePictures()[kind] ?? null,
+    puzzles: list.puzzles, more: list.more, pictures: list.pictures,
   };
 }
 

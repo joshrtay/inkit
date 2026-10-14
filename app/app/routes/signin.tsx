@@ -1,4 +1,5 @@
-import { Link, redirect } from "react-router";
+import { redirect } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/signin";
 import { cloudflareContext } from "~/lib/context";
 import { currentCreator } from "~/lib/auth.server";

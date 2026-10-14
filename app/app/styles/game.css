@@ -124,20 +124,11 @@
 @container (max-width: 1200px) { .game-page .game-head { padding-left: 52px; } }
 @media (max-width: 640px) { .back-btn { position: static; margin: 14px 0 0 16px; width: 36px; height: 36px; } .game-page .game-head { padding-left: 0; } }
 
-/* ---- the creator's drawing beside the board ("Drawn by") ---- */
+/* ---- the board and what's under it ---- */
 .game-body { display: grid; gap: 16px; }
-.game-body.with-aside { grid-template-columns: minmax(0, 1fr) 240px; align-items: start; }
-.game-aside { display: grid; gap: 14px; position: sticky; top: 16px; }
-.drawn-by { margin: 0; display: grid; gap: 6px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
-.drawn-by-pic { display: block; width: 100%; padding: 6px; background: var(--paper); border: 0; border-radius: 6px; cursor: zoom-in; }
-.drawn-by-pic svg, .drawn-by-big svg { display: block; width: 100%; height: auto; }
-.drawn-by figcaption { font-size: 13px; color: var(--muted); }
-.drawn-by-big { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, #000 60%, transparent); cursor: zoom-out; }
-.drawn-by-big .grid-game { width: min(640px, 92vw); padding: 14px; background: var(--paper); border-radius: 8px; }
-.drawn-by-big .pane-close { position: fixed; top: 14px; right: 18px; display: block; font-size: 30px; color: #fff; background: none; border: 0; }
-.game-aside .game-desc { font-size: 15px; line-height: 1.5; }
-@media (max-width: 860px) { .game-body.with-aside { grid-template-columns: minmax(0, 1fr); } .game-aside { position: static; grid-template-columns: 140px minmax(0, 1fr); align-items: start; } }
-@media (max-width: 480px) { .game-aside { grid-template-columns: 1fr; } }
+/* still on their way (components/Later.tsx): the heart, and the list bar */
+.like-btn.skel-like { pointer-events: none; opacity: .7; }
+.skel-list-bar .skel { grid-column: 1 / -1; height: 40px; border-radius: 999px; }
 
 /* ---- /new: two ways in, then the latest drafts ---- */
 .new-start { display: grid; gap: 18px; max-width: 1000px; }

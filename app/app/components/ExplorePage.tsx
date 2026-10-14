@@ -5,12 +5,13 @@
 // lib/explore-page.server.ts (the shelves from lib/explore.server.ts, the formulas in lib/rank.ts).
 import { browse } from "~/lib/list-context";
 import { SetCard } from "./SetCard";
-import { Link } from "react-router";
+import { Link } from "~/components/Link";
 import type { ExploreData as Data } from "~/lib/explore-page.server";
 import { Avatar } from "./Avatar";
 import { AiBadge } from "./AiBadge";
 import { SubscribeButton } from "./GameCard";
 import { Arrow, CreatorCard, PuzzleCard, QuickChips, RecCard, SearchBox, Shelf, StarterCard, TypeTile } from "./Explore";
+import { Later, SkelShelf } from "./Later";
 
 export function ExplorePage({ d }: { d: Data }) {
   return (
@@ -20,22 +21,29 @@ export function ExplorePage({ d }: { d: Data }) {
         <SearchBox key={d.q} q={d.q} />
         {!d.q && <QuickChips current="/explore" />}
       </header>
-      {d.found ? <Results d={d} found={d.found} /> : d.shelves && <Shelves d={d} s={d.shelves} />}
+      {d.found ? <Results d={d} found={d.found} /> : (
+        <>
+          {d.today.length > 0 && (
+            <Shelf id="today" title="Today" sub="The newest puzzles." more="/explore/all">
+              {d.today.map((p) => <PuzzleCard key={p.id} p={p} pics={d.pictures} inks={d.inks} now={d.now} when list={{ in: "shelf", shelf: "today" }} />)}
+            </Shelf>
+          )}
+          {/* the other shelves come after the page */}
+          {d.rest && <Later value={d.rest} fallback={<><SkelShelf /><SkelShelf /></>}>{(s) => <Shelves d={d} s={s} />}</Later>}
+        </>
+      )}
     </main>
   );
 }
 
 
-function Shelves({ d, s }: { d: Data; s: NonNullable<Data["shelves"]> }) {
-  const { inks, now, me } = d, pics = s.pictures, guides = d.guidePictures;
+type Rest = Awaited<NonNullable<Data["rest"]>>;
+
+function Shelves({ d, s }: { d: Data; s: Rest }) {
+  const { inks, now, me } = d, pics = s.pictures, guides = s.guidePictures;
   const first = (name: string) => name.replace(/^The (Hon\. )?/, "").split(" ")[0];
   return (
     <>
-      {d.today.length > 0 && (
-        <Shelf id="today" title="Today" sub="The newest puzzles." more="/explore/all">
-          {d.today.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} when list={{ in: "shelf", shelf: "today" }} />)}
-        </Shelf>
-      )}
       {s.quick.length > 0 && (
         <Shelf id="quick" title="Quick ones" sub="Five minutes or less." more="/explore/all?quick=1">
           {s.quick.map((p) => <PuzzleCard key={p.id} p={p} pics={pics} inks={inks} now={now} time list={{ in: "shelf", shelf: "quick" }} />)}
@@ -92,7 +100,7 @@ function Results({ d, found }: { d: Data; found: NonNullable<Data["found"]> }) {
       {nothing && <p className="muted">Nothing matches &ldquo;{d.q}&rdquo;. <Link to="/explore">Back to Explore</Link></p>}
       {found.types.length > 0 && (
         <section className="shelf" aria-labelledby="r-types"><h2 className="group-h" id="r-types">Types</h2>
-          <ul className="tiles">{found.types.map((t) => <TypeTile key={t.kind} t={t} pics={d.guidePictures} inks={d.inks} />)}</ul></section>
+          <ul className="tiles">{found.types.map((t) => <TypeTile key={t.kind} t={t} pics={found.guidePictures} inks={d.inks} />)}</ul></section>
       )}
       {found.creators.length > 0 && (
         <section className="shelf" aria-labelledby="r-creators"><h2 className="group-h" id="r-creators">Creators</h2>

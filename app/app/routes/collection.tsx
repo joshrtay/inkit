@@ -1,7 +1,8 @@
 // A profile: inkit.games/<slug>. A creator's personal collection lives at their handle; studios
 // have their own. Like a Substack profile: who they are, Subscribe, and tabs for their puzzles
 // and (for a person) who they subscribe to, or (for a studio) its members.
-import { data, Link, redirect } from "react-router";
+import { data, redirect } from "react-router";
+import { Link } from "~/components/Link";
 import { and, eq } from "drizzle-orm";
 import type { Route } from "./+types/collection";
 import { cloudflareContext } from "~/lib/context";
@@ -9,10 +10,12 @@ import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
 import { roleIn } from "~/lib/permissions.server";
 import { signInFirst } from "~/lib/http.server";
-import { inks, newestPictures } from "~/lib/explore.server";
+import { inks, newestPictures, type Pictures } from "~/lib/explore.server";
 import { recommendationsOf } from "~/lib/recommendations.server";
-import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, markSolved, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
-import { draftPictures, withPictures } from "~/lib/thumbs.server";
+import { collectionBySlug, collectionGames, collectionMembers, collectionSolves, isSubscribed, solvedAmong, subscriberCount, subscriptionsOf } from "~/lib/queries.server";
+import { draftPictures, withoutPictures, withPictures } from "~/lib/thumbs.server";
+import { later } from "~/lib/stream.server";
+import { Later, SkelText } from "~/components/Later";
 import { setCards, setsOn } from "~/lib/sets.server";
 import { SetCard } from "~/components/SetCard";
 import { pageMeta, profileJsonLd } from "~/lib/seo";
@@ -28,54 +31,63 @@ import "~site/game-types/grid/styles.css";
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const collection = await collectionBySlug(db, params.slug.toLowerCase());
+  const tab = new URL(request.url).searchParams.get("tab") ?? "puzzles";
+  const [collection, viewer] = await Promise.all([collectionBySlug(db, params.slug.toLowerCase()), currentCreator(env, request)]);
   if (!collection) throw data(null, { status: 404 });
-  const viewer = await currentCreator(env, request);
-  const role = await roleIn(db, collection.id, viewer?.id);
+  const personId = collection.personalOf;
+  // everything the page needs, side by side (a member's drafts too, sorted out once the role is in)
+  const [role, games, members, person, subscribed, publishedSets, draftSetRows, following, recs, viewerFollows] = await Promise.all([
+    roleIn(db, collection.id, viewer?.id),
+    collectionGames(db, collection.id, !!viewer),
+    collectionMembers(db, collection.id),
+    personId ? db.query.creators.findFirst({ where: eq(schema.creators.id, personId) }) : null,
+    isSubscribed(db, viewer?.id, collection.id),
+    setsOn(db, collection.id),
+    viewer ? setsOn(db, collection.id, true) : [],
+    personId ? subscriptionsOf(db, personId) : [],
+    personId ? recommendationsOf(db, personId) : [],
+    viewer && personId && (tab === "subscriptions" || tab === "recommends")
+      ? db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, viewer.id)).then((r) => new Set(r.map((s) => s.id)))
+      : new Set<string>(),
+  ]);
   // A deleted studio is offline, except to its owners.
   if (collection.deletedAt && role !== "owner" && !viewer?.isAdmin) throw data(null, { status: 404 });
   const owner = role === "owner";
-  const tab = new URL(request.url).searchParams.get("tab") ?? "puzzles";
-  const [games, members, person, subscribers, subscribed, solves] = await Promise.all([
-    collectionGames(db, collection.id, !!role || !!viewer?.isAdmin),
-    collectionMembers(db, collection.id),
-    collection.personalOf ? db.query.creators.findFirst({ where: eq(schema.creators.id, collection.personalOf) }) : null,
-    subscriberCount(db, collection.id),
-    isSubscribed(db, viewer?.id, collection.id),
-    collectionSolves(db, collection.id),
-  ]);
-  const [following, recs] = person ? await Promise.all([subscriptionsOf(db, person.id), recommendationsOf(db, person.id)]) : [[], []];
-  const recPics = recs.length ? await newestPictures(db, recs.map((r) => r.id), 2) : { byAuthor: {}, pictures: {} };
-  const viewerFollows = viewer && (following.length || recs.length)
-    ? new Set((await db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, viewer.id))).map((s) => s.id))
-    : new Set<string>();
+  const canSeeDrafts = !!role || !!viewer?.isAdmin;
   // Puzzles: what everyone sees. Drafts (and games taken down): only their author, the
   // collection's owners and admins, in a tab of their own.
   const published = games.filter((g) => g.state === "published");
-  const drafts = games.filter((g) => g.state !== "published" && (owner || viewer?.isAdmin || g.authorHandle === viewer?.handle));
-  const canSeeDrafts = !!role || !!viewer?.isAdmin;
-  // sets: in the grid with the puzzles; a draft set only for its author (and admins)
-  const [publishedSets, draftSets] = await Promise.all([
-    setsOn(db, collection.id),
-    canSeeDrafts ? setsOn(db, collection.id, true).then((ss) => ss.filter((x) => x.authorId === viewer?.id || viewer?.isAdmin)) : [],
+  const drafts = canSeeDrafts ? games.filter((g) => g.state !== "published" && (owner || viewer?.isAdmin || g.authorHandle === viewer?.handle)) : [];
+  // a draft set only for its author (and admins)
+  const draftSets = canSeeDrafts ? draftSetRows.filter((x) => x.authorId === viewer?.id || viewer?.isAdmin) : [];
+  const shownTab = ["puzzles", "about", "subscriptions", "members", "recommends", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles";
+  // pictures only for the tab that shows them
+  const [solved, setCardsShown, draftSetCards, draftCards, recPics] = await Promise.all([
+    shownTab === "puzzles" && viewer ? solvedAmong(db, viewer.id, published.map((g) => g.id)) : new Set<string>(),
+    shownTab === "puzzles" ? setCards(db, publishedSets) : [],
+    shownTab === "drafts" ? setCards(db, draftSets) : [],
+    shownTab === "drafts" ? draftPictures(db, drafts) : [],
+    shownTab === "recommends" && recs.length ? newestPictures(db, recs.map((r) => r.id), 2) : { byAuthor: {} as Record<string, string[]>, pictures: {} as Pictures },
   ]);
   return {
-    sets: await setCards(db, publishedSets),
-    draftSets: canSeeDrafts ? await setCards(db, draftSets) : [],
+    sets: setCardsShown,
+    draftSets: draftSetCards,
     collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt, since: collection.createdAt },
     person: person && { handle: person.handle, name: person.name, ai: person.isAi },
     // an AI creator's "How I make puzzles" (app/ai/personas.ts)
     persona: person?.isAi ? aiProfile(person.handle) : null,
     members,
-    games: await markSolved(db, viewer?.id, withPictures(published)),
-    drafts: canSeeDrafts ? await draftPictures(db, drafts) : null,
+    games: (shownTab === "puzzles" ? withPictures(published) : withoutPictures(published)).map((g) => ({ ...g, solved: solved.has(g.id) })),
+    drafts: canSeeDrafts ? { count: drafts.length, cards: draftCards } : null,
     following: following.map((c) => ({ ...c, subscribed: viewerFollows.has(c.id) })),
     // whom they recommend (lib/recommendations.server.ts), with each one's two newest puzzles
     recommends: recs.map((r) => ({ ...r, subscribed: viewerFollows.has(r.collectionId), newest: recPics.byAuthor[r.id] ?? [] })),
     recPictures: recPics.pictures, inks: recs.length ? inks() : {},
-    subscribers, subscribed, solves, role,
+    // the profile's numbers come after the page (components/Later.tsx)
+    stats: later(Promise.all([subscriberCount(db, collection.id), collectionSolves(db, collection.id)]).then(([subscribers, solves]) => ({ subscribers, solves }))),
+    subscribed, role,
     me: viewer?.handle ?? null,
-    tab: ["puzzles", "about", "subscriptions", "members", "recommends", ...(canSeeDrafts ? ["drafts"] : [])].includes(tab) ? tab : "puzzles",
+    tab: shownTab,
   };
 }
 
@@ -121,7 +133,7 @@ export const meta: Route.MetaFunction = ({ loaderData: d }) => {
 const verse = (text: string) => text.split(" / ").flatMap((line, i) => (i ? [<br key={i} />, line] : [line]));
 
 export default function Collection({ loaderData: d }: Route.ComponentProps) {
-  const { collection, person, persona, members, games, drafts, following, recommends, subscribers, subscribed, solves, role, me, tab, sets, draftSets } = d;
+  const { collection, person, persona, members, games, drafts, following, recommends, stats, subscribed, role, me, tab, sets, draftSets } = d;
   // the Puzzles grid: puzzles and sets together, newest first
   const when = (t: string | number | Date | null | undefined) => (t ? new Date(t).getTime() : 0);
   const grid = [
@@ -132,7 +144,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
   const tabs = [
     { id: "puzzles", label: "Puzzles", n: games.length },
     // only you (and the owners) see this tab
-    ...(drafts ? [{ id: "drafts", label: "Drafts", n: drafts.length }] : []),
+    ...(drafts ? [{ id: "drafts", label: "Drafts", n: drafts.count }] : []),
     // whom they recommend: shown when they recommend anyone (and always to themselves, to set it up)
     ...(person && (recommends.length || mine) ? [{ id: "recommends", label: "Recommends", n: recommends.length }] : []),
     ...(person ? [{ id: "subscriptions", label: "Subscriptions", n: following.length }] : [{ id: "members", label: "Members", n: members.length }]),
@@ -149,7 +161,12 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           {/* the bio, kept short here (two lines); the whole of it is on About */}
           {collection.description && tab !== "about" && <p className="profile-bio">{verse(collection.description)}</p>}
           {collection.description && tab !== "about" && <Link className="profile-more" to={`/${collection.slug}?tab=about`} preventScrollReset>More about {person ? (person.name.split(" ")[0] || collection.title) : "this studio"}</Link>}
-          <p className="profile-stats">{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}{role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}</p>
+          <p className="profile-stats">
+            <Later value={stats} fallback={<SkelText w="9em" className="inline" />} error={<span />}>
+              {({ subscribers, solves }) => <>{subscribers} subscriber{subscribers === 1 ? "" : "s"}{solves > 0 && <> · {solves} solve{solves === 1 ? "" : "s"}</>}</>}
+            </Later>
+            {role && !mine && <> · you&rsquo;re {role === "owner" ? "an owner" : "a contributor"}</>}
+          </p>
         </div>
         <Avatar name={collection.title} seed={collection.slug} size={96} ai={!!person?.ai} />
         {collection.deleted && <p className="state hidden">This studio was deleted.</p>}
@@ -199,7 +216,7 @@ export default function Collection({ loaderData: d }: Route.ComponentProps) {
           {mine && <Link className="btn primary" to="/new">Make a puzzle</Link>}
         </div>
       ))}
-      {tab === "drafts" && drafts && (drafts.length || draftSets.length ? <ul className="cards">{draftSets.map((x) => <SetCard key={`s-${x.id}`} set={x} draft />)}{drafts.map((g) => <GameCard key={g.id} game={g} draft />)}</ul> : (
+      {tab === "drafts" && drafts && (drafts.cards.length || draftSets.length ? <ul className="cards">{draftSets.map((x) => <SetCard key={`s-${x.id}`} set={x} draft />)}{drafts.cards.map((g) => <GameCard key={g.id} game={g} draft />)}</ul> : (
         <div className="empty-tab">
           <p>No drafts.</p>
           <p className="muted">Unpublished puzzles wait here.</p>

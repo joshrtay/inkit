@@ -20,7 +20,10 @@ The owner's answers to the first draft's open questions (October 2026):
    included: a hand edit would be overwritten by the next save).
 2. **A published puzzle's page shows the engine's picture for play**, with the creator's drawing
    beside it as a small **"Drawn by @handle"** thumbnail (the drawing as drawn, minus the notes
-   layer, which stays private). Clicking it enlarges it.
+   layer, which stays private). Clicking it enlarges it. *Changed (October 2026): the thumbnail is
+   gone. Paint's drawing now looks the same as the puzzle, so it said nothing new; the page shows
+   the puzzle alone. Paint still draws the drawing as a picture (`sketchpad/picture.ts`) for a draft's
+   card before it has a type.*
 3. **Type suggestions are on demand only**: the **What type is this?** button in the type picker
    and in the "choose a type first" reminder. Nothing is suggested automatically.
 4. **Strictly the type's tools**, with an **All tools** escape at the foot of the tool rail. What
@@ -516,9 +519,8 @@ Risks:
   the `?in=` studio). The test-play's host saves nothing (not even to `sessionStorage`). Publish
   is the editor's rule: the server converts the saved drawing again and checks its hash against
   the one the browser's solver passed. Doubts left and things that don't fit warn in the bar.
-- The description sits beside the board, under the "Drawn by" thumbnail, on the publish page and
-  on a published page that has a drawing (open question 1, for now); games without a drawing keep
-  it under the board. The thumbnail enlarges on a click.
+- The description sits under the board (the "Drawn by" thumbnail it once sat under is gone:
+  decision 2).
 - Drafts with no type show "No type yet" (`kindName("")`), with their drawing as the card's picture;
   drafts drawn in paint (or with no type) open in paint from the Drafts tab, `/new` and the game page.
 - Tests: `tests/e2e/create.spec.ts` gives the photo's reading itself (the `given-reading` form field,
@@ -687,5 +689,5 @@ The first draft's seven are answered (Decisions, at the top). Left from this rev
 
 1. **The description's place on published pages**: beside the board, as on the draft's game page
    (a small change to `GamePageView`), or under it as now (then the draft page puts it there too)?
-2. **The "Drawn by" thumbnail**: always shown, or may a creator hide it (a tidy engine picture
-   only)?
+2. ~~**The "Drawn by" thumbnail**: always shown, or may a creator hide it?~~ Answered: removed
+   (decision 2).

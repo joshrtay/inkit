@@ -1,6 +1,6 @@
 // A set as a card (a profile's grid, the feed, search) and its cover: the first four puzzles as
 // four small paper cards in a square (docs/research-curation.md, cover A).
-import { Link } from "react-router";
+import { Link } from "~/components/Link";
 import type { SetCard as SetCardData } from "~/lib/sets.server";
 import { Picture } from "./GameCard";
 import { Diff } from "./Explore";

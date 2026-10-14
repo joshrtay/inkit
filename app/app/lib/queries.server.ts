@@ -57,7 +57,14 @@ export const feedCursor = (s: string | null): FeedCursor | null => {
 
 /** The games from the collections someone subscribes to, newest first, a page at a time: the page
  *  after `before`, if given. */
-export const feedGames = (db: Db, subscriberId: string, limit = 24, before: FeedCursor | null = null) => cards(db)
+export const feedGames = (db: Db, subscriberId: string, limit = 24, before: FeedCursor | null = null) => db.select({
+  ...cardColumns,
+  // the subscriber's own marks, in the same query
+  liked: sql<number>`exists(select 1 from likes l where l.game_id = ${schema.games.id} and l.creator_id = ${subscriberId})`.mapWith(Boolean).as("liked"),
+  solved: sql<number>`exists(select 1 from solves s where s.game_id = ${schema.games.id} and s.creator_id = ${subscriberId})`.mapWith(Boolean).as("solved"),
+}).from(schema.games)
+  .innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
+  .innerJoin(schema.creators, eq(schema.games.authorId, schema.creators.id))
   .where(and(live, inArray(schema.games.collectionId,
     db.select({ id: schema.subscriptions.collectionId }).from(schema.subscriptions).where(eq(schema.subscriptions.subscriberId, subscriberId))),
     before ? or(lt(schema.games.publishedAt, new Date(before.at)), and(eq(schema.games.publishedAt, new Date(before.at)), lt(schema.games.id, before.id))) : undefined))
@@ -104,6 +111,25 @@ export async function likesOf(db: Db, gameId: string, viewerId: string | undefin
   const [{ n }] = await db.select({ n: count() }).from(schema.likes).where(eq(schema.likes.gameId, gameId));
   const liked = !!viewerId && !!(await db.query.likes.findFirst({ where: and(eq(schema.likes.gameId, gameId), eq(schema.likes.creatorId, viewerId)) }));
   return { count: n, liked };
+}
+
+/** A game page's counts and the viewer's own marks, in one query: its likes and solves, whether
+ *  this viewer likes it and has solved it, and whether they've solved any puzzle of its type (the
+ *  first-time note under the paper; signed out: never). */
+export async function gameSocial(db: Db, game: { id: string; kind: string }, viewerId: string | undefined) {
+  const v = viewerId ?? "";
+  const [r] = await db.select({
+    likes: sql<number>`(select count(*) from likes where likes.game_id = ${game.id})`.mapWith(Number),
+    liked: sql<number>`exists(select 1 from likes where likes.game_id = ${game.id} and likes.creator_id = ${v})`.mapWith(Boolean),
+    solves: sql<number>`(select count(*) from solves where solves.game_id = ${game.id})`.mapWith(Number),
+    solved: sql<number>`exists(select 1 from solves where solves.game_id = ${game.id} and solves.creator_id = ${v})`.mapWith(Boolean),
+    typeSolved: sql<number>`exists(select 1 from solves s join games g on g.id = s.game_id where s.creator_id = ${v} and g.kind = ${game.kind})`.mapWith(Boolean),
+  }).from(sql`(select 1)`);
+  return {
+    likes: { count: r?.likes ?? 0, liked: !!viewerId && !!r?.liked },
+    solves: { count: r?.solves ?? 0, solved: !!viewerId && !!r?.solved },
+    newToType: !viewerId || !r?.typeSolved,
+  };
 }
 
 /** Ids in groups small enough for one query (D1 takes at most 100 bound parameters). */
