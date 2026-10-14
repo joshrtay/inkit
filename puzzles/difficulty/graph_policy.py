@@ -425,6 +425,9 @@ def evaluate(net, items):
 # them out already; this checks), and so is a copy of a corpus puzzle (the corpus's copy may be in
 # the per-type test split).
 GEN_SOURCES = {"gen-set"}
+# sources kept for evaluation only, never trained on (docs/research-puzzle-sources.md: Beast
+# Academy's robots.txt says ai-train=no); GRAPH_EVAL_ONLY overrides, comma-separated
+EVAL_ONLY = set(filter(None, os.environ.get("GRAPH_EVAL_ONLY", "beast-academy").split(",")))
 GEN_SHARE = float(os.environ.get("GRAPH_GEN_SHARE", 1))
 GEN_TEST = float(os.environ.get("GRAPH_GEN_TEST", 0.01))
 STATES_PER = int(os.environ.get("GRAPH_STATES_PER", 0))
@@ -667,6 +670,10 @@ if __name__ == "__main__":
     # the human test set's puzzles never train; generated puzzles add to training only
     dups = sum(p.dup for tr, _ in split.values() for p in tr)
     split = {g: ([p for p in tr if not p.dup], te) for g, (tr, te) in split.items()}
+    # evaluation-only sources move from training to the test side
+    held = sum(p.source in EVAL_ONLY for tr, _ in split.values() for p in tr)
+    split = {g: ([p for p in tr if p.source not in EVAL_ONLY], te + [p for p in tr if p.source in EVAL_ONLY]) for g, (tr, te) in split.items()}
+    if held: print(f"{held} puzzles from evaluation-only sources ({', '.join(sorted(EVAL_ONLY))}) moved from training to test")
     for p in gen_tr: split.setdefault(p.genre, ([], []))[0].append(p)
     if gen_tr or gen_te: print(f"generated: {len(gen_tr)} puzzles to train on ({sum(len(p.keep or range(p.R)) for p in gen_tr)} states, GRAPH_GEN_SHARE {GEN_SHARE:g}, GRAPH_STATES_PER {STATES_PER or 'all'}), {len(gen_te)} held out")
     for p in hum_tr: split.setdefault(p.genre, ([], []))[0].append(p)
