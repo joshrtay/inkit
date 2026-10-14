@@ -12,9 +12,15 @@
 # CPU quota: six in us-central1, five in each of us-east4 and us-west4), weighted toward the sizes
 # and settings of hand-made puzzles (10 × 10, 2-star Star Battle, Easy as ABC with more letters),
 # with gen-set.ts GEN_HUMAN (symmetric clue layouts by the targets' shares, extra jobs toward the
-# human family mix, quotas by the targets' size shares) and the best break-in of HUMAN_BREAKIN
-# candidates at hard and expert. Its names start "h-" (gen-fleet-watch.sh relaunches them the same
-# way). With the GPU VM up (8 vCPUs), leave one VM out (ONLY) to stay inside the quota.
+# human family mix, quotas by the targets' size shares) and, of HUMAN_BREAKIN candidates at hard,
+# expert and beyond, the one with the best break-in plus narrow thread (HUMAN_THREAD: GEN_THREAD).
+# The settings people use: 2-star Star Battle in even areas, Simple Loop with rocks only,
+# Skyscrapers with outside clues only, sparse clues with bigger numbers (Cave, Shikaku, Spiral
+# Galaxies; Nurikabe's on trial, as none came out locally in 10 minutes and an arm stops after 6
+# attempts with nothing made; 3-star Star Battle needs 14 x 14 and longer jobs, so it's out); "beyond" (a few shallow case splits, bands.ts) for the
+# genres where most human puzzles are: Masyu, Cave, Slitherlink, Nurikabe, Hitori. Its names
+# start "h-" (gen-fleet-watch.sh relaunches them the same way). With the GPU VM up (8 vCPUs), leave
+# one VM out (ONLY) to stay inside the quota: h-medium-c is the cheapest to lose.
 set -e
 HOURS=${1:-4}
 PER=${2:-2000}
@@ -26,23 +32,24 @@ LOG="$ROOT/references/ml/gen-fleet-$STAMP.txt"
 # name | region | bands | genres (gen-set.ts GEN_GENRES: genre:sizes[:bands[:settings]], sizes,
 # bands and settings joined by +). The hard and medium groups are balanced by the first batch's CPU time per attempt.
 HUMAN_BREAKIN=2
+HUMAN_THREAD=1
 HUMAN_FLEET="
 h-sudoku|us-central1|hard,expert|sudoku:9
 h-slither-h|us-central1|hard|slitherlink:10
-h-slither-x|us-central1|expert|slitherlink:10
-h-stars|us-central1|hard|star-battle:10::stars=2
-h-stars-1|us-central1|hard,expert|star-battle:10
-h-loops-h|us-central1|hard|masyu:10,cave:10
-h-loops-x|us-east4|expert|masyu:10,cave:10
-h-regions|us-east4|hard,expert|nurikabe:8:expert,hitori:8:expert,shikaku:8
-h-reach-a|us-east4|hard,expert|spiral-galaxies:7:hard,hidoku:6,fillomino:6:hard+expert
+h-slither-x|us-central1|expert,beyond|slitherlink:10
+h-stars|us-central1|hard|star-battle:10::stars=2+even
+h-stars-b|us-central1|hard,expert|star-battle:9:hard:stars=2+even,star-battle:10:hard+expert:even
+h-loops-h|us-central1|hard|masyu:10,cave:10::sparse
+h-loops-x|us-east4|expert|masyu:10,cave:10::sparse
+h-beyond|us-east4|beyond|masyu:10,cave:10::sparse,slitherlink:8,masyu:8
+h-regions|us-east4|hard,expert,beyond|nurikabe:8:expert+beyond,nurikabe:8:expert:sparse,hitori:8:expert+beyond,shikaku:8:hard+expert:sparse
+h-reach-a|us-east4|hard,expert|spiral-galaxies:7:hard:sparse,simple-loop:10::blocks,hidoku:6,fillomino:6
 h-reach-b|us-east4|hard,expert|fill-in:6,minesweeper:8:expert,simple-path:7,numberlink:7:hard
-h-latin|us-east4|hard,expert|skyscrapers:6+7:hard,easy-as-abc:6::letters=4,easy-as-abc:7::letters=5
-h-loops-8|us-west4|hard,expert|slitherlink:8,masyu:8,cave:8
-h-medium-a|us-west4|medium|sudoku:9,slitherlink:10,masyu:10,cave:10
-h-medium-b|us-west4|medium|star-battle:10::stars=2,akari:10,minesweeper:8,skyscrapers:6+7,easy-as-abc:6::letters=4,easy-as-abc:7::letters=5
-h-medium-c|us-west4|medium|hidoku:6,spiral-galaxies:7,fill-in:6,simple-path:7
-h-easy|us-west4|easy|sudoku:9,akari:10,slitherlink:10,masyu:10,cave:10,star-battle:10::stars=2,skyscrapers:6+7,easy-as-abc:6::letters=4,easy-as-abc:7::letters=5,minesweeper:8,hidoku:6,fill-in:6,simple-path:7
+h-latin|us-west4|hard,expert|skyscrapers:6+7:hard:outside,easy-as-abc:6::letters=4,easy-as-abc:7::letters=5,slitherlink:8,masyu:8,cave:8::sparse
+h-medium-a|us-west4|medium|sudoku:9,slitherlink:10,masyu:10,cave:10::sparse
+h-medium-b|us-west4|medium|star-battle:10::stars=2+even,akari:10,minesweeper:8,skyscrapers:6+7::outside,easy-as-abc:6::letters=4,easy-as-abc:7::letters=5
+h-medium-c|us-west4|medium|hidoku:6,spiral-galaxies:7::sparse,fill-in:6,simple-path:7,simple-loop:10::blocks
+h-easy|us-west4|easy|sudoku:9,akari:10,slitherlink:10,masyu:10,cave:10::sparse,star-battle:10::stars=2+even,skyscrapers:6+7::outside,easy-as-abc:6::letters=4,easy-as-abc:7::letters=5,minesweeper:8,hidoku:6,fill-in:6,simple-path:7,simple-loop:10::blocks
 "
 FLEET="
 hard-a|us-central1|hard|sudoku:9
@@ -62,7 +69,7 @@ easy-n|us-west4|easy,medium|sudoku:9,irregular-sudoku:6,thermo-sudoku:6,skyscrap
 easy-o|us-west4|easy,medium|simple-path:6,cave:6,aquarium:6,minesweeper:6,wittgenstein-briquet:6,binary-puzzle:6,star-battle:6+8,spiral-galaxies:6,hidoku:5,fill-in:5
 "
 
-if [ "${GEN_PLAN:-}" = human ]; then FLEET=$HUMAN_FLEET; export GEN_HUMAN=1 GEN_BREAKIN=$HUMAN_BREAKIN; fi
+if [ "${GEN_PLAN:-}" = human ]; then FLEET=$HUMAN_FLEET; export GEN_HUMAN=1 GEN_BREAKIN=$HUMAN_BREAKIN GEN_THREAD=$HUMAN_THREAD; fi
 
 export PATH="$HOME/google-cloud-sdk/bin:$PATH"
 gcloud storage cp -r "$ROOT/src" "$ROOT/puzzles" "$ROOT/package.json" gs://inkit-research-ml/code/

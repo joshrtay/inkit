@@ -27,7 +27,7 @@ while [ "$(date +%s)" -lt "$END" ]; do
     [ -z "$ROW" ] && continue
     IFS='|' read -r _ REGION BANDS GENRES <<< "$ROW"
     # the human-like plan's VMs: aimed at human-made puzzles, as run-gen-fleet.sh launched them
-    if [[ $NAME == h-* ]]; then export GEN_HUMAN=1 GEN_BREAKIN=$(sed -n 's/^HUMAN_BREAKIN=//p' "$DIR/run-gen-fleet.sh"); else unset GEN_HUMAN GEN_BREAKIN; fi
+    if [[ $NAME == h-* ]]; then export GEN_HUMAN=1 GEN_BREAKIN=$(sed -n "s/^HUMAN_BREAKIN=//p" "$DIR/run-gen-fleet.sh") GEN_THREAD=$(sed -n "s/^HUMAN_THREAD=//p" "$DIR/run-gen-fleet.sh"); else unset GEN_HUMAN GEN_BREAKIN GEN_THREAD; fi
     LEFT=$(( (END + 30 * 60 - $(date +%s)) / 3600 )); [ "$LEFT" -lt 1 ] && LEFT=1
     # a zone that just reclaimed it is likely to again: try the others first
     LASTZ=$(awk -v r="$RUN" '$1 == r {print $2}' "$LOG" | tail -1 | sed 's/.*-//')

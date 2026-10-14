@@ -27,8 +27,12 @@ export interface GenerateOptions {
   rules?: string;
   /** Panel: the symbol mix (PANEL_MIXES), or several joined with "+" ("squares+stars") */
   mix?: string;
-  /** Star Battle: stars per row, column and area (1 or 2) */
+  /** Star Battle: stars per row, column and area (1, 2 or 3) */
   stars?: number;
+  /** Star Battle: areas of about even size, as people draw them (the hill-climb that makes it
+   *  unique never lets the areas' size spread, their standard deviation over the mean, pass
+   *  EVEN_SPREAD or what it already is). Default off */
+  evenAreas?: boolean;
   /** Akari: a cipher, with letters for its numbers */
   cipher?: boolean;
   /** Pythagorean Paths: how segments may run (queen, knight; any if not given), and how many dots */
@@ -65,7 +69,24 @@ export interface GenerateOptions {
    *  answer is never used. For the genres made by adding clues to cells (SYMMETRY_GENRES); for
    *  Akari the black squares follow it too. Default "none" */
   symmetry?: Symmetry;
+  /** Fewer clues with bigger numbers, as hand-made puzzles have (docs/research-human-gap.md: about
+   *  half our clue density). Nurikabe: about one island per 8–14 cells, few of size 1 (still up to
+   *  5 cells: bigger ones make every uniqueness check several times slower); Shikaku: rectangles of up to 12 cells, about one per 6 cells or fewer; Spiral Galaxies:
+   *  galaxies grown to 4–13 cells, not 2–9; the genres made by adding numbered clues (Cave): the
+   *  biggest numbers added first and the smallest taken out first. Default off */
+  sparse?: boolean;
+  /** Skyscrapers: clues outside the grid only, no digits in it (people's are all outside). Default
+   *  off (digits in the grid where the outside clues aren't enough) */
+  outsideOnly?: boolean;
+  /** Simple Loop: rocks only, no walls between cells (people's give only rocks): a random loop
+   *  over most of the grid, rocks on the rest, then rocks moved in and out while that leaves no more
+   *  loops, until one is left. Default off (walls) */
+  blocksOnly?: boolean;
 }
+
+/** Star Battle with `evenAreas`: the areas' size spread (standard deviation over the mean) the
+ *  hill-climb stays under; hand-made puzzles' is about 0.45 against our 0.65 */
+export const EVEN_SPREAD = 0.5;
 
 export type Symmetry = "rot180" | "mirror" | "none";
 /** The genres whose clue layout `symmetry` shapes: clues on cells, added to a pool and taken out
@@ -156,7 +177,36 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       }
       if (!grew) return null;
     }
-    return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
+    // (past 26 areas, capitals and digits: 3-star Star Battle's, one per star before grouping)
+    return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[a]).join(""));
+  }
+
+  /** Areas merged in groups of k neighbours (Star Battle with k stars: each grown around one star),
+   *  at random, the area with the fewest free neighbours first; returns letter rows, or null if no
+   *  grouping was found in 50 tries. */
+  function groupAreas(grown: string[], k: number): string[] | null {
+    const flat = grown.join(""), letters = [...new Set(flat)];
+    if (letters.length % k) return null;
+    const touch = new Map(letters.map((x) => [x, new Set<string>()]));
+    for (let i = 0; i < flat.length; i++) for (const j of [i % cols < cols - 1 ? i + 1 : -1, i + cols < flat.length ? i + cols : -1]) if (j >= 0 && flat[j] !== flat[i]) { touch.get(flat[i])!.add(flat[j]); touch.get(flat[j])!.add(flat[i]); }
+    for (let t = 0; t < 50; t++) {
+      const of = new Map<string, number>(), groups: string[][] = [];
+      let ok = true;
+      while (of.size < letters.length && ok) {
+        const free = (x: string) => [...touch.get(x)!].filter((z) => !of.has(z));
+        // start from the loneliest area left, then grow the group through free neighbours
+        const left = shuffle(letters.filter((x) => !of.has(x))).sort((a, b) => free(a).length - free(b).length);
+        const g = [left[0]]; of.set(left[0], groups.length);
+        while (g.length < k) {
+          const next = shuffle([...new Set(g.flatMap(free))]).sort((a, b) => free(a).length - free(b).length)[0];
+          if (!next) { ok = false; break; }
+          g.push(next); of.set(next, groups.length);
+        }
+        groups.push(g);
+      }
+      if (ok) return grown.map((row) => [...row].map((x) => "abcdefghijklmnopqrstuvwxyz"[of.get(x)!]).join(""));
+    }
+    return null;
   }
 
   /** Equal areas for an irregular sudoku: the regular boxes, then many random swaps of two border
@@ -193,12 +243,19 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     let tk = boardKey(spec, target);
     const first = twinGroups(pool), group = first.group;
     pool = first.pool;
+    /** With `sparse`: a numbered clue's value (0 for others), to add the biggest first and take
+     *  the smallest out first */
+    const valueOf = (c: Given) => ("value" in c && typeof c.value === "number" ? c.value : 0);
+    const bigFirst = (cs: Given[]) => (o.sparse ? cs.sort((a, b) => valueOf(b) - valueOf(a)) : cs);
     const added: Given[] = [];
     /** The twin groups among these clues, each once, in random order (without a symmetry: each
      *  clue alone, as before); shuffled unless `mix` is false */
     const groupsOf = (cs: Given[], mix = true): Given[][] => {
       const seen = new Set<Given>(), out: Given[][] = [];
-      for (const c of mix ? shuffle([...cs]) : cs) {
+      const order = mix ? shuffle([...cs]) : cs;
+      // (sparse: the smallest numbers first, a twin group by its smaller)
+      if (o.sparse && mix) order.sort((a, b) => Math.min(...(group.get(a) ?? [a]).map(valueOf)) - Math.min(...(group.get(b) ?? [b]).map(valueOf)));
+      for (const c of order) {
         if (seen.has(c)) continue;
         const g = group.get(c) ?? [c];
         for (const x of g) seen.add(x);
@@ -210,7 +267,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const sols = await solveN(makePuzzle(spec), 2);
       const alt = sols.find((s) => boardKey(spec, s) !== tk);
       if (!alt) break;
-      const useful = shuffle(pool.filter((c) => !added.includes(c))).find((c) => {
+      const useful = bigFirst(shuffle(pool.filter((c) => !added.includes(c)))).find((c) => {
         const p2 = makePuzzle({ ...spec, givens: [...spec.givens!, c] });
         return check(p2, alt).length > 0 && check(p2, target).length === 0;
       });
@@ -336,7 +393,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       }
     } else if (genre === "spiral-galaxies") {
       // grow symmetric regions: a centre on a cell, an edge or a corner, then pairs of mirrored cells
-      for (let t = 0; t < 60 && !result; t++) {
+      for (let t = 0, tries = o.sparse ? 600 : 60; t < tries && !result; t++) {
         const owner = new Array<number>(rows * cols).fill(-1), points: [number, number][] = [];
         const free = (r: number, c: number) => r >= 0 && c >= 0 && r < rows && c < cols && owner[r * cols + c] < 0;
         for (let start = 0; start < rows * cols; start++) {
@@ -350,7 +407,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
           if (free(r, c + 1) && free(r + 1, c) && free(r + 1, c + 1)) opts.push([2 * r + 2, 2 * c + 2, [order[0], order[0] + 1, order[0] + cols, order[0] + cols + 1]]);
           const [py, px, core] = opts[Math.floor(rand() * opts.length)], k = points.length;
           points.push([py, px]); for (const i of core) owner[i] = k;
-          const want = 2 + Math.floor(rand() * 8);
+          const want = o.sparse ? 4 + Math.floor(rand() * 10) : 2 + Math.floor(rand() * 8);
           for (let g = 0; g < 40 && owner.filter((o) => o === k).length < want; g++) {
             const mine = owner.flatMap((o, i) => (o === k ? [i] : []));
             const cand = shuffle(mine.flatMap(near4).filter((j) => owner[j] < 0));
@@ -359,6 +416,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
             const [y, x] = at(pick); owner[pick] = k; owner[(py - 1 - y) * cols + (px - 1 - x)] = k;
           }
         }
+        // (sparse: a layout with more than a galaxy per 4 cells is drawn again, unsolved: cheap)
+        if (o.sparse && points.length > rows * cols / 4 && t < tries - 1) continue;
         const spec: GridSpec = { genre, size: [rows, cols], givens: points.map((point) => ({ at: "point", point, kind: "galaxy" })) };
         if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
       }
@@ -391,7 +450,11 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const base: GridSpec = { genre, size: [rows, cols], givens: [], ...(k ? { rules: [{ rule: "letters", count: k }], style: { symbols: "ABCDEFGHIJ".slice(0, k) } } : {}) };
       const target = await randomBoard(base, "");
       if (!target) continue;
-      const pool = [...edgePool(target, genre === "skyscrapers" ? "skyscraper" : "first"),
+      const kind = genre === "skyscrapers" ? "skyscraper" : "first";
+      // (outsideOnly: no digits in the grid; when no outside clue tells two answers apart, the
+      // other answer becomes the target, with its own outside clues)
+      if (o.outsideOnly && genre === "skyscrapers") { result = await narrow(base, target, edgePool(target, kind), (b) => edgePool(b, kind)); continue; }
+      const pool = [...edgePool(target, kind),
         ...(genre === "skyscrapers" ? Array.from({ length: rows * cols }, (_, i): Given => ({ at: "cell", cell: at(i), kind: "number", value: target.digit[i] })) : [])];
       result = await narrow(base, target, pool);
     } else if (genre === "cave") {
@@ -505,8 +568,9 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     } else if (genre === "shikaku") {
       // a random cut into rectangles (2 to 8 cells), then one number per rectangle, placed at random
       // until only that cut fits
-      const cutSpec: GridSpec = { size: [rows, cols], marks: ["regions"], rules: [{ rule: "rectangles" }, { rule: "size", min: 2, max: 8 }] };
-      const target = await randomBoard(cutSpec, "");
+      // (sparse: up to 12 cells, about one rectangle per 6 cells at most)
+      const cutSpec: GridSpec = { size: [rows, cols], marks: ["regions"], rules: [{ rule: "rectangles" }, { rule: "size", min: 2, max: o.sparse ? 12 : 8 }] };
+      const target = await randomBoard(cutSpec, o.sparse ? `:- #count{R: root(R)} > ${Math.round(rows * cols * 0.17)}.` : "");
       if (!target) continue;
       const rects = regionsOf(makePuzzle(cutSpec), target).cells;
       for (let t = 0; t < 40 && !result; t++) {
@@ -524,9 +588,11 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const starCells = shuffle(Array.from({ length: rows * cols }, (_, i) => i).filter((i) => stars.shade[i] === 1));
       // one area grows around each star; with 2 stars per area, neighbouring areas then merge in
       // pairs (a random matching), so every area holds 2 stars and stays in one piece
-      if (k > 2) throw new Error("1 or 2 stars per area");
+      // (with 3, areas merge in threes: groupAreas)
+      if (k > 3) throw new Error("1, 2 or 3 stars per area");
       let grown = growAreas(k === 1 ? starCells.slice(0, rows) : starCells);
       if (!grown) continue;
+      if (k === 3) { grown = groupAreas(grown, 3); if (!grown) continue; }
       if (k === 2) {
         const flat = grown.join(""), letters = [...new Set(flat)];
         const touch = new Map(letters.map((x) => [x, new Set<string>()]));
@@ -559,6 +625,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         while (stack.length) { const i = stack.pop()!, r = Math.floor(i / cols), c = i % cols; for (const j of [r > 0 ? i - cols : -1, r < rows - 1 ? i + cols : -1, c > 0 ? i - 1 : -1, c < cols - 1 ? i + 1 : -1]) if (j >= 0 && o[j] === letter && !seen.has(j)) { seen.add(j); stack.push(j); } }
         return seen.size === cells.length;
       };
+      // evenAreas: no move may push the size spread past EVEN_SPREAD (or past what it is, if above)
+      const spreadOf = (o: string[]) => { const m = new Map<string, number>(); for (const x of o) m.set(x, (m.get(x) ?? 0) + 1); const v = [...m.values()], mu = v.reduce((a, x) => a + x, 0) / v.length; return Math.sqrt(v.reduce((a, x) => a + (x - mu) ** 2, 0) / v.length) / mu; };
       let now = await count(of);
       for (let step = 0; step < 3000 && now > 1; step++) {
         const i = Math.floor(rand() * rows * cols);
@@ -568,6 +636,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         if (!nb.length) continue;
         const next = [...of]; next[i] = of[nb[Math.floor(rand() * nb.length)]];
         if (!connected(next, of[i])) continue;
+        if (o.evenAreas && spreadOf(next) > Math.max(EVEN_SPREAD, spreadOf(of))) continue;
         const n = await count(next);
         if (n >= 1 && n <= now) { of = next; now = n; }
       }
@@ -600,6 +669,48 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const pool: Given[] = g.links.filter((l) => !target.loop[l.id] && !l.cells.some((c) => givens.some((x) => x.kind === "block" && x.at === "cell" && g.cell(...x.cell) === c)))
         .map((l) => ({ at: "border", cells: [at(l.cells[0]), at(l.cells[1])], kind: "wall" }));
       result = await narrow(base, target, pool);
+    } else if (genre === "simple-loop" && o.blocksOnly) {
+      // rocks only: a random loop over 80–94% of the cells (any loop: Masyu's rules without pearls),
+      // rocks on the cells it misses; then, like Star Battle's areas, a hill-climb: one cell's rock
+      // put in or taken out, kept while some loop still fits and no more do, until one is left
+      const n = rows * cols;
+      const loop = await randomBoard({ genre: "masyu", size: [rows, cols], givens: [] }, `:- #count{I: cell(I), go(I,_)} < ${Math.round(n * 0.8)}.\n:- #count{I: cell(I), go(I,_)} > ${Math.round(n * 0.94)}.`);
+      if (!loop) continue;
+      const g = makePuzzle({ genre, size: [rows, cols] }).grid;
+      const rock = Array.from({ length: n }, (_, i) => !g.cellLinks[i].some((l) => loop.loop[g.links[l].id] === 1));
+      const specOf = (r: boolean[]): GridSpec => ({ genre, size: [rows, cols], givens: r.flatMap((x, i) => (x ? [{ at: "cell", cell: at(i), kind: "block" } as Given] : [])) });
+      const count = async (r: boolean[]) => (await solveN(makePuzzle(specOf(r)), 300)).length;
+      let now = await count(rock);
+      // a loop visits as many dark squares as light ones (a checkerboard), so a single rock put in
+      // or taken out never leaves one: the moves keep the balance (a rock moved to a square of its
+      // colour two steps away, or two neighbouring squares made rocks or opened together)
+      const dark = (i: number) => (Math.floor(i / cols) + (i % cols)) % 2;
+      for (let step = 0; step < 800 && now > 1; step++) {
+        const next = [...rock], u = rand(), rocks = next.flatMap((x, i) => (x ? [i] : []));
+        if (u < 0.5 && rocks.length) {
+          const i = rocks[Math.floor(rand() * rocks.length)], [r, c] = at(i);
+          const to = shuffle([[r - 2, c], [r + 2, c], [r, c - 2], [r, c + 2], [r - 1, c - 1], [r - 1, c + 1], [r + 1, c - 1], [r + 1, c + 1]].filter(([y, x]) => y >= 0 && x >= 0 && y < rows && x < cols).map(([y, x]) => y * cols + x).filter((j) => !next[j]))[0];
+          if (to === undefined) continue;
+          next[i] = false; next[to] = true;
+        } else {
+          const i = Math.floor(rand() * n), j = shuffle(near4(i))[0];
+          if (next[i] !== next[j] || dark(i) === dark(j)) continue;
+          next[i] = next[j] = !next[i];
+        }
+        const k = await count(next);
+        if (k >= 1 && k <= now) { rock.splice(0, n, ...next); now = k; }
+      }
+      // then fewer rocks (people use about one square in eight): a dark one and a light one taken
+      // out together while the loop stays the only one
+      for (let t = 0; t < 200 && now === 1; t++) {
+        const rocks = rock.flatMap((x, i) => (x ? [i] : [])), d = rocks.filter((i) => dark(i)), l = rocks.filter((i) => !dark(i));
+        if (!d.length || !l.length) break;
+        const next = [...rock];
+        next[d[Math.floor(rand() * d.length)]] = next[l[Math.floor(rand() * l.length)]] = false;
+        if ((await count(next)) === 1) rock.splice(0, n, ...next);
+      }
+      if (process.env.DEBUG) console.error(`simple loop, rocks only: ${now} loops left, ${rock.filter(Boolean).length} rocks`);
+      if (now === 1 && await accepts(specOf(rock))) result = specOf(rock);
     } else if (genre === "simple-loop") {
       // a few rocks; a random loop through every other square; then walls (which the loop never
       // crosses) until it's the only one
@@ -645,12 +756,29 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       result = await narrow(base, target, pool);
     } else if (genre === "nurikabe") {
       // a wall first (connected, no pools, islands of 1..5), then one number per island
+      // (sparse: one island per 8 to 14 cells, a sixth of them at most of size 1)
       const wallSpec: GridSpec = { size: [rows, cols], marks: ["shade"], rules: [{ rule: "connected" }, { rule: "no-pool" }, { rule: "size", min: 1, max: 5 }], givens: [] };
       const n = rows * cols;
-      const target = await randomBoard(wallSpec, `:- #count{I: shaded(I)} < ${Math.round(n * 0.45)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.62)}.`);
+      const fewer = o.sparse ? `\n:- #count{R: root(R)} < ${Math.round(n / 14)}.\n:- #count{R: root(R)} > ${Math.round(n / 8)}.\n:- #count{R: root(R), size(R,1)} > ${Math.max(1, Math.round(n / 8 / 6))}.` : "";
+      const target = await randomBoard(wallSpec, `:- #count{I: shaded(I)} < ${Math.round(n * 0.45)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.62)}.${fewer}`);
       if (!target) continue;
       const islands = regionsOf(makePuzzle(wallSpec), target).cells;
-      for (let t = 0; t < 12 && !result; t++) {
+      if (o.sparse) {
+        // big islands rarely come out unique with numbers placed at random: move one number at a
+        // time instead, within an island the other answer shades part of, up to 40 times
+        const pos = islands.map((cs) => cs[Math.floor(rand() * cs.length)]);
+        for (let t = 0; t < 40 && !result; t++) {
+          const spec: GridSpec = { genre, size: [rows, cols], givens: islands.map((cs, k) => ({ at: "cell", cell: at(pos[k]), kind: "number", value: cs.length })) };
+          const sols = await solveN(makePuzzle(spec), 2), alt = sols.find((b) => boardKey(spec, b) !== boardKey(spec, target));
+          if (sols.length === 1 && await accepts(spec)) { result = spec; break; }
+          const bad = alt ? islands.flatMap((cs, k) => (cs.length > 1 && cs.some((i) => alt.shade[i] === 1) ? [k] : [])) : [];
+          const movable = bad.length ? bad : islands.flatMap((cs, k) => (cs.length > 1 ? [k] : []));
+          if (!movable.length) break;
+          const k = movable[Math.floor(rand() * movable.length)];
+          pos[k] = islands[k][Math.floor(rand() * islands[k].length)];
+        }
+      }
+      for (let t = 0; t < 12 && !result && !o.sparse; t++) {
         const givens: Given[] = islands.map((cs) => ({ at: "cell", cell: at(cs[Math.floor(rand() * cs.length)]), kind: "number", value: cs.length }));
         const spec: GridSpec = { genre, size: [rows, cols], givens };
         if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;

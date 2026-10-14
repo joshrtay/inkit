@@ -16,6 +16,7 @@ BANDS=$(meta bands || true)              # GEN_BANDS, default all
 RESUME=$(meta resume || true)            # an earlier run to carry on from
 HUMAN=$(meta human || true)              # GEN_HUMAN: aim at human-made puzzles
 BREAKIN=$(meta breakin || true)          # GEN_BREAKIN: candidates per hard or expert job
+THREAD=$(meta thread || true)            # GEN_THREAD: rank them by break-in and a narrow thread
 CAP=$(meta cap || true)                  # GEN_CAP: seconds one job may take (default 600)
 OUT=$BUCKET/results/$RUN
 exec > /var/log/gen-job.log 2>&1
@@ -63,6 +64,7 @@ export DEDUCE_JOBS=$JOBS GEN_DEADLINE=$((LIMIT - 900 - CAP)) GEN_CAP=$CAP
 [ -n "$BANDS" ] && export GEN_BANDS=$BANDS
 [ -n "$HUMAN" ] && export GEN_HUMAN=$HUMAN
 [ -n "$BREAKIN" ] && export GEN_BREAKIN=$BREAKIN
+[ -n "$THREAD" ] && export GEN_THREAD=$THREAD
 timeout $((LIMIT - CAP)) node puzzles/difficulty/gen-set.ts "$PER" > summary.md 2> gen.log
 tail -5 gen.log
 kill $SYNC

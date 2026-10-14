@@ -129,6 +129,62 @@ Defaults are unchanged: without GEN_HUMAN, settings or GEN_BREAKIN, gen-set make
 puzzles from the same seeds, and generate.ts without `symmetry` or `letters` the same puzzles
 (checked against the old generator, with and without `accept`).
 
+### The rest of the gap (docs/research-human-gap.md)
+
+Five more options, from the gap report's list. All are off by default; human mode and the fleet
+plan turn them on.
+
+- **A "beyond" band** (bands.ts, after expert): what expert can't solve, solved with everything
+  expert has plus at most BEYOND_SPLITS (3) case splits, each refuted by propagation alone
+  (deduce's tier 2: clingo unsatisfiable with no choices), and no search. deduce.ts gained
+  `maxSplitSteps` (case splits allowed in a solve), and `maxTier: 2` now stops before tier 3 and
+  spends no clingo time on deep candidates; in quick mode a split is settled unexplained, like the
+  windows' facts, and named "splits" (a technique: every beyond puzzle requires it). bandOf tries
+  every band, so a puzzle is beyond only when expert fails. gen-set's beyond jobs check with a
+  20-second budget (8 below). The explained solve kept for the record allows splits uncapped
+  (another order may need one more), still no search. gen-set makes beyond only when asked: in
+  GEN_BANDS, in a genre's own bands (`hitori:8:expert+beyond`), or in human mode for the genres
+  whose targets put BEYOND_MIN (30%) or more of human puzzles there; a beyond arm's quota is its
+  genre's times the targets' beyond share over hard's or expert's (beyondWeight, 0.25 to 2).
+  human-gap.ts keeps its own meaning of beyond (expert can't, measured with the defaults).
+- **A narrow thread** (interest.ts threadOf, threadScores; GEN_THREAD=1): among a job's break-in
+  candidates (GEN_BREAKIN), all are made (no early stop), and the kept one has the best break-in
+  plus thread score: half the fewest open easy moves per round per cell among the candidates over
+  its own, half the fewest facts per step over its own (so 1 for the narrowest). It is read off the
+  explained solve the job makes anyway: no extra solving. GEN_CANDS=file writes every candidate's
+  record, the kept one marked, for measuring.
+  - Why not rank by the classifier's size-free score instead: its features are mostly in the job's
+    record, but `required` would need requiredOf for every candidate (a dozen more quick solves
+    each), and the spec features (symmetry above all) would have to be ported from Python and kept
+    in step. Within a job, the model is near saturation for the new arms (0.9–1.0 for 10 × 10
+    beyond Masyu and Slitherlink), and it rewards whatever separated the old fleet from human
+    puzzles, which moves with every fleet. It stays the offline yardstick:
+    `human_gap.py score <records>` scores new puzzles by their genre's size-free fleet model.
+- **Sparser clues, bigger numbers** (generate.ts `sparse`; arm setting `sparse`): Nurikabe, one
+  island per 8–14 cells and few of size 1 (still at most 5 cells: bigger islands make every
+  uniqueness check several times slower), each number moved within the islands the other answer
+  shades until unique, not placed at random again; Shikaku, rectangles up to 12 cells, one per 6
+  cells at most; Spiral Galaxies, galaxies grown to 4–13 cells and layouts with more than one per 4
+  cells drawn again; the genres made by adding numbers (Cave), the biggest numbers added first and
+  the smallest taken out first.
+- **The clue kinds people use:** Skyscrapers with outside clues only (`outsideOnly`, setting
+  `outside`): when no outside clue tells two answers apart, the other answer becomes the target.
+  Simple Loop with rocks only (`blocksOnly`, setting `blocks`): a random loop over 80–94% of the
+  grid, rocks on the rest, then rocks moved while no more loops fit (a loop visits as many dark
+  squares as light ones, so moves keep the balance: a rock to a square of its colour, or a dark and
+  a light square together), until one is left, then dark-and-light pairs of rocks taken out while
+  it stays one (about one rock per 6–8 squares at 10 × 10; human puzzles median one per 8).
+- **Star Battle:** 3 stars (`stars=3`; the engine's rules take any number; areas grown one per
+  star, then grouped three at a time). 10 × 10 can't hold 30 stars that don't touch (each 2 × 2
+  block holds one at most); human 3-star puzzles are 14 × 14, and ours at 14 take about two
+  minutes for the board alone, so no band comes out in a 10-minute job: not in the fleet. Even
+  areas (`evenAreas`, setting `even`): the hill-climb that makes the areas unique never lets their
+  size spread (standard deviation over mean) pass EVEN_SPREAD (0.5) or what it already is. At 0.4
+  no 2-star hard puzzle came out (0 of 4); at 0.5, 4 of 4, spread 0.42 (human puzzles' 0.45).
+
+Defaults still unchanged: generate.ts without the new options takes the same random draws, and
+gen-set without GEN_THREAD, beyond or the new settings runs the same jobs.
+
 ### Measured (a Mac, DEDUCE_JOBS=2, 10-minute cap)
 
 Two attempts per arm at hard and expert, one at easy and medium. Seconds per attempt; the band
@@ -163,30 +219,89 @@ a puzzle came out in when it missed.
   the time (Slitherlink 10 93 → 258 s, Sudoku 49 → 104 s), and one Hidoku job ran out. The fleet
   uses 2.
 
+### Measured: the rest of the gap (a Mac, DEDUCE_JOBS=2, 10-minute cap)
+
+Human mode. Most arms ran with 3 candidates per job and GEN_THREAD (and GEN_CANDS, which explains
+every candidate: dearer than the fleet's 2), so seconds are per job of 3; the arms marked 1 ran one
+candidate. All 42 puzzles made passed gen-audit.ts: unique, in their band, symmetric where drawn.
+
+| Arm | Made | Seconds per job | What came out |
+|---|---|---|---|
+| Masyu 10 beyond | 4/4 | 444 | 2–3 splits each; every candidate made (9) was beyond |
+| Slitherlink 10 beyond | 4/4 | 385 | 2–3 splits; 10 of 10 candidates beyond |
+| Cave 10 beyond, sparse | 4/5 (1 timeout) | 302 | 11 of 11 beyond; 0.28–0.34 clues per cell |
+| Hitori 8 beyond | 3/4 (1 no unique board) | 55 | 4 of 4 beyond |
+| Masyu 8, Slitherlink 8 beyond (1) | 1/1, 1/1 | 121, 60 | |
+| Nurikabe 8 beyond: sparse; plain (1) | 0/7; 0/2 | timeouts; no board | none |
+| Nurikabe 8 expert, sparse (3; 1) | 0/2; 0/1 | timeouts | none |
+| Masyu 10 hard; Slitherlink 10 hard | 2/2; 2/2 | 248; 287 | (3 of 13 candidates came out medium) |
+| Simple Loop 10, rocks only: hard; expert | 2/2; 2/2 | 67; 444 | 12–18 rocks (human median 12 at 10 × 10) |
+| Skyscrapers 6, outside only, hard | 2/2 | 327 | 9 outside clues, 0.25 per cell (human 0.25) |
+| Shikaku 8 hard, sparse | 2/2 | 163 | 0.17 clues per cell (human 0.16; ours were 0.31), up to 12 |
+| Spiral Galaxies 7 hard, sparse | 2/2 | 50 | 0.22–0.24 per cell (human 0.22; ours 0.42) |
+| Cave 10 hard, sparse | 2/2 | 141 | 0.26–0.30 per cell, numbers 2–13 |
+| Star Battle 10, 2 stars, even: hard (1) | 4/4 | 167–526 | spread 0.42 (at EVEN_SPREAD 0.4: 0/4) |
+| Star Battle 10, 2 stars, even: medium (1) | 1/2 | 49 | |
+| Star Battle 14, 3 stars, even: medium (3); easy (1) | 0/2; 0/1 | timeouts | |
+
+- **Beyond:** where it works, every attempt that made a puzzle made a beyond one (34 of 34
+  candidates), with 2 or 3 case splits. Time per candidate is about that of expert at the same
+  size. Nurikabe doesn't come out at all yet, plain or sparse.
+- **Sparse:** Shikaku and Spiral Galaxies reach the human density. Nurikabe's sparse boards are
+  unique without the solver in the loop (about 50 s, 0.13 clues per cell, one 1 in eight) but
+  none reached expert or beyond in 10 minutes. Cave's numbers grow, but its density hardly moves
+  at 10 × 10 (0.26–0.34 against 0.20): it's the band's accept that keeps clues, not the order.
+- **Human-likeness** (`human_gap.py score`: each genre's size-free fleet model, fitted on the human
+  sample against the whole fleet): the new arms score far above the fleet. Means over all
+  candidates: Simple Loop 1.00 (fleet median 0.001), Skyscrapers 0.99 (0.001), Spiral Galaxies
+  1.00 (0.004), Masyu beyond 1.00 and hard 0.31 (0.015), Slitherlink beyond 0.98 and hard 0.48
+  (0.04), Cave beyond 0.88 and hard 0.16 (0.0003), Shikaku 0.26 (0.013), Hitori beyond 0.30
+  (0.07). That is the settings (size, symmetry, clue kinds, density, beyond), not the selection.
+- **The preferences don't raise it.** In 30 jobs with 2–3 candidates each, the kept candidate
+  scored higher than the others' mean in 16, lower in 13 (mean −0.23 in logit); by the thread
+  alone −0.66, by the break-in alone −0.11: noise around zero. The thread preference does what it
+  says (the kept candidate has 21% fewer open easy moves per round per cell than the others, and
+  2% fewer facts per step), but the model doesn't reward it: within a size and band, its weight
+  on open moves is small and of either sign (Slitherlink +0.56, Hitori −0.56, Masyu −0.16), and
+  what moves its score between candidates is symmetry, the share of case splits and the step
+  count. The fleet keeps GEN_THREAD for what it measures directly, not for the score.
+
 ### The fleet (run-gen-fleet.sh, `GEN_PLAN=human`)
 
 16 spot n2-highcpu-32 for 4 hours, 512 vCPUs: six in us-central1, five in each of us-east4 and
 us-west4. Every VM has its own arms (a genre's hard and expert on different VMs where they're
-dear), all with GEN_HUMAN and GEN_BREAKIN=2.
+dear), all with GEN_HUMAN, GEN_BREAKIN=2 and GEN_THREAD=1 (both candidates always made at hard
+and above, the better break-in plus thread kept). gen-job.sh and gen-fleet-watch.sh pass
+GEN_THREAD through.
 
 | VMs | Band | Arms |
 |---|---|---|
 | 1 | hard, expert | Sudoku 9 |
-| 2 | hard; expert | Slitherlink 10 |
-| 2 | hard | Star Battle 10, 2 stars; Star Battle 10, 1 star (and expert) |
-| 2 | hard; expert | Masyu 10, Cave 10 |
-| 1 | hard, expert | Slitherlink, Masyu, Cave 8 |
-| 1 | expert (Shikaku hard too) | Nurikabe 8, Hitori 8, Shikaku 8 |
-| 2 | hard, expert | Galaxies 7, Hidoku 6, Fillomino 6; Fill-in 6, Minesweeper 8, Simple Path 7, Numberlink 7 |
-| 1 | hard, expert | Skyscrapers 6, 7; Easy as ABC 6 (4 letters), 7 (5) |
-| 3 | medium | the 10 × 10 genres; the others |
+| 2 | hard; expert and beyond | Slitherlink 10 |
+| 2 | hard | Star Battle 10, 2 stars, even; Star Battle 9, 2 stars, even, and 10, 1 star, even (and expert) |
+| 2 | hard; expert | Masyu 10, Cave 10 (sparse) |
+| 1 | beyond | Masyu 10, Cave 10 (sparse), Slitherlink 8, Masyu 8 |
+| 1 | expert, beyond (Shikaku hard, expert) | Nurikabe 8 (and sparse, on trial), Hitori 8, Shikaku 8 (sparse) |
+| 2 | hard, expert | Galaxies 7 (sparse), Simple Loop 10 (rocks only), Hidoku 6, Fillomino 6; Fill-in 6, Minesweeper 8, Simple Path 7, Numberlink 7 |
+| 1 | hard, expert | Skyscrapers 6, 7 (outside only); Easy as ABC 6 (4 letters), 7 (5); Slitherlink, Masyu, Cave (sparse) 8 |
+| 3 | medium | the 10 × 10 genres; the others (with the new settings) |
 | 1 | easy | all that make easy |
 
-**Expected,** assuming an n2 vCPU at half a Mac core: about 29 jobs × 3.5 hours per VM, 40,000–55,000
-puzzles, 12,000–18,000 of them hard or expert, about 18,000 at 10 × 10. The dearest: 2-star Star
-Battle (a few hundred) and Nurikabe and Shikaku expert (about a hundred each). **Cost:** 2,048
-vCPU-hours, about $20 at $0.01 per vCPU-hour; disks and transfer under $1. With the GPU VM up (8
-vCPUs), leave one VM out.
+**Expected,** assuming an n2 vCPU at half a Mac core and 2 candidates per job (about two thirds of
+the 3-candidate times above): about 32 job slots × 3.5 hours per VM.
+- **Hard, expert and beyond VMs (12):** 150–300 Mac-seconds per job at 10 × 10, so 300–600 on
+  the fleet, about 6–12 jobs per slot-hour, 700–1,300 attempts per VM, three quarters made:
+  8,000–12,000 puzzles.
+- **Beyond:** about 1,500–2,500 (the beyond VM about 600, Slitherlink's expert-and-beyond VM
+  about 300, Hitori 8 the rest; Nurikabe probably none).
+- **Medium and easy VMs (4):** 30–100 Mac-seconds per job: 10,000–15,000 puzzles.
+- **In all:** 18,000–27,000 puzzles, about half of the last plan's 40,000–55,000: both
+  candidates are always made, and the arms are 10 × 10 and beyond. The dearest: 2-star Star Battle
+  in even areas (a few hundred), Simple Loop 10 at expert (a few hundred).
+- **Cost:** unchanged, 2,048 vCPU-hours, about $20 at $0.01 per vCPU-hour; disks and transfer
+  under $1. With the GPU VM up (8 vCPUs), leave h-medium-c out (15 VMs, 480 vCPUs).
+- **Wasted at most:** an arm stops after 6 attempts with nothing made, so the Nurikabe trials
+  cost about an hour of one job slot each.
 
 Without human-targets.json the mode runs on its defaults (equal quotas, DEFAULT_SYMMETRY, and
 rarity balancing); with it, the quotas, symmetry shares and family steering follow it.

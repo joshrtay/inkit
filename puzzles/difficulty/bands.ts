@@ -14,6 +14,11 @@
 //           chains, ...), each a technique of its own, in a stage of their own after counting
 //           and before the mined families and pockets (those check thousands of windows a
 //           round; the genre's own reasoning is cheaper, and nearer what a person reaches for)
+//   beyond  + a few shallow case splits: what expert can't finish, solved with everything expert
+//           has plus at most BEYOND_SPLITS case splits on the whole board, each refuted by
+//           propagation alone (deduce's tier 2), and no search (tier 3). Hand-made puzzles go here
+//           often (Masyu 74%, Nurikabe 79%, Slitherlink 62%, Hitori 57%, Cave all:
+//           docs/research-human-gap.md). Not a default band of gen-set.ts: human mode's, or asked for
 //
 // Hard by genre. For some genres the general hard techniques (triples, counting, the line
 // families) add nothing over medium: they reason through a structure the windows don't see
@@ -46,7 +51,8 @@
 //   Easy as ABC      nothing: fish is an X-wing, an advanced technique.
 //
 // A technique is *required* by a puzzle when the band's solver solves it and gets stuck with that
-// one technique taken away (requiredOf). The checks use deduce's quick mode: facts are settled as
+// one technique taken away (requiredOf). Beyond's case splits are the technique "splits": every
+// beyond puzzle requires them. The checks use deduce's quick mode: facts are settled as
 // found, unexplained, which is all a yes or no needs.
 import { genres, makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
@@ -69,7 +75,13 @@ export interface Band {
   /** more per-genre techniques for some genres only (genre → techniques), added to `techniques`
    *  for a puzzle of that genre (forGenre) */
   byGenre?: Record<string, string[]>;
+  /** case splits allowed (the technique "splits"): at most this many, each refuted by propagation
+   *  alone (deduce's tier 2, maxSplitSteps); none if not given */
+  splits?: number;
 }
+
+/** Case splits a beyond puzzle may need at most. */
+export const BEYOND_SPLITS = 3;
 
 /** The per-genre techniques in the hard band, by genre (the header says why each). Expert holds
  *  every technique. */
@@ -89,7 +101,11 @@ export const BAND_LIST: Band[] = [
   { name: "medium", stages: "t0,pairs+strips", lemmas: [], lines: false, reach: false },
   { name: "hard", stages: "t0,pairs+strips+triples,count,techniques,extra+components", lemmas: ["loop"], lines: true, reach: false, byGenre: HARD_TECHNIQUES },
   { name: "expert", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES) },
+  { name: "beyond", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES), splits: BEYOND_SPLITS },
 ];
+/** The bands reached without a case split (all but beyond): gen-set.ts's default bands. */
+export const EXPERT = BAND_LIST.findIndex((b) => b.name === "expert");
+export const SEARCH_FREE = BAND_LIST.slice(0, EXPERT + 1);
 export const bandNamed = (name: string) => {
   const b = BAND_LIST.find((x) => x.name === name);
   if (!b) throw new Error(`no band "${name}" (${BAND_LIST.map((x) => x.name).join(", ")})`);
@@ -115,6 +131,7 @@ export function techniquesOf(band: Band, genre?: string): string[] {
     out.add(fam);
   }
   if (b.lemmas.includes("parity")) out.add("parity");
+  if (b.splits) out.add("splits");
   return [...out];
 }
 
@@ -128,6 +145,7 @@ export function without(b: Band, technique: string): Band {
   if (technique === "lines") return { ...b, lines: false };
   if (technique === "reach") return { ...b, reach: false };
   if (technique === "mined") return { ...b, mined: false };
+  if (technique === "splits") { const { splits: _s, ...rest } = b; return rest; }
   if (technique in TECHNIQUES) {
     const drop = (ts: string[]) => ts.filter((t) => t !== technique);
     return { ...b, techniques: drop(b.techniques ?? []), ...(b.byGenre ? { byGenre: Object.fromEntries(Object.entries(b.byGenre).map(([g, ts]) => [g, drop(ts)])) } : {}) };
@@ -148,12 +166,15 @@ export function optionsOf(band: Band, extra: Options = {}, genre?: string): Opti
   const b = forGenre(band, genre);
   // cellAtoms in every band: Spiral Galaxies' windows are local only with it (without, each
   // holds the whole puzzle, every band solves every puzzle, and aiming above easy never ends)
-  return { stages: b.stages, lemmas: b.lemmas, defaultFamilies: b.lines, families: [...(b.reach ? [REACH_FAMILY] : []), ...(b.mined ? MINED_FAMILIES : [])], techniques: b.techniques ?? [], cellAtoms: true, maxTier: 1, ...extra };
+  // beyond: shallow case splits (tier 2, no search), at most b.splits of them
+  const splits: Options = b.splits ? { maxTier: 2, maxSplitSteps: b.splits } : { maxTier: 1 };
+  return { stages: b.stages, lemmas: b.lemmas, defaultFamilies: b.lines, families: [...(b.reach ? [REACH_FAMILY] : []), ...(b.mined ? MINED_FAMILIES : [])], techniques: b.techniques ?? [], cellAtoms: true, ...splits, ...extra };
 }
 
 export interface Quick { solved: boolean; ms: number; used: string[]; steps: number; error?: string }
 
-/** Does the band's solver solve it, with no case split or search? (quick mode, capped) */
+/** Does the band's solver solve it, with no case split or search (beyond: at most its few shallow
+ *  splits)? (quick mode, capped) */
 export async function quickSolve(spec: GridSpec, b: Band, budgetMs = 8000): Promise<Quick> {
   const t = Date.now();
   try {
@@ -166,7 +187,9 @@ export async function quickSolve(spec: GridSpec, b: Band, budgetMs = 8000): Prom
 }
 
 /** The easiest band that solves it without search (its index in BAND_LIST), or -1. Bands below
- *  `known` (an index known to solve it) are tried from the easiest up. */
+ *  `known` (an index known to solve it) are tried from the easiest up; by default every band, so a
+ *  puzzle is beyond only when expert can't solve it and a few shallow case splits can (pass EXPERT
+ *  to leave beyond out). */
 export async function bandOf(spec: GridSpec, known = BAND_LIST.length - 1, budgetMs = 8000): Promise<number> {
   for (let k = 0; k < known; k++) if ((await quickSolve(spec, BAND_LIST[k], budgetMs)).solved) return k;
   return (await quickSolve(spec, BAND_LIST[known], budgetMs)).solved ? known : -1;

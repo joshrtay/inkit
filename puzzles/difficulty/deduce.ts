@@ -132,8 +132,12 @@ export interface Options {
   /** the line families (DEFAULT_FAMILIES) where lines carry rules; default on (DEDUCE_DEFAULT_FAMILIES=0: off) */
   defaultFamilies?: boolean;
   /** the hardest tier allowed: 1 stops where only a case split or search would go on (the profile
-   *  says unsolved, with a note). Default 3 */
+   *  says unsolved, with a note); 2 allows shallow case splits (refuted by propagation alone) but no
+   *  search, and spends no clingo time on deep candidates. Default 3 */
   maxTier?: Tier;
+  /** case splits (tier-2 steps) allowed in the whole solve: past this many it stops, unsolved, with
+   *  a note (bands.ts's "beyond": a few shallow splits, not a split-driven solve). Default no limit */
+  maxSplitSteps?: number;
   /** only whether it solves: every fact a stage finds is settled at once, unexplained (cost 0, no
    *  shape; `uses` names the technique: the stage family, "lines", "reach" or "mined" for extra families, "loop"
    *  or "component" for a lemma's window), for a quick check (puzzles/difficulty/bands.ts). Window deductions only grow as more
@@ -1995,6 +1999,7 @@ end
     });
   };
   let pool: number[] = [], deep: { m: number; cost: number }[] = [], sat: number[] = [], escalated = false, escalatedDeep = false;
+  let splitSteps = 0;   // tier-2 steps taken (Options.maxSplitSteps)
 
   while (undecided > 0) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
@@ -2030,14 +2035,17 @@ end
       break;
     }
     if (progressed) continue;
-    if ((opts.maxTier ?? 3) < 2) { notes.push("stuck: only a case split or search would go on"); break; }
+    const maxTier = opts.maxTier ?? 3;
+    if (maxTier < 2) { notes.push("stuck: only a case split or search would go on"); break; }
+    if (opts.maxSplitSteps !== undefined && splitSteps >= opts.maxSplitSteps) { notes.push(`stuck: more than ${opts.maxSplitSteps} case splits`); break; }
 
     // tier 2: assume a mark the other way; propagation alone must contradict it. What's
     // refutable this way stays so as more is known, so one clingo call fills a pool to draw on.
     pool = pool.filter((m) => known[m] < 0);
     const cand = order().slice(0, maxSplits);
     if (!pool.length && !escalatedDeep) {
-      const res = hardRound(cand, Math.min(cand.length, maxDeep));
+      // (no deep candidates when search isn't allowed)
+      const res = hardRound(cand, maxTier < 3 ? 0 : Math.min(cand.length, maxDeep));
       pool = res.filter((x) => x.unsat && x.choices === 0).map((x) => x.m);
       deep = res.filter((x) => x.unsat && x.choices > 0).sort((a, b) => a.cost - b.cost);
       sat = res.filter((x) => x.sat).map((x) => x.m);
@@ -2046,9 +2054,15 @@ end
       const rank = new Map(cand.map((m, k) => [m, k]));
       pool.sort((a, b) => rank.get(a)! - rank.get(b)!);
       const m = pool.shift()!, v = answer[m] === 1;
-      take([{ ...wideStep(m, v, 2), where: `assume ${factText(m, !v)}: a contradiction` }]);
+      splitSteps++;
+      if (opts.quick) {
+        // settled at once, unexplained, as the windows' facts are
+        path.push({ tier: 2, round, where: `assume ${factText(m, !v)}: a contradiction`, cells: markCells[m], facts: [{ mark: markName[m], value: v, text: factText(m, v) }], uses: ["splits"], cost: 0 });
+        settle(m, v);
+      } else take([{ ...wideStep(m, v, 2), where: `assume ${factText(m, !v)}: a contradiction` }]);
       continue;
     }
+    if (maxTier < 3) { notes.push("stuck: only a search would go on"); break; }
 
     // tier 3: the fact that takes the least search to prove
     deep = deep.filter((x) => known[x.m] < 0);

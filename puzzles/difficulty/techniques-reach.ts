@@ -7,11 +7,11 @@
 //   REACH_DUMP=file   append the puzzles that still need search to it
 import { appendFileSync } from "node:fs";
 import { generate } from "../grid/generate.ts";
-import { BAND_LIST, quickSolve, without } from "./bands.ts";
+import { EXPERT, SEARCH_FREE, quickSolve, without } from "./bands.ts";
 import { TECHNIQUES } from "./deduce.ts";
 
 const [genre, size, count = "10", first = "1"] = process.argv.slice(2);
-const expert = BAND_LIST.at(-1)!;
+const expert = SEARCH_FREE[EXPERT];
 const bare = Object.keys(TECHNIQUES).reduce((b, t) => without(b, t), expert);
 const tally = new Map<string, number>();
 for (let k = 0; k < +count; k++) {
@@ -19,7 +19,7 @@ for (let k = 0; k < +count; k++) {
   const spec = await generate({ genre, rows: +size, cols: +size, seed });
   if (!spec) { console.log(`#${seed}: none`); continue; }
   let band = "-";
-  for (const b of BAND_LIST.slice(0, -1)) if ((await quickSolve(spec, b, 30000)).solved) { band = b.name; break; }
+  for (const b of SEARCH_FREE.slice(0, -1)) if ((await quickSolve(spec, b, 30000)).solved) { band = b.name; break; }
   const t = Date.now();
   const withT = band === "-" ? await quickSolve(spec, expert, 60000) : null;
   const ms = Date.now() - t;
