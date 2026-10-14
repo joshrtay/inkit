@@ -1,0 +1,815 @@
+{
+ "_about": "Human-made puzzles' distributions per genre, for steering the generator (puzzles/difficulty/human-targets.md). Summary statistics only. Made by human_gap.py.",
+ "akari": {
+  "n": 1485,
+  "nSolved": 50,
+  "sizes": {
+   "10": 0.592,
+   "17": 0.218,
+   "14": 0.048,
+   "11": 0.035,
+   "6": 0.031,
+   "15": 0.022,
+   "12": 0.02,
+   "13": 0.018,
+   "9": 0.017
+  },
+  "nonSquare": 0.36,
+  "upTo12": 0.442,
+  "settings": {},
+  "clueDensity": [
+   0.09,
+   0.16
+  ],
+  "clueDensityMedian": 0.125,
+  "symmetry": {
+   "rot180": 0.858,
+   "none": 0.11,
+   "mirror": 0.032
+  },
+  "bands": {
+   "easy": 0.44,
+   "medium": 0.26,
+   "beyond": 0.18,
+   "hard": 0.1,
+   "expert": 0.02
+  },
+  "families": {
+   "decided[in sight@line]; sight@line[in decided]": 0.4319,
+   "count@local[in decided]; decided[in count@local]": 0.2213,
+   "decided[in sight@local]; sight@local[in decided]": 0.0753,
+   "count@local[t decided, x sight@line]; decided[in sight@line, t count@local]; sight@line[in decided, x count@local, x sight@line]+": 0.0739,
+   "count@line[in decided]; decided[in count@line]": 0.0234,
+   "decided[in sight@line, t sight@line]; sight@line[in decided, x sight@line]; sight@line[t decided, x sight@line]": 0.0108,
+   "decided[in sight@line, t sight@local]; sight@line[in decided, x sight@line, x sight@local]+; sight@local[t decided, x sight@line]": 0.007,
+   "count@local[in decided, x sight@line]; decided[in count@local, in sight@line, t sight@line]; sight@line[in decided, x count@local, x sight@line]; sight@line[t decided, x count@local, x sight@line]": 0.0066,
+   "count@local[in decided, x sight@line, x sight@local]; decided[in count@local, in sight@line, t sight@local]; sight@line[in decided, x count@local, x sight@local]; sight@local[t decided, x count@local, x sight@line]": 0.0056,
+   "count@local[t count@local, t decided, x sight@line]; count@local[t count@local, x sight@line]; decided[in sight@line, t count@local]; sight@line[in decided, x count@local, x sight@line]+; sight@line[x count@local, x sight@line]": 0.0047,
+   "decided[in sight@local, t sight@line]; sight@line[t decided, x sight@local]; sight@local[in decided, x sight@line]": 0.0047,
+   "decided[in sight@local, t sight@line]; sight@line[t decided, x sight@local]; sight@local[in decided, x sight@line, x sight@local]+": 0.0047,
+   "count@local[in decided, x count@local]; count@local[x count@local]; decided[in count@local]": 0.0047,
+   "decided[in sight@line]; sight@line[in decided, x sight@line]; sight@line[x sight@line]": 0.0042,
+   "count@local[x decided, x sight@line]; decided[in sight@line, x count@local, x sight@line]; sight@line[in decided, x count@local, x sight@line]; sight@line[x count@local, x decided, x sight@line]": 0.0042,
+   "decided[in sight@line, t sight@local]; sight@line[in decided, x sight@local]; sight@local[t decided, x sight@line]": 0.0042,
+   "count@local[t count@local, t decided, x sight@line]; count@local[t count@local, x sight@line]; decided[in sight@line, t count@local, x sight@line]; sight@line[in decided, x count@local, x sight@line]; sight@line[x count@local, x decided, x sight@line]+": 0.0037,
+   "count@block[in decided]; decided[in count@block]": 0.0037,
+   "decided[x sight@line]; sight@line[x decided, x sight@line]+": 0.0028,
+   "count@local[t decided, x sight@line]; decided[in sight@line, t count@local]; sight@line[in decided, x count@local]": 0.0028,
+   "count@local[x decided, x sight@local]; decided[in sight@local, x count@local]; sight@local[in decided, x count@local]": 0.0028,
+   "count@local[x count@local, x decided]+; decided[x count@local]": 0.0023,
+   "count@local[t decided, x sight@line]; count@local[x sight@line]; decided[in sight@line, t count@local]; sight@line[in decided, x count@local, x sight@line]+; sight@line[x count@local, x sight@line]": 0.0023,
+   "count@local[t decided, x sight@line]; decided[in sight@line, t count@local]; sight@line[in decided, x count@local, x sight@line]+; sight@line[x count@local, x sight@line]": 0.0023,
+   "count@local[in decided, x sight@line]; decided[in count@local, x sight@line]; sight@line[x count@local, x decided]": 0.0019
+  },
+  "required": {
+   "pairs": 0.24,
+   "lines": 0.12,
+   "strips": 0.02,
+   "mined": 0.02
+  }
+ },
+ "aquarium": {
+  "n": 20,
+  "nSolved": 14,
+  "sizes": {
+   "7": 0.667,
+   "6": 0.167,
+   "10": 0.111,
+   "8": 0.056
+  },
+  "nonSquare": 0.1,
+  "upTo12": 0.9,
+  "settings": {},
+  "clueDensity": [
+   0.134,
+   0.262
+  ],
+  "clueDensityMedian": 0.184,
+  "symmetry": {
+   "none": 0.9,
+   "rot180": 0.1
+  },
+  "bands": {
+   "easy": 0.786,
+   "medium": 0.143,
+   "hard": 0.071
+  },
+  "families": {
+   "count@region[in decided]; decided[in count@region]": 0.376,
+   "count@line[in decided, x count@region]; count@region[in decided, x count@line]; decided[in count@line, in count@region]": 0.2324,
+   "count@line[in decided]; decided[in count@line]": 0.1854,
+   "count@line[in count@line, in decided]+; decided[in count@line]": 0.0418,
+   "count@line[in decided, x count@region]; count@region[x count@line]; decided[in count@line]": 0.0261,
+   "count@line[in decided, x count@region]; count@region[t decided, x count@line]; decided[in count@line, t count@region]": 0.0209,
+   "count@line[in decided, x count@region]; count@region[x count@line, x decided]; decided[in count@line, x count@region]": 0.0209,
+   "count@line[in count@line, in decided, x count@region]+; count@region[t decided, x count@line]; decided[in count@line, t count@region]": 0.0104,
+   "count@line[in decided, x count@line, x count@region]; count@line[x count@line, x count@region]; count@region[in decided, x count@line]; count@region[x count@line]; decided[in count@line, in count@region]": 0.0078,
+   "count@line[in decided, x count@region]; count@region[t count@region, t decided, x count@line]; count@region[t count@region, x count@line]; decided[in count@line, t count@region]": 0.0078,
+   "count@line[in decided, x count@region]; count@region[t count@region, t decided, x count@line]; count@region[t count@region, x count@line, x decided]; decided[in count@line, t count@region, x count@region]": 0.0078,
+   "count@line[in count@line, in decided, x count@region]+; count@region[in decided, x count@line]; decided[in count@line, in count@region]": 0.0052,
+   "count@line[in decided, x count@region]; count@region[x count@line, x decided]+; decided[in count@line, x count@region]": 0.0052,
+   "count@line[in count@line, in decided, x count@region]+; count@region[x count@line, x decided]; decided[in count@line, x count@region]": 0.0052,
+   "count@line[in decided, x count@region]; count@region[in decided, t count@region, x count@line]; count@region[t count@region, x count@line]; decided[in count@line, in count@region]": 0.0052,
+   "count@line[t count@line, x count@region, x decided]+; count@region[t count@region, t decided, x count@line]+; count@region[t count@region, x count@line, x decided]; decided[t count@region, x count@line, x count@region]": 0.0026,
+   "count@line[in decided, x count@region]; count@region[t decided, x count@line]+; decided[in count@line, t count@region]": 0.0026,
+   "count@line[in count@line, in decided, x count@region]+; count@region[x count@line]; decided[in count@line]": 0.0026,
+   "count@line[in decided, t count@line, x count@region]; count@line[t count@line, t count@region, t decided, x count@region]; count@region[in decided, t count@line, t count@region, x count@line]; count@region[t count@region, t decided, x count@line]+; decided[in count@line, in count@region, t count@line, t count@region]": 0.0026,
+   "count@line[in decided, t count@line, x count@region]; count@line[t count@line, t decided, x count@region]; count@region[in decided, t count@region, x count@line]; count@region[t count@region, x count@line]+; decided[in count@line, in count@region, t count@line]": 0.0026,
+   "count@line[in decided, t count@line, x count@line, x count@region]; count@line[t count@line, t decided, x count@line, x count@region]; count@line[x count@line]; count@region[t count@region, t decided, x count@line]+; decided[in count@line, t count@line, t count@region]": 0.0026,
+   "count@line[in decided, t count@line, x count@line, x count@region]; count@line[t count@line, t count@region, t decided, x count@line, x count@region]; count@line[t count@region, x count@line]; count@region[in decided, t count@line, t count@region, x count@line]; count@region[t count@line, t count@region, x count@line]; count@region[t count@region, x count@line]; decided[in count@line, in count@region, t count@line]": 0.0026,
+   "count@line[in decided, x count@region]; count@region[in decided, t count@region, x count@line]; count@region[t count@region, t decided, x count@line]; decided[in count@line, in count@region, t count@region]": 0.0026,
+   "count@line[in decided, x count@region]; count@line[x count@region]; count@region[t count@region, t decided, x count@line]; count@region[t count@region, x count@line]+; count@region[x count@line]; decided[in count@line, t count@region]": 0.0026,
+   "count@line[in count@line, in decided, t count@region, x count@line]+; count@line[t decided, x count@line, x count@region]+; count@region[t count@line, t count@region, t decided, x count@line]; count@region[t count@region, x count@line]+; decided[in count@line, t count@line, t count@region]": 0.0026
+  },
+  "required": {
+   "strips": 0.071,
+   "lines": 0.071
+  }
+ },
+ "cave": {
+  "n": 20,
+  "nSolved": 19,
+  "sizes": {
+   "10": 0.9,
+   "6": 0.05,
+   "9": 0.05
+  },
+  "nonSquare": 0.0,
+  "upTo12": 1.0,
+  "settings": {},
+  "clueDensity": [
+   0.119,
+   0.244
+  ],
+  "clueDensityMedian": 0.195,
+  "symmetry": {
+   "rot180": 0.7,
+   "none": 0.3
+  },
+  "bands": {
+   "beyond": 1.0
+  },
+  "families": {
+   "decided[]; sight@grid[]": 0.3657,
+   "decided[in sight@grid]; sight@grid[in decided]": 0.124,
+   "decided[t sight@grid]; sight@grid[t decided]": 0.1147,
+   "connect@grid[in decided, in sight@grid]; decided[in connect@grid]; sight@grid[in connect@grid]": 0.1136,
+   "connect@grid[in connect@grid, in decided, in sight@grid]+; decided[in connect@grid]; sight@grid[in connect@grid]": 0.0837,
+   "decided[x sight@grid]; sight@grid[x decided]": 0.0537,
+   "connect@grid[in decided, in sight@grid]; decided[in connect@grid, t sight@grid]; sight@grid[in connect@grid, t decided]": 0.0434,
+   "connect@grid[in connect@grid, in decided, in sight@grid]+; decided[in connect@grid, t sight@grid]; sight@grid[in connect@grid, t decided]": 0.0227,
+   "connect@grid[in decided, in sight@grid]; decided[in connect@grid, in sight@grid]; sight@grid[in connect@grid, in decided]": 0.0176,
+   "connect@grid[in connect@grid, in decided, in sight@grid]; connect@grid[in connect@grid, in decided, x sight@grid]; decided[in connect@grid]; sight@grid[in connect@grid, x connect@grid]": 0.0165,
+   "connect@grid[in decided, x sight@grid]; decided[in connect@grid]; sight@grid[x connect@grid]": 0.0165,
+   "connect@grid[in connect@grid, in decided, in sight@grid]+; decided[in connect@grid, in sight@grid]; sight@grid[in connect@grid, in decided]": 0.0155,
+   "connect@grid[in connect@grid, in decided, in sight@grid]; connect@grid[in connect@grid, in decided, x sight@grid]; decided[in connect@grid, in sight@grid]; sight@grid[in connect@grid, in decided, x connect@grid]": 0.0041,
+   "connect@grid[in decided, x sight@grid]; decided[in connect@grid, t sight@grid]; sight@grid[t decided, x connect@grid]": 0.0041,
+   "connect@grid[in connect@grid, in decided, in sight@grid]; connect@grid[in connect@grid, in decided, x sight@grid]; decided[in connect@grid, t sight@grid]; sight@grid[in connect@grid, t decided, x connect@grid]": 0.0031,
+   "connect@grid[in decided, x sight@grid]; decided[in connect@grid, in sight@grid]; sight@grid[in decided, x connect@grid]": 0.001
+  },
+  "required": {}
+ },
+ "hitori": {
+  "n": 975,
+  "nSolved": 49,
+  "sizes": {
+   "12": 0.26,
+   "8": 0.199,
+   "10": 0.181,
+   "17": 0.159,
+   "15": 0.102,
+   "7": 0.032,
+   "6": 0.028,
+   "9": 0.024,
+   "5": 0.016
+  },
+  "nonSquare": 0.001,
+  "upTo12": 0.733,
+  "settings": {},
+  "clueDensity": [
+   1.0,
+   1.0
+  ],
+  "clueDensityMedian": 1.0,
+  "symmetry": {
+   "none": 1.0
+  },
+  "bands": {
+   "beyond": 0.571,
+   "expert": 0.429
+  },
+  "families": {
+   "decided[in pattern@line]; pattern@line[in decided]": 0.2273,
+   "decided[in each-once@line, in pattern@line]; each-once@line[in decided, in pattern@line]; pattern@line[in decided, in each-once@line]": 0.2236,
+   "decided[in each-once@line]; each-once@line[in decided]": 0.1478,
+   "decided[in pattern@line, t each-once@line, t pattern@line]; each-once@line[in pattern@line, t decided, x pattern@line]; pattern@line[in decided, x each-once@line, x pattern@line]; pattern@line[in each-once@line, t decided, x pattern@line]": 0.064,
+   "connect@local[in decided]; decided[in connect@local]": 0.0502,
+   "decided[in pattern@line, t each-once@line, t pattern@line]; each-once@line[in pattern@line, t decided, t pattern@line, x each-once@line]; each-once@line[t decided, x each-once@line, x pattern@line]; pattern@line[in decided, t each-once@line, t pattern@line, x each-once@line]; pattern@line[in each-once@line, t decided, t pattern@line, x each-once@line]": 0.0098,
+   "decided[in each-once@line, in pattern@line]; each-once@line[in decided, in pattern@line, x each-once@line, x pattern@line]; each-once@line[in pattern@line, x each-once@line, x pattern@line]; pattern@line[in decided, in each-once@line, x each-once@line, x pattern@line]; pattern@line[in each-once@line, x each-once@line, x pattern@line]": 0.0067,
+   "decided[in each-once@line, t each-once@line, t pattern@line]; each-once@line[in decided, x each-once@line, x pattern@line]; each-once@line[in pattern@line, t decided, x each-once@line]; pattern@line[in each-once@line, t decided, x each-once@line]": 0.0061,
+   "connect@grid[in decided]; decided[in connect@grid]": 0.0051,
+   "decided[in each-once@line, in pattern@line, t each-once@line]; each-once@line[in decided, in pattern@line, t each-once@line, x pattern@line]; each-once@line[t decided, t each-once@line, t pattern@line, x pattern@line]; pattern@line[in decided, in each-once@line, t each-once@line, x pattern@line]; pattern@line[in decided, x each-once@line, x pattern@line]; pattern@line[x each-once@line, x pattern@line]": 0.0047,
+   "decided[in each-once@line, x pattern@line]; each-once@line[in decided, x pattern@line]; pattern@line[x decided, x each-once@line]": 0.0044,
+   "decided[in each-once@line, x each-once@line, x pattern@line]; each-once@line[in decided, x each-once@line, x pattern@line]; each-once@line[in pattern@line, x decided, x each-once@line]; pattern@line[in each-once@line, x decided, x each-once@line]": 0.0034,
+   "decided[in pattern@line, t each-once@line]; each-once@line[t decided, x pattern@line]; pattern@line[in decided, x each-once@line]; pattern@line[x each-once@line]": 0.0034,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in pattern@line, t each-once@line]; each-once@line[in connect@grid, t decided, x pattern@line]; pattern@line[in connect@grid, in decided, x each-once@line]": 0.003,
+   "decided[in pattern@line, t each-once@line]; each-once@line[in pattern@line, x each-once@line]; each-once@line[t decided, x each-once@line, x pattern@line]; pattern@line[in decided, x each-once@line]; pattern@line[in each-once@line, x each-once@line]": 0.003,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, in pattern@line, t each-once@line]; each-once@line[in connect@grid, in decided, in pattern@line, t each-once@line]; each-once@line[in connect@grid, t decided, t each-once@line, t pattern@line]; pattern@line[in connect@grid, in decided, in each-once@line, t each-once@line]": 0.0027,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, in pattern@line, t each-once@line]; each-once@line[in connect@grid, in decided, in pattern@line, t each-once@line, x pattern@line]; each-once@line[in connect@grid, t decided, t each-once@line, t pattern@line, x pattern@line]; pattern@line[in connect@grid, in decided, in each-once@line, t each-once@line, x pattern@line]; pattern@line[in connect@grid, x each-once@line, x pattern@line]": 0.0027,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, in pattern@line, t each-once@line]; each-once@line[in connect@grid, in decided, in pattern@line, t each-once@line, x pattern@line]; each-once@line[in connect@grid, t decided, t each-once@line, t pattern@line, x pattern@line]; pattern@line[in connect@grid, in decided, in each-once@line, t each-once@line, x pattern@line]; pattern@line[in connect@grid, in decided, x each-once@line, x pattern@line]": 0.0027,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, in pattern@line, t each-once@line]; each-once@line[in connect@grid, in decided, in pattern@line, t each-once@line, x pattern@line]; each-once@line[in connect@grid, t decided, t each-once@line, t pattern@line, x pattern@line]+; pattern@line[in connect@grid, in decided, in each-once@line, t each-once@line, x pattern@line]; pattern@line[in connect@grid, in decided, x each-once@line, x pattern@line]": 0.0024,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, in pattern@line, t each-once@line]; each-once@line[in connect@grid, in decided, in pattern@line, x each-once@line]; each-once@line[in connect@grid, t decided, x each-once@line, x pattern@line]; pattern@line[in connect@grid, in decided, in each-once@line, x each-once@line]": 0.0024,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, t each-once@line, t pattern@line]; each-once@line[in connect@grid, in decided, t each-once@line, t pattern@line]; each-once@line[in connect@grid, in pattern@line, t decided, t each-once@line]; pattern@line[in connect@grid, in each-once@line, t decided, t each-once@line]": 0.0024,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, t each-once@line, t pattern@line]; each-once@line[in connect@grid, in pattern@line, t decided]; pattern@line[in connect@grid, in each-once@line, t decided]": 0.0024,
+   "decided[in pattern@line, t each-once@line]; each-once@line[t decided, x pattern@line]; pattern@line[in decided, x each-once@line]": 0.002,
+   "connect@grid[in decided, in each-once@line, in pattern@line]; decided[in connect@grid, in each-once@line, in pattern@line, t each-once@line, t pattern@line]; each-once@line[in connect@grid, in decided, in pattern@line, t each-once@line, t pattern@line]; each-once@line[in connect@grid, in pattern@line, t decided, t each-once@line, t pattern@line]; each-once@line[in connect@grid, t decided, t each-once@line, t pattern@line]; pattern@line[in connect@grid, in decided, in each-once@line, t each-once@line, t pattern@line]; pattern@line[in connect@grid, in each-once@line, t decided, t each-once@line, t pattern@line]": 0.002,
+   "decided[in each-once@line]; each-once@line[in decided, x pattern@line]; pattern@line[x each-once@line]": 0.002
+  },
+  "required": {
+   "component": 0.122,
+   "pairs": 0.041
+  }
+ },
+ "masyu": {
+  "n": 1459,
+  "nSolved": 50,
+  "sizes": {
+   "10": 0.735,
+   "17": 0.068,
+   "12": 0.064,
+   "15": 0.059,
+   "11": 0.03,
+   "6": 0.025,
+   "8": 0.019
+  },
+  "nonSquare": 0.309,
+  "upTo12": 0.599,
+  "settings": {},
+  "clueDensity": [
+   0.18,
+   0.28
+  ],
+  "clueDensityMedian": 0.222,
+  "symmetry": {
+   "none": 0.872,
+   "rot180": 0.117,
+   "mirror": 0.012
+  },
+  "bands": {
+   "beyond": 0.74,
+   "hard": 0.18,
+   "easy": 0.06,
+   "expert": 0.02
+  },
+  "families": {
+   "connect@local[in decided]; decided[in connect@local]": 0.4254,
+   "decided[in order@line]; order@line[in decided]": 0.1454,
+   "connect@local[in decided, in order@local]; decided[in connect@local, in order@local]; order@local[in connect@local, in decided]": 0.0901,
+   "decided[in order@local]; order@local[in decided]": 0.0652,
+   "connect@local[in decided, x order@line]; decided[in connect@local, x order@line]; order@line[x connect@local, x decided]": 0.0442,
+   "connect@local[in decided, x connect@local]; connect@local[x connect@local, x decided]; decided[in connect@local, x connect@local]": 0.0366,
+   "connect@local[in decided, x order@line]; decided[in connect@local, in order@line]; order@line[in decided, x connect@local]": 0.014,
+   "connect@local[in decided, in order@local, x order@line]; decided[in connect@local, in order@local, x order@line]; order@line[x connect@local, x decided, x order@local]; order@local[in connect@local, in decided, x order@line]": 0.01,
+   "connect@local[in decided, x connect@local, x order@line, x order@local]; connect@local[in order@local, x connect@local, x decided, x order@line]; decided[in connect@local, t order@line, x connect@local, x order@line, x order@local]; order@line[t decided, x connect@local, x order@line, x order@local]; order@line[x connect@local, x decided, x order@line, x order@local]; order@local[in connect@local, x connect@local, x decided, x order@line]": 0.0095,
+   "connect@local[in decided, in order@local, x order@line]; decided[in connect@local, in order@line, in order@local]; order@line[in decided, x connect@local, x order@local]; order@local[in connect@local, in decided, x order@line]": 0.0089,
+   "connect@local[in decided, x connect@local, x order@line, x order@local]; connect@local[in order@local, x connect@local, x decided, x order@line]; decided[in connect@local, x connect@local, x order@line, x order@local]; order@line[x connect@local, x decided, x order@local]; order@local[in connect@local, x connect@local, x decided, x order@line]": 0.0086,
+   "connect@local[in order@local, x decided, x order@line]; decided[in order@line, t order@line, x connect@local, x order@local]; order@line[in decided, x connect@local, x order@line, x order@local]; order@line[t decided, x connect@local, x order@line, x order@local]; order@local[in connect@local, x decided, x order@line]": 0.007,
+   "connect@local[x connect@local, x decided]+; decided[x connect@local]": 0.0061,
+   "connect@local[in decided, x connect@local, x order@local]; connect@local[in order@local, x connect@local, x decided]; connect@local[t decided, x connect@local, x order@local]; connect@local[x connect@local, x decided, x order@local]; decided[in connect@local, t connect@local, x connect@local, x order@local]; order@local[in connect@local, x connect@local, x decided]": 0.0058,
+   "decided[in order@local, t order@local]; order@local[in decided, in order@local]; order@local[in order@local, t decided]": 0.0058,
+   "connect@local[in order@local, x decided, x order@line]; decided[in order@line, x connect@local, x order@local]; order@line[in decided, x connect@local, x order@local]; order@local[in connect@local, x decided, x order@line]": 0.0054,
+   "connect@local[in decided, x connect@local]; connect@local[t decided, x connect@local]; connect@local[x connect@local, x decided]+; decided[in connect@local, t connect@local, x connect@local]": 0.0039,
+   "connect@local[in order@local, x decided, x order@line]; decided[in order@line, x connect@local, x order@line, x order@local]; order@line[in decided, x connect@local, x order@line, x order@local]; order@line[x connect@local, x decided, x order@line, x order@local]; order@local[in connect@local, x decided, x order@line]": 0.0033,
+   "connect@local[in order@local, x decided, x order@line]; decided[x connect@local, x order@line, x order@local]; order@line[x connect@local, x decided, x order@local]; order@local[in connect@local, x decided, x order@line]": 0.0031,
+   "connect@local[in decided, x connect@local, x order@local]; connect@local[in order@local, x connect@local, x decided]; decided[in connect@local, x connect@local, x order@local]; order@local[in connect@local, x connect@local, x decided]": 0.0028,
+   "connect@local[in decided, x connect@local]; connect@local[x connect@local, x decided]+; decided[in connect@local, x connect@local]": 0.0023,
+   "decided[in order@local]; order@local[in decided, in order@local]+": 0.0022,
+   "connect@local[in decided, x connect@local, x order@line]; connect@local[x connect@local, x decided, x order@line]; decided[in connect@local, x connect@local, x order@line]; order@line[x connect@local, x decided]": 0.0019,
+   "connect@local[in decided, x connect@local, x order@local]; connect@local[in order@local, t decided, x connect@local, x order@local]; connect@local[in order@local, x connect@local, x decided, x order@local]; connect@local[x connect@local, x decided, x order@local]; decided[in connect@local, t connect@local, t order@local, x connect@local, x order@local]; order@local[in connect@local, t decided, x connect@local, x order@local]; order@local[in connect@local, x connect@local, x decided, x order@local]": 0.0019,
+   "decided[in order@local, x order@local]; order@local[in decided, in order@local, x order@local]; order@local[in decided, in order@local]; order@local[in order@local, x decided, x order@local]": 0.0019
+  },
+  "required": {
+   "loop": 0.2,
+   "pairs": 0.1,
+   "mined": 0.02
+  }
+ },
+ "nurikabe": {
+  "n": 406,
+  "nSolved": 14,
+  "sizes": {
+   "10": 0.731,
+   "6": 0.057,
+   "12": 0.057,
+   "11": 0.042,
+   "7": 0.036,
+   "9": 0.03,
+   "8": 0.024,
+   "5": 0.024
+  },
+  "nonSquare": 0.143,
+  "upTo12": 0.845,
+  "settings": {},
+  "clueDensity": [
+   0.08,
+   0.16
+  ],
+  "clueDensityMedian": 0.12,
+  "symmetry": {
+   "none": 0.682,
+   "rot180": 0.273,
+   "mirror": 0.044
+  },
+  "bands": {
+   "beyond": 0.786,
+   "easy": 0.143,
+   "expert": 0.071
+  },
+  "families": {
+   "connect@local[in decided]; decided[in connect@local]": 0.1168,
+   "decided[in pattern@block]; pattern@block[in decided]": 0.0754,
+   "decided[in size@local]; size@local[in decided]": 0.0657,
+   "connect@local[in decided, in each-once@local]; decided[in connect@local, in each-once@local]; each-once@local[in connect@local, in decided]": 0.0511,
+   "decided[in each-once@local]; each-once@local[in decided]": 0.0341,
+   "connect@line[in decided]; decided[in connect@line]": 0.0341,
+   "connect@grid[in each-once@grid]; decided[in each-once@grid]; each-once@grid[in connect@grid, in decided]": 0.0268,
+   "connect@grid[]; decided[]": 0.0243,
+   "decided[in each-once@local, in size@local]; each-once@local[in decided, in size@local]; size@local[in decided, in each-once@local]": 0.0219,
+   "connect@local[in decided, in size@local]; decided[in connect@local, in size@local]; size@local[in connect@local, in decided]": 0.0195,
+   "connect@grid[in decided, in each-once@grid, in size@grid]; decided[in connect@grid, in each-once@grid, in size@grid]; each-once@grid[in connect@grid, in decided, in size@grid]; size@grid[in connect@grid, in decided, in each-once@grid]": 0.0195,
+   "decided[]; size@grid[]": 0.017,
+   "connect@grid[in decided, in each-once@grid, in size@grid]; decided[in connect@grid, in each-once@grid]; each-once@grid[in connect@grid, in decided, in size@grid]; size@grid[in connect@grid, in each-once@grid]": 0.0146,
+   "decided[in size@grid]; size@grid[in decided]": 0.0122,
+   "connect@local[in decided, x pattern@block]; decided[in connect@local, x pattern@block]; pattern@block[x connect@local, x decided]": 0.0097,
+   "connect@local[in decided, in size@local]; decided[in connect@local, t size@local]; size@local[in connect@local, t decided]": 0.0097,
+   "connect@grid[]; decided[]; size@grid[]": 0.0097,
+   "decided[in each-once@grid]; each-once@grid[in decided]": 0.0097,
+   "connect@grid[in decided]; decided[in connect@grid]": 0.0097,
+   "connect@local[in decided, x pattern@block]; decided[in connect@local]; pattern@block[x connect@local]": 0.0073,
+   "connect@local[in decided, x connect@local, x size@local]+; decided[in connect@local, in size@local]; size@local[in decided, x connect@local]": 0.0073,
+   "connect@grid[]; decided[in size@grid]; size@grid[in decided]": 0.0073,
+   "connect@local[in decided, in each-once@local, x each-once@local]; decided[in connect@local, in each-once@local]; each-once@local[in connect@local, in decided, x each-once@local]; each-once@local[in decided, x connect@local, x each-once@local]": 0.0073,
+   "connect@grid[in each-once@grid]; decided[in each-once@grid, in pattern@block]; each-once@grid[in connect@grid, in decided, in pattern@block]; pattern@block[in decided, in each-once@grid]": 0.0073,
+   "connect@grid[in each-once@grid]; decided[in each-once@grid]; each-once@grid[in connect@grid, in decided, in size@grid]; size@grid[in each-once@grid]": 0.0073
+  },
+  "required": {
+   "mined": 0.071
+  }
+ },
+ "shikaku": {
+  "n": 75,
+  "nSolved": 50,
+  "sizes": {
+   "10": 0.806,
+   "12": 0.056,
+   "8": 0.056,
+   "11": 0.028,
+   "4": 0.014,
+   "9": 0.014,
+   "6": 0.014,
+   "5": 0.014
+  },
+  "nonSquare": 0.04,
+  "upTo12": 0.973,
+  "settings": {},
+  "clueDensity": [
+   0.104,
+   0.236
+  ],
+  "clueDensityMedian": 0.16,
+  "symmetry": {
+   "rot180": 0.707,
+   "none": 0.293
+  },
+  "bands": {
+   "hard": 0.82,
+   "beyond": 0.14,
+   "expert": 0.04
+  },
+  "families": {
+   "decided[in size@local]; size@local[in decided]": 0.4634,
+   "decided[]; size@grid[]": 0.2113,
+   "decided[in size@line]; size@line[in decided]": 0.1347,
+   "decided[in size@grid]; size@grid[in decided]": 0.0874,
+   "decided[t size@grid]; size@grid[t decided]": 0.0411,
+   "decided[x size@grid]; size@grid[x decided]": 0.0253,
+   "decided[in size@local]; size@local[in decided, x size@local]+": 0.0138,
+   "decided[in size@local, x size@local]; size@local[in decided, x size@local]; size@local[x decided, x size@local]": 0.0112,
+   "decided[]; size@grid[x size@local]; size@local[]; size@local[x size@grid]": 0.0016,
+   "decided[]; size@grid[]; size@local[]": 0.0013,
+   "decided[in size@local]; size@local[in decided, in size@local]+": 0.0013,
+   "decided[]; size@grid[]; size@local[]; size@local[x size@local]+": 0.001,
+   "decided[in size@local, x size@local]; size@local[in decided, x size@local]; size@local[x decided, x size@local]+": 0.0007,
+   "decided[in size@local]; size@grid[]; size@local[in decided]": 0.0007,
+   "decided[x size@local]; size@grid[]; size@local[x decided]": 0.0007,
+   "decided[in size@local]; size@grid[]; size@local[in decided, x size@local]+": 0.0003,
+   "decided[in size@local, t size@local]; size@grid[]; size@local[in decided, x size@local]; size@local[t decided, x size@local]": 0.0003,
+   "decided[t size@local]; size@grid[]; size@local[t decided]": 0.0003,
+   "decided[t size@local, x size@local]; size@grid[]; size@local[t decided, x size@local]; size@local[x decided, x size@local]": 0.0003,
+   "decided[]; size@grid[x size@local]; size@local[x size@grid]": 0.0003,
+   "decided[t size@grid]; size@grid[t decided]; size@local[]; size@local[x size@local]+": 0.0003,
+   "decided[in size@local, t size@local]; size@local[in decided, in size@local, x size@local]; size@local[in decided, in size@local]; size@local[in size@local, t decided, x size@local]": 0.0003,
+   "decided[in size@local, x size@local]; size@local[in decided, in size@local, x size@local]; size@local[in size@local, x decided, x size@local]; size@local[x decided, x size@local]": 0.0003,
+   "decided[in size@local, x size@local]; size@local[in decided, in size@local, x size@local]; size@local[in decided, in size@local]; size@local[in size@local, x decided, x size@local]": 0.0003,
+   "decided[in size@local, t size@local, x size@local]; size@local[in decided, x size@local]; size@local[t decided, x size@local]; size@local[x decided, x size@local]": 0.0003
+  },
+  "required": {
+   "rects": 0.84,
+   "rectpairs": 0.04
+  }
+ },
+ "simple-loop": {
+  "n": 79,
+  "nSolved": 50,
+  "sizes": {
+   "10": 0.486,
+   "17": 0.162,
+   "8": 0.081,
+   "12": 0.068,
+   "13": 0.041,
+   "6": 0.027,
+   "7": 0.027,
+   "11": 0.027,
+   "9": 0.027,
+   "20": 0.014,
+   "16": 0.014,
+   "25": 0.014,
+   "21": 0.014
+  },
+  "nonSquare": 0.063,
+  "upTo12": 0.709,
+  "settings": {},
+  "clueDensity": [
+   0.0,
+   0.0
+  ],
+  "clueDensityMedian": 0.0,
+  "symmetry": {
+   "none": 1.0
+  },
+  "bands": {
+   "hard": 0.54,
+   "beyond": 0.38,
+   "expert": 0.04,
+   "easy": 0.04
+  },
+  "families": {
+   "connect@local[in decided]; decided[in connect@local]": 0.4035,
+   "connect@line[in decided]; decided[in connect@line]": 0.331,
+   "connect@line[x connect@local, x decided]; connect@local[in decided, x connect@line]; decided[in connect@local, x connect@line]": 0.1054,
+   "connect@local[in decided, x connect@local]; connect@local[x connect@local, x decided]; decided[in connect@local, x connect@local]": 0.0503,
+   "connect@line[x connect@line, x connect@local, x decided]+; connect@local[in decided, x connect@line]; decided[in connect@local, x connect@line]": 0.0135,
+   "connect@line[t decided, x connect@local]; connect@local[in decided, x connect@line, x connect@local]; connect@local[x connect@line, x connect@local, x decided]; decided[in connect@local, t connect@line, x connect@local]": 0.0081,
+   "connect@local[in decided, x connect@local]; connect@local[x connect@local, x decided]+; decided[in connect@local, x connect@local]": 0.0055,
+   "connect@line[x connect@local, x decided]; connect@local[in decided, x connect@line, x connect@local]; connect@local[x connect@line, x connect@local, x decided]; decided[in connect@local, x connect@line, x connect@local]": 0.0049,
+   "connect@local[x connect@local, x decided]+; decided[x connect@local]": 0.0042,
+   "connect@local[in connect@local, in decided]; connect@local[in connect@local]; decided[in connect@local]": 0.0034,
+   "connect@local[in connect@local, in decided]; connect@local[in connect@local, x decided]; decided[in connect@local, x connect@local]": 0.0034,
+   "connect@line[in decided, x connect@local]; connect@local[in decided, x connect@line]; decided[in connect@line, in connect@local]": 0.0032,
+   "connect@local[in connect@local, in decided]+; decided[in connect@local]": 0.0029,
+   "connect@line[in decided, x connect@line, x connect@local]; connect@line[x connect@line, x connect@local, x decided]; connect@local[in decided, x connect@line]; decided[in connect@line, in connect@local, x connect@line]": 0.0029,
+   "connect@local[in decided, x connect@local]; connect@local[t decided, x connect@local]; connect@local[x connect@local, x decided]+; decided[in connect@local, t connect@local, x connect@local]": 0.0026,
+   "connect@local[t connect@local, x connect@local, x decided]+; connect@local[x connect@local, x decided]+; decided[x connect@local]": 0.0021,
+   "connect@line[t decided, x connect@line, x connect@local]; connect@line[x connect@line, x connect@local, x decided]; connect@local[in decided, x connect@line, x connect@local]; connect@local[x connect@line, x connect@local, x decided]; decided[in connect@local, t connect@line, x connect@line, x connect@local]": 0.0019,
+   "connect@local[in connect@local, in decided]; connect@local[in connect@local, t decided, x connect@local]; connect@local[in connect@local, x connect@local, x decided]+; decided[in connect@local, t connect@local, x connect@local]": 0.0016,
+   "connect@line[x connect@local, x decided]; connect@local[x connect@line, x connect@local, x decided]+; decided[x connect@line, x connect@local]": 0.0015,
+   "connect@local[in decided, x connect@local]; connect@local[t decided, x connect@local]; connect@local[x connect@local, x decided]; decided[in connect@local, t connect@local, x connect@local]": 0.0013,
+   "connect@local[in connect@local, in decided]; connect@local[in connect@local, x connect@local]+; decided[in connect@local]": 0.0013,
+   "connect@line[x connect@local, x decided]; connect@local[in decided, x connect@line, x connect@local]; connect@local[t decided, x connect@line, x connect@local]; connect@local[x connect@line, x connect@local, x decided]+; decided[in connect@local, t connect@local, x connect@line, x connect@local]": 0.0011,
+   "connect@line[x connect@local, x decided]; connect@local[in decided, x connect@line, x connect@local]; connect@local[t decided, x connect@line, x connect@local]; connect@local[x connect@line, x connect@local, x decided]; decided[in connect@local, t connect@local, x connect@line, x connect@local]": 0.0011,
+   "connect@local[in connect@local, in decided]; connect@local[in connect@local, t decided, x connect@local]; connect@local[in connect@local, x connect@local, x decided]; decided[in connect@local, t connect@local, x connect@local]": 0.001,
+   "connect@line[t decided, x connect@line, x connect@local]+; connect@local[in decided, x connect@line, x connect@local]; connect@local[x connect@line, x connect@local, x decided]+; decided[in connect@local, t connect@line, x connect@local]": 0.0008
+  },
+  "required": {
+   "loop": 0.54,
+   "pairs": 0.2,
+   "cuts": 0.02
+  }
+ },
+ "skyscrapers": {
+  "n": 38,
+  "nSolved": 37,
+  "sizes": {
+   "5": 0.526,
+   "6": 0.316,
+   "7": 0.105,
+   "4": 0.026,
+   "9": 0.026
+  },
+  "nonSquare": 0.0,
+  "upTo12": 1.0,
+  "settings": {},
+  "clueDensity": [
+   0.203,
+   0.32
+  ],
+  "clueDensityMedian": 0.25,
+  "symmetry": {
+   "none": 0.737,
+   "rot180": 0.211,
+   "mirror": 0.053
+  },
+  "bands": {
+   "easy": 0.838,
+   "hard": 0.108,
+   "medium": 0.027,
+   "beyond": 0.027
+  },
+  "families": {
+   "decided[in each-once@line, in sight@line]; each-once@line[in decided, in sight@line]; sight@line[in decided, in each-once@line]": 0.4712,
+   "decided[in each-once@line]; each-once@line[in decided]": 0.4521,
+   "decided[]": 0.0155,
+   "decided[in sight@line]; sight@line[in decided]": 0.0118,
+   "decided[in each-once@line, t each-once@line]; each-once@line[in decided, x each-once@line]; each-once@line[t decided, x each-once@line]": 0.0093,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line]; each-once@line[x each-once@line]": 0.0093,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, x each-once@line, x sight@line]; each-once@line[t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, x each-once@line, x sight@line]": 0.0019,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]+; each-once@line[in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, x each-once@line, x sight@line]; each-once@line[t each-once@line, t sight@line, x each-once@line, x sight@line]+; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]+; sight@line[in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, x each-once@line, x sight@line]": 0.0012,
+   "decided[in each-once@line, t each-once@line, t sight@line]; each-once@line[in decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in decided, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, x each-once@line, x sight@line]; each-once@line[in sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, x each-once@line, x sight@line]; sight@line[in each-once@line, x each-once@line, x sight@line]": 0.0012,
+   "decided[in each-once@line, in sight@line]; each-once@line[in decided, in sight@line, x each-once@line]; each-once@line[in decided, x each-once@line, x sight@line]; each-once@line[in sight@line, x each-once@line]; each-once@line[x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, x each-once@line]; sight@line[in each-once@line, x each-once@line]": 0.0012,
+   "decided[in each-once@line, t each-once@line]; each-once@line[in decided, x each-once@line]; each-once@line[t decided, x each-once@line]+; each-once@line[x each-once@line]": 0.0006,
+   "decided[in each-once@line, t each-once@line, t sight@line, x each-once@line]; each-once@line[in decided, t each-once@line, t sight@line, x each-once@line]; each-once@line[in sight@line, t decided, t each-once@line, x each-once@line]; each-once@line[x decided, x each-once@line, x sight@line]+; sight@line[in each-once@line, t decided, t each-once@line, x each-once@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, x each-once@line, x sight@line]; each-once@line[t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, x each-once@line, x sight@line]; each-once@line[t each-once@line, x each-once@line, x sight@line]+; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t each-once@line, x each-once@line, x sight@line]; each-once@line[t decided, x each-once@line, x sight@line]; each-once@line[t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t each-once@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line]; each-once@line[in sight@line, t each-once@line, t sight@line, x each-once@line]; each-once@line[t decided, x each-once@line, x sight@line]; each-once@line[t each-once@line, x each-once@line, x sight@line]+; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line]; sight@line[in each-once@line, t each-once@line, t sight@line, x each-once@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in decided, in sight@line, t each-once@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[t decided, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, t each-once@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line]; each-once@line[t decided, x each-once@line, x sight@line]+; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line]": 0.0006,
+   "decided[in each-once@line, t each-once@line, t sight@line]; each-once@line[in decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; each-once@line[in sight@line, x each-once@line, x sight@line]; each-once@line[t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; sight@line[in each-once@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; each-once@line[in sight@line, x each-once@line, x sight@line]; each-once@line[t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; sight@line[in each-once@line, x each-once@line, x sight@line]; sight@line[t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[t sight@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line, t sight@line]; each-once@line[in decided, in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]+; each-once@line[in sight@line, t decided, x each-once@line, x sight@line]; each-once@line[in sight@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+; each-once@line[t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]+; sight@line[in each-once@line, t decided, x each-once@line, x sight@line]; sight@line[in each-once@line, t each-once@line, t sight@line, x each-once@line, x sight@line]+": 0.0006,
+   "decided[in each-once@line, in sight@line, t each-once@line]; each-once@line[in decided, in sight@line, t each-once@line, x each-once@line, x sight@line]; each-once@line[in decided, in sight@line, x each-once@line, x sight@line]; each-once@line[in sight@line, x each-once@line, x sight@line]; each-once@line[t decided, t each-once@line, t sight@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, t each-once@line, x each-once@line, x sight@line]; sight@line[in decided, in each-once@line, x each-once@line, x sight@line]; sight@line[in each-once@line, x each-once@line, x sight@line]": 0.0006,
+   "decided[in each-once@line, t each-once@line, t sight@line]; each-once@line[in decided, t each-once@line, t sight@line, x each-once@line]; each-once@line[in decided, x each-once@line, x sight@line]; each-once@line[in sight@line, t decided, t each-once@line, x each-once@line]; each-once@line[x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, x each-once@line]": 0.0006,
+   "decided[in each-once@line, t each-once@line, t sight@line]; each-once@line[in decided, t each-once@line, t sight@line, x each-once@line]; each-once@line[in sight@line, t decided, t each-once@line, x each-once@line]; each-once@line[t decided, x each-once@line, x sight@line]; each-once@line[x each-once@line, x sight@line]; sight@line[in each-once@line, t decided, t each-once@line, x each-once@line]": 0.0006
+  },
+  "required": {
+   "strips": 0.027,
+   "lines": 0.027
+  }
+ },
+ "slitherlink": {
+  "n": 428,
+  "nSolved": 48,
+  "sizes": {
+   "10": 0.783,
+   "6": 0.051,
+   "5": 0.045,
+   "4": 0.032,
+   "15": 0.025,
+   "17": 0.022,
+   "11": 0.022,
+   "9": 0.019
+  },
+  "nonSquare": 0.222,
+  "upTo12": 0.734,
+  "settings": {},
+  "clueDensity": [
+   0.32,
+   0.489
+  ],
+  "clueDensityMedian": 0.4,
+  "symmetry": {
+   "rot180": 0.696,
+   "none": 0.287,
+   "mirror": 0.016
+  },
+  "bands": {
+   "beyond": 0.625,
+   "hard": 0.188,
+   "easy": 0.104,
+   "medium": 0.062,
+   "expert": 0.021
+  },
+  "families": {
+   "connect@local[in decided]; decided[in connect@local]": 0.1748,
+   "count@local[in decided]; decided[in count@local]": 0.1059,
+   "connect@line[in decided]; decided[in connect@line]": 0.0829,
+   "connect@local[in decided, x count@local]; count@local[x connect@local, x decided]; decided[in connect@local, x count@local]": 0.0566,
+   "connect@line[in decided, x count@local]; count@local[in decided, x connect@line]; decided[in connect@line, in count@local]": 0.0442,
+   "connect@local[in decided, x connect@local]; connect@local[x connect@local, x decided]; decided[in connect@local, x connect@local]": 0.0432,
+   "connect@local[in decided, x connect@local, x count@local]; connect@local[t decided, x connect@local, x count@local]; count@local[x connect@local, x decided]; decided[in connect@local, t connect@local, x count@local]": 0.043,
+   "connect@local[x count@local, x decided]; count@local[in decided, x connect@local]; decided[in count@local, x connect@local]": 0.0348,
+   "connect@local[in decided, x count@local]; count@local[in decided, x connect@local]; decided[in connect@local, in count@local]": 0.0197,
+   "connect@local[x count@local, x decided]; count@local[x connect@local, x decided]; decided[x connect@local, x count@local]": 0.0186,
+   "connect@line[x count@local, x decided]; count@local[in decided, x connect@line]; decided[in count@local, x connect@line]": 0.015,
+   "connect@line[x connect@local, x count@local, x decided]; connect@local[in decided, x connect@line, x count@local]; count@local[x connect@line, x connect@local, x decided]; decided[in connect@local, x connect@line, x count@local]": 0.0141,
+   "connect@line[in decided, x connect@local]; connect@local[in decided, x connect@line]; decided[in connect@line, in connect@local]": 0.0136,
+   "connect@line[in decided, x connect@local, x count@local]; connect@local[t decided, x connect@line, x count@local]; count@local[in decided, x connect@line, x connect@local]; decided[in connect@line, in count@local, t connect@local]": 0.0117,
+   "connect@line[x connect@local, x decided]; connect@local[in decided, x connect@line]; decided[in connect@local, x connect@line]": 0.0103,
+   "connect@local[in decided, x connect@local, x count@local]; connect@local[x connect@local, x count@local, x decided]; count@local[x connect@local, x decided]; decided[in connect@local, x connect@local, x count@local]": 0.0085,
+   "connect@local[in decided, x connect@local]; connect@local[t decided, x connect@local]; decided[in connect@local, t connect@local]": 0.0085,
+   "connect@line[t decided, x connect@local, x count@local]; connect@local[in decided, x connect@line, x count@local]; count@local[x connect@line, x connect@local, x decided]; decided[in connect@local, t connect@line, x count@local]": 0.0075,
+   "connect@line[x connect@local, x count@local, x decided]; connect@local[x connect@line, x count@local, x decided]; count@local[in decided, x connect@line, x connect@local]; decided[in count@local, x connect@line, x connect@local]": 0.0066,
+   "connect@local[x count@local, x decided]; count@local[x connect@local, x count@local, x decided]+; decided[x connect@local, x count@local]": 0.0056,
+   "connect@line[x count@local, x decided]; count@local[in decided, x connect@line, x count@local]; count@local[x connect@line, x count@local, x decided]; decided[in count@local, x connect@line, x count@local]": 0.0054,
+   "connect@line[in decided, x connect@line, x count@local]; connect@line[t decided, x connect@line, x count@local]; count@local[in decided, x connect@line]; decided[in connect@line, in count@local, t connect@line]": 0.0049,
+   "connect@local[in decided, t count@local, x connect@local, x count@local]; connect@local[t decided, x connect@local, x count@local]; count@local[t connect@local, x connect@local, x count@local]; count@local[x connect@local, x count@local, x decided]; decided[in connect@local, t connect@local, x count@local]": 0.0049,
+   "connect@local[x count@local, x decided]; count@local[in decided, x connect@local, x count@local]; count@local[t decided, x connect@local, x count@local]; decided[in count@local, t count@local, x connect@local]": 0.004,
+   "connect@line[x connect@line, x count@local, x decided]+; count@local[in decided, x connect@line, x count@local]; count@local[x connect@line, x count@local, x decided]; decided[in count@local, x connect@line, x count@local]": 0.0038
+  },
+  "required": {
+   "loop": 0.188,
+   "pairs": 0.104,
+   "pockets": 0.021
+  }
+ },
+ "spiral-galaxies": {
+  "n": 670,
+  "nSolved": 40,
+  "sizes": {
+   "10": 0.352,
+   "12": 0.212,
+   "17": 0.187,
+   "14": 0.128,
+   "15": 0.086,
+   "7": 0.021,
+   "9": 0.014
+  },
+  "nonSquare": 0.213,
+  "upTo12": 0.481,
+  "settings": {},
+  "clueDensity": [
+   0.19,
+   0.278
+  ],
+  "clueDensityMedian": 0.219,
+  "symmetry": {
+   "none": 1.0
+  },
+  "bands": {
+   "beyond": 0.5,
+   "hard": 0.35,
+   "expert": 0.125,
+   "medium": 0.025
+  },
+  "families": {
+   "decided[in size@line]; size@line[in decided]": 0.475,
+   "decided[in size@line]; size@grid[]; size@line[in decided]": 0.1206,
+   "decided[in size@line, in size@local]; size@line[in decided, in size@local]; size@local[in decided, in size@line]": 0.0953,
+   "decided[in size@line, in size@local]; size@line[in decided, in size@local]; size@local[in decided, in size@line, t size@local]+": 0.067,
+   "decided[in size@line, x size@local]; size@line[in decided, x size@local]; size@local[x decided, x size@line]": 0.038,
+   "decided[in size@line, t size@line, x size@local]; size@line[in decided, t size@line, x size@local]; size@line[t decided, t size@line, x size@local]; size@local[x decided, x size@line]": 0.0318,
+   "decided[in size@line, x size@line]; size@line[in decided, x size@line]; size@line[x decided, x size@line]": 0.027,
+   "decided[in size@line, x size@line, x size@local]; size@line[in decided, x size@line, x size@local]; size@line[x decided, x size@line, x size@local]; size@local[x decided, x size@line]": 0.0102,
+   "decided[in size@line, t size@line, x size@local]; size@line[in decided, x size@line, x size@local]; size@line[t decided, x size@line, x size@local]; size@local[x decided, x size@line]": 0.0099,
+   "decided[in size@line, t size@local]; size@line[in decided, in size@local]; size@local[in size@line, t decided]": 0.0091,
+   "decided[in size@line, x size@line, x size@local]; size@line[in decided, x size@line, x size@local]; size@line[t size@local, x decided, x size@line]; size@line[x size@line, x size@local]; size@local[t size@line, x decided, x size@line]": 0.0085,
+   "decided[in size@line, in size@local, x size@line]; size@line[in decided, in size@local, x size@line]; size@line[t size@local, x decided, x size@line]; size@local[in decided, in size@line, t size@line]": 0.0085,
+   "decided[in size@line, t size@line, x size@line]; size@line[in decided, t size@line, x size@line]; size@line[t decided, t size@line, x size@line]; size@line[t size@line, x decided, x size@line]+": 0.0065,
+   "decided[in size@line, x size@line]; size@line[in decided, x size@line]; size@line[t size@line, x decided, x size@line]+": 0.0054,
+   "decided[in size@line, t size@line, x size@local]; size@line[in decided, t size@line, x size@local]; size@line[t decided, t size@line, x size@local]; size@local[t size@local, x decided, x size@line]+": 0.0054,
+   "decided[in size@line, x size@line, x size@local]; size@line[in decided, x size@line, x size@local]; size@line[t size@local, x decided, x size@line]; size@local[t size@line, x decided, x size@line]": 0.0051,
+   "decided[in size@line, x size@local]; size@line[in decided, x size@line, x size@local]; size@line[x size@line, x size@local]; size@local[x decided, x size@line]": 0.0045,
+   "decided[in size@line, in size@local, x size@line]; size@line[in decided, in size@local, x size@line]; size@line[in size@local, x decided, x size@line]; size@local[in decided, in size@line]": 0.0037,
+   "decided[in size@line, x size@local]; size@line[in decided, t size@local, x size@local]; size@local[in size@local, t size@line]; size@local[in size@local, x decided, x size@line]": 0.0034,
+   "decided[in size@line, t size@line]; size@line[in decided, x size@line]; size@line[t decided, x size@line]": 0.0034,
+   "decided[in size@line, in size@local, x size@local]; size@line[in decided, in size@local, x size@local]; size@local[in decided, in size@line, in size@local]; size@local[in size@local, x decided, x size@line]": 0.0031,
+   "decided[in size@line, x size@line]; size@line[in decided, x size@line]; size@line[in size@local, x decided, x size@line]; size@local[in size@line]": 0.0028,
+   "decided[in size@line, x size@local]; size@line[in decided, x size@local]; size@local[in size@local, x decided, x size@line]; size@local[in size@local]": 0.0026,
+   "decided[in size@line, in size@local, x size@local]; size@line[in decided, in size@local, x size@local]; size@local[in decided, in size@line, t size@local]; size@local[in size@local, t size@local, x decided, x size@line]; size@local[in size@local]": 0.0026,
+   "decided[in size@line, t size@line, x size@line, x size@local]; size@line[in decided, x size@line, x size@local]; size@line[t decided, t size@line, x size@line, x size@local]; size@line[t size@line, t size@local, x decided, x size@line]; size@local[t size@line, x decided, x size@line]": 0.0023
+  },
+  "required": {
+   "mirror": 0.475,
+   "strips": 0.15,
+   "mined": 0.125,
+   "pairs": 0.075
+  }
+ },
+ "star-battle": {
+  "n": 352,
+  "nSolved": 47,
+  "sizes": {
+   "10": 0.476,
+   "9": 0.126,
+   "8": 0.109,
+   "6": 0.077,
+   "14": 0.077,
+   "12": 0.043,
+   "7": 0.034,
+   "5": 0.023,
+   "11": 0.02,
+   "15": 0.014
+  },
+  "nonSquare": 0.0,
+  "upTo12": 0.901,
+  "settings": {
+   "stars": {
+    "2": 0.651,
+    "1": 0.256,
+    "3": 0.094
+   }
+  },
+  "clueDensity": [
+   0.083,
+   0.143
+  ],
+  "clueDensityMedian": 0.1,
+  "symmetry": {
+   "none": 0.997,
+   "rot180": 0.003
+  },
+  "bands": {
+   "hard": 0.426,
+   "medium": 0.34,
+   "beyond": 0.128,
+   "easy": 0.106
+  },
+  "families": {
+   "decided[in pattern@block]; pattern@block[in decided]": 0.2666,
+   "count@line[in decided]; decided[in count@line]": 0.1711,
+   "count@region[in decided]; decided[in count@region]": 0.0452,
+   "count@region[t decided, x pattern@block]; decided[in pattern@block, t count@region]; pattern@block[in decided, x count@region, x pattern@block]+": 0.0264,
+   "count@line[in decided, x pattern@block]; decided[in count@line, t pattern@block]; pattern@block[t decided, x count@line]": 0.0194,
+   "count@line[in decided, x pattern@block]; decided[in count@line]; pattern@block[x count@line]": 0.0188,
+   "count@region[in decided, x pattern@block]; decided[in count@region, t pattern@block]; pattern@block[t decided, x count@region]": 0.0188,
+   "count@region[t decided, x pattern@block]; decided[in pattern@block, t count@region]; pattern@block[in decided, t pattern@block, x count@region, x pattern@block]; pattern@block[in decided, x count@region, x pattern@block]; pattern@block[t pattern@block, x count@region]": 0.0175,
+   "count@region[in decided, in pattern@block]; decided[in count@region, in pattern@block]; pattern@block[in count@region, in decided, x pattern@block]+": 0.0171,
+   "count@region[in decided, in pattern@block]; decided[in count@region, t pattern@block]; pattern@block[in count@region, t decided]": 0.0152,
+   "count@line[t decided, x pattern@block]; decided[in pattern@block, t count@line]; pattern@block[in decided, t pattern@block, x count@line, x pattern@block]; pattern@block[in decided, x count@line, x pattern@block]; pattern@block[t pattern@block, x count@line]": 0.0148,
+   "count@region[t decided, x pattern@block]; decided[in pattern@block, t count@region]; pattern@block[in decided, t pattern@block, x count@region]; pattern@block[t pattern@block, x count@region]": 0.0142,
+   "count@line[t decided, x pattern@block]; decided[in pattern@block, t count@line]; pattern@block[in decided, x count@line, x pattern@block]+": 0.0132,
+   "count@region[in decided, x pattern@block]; decided[in count@region]; pattern@block[x count@region]": 0.0125,
+   "count@region[in decided, x pattern@block]; decided[in count@region, in pattern@block]; pattern@block[in decided, x count@region, x pattern@block]+": 0.0109,
+   "count@region[in decided, in pattern@block, x pattern@block]; decided[in count@region, in pattern@block]; pattern@block[in count@region, in decided, x pattern@block]; pattern@block[in decided, x count@region, x pattern@block]+": 0.0092,
+   "count@region[t decided, x pattern@block]; decided[in pattern@block, t count@region]; pattern@block[in decided, x count@region]": 0.0076,
+   "count@line[in count@region, in decided]; count@region[in count@line, t decided]; decided[in count@line, t count@region]": 0.0073,
+   "count@region[in decided, in pattern@block, x pattern@block]; decided[in count@region, in pattern@block]; pattern@block[in count@region, in decided, x pattern@block]+; pattern@block[in decided, x count@region, x pattern@block]+": 0.0069,
+   "count@line[t decided, x pattern@block]; decided[in pattern@block, t count@line]; pattern@block[in decided, x count@line, x pattern@block]+; pattern@block[x count@line]": 0.0069,
+   "count@region[in decided, in pattern@block, x pattern@block]; decided[in count@region, in pattern@block]; pattern@block[in count@region, in decided, x pattern@block]; pattern@block[in decided, x count@region, x pattern@block]": 0.0063,
+   "count@line[in decided, x pattern@block]; decided[in count@line, in pattern@block]; pattern@block[in decided, x count@line, x pattern@block]+": 0.0059,
+   "count@line[t decided, x pattern@block]; decided[in pattern@block, t count@line]; pattern@block[in decided, x count@line]": 0.0059,
+   "count@region[t decided, x pattern@block]; decided[in pattern@block, t count@region]; pattern@block[in decided, t pattern@block, x count@region, x pattern@block]+; pattern@block[t pattern@block, x count@region]": 0.0049,
+   "count@region[t decided, x pattern@block]; decided[in pattern@block, t count@region]; pattern@block[in decided, t pattern@block, x count@region, x pattern@block]; pattern@block[in decided, x count@region, x pattern@block]+; pattern@block[t pattern@block, x count@region]": 0.0046
+  },
+  "required": {
+   "pairs": 0.255,
+   "count": 0.17,
+   "lines": 0.064,
+   "triples": 0.043,
+   "strips": 0.021
+  }
+ },
+ "sudoku": {
+  "n": 61,
+  "nSolved": 50,
+  "sizes": {
+   "9": 0.902,
+   "6": 0.066,
+   "16": 0.033
+  },
+  "nonSquare": 0.0,
+  "upTo12": 0.967,
+  "settings": {
+   "box": {
+    "4x4": 0.033
+   }
+  },
+  "clueDensity": [
+   0.296,
+   0.37
+  ],
+  "clueDensityMedian": 0.309,
+  "symmetry": {
+   "rot180": 0.738,
+   "none": 0.18,
+   "mirror": 0.082
+  },
+  "bands": {
+   "easy": 0.84,
+   "beyond": 0.08,
+   "hard": 0.06,
+   "medium": 0.02
+  },
+  "families": {
+   "decided[in each-once@line]; each-once@line[in decided]": 0.3243,
+   "decided[in each-once@region]; each-once@region[in decided]": 0.0998,
+   "decided[in each-once@line, in each-once@region]; each-once@line[in decided, x each-once@region]; each-once@region[in decided, x each-once@line]": 0.0479,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@region]; each-once@region[x each-once@line]": 0.0435,
+   "decided[]": 0.0371,
+   "decided[in each-once@line, x each-once@region]; each-once@line[in decided, x each-once@region]; each-once@region[x decided, x each-once@line]": 0.0317,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line]+": 0.0192,
+   "decided[in each-once@line, t each-once@region]; each-once@line[in decided, x each-once@region]; each-once@region[t decided, x each-once@line]": 0.0192,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line, x each-once@region]; each-once@line[x each-once@line, x each-once@region]; each-once@region[x each-once@line]": 0.0189,
+   "decided[in each-once@region, t each-once@line]; each-once@line[t decided, x each-once@region]; each-once@region[in decided, x each-once@line]": 0.0158,
+   "decided[in each-once@line, in each-once@region]; each-once@line[in decided, x each-once@line, x each-once@region]+; each-once@region[in decided, x each-once@line]": 0.0155,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line]; each-once@line[x each-once@line]": 0.0152,
+   "decided[in each-once@line, x each-once@line, x each-once@region]; each-once@line[in decided, x each-once@line, x each-once@region]; each-once@line[x decided, x each-once@line, x each-once@region]; each-once@region[x decided, x each-once@line]": 0.0115,
+   "decided[in each-once@line, x each-once@line]; each-once@line[in decided, x each-once@line]; each-once@line[x decided, x each-once@line]": 0.0108,
+   "decided[in each-once@region]; each-once@line[x each-once@region]; each-once@region[in decided, x each-once@line]": 0.0091,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line]+; each-once@line[x each-once@line]": 0.0081,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@region]; each-once@region[t each-once@region, x each-once@line]+": 0.0061,
+   "decided[in each-once@line, t each-once@region]; each-once@line[in decided, x each-once@line, x each-once@region]; each-once@line[x each-once@line, x each-once@region]; each-once@region[t decided, x each-once@line]": 0.0057,
+   "decided[in each-once@line, t each-once@line]; each-once@line[in decided, x each-once@line]; each-once@line[t decided, x each-once@line]": 0.0057,
+   "decided[in each-once@line, in each-once@region, t each-once@line]; each-once@line[in decided, t each-once@line, x each-once@region]; each-once@line[t decided, t each-once@line, x each-once@region]; each-once@region[in decided, x each-once@line]": 0.0054,
+   "decided[in each-once@line, in each-once@region]; each-once@line[in decided, x each-once@region]; each-once@line[x each-once@region]; each-once@region[in decided, x each-once@line]": 0.0044,
+   "decided[in each-once@line, in each-once@region]; each-once@line[in decided, x each-once@line, x each-once@region]; each-once@line[x each-once@line, x each-once@region]; each-once@region[in decided, x each-once@line]": 0.004,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line, x each-once@region]; each-once@line[in decided, x each-once@line]; each-once@region[x each-once@line]": 0.004,
+   "decided[in each-once@line]; each-once@line[in decided, x each-once@line]+; each-once@line[x each-once@line]+": 0.004,
+   "decided[in each-once@line, in each-once@region, t each-once@line]; each-once@line[in decided, x each-once@line, x each-once@region]; each-once@line[t decided, x each-once@line, x each-once@region]; each-once@region[in decided, x each-once@line]": 0.0037
+  },
+  "required": {
+   "lines": 0.04
+  }
+ }
+}

@@ -128,6 +128,18 @@ per type mean agreement figures can be off by 0.15.
 - **Still short:** Simple Loop and Simple Path medium (puzzles jump from easy to hard), Galaxies
   easy (the generator makes none) and expert (most attempts time out), Shikaku expert (2 of 9),
   Nonogram (fixed pictures).
+- **Generated isn't human-like** ([research-human-gap.md](research-human-gap.md)). A classifier
+  tells human puzzles from generated ones at AUC 0.76 (Akari) to 1.00, and still 0.76–1.00 with
+  size left out. In order, the gaps are:
+  - small boards;
+  - 1-star Star Battle only;
+  - no symmetric clue layouts;
+  - dense clues with small numbers;
+  - no puzzle beyond expert (half of human Slitherlink, Masyu, Nurikabe and Hitori are);
+  - solves with many easy moves open at once.
+
+  The generator's targets are in human-targets.json, and each fleet puzzle has a human-likeness
+  score.
 
 ### Labels from language models
 
