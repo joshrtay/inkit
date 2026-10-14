@@ -15,9 +15,19 @@
 // fence(border), line(link), cut(link)); the first move giving a mark its final value (Janko's
 // solution) is when the person settled it. Marks people never touch (a loop's empty links, which
 // they don't cross out) stay unsettled.
+//
+// The later six types (2026-10): Abc-End-View (Easy as ABC; a move's value 0 a cross, 1… a letter),
+// Wolkenkratzer (Skyscrapers: a height), Hidoku (a number), Arukone (Numberlink: a cell's links as
+// bits, as Masyu), Minesweeper (2 a mine, 1 or 0 none) and Nonogramme (0 filled, 1 a dot). Easy as
+// ABC's and Skyscrapers' moves sit one cell in (past the clue row and column), a Nonogram's past its
+// clues (as many cells as the most runs in a row, to the left, and in a column, above). Their digit
+// marks are digit(cell,d): writing d settles the cell's d true and its other digits false. Left out,
+// as not ours: Skyscrapers with empty cells (fewer heights than the side), "…, diagonals" variants
+// of Easy as ABC and Skyscrapers, non-square Easy as ABC, Minesweeper with mines given, cells off the
+// board or a total of mines, and Nonograms in color.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
-import { emptyBoard, type Board, type Given, type GridSpec } from "../../src/engine/types.ts";
+import { emptyBoard, type Board, type Given, type GridSpec, type Side } from "../../src/engine/types.ts";
 import type { Grid } from "../../src/engine/geometry.ts";
 
 export interface Janko {
@@ -37,6 +47,10 @@ const repo = new URL("../../", import.meta.url).pathname;
 export const JANKO_DIR = process.env.JANKO_DIR
   ?? [`${repo}references/janko/`, repo.replace(/\.claude\/worktrees\/[^/]+\/$/, "") + "references/janko/"].find((d) => existsSync(d))
   ?? `${repo}references/janko/`;
+/** references/: the same way (REFS_DIR to choose) */
+export const REFS_DIR = process.env.REFS_DIR
+  ?? [`${repo}references/`, repo.replace(/\.claude\/worktrees\/[^/]+\/$/, "") + "references/"].find((d) => existsSync(`${d}janko`) || existsSync(`${d}psjp`))
+  ?? `${repo}references/`;
 
 /** Janko's folder for each type, and our genre. */
 export const JANKO_TYPES: Record<string, { folder: string; genre: string }> = {
@@ -48,7 +62,17 @@ export const JANKO_TYPES: Record<string, { folder: string; genre: string }> = {
   slitherlink: { folder: "Slitherlink", genre: "slitherlink" },
   nurikabe: { folder: "Nurikabe", genre: "nurikabe" },
   "spiral-galaxies": { folder: "Galaxien", genre: "spiral-galaxies" },
+  // read later (2026-10): their marks are digits, lines and cells (the readers below)
+  "easy-as-abc": { folder: "Abc-End-View", genre: "easy-as-abc" },
+  skyscrapers: { folder: "Wolkenkratzer", genre: "skyscrapers" },
+  hidoku: { folder: "Hidoku", genre: "hidoku" },
+  numberlink: { folder: "Arukone", genre: "numberlink" },
+  minesweeper: { folder: "Minesweeper", genre: "minesweeper" },
+  nonogram: { folder: "Nonogramme", genre: "nonogram" },
 };
+/** The first eight types, which the human test set (graph-human.ts) and the order studies were
+ *  built on: kept so, so they stay comparable. */
+export const JANKO_FIRST = ["star-battle", "akari", "hitori", "fillomino", "masyu", "slitherlink", "nurikabe", "spiral-galaxies"];
 
 const section = (text: string, name: string) => {
   const m = new RegExp(`\\[${name}\\]\\n([\\s\\S]*?)\\n\\[`).exec(text);
@@ -203,34 +227,9 @@ export function readMasyu(file: string): Janko | null {
     if (s !== "-") givens.push({ at: "cell", cell: [y, x], kind: "pearl", value: s === "w" || s === "1" ? "white" : "black" });
   }));
   const spec: GridSpec = { genre: "masyu", size: [r.rows, r.cols], givens };
-  const g = makePuzzle(spec).grid;
-  const linkAt = (y: number, x: number, d: number): number => {
-    const [dy, dx] = DIRS[d], y2 = y + dy, x2 = x + dx;
-    if (y2 < 0 || x2 < 0 || y2 >= r.rows || x2 >= r.cols) return -1;
-    return g.borders[g.borderBetween(y * r.cols + x, y2 * r.cols + x2)].link;
-  };
-  const truth = new Map<string, boolean>(g.links.map((l) => [`line(${l.id})`, false]));
-  r.solution.forEach((row, y) => row.forEach((s, x) => {
-    for (let d = 0; d < 4; d++) if (s !== "-" && s.includes(DIR_LETTER[d])) { const l = linkAt(y, x, d); if (l >= 0) truth.set(`line(${l})`, true); }
-  }));
   // a move gives a cell's links as bits: a bit set draws that link, a bit cleared erases it
-  const bits = new Map<number, number>();
-  const steps = movesOf(r.text).map((m): [string, boolean][] => {
-    if (m.kind !== "cell" || m.r >= r.rows || m.c >= r.cols) return [];
-    const i = m.r * r.cols + m.c, before = bits.get(i) ?? 0;
-    const v = m.value === "-" || m.value === "" ? 0 : num(m.value);
-    if (!Number.isFinite(v)) return [];
-    const now = v & 15;
-    bits.set(i, now);
-    const facts: [string, boolean][] = [];
-    for (let d = 0; d < 4; d++) {
-      const bit = DIRS[d][2], l = linkAt(m.r, m.c, d);
-      if (l < 0 || (now & bit) === (before & bit)) continue;
-      facts.push([`line(${l})`, (now & bit) !== 0]);
-    }
-    return facts;
-  });
-  return finish(r, spec, truth, steps);
+  const { linkAt, truth } = linkGrid(r, spec);
+  return finish(r, spec, truth, linkBitMoves(r, linkAt));
 }
 
 /** Region types: a cell's value (a digit, a color) against its neighbours' says whether the link
@@ -285,17 +284,206 @@ export function readGalaxies(file: string): Janko | null {
   return finish(r, spec, cutTruth(r, g), regionMoves(r, g, start, (v) => v === "" || v === "-" || v === "0"));
 }
 
+// ---- the later types: digits (Easy as ABC, Skyscrapers, Hidoku), Numberlink's lines, Minesweeper's
+// mines and Nonogram's cells. Their moves sit past the clues around the grid: Easy as ABC's and
+// Skyscrapers' one cell in (the clue row and column), a Nonogram's as many cells as its longest
+// clue (a row's runs to the left, a column's above).
+
+/** A file of these types: its size (with or without "depth": theirs is the letters or heights,
+ *  not Star Battle's stars), [solution], and [problem] if it has one. */
+function raw2(file: string, puzzle: string): (Raw & { depth: number }) | null {
+  const text = readFileSync(file, "utf8");
+  if (field(text, "puzzle").toLowerCase() !== puzzle) return null;   // "…, diagonals" and other variants left out
+  const size = Number(field(text, "size"));
+  const rows = size || Number(field(text, "rows")), cols = size || Number(field(text, "cols"));
+  if (!rows || !cols) return null;
+  const solution = table(text, "solution");
+  const problem = section(text, "problem").length ? table(text, "problem") : solution.map((l) => l.map(() => "-"));
+  const fits = (t: string[][]) => t.length === rows && t.every((l) => l.length === cols);
+  if (!fits(problem) || !fits(solution)) return null;
+  return { text, rows, cols, problem, solution, depth: Number(field(text, "depth")) || 0 };
+}
+
+/** Moves on cells, moved back by the clue margin; those off the board left out (empty facts). */
+const cellMoves = (r: Raw, dx: number, dy: number) =>
+  movesOf(r.text).map((m) => (m.kind === "cell" ? { ...m, r: m.r - dy, c: m.c - dx } : m)).map((m) => (m.kind === "cell" && m.r >= 0 && m.c >= 0 && m.r < r.rows && m.c < r.cols ? m : null));
+
+/** Digit marks, digit(cell,d) for d in 1..D: a move writing d says the cell's d is true and its
+ *  other digits false; writing 0 (Easy as ABC's cross) says the cell holds none. */
+function digitMoves(r: Raw, D: number, dx: number, dy: number, valueOf: (v: string) => number | null): [string, boolean][][] {
+  return cellMoves(r, dx, dy).map((m): [string, boolean][] => {
+    if (!m || m.kind !== "cell") return [];
+    const v = valueOf(m.value);
+    if (v === null || v < 0 || v > D) return [];
+    const i = m.r * r.cols + m.c;
+    return Array.from({ length: D }, (_, k): [string, boolean] => [`digit(${i},${k + 1})`, v === k + 1]);
+  });
+}
+const digitTruth = (r: Raw, D: number, valueOf: (s: string) => number) => {
+  const truth = new Map<string, boolean>();
+  r.solution.flat().forEach((s, i) => { const v = valueOf(s); for (let d = 1; d <= D; d++) truth.set(`digit(${i},${d})`, v === d); });
+  return truth;
+};
+
+/** The clues around the grid: [clabels] is the top row then the bottom, [rlabels] the left column
+ *  then the right (each a line of one clue per column or row, "-" for none). */
+function edgeClues(r: Raw, kind: "first" | "skyscraper", valueOf: (s: string) => number | null): Given[] | null {
+  const cl = table(r.text, "clabels"), rl = table(r.text, "rlabels");
+  if (cl.length !== 2 || rl.length !== 2 || cl.some((l) => l.length !== r.cols) || rl.some((l) => l.length !== r.rows)) return null;
+  const out: Given[] = [];
+  const add = (s: string, cell: [number, number], side: Side) => {
+    if (s === "-") return true;
+    const value = valueOf(s);
+    if (value === null) return false;
+    out.push({ at: "edge", cell, side, kind, value });
+    return true;
+  };
+  for (let c = 0; c < r.cols; c++) if (!add(cl[0][c], [0, c], "top") || !add(cl[1][c], [r.rows - 1, c], "bottom")) return null;
+  for (let y = 0; y < r.rows; y++) if (!add(rl[0][y], [y, 0], "left") || !add(rl[1][y], [y, r.cols - 1], "right")) return null;
+  return out;
+}
+
+const letterOf = (s: string) => (/^[a-z]$/.test(s) ? s.charCodeAt(0) - 96 : null);
+
+/** Abc-End-View: our Easy as ABC with `depth` letters (moves: 0 a cross, 1… a letter). Square
+ *  grids only (the engine's letters rule reads its lines as rows and columns of one length). */
+export function readEasyAsAbc(file: string): Janko | null {
+  const r = raw2(file, "abcendview");
+  if (!r || r.rows !== r.cols || r.depth < 2 || r.depth > r.rows) return null;
+  const D = r.depth;
+  // clues and given letters are letters, or in some files their numbers (1 for a)
+  const value = (s: string) => { const v = /^\d$/.test(s) ? Number(s) : letterOf(s); return v !== null && v >= 1 && v <= D ? v : null; };
+  if (!r.solution.flat().every((s) => s === "-" || (letterOf(s) ?? 99) <= D) || !r.problem.flat().every((s) => s === "-" || value(s) !== null)) return null;
+  const edges = edgeClues(r, "first", value);
+  if (!edges) return null;
+  const givens: Given[] = [...edges];
+  r.problem.forEach((row, y) => row.forEach((s, x) => { if (s !== "-") givens.push({ at: "cell", cell: [y, x], kind: "number", value: value(s)! }); }));
+  const spec: GridSpec = { genre: "easy-as-abc", size: [r.rows, r.cols], givens, rules: [{ rule: "letters", count: D }, { rule: "first-seen" }], style: { symbols: "ABCDEFG".slice(0, D) } };
+  return finish(r, spec, digitTruth(r, D, (s) => letterOf(s) ?? 0), digitMoves(r, D, 1, 1, (v) => (/^\d$/.test(v) ? Number(v) : null)));
+}
+
+/** Wolkenkratzer: our Skyscrapers, a latin square of heights 1…n. Janko's with empty cells (fewer
+ *  heights than the side: each row has 1…depth once and blanks) aren't ours. */
+export function readSkyscrapers(file: string): Janko | null {
+  const r = raw2(file, "skyscrapers");
+  if (!r || r.rows !== r.cols || r.depth !== r.rows) return null;
+  const D = r.rows;
+  const height = (s: string) => (/^\d+$/.test(s) && +s >= 1 && +s <= D ? +s : null);
+  if (!r.solution.flat().every((s) => height(s) !== null) || !r.problem.flat().every((s) => s === "-" || height(s) !== null)) return null;
+  const edges = edgeClues(r, "skyscraper", height);
+  if (!edges) return null;
+  const givens: Given[] = [...edges];
+  r.problem.forEach((row, y) => row.forEach((s, x) => { if (s !== "-") givens.push({ at: "cell", cell: [y, x], kind: "number", value: +s }); }));
+  return finish(r, { genre: "skyscrapers", size: [r.rows, r.cols], givens }, digitTruth(r, D, (s) => height(s) ?? 0), digitMoves(r, D, 1, 1, height));
+}
+
+/** Hidoku: our Hidoku (a number snake, neighbours at a side or a corner). Every cell open. */
+export function readHidoku(file: string): Janko | null {
+  const r = raw2(file, "hidoku");
+  const givens = r && numberGivens(r);
+  const N = r ? r.rows * r.cols : 0;
+  if (!r || !givens || !r.solution.flat().every((s) => /^\d+$/.test(s) && +s >= 1 && +s <= N)) return null;
+  return finish(r, { genre: "hidoku", size: [r.rows, r.cols], givens }, digitTruth(r, N, Number), digitMoves(r, N, 0, 0, (v) => (/^\d+$/.test(v) ? +v : null)));
+}
+
+/** Masyu's and Arukone's moves: a cell's links as bits, each bit set drawing that link and each
+ *  cleared one erasing it. */
+function linkBitMoves(r: Raw, linkAt: (y: number, x: number, d: number) => number): [string, boolean][][] {
+  const bits = new Map<number, number>();
+  return movesOf(r.text).map((m): [string, boolean][] => {
+    if (m.kind !== "cell" || m.r >= r.rows || m.c >= r.cols) return [];
+    const i = m.r * r.cols + m.c, before = bits.get(i) ?? 0;
+    const v = m.value === "-" || m.value === "" ? 0 : num(m.value);
+    if (!Number.isFinite(v)) return [];
+    const now = v & 15;
+    bits.set(i, now);
+    const facts: [string, boolean][] = [];
+    for (let d = 0; d < 4; d++) {
+      const bit = DIRS[d][2], l = linkAt(m.r, m.c, d);
+      if (l < 0 || (now & bit) === (before & bit)) continue;
+      facts.push([`line(${l})`, (now & bit) !== 0]);
+    }
+    return facts;
+  });
+}
+/** The links of a grid by cell and direction (DIRS), and the solution's ("nesw" letters per cell). */
+function linkGrid(r: Raw, spec: GridSpec) {
+  const g = makePuzzle(spec).grid;
+  const linkAt = (y: number, x: number, d: number): number => {
+    const [dy, dx] = DIRS[d], y2 = y + dy, x2 = x + dx;
+    if (y2 < 0 || x2 < 0 || y2 >= r.rows || x2 >= r.cols) return -1;
+    return g.borders[g.borderBetween(y * r.cols + x, y2 * r.cols + x2)].link;
+  };
+  const truth = new Map<string, boolean>(g.links.map((l) => [`line(${l.id})`, false]));
+  r.solution.forEach((row, y) => row.forEach((s, x) => {
+    for (let d = 0; d < 4; d++) if (s !== "-" && s.includes(DIR_LETTER[d])) { const l = linkAt(y, x, d); if (l >= 0) truth.set(`line(${l})`, true); }
+  }));
+  return { linkAt, truth };
+}
+
+/** Arukone: our Numberlink (pairs joined by lines that never branch, cross or touch other numbers;
+ *  not every cell need be used, as in ours by default). */
+export function readNumberlink(file: string): Janko | null {
+  const r = raw2(file, "arukone");
+  const givens = r && numberGivens(r);
+  if (!r || !givens || r.solution.flat().some((s) => !/^(-|[nesw]+)$/.test(s))) return null;
+  const spec: GridSpec = { genre: "numberlink", size: [r.rows, r.cols], givens };
+  const { linkAt, truth } = linkGrid(r, spec);
+  return finish(r, spec, truth, linkBitMoves(r, linkAt));
+}
+
+/** Minesweeper: our Minesweeper (no mine on a number). Moves: 2 a mine, 1 or 0 no mine. */
+export function readMinesweeper(file: string): Janko | null {
+  const r = raw2(file, "minesweeper");
+  const givens = r && numberGivens(r);
+  if (!r || !givens || r.solution.flat().some((s) => s !== "x" && s !== "-")) return null;
+  if (givens.some((x) => x.at === "cell" && r.solution[x.cell[0]][x.cell[1]] === "x")) return null;
+  // a total of mines given ("mines 12") is a rule ours doesn't have
+  if (field(r.text, "mines")) return null;
+  const truth = new Map(r.solution.flat().flatMap((s, i) => (r.problem[Math.floor(i / r.cols)][i % r.cols] === "-" ? [[`shaded(${i})`, s === "x"] as [string, boolean]] : [])));
+  const steps = cellMoves(r, 0, 0).map((m): [string, boolean][] => {
+    if (!m || m.kind !== "cell" || r.problem[m.r][m.c] !== "-") return [];
+    const mark = `shaded(${m.r * r.cols + m.c})`;
+    return m.value === "2" ? [[mark, true]] : m.value === "1" || m.value === "0" ? [[mark, false]] : [];
+  });
+  return finish(r, { genre: "minesweeper", size: [r.rows, r.cols], givens }, truth, steps);
+}
+
+/** Nonogramme: our Nonogram, its clues from the solution (Janko's files hold the picture only).
+ *  Moves: 0 fills a cell, 1 dots it. */
+export function readNonogram(file: string): Janko | null {
+  const r = raw2(file, "nonogram");
+  if (!r || (r.depth && r.depth !== 2) || r.solution.flat().some((s) => s !== "x" && s !== "-")) return null;
+  const on = r.solution.map((row) => row.map((s) => s === "x"));
+  const runs = (line: boolean[]) => { const out: number[] = []; let n = 0; for (const x of [...line, false]) { if (x) n++; else if (n) { out.push(n); n = 0; } } return out.length ? out : [0]; };
+  const rowRuns = on.map(runs), colRuns = on[0].map((_, c) => runs(on.map((row) => row[c])));
+  const givens: Given[] = [
+    ...rowRuns.map((value, index): Given => ({ at: "row", index, kind: "runs", value })),
+    ...colRuns.map((value, index): Given => ({ at: "col", index, kind: "runs", value })),
+  ];
+  // the moves start past the clues: the most runs in a row (to the left), in a column (above)
+  const dx = Math.max(...rowRuns.map((x) => x.length)), dy = Math.max(...colRuns.map((x) => x.length));
+  const steps = cellMoves(r, dx, dy).map((m): [string, boolean][] => {
+    if (!m || m.kind !== "cell") return [];
+    const mark = `shaded(${m.r * r.cols + m.c})`;
+    return m.value === "0" ? [[mark, true]] : m.value === "1" ? [[mark, false]] : [];
+  });
+  return finish(r, { genre: "nonogram", size: [r.rows, r.cols], givens }, shadeTruth(r, (s) => s === "x"), steps);
+}
+
 export const READERS: Record<string, (file: string) => Janko | null> = {
   "star-battle": readStarBattle, akari: readAkari, hitori: readHitori, fillomino: readFillomino, masyu: readMasyu,
   slitherlink: readSlitherlink, nurikabe: readNurikabe, "spiral-galaxies": readGalaxies,
+  "easy-as-abc": readEasyAsAbc, skyscrapers: readSkyscrapers, hidoku: readHidoku, numberlink: readNumberlink,
+  minesweeper: readMinesweeper, nonogram: readNonogram,
 };
 
 /** Does a board (from the engine's solve) hold exactly Janko's solution? */
 export function matches(j: Janko, grid: Grid, b: Board): boolean {
   for (const [mark, v] of j.truth) {
-    const m = /^(\w+)\((\d+)\)$/.exec(mark)!, id = Number(m[2]);
+    const m = /^(\w+)\((\d+)(?:,(\d+))?\)$/.exec(mark)!, id = Number(m[2]);
     const on = m[1] === "shaded" ? b.shade[id] === 1 : m[1] === "fence" ? b.fence[id] === 1
-      : m[1] === "line" ? b.loop[id] === 1 : b.cut[grid.links[id].border] === 1;
+      : m[1] === "line" ? b.loop[id] === 1 : m[1] === "digit" ? b.digit[id] === Number(m[3]) : b.cut[grid.links[id].border] === 1;
     if (on !== v) return false;
   }
   return true;
@@ -306,8 +494,9 @@ export function boardOfTruth(j: Janko, grid: Grid): Board {
   const b = emptyBoard(grid);
   for (const [mark, v] of j.truth) {
     if (!v) continue;
-    const m = /^(\w+)\((\d+)\)$/.exec(mark)!, id = Number(m[2]);
+    const m = /^(\w+)\((\d+)(?:,(\d+))?\)$/.exec(mark)!, id = Number(m[2]);
     if (m[1] === "shaded") b.shade[id] = 1; else if (m[1] === "fence") b.fence[id] = 1;
+    else if (m[1] === "digit") b.digit[id] = Number(m[3]);
     else if (m[1] === "line") b.loop[id] = 1; else b.cut[grid.links[id].border] = 1;
   }
   return b;

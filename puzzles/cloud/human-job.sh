@@ -7,7 +7,10 @@
 # solve cache and the file so far to the bucket every five minutes; shut down. A finished build is
 # also copied to data/, where the GPU job (graph-job.sh, step next) reads it; one cut short (time
 # limit or preempted) stays in results/<run>/, and a new run carries on from it (metadata
-# resume=<earlier run>).
+# resume=<earlier run>). Then the human-labelled records (graph-human-labels.ts → graphs-human-labels
+# .jsonl: no solving, a few minutes), whose solverFinished this build's solves fill in, to
+# results/<run>/ and data/. The code comes from the private path (private/code), as does Puzzle
+# Square JP's from links (private/psjp-links, psjp-links.ts), which the training set includes.
 BUCKET=gs://inkit-research-ml
 NODE=v22.22.2
 meta() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1"; }
@@ -32,10 +35,11 @@ node --version
 (cd /opt/deps && npm init -y > /dev/null && npm install --no-audit --no-fund clingo-wasm@0.6.0)
 
 cd /work
-gcloud storage cp -r "$BUCKET/code/src" "$BUCKET/code/puzzles" "$BUCKET/code/package.json" /work/
+gcloud storage cp -r "$BUCKET/private/code/src" "$BUCKET/private/code/puzzles" "$BUCKET/private/code/package.json" /work/
 ln -s /opt/deps/node_modules /work/node_modules
 mkdir -p references/ml/human-cache
 gcloud storage cp -r "$BUCKET/private/janko" "$BUCKET/private/psjp" references/
+gcloud storage cp -r "$BUCKET/private/psjp-links" references/ || true
 gcloud storage cp "$BUCKET/data/graphs-human.jsonl" references/ml/
 [ -n "$RESUME" ] && { gcloud storage rsync -q "$BUCKET/results/$RESUME/human-cache" references/ml/human-cache || true; }
 
@@ -66,3 +70,9 @@ if [ $STATUS -eq 0 ]; then
 else
   echo "cut short (status $STATUS): graphs-human-train.jsonl not copied to data/; carry on with resume=$RUN"
 fi
+# the human-labelled records: no solver, so always (the solves so far say which our solver finished)
+DEDUCE_JOBS=$JOBS node puzzles/difficulty/graph-human-labels.ts --max "$MAX" > labels.md 2> labels.log && {
+  cat labels.md
+  gcloud storage cp references/ml/graphs-human-labels.jsonl labels.md labels.log "$OUT/"
+  gcloud storage cp references/ml/graphs-human-labels.jsonl "$BUCKET/data/"
+}

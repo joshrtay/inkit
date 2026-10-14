@@ -40,8 +40,10 @@ the research must deliver three products, all built on one shared core:
 
 | Data | Size | Whose judgement | Use |
 |---|---|---|---|
-| Janko's puzzles with recorded solves | ~6,700 solves, 12 types (8 read so far) | 7 experienced solvers' move order; no times | human order, hints, stuck moments |
+| Janko's puzzles with recorded solves | ~6,700 solves; 14 types read (janko.ts; the later six checked unique and equal to Janko's: janko-check.ts) | 7 experienced solvers' move order; no times | human order, hints, stuck moments |
+| Human-labelled graph records | 4,190 Janko puzzles, 362,000 states, 14 types (graph-human-labels.ts: the person's moves as labels, no solve; 1,192 held out by puzzle) | the person's next 3 moves | network training and agreement, including puzzles our solver can't finish |
 | Puzzle Square JP | ratings for 17 types, ~20 sampled per type on the board; likes for 4 types | the site | difficulty, taste |
+| Puzzle Square JP from links | 1,905 puzzles, 20 types, 875 of them Akari (psjp-links.ts: data.json's puzz.link links read by the site's reader, unique by our solver, not in the rated set) | the site's difficulty, likes, solves | human training set |
 | Tatham's generators | ~270 graded puzzles, 4 games | his solver (an algorithm) | difficulty |
 | Beast Academy Puzzle Lab | 88 puzzles in ordered sets | curriculum designers | difficulty, sequences |
 | Expert step labels | ~14,000 steps (Singles, Solo, Loopy) | expert solvers (algorithms) | step prices |
