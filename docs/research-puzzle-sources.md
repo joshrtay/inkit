@@ -144,3 +144,26 @@ Rules for all of them:
 - puzzle.nikoli.com terms and login (the site was down for maintenance).
 - The Japanese Agency for Cultural Affairs' primary text on robots.txt and databases. Summarised from commentary.
 - Any case law on copyright in pencil-puzzle grids specifically.
+
+## 6. Phase 1 downloads (13–14 October 2026)
+
+The code, crawl settings and counts are in [puzzles/difficulty/sources/](../puzzles/difficulty/sources/README.md)
+(`manifest.json`). What the downloads settled or turned up:
+
+- **Puzzle Square JP needs no login for puzzle data.** The site is now a Next.js app; a puzzle page
+  loads its puzzle through a Firebase function and offers the puzzle's link (puzz.link, pzprxs or
+  Penpa). The public REST API `/api/problem/date/<day>` (the one bay-puz/psjp uses) returns each
+  day's puzzles with those links, one request a day. A few puzzles have no link (image only); they
+  are skipped. The CC0 example puzzles are marked only through the Firebase function (each kind's
+  `exampleProbId`), not the REST API, so they're held under the same terms as the rest. A spot
+  check of five puzzle pages (no images fetched) matched type, difficulty and author, and 99% of
+  links agree with puzz.link's own index of PSJP puzzles.
+- **Janko's puzzle pages carry `<meta name="robots" content="noindex,nofollow">`.** That asks search
+  engines not to index them or follow their links; it isn't a TDM reservation, and the crawl lists
+  puzzles from the index pages, not by following puzzle pages' links. No `tdmrep.json` (404). Many
+  pages name no `Lizenz:` at all (only Autor and Quelle); those are recorded as none stated.
+- **puzzlekit-dataset's origins are wider than "Janko and puzz.link".** About 30,000 of its 52,600
+  puzzles name a janko.at page; about 4,500 come from the puzzle-*.com family (puzzle-masyu.com,
+  puzzle-shingoki.com, puzzle-bridges.com, puzzle-lits.com, puzzle-tapa.com, puzzle-shakashaka.com),
+  which this report hasn't assessed; and about 17,900 name no source (all its Slitherlink, Nonogram,
+  Heyawake and Shikaku, most of its Masyu). Phase 1 converts only the janko.at ones.
