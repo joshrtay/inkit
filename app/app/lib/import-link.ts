@@ -317,6 +317,9 @@ function areasFrom(r: Reader, walls: [[number, number], [number, number]][]): st
     }
     n++;
   }
+  // every wall must part two areas: a wall with the same area on both sides is a dead end, which
+  // puzz.link allows in Aquarium (water flows round it) but our areas can't say
+  if (walls.some(([[r1, c1], [r2, c2]]) => of[r1 * cols + c1] === of[r2 * cols + c2])) throw new Variant("with walls that don't close");
   const LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   if (n > LETTERS.length) throw new Variant(`with over ${LETTERS.length} areas`);
   return Array.from({ length: rows }, (_, y) => Array.from({ length: cols }, (_, x) => LETTERS[of[y * cols + x]]).join(""));

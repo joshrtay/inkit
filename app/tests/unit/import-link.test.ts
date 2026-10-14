@@ -187,6 +187,19 @@ describe("puzz.link's test puzzles", () => {
   for (const [pid, rest] of LINKS) it(`${pid}: ${rest}`, async () => { await opens(`https://puzz.link/p?${pid}/${rest}`); }, 60_000);
 });
 
+describe("walls", () => {
+  // puzz.link's Aquarium lets a wall end in open water (Puzzle Square JP 3887, solved by 256 there);
+  // our areas need closed tanks, so such a link is a variant we don't have, not a broken puzzle
+  it("a wall that doesn't close an area is a variant", async () => {
+    const r = await readLink("https://puzz.link/p?aquarium/7/7/2fu93dr7000les8c0g/g5444i54j");
+    expect(r.kind).toBe("unsupported");
+    expect(r.kind === "unsupported" && r.variant).toBe("with walls that don't close");
+  });
+  it("closed tanks still open", async () => {
+    expect((await readLink("https://puzz.link/p?aquarium/7/7/93hv7se4g672q2q730/g22g22g2g222h")).kind).toBe("puzzle");
+  });
+});
+
 describe("other links", () => {
   it("reads the address every way it's written", async () => {
     for (const link of ["http://pzv.jp/p.html?slither/5/5/cbcbcddad", "puzz.link/p?slither_edit/5/5/cbcbcddad",
