@@ -57,6 +57,35 @@ export interface GenerateOptions {
    *  numbers that can be shown, so every number shown has mines around it and their neighbourhoods
    *  overlap. Default off */
   denseMines?: boolean;
+  /** Easy as ABC: how many letters (A, B, C, ...) in each row and column. Default 3 */
+  letters?: number;
+  /** A symmetric clue layout, as people make them: "rot180" (the same turned halfway round) or
+   *  "mirror" (the same reflected left to right). Clues are added and taken out in twin pairs (both
+   *  or neither), so the final layout is symmetric; a clue whose twin cell has none true of the
+   *  answer is never used. For the genres made by adding clues to cells (SYMMETRY_GENRES); for
+   *  Akari the black squares follow it too. Default "none" */
+  symmetry?: Symmetry;
+}
+
+export type Symmetry = "rot180" | "mirror" | "none";
+/** The genres whose clue layout `symmetry` shapes: clues on cells, added to a pool and taken out
+ *  (narrow). Not those made whole (Nurikabe, Shikaku, Hitori, Spiral Galaxies, Numberlink: one
+ *  clue per piece, where it lands at random), the clueless (Star Battle's areas, Aquarium's
+ *  totals), the edge-clued (Skyscrapers, Easy as ABC), or those whose fixed givens aren't
+ *  symmetric (Hidoku's ends, Thermo Sudoku's thermometers). */
+export const SYMMETRY_GENRES = ["sudoku", "irregular-sudoku", "akari", "slitherlink", "cave", "minesweeper", "wittgenstein-briquet", "masyu", "square-jam", "binary-puzzle", "hive"];
+
+/** A cell's twin under a symmetry. */
+export function twinOf(sym: Symmetry, rows: number, cols: number, [r, c]: [number, number]): [number, number] {
+  return sym === "rot180" ? [rows - 1 - r, cols - 1 - c] : sym === "mirror" ? [r, cols - 1 - c] : [r, c];
+}
+
+/** Whether every cell clue's twin cell holds a clue too (fixed givens like blocks included). */
+export function isSymmetric(spec: GridSpec, sym: Symmetry): boolean {
+  if (sym === "none") return true;
+  const [rows, cols] = spec.size, cells = new Set<string>();
+  for (const x of spec.givens ?? []) if (x.at === "cell") cells.add(`${x.cell}`);
+  return [...cells].every((k) => { const [r, c] = k.split(",").map(Number); return cells.has(`${twinOf(sym, rows, cols, [r, c])}`); });
 }
 
 /** Up to `limit` solutions, by clingo-wasm in this process (puzzles/difficulty/clingo.ts). */
@@ -77,6 +106,25 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
   const solveN = o.accept ? solveHere : solve;
   const insistUntil = o.insistMs ? Date.now() + o.insistMs : 0;
   let tooEasy: GridSpec | null = null;   // with insistMs: the last puzzle dropped as too easy
+  const sym: Symmetry = o.symmetry && o.symmetry !== "none" && SYMMETRY_GENRES.includes(genre) ? o.symmetry : "none";
+  /** With `symmetry`: each pool clue's twin group (itself and the clue on its twin cell; a clue on a
+   *  cell that is its own twin, or not on a cell, alone), and the pool without clues whose twin has
+   *  none. Without, every clue alone. */
+  const twinGroups = (pool: Given[]): { pool: Given[]; group: Map<Given, Given[]> } => {
+    const group = new Map<Given, Given[]>();
+    if (sym === "none") { for (const c of pool) group.set(c, [c]); return { pool, group }; }
+    const byCell = new Map<string, Given>();
+    for (const c of pool) if (c.at === "cell" && !byCell.has(`${c.cell}`)) byCell.set(`${c.cell}`, c);
+    const kept: Given[] = [];
+    for (const c of pool) {
+      if (c.at !== "cell") { group.set(c, [c]); kept.push(c); continue; }
+      const t = twinOf(sym, rows, cols, c.cell), mate = byCell.get(`${t}`);
+      if (`${t}` === `${c.cell}`) { group.set(c, [c]); kept.push(c); continue; }
+      if (!mate || byCell.get(`${c.cell}`) !== c) continue;
+      group.set(c, [c, mate]); kept.push(c);
+    }
+    return { pool: kept, group };
+  };
   // the genres made whole (not by adding clues) can only be kept or not: kept when accepted and,
   // with `harder`, hard enough
   const accepts = async (spec: GridSpec) => !o.accept || ((await o.accept(spec)) && (!o.harder || (await o.harder(spec))));
@@ -143,7 +191,21 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
     const spec: GridSpec = { ...base, givens: [...(base.givens ?? [])] };
     let tk = boardKey(spec, target);
+    const first = twinGroups(pool), group = first.group;
+    pool = first.pool;
     const added: Given[] = [];
+    /** The twin groups among these clues, each once, in random order (without a symmetry: each
+     *  clue alone, as before); shuffled unless `mix` is false */
+    const groupsOf = (cs: Given[], mix = true): Given[][] => {
+      const seen = new Set<Given>(), out: Given[][] = [];
+      for (const c of mix ? shuffle([...cs]) : cs) {
+        if (seen.has(c)) continue;
+        const g = group.get(c) ?? [c];
+        for (const x of g) seen.add(x);
+        out.push(g);
+      }
+      return out;
+    };
     for (let round = 0; round < 120; round++) {
       const sols = await solveN(makePuzzle(spec), 2);
       const alt = sols.find((s) => boardKey(spec, s) !== tk);
@@ -155,11 +217,14 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       if (!useful && poolOf) {
         // nothing true of the target rules out the other solution: aim for that one instead (it
         // fits every clue so far), with its own clues
-        target = alt; tk = boardKey(spec, alt); pool = poolOf(alt);
+        // (the clues placed so far keep their twin groups)
+        const fresh = twinGroups(poolOf(alt));
+        target = alt; tk = boardKey(spec, alt); pool = fresh.pool;
+        for (const [c, g] of fresh.group) if (!group.has(c)) group.set(c, g);
         continue;
       }
       if (!useful) { if (process.env.DEBUG) console.error(`narrow: no pool clue rules out the other solution after ${added.length} clues`); return null; }
-      added.push(useful); spec.givens!.push(useful);
+      for (const c of group.get(useful)!) if (!added.includes(c)) { added.push(c); spec.givens!.push(c); }
     }
     const sols = await solveN(makePuzzle(spec), 2);
     if (sols.length !== 1) return null;
@@ -172,8 +237,8 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       if (!(await o.accept(spec))) return null;
       const fits = async (s: GridSpec) => (await solveN(makePuzzle(s), 2)).length === 1 && (await o.accept!(s));
       const minimize = async (cs: Given[]) => {
-        for (const c of shuffle([...cs])) {
-          const fewer = { ...spec, givens: spec.givens!.filter((x) => x !== c) };
+        for (const g of groupsOf(cs)) {
+          const fewer = { ...spec, givens: spec.givens!.filter((x) => !g.includes(x)) };
           if (await fits(fewer)) spec.givens = fewer.givens;
         }
       };
@@ -181,26 +246,34 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       // not as hard as wanted: a random walk of swaps (one clue out, another true of the target in)
       // that stay unique and solved, each followed by taking out what's no longer needed
       for (let t = 0; o.harder && t < (o.climbTries ?? 40) && !(await o.harder(spec)); t++) {
-        const inside = pool.filter((c) => spec.givens!.includes(c)), outside = pool.filter((c) => !spec.givens!.includes(c));
+        // (twin groups, with a symmetry)
+        const inside = groupsOf(pool.filter((c) => spec.givens!.includes(c)), false), outside = groupsOf(pool.filter((c) => !spec.givens!.includes(c)), false);
         if (!inside.length || !outside.length) break;
         const out = inside[Math.floor(rand() * inside.length)], into = outside[Math.floor(rand() * outside.length)];
-        const swapped = { ...spec, givens: [...spec.givens!.filter((x) => x !== out), into] };
+        const swapped = { ...spec, givens: [...spec.givens!.filter((x) => !out.includes(x)), ...into] };
         if (!(await fits(swapped))) continue;
         spec.givens = swapped.givens;
-        await minimize(spec.givens.filter((c) => c !== into && pool.includes(c)));
+        await minimize(spec.givens.filter((c) => !into.includes(c) && pool.includes(c)));
       }
       // still too easy: another board, while there's time
       if (insistUntil && o.harder && Date.now() < insistUntil && !(await o.harder(spec))) { tooEasy = spec; return null; }
       return spec;
     }
-    for (const c of shuffle([...added])) {        // minimize
-      const fewer = { ...spec, givens: spec.givens!.filter((x) => x !== c) };
+    for (const g of groupsOf(added)) {        // minimize
+      const fewer = { ...spec, givens: spec.givens!.filter((x) => !g.includes(x)) };
       if ((await solveN(makePuzzle(fewer), 2)).length === 1) spec.givens = fewer.givens;
     }
     return spec;
   }
 
   const at = (i: number): [number, number] => [Math.floor(i / cols), i % cols];
+  /** With `symmetry`, for the genres whose clues sit in unshaded cells (Cave, Minesweeper,
+   *  Wittgenstein Briquet): the answer's shading symmetric too, so every clue's twin cell can hold
+   *  one (otherwise the clues that tell the answer apart often have none) */
+  const twinShading = () => sym === "none" ? "" : Array.from({ length: rows * cols }, (_, i) => i).flatMap((i) => {
+    const [r, c] = twinOf(sym, rows, cols, at(i)), j = r * cols + c;
+    return j > i ? [`:- shaded(${i}), not shaded(${j}).`, `:- shaded(${j}), not shaded(${i}).`] : [];
+  }).join("\n");
   let result: GridSpec | null = null;
   // Fillomino, Sum Blobs, Polyomino Packing, Connect the Critters, Find the Cut Line, Twins and Triplets: ./pieces.ts
   if (PIECE_GENRES.includes(genre)) {
@@ -237,7 +310,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       // a random answer (blocks with the rest connected / mines), then numbers in the other cells
       const n = rows * cols, base: GridSpec = { genre, size: [rows, cols], givens: [] };
       const [lo, hi] = genre === "minesweeper" ? (o.denseMines ? [0.25, 0.4] : [0.15, 0.25]) : [0.25, 0.4];
-      const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * lo)}.\n:- #count{I: shaded(I)} > ${Math.round(n * hi)}.`);
+      const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * lo)}.\n:- #count{I: shaded(I)} > ${Math.round(n * hi)}.\n${twinShading()}`);
       if (!target) continue;
       const around = genre === "minesweeper" ? near8 : near4;
       const pool: Given[] = Array.from({ length: n }, (_, i) => i).filter((i) => target.shade[i] !== 1)
@@ -312,8 +385,10 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: full.digit[i] }));
       result = await narrow(base, full, pool);
     } else if (genre === "skyscrapers" || genre === "easy-as-abc") {
-      // a random answer, then clues outside (and, for Skyscrapers, a few digits if needed)
-      const base: GridSpec = { genre, size: [rows, cols], givens: [] };
+      // a random answer, then clues outside (and, for Skyscrapers, a few digits if needed); Easy as
+      // ABC with `letters`, that many letters
+      const k = genre === "easy-as-abc" && o.letters && o.letters !== 3 ? o.letters : 0;
+      const base: GridSpec = { genre, size: [rows, cols], givens: [], ...(k ? { rules: [{ rule: "letters", count: k }], style: { symbols: "ABCDEFGHIJ".slice(0, k) } } : {}) };
       const target = await randomBoard(base, "");
       if (!target) continue;
       const pool = [...edgePool(target, genre === "skyscrapers" ? "skyscraper" : "first"),
@@ -322,7 +397,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     } else if (genre === "cave") {
       // a random cave (about half the grid shaded), then numbers in white cells until it's the only one
       const n = rows * cols, base: GridSpec = { genre, size: [rows, cols], givens: [] };
-      const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * 0.38)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.55)}.`);
+      const target = await randomBoard(base, `:- #count{I: shaded(I)} < ${Math.round(n * 0.38)}.\n:- #count{I: shaded(I)} > ${Math.round(n * 0.55)}.\n${twinShading()}`);
       if (!target) continue;
       const p0 = makePuzzle(base), g = p0.grid;
       const sees = (i: number) => {
@@ -397,9 +472,11 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
       // black cells (symmetric, about a fifth), a random lighting, then numbers on black cells until
       // it's the only one
       const n = rows * cols, givens: Given[] = [];
+      // (mirrored left to right instead, with symmetry "mirror")
+      const twin = (i: number) => { if (sym !== "mirror") return n - 1 - i; const [r, c] = twinOf(sym, rows, cols, at(i)); return r * cols + c; };
       for (let i = 0; i < n; i++) {
-        const j = n - 1 - i;
-        if (j < i) break;
+        const j = twin(i);
+        if (j < i) { if (sym === "mirror") continue; break; }
         if (rand() < 0.2) for (const k of new Set([i, j])) givens.push({ at: "cell", cell: at(k), kind: "block" });
       }
       const base: GridSpec = { genre, size: [rows, cols], givens };

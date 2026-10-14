@@ -3,9 +3,13 @@
 // ranks, and one real band-limited puzzle from the generator.
 import { describe, expect, it } from "vitest";
 import { BAND_LIST, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, techniquesOf, without } from "../../../puzzles/difficulty/bands.ts";
-import { aimHigher, pickArm, rarityOf, seedOf, type ArmStats } from "../../../puzzles/difficulty/gen-set.ts";
+import { aimHigher, armOf, armWeight, deficits, drawByShares, keyOf, pickArm, pickArmHuman, rarityOf, seedOf, variantOptions, type ArmStats } from "../../../puzzles/difficulty/gen-set.ts";
+import { breakInScore } from "../../../puzzles/difficulty/interest.ts";
+import type { Step } from "../../../puzzles/difficulty/deduce.ts";
+import { makePuzzle } from "../../../src/engine/puzzle.ts";
+import { solve } from "../../../src/engine/solve.ts";
 import { ranks01, scoreGenre, type Generated } from "../../../puzzles/difficulty/gen-best.ts";
-import { generate } from "../../../puzzles/grid/generate.ts";
+import { generate, isSymmetric } from "../../../puzzles/grid/generate.ts";
 
 describe("bands", () => {
   it("each band holds the techniques of the one before", () => {
@@ -67,6 +71,69 @@ describe("balancing", () => {
     expect(seedOf("akari|7|easy", 0)).not.toBe(seedOf("akari|7|hard", 0));
     expect(seedOf("akari|7|easy", 1)).toBe(seedOf("akari|7|easy", 0) + 1);
   });
+});
+
+describe("aiming at human-made puzzles", () => {
+  it("an arm's settings join its key only when it has some", () => {
+    expect(armOf({ genre: "akari", size: 7, target: "hard" })).toBe("akari|7|hard");
+    expect(keyOf({ genre: "akari", size: 7, target: "hard", seed: 4 })).toBe("akari|7|hard|4");
+    expect(armOf({ genre: "star-battle", size: 10, target: "hard", variant: "stars=2" })).toBe("star-battle|10|hard|stars=2");
+  });
+  it("settings become the generator's options; symmetry only where it applies", () => {
+    expect(variantOptions("star-battle", "stars=2", 1)).toEqual({ stars: 2 });
+    expect(variantOptions("easy-as-abc", "letters=4", 1)).toEqual({ letters: 4 });
+    expect(variantOptions("akari", "sym=rot180", 1)).toEqual({ symmetry: "rot180" });
+    expect(variantOptions("nurikabe", "sym=rot180", 1)).toEqual({});
+    expect(variantOptions("akari", undefined, 1)).toEqual({});
+    // drawn by the targets' shares, the same for the same seed
+    expect(variantOptions("akari", "sym=human", 3, { symmetry: { mirror: 1 } })).toEqual({ symmetry: "mirror" });
+    expect(variantOptions("akari", "sym=human", 3, { symmetry: { none: 1 } })).toEqual({});
+  });
+  it("draws by shares", () => {
+    const n = { a: 0, b: 0 };
+    for (let s = 0; s < 2000; s++) n[drawByShares({ a: 3, b: 1 }, s) as "a" | "b"]++;
+    expect(n.a / 2000).toBeGreaterThan(0.68);
+    expect(n.a / 2000).toBeLessThan(0.82);
+    expect(drawByShares({ a: 1, b: 1 }, 9)).toBe(drawByShares({ a: 1, b: 1 }, 9));
+    expect(drawByShares({}, 1)).toBeUndefined();
+  });
+  it("weights arms by the human sizes and settings", () => {
+    const t = { sizes: { "10": 0.7, "8": 0.2 }, settings: { stars: { "2": 0.8, "1": 0.2 } } };
+    expect(armWeight(10, "stars=2", t)).toBeCloseTo(0.56);
+    expect(armWeight(8, "stars=1", t)).toBeCloseTo(0.04);
+    expect(armWeight(6, undefined, t)).toBeLessThan(0.05);
+    expect(armWeight(6, "stars=2")).toBe(1);
+  });
+  it("extra jobs go to the arm whose families the genre is short of", () => {
+    const d = deficits({ chain: 0.5, single: 0.5 }, new Map([["single", 90], ["chain", 10]]));
+    expect(d.get("chain")).toBeCloseTo(0.4);
+    expect(d.has("single")).toBe(false);
+    const stats = new Map<string, ArmStats>([
+      ["x", { attempts: 10, made: 9, rarity: [0.1, 0.1, 0.1], fams: { single: 30 } }],
+      ["y", { attempts: 10, made: 6, rarity: [0.1, 0.1, 0.1], fams: { single: 10, chain: 20 } }],
+    ]);
+    expect(pickArmHuman(["x", "y"], stats, () => false, () => d)).toBe("y");
+    // no human mix: rarity, as pickArm
+    expect(pickArmHuman(["x", "y"], stats, () => false, () => null)).toBe("x");
+  });
+  it("scores a break-in: one costly step, then cheap ones", () => {
+    const path = (costs: number[]) => costs.map((cost) => ({ cost, tier: cost > 3 ? 1 : 0, where: "", cells: [], facts: [], uses: [] }) as unknown as Step);
+    expect(breakInScore(path([2, 2, 2, 9, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2]))).toBeGreaterThan(0.6);
+    expect(breakInScore(path([2, 2, 2, 2, 2, 2, 2, 2, 2, 2]))).toBe(0);
+    expect(breakInScore(path([2, 2, 9, 8, 9, 8, 9, 8, 9, 8, 9]))).toBeLessThan(0.1);
+    expect(breakInScore(path([9, 1, 1]))).toBe(0);
+  });
+  it("makes symmetric clue layouts that stay unique, and Easy as ABC with more letters", async () => {
+    for (const [genre, n, symmetry] of [["slitherlink", 5, "rot180"], ["akari", 6, "mirror"], ["sudoku", 4, "rot180"]] as const) {
+      const spec = await generate({ genre, rows: n, cols: n, seed: 5, symmetry });
+      expect(spec).not.toBeNull();
+      expect(isSymmetric(spec!, symmetry)).toBe(true);
+      expect((await solve(makePuzzle(spec!), 2)).length).toBe(1);
+    }
+    const abc = await generate({ genre: "easy-as-abc", rows: 5, cols: 5, seed: 2, letters: 4 });
+    expect(abc!.style?.symbols).toBe("ABCD");
+    expect((await solve(makePuzzle(abc!), 2)).length).toBe(1);
+  }, 60000);
 });
 
 describe("shortlist", () => {

@@ -6,8 +6,17 @@
 //   node puzzles/difficulty/gen-set.ts [perArm]          N puzzles per (genre, size, band); default 20
 //   node puzzles/difficulty/gen-set.ts --summary         the summary of what's there, nothing made
 //
-//   GEN_GENRES   "sudoku:9,akari:7+10,hitori:6:expert,…" (sizes joined by +, then the bands if
-//                only some, joined by +); default GENRES below
+//   GEN_GENRES   "sudoku:9,akari:7+10,hitori:6:expert,star-battle:10::stars=2,…" (sizes joined by +,
+//                then the bands if only some, joined by +, then the arm's settings, joined by +:
+//                stars=2, letters=4, sym=rot180|mirror|none|human); default GENRES below, or
+//                HUMAN_GENRES with GEN_HUMAN
+//   GEN_HUMAN    1: aim at human-made puzzles (the targets below): HUMAN_GENRES by default, sym=human
+//                for the genres it applies to, quotas by the targets' size and setting shares,
+//                extra jobs to the families most under-represented against the human mix, and the
+//                best break-in of GEN_BREAKIN candidates at hard and expert
+//   GEN_TARGETS  the human targets (default puzzles/difficulty/human-targets.json; defaults if missing)
+//   GEN_BREAKIN  candidates per job at hard and expert, the best break-in kept (default 1; 3 with
+//                GEN_HUMAN); GEN_BREAKIN_MS: no candidate starts after this long (default 240000)
 //   GEN_BANDS    "easy,medium,hard,expert" (default all; expert only where it adds a technique)
 //   GEN_EXTRA    extra jobs for balancing, as a share of the base ones (default 0.25)
 //   GEN_TRIES    attempts per arm at most, as a multiple of perArm (default 3)
@@ -27,17 +36,18 @@
 // that solves it) is the target; one that comes out easier is kept under its own band but counts
 // as a rejection ("easier"). Balancing: after the base jobs, extra ones go to the arms whose
 // puzzles bring the step families rarest in their genre so far, weighted by how often the arm
-// succeeds.
+// succeeds; with GEN_HUMAN and the genre's family mix in the targets, to the arms whose puzzles
+// bring the families most under-represented against that mix (pickArmHuman).
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { generate, type GenerateOptions } from "../grid/generate.ts";
+import { generate, SYMMETRY_GENRES, type GenerateOptions, type Symmetry } from "../grid/generate.ts";
 import { BAND_LIST, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, requiredOf } from "./bands.ts";
 import { deduce } from "./deduce.ts";
 import { graphRecord } from "./graph-data.ts";
-import { interestOf } from "./interest.ts";
+import { breakInScore, interestOf } from "./interest.ts";
 import { looksOf } from "./looks.ts";
 import { JOBS } from "./pool.ts";
 import { family, signature } from "./signatures.ts";
@@ -64,15 +74,95 @@ export const GENRES: [string, number[], string[]?][] = [
   ["shikaku", [5, 6], ["hard", "expert"]], ["numberlink", [5, 6], ["hard", "expert"]], ["fillomino", [5], ["hard", "expert"]],
 ];
 
-export interface Job { genre: string; size: number; target: string; seed: number; k: number }
-export const keyOf = (j: Pick<Job, "genre" | "size" | "target" | "seed">) => `${j.genre}|${j.size}|${j.target}|${j.seed}`;
-export const armOf = (j: Pick<Job, "genre" | "size" | "target">) => `${j.genre}|${j.size}|${j.target}`;
+/** Human-like arms (GEN_HUMAN): the sizes and settings of hand-made puzzles (Janko, Puzzle Square
+ *  JP): 10 × 10 for the grid genres, 2-star Star Battle, Easy as ABC with more letters, Skyscrapers
+ *  6 and 7, and the genres that can now reach hard or expert, at the sizes and bands that come out
+ *  in time (measured, at 10-minute jobs: Hitori 9 and 10 make no unique board; Nurikabe and
+ *  Shikaku 10 time out, so 8; 2-star Star Battle and Spiral Galaxies 7 time out at expert; no
+ *  Skyscrapers 6 or 7 reaches expert, no Numberlink 6 or 7 does; Galaxies makes no easy one; see
+ *  docs/generation-plan.md, "A human-like run"). */
+export const HUMAN_GENRES: [string, number[], string[]?, string?][] = [
+  ["sudoku", [9]], ["skyscrapers", [6, 7], ["easy", "medium", "hard"]], ["easy-as-abc", [6], undefined, "letters=4"], ["easy-as-abc", [7], undefined, "letters=5"],
+  ["akari", [10]], ["slitherlink", [10]], ["masyu", [10]], ["cave", [10]], ["star-battle", [10], ["easy", "medium", "hard"], "stars=2"],
+  ["hitori", [8], ["expert"]], ["nurikabe", [8], ["expert"]], ["shikaku", [8], ["hard", "expert"]],
+  ["spiral-galaxies", [7], ["medium", "hard"]], ["fill-in", [6]], ["minesweeper", [8]], ["simple-path", [7]], ["hidoku", [6]],
+  ["numberlink", [7], ["hard"]], ["fillomino", [6], ["hard", "expert"]],
+];
+
+export interface Job { genre: string; size: number; target: string; seed: number; k: number; variant?: string }
+/** an arm's settings, when it has any, after its band ("star-battle|10|hard|stars=2") */
+export const armOf = (j: Pick<Job, "genre" | "size" | "target" | "variant">) => `${j.genre}|${j.size}|${j.target}${j.variant ? `|${j.variant}` : ""}`;
+export const keyOf = (j: Pick<Job, "genre" | "size" | "target" | "seed" | "variant">) => `${armOf(j)}|${j.seed}`;
 /** An arm's k-th seed: arms never share seeds, and the same k is always the same puzzle. */
 export const seedOf = (arm: string, k: number) => {
   let h = 2166136261;
   for (const ch of arm) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
   return ((h >>> 0) % 100000) * 1000 + k + 1;
 };
+
+// ---------- human targets ----------
+
+/** What hand-made puzzles of a genre look like (puzzles/difficulty/human-targets.json, measured
+ *  from Janko and Puzzle Square JP): shares of sizes ("10": 0.7), of each setting's values
+ *  ({ stars: { "2": 0.8 } }), of symmetries, of bands, and of step families. */
+export interface HumanTarget {
+  sizes?: Record<string, number>;
+  settings?: Record<string, Record<string, number> | unknown>;
+  clueDensity?: [number, number];
+  symmetry?: Record<string, number>;
+  bands?: Record<string, number>;
+  families?: Record<string, number>;
+}
+/** When the targets don't say: most hand-made clue layouts are symmetric, nearly all half-turn. */
+export const DEFAULT_SYMMETRY: Record<string, number> = { rot180: 0.6, mirror: 0.1, none: 0.3 };
+
+/** GEN_TARGETS, or human-targets.json beside this file */
+function targetsFile(): string {
+  return process.env.GEN_TARGETS ?? new URL("./human-targets.json", import.meta.url).pathname;
+}
+
+export function loadTargets(path: string): Record<string, HumanTarget> {
+  try { return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : {}; } catch { return {}; }
+}
+
+/** A value drawn by shares (they needn't sum to 1), the same for the same seed. */
+export function drawByShares(shares: Record<string, number>, seed: number): string | undefined {
+  const xs = Object.entries(shares).filter(([, w]) => w > 0).sort(([a], [b]) => (a < b ? -1 : 1));
+  const total = xs.reduce((a, [, w]) => a + w, 0);
+  if (!total) return undefined;
+  let h = Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0;
+  h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0;
+  let u = ((h ^ (h >>> 13)) >>> 0) / 2 ** 32 * total;
+  for (const [v, w] of xs) { if (u < w) return v; u -= w; }
+  return xs.at(-1)![0];
+}
+
+/** An arm's settings ("stars=2+letters=4+sym=rot180") as a map. */
+export const settingsOf = (variant?: string) => new Map((variant ?? "").split("+").filter(Boolean).map((x) => { const [k, v] = x.split("="); return [k, v ?? "true"] as [string, string]; }));
+
+/** The generator's options for an arm's settings, for one job (its seed): stars, letters and
+ *  symmetry; sym=human draws the symmetry from the genre's target shares (DEFAULT_SYMMETRY if none). */
+export function variantOptions(genre: string, variant: string | undefined, seed: number, target?: HumanTarget): Partial<GenerateOptions> {
+  const m = settingsOf(variant), out: Partial<GenerateOptions> = {};
+  if (m.has("stars")) out.stars = Number(m.get("stars"));
+  if (m.has("letters")) out.letters = Number(m.get("letters"));
+  let sym = m.get("sym");
+  if (sym === "human") sym = drawByShares(target?.symmetry ?? DEFAULT_SYMMETRY, seed) ?? "none";
+  if (sym && sym !== "none" && SYMMETRY_GENRES.includes(genre)) out.symmetry = sym as Symmetry;
+  return out;
+}
+
+/** An arm's share of the human mix (GEN_HUMAN quotas): its size's share times each setting's
+ *  value's share, 1 for what the target doesn't give. */
+export function armWeight(size: number, variant: string | undefined, t?: HumanTarget): number {
+  let w = 1;
+  if (t?.sizes && Object.keys(t.sizes).length) w *= t.sizes[String(size)] ?? t.sizes[`${size}x${size}`] ?? 0.02;
+  for (const [k, v] of settingsOf(variant)) {
+    const shares = t?.settings?.[k];
+    if (shares && typeof shares === "object") w *= (shares as Record<string, number>)[v] ?? 0.02;
+  }
+  return w;
+}
 
 // ---------- one job (in its own process) ----------
 
@@ -107,23 +197,43 @@ async function runJob(job: Job) {
     checkMs += q.ms;
     return !q.solved;
   } : undefined;
-  const spec = await generate({ genre: job.genre, rows: job.size, cols: job.size, seed: job.seed, accept, harder, ...(target > 0 ? aimHigher(job.genre, target) : {}) });
-  const genMs = Date.now() - t0;
-  const base = { key: keyOf(job), genre: job.genre, size: job.size, target: job.target, seed: job.seed, k: job.k, genMs, checks, checkMs };
-  if (!spec) return { ...base, status: "none", ms: Date.now() - t0 };
-  // its band: the easiest that solves it (the target does)
-  const bi = await bandOf(spec, target), band = BAND_LIST[bi];
+  const human = !!process.env.GEN_HUMAN, targets = human || job.variant?.includes("sym=human") ? loadTargets(targetsFile()) : {};
+  const opts = variantOptions(job.genre, job.variant, job.seed, targets[job.genre]);
+  // at hard and expert, with GEN_BREAKIN > 1: several candidates (this seed, then seed + 1e8, + 2e8,
+  // ...), the one in the target band with the best break-in kept; no candidate starts after
+  // GEN_BREAKIN_MS, and one in the band scoring 0.6 or more ends the search
+  const breakIns = target >= 2 ? Number(process.env.GEN_BREAKIN) || (human ? 3 : 1) : 1, breakInMs = Number(process.env.GEN_BREAKIN_MS) || 240000;
+  type Cand = { spec: GridSpec; bi: number; full: Awaited<ReturnType<typeof deduce>>; score: number; seed: number };
+  let best: Cand | null = null, candidates = 0, genMs = 0;
+  for (let i = 0; i < breakIns && (i === 0 || Date.now() - t0 < breakInMs); i++) {
+    const seed = job.seed + i * 100000000, tg = Date.now();
+    const spec = await generate({ genre: job.genre, rows: job.size, cols: job.size, seed, accept, harder, ...(target > 0 ? aimHigher(job.genre, target) : {}), ...opts });
+    genMs += Date.now() - tg;
+    if (!spec) continue;
+    candidates++;
+    // its band: the easiest that solves it (the target does)
+    const bi = await bandOf(spec, target);
+    // the full solve, explained, for the measures and the training data
+    const full = await deduce(spec, optionsOf(BAND_LIST[bi], { structure: true, budgetMs: 60000 }, spec.genre));
+    const score = full.profile.solved ? breakInScore(full.path) : -1;
+    const rank = (c: Cand) => (c.full.profile.solved ? 2 : 0) + (c.bi === target ? 1 : 0) + c.score / 10;
+    const cand = { spec, bi, full, score, seed };
+    if (!best || rank(cand) > rank(best)) best = cand;
+    if (breakIns > 1 && bi === target && score >= 0.6) break;
+  }
+  const base = { key: keyOf(job), genre: job.genre, size: job.size, target: job.target, seed: job.seed, k: job.k, ...(job.variant ? { variant: job.variant } : {}), genMs, checks, checkMs };
+  if (!best) return { ...base, status: "none", ms: Date.now() - t0 };
+  const { spec, bi, full } = best, band = BAND_LIST[bi];
+  if (!full.profile.solved) return { ...base, status: "unsolved", band: band.name, ms: Date.now() - t0 };
   const q = await quickSolve(spec, band, 20000);
   const required = await requiredOf(spec, band, q.used);
-  // the full solve, explained, for the measures and the training data
-  const full = await deduce(spec, optionsOf(band, { structure: true, budgetMs: 60000 }, spec.genre));
-  if (!full.profile.solved) return { ...base, status: "unsolved", band: band.name, ms: Date.now() - t0 };
   const real = full.path.filter((s) => !s.choice);
   const tally = (xs: string[]) => { const m: Record<string, number> = {}; for (const x of xs) if (x) m[x] = (m[x] ?? 0) + 1; return m; };
   const p = makePuzzle(spec);
   const graph = graphRecord({ source: "gen-set", genre: job.genre, name: `${job.genre} ${job.size} ${band.name} #${job.seed}`, band: band.name, seed: job.seed, size: job.size }, spec, full);
   return {
     ...base, status: bi < target ? "easier" : "ok", band: band.name, ms: Date.now() - t0, spec,
+    ...(opts.symmetry ? { symmetry: opts.symmetry } : {}), ...(breakIns > 1 ? { candidates, madeSeed: best.seed } : {}), breakInScore: best.score,
     clues: (spec.givens ?? []).filter((x) => !FIXED.has(x.kind)).length, areas: p.areas ? p.areas.cells.length : 0, cells: p.grid.cellCount,
     estimate: full.profile.estimate, dSteps: full.profile.dSteps, maxCost: full.profile.maxCost, steps: real.length, perTier: full.profile.perTier,
     ruleLoad: full.profile.ruleLoad, solveMs: full.profile.ms,
@@ -142,7 +252,7 @@ if (process.argv[2] === "--job") {
 
 // ---------- balancing (pure, unit-tested) ----------
 
-export interface ArmStats { attempts: number; made: number; rarity: number[] }
+export interface ArmStats { attempts: number; made: number; rarity: number[]; fams?: Record<string, number> }
 
 /** How rare a puzzle's step families are in its genre so far: Σ steps-of-f / (count of f + 1),
  *  over its families, divided by its step count (0 = nothing rare, near 1 = everything new). */
@@ -167,6 +277,43 @@ export function pickArm(arms: string[], stats: Map<string, ArmStats>, exhausted:
   return best;
 }
 
+/** How far our puzzles of a genre fall short of the human family mix: per family, the human share
+ *  less ours (step counts as shares), where positive. */
+export function deficits(human: Record<string, number>, ours: Map<string, number> | undefined): Map<string, number> {
+  const hTotal = Object.values(human).reduce((a, x) => a + x, 0) || 1;
+  const oTotal = [...(ours?.values() ?? [])].reduce((a, x) => a + x, 0) || 1;
+  const out = new Map<string, number>();
+  for (const [f, h] of Object.entries(human)) { const d = h / hTotal - (ours?.get(f) ?? 0) / oTotal; if (d > 0) out.set(f, d); }
+  return out;
+}
+
+/** Steering toward the human mix (GEN_HUMAN): the arm extra jobs go to, by success rate (prior as
+ *  pickArm's) times how much of its puzzles' steps fall in the families its genre is short of
+ *  (deficits, as a share of the genre's whole shortfall, 0 to 1); an arm with no puzzles yet is
+ *  taken as its genre's average family. Genres without a human mix score by rarity, as pickArm. */
+export function pickArmHuman(arms: string[], stats: Map<string, ArmStats>, exhausted: (arm: string) => boolean, deficitOf: (arm: string) => Map<string, number> | null): string | null {
+  let best: string | null = null, bestScore = -1;
+  for (const a of arms) {
+    if (exhausted(a)) continue;
+    const s = stats.get(a) ?? { attempts: 0, made: 0, rarity: [] };
+    const success = (s.made + 0.5) / (s.attempts + 1);
+    const d = deficitOf(a);
+    let pull: number;
+    if (!d) pull = (s.rarity.reduce((x, y) => x + y, 0) + 0.5) / (s.rarity.length + 1);
+    else {
+      const short = [...d.values()].reduce((x, y) => x + y, 0);
+      const steps = Object.values(s.fams ?? {}).reduce((x, y) => x + y, 0);
+      const hit = steps ? Object.entries(s.fams!).reduce((x, [f, n]) => x + n * (d.get(f) ?? 0), 0) / steps : 0;
+      // its families' shortfall as a share of the genre's, against an average family (a prior of one puzzle)
+      const avg = d.size ? short / d.size : 0, n = s.rarity.length;
+      pull = short ? ((hit * n + avg) / (n + 1)) / short : 0;
+    }
+    const score = pull * success;
+    if (score > bestScore) { bestScore = score; best = a; }
+  }
+  return best;
+}
+
 // ---------- the batch ----------
 
 const isMain = !!process.argv[1] && realpathSync(process.argv[1]) === self && process.argv[2] !== "--job";
@@ -178,9 +325,10 @@ async function main() {
   mkdirSync(dir, { recursive: true });
   const graphFile = process.env.GEN_GRAPHS ?? `${repo}references/ml/graphs-gen.jsonl`, attemptsFile = `${dir}/attempts.jsonl`;
   const per = Number(process.argv[2]) || 20;
-  const genres: [string, number[], string[]?][] = process.env.GEN_GENRES
-    ? process.env.GEN_GENRES.split(",").map((x) => { const [g, s, b] = x.split(":"); return [g, s.split("+").map(Number), b ? b.split("+") : undefined]; })
-    : GENRES;
+  const human = !!process.env.GEN_HUMAN, targets = human ? loadTargets(targetsFile()) : {};
+  const genres: [string, number[], string[]?, string?][] = process.env.GEN_GENRES
+    ? process.env.GEN_GENRES.split(",").map((x) => { const [g, s, b, v] = x.split(":"); return [g, s.split("+").map(Number), b ? b.split("+") : undefined, v || undefined]; })
+    : human ? HUMAN_GENRES : GENRES;
   const bandNames = (process.env.GEN_BANDS ?? BAND_LIST.map((b) => b.name).join(",")).split(",");
   bandNames.forEach(bandNamed);
   const tries = Number(process.env.GEN_TRIES) || 3, capMs = (Number(process.env.GEN_CAP) || 600) * 1000;
@@ -188,7 +336,7 @@ async function main() {
   const extraShare = process.env.GEN_EXTRA === undefined ? 0.25 : Number(process.env.GEN_EXTRA);
 
   // what's done (resuming): attempts by key, arm stats, family counts per genre
-  type Attempt = { key: string; genre: string; size: number; target: string; seed: number; k: number; status: string; band?: string; ms: number; genMs?: number; checks?: number; families?: Record<string, number>; extra?: boolean };
+  type Attempt = { key: string; genre: string; size: number; target: string; variant?: string; seed: number; k: number; status: string; band?: string; ms: number; genMs?: number; checks?: number; families?: Record<string, number>; extra?: boolean };
   const attempts: Attempt[] = existsSync(attemptsFile) ? readFileSync(attemptsFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
   const done = new Set(attempts.map((a) => a.key));
   const stats = new Map<string, ArmStats>(), famCounts = new Map<string, Map<string, number>>(), nextK = new Map<string, number>();
@@ -199,7 +347,11 @@ async function main() {
     if (a.status === "ok") s.made++;
     if (a.families) {
       const fc = famCounts.get(a.genre) ?? new Map<string, number>();
-      if (a.status === "ok") s.rarity.push(rarityOf(a.families, fc));
+      if (a.status === "ok") {
+        s.rarity.push(rarityOf(a.families, fc));
+        s.fams ??= {};
+        for (const [f, n] of Object.entries(a.families)) s.fams[f] = (s.fams[f] ?? 0) + n;
+      }
       for (const [f, n] of Object.entries(a.families)) fc.set(f, (fc.get(f) ?? 0) + n);
       famCounts.set(a.genre, fc);
     }
@@ -211,23 +363,34 @@ async function main() {
   if (process.argv[2] === "--summary") { summary(attempts, famCounts); return; }
 
   const arms: Job[] = [];
-  for (const [genre, sizes, only] of genres) for (const size of sizes) for (const target of bandNames) {
+  for (const [genre, sizes, only, settings] of genres) for (const size of sizes) for (const target of bandNames) {
     if ((target === "expert" && !expertApplies(genre)) || (only && !only.includes(target))) continue;
-    arms.push({ genre, size, target, seed: 0, k: 0 });
+    // aiming at human-made puzzles: a symmetric layout by the targets' shares where it applies
+    const variant = human && SYMMETRY_GENRES.includes(genre) && !settingsOf(settings).has("sym") ? [settings, "sym=human"].filter(Boolean).join("+") : settings;
+    arms.push({ genre, size, target, seed: 0, k: 0, ...(variant ? { variant } : {}) });
   }
   const armKeys = arms.map(armOf), armJob = new Map(arms.map((a) => [armOf(a), a]));
+  // puzzles per arm: perArm, or with GEN_HUMAN its share of the human mix against the genre's
+  // commonest arm (armWeight), at least 1
+  const quota = new Map(arms.map((a) => {
+    if (!human) return [armOf(a), per];
+    const mates = arms.filter((b) => b.genre === a.genre && b.target === a.target), top = Math.max(...mates.map((b) => armWeight(b.size, b.variant, targets[b.genre])));
+    return [armOf(a), Math.max(1, Math.round(per * armWeight(a.size, a.variant, targets[a.genre]) / (top || 1)))];
+  }));
+  // the family shortfall per genre against the human mix (GEN_HUMAN, where the targets give one)
+  const deficitOf = (arm: string) => { const g = armJob.get(arm)!.genre, h = targets[g]?.families; return h && Object.keys(h).length ? deficits(h, famCounts.get(g)) : null; };
   const running = new Map<string, number>();   // jobs out per arm
   // an arm stops at per × tries attempts, or after 6 with nothing made (a band the genre can't reach)
-  const exhausted = (arm: string) => { const s = stats.get(arm); return (s?.attempts ?? 0) + (running.get(arm) ?? 0) >= per * tries || ((s?.attempts ?? 0) >= 6 && !s?.made); };
-  const baseNeeded = (arm: string) => { const s = stats.get(arm); return (s?.made ?? 0) + (running.get(arm) ?? 0) < per && !exhausted(arm); };
-  let extraLeft = Math.round(arms.length * per * extraShare), rr = 0;
+  const exhausted = (arm: string) => { const s = stats.get(arm); return (s?.attempts ?? 0) + (running.get(arm) ?? 0) >= quota.get(arm)! * tries || ((s?.attempts ?? 0) >= 6 && !s?.made); };
+  const baseNeeded = (arm: string) => { const s = stats.get(arm); return (s?.made ?? 0) + (running.get(arm) ?? 0) < quota.get(arm)! && !exhausted(arm); };
+  let extraLeft = Math.round([...quota.values()].reduce((a, x) => a + x, 0) * extraShare), rr = 0;
   const nextJob = (): Job | null => {
     if (Date.now() > deadline) return null;
     let arm: string | null = null;
     // base: round robin over arms still short of N
     for (let i = 0; i < armKeys.length && !arm; i++) { const a = armKeys[(rr + i) % armKeys.length]; if (baseNeeded(a)) { arm = a; rr = (rr + i + 1) % armKeys.length; } }
     let extra = false;
-    if (!arm && extraLeft > 0) { arm = pickArm(armKeys, stats, exhausted); if (arm) { extraLeft--; extra = true; } }
+    if (!arm && extraLeft > 0) { arm = human ? pickArmHuman(armKeys, stats, exhausted, deficitOf) : pickArm(armKeys, stats, exhausted); if (arm) { extraLeft--; extra = true; } }
     if (!arm) return null;
     const a = armJob.get(arm)!;
     let k = nextK.get(arm) ?? 0;
@@ -237,7 +400,7 @@ async function main() {
     return { ...a, seed: seedOf(arm, k), k, ...(extra ? { extra: true } : {}) };
   };
 
-  console.error(`${arms.length} arms × ${per} (${JOBS} at a time), ${attempts.length} attempts already done`);
+  console.error(`${arms.length} arms × ${human ? `up to ${per} (human shares)` : per} (${JOBS} at a time), ${attempts.length} attempts already done`);
   const live = new Set<ReturnType<typeof spawn>>();
   process.on("exit", () => { for (const c of live) c.kill("SIGKILL"); });
   for (const sig of ["SIGINT", "SIGTERM"] as const) process.once(sig, () => process.exit(130));
@@ -255,7 +418,7 @@ async function main() {
       let r: Record<string, unknown>;
       try { r = JSON.parse(out); } catch { r = { status: Date.now() - t >= capMs - 50 ? "timeout" : "crash" }; }
       const { graph, ...rec } = r as { graph?: unknown } & Record<string, unknown>;
-      const a: Attempt = { key: keyOf(job), genre: job.genre, size: job.size, target: job.target, seed: job.seed, k: job.k, status: String(rec.status), band: rec.band as string | undefined, ms: Date.now() - t,
+      const a: Attempt = { key: keyOf(job), genre: job.genre, size: job.size, target: job.target, ...(job.variant ? { variant: job.variant } : {}), seed: job.seed, k: job.k, status: String(rec.status), band: rec.band as string | undefined, ms: Date.now() - t,
         genMs: rec.genMs as number | undefined, checks: rec.checks as number | undefined, families: rec.families as Record<string, number> | undefined, ...((job as { extra?: boolean }).extra ? { extra: true } : {}) };
       if (rec.spec) appendFileSync(`${dir}/${job.genre}.jsonl`, JSON.stringify(rec) + "\n");
       if (graph) appendFileSync(graphFile, JSON.stringify(graph) + "\n");

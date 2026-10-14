@@ -13,7 +13,8 @@
 #   family  n2 (default) or c3
 #   resume  an earlier run to carry on from (its results are copied in first)
 #
-# GEN_GENRES and GEN_BANDS in the environment pass through (gen-set.ts's defaults otherwise);
+# GEN_GENRES and GEN_BANDS in the environment pass through (gen-set.ts's defaults otherwise), and
+# GEN_HUMAN (aim at human-made puzzles), GEN_BREAKIN and GEN_CAP (seconds a job may take) if set;
 # GEN_RUN names the run, GEN_NO_UPLOAD=1 skips uploading the code.
 #
 # Quota: 32 vCPUs across all regions, 8 of them taken by the GPU VM, so 24 are free. Spot VMs draw
@@ -35,6 +36,6 @@ gcloud compute instances create "$RUN" --project inkit-research --zone "$ZONE" \
   --image-family debian-12 --image-project debian-cloud --boot-disk-size 20GB \
   --scopes storage-rw,logging-write \
   --max-run-duration "${HOURS}h" --instance-termination-action DELETE \
-  --metadata "^|^run=$RUN|per=$PER|hours=$HOURS|genres=${GEN_GENRES:-}|bands=${GEN_BANDS:-}|resume=$RESUME" \
+  --metadata "^|^run=$RUN|per=$PER|hours=$HOURS|genres=${GEN_GENRES:-}|bands=${GEN_BANDS:-}|human=${GEN_HUMAN:-}|breakin=${GEN_BREAKIN:-}|cap=${GEN_CAP:-}|resume=$RESUME" \
   --metadata-from-file startup-script="$(dirname "$0")/gen-job.sh"
 echo "$RUN"

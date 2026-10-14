@@ -14,6 +14,9 @@ HOURS=$(meta hours || echo 4)            # the VM's time limit (max-run-duration
 GENRES=$(meta genres || true)            # GEN_GENRES, default gen-set.ts's list
 BANDS=$(meta bands || true)              # GEN_BANDS, default all
 RESUME=$(meta resume || true)            # an earlier run to carry on from
+HUMAN=$(meta human || true)              # GEN_HUMAN: aim at human-made puzzles
+BREAKIN=$(meta breakin || true)          # GEN_BREAKIN: candidates per hard or expert job
+CAP=$(meta cap || true)                  # GEN_CAP: seconds one job may take (default 600)
 OUT=$BUCKET/results/$RUN
 exec > /var/log/gen-job.log 2>&1
 set -x
@@ -49,15 +52,18 @@ SYNC=$!
 
 # every CPU, as memory allows (a job peaks near 0.85 GB: 9×9 Sudoku; n2-highcpu has 1 GB per vCPU,
 # so 16 vCPUs run 14 jobs, c3-highcpu's 2 GB one per vCPU); no job starts in the last 25 minutes,
-# and the batch is stopped 10 minutes before the limit (a job runs 10 minutes at most), so the last
-# copy always happens
+# and the batch is stopped 10 minutes before the limit (a job runs 10 minutes at most; with a
+# longer cap, the margins grow with it), so the last copy always happens
 LIMIT=$((HOURS * 3600 - SECONDS))
 MEM_MB=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
 JOBS=$(nproc); [ $((MEM_MB / 1100)) -lt "$JOBS" ] && JOBS=$((MEM_MB / 1100))
-export DEDUCE_JOBS=$JOBS GEN_DEADLINE=$((LIMIT - 1500)) GEN_CAP=600
+CAP=${CAP:-600}
+export DEDUCE_JOBS=$JOBS GEN_DEADLINE=$((LIMIT - 900 - CAP)) GEN_CAP=$CAP
 [ -n "$GENRES" ] && export GEN_GENRES=$GENRES
 [ -n "$BANDS" ] && export GEN_BANDS=$BANDS
-timeout $((LIMIT - 600)) node puzzles/difficulty/gen-set.ts "$PER" > summary.md 2> gen.log
+[ -n "$HUMAN" ] && export GEN_HUMAN=$HUMAN
+[ -n "$BREAKIN" ] && export GEN_BREAKIN=$BREAKIN
+timeout $((LIMIT - CAP)) node puzzles/difficulty/gen-set.ts "$PER" > summary.md 2> gen.log
 tail -5 gen.log
 kill $SYNC
 node puzzles/difficulty/gen-set.ts --summary > summary.md

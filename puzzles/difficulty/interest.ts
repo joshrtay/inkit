@@ -62,3 +62,31 @@ export function interestOf(path: Step[], profile: Profile): Interest {
     estimate: profile.estimate, ruleLoad: profile.ruleLoad, solved: profile.solved,
   };
 }
+
+/** A break-in, scored 0 to 1 (for the generator's preference at hard and expert, gen-set.ts): one
+ *  costly step early or mid-solve, then a run of cheap ones, as hand-made puzzles have. Costs are
+ *  read against the path's own median (each genre's steps cost differently). The key step is the
+ *  costliest in the first three quarters of the path; the steps right after it that cost nearly as
+ *  much (≥ 0.8 of it) are its burst, the same idea applied again. The score multiplies
+ *  - how far it stands above the typical step: (its cost over the median − 1) / 1.5, at most 1;
+ *  - the run after the burst: the share of the next ten steps no dearer than the median;
+ *  - that it's the one: 1 less the share of the later steps (after the burst) nearly as costly;
+ *  - where it falls: 1 from a twentieth to seven tenths of the way, half at the very start or later.
+ *  A path of fewer than 6 real steps scores 0. */
+export function breakInScore(path: Step[]): number {
+  const real = path.filter((s) => !s.choice), n = real.length;
+  if (n < 6) return 0;
+  const costs = real.map((s) => s.cost), sorted = [...costs].sort((a, b) => a - b), median = sorted[Math.floor(n / 2)] || 1;
+  const reach = Math.max(1, Math.floor(n * 0.75));
+  let key = 0;
+  for (let i = 1; i < reach; i++) if (costs[i] > costs[key]) key = i;
+  const kc = costs[key], at = key / (n - 1);
+  let end = key + 1;
+  while (end < n && costs[end] >= 0.8 * kc) end++;
+  const stand = Math.min(1, Math.max(0, (kc / median - 1) / 1.5));
+  const next = costs.slice(end, end + 10);
+  const run = next.length ? next.filter((c) => c <= median).length / next.length : 0;
+  const later = costs.slice(end), rivals = later.length ? later.filter((c) => c >= 0.8 * kc).length / later.length : 0;
+  const place = at >= 0.05 && at <= 0.7 ? 1 : 0.5;
+  return +(stand * run * (1 - rivals) * place).toFixed(3);
+}
