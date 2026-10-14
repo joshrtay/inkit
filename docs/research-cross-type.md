@@ -355,3 +355,23 @@ Puzzle Square JP puzzle:
   about 3½ hours with loading and scoring. Weight 2 makes the human set about a quarter to a third
   of training, and each human puzzle is then seen 16 times in effect, as often as the corpus's in
   the 16-epoch runs that didn't overfit. Results to come.
+
+## 13. The learning curve (graph-20261013-1542)
+
+Width 128, attention, positions, no structure features; the corpus plus 10%, 25%, 50% and 100% of
+the 133k generated puzzles (nested shares), each trained for the same time (12, 9, 6 and 4 epochs),
+scored with the new tests:
+
+| Generated share | Human-made: any move | Human-made: key move | Agreement with people | Generated held out | Corpus held out |
+|---|---|---|---|---|---|
+| 10% | 61% | 29% | 20% | 85% | 74.9% |
+| 25% | 62% | 29% | 24% | 87% | 75.8% |
+| 50% | 61% | 30% | 20% | 89% | 73.9% |
+| 100% | 61% | 30% | 22% | 88% | 74.2% |
+
+Random: 20% (any move) and 7% (key move) on human-made puzzles, 9% for agreement; our solver's
+next step agrees with people 36% of the time. Ten times the generated data moves generated puzzles
+a little and human-made ones not at all: volume of this kind isn't the limit, its likeness to human
+puzzles is. Equal time per share means fewer passes at larger shares, but the human line is flat at
+every share. Next: human puzzles in training, a human-like generator, structure features (§11), at
+width 256.
