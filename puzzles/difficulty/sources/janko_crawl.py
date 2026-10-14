@@ -22,7 +22,7 @@ from polite import REFERENCES, Fetcher, Stop
 
 BASE = "https://www.janko.at/Raetsel/"
 OUT = os.path.join(REFERENCES, "janko-full")
-DELAY = 3.0
+DELAY = 4.0   # 3 s drew a connection reset once (2026-10-14): a little gentler
 # our types and those close to them, in this order; then every other folder, A to Z
 FIRST = ["Sternenschlacht", "Slitherlink", "Masyu", "Nurikabe", "Akari", "Hitori", "Sikaku", "Fillomino", "Sudoku",
          "Wolkenkratzer", "Abc-End-View", "Arukone", "Hidoku", "Minesweeper", "Nonogramme", "Galaxien", "Heyawake",
