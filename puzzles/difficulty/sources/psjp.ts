@@ -25,7 +25,7 @@ export const TERMS = "PSJP guideline: rights stay with the poster; public puzzle
 
 /** PSJP kinds of our genres (for Penpa links, which don't say their type) */
 const KINDS: Record<number, GenreName> = {
-  1: "slitherlink", 2: "masyu", 5: "numberlink", 6: "nurikabe", 8: "hitori", 16: "shikaku", 17: "spiral-galaxies",
+  1: "slitherlink", 2: "masyu", 5: "numberlink", 21: "fillomino", 6: "nurikabe", 8: "hitori", 16: "shikaku", 17: "spiral-galaxies",
   18: "akari", 19: "sudoku", 48: "cave", 59: "skyscrapers", 68: "star-battle", 91: "easy-as-abc", 113: "minesweeper",
   141: "aquarium", 165: "nonogram", 185: "simple-loop", 235: "wittgenstein-briquet", 500: "square-jam",
 };
@@ -49,6 +49,10 @@ for (const r of seen.values()) {
   const link = r.url.replace(/&amp;/g, "&").trim();
   try { res = await readLink(link, KINDS[r.kind]); } catch { res = { kind: "unreadable" as const }; }
   if (res.kind !== "puzzle") { tally(kind, res.kind === "unsupported" ? `not ours${res.variant ? `: ${res.variant}` : ""}` : res.kind); continue; }
+  // the kind must be ours and match: a Penpa link's type is guessed from its contents (Kurohori read
+  // as Minesweeper), and PSJP's variation flag marks puzzles with variant rules
+  if (KINDS[r.kind] !== res.spec.genre) { tally(kind, `not ours: read as ${res.spec.genre}`); continue; }
+  if (r.variation) { tally(kind, "variant rules (PSJP's variation flag)"); continue; }
   tally(kind, `converted ${res.spec.genre}`);
   out.push({
     source: "psjp", sourceId: r.id, licence: TERMS, author: r.user_name ?? "", url: `https://puzsq.logicpuzzle.app/puzzle/${r.id}`,

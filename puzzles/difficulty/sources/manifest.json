@@ -13,11 +13,11 @@
    "reader": "puzzles/difficulty/sources/puzzlekit.ts",
    "counts": {
     "puzzles": 52621,
-    "converted": 8897,
+    "converted": 8871,
     "byGenre": {
      "akari": 968,
      "cave": 412,
-     "easy-as-abc": 606,
+     "easy-as-abc": 590,
      "fillomino": 840,
      "hidoku": 510,
      "hitori": 940,
@@ -27,7 +27,7 @@
      "numberlink": 549,
      "nurikabe": 1088,
      "simple-loop": 67,
-     "skyscrapers": 188,
+     "skyscrapers": 178,
      "spiral-galaxies": 577,
      "star-battle": 292,
      "sudoku": 1
@@ -70,10 +70,17 @@
    "local": "references/janko-full/ (references/janko/ untouched)",
    "reader": "puzzles/difficulty/sources/janko-full.ts",
    "counts": {
-    "folders": 313,
-    "listed": 54037,
-    "fetched": 0,
-    "converted": 0
+    "folders": 423,
+    "listed": 66053,
+    "fetched": 40,
+    "converted": 32,
+    "byGenre": {
+     "star-battle": 32
+    },
+    "licences": {
+     "author-permission": 43,
+     "unknown (?)": 3
+    }
    }
   },
   {
@@ -97,27 +104,26 @@
    "reader": "puzzles/difficulty/sources/psjp.ts (the app's link reader, app/app/lib/import-link.ts)",
    "counts": {
     "days": 2713,
-    "daysFetched": 175,
-    "puzzles": 3430,
-    "withLink": 3343,
-    "converted": 877,
+    "daysFetched": 221,
+    "puzzles": 4340,
+    "withLink": 4251,
+    "converted": 1024,
     "byGenre": {
-     "akari": 157,
-     "aquarium": 6,
-     "cave": 20,
-     "easy-as-abc": 4,
-     "fillomino": 30,
-     "hitori": 13,
-     "masyu": 216,
-     "minesweeper": 3,
-     "numberlink": 96,
-     "nurikabe": 112,
-     "shikaku": 38,
+     "akari": 204,
+     "aquarium": 5,
+     "cave": 13,
+     "easy-as-abc": 5,
+     "fillomino": 57,
+     "hitori": 17,
+     "masyu": 247,
+     "numberlink": 121,
+     "nurikabe": 130,
+     "shikaku": 42,
      "skyscrapers": 11,
-     "slitherlink": 87,
-     "spiral-galaxies": 38,
-     "star-battle": 23,
-     "sudoku": 23
+     "slitherlink": 99,
+     "spiral-galaxies": 32,
+     "star-battle": 20,
+     "sudoku": 21
     }
    }
   }

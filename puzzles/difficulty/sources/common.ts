@@ -1,6 +1,6 @@
 // What the source readers share: where references/ is, the record every converted puzzle becomes,
 // and writing them out one genre to a file.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Spec } from "./grids.ts";
 
 const repo = new URL("../../../", import.meta.url).pathname;
@@ -25,6 +25,8 @@ export interface Converted {
 /** Write converted puzzles to <dir>/<genre>.jsonl (one per line), and return the counts by genre. */
 export function writeByGenre(dir: string, items: Converted[]): Record<string, number> {
   mkdirSync(dir, { recursive: true });
+  // a fresh set: a genre that no longer converts leaves no stale file behind
+  for (const f of readdirSync(dir)) if (f.endsWith(".jsonl")) rmSync(`${dir}/${f}`);
   const by = new Map<string, Converted[]>();
   for (const c of items) { if (!by.has(c.genre)) by.set(c.genre, []); by.get(c.genre)!.push(c); }
   const counts: Record<string, number> = {};
@@ -49,4 +51,4 @@ export function jankoMeta(): Map<string, { licence: string; author: string; quel
 
 /** Janko's licence values as one of three words, for counting. */
 export const licenceClass = (l: string) =>
-  /creative commons/i.test(l) ? "cc-by-nc-sa" : /genehmigung/i.test(l) ? "author-permission" : /freeware/i.test(l) ? "freeware" : l ? "other" : "none-stated";
+  /creative commons/i.test(l) ? "cc-by-nc-sa" : /genehmigung/i.test(l) ? "author-permission" : /freeware/i.test(l) ? "freeware" : l === "?" ? "unknown (?)" : l ? "other" : "none-stated";
