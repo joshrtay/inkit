@@ -116,6 +116,13 @@ export interface Options {
   stages?: string;
   /** also return the puzzle's structure: its marks and rule instances (for graph networks) */
   structure?: boolean;
+  /** stop after setting up, before solving anything: the marks and rule instances (the puzzle's
+   *  own; the lemmas' groups, added while solving, aren't there) and what's known before the first
+   *  step, from grounding and each given's own cell (graph-human-labels.ts: a person's moves as
+   *  labels, without our solve). With `answer` (the solution's true marks, from elsewhere) those
+   *  first facts are checked against it; without, no answer is looked for. Returns no steps. */
+  setupOnly?: boolean;
+  answer?: string[];
   /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
   families?: FamilySpec[];
   /** the lemmas the solver adds ("component", "parity", "loop"); default DEDUCE_LEMMAS, else "loop" */
@@ -511,12 +518,15 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the answer (to aim case splits at, and to check every deduction against) ----
   calls++;
   // (a local encoding gives the same answer as the engine's: tests/unit/deduce-local.test.ts)
-  const first = clingoJson(local ? local.plain : program(p), 1);
-  if (first.Result !== "SATISFIABLE") throw new Error("the puzzle has no solution");
+  // (setupOnly: the answer given, or none looked for)
   const answer = new Uint8Array(M), markOf = new Map(markName.map((x, m) => [x, m]));
   for (let m = 0; m < M; m++) if (markAtom[m] === 0) answer[m] = 1;
-  for (const v of first.Call?.[0]?.Witnesses?.[0]?.Value ?? []) { const m = markOf.get(v); if (m !== undefined) answer[m] = 1; }
-  const severalAnswers = (genres as Record<string, { solutions?: string }>)[spec.genre ?? ""]?.solutions === "some";
+  if (!opts.setupOnly) {
+    const first = clingoJson(local ? local.plain : program(p), 1);
+    if (first.Result !== "SATISFIABLE") throw new Error("the puzzle has no solution");
+    for (const v of first.Call?.[0]?.Witnesses?.[0]?.Value ?? []) { const m = markOf.get(v); if (m !== undefined) answer[m] = 1; }
+  } else for (const v of opts.answer ?? []) { const m = markOf.get(v); if (m !== undefined) answer[m] = 1; }
+  const severalAnswers = (genres as Record<string, { solutions?: string }>)[spec.genre ?? ""]?.solutions === "some" || (!!opts.setupOnly && !opts.answer);
 
   const knownLines = (map: (a: number) => number, marks: Iterable<number>) => {
     const out: string[] = [];
@@ -1939,6 +1949,9 @@ end
   }
   // what's known before the first step (settled in grounding, or by a given's own cell)
   const initial = markName.flatMap((x, m) => (known[m] >= 0 ? [`${x}=${known[m] === 1}`] : []));
+  const structureOf = (): Structure => ({ cells: n, rows: g.kind === "square" ? g.rows : 0, cols: g.kind === "square" ? g.cols : 0, marks: markName.map((name, m) => ({ name, cells: markCells[m] })), groups: groups.map((x) => ({ kind: x.kind, label: x.label, cells: x.cells })) });
+  if (opts.setupOnly)
+    return { path: [], profile: profileOf([], false, 0, 0, Date.now() - t0, calls, ["setup only"]), initial, structure: structureOf(), ...(opts.answer ? { answer: markName.filter((_, m) => answer[m] === 1) } : {}) };
 
   let entryPoints = -1;
   const order = (): number[] => {
@@ -2097,9 +2110,7 @@ end
   // the answer's true marks (some are settled in grounding, before any step, so a path alone
   // doesn't hold them all)
   const answerMarks = markName.filter((_, m) => answer[m] === 1);
-  const structure: Structure | undefined = opts.structure
-    ? { cells: n, rows: g.kind === "square" ? g.rows : 0, cols: g.kind === "square" ? g.cols : 0, marks: markName.map((name, m) => ({ name, cells: markCells[m] })), groups: groups.map((x) => ({ kind: x.kind, label: x.label, cells: x.cells })) }
-    : undefined;
+  const structure: Structure | undefined = opts.structure ? structureOf() : undefined;
   return { path, profile, answer: answerMarks, initial, ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
 }
 

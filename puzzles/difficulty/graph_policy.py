@@ -24,7 +24,13 @@
 #
 #   GRAPH_HUMAN_TRAIN=path: human-made puzzles to train on too (graph-human.ts --train →
 #   graphs-human-train.jsonl: Janko's and Puzzle Square JP's, the test set's left out), their loss
-#   weighted GRAPH_HUMAN_WEIGHT times a corpus or generated state's (train()). GRAPH_TRAIN_DEADLINE
+#   weighted GRAPH_HUMAN_WEIGHT times a corpus or generated state's (train()).
+#   GRAPH_HUMAN_LABELS=path ("1": references/ml/graphs-human-labels.jsonl): Janko's puzzles labelled by
+#   the person, not our solver (graph-human-labels.ts; labels "human": states from the person's
+#   progression, targets their next 3 moves), so puzzles our solver can't finish count too. The
+#   "train" side trains (weighted GRAPH_HUMAN_LABELS_WEIGHT); the "test" side is held out by puzzle
+#   (its other copies leave training) and reports agreement with people on puzzles our solver
+#   finished and on the rest (report_labels()). GRAPH_TRAIN_DEADLINE
 #   (seconds): no training epoch starts that wouldn't end by then
 #
 #   --attention  global self-attention over all of a puzzle's nodes after every other round of
@@ -167,14 +173,23 @@ class Puzzle:
         # Janko's records: the person's order (marks they settled, earliest first) as codes
         ho = [(mindex[m], k) for (m, k) in d.get("humanOrder") or [] if m in mindex]
         self.human = np.array([2 * i + (0 if self.truth[i] else 1) for (i, _) in ho], np.int32) if d.get("humanOrder") is not None else None
+        # labels "human" (graph-human-labels.ts): the rounds are the person's moves, and a state's
+        # targets are the person's next NEXT label marks still open, not what the next rounds settle
+        self.human_labels = d.get("labels") == "human"
+        self.split, self.finished = d.get("split"), None   # its side (train / test); our solver finished it (set at load)
         self.keep, self.dup = None, False   # the states kept (GRAPH_STATES_PER), or all; in the human test set
         self.weight, self.human_train = 1.0, False   # loss weight (GRAPH_HUMAN_WEIGHT); from GRAPH_HUMAN_TRAIN
         self.states = States(self)
 
     def state(self, k):
-        """State k (0 open, 1 true, 2 false) and its targets (settled in the next NEXT rounds)."""
+        """State k (0 open, 1 true, 2 false) and its targets (settled in the next NEXT rounds; with
+        human labels, the person's next NEXT label marks)."""
         s = np.where(self.rnd < k, self.val, 0).astype(np.int8)
         y = np.zeros((len(s), 2), np.float32)
+        if self.human_labels:
+            nxt = self.human[s[self.human // 2] == 0][:NEXT]
+            y[nxt // 2, nxt % 2] = 1
+            return s, y
         sel = (self.rnd >= k) & (self.rnd < k + NEXT)
         y[np.nonzero(sel)[0], self.val[sel] - 1] = 1
         return s, y
@@ -403,7 +418,10 @@ def score(net, items):
                 key = np.unique(pz.key(k)); key = key[s[key // 2] == 0]   # a mark can sit in several steps
                 row = [yy.flatten()[top].item() > 0, ((yy * mm[:, None]).sum() / n_open).item(), bool(np.isin(top, key)), len(key) / n_open, None]
                 nxt = pz.people(s)
-                if nxt is not None and len(nxt):
+                if nxt is not None and len(nxt) and pz.human_labels:
+                    # no solver steps here (the rounds are the person's)
+                    row[4] = (bool(np.isin(top, nxt)), len(nxt) / n_open, float("nan"), float("nan"))
+                elif nxt is not None and len(nxt):
                     first = pz.first(k)
                     row[4] = (bool(np.isin(top, nxt)), len(nxt) / n_open, bool(np.isin(first, nxt).any()), bool(len(first) and np.isin(first[0], nxt)))
                 out.append((pz, k, tuple(row)))
@@ -434,6 +452,12 @@ STATES_PER = int(os.environ.get("GRAPH_STATES_PER", 0))
 HUMAN = os.environ.get("GRAPH_HUMAN") or os.path.join(HERE, "../../references/ml/graphs-human.jsonl")
 HUMAN_TRAIN = os.environ.get("GRAPH_HUMAN_TRAIN")
 HUMAN_WEIGHT = float(os.environ.get("GRAPH_HUMAN_WEIGHT", 1))
+# GRAPH_HUMAN_LABELS: records labelled by people (graph-human-labels.ts → graphs-human-labels.jsonl;
+# "1" for that file): their "train" side trains (weight GRAPH_HUMAN_LABELS_WEIGHT), their "test" side
+# measures agreement with people, on puzzles our solver finished and on those it didn't
+HUMAN_LABELS = os.environ.get("GRAPH_HUMAN_LABELS")
+if HUMAN_LABELS == "1": HUMAN_LABELS = os.path.join(HERE, "../../references/ml/graphs-human-labels.jsonl")
+HUMAN_LABELS_WEIGHT = float(os.environ.get("GRAPH_HUMAN_LABELS_WEIGHT", 1))
 KEEP_MOVES = sys.argv[1:2] == ["embed"]   # each round's moves with their signatures, for the embedding
 MAX_MARKS = 4000   # a few puzzles have very many marks (a big board's every digit, link or border): left out
 
@@ -443,10 +467,15 @@ def draw(name):
     name = re.sub(r" (easy|medium|hard|expert) #", " #", name)
     return int(hashlib.md5(("graph-gen:" + name).encode()).hexdigest()[:12], 16) / 16 ** 12
 
+LEMMA_GROUPS = {"component", "parity", "premature"}
 def content_key(d):
-    """The same puzzle, whatever its source or name: type, givens and rule instances."""
+    """The same puzzle, whatever its source or name: type, givens, rule instances (the puzzle's
+    own: not the groups our solver's lemmas add while solving, which a record built without solving
+    lacks) and solution (the givens a record keeps are its cells': without the solution, every
+    Spiral Galaxies, Easy as ABC or Nonogram of one size would be the same). graph-data.ts's
+    contentKey is the same."""
     st = d["structure"]
-    return hashlib.md5(json.dumps([d["genre"], st["cells"], d["givens"], sorted(g["cells"] for g in st["groups"])]).encode()).hexdigest()
+    return hashlib.md5(json.dumps([d["genre"], st["cells"], d["givens"], sorted(g["cells"] for g in st["groups"] if g.get("kind") not in LEMMA_GROUPS), sorted(d.get("answer") or [])]).encode()).hexdigest()
 
 def lines(path):
     """A file's lines one at a time (the generated set is 1.6 GB: never all in memory)."""
@@ -462,10 +491,18 @@ def spread(ks, per):
 NAME = re.compile(r'"name":("(?:[^"\\]|\\.)*")')
 def load():
     """(corpus puzzles, generated for training, generated held out, human-made for training,
-    {what the leakage guard left out of the human training set}), streamed a line at a time."""
+    {what the leakage guard left out of the human training set}, human-labelled for training,
+    human-labelled held out), streamed a line at a time."""
     human = {content_key(json.loads(l)) for l in lines(HUMAN)} if os.path.exists(HUMAN) else set()
-    if HUMAN_TRAIN and not human: sys.exit(f"GRAPH_HUMAN_TRAIN needs the human test set ({HUMAN}) to keep its puzzles out of training")
+    if (HUMAN_TRAIN or HUMAN_LABELS) and not human: sys.exit(f"GRAPH_HUMAN_TRAIN and GRAPH_HUMAN_LABELS need the human test set ({HUMAN}) to keep its puzzles out of training")
     if HUMAN_TRAIN and not os.path.exists(HUMAN_TRAIN): sys.exit(f"GRAPH_HUMAN_TRAIN: no file {HUMAN_TRAIN} (graph-human.ts --train builds it)")
+    if HUMAN_LABELS and not os.path.exists(HUMAN_LABELS): sys.exit(f"GRAPH_HUMAN_LABELS: no file {HUMAN_LABELS} (graph-human-labels.ts builds it)")
+    # the human-labelled test side: its puzzles' other copies (corpus, solver-labelled) never train
+    hl_test, hl_test_names = set(), set()
+    for line in lines(HUMAN_LABELS) if HUMAN_LABELS else []:
+        if '"split":"test"' not in line: continue
+        d = json.loads(line); hl_test.add(content_key(d)); hl_test_names.add(d["name"])
+    held = human | hl_test
     pz, gen_tr, gen_te, corpus = [], [], [], set()
     for f in DATA.split(","):
         for line in lines(f):
@@ -479,25 +516,52 @@ def load():
                 if dest is None: continue
             d = json.loads(line); p = Puzzle(d, keep_moves=KEEP_MOVES)
             if not p.R or p.M > MAX_MARKS: continue
-            key = content_key(d); p.dup = key in human
+            key = content_key(d); p.dup = key in held
             if gen:
                 if p.dup: continue
                 if STATES_PER: p.keep = spread(range(p.R), STATES_PER)
             else: corpus.add(key)
             dest.append(p)
-    hum_tr, out, seen = [], {"test": 0, "corpus": 0, "twice": 0}, set()
+    hum_tr, out, seen = [], {"test": 0, "labels test": 0, "corpus": 0, "twice": 0}, set()
+    solved = {}   # the solver-labelled human puzzles (our solver finished each): name → content key
+    for line in lines(HUMAN) if HUMAN_LABELS and os.path.exists(HUMAN) else []:
+        d = json.loads(line); solved[d["name"]] = content_key(d)
     for line in lines(HUMAN_TRAIN) if HUMAN_TRAIN else []:
         d = json.loads(line); key = content_key(d)
-        why = "test" if key in human else "corpus" if key in corpus else "twice" if key in seen else None
+        if HUMAN_LABELS: solved[d["name"]] = key
+        why = "test" if key in human else "labels test" if key in hl_test or d["name"] in hl_test_names else "corpus" if key in corpus else "twice" if key in seen else None
         if why: out[why] += 1; continue
         seen.add(key)
         p = Puzzle(d)
         if not p.R or p.M > MAX_MARKS: continue
         p.weight, p.human_train = HUMAN_WEIGHT, True
         hum_tr.append(p)
-    return pz, gen_tr, gen_te, hum_tr, out
+    # human-labelled: the train side (the human test set's puzzles and the corpus's left out, as
+    # above; a puzzle also in the solver-labelled human training set stays: its labels differ), and
+    # the test side
+    hl_tr, hl_te, seen_l = [], [], set()
+    out.update({"labels: test": 0, "labels: corpus": 0, "labels: twice": 0})
+    solved_keys = set(solved.values())
+    for line in lines(HUMAN_LABELS) if HUMAN_LABELS else []:
+        d = json.loads(line); key = content_key(d)
+        test_side = d.get("split") == "test"
+        if not test_side:
+            why = "test" if key in human else "corpus" if key in corpus else "twice" if key in seen_l else None
+            if why: out["labels: " + why] += 1; continue
+        seen_l.add(key)
+        p = Puzzle(d)
+        if not p.R or p.M > MAX_MARKS: continue
+        # our solver finished it: a solver-labelled copy exists; else as the record says (False: a
+        # cached run didn't finish; None: none cached)
+        p.finished = True if (d["name"] in solved or key in solved_keys) else d.get("solverFinished")
+        if test_side: hl_te.append(p)
+        else:
+            p.weight, p.human_train = HUMAN_LABELS_WEIGHT, True
+            hl_tr.append(p)
+    return pz, gen_tr, gen_te, hum_tr, out, hl_tr, hl_te
 
 def source_of(p):
+    if p.human_labels: return f"human labels: {p.source}"
     return f"human train: {p.source}" if p.human_train else "generated (gen-set)" if p.source in GEN_SOURCES else f"corpus: {p.source}"
 
 def mix(train_pz):
@@ -640,6 +704,32 @@ def report(net, rows, by, gen_te, human):
     print("", flush=True)
     return head
 
+def report_labels(net, hl_te):
+    """Agreement with people on the human-labelled held-out puzzles (GRAPH_HUMAN_LABELS, split
+    "test"): the top guess among the person's next 3 moves, per type, on the puzzles our solver
+    finished and on those it didn't (or that no run reached). Returns the headline numbers."""
+    nan = float("nan")
+    mean = lambda xs: float(np.mean(xs)) if len(xs) else nan
+    pct = lambda x: "–" if x != x else f"{x:.0%}"
+    rs = [(pz, k, r) for pz, k, r in score(net, states(hl_te)) if r[4] is not None]
+    by = defaultdict(list)
+    for pz, k, r in rs: by[pz.genre].append((pz, r[4]))
+    part = lambda xs, f: [r for pz, r in xs if f(pz)]
+    fin, unf = (lambda pz: pz.finished is True), (lambda pz: pz.finished is not True)
+    print("\n### Agreement with people, human-labelled held out (GRAPH_HUMAN_LABELS test side): the top guess among the person's next 3 moves\n\n"
+          "| Type | Puzzles (solver finished / not or not run) | States | Network | Random | Network, solver finished | Network, not finished |\n|---|---|---|---|---|---|---|")
+    head = {}
+    for g in sorted(by):
+        xs = by[g]; ps = {id(pz): pz for pz, _ in xs}
+        a, b = part(xs, fin), part(xs, unf)
+        print(f"| {g} | {len(ps)} ({sum(fin(p) for p in ps.values())} / {sum(unf(p) for p in ps.values())}) | {len(xs)} | {pct(mean([r[0] for _, r in xs]))} | {pct(mean([r[1] for _, r in xs]))} | {pct(mean([r[0] for r in a]))} | {pct(mean([r[0] for r in b]))} |")
+    tm = lambda f: mean([m for m in (mean([r[0] for r in part(by[g], f)]) for g in by) if m == m])
+    head["people (labels)"], head["people (labels) random"] = tm(lambda pz: True), mean([mean([r[1] for _, r in by[g]]) for g in by])
+    head["people (labels), solver finished"], head["people (labels), not finished"] = tm(fin), tm(unf)
+    print(f"\nagreement with people (human labels), mean over {len(by)} types: {pct(head['people (labels)'])} (random {pct(head['people (labels) random'])}); "
+          f"on puzzles our solver finished {pct(head['people (labels), solver finished'])}, on the rest {pct(head['people (labels), not finished'])}", flush=True)
+    return head
+
 def run_without(split, held):
     """Train without the types in `held` (after hide and fill on the others' puzzles, with
     --pretrain); test on each held type (zero-shot); fine-tune on 10 puzzles of each held type, and
@@ -661,7 +751,7 @@ if __name__ == "__main__":
     random.seed(1); torch.manual_seed(1)
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
     t_load = time.time()
-    pzs, gen_tr, gen_te, hum_tr, hum_out = load()
+    pzs, gen_tr, gen_te, hum_tr, hum_out, hl_tr, hl_te = load()
     by = defaultdict(list)
     for p in pzs: by[p.genre].append(p)
     for v in by.values(): random.Random(2).shuffle(v)
@@ -678,6 +768,10 @@ if __name__ == "__main__":
     if gen_tr or gen_te: print(f"generated: {len(gen_tr)} puzzles to train on ({sum(len(p.keep or range(p.R)) for p in gen_tr)} states, GRAPH_GEN_SHARE {GEN_SHARE:g}, GRAPH_STATES_PER {STATES_PER or 'all'}), {len(gen_te)} held out")
     for p in hum_tr: split.setdefault(p.genre, ([], []))[0].append(p)
     if HUMAN_TRAIN: print(f"human training set ({HUMAN_TRAIN}): {len(hum_tr)} puzzles, {sum(p.R for p in hum_tr)} states, weight {HUMAN_WEIGHT:g}; left out: {hum_out['test']} copies of human test puzzles, {hum_out['corpus']} of corpus puzzles, {hum_out['twice']} repeats")
+    for p in hl_tr: split.setdefault(p.genre, ([], []))[0].append(p)
+    if HUMAN_LABELS: print(f"human-labelled ({HUMAN_LABELS}): {len(hl_tr)} puzzles to train on ({sum(p.R for p in hl_tr)} states, weight {HUMAN_LABELS_WEIGHT:g}), {len(hl_te)} held out ({sum(p.R for p in hl_te)} states); "
+                           f"left out of its training side: {hum_out['labels: test']} copies of human test puzzles, {hum_out['labels: corpus']} of corpus puzzles, {hum_out['labels: twice']} repeats; "
+                           f"{hum_out['labels test']} solver-labelled human training puzzles left out as copies of its test side")
     print(f"{dups} training puzzles left out as copies of human test puzzles; loaded in {time.time() - t_load:.0f} s", flush=True)
     mix([p for tr, _ in split.values() for p in tr])
     if mode == "all":
@@ -696,6 +790,7 @@ if __name__ == "__main__":
             big = [g for g in out if len(by[g]) >= MIN_TYPE]
             print(f"\nmean over the {len(big)} types with at least {MIN_TYPE} puzzles: {np.mean([out[g][1] for g in big]):.1%} (random {np.mean([out[g][2] for g in big]):.1%})")
             heads.append(report(net, rows, by, gen_te, human))
+            if hl_te: heads[-1].update(report_labels(net, hl_te))
             print(f"run took {(time.time() - t0) / 60:.1f} min", flush=True)
             if i == 0: torch.save(net.state_dict(), weights())
         if seeds > 1:

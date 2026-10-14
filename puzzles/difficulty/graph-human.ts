@@ -7,7 +7,8 @@
 //   DEDUCE_JOBS=3 node puzzles/difficulty/graph-human.ts [--janko 150] [--psjp 100] [--write] [--no-skip]
 //
 // --train: the human training set instead (GRAPH_HUMAN_TRAIN in graph_policy.py): every Janko
-// puzzle janko.ts reads and every Puzzle Square JP puzzle, up to --max × --max (default 15), except
+// puzzle janko.ts reads (all fourteen types; the test set keeps the first eight) and every Puzzle
+// Square JP puzzle (the rated set, and psjp-links.ts's from links), up to --max × --max (default 15), except
 // the test set's (graphs-human.jsonl must be there: its names are left out before solving, and any
 // record with the same type, givens and rule instances as a test puzzle after, as graph_policy.py's
 // leakage guard matches them). Janko's keep the solver and, where moves were recorded, the order.
@@ -21,29 +22,18 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
-import { graphRecord } from "./graph-data.ts";
-import { JANKO_TYPES, readType } from "./janko.ts";
+import { contentKey, graphRecord } from "./graph-data.ts";
+import { JANKO_FIRST, JANKO_TYPES, readType, REFS_DIR } from "./janko.ts";
 import { deduceCacheFile, studied } from "./janko-order.ts";
 import { JOBS, mapPool } from "./pool.ts";
 
 const argv = process.argv.slice(2);
 const opt = (name: string, d: number) => { const k = argv.indexOf(name); return k >= 0 ? Number(argv[k + 1]) : d; };
 const TRAIN = argv.includes("--train");
-const repo = new URL("../../", import.meta.url).pathname;
-const ml = `${repo}references/ml/`, cache = `${ml}human-cache/`;
+const ml = `${REFS_DIR}ml/`, cache = `${ml}human-cache/`;
 const testFile = `${ml}graphs-human.jsonl`;
 const out = process.env.GRAPH_OUT ?? (TRAIN ? `${ml}graphs-human-train.jsonl` : testFile);
 mkdirSync(cache, { recursive: true });
-
-/** graph_policy.py's content_key: the same puzzle, whatever its source or name (type, givens and
- *  rule instances), as md5 of Python's json.dumps of [genre, cells, givens, sorted groups' cells]. */
-export function contentKey(d: { genre: string; structure: { cells: number; groups: { cells: number[] }[] }; givens: unknown[] }) {
-  const lex = (a: number[], b: number[]) => { for (let i = 0; i < Math.min(a.length, b.length); i++) if (a[i] !== b[i]) return a[i] - b[i]; return a.length - b.length; };
-  const groups = d.structure.groups.map((g) => g.cells).sort(lex);
-  // json.dumps puts a space after each comma (no string here holds a comma)
-  const text = JSON.stringify([d.genre, d.structure.cells, d.givens, groups]).replace(/,/g, ", ");
-  return createHash("md5").update(text).digest("hex");
-}
 
 interface Job { source: string; genre: string; name: string; spec: GridSpec; solver?: string; humanOrder?: [string, number][] }
 const jobs: Job[][] = [];
@@ -69,8 +59,9 @@ if (TRAIN) {
       ...(j.moves ? { humanOrder: order(j.settled) } : {}),
     })).filter((x) => !test.names.has(x.name)));
 } else {
-  // Janko: the types janko.ts reads, puzzles with enough recorded moves (janko-order.ts, studied)
-  for (const type of Object.keys(JANKO_TYPES)) {
+  // Janko: the first eight types janko.ts read (JANKO_FIRST, so the set stays as it was), puzzles
+  // with enough recorded moves (janko-order.ts, studied)
+  for (const type of JANKO_FIRST) {
     jobs.push(studied(type, 10, opt("--janko", 150)).map(({ f, j }) => ({
       source: "janko", genre: j.spec.genre!, name: `janko ${JANKO_TYPES[type].folder}/${f}`, spec: j.spec, solver: j.solver,
       humanOrder: order(j.settled),
@@ -78,7 +69,7 @@ if (TRAIN) {
   }
 }
 // Puzzle Square JP: up to N per type, spread evenly through its numbering (all of them for --train)
-const psjp = `${repo}references/psjp/`;
+const psjp = `${REFS_DIR}psjp/`;
 if (existsSync(psjp))
   for (const type of readdirSync(psjp).filter((t) => !t.includes(".") && t !== "scripts").sort()) {
     const files = readdirSync(`${psjp}${type}`).filter((f) => /^\d+\.json$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b));
@@ -91,6 +82,14 @@ if (existsSync(psjp))
     const n = opt("--psjp", 100);
     jobs.push(items.length <= n ? items : Array.from({ length: n }, (_, k) => items[Math.floor((k * items.length) / n)]));
   }
+// Puzzle Square JP's puzzles from their links (psjp-links.ts: those with exactly one solution, not in
+// the rated set above), for --train
+const links = `${REFS_DIR}psjp-links/`;
+if (TRAIN && existsSync(links))
+  for (const f of readdirSync(links).filter((f) => f.endsWith(".jsonl")).sort())
+    jobs.push(readFileSync(`${links}${f}`, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l))
+      .map((d) => ({ source: "psjp-links", genre: d.genre, name: d.name, spec: d.spec as GridSpec }))
+      .filter((x) => x.spec.size[0] <= MAX && x.spec.size[1] <= MAX && !test.names.has(x.name)));
 // round robin over types, so a run stopped early still covers every type
 const all: Job[] = [];
 for (let k = 0; jobs.some((js) => k < js.length); k++) for (const js of jobs) if (k < js.length) all.push(js[k]);
