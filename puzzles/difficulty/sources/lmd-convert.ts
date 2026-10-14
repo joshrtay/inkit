@@ -15,6 +15,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataDir } from "./lmd-fetch.ts";
+import { readFpuzzles } from "./fpuzzles.ts";
 
 const self = fileURLToPath(import.meta.url);
 
@@ -61,12 +62,17 @@ for (const r of ours) {
   const has = (k: string, ls = own) => ls.some((l) => l.kind === k);
   for (const k of ["puzzlink", "penpa", "sudokupad", "fpuzzles", "image", "pdf"]) if (has(k)) bump(g, k);
   if (!has("puzzlink") && !has("penpa") && (has("puzzlink", r.links) || has("penpa", r.links))) bump(g, "link in comment only");
-  const candidates = [...own, ...r.links.filter((l) => l.inComment)].filter((l) => l.kind === "puzzlink" || l.kind === "penpa");
+  const candidates = [...own, ...r.links.filter((l) => l.inComment)].filter((l) => l.kind === "puzzlink" || l.kind === "penpa" || l.kind === "fpuzzles");
   let done = false;
   for (const l of candidates) {
     const link = l.resolved ?? l.url;
-    let res;
-    try { res = await readLink(link, g as never); } catch (e) { why[`throws`] = (why.throws ?? 0) + 1; continue; }
+    let res: any;
+    if (l.kind === "fpuzzles") {
+      const f = readFpuzzles(link);
+      res = !f ? { kind: "unreadable" } : "unsupported" in f ? { kind: "unsupported", genreName: "f-puzzles", variant: f.unsupported } : { kind: "puzzle", spec: f };
+    } else {
+      try { res = await readLink(link, g as never); } catch (e) { why[`throws`] = (why.throws ?? 0) + 1; continue; }
+    }
     if (res.kind !== "puzzle") { const k = `${l.inComment ? "comment " : ""}${res.kind}${res.kind === "unsupported" ? `: ${res.genreName}${res.variant ? ` ${res.variant}` : ""}` : ""}`; why[k] = (why[k] ?? 0) + 1; continue; }
     if (res.spec.genre !== g) { const k = `other genre (${res.spec.genre} for ${g})`; why[k] = (why[k] ?? 0) + 1; continue; }
     out.push({

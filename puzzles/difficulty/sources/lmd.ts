@@ -314,7 +314,8 @@ async function crawl() {
       if (!p || !ourGenre(p)) continue;
       for (const link of [...p.links, ...p.commentLinks]) {
         if ((link.kind === "image" || link.kind === "pdf") && new URL(link.url).hostname.endsWith("logic-masters.de") && p.links.includes(link)) wanted.push({ id, link });
-        if (link.kind === "short") wanted.push({ id, link });
+        const short = shortTarget(link.url);
+        if (short) wanted.push({ id, link: { url: short, kind: "short" } });
       }
     }
     state.files.total = wanted.length;
@@ -350,6 +351,14 @@ async function saveFile(id: string, url: string) {
   const body = await fetchRaw(url, { binary: true });
   mkdirSync(join(dataDir(), "files", id), { recursive: true });
   writeFileSync(out, body);
+}
+
+/** The short link to resolve for a link, if any: the link itself (tinyurl and the like), or an
+ *  f-puzzles "?id=" link, whose id is a TinyURL alias for the full "?load=" link. */
+export function shortTarget(url: string): string | null {
+  if (linkKind(url) === "short") return url;
+  const f = url.match(/f-puzzles\.com\/?\?id=([A-Za-z0-9_-]+)/);
+  return f ? `https://tinyurl.com/${f[1]}` : null;
 }
 
 /** A short link's target (tinyurl and the like): one request for the redirect, no body, cached in
@@ -397,7 +406,10 @@ function parseAll() {
     if (p) pages++;
     const genre = p ? ourGenre(p) : null;
     const allLinks = p ? [...p.links, ...p.commentLinks.map((l) => ({ ...l, inComment: true }))] : [];
-    for (const l of allLinks) if (l.kind === "short" && short[l.url]) Object.assign(l, { resolved: short[l.url], kind: linkKind(short[l.url]!) });
+    for (const l of allLinks) {
+      const to = short[shortTarget(l.url) ?? ""];
+      if (to) Object.assign(l, { resolved: to, kind: linkKind(to) });
+    }
     puzzles.push(JSON.stringify({
       source: "lmd", id: r.id, url, title: p?.title ?? r.title, author: p?.author || r.author, date: p?.date ?? r.date,
       beauty: p?.beauty ?? r.beauty, beautyLabel: p?.beautyLabel ?? r.beautyLabel,

@@ -132,13 +132,13 @@ const specs = existsSync(join(dir, "specs")) ? readdirSync(join(dir, "specs")).f
 L.push("## Our types: content", "");
 if (conv) {
   L.push("Per genre, every crawled puzzle of ours (rated or not): what its own text links to, and what converted.", "",
-    "| genre | puzzles | puzz.link | Penpa+ | SudokuPad | image | PDF | converted | from a comment | rated and converted (both ratings) | unique |", "|---|---|---|---|---|---|---|---|---|---|---|");
+    "| genre | puzzles | puzz.link | Penpa+ | SudokuPad | f-puzzles | image | PDF | converted | from a comment | rated and converted (both ratings) | unique |", "|---|---|---|---|---|---|---|---|---|---|---|---|");
   for (const [g, k] of Object.entries<any>(conv.kinds).sort((a, b) => b[1].puzzles - a[1].puzzles)) {
     const file = join(dir, "specs", `${g}.jsonl`);
     const list = existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l)) : [];
     const rb = list.filter((c) => c.beauty !== null && c.difficultySource === "solvers").length;
     const u = conv.unique?.[g] ? Object.entries(conv.unique[g]).map(([a, b]) => `${a} ${b}`).join(", ") : "–";
-    L.push(`| ${g} | ${k.puzzles} | ${k.puzzlink ?? 0} | ${k.penpa ?? 0} | ${k.sudokupad ?? 0} | ${k.image ?? 0} | ${k.pdf ?? 0} | ${(k.converted ?? 0) + (k["converted (from a comment)"] ?? 0)} | ${k["converted (from a comment)"] ?? 0} | ${rb} | ${u} |`);
+    L.push(`| ${g} | ${k.puzzles} | ${k.puzzlink ?? 0} | ${k.penpa ?? 0} | ${k.sudokupad ?? 0} | ${k.fpuzzles ?? 0} | ${k.image ?? 0} | ${k.pdf ?? 0} | ${(k.converted ?? 0) + (k["converted (from a comment)"] ?? 0)} | ${k["converted (from a comment)"] ?? 0} | ${rb} | ${u} |`);
   }
   L.push("", "Links that didn't convert: " + Object.entries<number>(conv.notConverted).sort((a, b) => b[1] - a[1]).slice(0, 15).map(([k, v]) => `${k} (${v})`).join("; ") + ".", "");
 } else L.push("Not converted yet (lmd-convert.ts).", "");
