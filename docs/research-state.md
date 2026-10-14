@@ -155,6 +155,11 @@ per type mean agreement figures can be off by 0.15.
   - interest: the only signal beyond difficulty so far (Fable 0.34, Opus 0.18; ours −0.15), on 72
     puzzles, to confirm at scale;
   - sequences: beat our estimate (0.59 against 0.16) but not sorting by grid size (0.69).
+- **Opus tells human-made from generated** ([research-llm-labels.md](research-llm-labels.md),
+  $2.68): 83% of 96 same-type pairs from the grid alone (the classifier: 0.95), 75% with our solve,
+  which misleads it (it takes case splits as a generator's mark). Its reasons are mostly right and
+  specific (symmetry, sparse clues, clue kinds, 2-star Star Battle); at chance on Hitori and
+  Spiral Galaxies. A reviewer of generator changes, not a replacement for the classifier.
 
 ## Open questions, by product
 
@@ -239,5 +244,6 @@ waits on another:
 |---|---|
 | Anthropic API: mining rounds | $2.50 of $10 approved |
 | Anthropic API: labeller pilot and interest confirmation | $17.69 ($15 pilot, then ~$5.50 more approved) |
+| Anthropic API: can Opus tell human-made puzzles | $2.68 of ~$3 approved (cap $4) |
 | GPU runs (5) | ~$8 |
 | CPU generation (first batch + fleet) | ~$16–21 when the fleet ends |

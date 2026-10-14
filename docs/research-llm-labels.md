@@ -142,3 +142,122 @@ Slitherlink 0.27 (pilot 0.77), Akari 0.07, Masyu 0.09, Sudoku −0.18 (only 12 w
 (0.46), as found before. So a model isn't a general judge of interest; it may help on Slitherlink.
 Interest needs people's signals: inkit's likes and completions, and more public sites. $3.23 (API
 total $17.69).
+
+## Can Opus tell human-made puzzles?
+
+Can Opus 5.5 tell a puzzle a person set from one our generator made, and are its reasons specific
+and right? If so, it could critique the generator and screen the site's shortlist for puzzles that
+look machine-made. Measured against the human-gap classifier
+([research-human-gap.md](research-human-gap.md)), whose AUC is the same quantity: the chance it
+ranks the human one of a random pair above the generated one. October 2026; $2.68 of $4.
+
+Code: puzzles/difficulty/llm-human.ts (llm-label.ts's grid drawing, solver summary and API call;
+it gained text grids for Cave, Shikaku, Simple Loop and Skyscrapers). Pairs, replies, ledger and the
+full report: references/ml/llm-human/ (local only).
+
+### The test
+
+- **96 pairs**, 8 per type: a human puzzle (Janko or Puzzle Square JP) and a generated one (the
+  fleet; Shikaku from the corpus), shown as A and B in shuffled order.
+- **Same size in 70 pairs.** The sources don't allow it everywhere: Cave (1 of 8 matched; the
+  rest human 9–10 against generated 7), Shikaku (1; human 4–9 against 6), Spiral Galaxies (2;
+  human 5–7 against 6), Simple Loop (2; human 7–8 against 6). Matched pairs are mostly small
+  (5–8), except Akari and Star Battle (10 × 10) and Sudoku (9 × 9); 6 × 6 Hitori and Nurikabe are
+  rare among human puzzles.
+- **Two variants, each on all 96 pairs:** the grid plus our solver's summary (steps by kind, round
+  by round, the ten hardest steps), and the grid alone. No source, name or size field beyond the
+  grid; the rules are given per puzzle, so a 2-star Star Battle says so.
+- **The ask:** which one a person set, a confidence (50–100) and one or two sentences of
+  reasons. Adaptive thinking at low effort; about 400 output tokens a reply.
+
+### Results
+
+| Type | Pairs (size-matched) | Grid + solve | Grid only | Classifier AUC, all (size-free) |
+|---|---|---|---|---|
+| Akari | 8 (8) | 75% | 100% | 0.76 (0.76) |
+| Hitori | 8 (8) | 25% | 50% | 0.89 (0.83) |
+| Slitherlink | 8 (8) | 50% | 75% | 0.93 (0.92) |
+| Star Battle | 8 (8) | 100% | 88% | 0.95 (0.94) |
+| Masyu | 8 (8) | 100% | 88% | 0.96 (0.95) |
+| Sudoku | 8 (8) | 88% | 100% | 0.96 (0.97) |
+| Nurikabe | 8 (8) | 75% | 100% | 1.00 (1.00) |
+| Cave | 8 (1) | 50% | 75% | 1.00 (1.00) |
+| Shikaku | 8 (1) | 75% | 75% | 1.00 (1.00) |
+| Spiral Galaxies | 8 (2) | 63% | 50% | 0.96 (0.95) |
+| Simple Loop | 8 (2) | 100% | 100% | 1.00 (1.00) |
+| Skyscrapers | 8 (8) | 100% | 100% | 1.00 (1.00) |
+| **All** | **96 (70)** | **75%** (matched 77%) | **83%** (matched 87%) | **0.95 (0.94)** mean |
+
+- **The grid alone does better than the grid with the solve:** 83% against 75%. They disagree on
+  14 pairs; the solve helped on 3 and hurt on 11.
+- **Why the solve hurts:** Opus believes a generator makes puzzles that need trial and error
+  ("a generator that checks only uniqueness"), and a person a smooth, single-step path. Ours is
+  the opposite: the generator keeps puzzles inside its expert band, and in 46 of the 96 pairs the
+  human puzzle needed more case splits (in 4 the generated one did). On those 46 pairs, grid +
+  solve scored 67% and grid only 83%; on the other 50, about the same (82% and 84%). When it cited case splits (22 pairs), it was right
+  8 times: in 19 of them the human puzzle was the one with the splits.
+- **Against the classifier:** below it in every type but Akari (100% grid only, against 0.76), and
+  level in Sudoku, Simple Loop and Skyscrapers. Eight pairs a type is coarse (one pair is 12
+  points), but the two below chance are clear: Hitori (25% and 50%) and Spiral Galaxies (50–63%).
+  At 6 × 6, Hitori's human puzzles cluster repeated numbers, and Opus reads the generator's
+  clusters as a setter's motifs just as often. Spiral Galaxies' generated dots are denser, and it
+  can't reliably see that in a text grid of corners and centres.
+- **Size isn't what it uses:** size-matched pairs score as well as the rest (77% and 87%).
+
+### Calibration
+
+| Confidence | Grid + solve: pairs, accuracy | Grid only: pairs, accuracy |
+|---|---|---|
+| 50–59 | 8, 63% | 10, 40% |
+| 60–69 | 35, 69% | 32, 81% |
+| 70–79 | 31, 81% | 21, 81% |
+| 80–89 | 22, 82% | 33, 100% |
+| 90–100 | 0 | 0 |
+
+Grid only is well calibrated and a little underconfident: all 33 at 80 or more were right (Sudoku,
+Akari, Skyscrapers, symmetric Slitherlink, 2-star Star Battle). With the solve, confidence barely
+separates right from wrong (mean 71 against 68).
+
+### The reasons
+
+Each reason tagged by the differences the gap study found (a reason can carry several tags):
+
+| Reason | Grid + solve: cited, right | Grid only: cited, right | Is it true? |
+|---|---|---|---|
+| Symmetry (180° turn) | 23, 87% | 36, 89% | Checked against the grids: where the two layouts differ, the human one is the more symmetric in all 15, and Opus picked it every time. Its "exact 180° symmetry" claims name mirrored cells correctly. |
+| Clue density, size of numbers | 35, 74% | 41, 83% | The human one is the sparser in 28 of 28 where density differs; Opus picked the sparser in 21. "Many 1s", "crowded with 2s and 3s" are accurate for Nurikabe, Shikaku, Cave. |
+| Clue kinds | 18, 94% | 17, 94% | Right and specific: Simple Loop's walls, Skyscrapers' given digits, Masyu's pearl mix. |
+| Star Battle stars and area shapes | 6, 100% | 7, 100% | 2 stars at 10 × 10 is "the classic format"; generated areas have single cells and sprawl. Both match the gap study. |
+| Size | 12, 83% | 13, 85% | Mostly correct where sizes differ; once it read a human 4 × 4 Shikaku as generated for being tiny. |
+| A narrow thread, a designed break-in | 34, 79% | 5, 100% | Half right: "trivial single-unit steps" points at generated puzzles correctly. |
+| Case splits | 22, 36% | 4, 100% | Inverted: it takes case splits as the mark of a generator. |
+| Deliberate pattern or motif, "random-looking" | 86, 74% | 94, 83% | Nearly every reply says this; alone it's the base rate. It finds real motifs (a ring of Cave clues counting down 12 to 2, Nurikabe clues 8-4-2-1, Skyscrapers' paired clues), and imaginary ones (Hitori). |
+
+- **Reasons the gap study didn't measure:**
+  - **Motifs in the numbers:** clue values in sequences or pairs (Skyscrapers 5,5 / 4,4; Nurikabe
+    8-4-2-1; Cave 12 down to 2), and single-number themes (Slitherlink with only 2s, Nurikabe with
+    only 3s). A "value pattern" measure could be added to looks.ts.
+  - **Clues that give a cell away:** Star Battle's one-cell areas, Akari's 0s along an edge, clues
+    that look redundant. The gap study counts clue density, not giveaways.
+  - **Empty rows and bands:** Sudoku with an empty row, Masyu pearls in a central band.
+- **Leakage:** asked about six human puzzles (Janko's Akari, Slitherlink, Star Battle, Masyu,
+  Nurikabe; a Puzzle Square JP Sudoku), it recognised none (confidence 3 each). Its accuracy isn't
+  memory.
+
+### What it means
+
+- **As a critic for the generator:** Opus names the same gaps the classifier found (symmetry,
+  sparse clues with bigger numbers, 2-star Star Battle with even areas, rocks-only Simple Loop,
+  clue-only Skyscrapers) in plain words a setter would use, and adds a few the measures miss
+  (number motifs, giveaway clues). It's a good reviewer of a generator change: show it pairs, read
+  the reasons. It doesn't beat the classifier at telling them apart (83% against 0.95), and it
+  costs about a cent a pair, grid only.
+- **Show it grids, not our solve:** its belief about generators is the reverse of ours, so the
+  summary lowers accuracy. A critic prompt should either leave out the solve or say that our
+  generator avoids case splits.
+- **For the site shortlist:** use the size-free classifier score to rank, and Opus, grid only, as a
+  second look at the top of the list: when it says "human" at 80 or more it has been right every
+  time here. Not for Hitori or Spiral Galaxies, where it's at chance.
+- **Caveats:** 8 pairs a type; one reply per pair; low effort only; text grids (a picture may
+  read Spiral Galaxies and Star Battle areas better); matched sizes are the small end of human
+  puzzles, which may be less typical of their setters.

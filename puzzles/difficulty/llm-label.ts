@@ -36,7 +36,8 @@
 // replies are always read). Results: docs/research-llm-labels.md.
 import Anthropic from "@anthropic-ai/sdk";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { convert, GENRE, loadSets, ORDER } from "./ba-convert.ts";
@@ -59,9 +60,9 @@ const wanted = (args.includes("--models") ? args[args.indexOf("--models") + 1] :
 const SOLVE_JOBS = Math.min(3, Number(process.env.DEDUCE_JOBS) || 3);
 
 // ---- models, prices and the tally ----
-interface Model { key: string; label: string; id: string; price: { input: number; output: number } }
+export interface Model { key: string; label: string; id: string; price: { input: number; output: number } }
 // dollars per token (October 2026: Opus 5.5 $4 / $20 per million, Fable 5.1 $10 / $50)
-const MODELS: Model[] = [
+export const MODELS: Model[] = [
   { key: "opus", label: "Opus 5.5", id: "claude-opus-5-5", price: { input: 4 / 1e6, output: 20 / 1e6 } },
   { key: "fable", label: "Fable 5.1", id: "claude-fable-5-1", price: { input: 10 / 1e6, output: 50 / 1e6 } },
 ];
@@ -79,7 +80,7 @@ let reserved = 0;
 const saveLedger = () => writeFileSync(ledgerFile, JSON.stringify(ledger, null, 1));
 
 let client: Anthropic | null = null;
-function api(): Anthropic {
+export function api(): Anthropic {
   if (client) return client;
   const key = /^ANTHROPIC_API_KEY=(.*)$/m.exec(readFileSync(`${main}app/.dev.vars`, "utf8"))?.[1]?.trim();
   if (!key) throw new Error("no ANTHROPIC_API_KEY in app/.dev.vars");
@@ -89,7 +90,7 @@ function api(): Anthropic {
 
 interface Saved<T> { job: string; model: string; item: string; prompt: string; text: string; parsed: T | null; usage: { input: number; output: number }; dollars: number; stop: string }
 /** The last JSON object in a reply that `ok` accepts (a reply may reason first, or quote JSON). */
-function lastJson<T>(text: string, ok: (j: any) => boolean): T | null {
+export function lastJson<T>(text: string, ok: (j: any) => boolean): T | null {
   for (let end = text.lastIndexOf("}"); end >= 0; end = text.lastIndexOf("}", end - 1))
     for (let start = text.lastIndexOf("{", end); start >= 0; start = text.lastIndexOf("{", start - 1)) {
       try { const j = JSON.parse(text.slice(start, end + 1)); if (j && ok(j)) return j as T; } catch { /* not this span */ }
@@ -137,8 +138,8 @@ async function ask<T>(jobName: string, m: Model, item: string, prompt: string, o
 }
 
 // ---- our solver, cached ----
-type Solve = { path: Step[]; profile: Profile; answer?: string[]; initial?: string[] } | null;
-async function solveCached(spec: GridSpec): Promise<Solve> {
+export type Solve = { path: Step[]; profile: Profile; answer?: string[]; initial?: string[] } | null;
+export async function solveCached(spec: GridSpec): Promise<Solve> {
   const key = createHash("sha256").update(JSON.stringify([spec, 15000])).digest("hex").slice(0, 24);
   const dir = `${OUT}deduce/`, file = `${dir}${key}.json`;
   if (existsSync(file)) return JSON.parse(readFileSync(file, "utf8"));
@@ -151,18 +152,18 @@ async function solveCached(spec: GridSpec): Promise<Solve> {
 const estimateOf = (r: Solve) => (r ? r.profile.estimate : 0.9);
 
 // ---- seeded shuffles ----
-function rng(seed: string) {
+export function rng(seed: string) {
   let h = createHash("sha256").update(seed).digest().readUInt32LE(0);
   return () => { h |= 0; h = (h + 0x6d2b79f5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-function shuffled<T>(xs: T[], seed: string): T[] {
+export function shuffled<T>(xs: T[], seed: string): T[] {
   const r = rng(seed), a = [...xs];
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 }
 
 // ---- the rules in words ----
-function rulesOf(spec: GridSpec): string {
+export function rulesOf(spec: GridSpec): string {
   const p = makePuzzle(spec), n = (rule: string) => Number(p.rules.find((x) => x.rule === rule)?.n ?? 1);
   const genre = spec.genre;
   switch (genre) {
@@ -175,12 +176,16 @@ function rulesOf(spec: GridSpec): string {
     case "nurikabe": return "Nurikabe: shade cells to make one connected wall. Each number is in an island of unshaded cells of that size, with exactly one number per island. No 2×2 block is all wall.";
     case "fillomino": return "Fillomino: divide the white cells into regions, each holding a number equal to its size; regions of the same size never touch side by side. A given number belongs to a region of that size. Each puzzle lists the sizes its regions have: exactly one region of each.";
     case "spiral-galaxies": return "Spiral Galaxies: divide the grid along its lines into regions, each with exactly one dot at its centre and the same after a half turn about that dot.";
+    case "cave": return "Cave: shade some cells so the unshaded cells form one connected cave and every group of shaded cells touches the edge of the grid. A number is in the cave and counts the cave cells it sees along its row and column, itself included, up to a shaded cell or the edge.";
+    case "shikaku": return "Shikaku: divide the grid into rectangles, each holding exactly one number, which is its area in cells.";
+    case "simple-loop": return "Simple Loop: draw one closed loop through the centres of every cell that isn't a rock (#), moving horizontally and vertically and visiting each cell once. The loop never crosses a wall between two cells.";
+    case "skyscrapers": return `Skyscrapers: fill the grid with heights 1–${spec.size[0]} so each row and column has each height once. A number outside the grid is how many buildings are seen from that side, taller ones hiding shorter ones behind them.`;
     default: return `${genre}: rules ${p.rules.map((x) => x.rule).join(", ")}.`;
   }
 }
 
 /** The puzzle as text, with what's known drawn in (mark → value). */
-function drawGrid(spec: GridSpec, known: Map<string, boolean> = new Map()): string {
+export function drawGrid(spec: GridSpec, known: Map<string, boolean> = new Map()): string {
   const p = makePuzzle(spec), g = p.grid, R = g.rows, C = g.cols, genre = spec.genre ?? "";
   const num = (i: number) => (p.cellGivens.get(i) ?? []).find((x) => x.kind === "number") as { value?: number } | undefined;
   const block = (i: number) => p.blocked.has(i) || (p.cellGivens.get(i) ?? []).some((x) => x.kind === "block");
@@ -213,6 +218,34 @@ function drawGrid(spec: GridSpec, known: Map<string, boolean> = new Map()): stri
       rows.push(line);
     }
     return `(${R} rows × ${C} columns; + a grid corner, . a cell centre, o a dot: on a cell centre, a cell edge or a corner)\n${rows.join("\n")}`;
+  }
+  if (genre === "cave" || genre === "shikaku") return table((i) => `${num(i)?.value ?? "."}${sh(i) === true ? "#" : sh(i) === false ? "o" : ""}`, genre === "cave" ? "(a number is a clue in the cave, . an empty cell; # after it shaded, o known cave)" : "(a number is a rectangle's area, . an empty cell)");
+  if (genre === "skyscrapers") {
+    // the outside clues in a frame around the grid
+    const outside = new Map<string, number>(), given = new Map<string, number>();
+    for (const x of (spec.givens ?? []) as unknown as { at: string; side?: string; cell?: [number, number]; kind: string; value?: number }[]) {
+      if (x.at === "edge" && x.cell) outside.set(`${x.side}${x.side === "top" || x.side === "bottom" ? x.cell[1] : x.cell[0]}`, x.value!);
+      else if (x.at === "cell" && x.cell && x.kind === "number") given.set(`${x.cell[0]},${x.cell[1]}`, x.value!);
+    }
+    const o = (k: string) => String(outside.get(k) ?? " ");
+    const placed = (r: number, c: number) => { const i = g.cell(r, c), d = [...Array(R)].map((_, k) => k + 1).find((k) => known.get(`digit(${i},${k})`)); return String(given.get(`${r},${c}`) ?? d ?? "."); };
+    const rows = ["  " + [...Array(C)].map((_, c) => o(`top${c}`)).join(" "), "  " + "-".repeat(2 * C - 1)];
+    for (let r = 0; r < R; r++) rows.push(`${o(`left${r}`)}|${[...Array(C)].map((_, c) => placed(r, c)).join(" ")}|${o(`right${r}`)}`);
+    rows.push("  " + "-".repeat(2 * C - 1), "  " + [...Array(C)].map((_, c) => o(`bottom${c}`)).join(" "));
+    return `(numbers outside the frame are the clues seen from that side, blank no clue; inside, a digit is given, . empty)\n${rows.join("\n")}`;
+  }
+  if (genre === "simple-loop") {
+    // rocks, and the walls between cells
+    const walls = new Set<string>();
+    for (const x of (spec.givens ?? []) as unknown as { at: string; cells?: [number, number][]; kind: string }[])
+      if (x.at === "border" && x.cells) walls.add(x.cells.map((c) => c.join(",")).sort().join("|"));
+    const wall = (a: number[], b2: number[]) => walls.has([a.join(","), b2.join(",")].sort().join("|"));
+    const rows: string[] = [];
+    for (let r = 0; r < R; r++) {
+      rows.push([...Array(C)].map((_, c) => (block(g.cell(r, c)) ? "#" : ".") + (c + 1 < C ? (wall([r, c], [r, c + 1]) ? "|" : " ") : "")).join(""));
+      if (r + 1 < R && [...Array(C)].some((_, c) => wall([r, c], [r + 1, c]))) rows.push([...Array(C)].map((_, c) => (wall([r, c], [r + 1, c]) ? "-" : " ") + " ").join(""));
+    }
+    return `(# a rock, . a cell the loop visits; | a wall between two cells side by side, - a wall below the cell above it)\n${rows.join("\n")}`;
   }
   // loops: drawn, since a list of edge marks is unreadable
   const edge = (m: string) => (known.get(m) === true ? "on" : known.get(m) === false ? "off" : "open");
@@ -250,7 +283,7 @@ function stepLine(s: Step, k?: number): string {
   const clues = s.because?.clues ?? [], why = clues.slice(0, 6).join("; ") + (clues.length > 6 ? `; and ${clues.length - 6} more` : "");
   return `${k !== undefined ? `step ${k + 1}, ` : ""}${KIND[s.tier]}: ${shown}. Looked at ${s.where}${why ? `; forced by ${why}` : ""}${s.because?.facts ? `, with ${s.because.facts} earlier facts` : ""}.`;
 }
-function summary(r: Solve): string {
+export function summary(r: Solve): string {
   if (!r) return "Our solver ran out of time on this one (a sign of a hard puzzle, or a large one).";
   const path = r.path.filter((s) => !s.choice), pr = r.profile;
   const perTier = [0, 0, 0, 0]; for (const s of path) perTier[s.tier]++;
@@ -275,7 +308,7 @@ function places(ids: string[], order: string[]): Map<string, number> {
   for (const x of ids) if (!out.has(x)) out.set(x, 0.5);
   return out;
 }
-const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
+export const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
 const rankOf = (v: number[]) => { const idx = v.map((x, i) => [x, i] as const).sort((a, b) => a[0] - b[0]), r = new Array<number>(v.length); for (let i = 0; i < idx.length;) { let j = i; while (j + 1 < idx.length && idx[j + 1][0] === idx[i][0]) j++; for (let k = i; k <= j; k++) r[idx[k][1]] = (i + j) / 2; i = j + 1; } return r; };
 const pearson = (a: number[], b: number[]) => { const ma = mean(a), mb = mean(b); let n = 0, da = 0, db = 0; for (let i = 0; i < a.length; i++) { n += (a[i] - ma) * (b[i] - mb); da += (a[i] - ma) ** 2; db += (b[i] - mb) ** 2; } return da && db ? n / Math.sqrt(da * db) : 0; };
 const residual = (y: number[], x: number[]) => { const mx = mean(x), my = mean(y); let sxy = 0, sxx = 0; for (let i = 0; i < x.length; i++) { sxy += (x[i] - mx) * (y[i] - my); sxx += (x[i] - mx) ** 2; } const b = sxx ? sxy / sxx : 0; return y.map((v, i) => v - my - b * (x[i] - mx)); };
@@ -633,5 +666,8 @@ function report() {
 }
 
 const JOBS: Record<string, () => Promise<void> | void> = { sequences, hints, difficulty, interest, judge, report };
-if (!JOBS[job]) throw new Error(`job: one of ${Object.keys(JOBS).join(", ")}`);
-await JOBS[job]();
+// run as a script, not when another script imports the helpers above (llm-human.ts)
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (!JOBS[job]) throw new Error(`job: one of ${Object.keys(JOBS).join(", ")}`);
+  await JOBS[job]();
+}
