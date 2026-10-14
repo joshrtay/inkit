@@ -79,6 +79,42 @@ Interest can't be measured from inside; each instrument is validated against:
    counts per puzzle (bay-puz/psjp publishes them, MIT; the puzzles are puzz.link links we can
    convert), where likes per solver is a quality signal and solver counts a difficulty one; later,
    the site's own data: likes, solves, completion and abandonment, solve time.
+4. **Beauty rated apart from difficulty**: Logic Masters Deutschland's Rätselportal, where solvers
+   rate each puzzle's beauty ("Schönheit") and difficulty separately after solving (below).
+
+## Logic Masters: beauty apart from difficulty (first look, 14 October 2026)
+
+Crawled anonymously for private research (puzzles/difficulty/sources/lmd.ts; terms and manifest in
+puzzles/difficulty/sources/README.md; full numbers in references/lmd/report.md, local only).
+
+- **Visible without login:** the beauty average (a percentage, shown once a puzzle has about 10
+  solvers), the difficulty level (1–5 stars: solvers' once enough have rated, else the author's
+  estimate), solvers, watchers, tags and labels, links, comments. **Not visible:** how many ratings
+  each figure rests on; solvers is the ceiling.
+- **Coverage:** 36,966 puzzles; 32,667 (88 %) have a beauty figure, 32,648 both ratings.
+- **Beauty is compressed at the top:** median 92 %, quartiles 88–95 %; under 2 % of rated puzzles
+  are below 70 %. Older puzzles score lower (about 80–84 % in 2009–12, 91–92 % since 2022).
+  Selection is part of it: only solved puzzles get rated, by the people who chose to solve them.
+- **Beauty and difficulty are related but far from the same:** Spearman ρ = 0.37 on 32,648 puzzles;
+  mean beauty climbs from 87 % (1 star) to 94 % (5 stars). So harder puzzles are liked more by
+  their solvers, but most of beauty's spread is something else: the separate signal we lacked.
+- **Beauty against solvers:** ρ = 0.07 overall (0.11 since 2020), yet 0.31–0.43 *within* each
+  difficulty level. Easy puzzles collect more solvers and less beauty, which hides it; among
+  puzzles equally hard, the liked ones are solved more. Watchers say nothing (ρ = 0.04 on 1,265).
+- **By type** (a fixed random sample of 1,265 rated puzzles' pages so far): 85 % carry the Sudoku
+  tag, nearly all variants. Chaos Construction, Japanese Sums, Yin-Yang, Fillomino and Cave average
+  95–97 %; plain Slitherlink ("Rundweg") 86 %, Thermo Sudoku 89 %.
+- **Our types:** about 10 % of rated puzzles read as one of our genres with our rules (one type tag,
+  no variant label), about 8 % classic or thermo Sudoku and 2 % everything else. Content we can
+  convert is rare: recent puzzles link SudokuPad short ids (the puzzle sits on sudokupad.app,
+  "ask first") or f-puzzles ids (TinyURL aliases for the full puzzle, resolved at the crawl's end
+  and read offline, puzzles/difficulty/sources/fpuzzles.ts); older ones are images. puzz.link and
+  Penpa+ links are rare (5 of 123 so far, 3 in the puzzle's text and 2 in comments; all 5
+  converted, 4 proved unique, 1 timed out at 60 s).
+  Images of our types are downloaded for a later conversion step.
+
+What it's good for: beauty net of difficulty (residuals of beauty on stars, within type) is a
+ground truth for T3 across many types, and comments (references/lmd/comments.jsonl) say *why*.
 
 ## Tests
 
