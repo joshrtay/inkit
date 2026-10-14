@@ -75,7 +75,9 @@ export async function fetchRaw(url: string, opts: { skipRobots?: boolean; binary
   const body = Buffer.from(await res.arrayBuffer());
   if (!opts.binary) {
     const t = body.toString("utf8");
-    if (/captcha|cf-chl|Access denied|zu viele Anfragen|too many requests/i.test(t.slice(0, 20000)))
+    // a block page is the site's absence: block words with none of the portal's own page (a puzzle's
+    // comments can quote "Access denied" from elsewhere, as 0009AT's do)
+    if (/captcha|cf-chl|Access denied|zu viele Anfragen|too many requests/i.test(t.slice(0, 20000)) && !/R(ä|ae|&auml;)tselportal/.test(t))
       throw new Blocked(`page looks like a block on ${url}`);
   }
   mkdirSync(dirname(file), { recursive: true });
