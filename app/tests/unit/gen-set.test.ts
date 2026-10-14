@@ -2,9 +2,9 @@
 // the bands as technique sets, taking one technique away, the balancing arithmetic, the shortlist's
 // ranks, and one real band-limited puzzle from the generator.
 import { describe, expect, it } from "vitest";
-import { BAND_LIST, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, techniquesOf, without } from "../../../puzzles/difficulty/bands.ts";
-import { aimHigher, armOf, armWeight, deficits, drawByShares, keyOf, pickArm, pickArmHuman, rarityOf, seedOf, variantOptions, type ArmStats } from "../../../puzzles/difficulty/gen-set.ts";
-import { breakInScore } from "../../../puzzles/difficulty/interest.ts";
+import { BAND_LIST, BEYOND_SPLITS, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, SEARCH_FREE, techniquesOf, without } from "../../../puzzles/difficulty/bands.ts";
+import { aimHigher, armOf, armWeight, beyondWeight, deficits, drawByShares, keyOf, pickArm, pickArmHuman, rarityOf, seedOf, variantOptions, type ArmStats } from "../../../puzzles/difficulty/gen-set.ts";
+import { breakInScore, threadOf, threadScores } from "../../../puzzles/difficulty/interest.ts";
 import type { Step } from "../../../puzzles/difficulty/deduce.ts";
 import { makePuzzle } from "../../../src/engine/puzzle.ts";
 import { solve } from "../../../src/engine/solve.ts";
@@ -32,8 +32,13 @@ describe("bands", () => {
     expect(without(hard, "lines").lines).toBe(false);
     expect(() => without(hard, "magic")).toThrow();
   });
-  it("never allows a case split or search", () => {
-    for (const b of BAND_LIST) expect(optionsOf(b).maxTier).toBe(1);
+  it("never allows a case split or search, but beyond a few shallow splits", () => {
+    for (const b of SEARCH_FREE) expect(optionsOf(b).maxTier).toBe(1);
+    expect(BAND_LIST.map((b) => b.name)).toEqual(["easy", "medium", "hard", "expert", "beyond"]);
+    const beyond = bandNamed("beyond");
+    expect(optionsOf(beyond)).toMatchObject({ maxTier: 2, maxSplitSteps: BEYOND_SPLITS });
+    expect(techniquesOf(beyond)).toContain("splits");
+    expect(optionsOf(without(beyond, "splits")).maxTier).toBe(1);
   });
   it("expert for every genre (it holds the mined families as well as the lemmas)", () => {
     expect(expertApplies("slitherlink")).toBe(true);    // loop parity, pockets
@@ -81,6 +86,10 @@ describe("aiming at human-made puzzles", () => {
   });
   it("settings become the generator's options; symmetry only where it applies", () => {
     expect(variantOptions("star-battle", "stars=2", 1)).toEqual({ stars: 2 });
+    expect(variantOptions("star-battle", "stars=3+even", 1)).toEqual({ stars: 3, evenAreas: true });
+    expect(variantOptions("nurikabe", "sparse", 1)).toEqual({ sparse: true });
+    expect(variantOptions("skyscrapers", "outside", 1)).toEqual({ outsideOnly: true });
+    expect(variantOptions("simple-loop", "blocks", 1)).toEqual({ blocksOnly: true });
     expect(variantOptions("easy-as-abc", "letters=4", 1)).toEqual({ letters: 4 });
     expect(variantOptions("akari", "sym=rot180", 1)).toEqual({ symmetry: "rot180" });
     expect(variantOptions("nurikabe", "sym=rot180", 1)).toEqual({});
@@ -116,6 +125,22 @@ describe("aiming at human-made puzzles", () => {
     // no human mix: rarity, as pickArm
     expect(pickArmHuman(["x", "y"], stats, () => false, () => null)).toBe("x");
   });
+  it("weights beyond arms by the targets' beyond share", () => {
+    expect(beyondWeight({ bands: { beyond: 0.74, hard: 0.18 } })).toBe(2);
+    expect(beyondWeight({ bands: { beyond: 0.57, expert: 0.43 } })).toBeCloseTo(1.33, 2);
+    expect(beyondWeight({ bands: { hard: 0.8 } })).toBe(0.25);
+    expect(beyondWeight()).toBe(1);
+  });
+  it("scores a narrow thread against the other candidates", () => {
+    // rounds of [open easy moves, steps]: a wide solve opens many at once
+    const path = (rounds: number[][]) => rounds.flatMap(([open, k], r) => Array.from({ length: k }, () => ({ cost: 1, tier: 0, round: r + 1, open, where: "", cells: [], facts: [{}], uses: [] }) as unknown as Step));
+    const narrow = threadOf(path([[1, 1], [1, 1], [2, 2], [1, 1]]), 25), wide = threadOf(path([[6, 6], [5, 5]]), 25);
+    expect(narrow.flowPerCell).toBeCloseTo(1.25 / 25);
+    expect(narrow.roundsPerCell).toBeCloseTo(4 / 25);
+    const [a, b] = threadScores([narrow, wide]);
+    expect(a).toBe(1);
+    expect(b).toBeLessThan(a);
+  });
   it("scores a break-in: one costly step, then cheap ones", () => {
     const path = (costs: number[]) => costs.map((cost) => ({ cost, tier: cost > 3 ? 1 : 0, where: "", cells: [], facts: [], uses: [] }) as unknown as Step);
     expect(breakInScore(path([2, 2, 2, 9, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2]))).toBeGreaterThan(0.6);
@@ -134,6 +159,16 @@ describe("aiming at human-made puzzles", () => {
     expect(abc!.style?.symbols).toBe("ABCD");
     expect((await solve(makePuzzle(abc!), 2)).length).toBe(1);
   }, 60000);
+  it("makes the clue kinds people use: rocks only, outside clues only, 3 stars in even areas", async () => {
+    const loop = await generate({ genre: "simple-loop", rows: 6, cols: 6, seed: 2, blocksOnly: true });
+    expect(loop!.givens!.every((x) => x.kind === "block")).toBe(true);
+    const sky = await generate({ genre: "skyscrapers", rows: 5, cols: 5, seed: 3, outsideOnly: true });
+    expect(sky!.givens!.every((x) => x.at === "edge")).toBe(true);
+    const stars = await generate({ genre: "star-battle", rows: 12, cols: 12, seed: 1, stars: 3, evenAreas: true });
+    expect(stars!.rules).toEqual([{ rule: "shaded-per-line", n: 3 }, { rule: "shaded-per-area", n: 3 }]);
+    expect(new Set(stars!.areas!.join("")).size).toBe(12);
+    for (const spec of [loop!, sky!, stars!]) expect((await solve(makePuzzle(spec), 2)).length).toBe(1);
+  }, 120000);
 });
 
 describe("shortlist", () => {

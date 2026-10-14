@@ -9,7 +9,7 @@
 // A .jsonl file holds generated puzzles (gen-set.ts's lines: {spec, ...}).
 import { readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { BAND_LIST, optionsOf, quickSolve } from "./bands.ts";
+import { EXPERT, SEARCH_FREE, optionsOf, quickSolve } from "./bands.ts";
 import { deduce } from "./deduce.ts";
 
 const args = process.argv.slice(2), full = args.includes("--full");
@@ -33,7 +33,7 @@ for (const f of files) readFileSync(f, "utf8").split("\n").filter(Boolean).forEa
 let errors = 0;
 for (const { name, spec } of puzzles) {
   const row: string[] = [];
-  for (const b of BAND_LIST) {
+  for (const b of SEARCH_FREE) {
     const q = await quickSolve(spec, b, 60000);
     if (q.error) { errors++; row.push(`${b.name}: ERROR ${q.error}`); continue; }
     row.push(`${b.name} ${q.solved ? "yes" : "no"} ${(q.ms / 1000).toFixed(1)}s${q.solved && b.name !== "easy" ? ` [${q.used.join(" ")}]` : ""}`);
@@ -41,7 +41,7 @@ for (const { name, spec } of puzzles) {
   if (full) {
     const t = Date.now();
     try {
-      const r = await deduce(spec, optionsOf(BAND_LIST.at(-1)!, { budgetMs: 120000 }, spec.genre));
+      const r = await deduce(spec, optionsOf(SEARCH_FREE[EXPERT], { budgetMs: 120000 }, spec.genre));
       row.push(`full ${r.profile.solved ? "yes" : "no"} ${((Date.now() - t) / 1000).toFixed(1)}s est ${r.profile.estimate}`);
     } catch (e) { errors++; row.push(`full: ERROR ${String((e as Error).message).slice(0, 200)}`); }
   }

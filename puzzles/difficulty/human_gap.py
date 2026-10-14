@@ -11,6 +11,9 @@
 #                                                     (human-targets.md says what's in it)
 #
 #   references/ml/.venv/bin/python puzzles/difficulty/human_gap.py
+#   references/ml/.venv/bin/python puzzles/difficulty/human_gap.py score <records.jsonl>...
+#       new puzzles (gen-set.ts's lines, or GEN_CANDS's candidates) scored by their genre's size-free
+#       fleet model (score_records): for measuring the generator's preferences
 #
 # Three groups of measures:
 #   spec    from the puzzle alone (size, settings, clue density and kinds, symmetry): every human
@@ -521,5 +524,50 @@ def main():
     with open(os.path.join(OUT, "summary.json"), "w") as fo: json.dump({"summary": summary, "drift": drift_rows}, fo, indent=1, default=float)
     print("\n".join(L))
 
+def score_records(paths):
+    """Each record (a gen-set.ts line: spec plus the solve's measures) scored by its genre's
+    size-free fleet model: the human sample against every fleet puzzle of the genre, on the same
+    columns as scores.jsonl's scoreSizeFree, fitted on all of them (not out of fold: these puzzles
+    aren't in it). Prints a JSON line per record: key, candSeed, chosen, band, scoreSizeFree."""
+    humans, measured, fleet = load()
+    recs = [r for p in paths for r in read_jsonl(p) if r.get("spec") and r.get("band") in BANDS]
+    hs_by, ms_h = defaultdict(list), defaultdict(list)
+    for h in humans: hs_by[h["genre"]].append(h)
+    for r in measured:
+        if r["source"] != "gen": ms_h[r["genre"]].append(r)
+    for g in sorted({r["genre"] for r in recs}):
+        if g not in fleet or len(ms_h[g]) < MIN_HUMAN:
+            print(json.dumps({"genre": g, "skipped": "no fleet or too few human puzzles solved"})); continue
+        gen = fleet[g]
+        hspec = [spec_feats(g, h["spec"])[0] for h in hs_by[g]]
+        gspec = [spec_feats(g, r["spec"])[0] for r in gen]
+        spec_cols = sorted({c for f in hspec + gspec for c in f})
+        solve_cols = list(solve_feats({"band": "easy", "interest": {k: 0 for k in ("busywork", "hardShare", "stuck", "breakIn", "keyAt", "keyCost", "flowSpread", "oneWay", "aimless", "theme", "variety", "flowMean")}}).keys())
+        cols = [c for c in spec_cols + solve_cols if c not in SIZE_COLS and not c.startswith("setting:")]
+        fh = []
+        for r in ms_h[g]:
+            f, _ = spec_feats(g, r["spec"]); f.update(solve_feats(r)); fh.append(f)
+        grows = []
+        for r, sf in zip(gen, gspec):
+            f = dict(sf); f.update(solve_feats(r)); grows.append(f)
+        rows = fh + grows
+        cols = [c for c in cols if any(not np.isnan(r.get(c, np.nan)) for r in rows) or c.startswith(("kind:", "value="))]
+        X = fill_missing(matrix(rows, cols), cols)
+        y = np.r_[np.ones(len(fh)), np.zeros(len(grows))]
+        Z, mu, sd = standardise(X)
+        beta = fit_logreg(Z, y)
+        mine = [r for r in recs if r["genre"] == g]
+        R = []
+        for r in mine:
+            f, _ = spec_feats(g, r["spec"]); f.update(solve_feats(r)); R.append(f)
+        XR = matrix(R, cols)
+        for j, c in enumerate(cols):
+            if c.startswith(("kind:", "value=")): XR[np.isnan(XR[:, j]), j] = 0.0
+        p = predict(beta, standardise(XR, mu, sd)[0])
+        for r, s in zip(mine, p):
+            print(json.dumps({"genre": g, "key": r.get("key"), "candSeed": r.get("candSeed"), "chosen": r.get("chosen"), "band": r.get("band"), "target": r.get("target"),
+                              "breakIn": r.get("breakInScore"), "threadScore": r.get("threadScore"), "scoreSizeFree": round(float(s), 5)}))
+
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 2 and sys.argv[1] == "score": score_records(sys.argv[2:])
+    else: main()

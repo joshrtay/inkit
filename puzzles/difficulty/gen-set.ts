@@ -8,16 +8,24 @@
 //
 //   GEN_GENRES   "sudoku:9,akari:7+10,hitori:6:expert,star-battle:10::stars=2,…" (sizes joined by +,
 //                then the bands if only some, joined by +, then the arm's settings, joined by +:
-//                stars=2, letters=4, sym=rot180|mirror|none|human); default GENRES below, or
-//                HUMAN_GENRES with GEN_HUMAN
+//                stars=2|3, letters=4, sym=rot180|mirror|none|human, even (Star Battle's areas of
+//                even size), sparse (fewer clues, bigger numbers: Nurikabe, Shikaku, Spiral
+//                Galaxies, Cave), outside (Skyscrapers' clues outside only), blocks (Simple Loop's
+//                rocks only, no walls); default GENRES below, or HUMAN_GENRES with GEN_HUMAN
 //   GEN_HUMAN    1: aim at human-made puzzles (the targets below): HUMAN_GENRES by default, sym=human
 //                for the genres it applies to, quotas by the targets' size and setting shares,
 //                extra jobs to the families most under-represented against the human mix, and the
 //                best break-in of GEN_BREAKIN candidates at hard and expert
 //   GEN_TARGETS  the human targets (default puzzles/difficulty/human-targets.json; defaults if missing)
-//   GEN_BREAKIN  candidates per job at hard and expert, the best break-in kept (default 1; 3 with
-//                GEN_HUMAN); GEN_BREAKIN_MS: no candidate starts after this long (default 240000)
-//   GEN_BANDS    "easy,medium,hard,expert" (default all; expert only where it adds a technique)
+//   GEN_BREAKIN  candidates per job at hard, expert and beyond, the best break-in kept (default 1;
+//                3 with GEN_HUMAN); GEN_BREAKIN_MS: no candidate starts after this long (default 240000)
+//   GEN_THREAD   1: among those candidates, rank by break-in plus a narrow thread (threadOf: few
+//                easy moves open per round per cell, few facts per step, against the job's other
+//                candidates), and make them all (no early stop). Default off
+//   GEN_CANDS    a file to append every candidate's record to (for measuring the preferences)
+//   GEN_BANDS    "easy,medium,hard,expert" (default; expert only where it adds a technique), and
+//                "beyond" (bands.ts: a few shallow case splits) when asked for, or with GEN_HUMAN
+//                for the genres where the targets put BEYOND_MIN of human puzzles or more there
 //   GEN_EXTRA    extra jobs for balancing, as a share of the base ones (default 0.25)
 //   GEN_TRIES    attempts per arm at most, as a multiple of perArm (default 3)
 //   GEN_CAP      seconds one job may take before it's killed (default 600)
@@ -47,7 +55,7 @@ import { generate, SYMMETRY_GENRES, type GenerateOptions, type Symmetry } from "
 import { BAND_LIST, bandNamed, bandOf, expertApplies, optionsOf, quickSolve, requiredOf } from "./bands.ts";
 import { deduce } from "./deduce.ts";
 import { graphRecord } from "./graph-data.ts";
-import { breakInScore, interestOf } from "./interest.ts";
+import { breakInScore, interestOf, threadOf, threadScores, type Thread } from "./interest.ts";
 import { looksOf } from "./looks.ts";
 import { JOBS } from "./pool.ts";
 import { family, signature } from "./signatures.ts";
@@ -80,14 +88,23 @@ export const GENRES: [string, number[], string[]?][] = [
  *  in time (measured, at 10-minute jobs: Hitori 9 and 10 make no unique board; Nurikabe and
  *  Shikaku 10 time out, so 8; 2-star Star Battle and Spiral Galaxies 7 time out at expert; no
  *  Skyscrapers 6 or 7 reaches expert, no Numberlink 6 or 7 does; Galaxies makes no easy one; see
- *  docs/generation-plan.md, "A human-like run"). */
+ *  docs/generation-plan.md, "A human-like run"). Then the settings people use: Star Battle's areas
+ *  even, Skyscrapers' clues outside only, Simple Loop's rocks only, sparse clues for Cave, Shikaku
+ *  and Galaxies, and beyond for Hitori and Nurikabe (and, by BEYOND_MIN, Masyu, Slitherlink and
+ *  Cave). Left out, measured: sparse Nurikabe (no puzzle at expert or beyond in 10 minutes) and
+ *  3-star Star Battle (needs 14 x 14; even easy times out). */
 export const HUMAN_GENRES: [string, number[], string[]?, string?][] = [
-  ["sudoku", [9]], ["skyscrapers", [6, 7], ["easy", "medium", "hard"]], ["easy-as-abc", [6], undefined, "letters=4"], ["easy-as-abc", [7], undefined, "letters=5"],
-  ["akari", [10]], ["slitherlink", [10]], ["masyu", [10]], ["cave", [10]], ["star-battle", [10], ["easy", "medium", "hard"], "stars=2"],
-  ["hitori", [8], ["expert"]], ["nurikabe", [8], ["expert"]], ["shikaku", [8], ["hard", "expert"]],
-  ["spiral-galaxies", [7], ["medium", "hard"]], ["fill-in", [6]], ["minesweeper", [8]], ["simple-path", [7]], ["hidoku", [6]],
+  ["sudoku", [9]], ["skyscrapers", [6, 7], ["easy", "medium", "hard"], "outside"], ["easy-as-abc", [6], undefined, "letters=4"], ["easy-as-abc", [7], undefined, "letters=5"],
+  ["akari", [10]], ["slitherlink", [10]], ["masyu", [10]], ["cave", [10], undefined, "sparse"],
+  ["star-battle", [10], ["easy", "medium", "hard"], "stars=2+even"],
+  ["hitori", [8], ["expert", "beyond"]], ["nurikabe", [8], ["expert", "beyond"]], ["shikaku", [8], ["hard", "expert"], "sparse"],
+  ["spiral-galaxies", [7], ["medium", "hard"], "sparse"], ["simple-loop", [10], ["hard", "expert"], "blocks"], ["fill-in", [6]], ["minesweeper", [8]], ["simple-path", [7]], ["hidoku", [6]],
   ["numberlink", [7], ["hard"]], ["fillomino", [6], ["hard", "expert"]],
 ];
+/** GEN_HUMAN without GEN_BANDS: beyond arms for the genres where the targets put at least this
+ *  share of human puzzles beyond expert (Masyu, Nurikabe, Slitherlink, Hitori, Cave, Spiral
+ *  Galaxies, Simple Loop) */
+export const BEYOND_MIN = 0.3;
 
 export interface Job { genre: string; size: number; target: string; seed: number; k: number; variant?: string }
 /** an arm's settings, when it has any, after its band ("star-battle|10|hard|stars=2") */
@@ -140,12 +157,16 @@ export function drawByShares(shares: Record<string, number>, seed: number): stri
 /** An arm's settings ("stars=2+letters=4+sym=rot180") as a map. */
 export const settingsOf = (variant?: string) => new Map((variant ?? "").split("+").filter(Boolean).map((x) => { const [k, v] = x.split("="); return [k, v ?? "true"] as [string, string]; }));
 
-/** The generator's options for an arm's settings, for one job (its seed): stars, letters and
- *  symmetry; sym=human draws the symmetry from the genre's target shares (DEFAULT_SYMMETRY if none). */
+/** The generator's options for an arm's settings, for one job (its seed): stars, letters, even,
+ *  sparse, outside, blocks and symmetry; sym=human draws the symmetry from the genre's target shares (DEFAULT_SYMMETRY if none). */
 export function variantOptions(genre: string, variant: string | undefined, seed: number, target?: HumanTarget): Partial<GenerateOptions> {
   const m = settingsOf(variant), out: Partial<GenerateOptions> = {};
   if (m.has("stars")) out.stars = Number(m.get("stars"));
   if (m.has("letters")) out.letters = Number(m.get("letters"));
+  if (m.has("even")) out.evenAreas = true;
+  if (m.has("sparse")) out.sparse = true;
+  if (m.has("outside")) out.outsideOnly = true;
+  if (m.has("blocks")) out.blocksOnly = true;
   let sym = m.get("sym");
   if (sym === "human") sym = drawByShares(target?.symmetry ?? DEFAULT_SYMMETRY, seed) ?? "none";
   if (sym && sym !== "none" && SYMMETRY_GENRES.includes(genre)) out.symmetry = sym as Symmetry;
@@ -162,6 +183,14 @@ export function armWeight(size: number, variant: string | undefined, t?: HumanTa
     if (shares && typeof shares === "object") w *= (shares as Record<string, number>)[v] ?? 0.02;
   }
   return w;
+}
+
+/** A beyond arm's quota against its genre's others (GEN_HUMAN): the targets' beyond share over the
+ *  largest of hard's and expert's (at least 0.1), between 0.25 and 2; 1 without targets. */
+export function beyondWeight(t?: HumanTarget): number {
+  const b = t?.bands;
+  if (!b) return 1;
+  return Math.min(2, Math.max(0.25, (b.beyond ?? 0) / Math.max(0.1, b.hard ?? 0, b.expert ?? 0)));
 }
 
 // ---------- one job (in its own process) ----------
@@ -183,10 +212,12 @@ export function aimHigher(genre: string, target: number): Partial<GenerateOption
 
 async function runJob(job: Job) {
   const t0 = Date.now(), target = BAND_LIST.findIndex((b) => b.name === job.target);
+  // (beyond's checks may split a few times: a longer budget)
+  const budget = BAND_LIST[target]?.splits ? 20000 : 8000;
   let checks = 0, checkMs = 0;
   const accept = async (s: GridSpec) => {
     checks++;
-    const q = await quickSolve(s, BAND_LIST[target]);
+    const q = await quickSolve(s, BAND_LIST[target], budget);
     checkMs += q.ms;
     return q.solved;
   };
@@ -199,12 +230,15 @@ async function runJob(job: Job) {
   } : undefined;
   const human = !!process.env.GEN_HUMAN, targets = human || job.variant?.includes("sym=human") ? loadTargets(targetsFile()) : {};
   const opts = variantOptions(job.genre, job.variant, job.seed, targets[job.genre]);
-  // at hard and expert, with GEN_BREAKIN > 1: several candidates (this seed, then seed + 1e8, + 2e8,
-  // ...), the one in the target band with the best break-in kept; no candidate starts after
-  // GEN_BREAKIN_MS, and one in the band scoring 0.6 or more ends the search
+  // at hard and above, with GEN_BREAKIN > 1: several candidates (this seed, then seed + 1e8, + 2e8,
+  // ...), the one in the target band with the best break-in kept (with GEN_THREAD, break-in plus
+  // the narrowest thread among them); no candidate starts after GEN_BREAKIN_MS, and without
+  // GEN_THREAD one in the band scoring 0.6 or more ends the search
   const breakIns = target >= 2 ? Number(process.env.GEN_BREAKIN) || (human ? 3 : 1) : 1, breakInMs = Number(process.env.GEN_BREAKIN_MS) || 240000;
-  type Cand = { spec: GridSpec; bi: number; full: Awaited<ReturnType<typeof deduce>>; score: number; seed: number };
-  let best: Cand | null = null, candidates = 0, genMs = 0;
+  const threadOn = breakIns > 1 && !!Number(process.env.GEN_THREAD);
+  type Cand = { spec: GridSpec; bi: number; full: Awaited<ReturnType<typeof deduce>>; score: number; seed: number; thread: Thread; threadScore?: number };
+  const cands: Cand[] = [];
+  let candidates = 0, genMs = 0;
   for (let i = 0; i < breakIns && (i === 0 || Date.now() - t0 < breakInMs); i++) {
     const seed = job.seed + i * 100000000, tg = Date.now();
     const spec = await generate({ genre: job.genre, rows: job.size, cols: job.size, seed, accept, harder, ...(target > 0 ? aimHigher(job.genre, target) : {}), ...opts });
@@ -212,36 +246,50 @@ async function runJob(job: Job) {
     if (!spec) continue;
     candidates++;
     // its band: the easiest that solves it (the target does)
-    const bi = await bandOf(spec, target);
-    // the full solve, explained, for the measures and the training data
-    const full = await deduce(spec, optionsOf(BAND_LIST[bi], { structure: true, budgetMs: 60000 }, spec.genre));
+    const bi = await bandOf(spec, target, budget);
+    if (bi < 0) continue;
+    // the full solve, explained, for the measures and the training data (beyond: case splits
+    // without the quick check's cap, which an explained solve's other order may need; no search)
+    const full = await deduce(spec, optionsOf(BAND_LIST[bi], { structure: true, budgetMs: 60000, maxSplitSteps: undefined }, spec.genre));
     const score = full.profile.solved ? breakInScore(full.path) : -1;
-    const rank = (c: Cand) => (c.full.profile.solved ? 2 : 0) + (c.bi === target ? 1 : 0) + c.score / 10;
-    const cand = { spec, bi, full, score, seed };
-    if (!best || rank(cand) > rank(best)) best = cand;
-    if (breakIns > 1 && bi === target && score >= 0.6) break;
+    cands.push({ spec, bi, full, score, seed, thread: threadOf(full.path, makePuzzle(spec).grid.cellCount) });
+    if (!threadOn && breakIns > 1 && bi === target && score >= 0.6) break;
   }
+  // a narrow thread, against the job's other candidates
+  if (threadOn) threadScores(cands.map((c) => c.thread)).forEach((t, k) => (cands[k].threadScore = t));
+  const rank = (c: Cand) => (c.full.profile.solved ? 2 : 0) + (c.bi === target ? 1 : 0) + (c.score + (c.threadScore ?? 0)) / 10;
+  let best: Cand | null = null;
+  for (const c of cands) if (!best || rank(c) > rank(best)) best = c;
   const base = { key: keyOf(job), genre: job.genre, size: job.size, target: job.target, seed: job.seed, k: job.k, ...(job.variant ? { variant: job.variant } : {}), genMs, checks, checkMs };
   if (!best) return { ...base, status: "none", ms: Date.now() - t0 };
-  const { spec, bi, full } = best, band = BAND_LIST[bi];
-  if (!full.profile.solved) return { ...base, status: "unsolved", band: band.name, ms: Date.now() - t0 };
-  const q = await quickSolve(spec, band, 20000);
-  const required = await requiredOf(spec, band, q.used);
-  const real = full.path.filter((s) => !s.choice);
-  const tally = (xs: string[]) => { const m: Record<string, number> = {}; for (const x of xs) if (x) m[x] = (m[x] ?? 0) + 1; return m; };
-  const p = makePuzzle(spec);
-  const graph = graphRecord({ source: "gen-set", genre: job.genre, name: `${job.genre} ${job.size} ${band.name} #${job.seed}`, band: band.name, seed: job.seed, size: job.size }, spec, full);
-  return {
-    ...base, status: bi < target ? "easier" : "ok", band: band.name, ms: Date.now() - t0, spec,
-    ...(opts.symmetry ? { symmetry: opts.symmetry } : {}), ...(breakIns > 1 ? { candidates, madeSeed: best.seed } : {}), breakInScore: best.score,
-    clues: (spec.givens ?? []).filter((x) => !FIXED.has(x.kind)).length, areas: p.areas ? p.areas.cells.length : 0, cells: p.grid.cellCount,
-    estimate: full.profile.estimate, dSteps: full.profile.dSteps, maxCost: full.profile.maxCost, steps: real.length, perTier: full.profile.perTier,
-    ruleLoad: full.profile.ruleLoad, solveMs: full.profile.ms,
-    used: q.used, required,
-    shapes: tally(real.map((s) => s.shape ?? "")), families: tally(real.map((s) => family(s.shapeText ?? ""))), signatures: tally(real.map(signature)),
-    interest: interestOf(full.path, full.profile), looks: looksOf(spec),
-    graph,
+  const recordOf = async ({ spec, bi, full, score, seed, thread, threadScore }: Cand) => {
+    const band = BAND_LIST[bi];
+    if (!full.profile.solved) return { ...base, status: "unsolved", band: band.name, ms: Date.now() - t0 };
+    const q = await quickSolve(spec, band, Math.max(20000, budget));
+    const required = await requiredOf(spec, band, q.used, budget);
+    const real = full.path.filter((s) => !s.choice);
+    const tally = (xs: string[]) => { const m: Record<string, number> = {}; for (const x of xs) if (x) m[x] = (m[x] ?? 0) + 1; return m; };
+    const p = makePuzzle(spec);
+    const graph = graphRecord({ source: "gen-set", genre: job.genre, name: `${job.genre} ${job.size} ${band.name} #${job.seed}`, band: band.name, seed: job.seed, size: job.size }, spec, full);
+    return {
+      ...base, status: bi < target ? "easier" : "ok", band: band.name, ms: Date.now() - t0, spec,
+      ...(opts.symmetry ? { symmetry: opts.symmetry } : {}), ...(breakIns > 1 ? { candidates, madeSeed: seed } : {}), breakInScore: score,
+      ...(threadOn ? { thread, threadScore } : {}),
+      clues: (spec.givens ?? []).filter((x) => !FIXED.has(x.kind)).length, areas: p.areas ? p.areas.cells.length : 0, cells: p.grid.cellCount,
+      estimate: full.profile.estimate, dSteps: full.profile.dSteps, maxCost: full.profile.maxCost, steps: real.length, perTier: full.profile.perTier,
+      ruleLoad: full.profile.ruleLoad, solveMs: full.profile.ms,
+      used: q.used, required,
+      shapes: tally(real.map((s) => s.shape ?? "")), families: tally(real.map((s) => family(s.shapeText ?? ""))), signatures: tally(real.map(signature)),
+      interest: interestOf(full.path, full.profile), looks: looksOf(spec),
+      graph,
+    };
   };
+  // GEN_CANDS: every candidate's record, the kept one marked (for measuring the preferences)
+  if (process.env.GEN_CANDS && cands.length > 1) for (const c of cands) {
+    const { graph: _g, ...r } = (await recordOf(c)) as Record<string, unknown>;
+    appendFileSync(process.env.GEN_CANDS, JSON.stringify({ ...r, thread: c.thread, threadScore: c.threadScore, chosen: c === best, candSeed: c.seed }) + "\n");
+  }
+  return recordOf(best);
 }
 
 if (process.argv[2] === "--job") {
@@ -329,7 +377,10 @@ async function main() {
   const genres: [string, number[], string[]?, string?][] = process.env.GEN_GENRES
     ? process.env.GEN_GENRES.split(",").map((x) => { const [g, s, b, v] = x.split(":"); return [g, s.split("+").map(Number), b ? b.split("+") : undefined, v || undefined]; })
     : human ? HUMAN_GENRES : GENRES;
+  // the bands: GEN_BANDS, or every band reached without a case split, and beyond for a genre whose
+  // own bands list it, or with GEN_HUMAN for the genres the targets put there often (BEYOND_MIN)
   const bandNames = (process.env.GEN_BANDS ?? BAND_LIST.map((b) => b.name).join(",")).split(",");
+  const beyondHere = (genre: string, only?: string[]) => !!process.env.GEN_BANDS || !!only?.includes("beyond") || (human && (targets[genre]?.bands?.beyond ?? 0) >= BEYOND_MIN);
   bandNames.forEach(bandNamed);
   const tries = Number(process.env.GEN_TRIES) || 3, capMs = (Number(process.env.GEN_CAP) || 600) * 1000;
   const deadline = process.env.GEN_DEADLINE ? Date.now() + Number(process.env.GEN_DEADLINE) * 1000 : Infinity;
@@ -364,18 +415,20 @@ async function main() {
 
   const arms: Job[] = [];
   for (const [genre, sizes, only, settings] of genres) for (const size of sizes) for (const target of bandNames) {
-    if ((target === "expert" && !expertApplies(genre)) || (only && !only.includes(target))) continue;
+    if ((target === "expert" && !expertApplies(genre)) || (only && !only.includes(target)) || (target === "beyond" && !beyondHere(genre, only))) continue;
     // aiming at human-made puzzles: a symmetric layout by the targets' shares where it applies
     const variant = human && SYMMETRY_GENRES.includes(genre) && !settingsOf(settings).has("sym") ? [settings, "sym=human"].filter(Boolean).join("+") : settings;
     arms.push({ genre, size, target, seed: 0, k: 0, ...(variant ? { variant } : {}) });
   }
   const armKeys = arms.map(armOf), armJob = new Map(arms.map((a) => [armOf(a), a]));
   // puzzles per arm: perArm, or with GEN_HUMAN its share of the human mix against the genre's
-  // commonest arm (armWeight), at least 1
+  // commonest arm (armWeight), at least 1; a beyond arm's times the targets' beyond share over
+  // hard's or expert's (beyondWeight)
   const quota = new Map(arms.map((a) => {
     if (!human) return [armOf(a), per];
     const mates = arms.filter((b) => b.genre === a.genre && b.target === a.target), top = Math.max(...mates.map((b) => armWeight(b.size, b.variant, targets[b.genre])));
-    return [armOf(a), Math.max(1, Math.round(per * armWeight(a.size, a.variant, targets[a.genre]) / (top || 1)))];
+    const band = a.target === "beyond" ? beyondWeight(targets[a.genre]) : 1;
+    return [armOf(a), Math.max(1, Math.round(per * band * armWeight(a.size, a.variant, targets[a.genre]) / (top || 1)))];
   }));
   // the family shortfall per genre against the human mix (GEN_HUMAN, where the targets give one)
   const deficitOf = (arm: string) => { const g = armJob.get(arm)!.genre, h = targets[g]?.families; return h && Object.keys(h).length ? deficits(h, famCounts.get(g)) : null; };

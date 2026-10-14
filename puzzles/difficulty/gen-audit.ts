@@ -1,7 +1,7 @@
 // Audit generated puzzles (gen-set.ts, gathered by puzzles/cloud/gather-gen.sh): a random sample,
 // spread over every (genre, band), each re-proved from scratch. Exactly one solution (the engine's
 // solver, as the site build proves it), and the band it's filed under (bands.ts bandOf: the
-// easiest band that solves it with no search), and for a puzzle made with a symmetric layout
+// easiest band that solves it with no search, or beyond's few shallow splits), and for a puzzle made with a symmetric layout
 // (gen-set.ts GEN_HUMAN, sym=...), that its clues are symmetric. Prints each failure and a summary.
 //
 //   node puzzles/difficulty/gen-audit.ts <gathered dir> [share=0.003] [shard/shards, e.g. 1/3]
@@ -44,7 +44,8 @@ for (const [i, s] of mine.entries()) {
     const sols = await solve(makePuzzle(s.spec), 2);
     if (sols.length !== 1) { notUnique++; console.log(`NOT UNIQUE (${sols.length} solutions): ${s.key}`); continue; }
     if (s.symmetry && !isSymmetric(s.spec, s.symmetry)) { asymmetric++; console.log(`NOT ${s.symmetry.toUpperCase()}: ${s.key}`); continue; }
-    const b = BAND_LIST[await bandOf(s.spec)]?.name ?? "none";
+    // (a beyond puzzle with the budget gen-set gives its checks)
+    const b = BAND_LIST[await bandOf(s.spec, BAND_LIST.length - 1, s.band === "beyond" ? 20000 : 8000)]?.name ?? "none";
     if (b !== s.band) { wrongBand++; console.log(`BAND ${s.band} → ${b}: ${s.key}`); continue; }
     ok++;
   } catch (e) { errors++; console.log(`ERROR ${s.key}: ${(e as Error).message.slice(0, 120)}`); }

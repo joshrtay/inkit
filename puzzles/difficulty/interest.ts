@@ -90,3 +90,34 @@ export function breakInScore(path: Step[]): number {
   const place = at >= 0.05 && at <= 0.7 ? 1 : 0.5;
   return +(stand * run * (1 - rivals) * place).toFixed(3);
 }
+
+/** How narrow a solve's thread is (docs/research-human-gap.md: hand-made puzzles hand over one or
+ *  two easy moves at a time; ours open many at once and the solver sweeps them up), from the
+ *  explained path as human_gap.py measures it:
+ *  - flowPerCell: the easy (tier-0) moves open per round, per cell (interestOf's flowMean over the
+ *    cells; human medians 0.004–0.09, ours 0.05–0.14);
+ *  - factsPerStep: marks settled per step;
+ *  - roundsPerCell: rounds per cell (more, in human solves). */
+export interface Thread { flowPerCell: number; factsPerStep: number; roundsPerCell: number }
+
+export function threadOf(path: Step[], cells: number): Thread {
+  const real = path.filter((s) => !s.choice), open = new Map<number, number>();
+  for (const s of real) if (!open.has(s.round ?? 0)) open.set(s.round ?? 0, s.open ?? 0);
+  const c = Math.max(1, cells);
+  return {
+    flowPerCell: +(mean([...open.values()]) / c).toFixed(4),
+    factsPerStep: +(real.length ? real.reduce((a, s) => a + s.facts.length, 0) / real.length : 0).toFixed(3),
+    roundsPerCell: +(open.size / c).toFixed(4),
+  };
+}
+
+/** Each candidate's thread score (gen-set.ts GEN_THREAD), 0 to 1, against the others for the same
+ *  job: the narrowest gets 1. Half from open moves per cell, half from facts per step, each as the
+ *  smallest among the candidates over its own (a little added to both, so 0 open moves doesn't
+ *  divide by nothing). Relative, not absolute: the scales differ by genre and size, and the
+ *  candidates share both. */
+export function threadScores(ts: Thread[]): number[] {
+  if (!ts.length) return [];
+  const minFlow = Math.min(...ts.map((t) => t.flowPerCell)), minFacts = Math.min(...ts.map((t) => t.factsPerStep));
+  return ts.map((t) => +(0.5 * (minFlow + 0.005) / (t.flowPerCell + 0.005) + 0.5 * (minFacts + 0.1) / (t.factsPerStep + 0.1)).toFixed(3));
+}

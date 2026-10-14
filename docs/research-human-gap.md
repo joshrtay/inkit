@@ -254,6 +254,11 @@ By how much of the gap each closes, and by how many genres it touches:
    Hitori's target families are partly ones the fleet never made (15 and 13 of 25 seen), so
    steering needs the new settings first.
 
+**Since (2026-10-14):** items 2 and 4–7 are generator options, measured in
+docs/generation-plan.md ("The rest of the gap"): even Star Battle areas, a "beyond" band of a few
+shallow case splits, sparse clues, a narrow-thread preference, rocks-only Simple Loop and
+outside-only Skyscrapers. New puzzles can be scored with `human_gap.py score <records>`.
+
 ## How to use the score
 
 - **Where:** references/ml/human-gap/scores.jsonl holds each fleet key's probability of being

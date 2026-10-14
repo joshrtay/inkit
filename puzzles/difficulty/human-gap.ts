@@ -31,7 +31,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFi
 import { fileURLToPath } from "node:url";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { BAND_LIST, bandOf, optionsOf, quickSolve, requiredOf } from "./bands.ts";
+import { BAND_LIST, bandOf, EXPERT, optionsOf, quickSolve, requiredOf } from "./bands.ts";
 import { deduce } from "./deduce.ts";
 import { interestOf } from "./interest.ts";
 import { JANKO_TYPES, readType } from "./janko.ts";
@@ -52,7 +52,8 @@ const FIXED = new Set(["block", "door", "peg", "lengths", "start", "end", "gap",
 export async function measure(spec: GridSpec) {
   const t0 = Date.now(), p = makePuzzle(spec), cells = p.grid.cellCount;
   const budget = Math.min(30000, Math.round(8000 * Math.max(1, cells / 36)));
-  const bi = await bandOf(spec, BAND_LIST.length - 1, budget);
+  // (up to expert: "beyond" here is any puzzle expert can't solve, measured with the defaults)
+  const bi = await bandOf(spec, EXPERT, budget);
   const band = bi >= 0 ? BAND_LIST[bi] : null;
   let used: string[] = [], required: string[] = [];
   if (band) {
