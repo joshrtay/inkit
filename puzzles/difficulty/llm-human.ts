@@ -18,7 +18,8 @@
 // own ledger; a call that could take the total past LLM_CAP (default $4) is skipped, and a saved
 // reply is reused. LLM_PER_TYPE pairs per type (8), LLM_GRID_PER_TYPE for the grid-only subset (4).
 // Results: docs/research-llm-labels.md, "Can Opus tell human-made puzzles?".
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { api, drawGrid, lastJson, mean, MODELS, rulesOf, shuffled, solveCached, summary, type Solve } from "./llm-label.ts";
 import { looksOf } from "./looks.ts";
@@ -27,7 +28,8 @@ import { mapPool } from "./pool.ts";
 const repo = new URL("../../", import.meta.url).pathname;
 const main = repo.replace(/\.claude\/worktrees\/[^/]+\/$/, "");
 const REF = `${main}references/ml/`;
-const OUT = `${REF}llm-human/`;
+/** where the pairs, replies and ledger live: LLM_HUMAN_DIR (under references/ml/) for another set of pairs with its own ledger */
+const OUT = `${REF}${process.env.LLM_HUMAN_DIR ?? "llm-human"}/`;
 const FLEET = `${REF}gen-fleet-20261013-0921/generated/`;
 const args = process.argv.slice(2);
 const job = args[0] ?? "report";
@@ -39,8 +41,8 @@ const GRID_PER_TYPE = Number(process.env.LLM_GRID_PER_TYPE) || 4;
 const SOLVE_JOBS = Math.min(2, Number(process.env.DEDUCE_JOBS) || 2);
 const opus = MODELS.find((m) => m.key === "opus")!;
 
-const TYPES = ["akari", "hitori", "slitherlink", "star-battle", "masyu", "sudoku", "nurikabe", "cave", "shikaku", "spiral-galaxies", "simple-loop", "skyscrapers"];
-const NAME: Record<string, string> = { akari: "Akari", hitori: "Hitori", slitherlink: "Slitherlink", "star-battle": "Star Battle", masyu: "Masyu", sudoku: "Sudoku", nurikabe: "Nurikabe", cave: "Cave", shikaku: "Shikaku", "spiral-galaxies": "Spiral Galaxies", "simple-loop": "Simple Loop", skyscrapers: "Skyscrapers" };
+export const TYPES = ["akari", "hitori", "slitherlink", "star-battle", "masyu", "sudoku", "nurikabe", "cave", "shikaku", "spiral-galaxies", "simple-loop", "skyscrapers"];
+export const NAME: Record<string, string> = { akari: "Akari", hitori: "Hitori", slitherlink: "Slitherlink", "star-battle": "Star Battle", masyu: "Masyu", sudoku: "Sudoku", nurikabe: "Nurikabe", cave: "Cave", shikaku: "Shikaku", "spiral-galaxies": "Spiral Galaxies", "simple-loop": "Simple Loop", skyscrapers: "Skyscrapers" };
 
 mkdirSync(OUT, { recursive: true });
 const readJsonl = (f: string) => readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
@@ -88,8 +90,8 @@ async function ask<T>(jobName: string, item: string, prompt: string, ok: (j: any
 }
 
 // ---- the pairs ----
-interface Side { source: string; name: string; spec: GridSpec }
-interface Pair { id: string; genre: string; human: Side; gen: Side; matched: boolean; humanFirst: boolean }
+export interface Side { source: string; name: string; spec: GridSpec }
+export interface Pair { id: string; genre: string; human: Side; gen: Side; matched: boolean; humanFirst: boolean }
 const pairsFile = `${OUT}pairs.json`;
 
 function choosePairs(): Pair[] {
@@ -140,10 +142,10 @@ async function solves(pairs: Pair[]): Promise<Map<string, Solve>> {
 }
 
 // ---- the question ----
-interface Pick { human: string; confidence: number; reasons: string }
-const isPick = (j: any) => (j.human === "A" || j.human === "B") && Number.isFinite(Number(j.confidence));
+export interface Pick { human: string; confidence: number; reasons: string }
+export const isPick = (j: any) => (j.human === "A" || j.human === "B") && Number.isFinite(Number(j.confidence));
 
-function promptOf(p: Pair, solved: Map<string, Solve> | null): string {
+export function promptOf(p: Pair, solved: Map<string, Solve> | null): string {
   const [a, b] = p.humanFirst ? [p.human, p.gen] : [p.gen, p.human];
   const ra = rulesOf(a.spec), rb = rulesOf(b.spec);
   const rules = ra === rb ? `Rules: ${ra}` : `Rules for A: ${ra}\nRules for B: ${rb}`;
@@ -296,7 +298,9 @@ async function report() {
   console.log(text);
 }
 
-if (job === "pairs") {
+const isMain = !!process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+if (!isMain) { /* imported: no job */ }
+else if (job === "pairs") {
   const pairs = existsSync(pairsFile) ? loadPairs() : choosePairs();
   writeFileSync(pairsFile, JSON.stringify(pairs, null, 1));
   for (const t of TYPES) {
