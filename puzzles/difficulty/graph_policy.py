@@ -93,6 +93,11 @@ def unit_kind(label):
 class Puzzle:
     def __init__(self, d, keep_moves=False):
         self.genre, self.source, self.name = d["genre"], d["source"], d["name"]
+        # the human corpus's records (human-shard.ts --gather): every source the puzzle is in, each
+        # source's own labels (difficulty, likes, solves, beauty, licence) and its setters, carried
+        # for quality weighting (not used in training yet)
+        self.sources = d.get("sources") or [d["source"]]
+        self.quality, self.setters = d.get("sourceLabels"), d.get("setters")
         st = d["structure"]
         self.nc = st["cells"]
         # mark names are kept only while reading (133,000 puzzles' worth of strings would fill memory)
@@ -467,6 +472,16 @@ def draw(name):
     name = re.sub(r" (easy|medium|hard|expert) #", " #", name)
     return int(hashlib.md5(("graph-gen:" + name).encode()).hexdigest()[:12], 16) / 16 ** 12
 
+# a test puzzle's own ids, as human-corpus.ts names them ("janko:Akari/001", "psjp:12345"), from
+# its record's name ("janko Akari/001.txt", "psjp akari/12345.json"): a corpus record (its ids) of a
+# test puzzle stays out of training even if its spec read differently
+TEST_NAME = [(re.compile(r"^janko ([^/]+)/(.+)\.txt$"), "janko:{0}/{1}"), (re.compile(r"^psjp [^/]+/(\d+)\.json$"), "psjp:{0}")]
+def ids_of_name(name):
+    for rx, fmt in TEST_NAME:
+        m = rx.match(name)
+        if m: return {fmt.format(*m.groups())}
+    return set()
+
 LEMMA_GROUPS = {"component", "parity", "premature"}
 def content_key(d):
     """The same puzzle, whatever its source or name: type, givens, rule instances (the puzzle's
@@ -493,7 +508,9 @@ def load():
     """(corpus puzzles, generated for training, generated held out, human-made for training,
     {what the leakage guard left out of the human training set}, human-labelled for training,
     human-labelled held out), streamed a line at a time."""
-    human = {content_key(json.loads(l)) for l in lines(HUMAN)} if os.path.exists(HUMAN) else set()
+    human, test_ids = set(), set()
+    for l in lines(HUMAN) if os.path.exists(HUMAN) else []:
+        d = json.loads(l); human.add(content_key(d)); test_ids |= ids_of_name(d["name"])
     if (HUMAN_TRAIN or HUMAN_LABELS) and not human: sys.exit(f"GRAPH_HUMAN_TRAIN and GRAPH_HUMAN_LABELS need the human test set ({HUMAN}) to keep its puzzles out of training")
     if HUMAN_TRAIN and not os.path.exists(HUMAN_TRAIN): sys.exit(f"GRAPH_HUMAN_TRAIN: no file {HUMAN_TRAIN} (graph-human.ts --train builds it)")
     if HUMAN_LABELS and not os.path.exists(HUMAN_LABELS): sys.exit(f"GRAPH_HUMAN_LABELS: no file {HUMAN_LABELS} (graph-human-labels.ts builds it)")
@@ -501,7 +518,7 @@ def load():
     hl_test, hl_test_names = set(), set()
     for line in lines(HUMAN_LABELS) if HUMAN_LABELS else []:
         if '"split":"test"' not in line: continue
-        d = json.loads(line); hl_test.add(content_key(d)); hl_test_names.add(d["name"])
+        d = json.loads(line); hl_test.add(content_key(d)); hl_test_names.add(d["name"]); test_ids |= ids_of_name(d["name"])
     held = human | hl_test
     pz, gen_tr, gen_te, corpus = [], [], [], set()
     for f in DATA.split(","):
@@ -522,14 +539,15 @@ def load():
                 if STATES_PER: p.keep = spread(range(p.R), STATES_PER)
             else: corpus.add(key)
             dest.append(p)
-    hum_tr, out, seen = [], {"test": 0, "labels test": 0, "corpus": 0, "twice": 0}, set()
+    hum_tr, out, seen = [], {"test": 0, "labels test": 0, "test by id": 0, "corpus": 0, "twice": 0}, set()
     solved = {}   # the solver-labelled human puzzles (our solver finished each): name → content key
     for line in lines(HUMAN) if HUMAN_LABELS and os.path.exists(HUMAN) else []:
         d = json.loads(line); solved[d["name"]] = content_key(d)
     for line in lines(HUMAN_TRAIN) if HUMAN_TRAIN else []:
         d = json.loads(line); key = content_key(d)
         if HUMAN_LABELS: solved[d["name"]] = key
-        why = "test" if key in human else "labels test" if key in hl_test or d["name"] in hl_test_names else "corpus" if key in corpus else "twice" if key in seen else None
+        why = ("test" if key in human else "labels test" if key in hl_test or d["name"] in hl_test_names
+               else "test by id" if test_ids & set(d.get("ids") or ids_of_name(d["name"])) else "corpus" if key in corpus else "twice" if key in seen else None)
         if why: out[why] += 1; continue
         seen.add(key)
         p = Puzzle(d)
@@ -562,7 +580,7 @@ def load():
 
 def source_of(p):
     if p.human_labels: return f"human labels: {p.source}"
-    return f"human train: {p.source}" if p.human_train else "generated (gen-set)" if p.source in GEN_SOURCES else f"corpus: {p.source}"
+    return f"human train: {'+'.join(p.sources)}" if p.human_train else "generated (gen-set)" if p.source in GEN_SOURCES else f"corpus: {p.source}"
 
 def mix(train_pz):
     """The training mix by source: puzzles, states, and each source's share of training (states ×
@@ -575,6 +593,17 @@ def mix(train_pz):
     print("\n### Training mix\n\n| Source | Puzzles | States | Weight | Share of training (states × weight) |\n|---|---|---|---|---|")
     for s_, (np_, ns, w) in sorted(rows.items()): print(f"| {s_} | {np_} | {ns} | {w / max(1, ns):g} | {w / tot:.0%} |")
     print(f"| all | {sum(r[0] for r in rows.values())} | {sum(r[1] for r in rows.values())} | | |\n", flush=True)
+    # the human training set by each source a puzzle is in (a puzzle in two counts in both), and how
+    # many carry source labels (for quality weighting, queued)
+    hum = [p for p in train_pz if p.human_train and not p.human_labels]
+    if hum:
+        by = defaultdict(lambda: [0, 0, 0])
+        for p in hum:
+            n = len(p.keep) if p.keep is not None else p.R
+            for s_ in p.sources: r = by[s_]; r[0] += 1; r[1] += n; r[2] += bool(p.quality)
+        print("| Human training set, by source | Puzzles | States | With source labels |\n|---|---|---|---|")
+        for s_, (np_, ns, q) in sorted(by.items()): print(f"| {s_} | {np_} | {ns} | {q} |")
+        print(flush=True)
 
 def load_human():
     out = []
@@ -767,7 +796,7 @@ if __name__ == "__main__":
     for p in gen_tr: split.setdefault(p.genre, ([], []))[0].append(p)
     if gen_tr or gen_te: print(f"generated: {len(gen_tr)} puzzles to train on ({sum(len(p.keep or range(p.R)) for p in gen_tr)} states, GRAPH_GEN_SHARE {GEN_SHARE:g}, GRAPH_STATES_PER {STATES_PER or 'all'}), {len(gen_te)} held out")
     for p in hum_tr: split.setdefault(p.genre, ([], []))[0].append(p)
-    if HUMAN_TRAIN: print(f"human training set ({HUMAN_TRAIN}): {len(hum_tr)} puzzles, {sum(p.R for p in hum_tr)} states, weight {HUMAN_WEIGHT:g}; left out: {hum_out['test']} copies of human test puzzles, {hum_out['corpus']} of corpus puzzles, {hum_out['twice']} repeats")
+    if HUMAN_TRAIN: print(f"human training set ({HUMAN_TRAIN}): {len(hum_tr)} puzzles, {sum(p.R for p in hum_tr)} states, weight {HUMAN_WEIGHT:g}; left out: {hum_out['test']} copies of human test puzzles, {hum_out['test by id']} more by their source ids, {hum_out['corpus']} of corpus puzzles, {hum_out['twice']} repeats")
     for p in hl_tr: split.setdefault(p.genre, ([], []))[0].append(p)
     if HUMAN_LABELS: print(f"human-labelled ({HUMAN_LABELS}): {len(hl_tr)} puzzles to train on ({sum(p.R for p in hl_tr)} states, weight {HUMAN_LABELS_WEIGHT:g}), {len(hl_te)} held out ({sum(p.R for p in hl_te)} states); "
                            f"left out of its training side: {hum_out['labels: test']} copies of human test puzzles, {hum_out['labels: corpus']} of corpus puzzles, {hum_out['labels: twice']} repeats; "

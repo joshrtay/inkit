@@ -43,6 +43,19 @@ export function contentKey(d: { genre: string; structure: { cells: number; group
   return createHash("md5").update(dumps([d.genre, d.structure.cells, d.givens, groups, answer])).digest("hex");
 }
 
+/** The same puzzle before solving (contentKey needs the solve's structure and answer): the spec
+ *  with its keys sorted and its givens in one order, everything but the hearts and a picture's
+ *  colours and title (type, size, givens, areas, rules, style, entries). Two encodings of one
+ *  puzzle (rules spelt out or left to the genre) get different keys; contentKey merges them after
+ *  solving (human-corpus.ts, human-shard.ts). */
+export function specKey(spec: GridSpec, genre = spec.genre): string {
+  const canon = (x: unknown): unknown => Array.isArray(x) ? x.map(canon)
+    : x && typeof x === "object" ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, canon((x as Record<string, unknown>)[k])])) : x;
+  const { hearts: _h, picture, givens, ...rest } = spec;
+  const gs = (givens ?? []).map((g) => JSON.stringify(canon(g))).sort();
+  return createHash("md5").update(JSON.stringify(canon({ ...rest, genre, givens: gs, ...(picture ? { picture: picture.rows } : {}) }))).digest("hex");
+}
+
 /** What each cell shows at the start: a printed number, a block, or another clue. */
 export function givensOf(spec: GridSpec): [number, string, number][] {
   const p = makePuzzle(spec), givens: [number, string, number][] = [];

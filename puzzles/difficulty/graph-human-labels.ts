@@ -24,7 +24,8 @@
 //   --hold share of the rest (by a hash of the name); "train" otherwise. graph_policy.py trains on
 //   "train" (GRAPH_HUMAN_LABELS) and measures agreement on "test", and keeps every test puzzle's
 //   other copies (the solver-labelled ones) out of training.
-// - solverFinished: whether our solver finished the puzzle in a cached run (graph-human.ts's
+// - solverFinished: whether our solver finished the puzzle: the human corpus run (human-shard.ts,
+//   human-corpus-status.jsonl; a skipped one counts as not run), else a cached run (graph-human.ts's
 //   human-cache, janko-order.ts's deduce cache), or null if no run is cached.
 //
 // → references/ml/graphs-human-labels.jsonl (local only; the puzzles are others')
@@ -37,7 +38,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import type { deduce } from "./deduce.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
-import { contentKey, givensOf } from "./graph-data.ts";
+import { contentKey, givensOf, specKey } from "./graph-data.ts";
 import { JANKO_DIR, JANKO_TYPES, type Janko, READERS, readType, REFS_DIR } from "./janko.ts";
 import { JOBS, mapPool } from "./pool.ts";
 
@@ -63,7 +64,25 @@ function labelMarks(j: Janko): (mark: string) => boolean {
 }
 
 /** Our solver's cached outcome on a puzzle: finished, not, or not run. */
+/** The human corpus's run (human-shard.ts --gather → human-corpus-status.jsonl): finished or not,
+ *  by spec key and by source id ("janko:Akari/001"); a puzzle it skipped counts as not run. */
+let corpusStatus: Map<string, boolean> | undefined;
+function corpusFinished(key: string): boolean | undefined {
+  if (!corpusStatus) {
+    corpusStatus = new Map();
+    const f = `${ml}human-corpus-status.jsonl`;
+    if (existsSync(f)) for (const l of readFileSync(f, "utf8").split("\n")) {
+      if (!l.trim()) continue;
+      const d = JSON.parse(l);
+      if (typeof d.solverFinished !== "boolean" || d.why?.startsWith("skipped") || d.why === "over max side") continue;
+      for (const k of [...(d.specKeys ?? [d.key]), ...(d.ids ?? [])]) corpusStatus.set(k, d.solverFinished);
+    }
+  }
+  return corpusStatus.get(key);
+}
 function solverFinished(spec: GridSpec): boolean | null {
+  const c = corpusFinished(specKey(spec));
+  if (c !== undefined) return c;
   const human = `${ml}human-cache/${keyOf(spec)}.json`;
   if (existsSync(human)) return readFileSync(human, "utf8").trim() !== "null";
   const k = createHash("sha256").update(JSON.stringify([spec, process.env.DEDUCE_LEMMAS ?? "", process.env.DEDUCE_PRICES ?? ""])).digest("hex").slice(0, 24);
@@ -170,6 +189,9 @@ for (const job of jobs) {
   if (seen.has(key)) { const s = skips.get(genre) ?? new Map(); s.set("twice", (s.get("twice") ?? 0) + 1); skips.set(genre, s); continue; }
   seen.add(key);
   const split = testNames.has(r.name) || draw(r.name) < HOLD ? "test" : "train";
+  // the corpus run's verdict, by the puzzle's Janko id, over the one cached with the record
+  const m = /^janko (.+)\.txt$/.exec(r.name), c = m ? corpusFinished(`janko:${m[1]}`) : undefined;
+  if (c !== undefined) r.solverFinished = c;
   lines.push(JSON.stringify({ ...r, split }));
   const t = tally.get(genre) ?? { train: 0, test: 0, states: 0, finished: 0, unfinished: 0, unknown: 0 };
   t[split]++; t.states += r.rounds.length;

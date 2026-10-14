@@ -26,6 +26,15 @@
 # Since janko.ts reads fourteen types and psjp-links.ts adds Puzzle Square JP's linked puzzles, it's
 # about twice that (about 4,500 Janko, 1,500 Puzzle Square JP and 2,000 from links; Hidoku's and
 # Numberlink's solves are slow): 24 vCPUs for 6 hours, or resume.
+#
+# The merged human corpus (human-corpus.ts → references/ml/human-corpus/), sharded over N spot VMs
+# (human-job.sh's corpus mode, human-shard.ts): each takes the puzzles whose key hashes to its
+# shard, checks uniqueness and solves, and syncs to results/<run>/shard-k/. human-watch.sh
+# relaunches reclaimed shards; gather-human.sh merges them into data/graphs-human-train.jsonl.
+#
+#   puzzles/cloud/run-human-job.sh --corpus [VMs=8] [vCPUs=32] [hours=3] [max side=20] [region=us-central1] [resume run]
+#
+# Writes the run's VMs to references/ml/<run>.txt (local only).
 set -e
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 if [ "${1:-}" = "--upload-private" ]; then
@@ -33,6 +42,36 @@ if [ "${1:-}" = "--upload-private" ]; then
   gcloud storage rsync -r "$REFS/janko" gs://inkit-research-ml/private/janko
   gcloud storage rsync -r "$REFS/psjp" gs://inkit-research-ml/private/psjp
   [ -d "$REFS/psjp-links" ] && gcloud storage rsync -r "$REFS/psjp-links" gs://inkit-research-ml/private/psjp-links
+  exit
+fi
+if [ "${1:-}" = "--corpus" ]; then
+  N=${2:-8}; CPUS=${3:-32}; HOURS=${4:-3}; MAXSIDE=${5:-20}; REGION=${6:-us-central1}; RESUME=${7:-}
+  RUN=${HUMAN_RUN:-human-$(date +%Y%m%d-%H%M)}
+  CORPUS=$ROOT/references/ml/human-corpus; [ -d "$CORPUS" ] || CORPUS=$(cd "$ROOT/../../.." && pwd)/references/ml/human-corpus
+  LOG=$(dirname "$CORPUS")/$RUN.txt
+  if [ -z "${HUMAN_NO_UPLOAD:-}" ]; then
+    gcloud storage rsync -r -q "$CORPUS" gs://inkit-research-ml/private/human-corpus
+    gcloud storage cp -r "$ROOT/src" "$ROOT/puzzles" "$ROOT/package.json" gs://inkit-research-ml/private/code/
+  fi
+  for K in $(seq 0 $((N - 1))); do
+    [ -n "${HUMAN_ONLY:-}" ] && [[ " $HUMAN_ONLY " != *" $K "* ]] && continue
+    NAME=$RUN-s$K${HUMAN_SUFFIX:-}
+    made=""
+    for Z in ${HUMAN_ZONES:-a b c f}; do
+      if gcloud compute instances create "$NAME" --project inkit-research --zone "$REGION-$Z" \
+        --machine-type "n2-highcpu-$CPUS" --provisioning-model SPOT \
+        --image-family debian-12 --image-project debian-cloud --boot-disk-size 20GB \
+        --scopes storage-rw,logging-write \
+        --max-run-duration "${HOURS}h" --instance-termination-action DELETE \
+        --metadata "^|^run=$RUN|shard=$K|of=$N|hours=$HOURS|maxside=$MAXSIDE|resume=$RESUME" \
+        --metadata-from-file startup-script="$(dirname "$0")/human-job.sh" > /tmp/human-create-$K.txt 2>&1; then
+        made="$REGION-$Z"; break
+      fi
+    done
+    if [ -n "$made" ]; then echo "$NAME $made $K" | tee -a "$LOG"
+    else echo "$NAME FAILED $K" | tee -a "$LOG"; grep -iE 'error|stockout|quota' /tmp/human-create-$K.txt | head -1; fi
+  done
+  echo "$RUN: VMs in $LOG"
   exit
 fi
 CPUS=${1:-16}

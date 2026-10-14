@@ -11,6 +11,12 @@
 # .jsonl: no solving, a few minutes), whose solverFinished this build's solves fill in, to
 # results/<run>/ and data/. The code comes from the private path (private/code), as does Puzzle
 # Square JP's from links (private/psjp-links, psjp-links.ts), which the training set includes.
+#
+# Corpus mode (metadata of=N, shard=k; run-human-job.sh --corpus): one shard of the merged human
+# corpus (human-corpus.ts → private/human-corpus/), human-shard.ts --shard k --of N: each puzzle's
+# uniqueness check and solve cached per puzzle, the cache synced to results/<run>/shard-k/cache every
+# five minutes and at the end (a relaunch with resume=<run> carries on from it); gather-human.sh
+# merges the shards into data/graphs-human-train.jsonl.
 BUCKET=gs://inkit-research-ml
 NODE=v22.22.2
 meta() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1"; }
@@ -22,7 +28,7 @@ OUT=$BUCKET/results/$RUN
 exec > /var/log/human-job.log 2>&1
 set -x
 finish() {
-  gcloud storage cp /var/log/human-job.log "$OUT/job.log"
+  gcloud storage cp /var/log/human-job.log "${SOUT:-$OUT}/job.log"
   shutdown -h now
 }
 trap finish EXIT
@@ -35,6 +41,37 @@ node --version
 (cd /opt/deps && npm init -y > /dev/null && npm install --no-audit --no-fund clingo-wasm@0.6.0)
 
 cd /work
+OF=$(meta of || true)
+if [ -n "$OF" ]; then
+  SHARD=$(meta shard)
+  MAXSIDE=$(meta maxside || echo 20)
+  SOUT=$OUT/shard-$SHARD
+  gcloud storage cp -r "$BUCKET/private/code/src" "$BUCKET/private/code/puzzles" "$BUCKET/private/code/package.json" /work/
+  ln -s /opt/deps/node_modules /work/node_modules
+  mkdir -p references/ml/human-corpus references/ml/human-corpus-cache
+  gcloud storage rsync -q "$BUCKET/private/human-corpus" references/ml/human-corpus
+  [ -n "$RESUME" ] && { gcloud storage rsync -q "$BUCKET/results/$RESUME/shard-$SHARD/cache" references/ml/human-corpus-cache || true; }
+  sync_shard() {
+    gcloud storage rsync -q references/ml/human-corpus-cache "$SOUT/cache"
+    gcloud storage cp -q /var/log/human-job.log "$SOUT/job.log"
+  }
+  ( set +x; while sleep 300; do sync_shard; done ) &
+  SYNC=$!
+  LIMIT=$((HOURS * 3600 - SECONDS))
+  MEM_MB=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
+  # as memory allows: a solve peaks near 0.85 GB, a 10 x 10 Fillomino's grounding near 2.3 GB and
+  # big boards more, so 1.4 GB a job (n2-highcpu-32: 22 jobs on 16 cores, 32 threads)
+  JOBS=$(nproc); [ $((MEM_MB / 1400)) -lt "$JOBS" ] && JOBS=$((MEM_MB / 1400))
+  # stopped 8 minutes before the limit (a solve is killed at 2 minutes), so the last copy happens
+  HUMAN_CACHE=references/ml/human-corpus-cache/ DEDUCE_JOBS=$JOBS timeout $((LIMIT - 480)) \
+    node --no-warnings puzzles/difficulty/human-shard.ts --shard "$SHARD" --of "$OF" --max-side "$MAXSIDE" > shard.md 2> shard.log
+  STATUS=$?
+  kill $SYNC
+  sync_shard
+  gcloud storage cp shard.md shard.log "$SOUT/"
+  [ $STATUS -eq 0 ] && { echo done > done.txt; gcloud storage cp done.txt "$SOUT/done"; }
+  exit 0
+fi
 gcloud storage cp -r "$BUCKET/private/code/src" "$BUCKET/private/code/puzzles" "$BUCKET/private/code/package.json" /work/
 ln -s /opt/deps/node_modules /work/node_modules
 mkdir -p references/ml/human-cache

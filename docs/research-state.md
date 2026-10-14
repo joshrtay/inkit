@@ -44,6 +44,7 @@ the research must deliver three products, all built on one shared core:
 | Human-labelled graph records | 4,190 Janko puzzles, 362,000 states, 14 types (graph-human-labels.ts: the person's moves as labels, no solve; 1,192 held out by puzzle) | the person's next 3 moves | network training and agreement, including puzzles our solver can't finish |
 | Puzzle Square JP | ratings for 17 types, ~20 sampled per type on the board; likes for 4 types | the site | difficulty, taste |
 | Puzzle Square JP from links | 1,905 puzzles, 20 types, 875 of them Akari (psjp-links.ts: data.json's puzz.link links read by the site's reader, unique by our solver, not in the rated set) | the site's difficulty, likes, solves | human training set |
+| Human corpus (all sources merged) | 39,467 distinct puzzles, 22 types (human-corpus.ts): puzz.link's database 21,191, Puzzle Square JP 12,015, Janko 8,166, Nikoli 100, Logic Masters 5; 1,976 in two or more; 1,854 test puzzles left out | each source's labels kept side by side | the human training set (human-shard.ts, sharded in the cloud) |
 | Tatham's generators | ~270 graded puzzles, 4 games | his solver (an algorithm) | difficulty |
 | Beast Academy Puzzle Lab | 88 puzzles in ordered sets | curriculum designers | difficulty, sequences |
 | Expert step labels | ~14,000 steps (Singles, Solo, Loopy) | expert solvers (algorithms) | step prices |
@@ -196,6 +197,29 @@ per type mean agreement figures can be off by 0.15.
 3. **A budget alert** in Cloud Billing: optional insurance.
 
 **Baseline before human data (2026-10-14):** width 256 with structure and the generated set scores 68% on human-made puzzles (key move 35%, agreement with people 28% against the solver's 36%), up from 61% / 30% / 22%; research-cross-type.md §14.
+
+**The human corpus (2026-10-14), built, its cloud run ready but not launched** (gcloud needed
+reauthentication). human-corpus.ts merges every source into references/ml/human-corpus/: one record
+per puzzle by spec key (joined where a source id or puzz.link's Puzzle Square JP id says two specs
+are one), every source's labels side by side (`labels.psjp`, `.puzzlink`, `.lmd`, `.janko`), the
+test sets left out by id and spec. human-shard.ts checks uniqueness (clingo, 60 s) and solves
+(deduce, 30 s budget, killed at 120 s), sharded over spot VMs (run-human-job.sh --corpus,
+human-watch.sh, gather-human.sh → data/graphs-human-train.jsonl, records carrying `sources`,
+`sourceLabels`, `setters`; graph_policy.py's guard also drops test puzzles by source id, and the
+training mix shows each source).
+- **Why the last human build ran long:** a few genres spend the whole cap on nearly every puzzle.
+  A local sample (148 puzzles, 2 per genre and size band) took 33 Mac-core-seconds each on
+  average, but a 10 × 10 Fillomino takes 180 s (uniqueness past 60 s, grounding near 2.3 GB, deduce
+  killed at 120 s), Numberlink over 10 × 10 the same, Hidoku and Spiral Galaxies 40–120 s, none
+  finishing; and a wall-clock budget on a cloud vCPU (half a Mac core) finishes less than on the
+  Mac. The caps stay; a genre and size band under 20% finished after 10 tries is skipped
+  (`solverFinished: false`, why "skipped"), and boards over 20 get the uniqueness check only.
+  Estimate: about 140 Mac-core-hours (330 without skipping), about 9 VM-hours of n2-highcpu-32, so
+  8 VMs for about 1¼ hours, under $3 (the 3-hour limit caps it at $7.70); about 28,000 finished.
+- **Sources' difficulties where they overlap:** Puzzle Square JP against puzz.link ρ 0.68 (1,240
+  puzzles; median over 9 genres 0.70: Spiral Galaxies 0.81, Simple Loop 0.80, Masyu 0.77, Akari
+  0.70, Numberlink 0.70, Nurikabe 0.68, Shikaku 0.66, Slitherlink 0.63, Fillomino 0.50). Our
+  estimate as a third column comes with the run (human-corpus-solved.md).
 
 **Queued after the first human-data run: quality weighting.**
 
