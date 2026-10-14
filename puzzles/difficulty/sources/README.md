@@ -11,8 +11,10 @@ never published, seeded or committed. This folder holds code, and `manifest.json
 | nikoli_100 (Hugging Face) | go (CC BY 4.0, credit Nikoli) | `references/nikoli-100/` | the dataset files | `nikoli.ts` |
 | Janko, every type | go (CC BY-NC-SA puzzles) / go with care (the rest) | `references/janko-full/` | `janko_crawl.py` | `janko-full.ts` |
 | Puzzle Square JP, public puzzles | go with care (CC0 examples: go) | `references/psjp-full/` | `psjp_crawl.py` | `psjp.ts` |
+| puzz.link's database | go with care | `references/puzzlink-db/` | `puzzlink_db_crawl.py` | `puzzlink-db.ts` |
+| LMI Puzzle Expo, per-puzzle figures | go with care (aggregates only) | `references/lmi-expo/` | `lmi_expo_crawl.py` | `lmi-expo.ts` |
 
-Phase 1 is only these. Not yet: Logic Masters, the WPF, GM Puzzles, puzz.link's /db, pzv.jp. Never:
+Phase 1 was the first four; Logic Masters Deutschland, puzz.link's /db and the LMI Expo came next (below). Not yet: the WPF, GM Puzzles' own site, pzv.jp. Never:
 the sources the report marks "ask first" or "avoid".
 
 ## Every converted puzzle
@@ -117,4 +119,51 @@ node --no-warnings puzzles/difficulty/sources/lmd.ts parse     # cache → puzzl
 DEDUCE_JOBS=2 node --no-warnings --experimental-transform-types \
   --import ./puzzles/difficulty/sources/app-alias.ts puzzles/difficulty/sources/lmd-convert.ts --check
 node --no-warnings puzzles/difficulty/sources/lmd-report.ts    # → references/lmd/report.md
+```
+
+## puzz.link's database and the LMI Puzzle Expo (phase 2)
+
+### puzzlink-db: puzz.link's database
+
+| | |
+|---|---|
+| Source | [puzz.link/db](https://puzz.link/db), its own API: a PostgREST at `/db/api` (listing at `/db/api/`) |
+| Terms | none; [puzz.link](https://puzz.link/): copyright "lies with their authors", the database "only shares puzzles that are available publicly, and links to their source" |
+| Law | EU Art. 4 / DE §44b (no signals set); JP 30-4 for Japanese setters; US fair use |
+| Verdict | go with care (research and training only; private) |
+| robots.txt | read every run: Cloudflare's content-signal template with no user-agent, Disallow or signal lines (a Disallow or `ai-train=no` would stop the crawl) |
+| Crawl | `polite.py`: one connection, 3 s between requests, the research User-Agent, every response cached, a stop on HTTP errors and 429s. Keyset pages of 5,000 on `sort_key`: 18 requests in all |
+| Tables | `pzvs_anon` (every indexed puzz.link/pzv link: source name, type and URL, type, size, `solves`, `difficulty`, `generated`, tags) and `gmpuzzles_anon` (GM Puzzles' posts and their setters' time standards). **Never** `pzv_solves_anon` or `griddle_solves_anon` (per solve; 401 anyway) or anything needing a login |
+| Fields | `difficulty` runs **-2..2** (five levels; null with too few solves), stored as is and as `difficulty5` (1..5). `solves` counts logged-in puzz.link users only. `source_name` is the setter's Twitter handle or the blog's name. Rows tagged `variant` (link `type/v:/…`) or `broken` aren't converted |
+| Output | references/puzzlink-db/rows.jsonl, gmpuzzles.jsonl, converted/<genre>.jsonl (`source: "puzzlink-db"`, difficulty, solves and the post it came from in `meta`), summary.json (counts by type, the overlap with PSJP, Janko and LMD, and puzz.link's difficulty against PSJP's) |
+| Date | 14 October 2026 |
+| Counts | 80,848 rows (260 types), 75,478 with a difficulty, 74,936 with 5+ solves; 2,026 GM Puzzles posts; 21,503 converted in 20 of our genres. 7,440 are also in Puzzle Square JP (by link or PSJP id); Spearman of the two difficulties 0.63 (n 7,163) |
+
+### lmi-expo: Logic Masters India's Puzzle Expo
+
+| | |
+|---|---|
+| Source | [logicmastersindia.com/expo](https://logicmastersindia.com/expo/) (the logged-out index and search page) |
+| Terms | none found; the home page: "any puzzle published on LMI Puzzle Expo is, and remains, the intellectual property of the author" |
+| Law | India has no TDM exception; US fair use |
+| Verdict | go with care for per-puzzle aggregates; per-solver timings, replays and comments never collected |
+| robots.txt | read every run: none (404). If one appears, its Disallow lines for `*` are obeyed |
+| Crawl | `polite.py` (its POST): logged out, one connection, 5 s between requests, the research User-Agent, every response cached, a stop on HTTP errors and 429s. The calls the pages make: `POST /live/misc-pp?action=apply-filters` (the search table, 100 a request) and `action=get-puzzle` (one puzzle's page). get-puzzle's answer also carries comments (solver handles) and the author's profile; they're cut away **before** the response is cached, so they never reach the disk |
+| Visible without login | title, genre, author handle, rules, variant level, tags, started (`numViewed`) and solved counts, best time, top-10/50/100 average times, the average rating (once enough ratings) and its count. **Needs a login:** the puzzle itself (Penpa, `action=pqr`), so it isn't read; the "Timings & Replays" tab is never requested |
+| Converting | only through the puzzle's "also posted at" link, when that post is one we already hold (indexed by puzz.link's database, or a Logic Masters page) |
+| Output | references/lmi-expo/list.jsonl, puzzles.jsonl, converted/<genre>.jsonl (`source: "lmi-expo"`, the time figures in `meta`), summary.json |
+| Date | 14 October 2026 |
+| Counts | 1,568 puzzles in 704 genre names; see summary.json |
+
+```sh
+# fetch (resumable; progress one line, rewritten; stop with kill, rerun to resume)
+nohup python3 -I puzzles/difficulty/sources/puzzlink_db_crawl.py > /dev/null 2>&1 &   # ~1 min
+nohup python3 -I puzzles/difficulty/sources/lmi_expo_crawl.py > /dev/null 2>&1 &      # ~2.2 h
+cat references/puzzlink-db/progress.txt references/lmi-expo/progress.txt
+kill $(cat references/lmi-expo/crawl.pid)
+
+# convert, join and compare
+node --no-warnings puzzles/difficulty/sources/puzzlink-db.ts
+DEDUCE_JOBS=2 node --no-warnings puzzles/difficulty/sources/lmi-expo.ts --estimate
+node puzzles/difficulty/sources/manifest.ts
 ```

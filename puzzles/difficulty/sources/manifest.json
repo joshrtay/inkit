@@ -72,7 +72,7 @@
    "counts": {
     "folders": 423,
     "listed": 66053,
-    "fetched": 80,
+    "fetched": 400,
     "converted": 32,
     "byGenre": {
      "star-battle": 32
@@ -104,7 +104,7 @@
    "reader": "puzzles/difficulty/sources/psjp.ts (the app's link reader, app/app/lib/import-link.ts)",
    "counts": {
     "days": 2713,
-    "daysFetched": 235,
+    "daysFetched": 2713,
     "puzzles": 4340,
     "withLink": 4251,
     "converted": 1024,
@@ -126,6 +126,91 @@
      "sudoku": 21
     }
    }
+  },
+  {
+   "source": "puzzlink-db",
+   "name": "puzz.link's database (pzvs_anon, gmpuzzles_anon)",
+   "url": "https://puzz.link/db",
+   "licence": "none; puzz.link: copyright \"lies with their authors\", the database \"only shares puzzles that are available publicly\"",
+   "verdict": "go with care",
+   "crawl": {
+    "tool": "puzzles/difficulty/sources/puzzlink_db_crawl.py",
+    "endpoint": "/db/api/pzvs_anon and /db/api/gmpuzzles_anon (public PostgREST), keyset pages of 5,000 on sort_key",
+    "delaySeconds": 3,
+    "connections": 1,
+    "userAgent": "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)",
+    "cache": "every response, gzipped",
+    "stopsOn": "HTTP errors other than 404 (a 5xx after one retry a minute later), 429s, network errors",
+    "robots": "read every run (Cloudflare's content-signal template, no signals set)",
+    "never": "the per-solve tables (pzv_solves_anon, griddle_solves_anon: 401) and anything needing a login"
+   },
+   "local": "references/puzzlink-db/",
+   "reader": "puzzles/difficulty/sources/puzzlink-db.ts (the app's link reader)",
+   "counts": {
+    "rows": 80848,
+    "withDifficulty": 75478,
+    "fivePlusSolves": 74936,
+    "gmPuzzles": 2026,
+    "converted": 21503,
+    "byGenre": {
+     "akari": 2257,
+     "aquarium": 36,
+     "cave": 525,
+     "easy-as-abc": 52,
+     "fillomino": 1158,
+     "hitori": 579,
+     "masyu": 3124,
+     "minesweeper": 374,
+     "nonogram": 27,
+     "numberlink": 1173,
+     "nurikabe": 2423,
+     "shikaku": 1229,
+     "simple-loop": 330,
+     "skyscrapers": 131,
+     "slitherlink": 6165,
+     "spiral-galaxies": 670,
+     "square-jam": 24,
+     "star-battle": 361,
+     "sudoku": 860,
+     "wittgenstein-briquet": 5
+    },
+    "overlap": {
+     "psjpByLink": 7415,
+     "psjpBySourceUrl": 2881,
+     "psjpEither": 7440,
+     "converted": {
+      "psjp": 923,
+      "janko": 0,
+      "lmd": 0,
+      "puzzlekit": 437
+     }
+    },
+    "difficultyVsPsjp": {
+     "n": 7163,
+     "rho": 0.63
+    }
+   }
+  },
+  {
+   "source": "lmi-expo",
+   "name": "Logic Masters India, Puzzle Expo (per-puzzle figures)",
+   "url": "https://logicmastersindia.com/expo/",
+   "licence": "none found; \"any puzzle published on LMI Puzzle Expo is, and remains, the intellectual property of the author\"",
+   "verdict": "go with care for per-puzzle aggregates; per-solver timings and replays never collected",
+   "crawl": {
+    "tool": "puzzles/difficulty/sources/lmi_expo_crawl.py",
+    "endpoint": "POST /live/misc-pp?action=apply-filters (the search table, 100 a request) and action=get-puzzle (one puzzle's page), logged out",
+    "delaySeconds": 5,
+    "connections": 1,
+    "userAgent": "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)",
+    "cache": "every response, gzipped, cut to the kept fields before it's written (comments and profiles never stored)",
+    "stopsOn": "HTTP errors other than 404 (a 5xx after one retry a minute later), 429s, network errors",
+    "robots": "read every run (none: 404)",
+    "login": "never; the Penpa puzzle data (action=pqr) needs one, so puzzles convert only through a post we already hold"
+   },
+   "local": "references/lmi-expo/",
+   "reader": "puzzles/difficulty/sources/lmi-expo.ts",
+   "counts": null
   }
  ]
 }

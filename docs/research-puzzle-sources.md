@@ -222,3 +222,7 @@ Same method as sections 1–5: public pages only (terms, about and help pages, r
 - How many Puzzle Picnic puzzles are generated.
 - Exact LMI Expo size: 1,568 was the count shown for one view.
 - Rights in USPC and GP puzzles beyond the copyright notices.
+
+**Downloaded (14 October 2026).** puzz.link's `pzvs_anon` and `gmpuzzles_anon`, and the LMI Expo's per-puzzle figures; code, settings and counts in [puzzles/difficulty/sources/](../puzzles/difficulty/sources/README.md). What that settled:
+- puzz.link's `difficulty` runs -2 to 2, not 1 to 5. Where a puzzle is also on Puzzle Square JP (7,440 by link or PSJP id), it agrees with PSJP's rating at Spearman 0.63 (n 7,163); per genre, 0.49 (Fillomino) to 0.84 (Shikaku, Spiral Galaxies).
+- The Expo's puzzle itself (its Penpa data) is served only after a login, so it isn't read. Logged out, the per-puzzle figures are all there, including the average rating once enough people have rated. A puzzle's page also returns its comments (with solver handles) and the author's profile; the crawler drops those before caching.

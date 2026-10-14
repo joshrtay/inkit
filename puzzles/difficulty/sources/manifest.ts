@@ -13,7 +13,8 @@ const UA = "inkit-research/1.0 (non-commercial research; contact josh@carina.fun
 const pk = read("puzzlekit/summary.json"), nk = read("nikoli-100/summary.json");
 const jf = read("janko-full/summary.json"), js = read("janko-full/state.json");
 const ps = read("psjp-full/summary.json"), pst = read("psjp-full/state.json");
-const sum = (o: Record<string, number> | undefined) => Object.values(o ?? {}).reduce((a, b) => a + b, 0);
+const pl = read("puzzlink-db/summary.json"), plst = read("puzzlink-db/state.json"), lm = read("lmi-expo/summary.json");
+const sum =(o: Record<string, number> | undefined) => Object.values(o ?? {}).reduce((a, b) => a + b, 0);
 
 const manifest = {
   updated: today,
@@ -56,6 +57,28 @@ const manifest = {
       local: "references/psjp-full/", reader: "puzzles/difficulty/sources/psjp.ts (the app's link reader, app/app/lib/import-link.ts)",
       counts: pst && { days: pst.days.length, daysFetched: pst.done.length, puzzles: ps?.records ?? pst.puzzles, withLink: ps?.withLink ?? pst.with_link,
         converted: ps ? sum(ps.converted) : 0, byGenre: ps?.converted },
+    },
+    {
+      source: "puzzlink-db", name: "puzz.link's database (pzvs_anon, gmpuzzles_anon)", url: "https://puzz.link/db",
+      licence: "none; puzz.link: copyright \"lies with their authors\", the database \"only shares puzzles that are available publicly\"",
+      verdict: "go with care",
+      crawl: { tool: "puzzles/difficulty/sources/puzzlink_db_crawl.py", endpoint: "/db/api/pzvs_anon and /db/api/gmpuzzles_anon (public PostgREST), keyset pages of 5,000 on sort_key",
+        delaySeconds: 3, connections: 1, userAgent: UA, cache: "every response, gzipped", stopsOn: "HTTP errors other than 404 (a 5xx after one retry a minute later), 429s, network errors",
+        robots: "read every run (Cloudflare's content-signal template, no signals set)", never: "the per-solve tables (pzv_solves_anon, griddle_solves_anon: 401) and anything needing a login" },
+      local: "references/puzzlink-db/", reader: "puzzles/difficulty/sources/puzzlink-db.ts (the app's link reader)",
+      counts: pl && { rows: pl.rows, withDifficulty: pl.withDifficulty, fivePlusSolves: pl.fivePlusSolves, gmPuzzles: plst?.tables?.gmpuzzles_anon?.rows,
+        converted: pl.convertedTotal, byGenre: pl.converted, overlap: pl.overlap, difficultyVsPsjp: pl.difficultyVsPsjp?.all },
+    },
+    {
+      source: "lmi-expo", name: "Logic Masters India, Puzzle Expo (per-puzzle figures)", url: "https://logicmastersindia.com/expo/",
+      licence: "none found; \"any puzzle published on LMI Puzzle Expo is, and remains, the intellectual property of the author\"",
+      verdict: "go with care for per-puzzle aggregates; per-solver timings and replays never collected",
+      crawl: { tool: "puzzles/difficulty/sources/lmi_expo_crawl.py", endpoint: "POST /live/misc-pp?action=apply-filters (the search table, 100 a request) and action=get-puzzle (one puzzle's page), logged out",
+        delaySeconds: 5, connections: 1, userAgent: UA, cache: "every response, gzipped, cut to the kept fields before it's written (comments and profiles never stored)",
+        stopsOn: "HTTP errors other than 404 (a 5xx after one retry a minute later), 429s, network errors", robots: "read every run (none: 404)",
+        login: "never; the Penpa puzzle data (action=pqr) needs one, so puzzles convert only through a post we already hold" },
+      local: "references/lmi-expo/", reader: "puzzles/difficulty/sources/lmi-expo.ts",
+      counts: lm && { puzzles: lm.puzzles, ourGenres: lm.ourGenres, withTop50: lm.withTop50, converted: sum(lm.converted), byGenre: lm.converted, top50VsEstimate: lm.top50VsEstimate },
     },
   ],
 };

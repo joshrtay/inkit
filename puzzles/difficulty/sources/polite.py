@@ -52,28 +52,37 @@ class Fetcher:
 
     def get(self, url, retry=True):
         """The body (bytes), None when the page is missing (404/410), from the cache when we have it."""
-        hit = self.cached(url)
+        return self.post(url, None, retry=retry)
+
+    def post(self, url, data, keep=None, retry=True):
+        """Like get, but POSTs `data` (bytes, e.g. a JSON body) when it isn't None; the cache is keyed
+        on the URL and the body. `keep(body) -> body` runs before the response is cached, so fields we
+        must not store (other people's names, comments) never reach the disk."""
+        key = url if data is None else f"{url}#post-{hashlib.sha1(data).hexdigest()[:16]}"
+        hit = self.cached(key)
         if hit is not False:
             return hit
         try:
-            return self._fetch(url)
+            return self._fetch(url, data, key, keep)
         except Stop as e:
             # a server error (5xx) is often passing: one retry a minute later, then stop
             if retry and getattr(e, "code", 0) >= 500:
                 self.log(f"{e}; retrying once in 60 s")
                 time.sleep(60)
-                return self.get(url, retry=False)
+                return self.post(url, data, keep, retry=False)
             raise
 
-    def _fetch(self, url):
+    def _fetch(self, url, data=None, key=None, keep=None):
         wait = self.last + self.delay - time.time()
         if wait > 0:
             time.sleep(wait)
         headers = {"User-Agent": UA}
         if self.accept:
             headers["Accept"] = self.accept
-        req = urllib.request.Request(url, headers=headers)
-        p = self.path(url)
+        if data is not None:
+            headers["Content-Type"] = "application/json;charset=utf-8"
+        req = urllib.request.Request(url, data=data, headers=headers)
+        p = self.path(key or url)
         os.makedirs(os.path.dirname(p), exist_ok=True)
         try:
             self.requests += 1
@@ -96,6 +105,8 @@ class Fetcher:
             raise Stop(f"{type(e).__name__} on {url}: {e}")
         self.last = time.time()
         self.missing_run = 0
+        if keep:
+            body = keep(body)
         tmp = p + ".tmp"
         with gzip.open(tmp, "wb") as f:
             f.write(body)
