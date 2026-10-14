@@ -43,7 +43,7 @@ const self = fileURLToPath(import.meta.url);
 const repo = new URL("../../", import.meta.url).pathname;
 /** references/: this checkout's, or (in a worktree) the main one's */
 const refs = [`${repo}references/`, repo.replace(/\.claude\/worktrees\/[^/]+\/$/, "") + "references/"].find((d) => existsSync(`${d}ml`)) ?? `${repo}references/`;
-const out = `${refs}ml/human-gap/`, cache = `${out}cache/`;
+export const out = `${refs}ml/human-gap/`, cache = `${out}cache/`;
 /** givens that are the board, not clues (as gen-set.ts) */
 const FIXED = new Set(["block", "door", "peg", "lengths", "start", "end", "gap", "bank"]);
 
@@ -82,8 +82,8 @@ if (process.argv[2] === "--job") {
   measure(spec).then((r) => process.stdout.write(JSON.stringify(r)), (e) => process.stdout.write(JSON.stringify({ error: String(e?.message ?? e).slice(0, 300) })));
 }
 
-const live = new Set<ReturnType<typeof spawn>>();
-function measureGuarded(spec: GridSpec, capMs = 240000): Promise<Record<string, unknown>> {
+export const live = new Set<ReturnType<typeof spawn>>();
+export function measureGuarded(spec: GridSpec, capMs = 240000): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [self, "--job", Buffer.from(JSON.stringify(spec)).toString("base64")], { stdio: ["ignore", "pipe", "ignore"] });
     live.add(child);
@@ -119,7 +119,7 @@ export function humanPuzzles(): Item[] {
 }
 
 const spread = <T>(xs: T[], n: number) => (xs.length <= n ? xs : Array.from({ length: n }, (_, k) => xs[Math.floor((k * xs.length) / n)]));
-const keyOfSpec = (spec: GridSpec) => createHash("sha256").update(JSON.stringify(spec)).digest("hex").slice(0, 24);
+export const keyOfSpec = (spec: GridSpec) => createHash("sha256").update(JSON.stringify(spec)).digest("hex").slice(0, 24);
 
 const isMain = !!process.argv[1] && realpathSync(process.argv[1]) === self && process.argv[2] !== "--job";
 if (isMain) {

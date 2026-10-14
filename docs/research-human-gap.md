@@ -266,6 +266,140 @@ By how much of the gap each closes, and by how many genres it touches:
   the ranking is weak until the generator moves (items 1–4).
 - **Retraining:** rerun `human_gap.py` after a new fleet. The human side is cached.
 
+## Uncertainty and a cascade
+
+The classifier and Opus fail in different places: Opus, shown pairs as grids
+([research-llm-labels.md](research-llm-labels.md), "Can Opus tell human-made puzzles?"), is 8 of 8
+on Akari, where the classifier is weakest, and at chance on Hitori and Spiral Galaxies. Would a
+cascade beat either alone, with the classifier deciding when it's sure and Opus when it isn't?
+**No.** On the 96 pairs and on 60 new ones chosen where the classifier is least sure, no cascade or
+combination beats the classifier alone by more than a pair or two. The one gain, sending Akari to
+Opus, is 3 pairs in 156.
+
+- **Code:** human-cascade.ts measures the pair puzzles as human-gap.ts measures its sample;
+  human_cascade.py scores them and simulates the policies. Opus's replies on new pairs come from
+  llm-human.ts with `LLM_HUMAN_DIR=human-cascade` (its own ledger). Outputs (local):
+  references/ml/human-cascade/.
+- **The classifier:** human_gap.py's, per type, on every feature (the puzzle, the solve, its shape,
+  the top step families). It's refitted with every pair puzzle left out of training, so no pair
+  puzzle is scored by a model that saw it. All 192 pair puzzles, and the 120 new ones, were solved
+  (DEDUCE_JOBS=2, none timed out), so no pair fell back to puzzle-only features.
+- **Its uncertainty:**
+  - **Margin:** for a pair, the gap between the two sides' log-odds (each clipped at ±12). The
+    pair's pick is the side with the higher probability.
+  - **Spread:** 20 bootstrap refits, resampled within each class. For each puzzle, the spread of
+    its probability; for each pair, the spread of the gap and the share of refits that agree with
+    the pick.
+- **Policies:**
+  - the classifier alone;
+  - Opus alone (grid only, from the saved replies);
+  - a cascade: the classifier when the pair's certainty is at least t, else Opus;
+  - a combination: the log-odds gap plus w × Opus's confidence as log-odds;
+  - routing by type: Opus where the classifier's cross-validated AUC on its training sample is
+    below a cut.
+- **No peeking:** t, w and the cut are chosen by 5-fold cross-validation over pairs (20 repeats),
+  and checked by choosing on one half and testing on the other. Confidence intervals are
+  bootstraps over pairs.
+
+### On the 96 pairs
+
+| Policy | All (95% CI) | Size-matched (70) | Akari | Hitori | Slitherlink | Spiral Galaxies | Shikaku | Other 7 types |
+|---|---|---|---|---|---|---|---|---|
+| Classifier's AUC on its training sample | | | 0.78 | 0.87 | 0.92 | 1.00 | 1.00 | 0.94–1.00 |
+| Classifier | 94.8% (90–99%) | 95.7% | 75% | 100% | 100% | 75% | 88% | 100% |
+| Opus, grid only | 83.3% (76–91%) | 87.1% | 100% | 50% | 75% | 50% | 75% | 75–100% |
+| Cascade on the gap (t by CV) | 94.6% (89–99%) | 95.7% | 75% | 100% | 100% | 72% | 88% | 100% |
+| Cascade on refit agreement (CV) | 94.5% (89–99%) | 95.7% | 75% | 100% | 100% | 71% | 88% | 100% |
+| Combination (w by CV) | 94.6% (89–99%) | 95.7% | 75% | 100% | 100% | 72% | 88% | 100% |
+| Routing by type (cut by CV) | 96.4% (92–99%) | 97.9% | 94% | 100% | 100% | 75% | 88% | 100% |
+| Either right (ceiling) | 97.9% (95–100%) | 98.6% | 100% | 100% | 100% | 88% | 88% | 100% |
+
+- **The classifier makes 5 errors in 96;** Opus is right on 3 of them (two Akari, one Spiral
+  Galaxies). The ceiling, a policy that always knew which to trust, is 3 points above the
+  classifier.
+- **Cross-validation chooses t = 0 (nothing to Opus) in almost every fold,** and w = 0. The
+  cascade's gain over the classifier is −0.2% (CI −0.5 to 0). Choosing on half and testing on the
+  other: cascade 93.9%, combination 94.4%, routing 95.7%, against the classifier's 94.8%.
+- **The sweep:** sending the least certain 5% of pairs to Opus gives 92.7%, 25% gives 90.6%, 50%
+  gives 85.4%. Accuracy only falls as Opus takes more.
+- **Why:** in the least certain quarter of pairs, the classifier is right 83% of the time and Opus
+  67%. Where the classifier is unsure, Opus is unsure too: those are the pairs that look alike.
+- **The uncertainty does find the classifier's errors:** the gap ranks right pairs above wrong ones
+  with AUC 0.80 (refit agreement 0.81, gap over its spread 0.78). The spread is small (median
+  standard deviation of a puzzle's probability 0.03 human, 0.01 generated) and only a little larger
+  on wrong pairs (the gap's spread 1.5 against 1.3). So the ensemble adds nothing to the margin.
+- **Routing:** the cut chosen is the classifier's training AUC 0.87, so Akari alone goes to Opus.
+  That's +1.6% (CI 0 to +3.9%), within the noise. It doesn't clear the bar the task set: more than
+  the CI's half-width.
+- **Size-free classifier:** 92.7% (86–98%), with seven errors, four of them in Spiral Galaxies.
+  The cascade and combination are again within a pair of it (93.5% at best, by refit agreement).
+
+### On 60 new pairs (the confirmation)
+
+Run because routing looked better on Akari, the classifier's weak type (75% against Opus's 100%,
+though only 2 pairs of 8).
+
+- **The pairs:** none of their puzzles are among the 96 or in the classifier's training sample.
+  They were drawn from 292 candidates, weighted toward the classifier's uncertain region (by the
+  puzzle-only model's gap, weight e^(−|gap|/2), at most 15 a type).
+- **Which types:** Hitori 15, Masyu 12, Akari 10, Slitherlink 10, Star Battle 8, Nurikabe 3,
+  Sudoku 1, Spiral Galaxies 1; 41 size-matched.
+- **No tuning on them:** t, w and the cut were fixed at the values chosen on the 96.
+- **Opus:** grid only, $0.59 against a $3 cap.
+
+| Policy | All (95% CI) | Size-matched (41) | Akari (10) | Hitori (15) | Slitherlink (10) | Star Battle (8) | Masyu (12) |
+|---|---|---|---|---|---|---|---|
+| Classifier | 88.3% (80–95%) | 90.2% | 90% | 93% | 90% | 100% | 75% |
+| Opus, grid only | 75.0% (63–85%) | 75.6% | 100% | 47% | 90% | 75% | 75% |
+| Cascade (t fixed: 0) | 88.3% | 90.2% | 90% | 93% | 90% | 100% | 75% |
+| Cascade, 10% to Opus | 85.0% (75–93%) | 82.9% | 90% | 87% | 90% | 88% | 75% |
+| Cascade, 25% to Opus | 86.7% (77–95%) | 87.8% | 100% | 87% | 90% | 88% | 75% |
+| Routing (Akari to Opus) | 90.0% (82–97%) | 92.7% | 100% | 93% | 90% | 100% | 75% |
+| Either right (ceiling) | 96.7% (92–100%) | 97.6% | 100% | 93% | 90% | 100% | 100% |
+
+- **The weighting worked:** both do worse than on the 96. The classifier drops from 95% to 88%,
+  Opus from 83% to 75%.
+- **The classifier is still ahead in the uncertain region:** in the least certain quarter it's
+  right 67% of the time, Opus 60%.
+- **Here the ceiling is higher (+8 points):** Opus is right on 5 of the classifier's 7 errors (3
+  Masyu, 1 Akari, 1 Nurikabe). But its confidence doesn't single those pairs out (0.55–0.70, its
+  usual range), and neither does the classifier's gap. Nothing available picks them in advance.
+- **Size-free classifier:** 85.0%. The fixed cascade (t 0.53) and combination (w 1) gain one pair
+  each (86.7%), and 10% to Opus gains two (88.3%, CI 0 to +8%). Neither reaches the all-features
+  classifier.
+- **Pooled, 156 pairs:**
+
+  | | Right | Accuracy |
+  |---|---|---|
+  | Classifier | 144 | 92.3% |
+  | Opus | 125 | 80.1% |
+  | Routing (Akari to Opus) | 147 | 94.2% |
+
+  On Akari alone, the classifier gets 15 of 18 and Opus 18 of 18.
+
+### Cost
+
+- **Opus, grid only:** about $0.0095 a pair, or about half that for one puzzle shown alone: about
+  $5 per 1,000 puzzles sent.
+- **Routing:** only Akari's share of a batch would be sent.
+- **The classifier:** free, beyond the solve every generated puzzle already gets.
+
+### Recommendation
+
+- **Use the classifier alone.** On the size-free score, rank within a size, as in "How to use the
+  score".
+- **Don't build a cascade.** Its threshold goes to zero under cross-validation and on new pairs.
+  Where the classifier is unsure, Opus is less sure.
+- **The one defensible exception is Akari:** Opus gets 18 of 18 there against the classifier's 15,
+  about $5 per 1,000 Akari puzzles. It isn't significant at this size, and Akari is the type where
+  the generator already looks most human. Revisit if Akari becomes a type we screen hard.
+- **Not done, since the cascade didn't help:**
+  - the batch-scoring tool (human-score.ts) and Opus's single-puzzle judgements. Opus's accuracy on
+    one puzzle shown alone ("was this set by a person?") is unmeasured;
+  - Opus at a higher effort, or with pictures: a better Opus would be needed for a cascade to pay.
+- **Where Opus earns its keep:** as a critic of the generator (its reasons; research-llm-labels.md),
+  not as a second judge beside the classifier.
+
 ## Not done
 
 - **Puzzles over 12 × 12 aren't solved** (the solver is too slow at that size). Their sizes,
