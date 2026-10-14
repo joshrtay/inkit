@@ -1,13 +1,13 @@
 // Does the engine find exactly one solution for a sample of a source's converted puzzles? A check
 // that the conversion reads the puzzles right (a misread clue usually gives none or several).
 //
-//   node puzzles/difficulty/sources/unique.ts <converted dir> [--per 20] [--cap-s 60] [--max-cells 400]
+//   node puzzles/difficulty/sources/unique.ts <converted dir> [--per 20] [--cap-s 60] [--max-cells 400] [--only a,b]
 //
 // Takes an evenly spaced sample of each genre's file (small boards only, as clingo can take long on
 // big ones), solves each in its own process killed at the cap, DEDUCE_JOBS at a time. Writes
 // <dir>/../unique.json.
 import { spawn } from "node:child_process";
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makePuzzle, needsOneSolution } from "../../../src/engine/puzzle.ts";
@@ -33,9 +33,13 @@ if (process.argv[2] === "--child") {
     c.stderr.on("data", (d) => { err += d; });
     c.on("close", () => { clearTimeout(timer); resolve((out || `error: ${err.trim().split("\n").pop() ?? "?"}`) as Verdict); });
   });
-  const result: Record<string, any> = {};
+  const k = args.indexOf("--only"), only = k >= 0 ? new Set(args[k + 1].split(",")) : null;
+  const outFile = `${dirname(dir)}/unique.json`;
+  // a run over some genres keeps the others' earlier results
+  const result: Record<string, any> = only && existsSync(outFile) ? JSON.parse(readFileSync(outFile, "utf8")) : {};
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl")).sort()) {
     const genre = f.replace(/\.jsonl$/, "");
+    if (only && !only.has(genre)) continue;
     const all = readFileSync(`${dir}/${f}`, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
     const small = all.filter((c) => c.spec.size[0] * c.spec.size[1] <= maxCells);
     const step = Math.max(1, Math.floor(small.length / per));
@@ -47,5 +51,5 @@ if (process.argv[2] === "--child") {
       notUnique: verdicts.filter((x) => x.v !== "unique" && x.v !== "timeout").map((x) => `${x.id}: ${x.v}`).slice(0, 10) };
     console.log(genre.padEnd(18), JSON.stringify(result[genre]));
   }
-  writeFileSync(`${dirname(dir)}/unique.json`, JSON.stringify(result, null, 1));
+  writeFileSync(outFile, JSON.stringify(result, null, 1));
 }

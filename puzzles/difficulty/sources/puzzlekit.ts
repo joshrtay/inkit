@@ -63,7 +63,7 @@ export const jankoId = (url: string) => /janko\.at\/Raetsel\/(.+)\/(\d+)\.a\.htm
 if (import.meta.url === `file://${process.argv[1]}`) {
   const meta = jankoMeta();
   // our first Janko copy (references/janko), for the overlap
-  const jankoDir = `${REFERENCES}janko/`;
+  const jankoDir = `${REFERENCES}janko/`, fullDir = `${REFERENCES}janko-full/`;
   const out: Converted[] = [];
   const summary: Record<string, any> = { commit: COMMIT, byType: {}, notOurs: {}, origins: {} };
   for (const type of readdirSync(DATA).sort()) {
@@ -98,6 +98,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       // overlap with references/janko (same folder and number, and the same grid)
       const [folder, num] = [id.slice(0, id.lastIndexOf("/")), id.slice(id.lastIndexOf("/") + 1)];
       const local = [`${jankoDir}${folder}/${num}.txt`, `${jankoDir}${folder}/${num.padStart(4, "0")}.txt`, `${jankoDir}${folder}/${num.padStart(3, "0")}.txt`].find(existsSync);
+      // Janko's own file names variants ("skyscrapers, diagonals") that puzzlekit's grid drops
+      const full = [`${fullDir}${folder}/${num}.txt`, `${fullDir}${folder}/${num.padStart(4, "0")}.txt`, `${fullDir}${folder}/${num.padStart(3, "0")}.txt`].find(existsSync) ?? local;
+      if (full && /^puzzle .*,/m.test(readFileSync(full, "utf8"))) { skip("a variant, per Janko's file"); continue; }
       let author = "";
       if (local) {
         s.inOurJanko++;
