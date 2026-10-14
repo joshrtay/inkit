@@ -111,7 +111,11 @@ if [[ " $STEPS " == *" next "* ]]; then
   # time, so the whole run, loading and scoring included, ends within about 3½ hours.
   # Metadata nextwidth, nextstatesper, nextweight, nextepochs change it (run-graph-job.sh NEXT_*)
   mkdir -p results/next
-  if [ ! -s references/ml/graphs-human-train.jsonl ]; then
+  W=$(meta nextwidth || echo 256); PER=$(meta nextstatesper || echo 3); HW=$(meta nextweight || echo 2); EPOCHS=$(meta nextepochs || echo 8)
+  # nextweight 0: no human training set (the baseline to compare human data against)
+  HUMANARGS="GRAPH_HUMAN_TRAIN=/work/references/ml/graphs-human-train.jsonl GRAPH_HUMAN_WEIGHT=$HW"
+  [ "$HW" = 0 ] && HUMANARGS=""
+  if [ -n "$HUMANARGS" ] && [ ! -s references/ml/graphs-human-train.jsonl ]; then
     echo "no data/graphs-human-train.jsonl in the bucket: build it first (puzzles/cloud/run-human-job.sh)" | tee results/next/all.txt
     gcloud storage cp results/next/all.txt "$BUCKET/results/$RUN/next/"; exit 1
   fi
@@ -125,10 +129,9 @@ if [[ " $STEPS " == *" next "* ]]; then
     done ) &
   SYNC=$!
   python3 puzzles/difficulty/structure.py --selftest > results/next/selftest.txt 2>&1
-  W=$(meta nextwidth || echo 256); PER=$(meta nextstatesper || echo 3); HW=$(meta nextweight || echo 2); EPOCHS=$(meta nextepochs || echo 8)
   # training ends by 3½ hours from boot, less 25 minutes for loading and scoring
   GRAPH_DATA=/work/references/ml/graphs.jsonl,/work/references/ml/graphs-scale.jsonl,/work/references/ml/graphs-gen.jsonl \
-    GRAPH_GEN_SHARE=1 GRAPH_STATES_PER=$PER GRAPH_HUMAN_TRAIN=/work/references/ml/graphs-human-train.jsonl GRAPH_HUMAN_WEIGHT=$HW \
+    GRAPH_GEN_SHARE=1 GRAPH_STATES_PER=$PER env $HUMANARGS \
     GRAPH_EPOCHS=$EPOCHS GRAPH_TRAIN_DEADLINE=$((12600 - SECONDS - 1500)) GRAPH_STRUCTURE=1 GRAPH_LR_SCALE=1 GRAPH_H=$W GRAPH_HEADS=8 GRAPH_POS=1 GRAPH_TAG=next \
     python3 puzzles/difficulty/graph_policy.py all --attention > results/next/all.txt 2>&1
   kill $SYNC
