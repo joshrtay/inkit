@@ -1,21 +1,20 @@
 // A game's permanent page: inkit.games/g/<id>.
 import { data, redirect } from "react-router";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Route } from "./+types/game";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { canChange, canDelete, canHide, canView, roleIn } from "~/lib/permissions.server";
+import { canChange, canDelete, canHide, canView } from "~/lib/permissions.server";
 import { parseSketch } from "~/games/sketch";
 import { editPath, kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
-import { likesOf, solvesOf } from "~/lib/queries.server";
+import { gameSocial } from "~/lib/queries.server";
+import { later } from "~/lib/stream.server";
 import { GamePageView } from "~/components/GamePageView";
 import { readContext } from "~/lib/list-context";
 import { listBar } from "~/lib/list-play.server";
 import { isKind } from "~/lib/guides.server";
-import { readPaintSave } from "~/games/paint-save";
-import { drawingSvg } from "~/sketchpad/picture";
 import { gameJsonLd, pageMeta, privateMeta } from "~/lib/seo";
 import { changeGame } from "~/lib/games.server";
 import { attempt, signInFirst } from "~/lib/http.server";
@@ -44,25 +43,35 @@ export async function action({ params, request, context }: Route.ActionArgs) {
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const game = await db.query.games.findFirst({ where: eq(schema.games.id, params.id) });
-  if (!game) throw data(null, { status: 404 });
+  // the session, the game with its collection and author, and the viewer's role in that
+  // collection, side by side
+  const viewerP = currentCreator(env, request);
+  const [row, viewer, role] = await Promise.all([
+    db.select({ game: schema.games, collection: schema.collections, author: schema.creators }).from(schema.games)
+      .leftJoin(schema.collections, eq(schema.collections.id, schema.games.collectionId))
+      .leftJoin(schema.creators, eq(schema.creators.id, schema.games.authorId))
+      .where(eq(schema.games.id, params.id)).then((r) => r[0]),
+    viewerP,
+    viewerP.then((v) => v && db.select({ role: schema.memberships.role }).from(schema.memberships)
+      .where(and(eq(schema.memberships.creatorId, v.id), eq(schema.memberships.collectionId,
+        db.select({ id: schema.games.collectionId }).from(schema.games).where(eq(schema.games.id, params.id)))))
+      .then((r) => r[0]?.role ?? null)),
+  ]);
+  if (!row) throw data(null, { status: 404 });
+  const { game, collection, author } = row;
   // deleted by its creator: gone for everyone (410, so search engines drop it)
   if (game.state === "deleted") throw data(null, { status: 410 });
-  const [collection, author, viewer] = await Promise.all([
-    db.query.collections.findFirst({ where: eq(schema.collections.id, game.collectionId) }),
-    db.query.creators.findFirst({ where: eq(schema.creators.id, game.authorId) }),
-    currentCreator(env, request),
-  ]);
   if (!collection || !author) throw data(null, { status: 404 });
-  const role = await roleIn(db, collection.id, viewer?.id);
   // Drafts and taken-down games look like they don't exist to anyone not allowed to see them.
-  if (!canView(game, collection, viewer, role)) throw data(null, { status: 404 });
+  if (!canView(game, collection, viewer, role ?? null)) throw data(null, { status: 404 });
 
   const parsed = parseSketch(game.sketch, game.sketchVersion);
   // opened from a list (?in=…, ?set=…): the bar under the board, to step through it
   const ctx = game.state === "published" ? readContext(new URL(request.url).searchParams, isKind) : null;
+  // sent after the page (components/Later.tsx): the counts and the viewer's marks, and the list bar
+  const social = later(gameSocial(db, game, viewer?.id));
   return {
-    list: ctx ? await listBar(db, ctx, game, viewer?.id ?? null) : null,
+    list: ctx ? later(listBar(db, ctx, game, viewer?.id ?? null)) : null,
     game: { id: game.id, title: game.title, description: game.description, kind: game.kind, state: game.state, hiddenNote: game.hiddenNote,
       when: (game.publishedAt ?? game.createdAt).getTime() },
     collection: { slug: collection.slug, title: collection.title, personal: !!collection.personalOf },
@@ -73,22 +82,19 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     extra: parsed.ok && parsed.spec.rules?.length ? parsed.rules : [],
     errors: parsed.ok ? [] : parsed.errors,
     // a draft's Edit opens paint (RYB: its figure editor); a published puzzle can't be changed
-    editTo: canChange(game, viewer, role) ? editPath(game) : null,
+    editTo: canChange(game, viewer, role ?? null) ? editPath(game) : null,
     // its author's one action on it (or an admin's): Delete, after the confirm dialog
-    canDelete: canDelete(game, viewer, role),
+    canDelete: canDelete(game, viewer, role ?? null),
     manage: {
-      takeDown: canHide(viewer, role) && game.authorId !== viewer?.id && game.state === "published",
-      restore: canHide(viewer, role) && game.state === "hidden",
+      takeDown: canHide(viewer, role ?? null) && game.authorId !== viewer?.id && game.state === "published",
+      restore: canHide(viewer, role ?? null) && game.state === "hidden",
     },
-    likes: await likesOf(db, game.id, viewer?.id),
-    solves: await solvesOf(db, game.id, viewer?.id),
+    likes: later(social.then((x) => x.likes)),
+    solves: later(social.then((x) => x.solves)),
     signedIn: !!viewer,
     // the first-time note under the paper's ?: until they've solved one of this type (signed out: always)
-    newToType: !viewer || !(await db.select({ x: sql`1` }).from(schema.solves).innerJoin(schema.games, eq(schema.solves.gameId, schema.games.id))
-      .where(and(eq(schema.solves.creatorId, viewer.id), eq(schema.games.kind, game.kind))).limit(1)).length,
+    newToType: later(social.then((x) => x.newToType)),
     dates: { created: game.createdAt.getTime(), published: game.publishedAt?.getTime() ?? null },
-    // the creator's drawing beside the engine's picture (docs/creation-flow.md, decision 2)
-    drawnBy: (() => { const save = readPaintSave(game.drawing); return save ? drawingSvg(save.drawing, `${game.title}, as drawn by @${author.handle}`) || null : null; })(),
   };
 }
 

@@ -1,5 +1,5 @@
 // The terms of service, in plain language.
-import { Link } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/terms";
 import { CONTACT, UPDATED } from "~/lib/legal";
 import { pageMeta } from "~/lib/seo";

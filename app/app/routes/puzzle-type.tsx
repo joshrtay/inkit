@@ -1,6 +1,7 @@
 // One puzzle type's guide: the idea in a sentence, each rule with pictures of what works and what
 // doesn't, and a worked example shown unsolved and solved.
-import { data, Link } from "react-router";
+import { data } from "react-router";
+import { Link } from "~/components/Link";
 import { and, eq } from "drizzle-orm";
 import type { Route } from "./+types/puzzle-type";
 import { cloudflareContext } from "~/lib/context";

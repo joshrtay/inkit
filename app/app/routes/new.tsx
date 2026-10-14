@@ -6,7 +6,8 @@
 // opens in paint; one we don't is noted), then the creator's latest drafts to carry on with. No
 // type selector here.
 import { useEffect, useRef, useState } from "react";
-import { Form, Link, redirect, useNavigation, useSubmit } from "react-router";
+import { Form, redirect, useNavigation, useSubmit } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/new";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";

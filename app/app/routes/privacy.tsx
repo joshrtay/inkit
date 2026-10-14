@@ -1,6 +1,6 @@
 // The privacy policy. Plain language; keep it true to what the site actually does (see the data
 // it stores in app/db/schema.ts, and who processes it: Cloudflare, Google, Anthropic).
-import { Link } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/privacy";
 import { CONTACT, PRIVACY_UPDATED } from "~/lib/legal";
 import { pageMeta } from "~/lib/seo";

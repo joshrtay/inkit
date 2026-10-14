@@ -6,6 +6,23 @@ h2 { font: 800 20px/1.2 var(--display); margin: 0 0 12px; }
 .muted { color: var(--muted); }
 .wrap a { color: var(--ink); }
 
+/* Skeletons (components/Later.tsx): what's still on its way, in a faint wash of the ink that
+   breathes slowly (no grey shimmer); a card's picture a blank sheet of paper with a faint grid */
+.skel { display: block; border-radius: 4px; background: color-mix(in srgb, var(--ink) 9%, transparent); animation: skel-breathe 1.8s ease-in-out infinite; }
+.skel-text { height: .95em; margin: .2em 0; max-width: 100%; }
+.skel-text.small { height: .7em; }
+.skel-text.big { height: 1.15em; }
+.skel-text.h2 { height: 20px; margin: 0 0 6px; }
+.skel-text.inline { display: inline-block; vertical-align: middle; margin: 0; }
+.skel-sheet { display: block; background-color: var(--paper);
+  background-image: linear-gradient(color-mix(in srgb, var(--paper-ink) 10%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--paper-ink) 10%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px; background-position: center; animation: skel-breathe 1.8s ease-in-out infinite; }
+.skel-card { pointer-events: none; }
+.skel-card:hover { transform: none; border-color: var(--line); }
+@keyframes skel-breathe { 50% { opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .skel, .skel-sheet { animation: none; } }
+
 /* game lists */
 .shelf { display: grid; gap: 4px; }
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }

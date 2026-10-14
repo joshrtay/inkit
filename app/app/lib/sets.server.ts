@@ -4,7 +4,7 @@
 // puzzles and their order stay put; its words can still be fixed.
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { schema, type Db } from "~/db";
-import { cards, type GameCard } from "./queries.server";
+import { cardColumns, type GameCard } from "./queries.server";
 import { withPictures, type Thumbed } from "./thumbs.server";
 
 type Creator = typeof schema.creators.$inferSelect;
@@ -37,15 +37,13 @@ export type SetPuzzle = Thumbed & { level: number | null; minutes: number | null
 
 /** A set's puzzles that can be played, in order (one taken down or deleted since is skipped). */
 export async function setPuzzles(db: Db, setId: string): Promise<SetPuzzle[]> {
-  const rows = await cards(db)
+  const rows = await db.select({ ...cardColumns, level: schema.games.level, minutes: schema.games.minutes }).from(schema.games)
+    .innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
+    .innerJoin(schema.creators, eq(schema.games.authorId, schema.creators.id))
     .innerJoin(schema.setItems, eq(schema.setItems.gameId, schema.games.id))
     .where(and(eq(schema.setItems.setId, setId), eq(schema.games.state, "published"), isNull(schema.collections.deletedAt)))
     .orderBy(asc(schema.setItems.position));
-  const ids = rows.map((r) => r.id);
-  const extra = new Map<string, { level: number | null; minutes: number | null }>();
-  for (let i = 0; i < ids.length; i += 90) {
-    for (const r of await db.select({ id: schema.games.id, level: schema.games.level, minutes: schema.games.minutes }).from(schema.games).where(inArray(schema.games.id, ids.slice(i, i + 90)))) extra.set(r.id, r);
-  }
+  const extra = new Map(rows.map((r) => [r.id, { level: r.level, minutes: r.minutes }]));
   return withPictures(rows as GameCard[]).map((g) => ({ ...g, level: extra.get(g.id)?.level ?? null, minutes: extra.get(g.id)?.minutes ?? null }));
 }
 
@@ -80,19 +78,36 @@ export interface SetCard {
 
 /** Cards for sets (in the order given). */
 export async function setCards(db: Db, rows: SetRow[]): Promise<SetCard[]> {
-  const out: SetCard[] = [];
-  for (const s of rows) {
-    const [puzzles, author] = await Promise.all([setPuzzles(db, s.id), db.query.creators.findFirst({ where: eq(schema.creators.id, s.authorId) })]);
-    out.push({
+  if (!rows.length) return [];
+  // every set's playable puzzles and every author at once (not a query per set), each set's id
+  // list in groups small enough for D1's 100 bound parameters
+  const setIds = rows.map((s) => s.id), authorIds = [...new Set(rows.map((s) => s.authorId))];
+  const [items, authors] = await Promise.all([
+    Promise.all(chunk(setIds).map((ids) => db.select({ setId: schema.setItems.setId, position: schema.setItems.position, ...cardColumns, level: schema.games.level, minutes: schema.games.minutes })
+      .from(schema.games)
+      .innerJoin(schema.collections, eq(schema.games.collectionId, schema.collections.id))
+      .innerJoin(schema.creators, eq(schema.games.authorId, schema.creators.id))
+      .innerJoin(schema.setItems, eq(schema.setItems.gameId, schema.games.id))
+      .where(and(inArray(schema.setItems.setId, ids), eq(schema.games.state, "published"), isNull(schema.collections.deletedAt))))).then((r) => r.flat()),
+    Promise.all(chunk(authorIds).map((ids) => db.select({ id: schema.creators.id, handle: schema.creators.handle, name: schema.creators.name, isAi: schema.creators.isAi })
+      .from(schema.creators).where(inArray(schema.creators.id, ids)))).then((r) => r.flat()),
+  ]);
+  const authorOf = new Map(authors.map((a) => [a.id, a]));
+  return rows.map((s) => {
+    const puzzles = items.filter((i) => i.setId === s.id).sort((a, b) => a.position - b.position);
+    const author = authorOf.get(s.authorId);
+    return {
       id: s.id, title: s.title, state: s.state,
       authorHandle: author?.handle ?? "", authorName: author?.name ?? "", authorAi: !!author?.isAi,
       publishedAt: s.publishedAt?.getTime() ?? null, updatedAt: s.updatedAt.getTime(),
-      cover: puzzles.slice(0, 4).map((p) => p.picture),
+      // only the cover's four are drawn
+      cover: withPictures(puzzles.slice(0, 4) as GameCard[]).map((p) => p.picture),
       ...setSummary(puzzles),
-    });
-  }
-  return out;
+    };
+  });
 }
+
+const chunk = (ids: string[], size = 90) => Array.from({ length: Math.ceil(ids.length / size) }, (_, k) => ids.slice(k * size, (k + 1) * size));
 
 /** A profile's sets: published (newest first), and its drafts if `drafts`. */
 export async function setsOn(db: Db, collectionId: string, drafts = false) {

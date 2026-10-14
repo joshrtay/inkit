@@ -136,7 +136,9 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   expect(row(id)).toMatchObject({ state: "published", kind: "akari", title: "Night Light" });
   expect(row(id).sketch.startsWith("akari\n")).toBe(true);
   await expect(page.getByRole("heading", { name: "Night Light" })).toBeVisible();
-  await expect(page.locator(".drawn-by")).toContainText(`Drawn by @${run.handle}`);
+  // the puzzle alone: no "Drawn by" beside it (docs/creation-flow.md, decision 2)
+  await expect(page.locator(".sheet svg.board")).toBeVisible();
+  await expect(page.getByText("Drawn by")).toHaveCount(0);
   await shot(page, "08-published");
 
   // public: someone signed out sees it

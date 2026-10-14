@@ -1,6 +1,7 @@
 // A heart and how many have liked a puzzle. Tapping it likes (or unlikes) at once and saves in the
 // background (routes/game-like.ts); signed out, it asks you to sign in first.
-import { Link, useFetcher, useLocation } from "react-router";
+import { useFetcher, useLocation } from "react-router";
+import { Link } from "~/components/Link";
 
 export function LikeButton({ gameId, count, liked, signedIn, disabled = false }: {
   gameId: string; count: number; liked: boolean; signedIn: boolean;

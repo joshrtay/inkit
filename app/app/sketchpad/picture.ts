@@ -1,5 +1,4 @@
-// A paint drawing as a still picture (docs/creation-flow.md, decision 2): the "Drawn by" thumbnail
-// on a game's page, and a draft's card before it has a type. The drawing as drawn (draw.ts, the
+// A paint drawing as a still picture: a draft's card before it has a type. The drawing as drawn (draw.ts, the
 // sketchpad's own look), cropped to what's on the page. Pure: no DOM, so the server draws it.
 // Wrap it in `.grid-game` (the boards' pen and wash styles).
 import { washDefs } from "~site/lib/ink.ts";

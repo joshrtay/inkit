@@ -1,6 +1,7 @@
 import { inList, type ListContext } from "~/lib/list-context";
 import { CardMore } from "./CardMore";
-import { Form, Link } from "react-router";
+import { Form } from "react-router";
+import { Link } from "~/components/Link";
 import type { Thumbed } from "~/lib/thumbs.server";
 import type { CollectionCard } from "~/lib/queries.server";
 import { doubtsOf } from "~/games/doubts";

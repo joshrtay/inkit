@@ -1,6 +1,7 @@
 // Make a creator account: display name, handle (their web address), email and password.
 import { useState } from "react";
-import { Link, redirect, useNavigate } from "react-router";
+import { redirect, useNavigate } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/signup";
 import { cloudflareContext } from "~/lib/context";
 import { currentCreator } from "~/lib/auth.server";

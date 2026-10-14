@@ -1,6 +1,6 @@
 // Where a reset link lands (/reset-password?token=...): choose a new password.
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/reset-password";
 import { authClient } from "~/lib/auth-client";
 

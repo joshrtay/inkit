@@ -1,7 +1,8 @@
 // Home. Signed in: the Subscriptions feed, the newest puzzles from everyone you subscribe to.
 // Signed out: Explore (components/ExplorePage.tsx), the same page as /explore, at "/".
 import { useEffect, useRef, useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
+import { Link } from "~/components/Link";
 import type { Route } from "./+types/home";
 import { cloudflareContext } from "~/lib/context";
 import { getDb } from "~/db";
