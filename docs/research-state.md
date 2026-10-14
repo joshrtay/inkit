@@ -197,6 +197,20 @@ per type mean agreement figures can be off by 0.15.
 
 **Baseline before human data (2026-10-14):** width 256 with structure and the generated set scores 68% on human-made puzzles (key move 35%, agreement with people 28% against the solver's 36%), up from 61% / 30% / 22%; research-cross-type.md §14.
 
+**Queued after the first human-data run: quality weighting.**
+
+1. **A quality estimate per human puzzle,** shrunk down a hierarchy: the puzzle's own rating (Puzzle
+   Square JP likes per solver, Logic Masters beauty, both with difficulty held fixed); else its
+   setter's; else its source's and type's; else its source's. The source and type levels are learned
+   from data (ratings where present, the human-likeness classifier, and each source's effect on the
+   human test), not assigned.
+2. **Provenance:** separate "human-made?" from "good?". Doubtful sources (the puzzle-*.com sites,
+   puzzlekit's unsourced puzzles) are checked by the classifier against our generated puzzles.
+3. **Training weights by quality,** and "human-like" redefined as like good setters: the
+   classifier's positive class and the generator's targets drawn from high-quality puzzles.
+4. **Tests split by author.**
+5. **Measure:** the run with and without the weighting.
+
 ## Sequence
 
 Two things first, since every later result rests on them: the **evaluation changes** (the network
