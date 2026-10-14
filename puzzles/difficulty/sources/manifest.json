@@ -1,0 +1,125 @@
+{
+ "updated": "2026-10-14",
+ "note": "Local, non-commercial research and model training only. Puzzle data stays in references/ (gitignored) or the private bucket; never published. Every converted puzzle carries source, sourceId, licence and author.",
+ "sources": [
+  {
+   "source": "puzzlekit",
+   "name": "puzzlekit-dataset",
+   "url": "https://github.com/SmilingWayne/puzzlekit-dataset",
+   "licence": "none on the dataset (puzzlekit's code is MIT); each puzzle's rights follow its origin",
+   "verdict": "go with care (as an index); only its janko.at puzzles converted in phase 1",
+   "fetch": "one release archive of commit 719109eebf3cf84d5c94e8381588891a046a3abd (2026-09-22) from codeload.github.com",
+   "local": "references/puzzlekit/",
+   "reader": "puzzles/difficulty/sources/puzzlekit.ts",
+   "counts": {
+    "puzzles": 52621,
+    "converted": 8897,
+    "byGenre": {
+     "akari": 968,
+     "cave": 412,
+     "easy-as-abc": 606,
+     "fillomino": 840,
+     "hidoku": 510,
+     "hitori": 940,
+     "irregular-sudoku": 677,
+     "masyu": 824,
+     "minesweeper": 358,
+     "numberlink": 549,
+     "nurikabe": 1088,
+     "simple-loop": 67,
+     "skyscrapers": 188,
+     "spiral-galaxies": 577,
+     "star-battle": 292,
+     "sudoku": 1
+    },
+    "leftOut": "origins other than janko.at: the puzzle-*.com sites and records with no source (see summary.json)"
+   }
+  },
+  {
+   "source": "nikoli-100",
+   "name": "SakanaAI/sudoku-bench-nikoli (nikoli_100)",
+   "url": "https://huggingface.co/datasets/SakanaAI/sudoku-bench-nikoli",
+   "licence": "CC BY 4.0; credit Nikoli",
+   "verdict": "go",
+   "fetch": "the parquet file and README at revision 9034906b4ec06ab1e08daf110c6b562ef72859fd, and the same rows from Hugging Face's dataset viewer API",
+   "local": "references/nikoli-100/",
+   "reader": "puzzles/difficulty/sources/nikoli.ts",
+   "counts": {
+    "puzzles": 100,
+    "converted": 100,
+    "byGenre": {
+     "sudoku": 100
+    }
+   }
+  },
+  {
+   "source": "janko",
+   "name": "Janko (www.janko.at/Raetsel/), every type",
+   "url": "https://www.janko.at/Raetsel/",
+   "licence": "per puzzle, its page's Lizenz: Creative Commons 3.0 BY-NC-SA (go), or the author's permission, Freeware or none stated (go with care)",
+   "verdict": "go / go with care",
+   "crawl": {
+    "tool": "puzzles/difficulty/sources/janko_crawl.py (own fetcher; robots.txt blocks site copiers)",
+    "delaySeconds": 3,
+    "connections": 1,
+    "userAgent": "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)",
+    "cache": "every response, gzipped",
+    "stopsOn": "HTTP errors other than 404, 429s, network errors; 20 missing pages in a row",
+    "robots": "obeyed: /Forum/, /Blog/, /Shariff/ never requested"
+   },
+   "local": "references/janko-full/ (references/janko/ untouched)",
+   "reader": "puzzles/difficulty/sources/janko-full.ts",
+   "counts": {
+    "folders": 313,
+    "listed": 54037,
+    "fetched": 0,
+    "converted": 0
+   }
+  },
+  {
+   "source": "psjp",
+   "name": "Puzzle Square JP, public puzzles",
+   "url": "https://puzsq.logicpuzzle.app/",
+   "licence": "guideline: rights stay with each poster; no reposting; no load on the system. Its CC0 example puzzles are free to use",
+   "verdict": "go with care (CC0 examples: go)",
+   "crawl": {
+    "tool": "puzzles/difficulty/sources/psjp_crawl.py",
+    "endpoint": "/api/problem/date/<day> (public, no login): a day's puzzles with their puzz.link, pzprxs or Penpa link",
+    "delaySeconds": 5,
+    "connections": 1,
+    "userAgent": "inkit-research/1.0 (non-commercial research; contact josh@carina.fund)",
+    "cache": "every response, gzipped",
+    "stopsOn": "HTTP errors other than 404, 429s, network errors",
+    "login": "never; nothing needed one",
+    "images": "never downloaded"
+   },
+   "local": "references/psjp-full/",
+   "reader": "puzzles/difficulty/sources/psjp.ts (the app's link reader, app/app/lib/import-link.ts)",
+   "counts": {
+    "days": 2713,
+    "daysFetched": 175,
+    "puzzles": 3430,
+    "withLink": 3343,
+    "converted": 877,
+    "byGenre": {
+     "akari": 157,
+     "aquarium": 6,
+     "cave": 20,
+     "easy-as-abc": 4,
+     "fillomino": 30,
+     "hitori": 13,
+     "masyu": 216,
+     "minesweeper": 3,
+     "numberlink": 96,
+     "nurikabe": 112,
+     "shikaku": 38,
+     "skyscrapers": 11,
+     "slitherlink": 87,
+     "spiral-galaxies": 38,
+     "star-battle": 23,
+     "sudoku": 23
+    }
+   }
+  }
+ ]
+}
