@@ -148,7 +148,7 @@ per type mean agreement figures can be off by 0.15.
 
 | Question | Product | What would answer it | Status |
 |---|---|---|---|
-| Is data the network's limit? | core | learning curve on the generated set (10–100%) | after the fleet |
+| Is data the network's limit? | core | learning curve on the generated set (10–100%) | **not volume**: human-made puzzles stay at 61% (key move 30%) from 10% to 100% of 133k generated; the generated data isn't human-like enough (research-cross-type.md §13) |
 | Does size matter? | core | fair size test: learning rate scaled with width | **yes**: 69.4% (width 64), 73.5% (128), 76.0% (256), still rising; whole-grid types gain less |
 | Does structure as input fix whole-grid types? | core, hints | give the network groups, their sizes and exits | **largely**: Hitori 67% → 83%, Slitherlink 65% → 79%, Nurikabe 48% → 60%, Cave 43% → 54%; all types 73.5% → 77.1% at width 128 (research-cross-type.md §11) |
 | Do our tests measure the right thing? | all | human-made puzzles held out, agreement with people's next moves, key-move score, results by band and family, repeated seeds | building now |

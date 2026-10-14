@@ -323,3 +323,55 @@ The whole-grid types gain 11–16 points, more than width 256 gave them, and the
 (76.0%) at a quarter of the size. What the network lacked was sight of groups and their exits, not
 reach or size. One seed each; both runs on the same data (which still held the 123 puzzles later
 found to be copies of human test puzzles), so the comparison is fair.
+
+## 12. Training on human-made puzzles (graph-human.ts --train; graph_policy.py GRAPH_HUMAN_TRAIN; cloud steps human-job, next)
+
+The curve run's network scores 88% on held-out generated puzzles but 61% on the human test set: it
+learns what our generator's puzzles look like. The human training set adds every other Janko and
+Puzzle Square JP puzzle:
+
+- **What:** every Janko puzzle janko.ts reads (its eight types) and every Puzzle Square JP puzzle,
+  up to 15 × 15, less the test set's 1,322: 3,779 to solve (2,265 Janko). Janko's keep the solver
+  and, where recorded, the order. Beast Academy's are in the corpus already; Tatham's are generated
+  by his program, so left out. Only those our solver finishes in 30 s are kept: about half in a
+  test of 46 (none of Nurikabe, Numberlink, Spiral Galaxies or the 13–15 Sudoku and Star Battle).
+- **Leakage:** test puzzles are left out by name before solving, and by content after (type,
+  givens and rule instances: graph_policy.py's content_key, computed the same in TypeScript and
+  checked identical on 600 records). graph_policy.py checks again at load and also drops a human
+  training puzzle that copies a corpus puzzle (the corpus's copy may be in the per-type test split)
+  or repeats one; the counts are printed.
+- **Weighting:** GRAPH_HUMAN_WEIGHT=w weights each human state's loss w times a corpus or
+  generated state's, normalised by the batch's weighted marks (loss_of). Chosen over sampling them
+  w times as often because the epoch, and so the run's time, stays the same whatever w is, so
+  weights can be compared at equal cost; in expectation the gradient is the same. Checked: on one
+  batch the loss is exactly the weighted mean of the two sources' losses at w = 1, 2, 5.
+- **The mix** is printed at load: puzzles, states, weight and share of training by source.
+- **Build:** about 10½ CPU-hours, so a spot CPU job (puzzles/cloud/run-human-job.sh), resumable
+  from its solve cache; the raw files are in the bucket's private path (private/janko,
+  private/psjp), never published. A finished build goes to data/graphs-human-train.jsonl.
+- **The run** (graph-job.sh step `next`): width 256, 8 heads, positions, structure, learning rate
+  scaled, attention; the corpus, the whole generated set at 3 states a puzzle and the human set at
+  weight 2; 8 epochs of about 22 minutes, GRAPH_TRAIN_DEADLINE stopping early if they run long, so
+  about 3½ hours with loading and scoring. Weight 2 makes the human set about a quarter to a third
+  of training, and each human puzzle is then seen 16 times in effect, as often as the corpus's in
+  the 16-epoch runs that didn't overfit. Results to come.
+
+## 13. The learning curve (graph-20261013-1542)
+
+Width 128, attention, positions, no structure features; the corpus plus 10%, 25%, 50% and 100% of
+the 133k generated puzzles (nested shares), each trained for the same time (12, 9, 6 and 4 epochs),
+scored with the new tests:
+
+| Generated share | Human-made: any move | Human-made: key move | Agreement with people | Generated held out | Corpus held out |
+|---|---|---|---|---|---|
+| 10% | 61% | 29% | 20% | 85% | 74.9% |
+| 25% | 62% | 29% | 24% | 87% | 75.8% |
+| 50% | 61% | 30% | 20% | 89% | 73.9% |
+| 100% | 61% | 30% | 22% | 88% | 74.2% |
+
+Random: 20% (any move) and 7% (key move) on human-made puzzles, 9% for agreement; our solver's
+next step agrees with people 36% of the time. Ten times the generated data moves generated puzzles
+a little and human-made ones not at all: volume of this kind isn't the limit, its likeness to human
+puzzles is. Equal time per share means fewer passes at larger shares, but the human line is flat at
+every share. Next: human puzzles in training, a human-like generator, structure features (§11), at
+width 256.

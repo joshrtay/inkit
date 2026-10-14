@@ -22,6 +22,11 @@
 #   spread. Generated puzzles (gen-set.ts) with GRAPH_GEN_SHARE, GRAPH_GEN_TEST and
 #   GRAPH_STATES_PER (load())
 #
+#   GRAPH_HUMAN_TRAIN=path: human-made puzzles to train on too (graph-human.ts --train →
+#   graphs-human-train.jsonl: Janko's and Puzzle Square JP's, the test set's left out), their loss
+#   weighted GRAPH_HUMAN_WEIGHT times a corpus or generated state's (train()). GRAPH_TRAIN_DEADLINE
+#   (seconds): no training epoch starts that wouldn't end by then
+#
 #   --attention  global self-attention over all of a puzzle's nodes after every other round of
 #                message passing (a GPS-style hybrid)
 #   --pretrain   hide and fill first: solved puzzles with 15-50% of their marks hidden, the network
@@ -163,6 +168,7 @@ class Puzzle:
         ho = [(mindex[m], k) for (m, k) in d.get("humanOrder") or [] if m in mindex]
         self.human = np.array([2 * i + (0 if self.truth[i] else 1) for (i, _) in ho], np.int32) if d.get("humanOrder") is not None else None
         self.keep, self.dup = None, False   # the states kept (GRAPH_STATES_PER), or all; in the human test set
+        self.weight, self.human_train = 1.0, False   # loss weight (GRAPH_HUMAN_WEIGHT); from GRAPH_HUMAN_TRAIN
         self.states = States(self)
 
     def state(self, k):
@@ -343,6 +349,19 @@ def pretrain(puzzles, epochs, net=None, lr=2e-3):
 # width made the wide networks diverge (graph-20261013-0640, width 256)
 LR_SCALE = os.environ.get("GRAPH_LR_SCALE") == "1"
 
+TRAIN_DEADLINE = float(os.environ.get("GRAPH_TRAIN_DEADLINE") or 0)
+
+def loss_of(net, part):
+    """A batch's loss: each open mark's, the rarer settled ones weighted up, and each state's weighted
+    by its puzzle's weight (GRAPH_HUMAN_WEIGHT for the human training set, else 1), over the batch's
+    weighted open marks (so a batch's loss keeps its scale)."""
+    g, y, mask, offs = batch(part, attends(net)); g, y, mask = to(g), y.to(dev), mask.to(dev)
+    pos = (y.max(1).values * mask).sum() / mask.sum().clamp(min=1)
+    w = 1 + y * ((1 - pos) / pos.clamp(min=1e-3)).clamp(max=30)
+    if any(pz.weight != 1 for pz, _ in part):
+        mask = mask * torch.cat([torch.full((k,), float(pz.weight)) for (pz, _), (_, k) in zip(part, offs)]).to(dev)
+    return (nn.functional.binary_cross_entropy_with_logits(net(g), y, weight=w, reduction="none").sum(1) * mask).sum() / mask.sum().clamp(min=1)
+
 def train(items, epochs, net=None, lr=2e-3):
     net = net or new_net()
     if LR_SCALE: lr = lr * 64 / H
@@ -354,16 +373,16 @@ def train(items, epochs, net=None, lr=2e-3):
             if LR_SCALE and ep == 0:
                 step += 1
                 for gr in opt.param_groups: gr["lr"] = lr * min(1.0, step / steps_per_epoch)
-            g, y, mask, _ = batch(part, attends(net)); g, y, mask = to(g), y.to(dev), mask.to(dev)
-            pos = (y.max(1).values * mask).sum() / mask.sum().clamp(min=1)
-            w = 1 + y * ((1 - pos) / pos.clamp(min=1e-3)).clamp(max=30)
-            loss = (nn.functional.binary_cross_entropy_with_logits(net(g), y, weight=w, reduction="none").sum(1) * mask).sum() / mask.sum().clamp(min=1)
+            loss = loss_of(net, part)
             opt.zero_grad(); loss.backward()
             if LR_SCALE: nn.utils.clip_grad_norm_(net.parameters(), 1.0)
             opt.step(); tot += loss.item(); n += 1
             # Apple's GPU caches memory per tensor shape, and graph batches vary: release it
             if dev.type == "mps" and n % 10 == 0: torch.mps.empty_cache()
         print(f"  epoch {ep + 1}: loss {tot / max(1, n):.3f} ({time.time() - t0:.0f} s)", flush=True)
+        if TRAIN_DEADLINE and ep + 1 < epochs and (time.time() - t0) * (ep + 2) / (ep + 1) > TRAIN_DEADLINE:
+            print(f"  stopping after {ep + 1} of {epochs} epochs: another wouldn't end within GRAPH_TRAIN_DEADLINE ({TRAIN_DEADLINE:.0f} s)", flush=True)
+            break
     return net
 
 def score(net, items):
@@ -401,12 +420,17 @@ def evaluate(net, items):
 # puzzle's name, so the slices are the same in every run and 10% ⊂ 25% ⊂ 50% ⊂ 100%. At most
 # GRAPH_STATES_PER of each generated puzzle's states, spread through its solve (0: all). The human
 # test set (GRAPH_HUMAN, graph-human.ts) is never trained on: corpus copies of its puzzles stay in
-# the per-type split (so the earlier test sets don't change) but leave training.
+# the per-type split (so the earlier test sets don't change) but leave training. The human training
+# set (GRAPH_HUMAN_TRAIN) trains only: a copy of a test puzzle is left out (graph-human.ts leaves
+# them out already; this checks), and so is a copy of a corpus puzzle (the corpus's copy may be in
+# the per-type test split).
 GEN_SOURCES = {"gen-set"}
 GEN_SHARE = float(os.environ.get("GRAPH_GEN_SHARE", 1))
 GEN_TEST = float(os.environ.get("GRAPH_GEN_TEST", 0.01))
 STATES_PER = int(os.environ.get("GRAPH_STATES_PER", 0))
 HUMAN = os.environ.get("GRAPH_HUMAN") or os.path.join(HERE, "../../references/ml/graphs-human.jsonl")
+HUMAN_TRAIN = os.environ.get("GRAPH_HUMAN_TRAIN")
+HUMAN_WEIGHT = float(os.environ.get("GRAPH_HUMAN_WEIGHT", 1))
 KEEP_MOVES = sys.argv[1:2] == ["embed"]   # each round's moves with their signatures, for the embedding
 MAX_MARKS = 4000   # a few puzzles have very many marks (a big board's every digit, link or border): left out
 
@@ -434,9 +458,12 @@ def spread(ks, per):
 
 NAME = re.compile(r'"name":("(?:[^"\\]|\\.)*")')
 def load():
-    """(corpus puzzles, generated for training, generated held out), streamed a line at a time."""
+    """(corpus puzzles, generated for training, generated held out, human-made for training,
+    {what the leakage guard left out of the human training set}), streamed a line at a time."""
     human = {content_key(json.loads(l)) for l in lines(HUMAN)} if os.path.exists(HUMAN) else set()
-    pz, gen_tr, gen_te = [], [], []
+    if HUMAN_TRAIN and not human: sys.exit(f"GRAPH_HUMAN_TRAIN needs the human test set ({HUMAN}) to keep its puzzles out of training")
+    if HUMAN_TRAIN and not os.path.exists(HUMAN_TRAIN): sys.exit(f"GRAPH_HUMAN_TRAIN: no file {HUMAN_TRAIN} (graph-human.ts --train builds it)")
+    pz, gen_tr, gen_te, corpus = [], [], [], set()
     for f in DATA.split(","):
         for line in lines(f):
             m = re.search(r'"source":"([^"]*)"', line[:300])
@@ -449,12 +476,38 @@ def load():
                 if dest is None: continue
             d = json.loads(line); p = Puzzle(d, keep_moves=KEEP_MOVES)
             if not p.R or p.M > MAX_MARKS: continue
-            p.dup = content_key(d) in human
+            key = content_key(d); p.dup = key in human
             if gen:
                 if p.dup: continue
                 if STATES_PER: p.keep = spread(range(p.R), STATES_PER)
+            else: corpus.add(key)
             dest.append(p)
-    return pz, gen_tr, gen_te
+    hum_tr, out, seen = [], {"test": 0, "corpus": 0, "twice": 0}, set()
+    for line in lines(HUMAN_TRAIN) if HUMAN_TRAIN else []:
+        d = json.loads(line); key = content_key(d)
+        why = "test" if key in human else "corpus" if key in corpus else "twice" if key in seen else None
+        if why: out[why] += 1; continue
+        seen.add(key)
+        p = Puzzle(d)
+        if not p.R or p.M > MAX_MARKS: continue
+        p.weight, p.human_train = HUMAN_WEIGHT, True
+        hum_tr.append(p)
+    return pz, gen_tr, gen_te, hum_tr, out
+
+def source_of(p):
+    return f"human train: {p.source}" if p.human_train else "generated (gen-set)" if p.source in GEN_SOURCES else f"corpus: {p.source}"
+
+def mix(train_pz):
+    """The training mix by source: puzzles, states, and each source's share of training (states ×
+    weight)."""
+    rows = defaultdict(lambda: [0, 0, 0.0])
+    for p in train_pz:
+        n = len(p.keep) if p.keep is not None else p.R
+        r = rows[source_of(p)]; r[0] += 1; r[1] += n; r[2] += n * p.weight
+    tot = sum(r[2] for r in rows.values()) or 1
+    print("\n### Training mix\n\n| Source | Puzzles | States | Weight | Share of training (states × weight) |\n|---|---|---|---|---|")
+    for s_, (np_, ns, w) in sorted(rows.items()): print(f"| {s_} | {np_} | {ns} | {w / max(1, ns):g} | {w / tot:.0%} |")
+    print(f"| all | {sum(r[0] for r in rows.values())} | {sum(r[1] for r in rows.values())} | | |\n", flush=True)
 
 def load_human():
     out = []
@@ -605,7 +658,7 @@ if __name__ == "__main__":
     random.seed(1); torch.manual_seed(1)
     mode = sys.argv[1] if len(sys.argv) > 1 else "all"
     t_load = time.time()
-    pzs, gen_tr, gen_te = load()
+    pzs, gen_tr, gen_te, hum_tr, hum_out = load()
     by = defaultdict(list)
     for p in pzs: by[p.genre].append(p)
     for v in by.values(): random.Random(2).shuffle(v)
@@ -616,7 +669,10 @@ if __name__ == "__main__":
     split = {g: ([p for p in tr if not p.dup], te) for g, (tr, te) in split.items()}
     for p in gen_tr: split.setdefault(p.genre, ([], []))[0].append(p)
     if gen_tr or gen_te: print(f"generated: {len(gen_tr)} puzzles to train on ({sum(len(p.keep or range(p.R)) for p in gen_tr)} states, GRAPH_GEN_SHARE {GEN_SHARE:g}, GRAPH_STATES_PER {STATES_PER or 'all'}), {len(gen_te)} held out")
+    for p in hum_tr: split.setdefault(p.genre, ([], []))[0].append(p)
+    if HUMAN_TRAIN: print(f"human training set ({HUMAN_TRAIN}): {len(hum_tr)} puzzles, {sum(p.R for p in hum_tr)} states, weight {HUMAN_WEIGHT:g}; left out: {hum_out['test']} copies of human test puzzles, {hum_out['corpus']} of corpus puzzles, {hum_out['twice']} repeats")
     print(f"{dups} training puzzles left out as copies of human test puzzles; loaded in {time.time() - t_load:.0f} s", flush=True)
+    mix([p for tr, _ in split.values() for p in tr])
     if mode == "all":
         # GRAPH_SEEDS=n: n runs from different starting weights and batch orders (same data and split)
         seeds = int(os.environ.get("GRAPH_SEEDS", 1))
