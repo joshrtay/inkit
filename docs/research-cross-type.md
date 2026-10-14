@@ -375,3 +375,24 @@ a little and human-made ones not at all: volume of this kind isn't the limit, it
 puzzles is. Equal time per share means fewer passes at larger shares, but the human line is flat at
 every share. Next: human puzzles in training, a human-like generator, structure features (§11), at
 width 256.
+
+## 14. The baseline before human data (graph-20261013-2329)
+
+Everything that has helped, together, and no human puzzles in training: attention at width 256,
+structure as input, positions, the learning rate scaled, the corpus plus the generated set (3
+states a puzzle), 8 epochs; Beast Academy evaluation-only. Against the learning curve's width-128
+run without structure (§13):
+
+| | Before | Baseline |
+|---|---|---|
+| Human-made: any move | 61% | 68% |
+| Human-made: key move | 30% | 35% |
+| Agreement with people (solver 36%) | 22% | 28% |
+| Human Hitori / Nurikabe / Cave | 37% / 34% / 23% | 63% / 56% / 47% |
+| Human Shikaku / Star Battle | 40% / 51% | 48% / 59% |
+| Corpus held out / generated held out | 74% / 88% | 80% / 92% |
+
+Structure and size carry over to real puzzles, most for the whole-grid types. Star Battle and
+Shikaku stay weak on human puzzles, where the generator lacked 2-star and sparse layouts. The
+network still trails our solver at predicting people (28% against 36%). This is the reference for
+adding human data: the same setup, plus the human training set and human-move labels.

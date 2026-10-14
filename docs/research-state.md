@@ -193,6 +193,8 @@ per type mean agreement figures can be off by 0.15.
    approved Vertex AI quota (one preemptible L4 for training in us-west2) is a separate pool.
 3. **A budget alert** in Cloud Billing: optional insurance.
 
+**Baseline before human data (2026-10-14):** width 256 with structure and the generated set scores 68% on human-made puzzles (key move 35%, agreement with people 28% against the solver's 36%), up from 61% / 30% / 22%; research-cross-type.md §14.
+
 ## Sequence
 
 Two things first, since every later result rests on them: the **evaluation changes** (the network
