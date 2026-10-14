@@ -18,7 +18,7 @@ import { latestDrafts } from "~/lib/queries.server";
 import { draftPictures } from "~/lib/thumbs.server";
 import { attempt, signInFirst } from "~/lib/http.server";
 import { draftName, editPath, kindName } from "~/games/kinds";
-import { edited } from "~/components/GameCard";
+import { edited, LocalDate } from "~/components/GameCard";
 import { ReadingScreen } from "~/components/ReadingScreen";
 import "~site/game-types/grid/styles.css";
 
@@ -156,7 +156,7 @@ export default function NewGame({ loaderData: { collection, drafts }, actionData
               <li key={g.id}>
                 <Link to={editPath(g)} className="new-draft">
                   {g.picture ? <span className="grid-game pic" dangerouslySetInnerHTML={{ __html: g.picture }} /> : <span className="pic none" />}
-                  <span><strong>{draftName(g.title, g.kind, g.size)}</strong><small>{kindName(g.kind)} · edited <time suppressHydrationWarning>{edited(g.updatedAt)}</time></small></span>
+                  <span><strong>{draftName(g.title, g.kind, g.size)}</strong><small>{kindName(g.kind)} · edited <LocalDate t={g.updatedAt} format={edited} /></small></span>
                 </Link>
               </li>
             ))}

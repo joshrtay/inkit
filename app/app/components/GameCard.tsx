@@ -1,5 +1,6 @@
 import { inList, type ListContext } from "~/lib/list-context";
 import { CardMore } from "./CardMore";
+import { useEffect, useState } from "react";
 import { Form } from "react-router";
 import { Link } from "~/components/Link";
 import type { Thumbed } from "~/lib/thumbs.server";
@@ -28,7 +29,7 @@ export function GameCard({ game, draft = false, list = null }: { game: Thumbed; 
             <span className={`kind${game.kind ? "" : " unset"}`}>{kindName(game.kind)}</span>
             <strong>{draftName(game.title, game.kind, game.size)}</strong>
             <span className="by">
-              {game.publishAt ? <>Goes up {scheduled(game.publishAt)}</> : <>Edited <time suppressHydrationWarning>{edited(game.updatedAt)}</time></>}
+              {game.publishAt ? <>Goes up {scheduled(game.publishAt)}</> : <>Edited <LocalDate t={game.updatedAt} format={edited} /></>}
               {game.authorHandle && game.collectionSlug !== game.authorHandle && <> · by @{game.authorHandle}</>}
             </span>
             {game.state === "hidden" ? <span className="state hidden">taken down</span>
@@ -72,22 +73,32 @@ const Solved = () => (
   </span>
 );
 
-/** When a draft was last edited, in the reader's own time (so the server's and the browser's may differ: suppressHydrationWarning where it's shown). */
-export const edited = (t: Date | number | null) => {
+/** When a draft was last edited, in the reader's own time (shown with LocalDate, which starts in UTC). */
+export const edited = (t: Date | number | null, timeZone?: string) => {
   if (!t) return "";
   const d = new Date(t), now = new Date();
-  if (now.getTime() - d.getTime() < 86400e3 && d.getDate() === now.getDate()) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
+  const day = (x: Date) => x.toLocaleDateString("en-US", { timeZone });
+  if (now.getTime() - d.getTime() < 86400e3 && day(d) === day(now)) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone, ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
 };
 
 /** when a scheduled draft goes up (an AI creator's queue) */
 const scheduled = (t: Date | number) => new Date(t).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "UTC", timeZoneName: "short" });
 
-const when = (t: Date | number | null) => {
+const when = (t: Date | number | null, timeZone?: string) => {
   if (!t) return "";
   const d = new Date(t), now = new Date();
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) }).toUpperCase();
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone, ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) }).toUpperCase();
 };
+
+/** A date in the reader's own time zone. The server doesn't know it, so the first render (server
+ *  and browser alike) is in UTC, and the browser switches to local time once it's running: the two
+ *  renders match, and near midnight the date can't disagree with the server's. */
+export function LocalDate({ t, format }: { t: Date | number | null; format: (t: Date | number | null, timeZone?: string) => string }) {
+  const [local, setLocal] = useState(false);
+  useEffect(() => setLocal(true), []);
+  return <time dateTime={t ? new Date(t).toISOString() : undefined}>{format(t, local ? undefined : "UTC")}</time>;
+}
 
 /** A game in the feed: where it's from, its title and description, and its puzzle on the right. */
 export function FeedItem({ game, liked = false, signedIn = false, list = null }: { game: Thumbed; liked?: boolean; signedIn?: boolean; list?: ListContext | null }) {
@@ -95,7 +106,7 @@ export function FeedItem({ game, liked = false, signedIn = false, list = null }:
     <li className="feed-item">
       <Link to={inList(game.id, list)} className="feed-link">
         <span className="feed-text">
-          <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} ai={!!game.authorAi && game.collectionSlug === game.authorHandle} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when">{when(game.publishedAt)}</span></span>
+          <span className="feed-from"><Avatar name={game.collectionTitle} seed={game.collectionSlug} size={22} ai={!!game.authorAi && game.collectionSlug === game.authorHandle} /> {game.collectionTitle}{game.authorAi && game.collectionSlug === game.authorHandle && <AiBadge />}<span className="feed-when"><LocalDate t={game.publishedAt} format={when} /></span></span>
           <strong>{game.title}</strong>
           {game.description && <span className="desc">{game.description}</span>}
           <span className="feed-meta">{kindName(game.kind)}{game.collectionSlug !== game.authorHandle && !game.authorDeleted && <> · @{game.authorHandle}{game.authorAi && <> <AiBadge /></>}</>}{game.solves > 0 && <> · {game.solves} solve{game.solves === 1 ? "" : "s"}</>}</span>

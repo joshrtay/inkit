@@ -7,6 +7,7 @@ import { Link } from "~/components/Link";
 import type { Playable } from "~/games/layout";
 import { GameBoard } from "./GameBoard";
 import { GuidePane } from "./GuidePane";
+import { isListed } from "~/games/kinds";
 import { LikeButton } from "./LikeButton";
 import { AiBadge } from "./AiBadge";
 import { useConfirm } from "./ConfirmDialog";
@@ -160,7 +161,8 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
         </div>
       </div>
     </main>
-    <GuidePane key={game.kind} start={game.kind} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra} />
+    {/* a type kept out of the listings has no guide page to open at: the pane starts at the list of types */}
+    <GuidePane key={game.kind} start={isListed(game.kind) ? game.kind : undefined} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra} />
     </div>
   );
 }
