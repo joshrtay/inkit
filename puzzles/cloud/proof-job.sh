@@ -1,5 +1,6 @@
 #!/bin/bash
-# One shard of phase 1 by compression's proofs (proof-bulk.ts --shard k --of N), at boot on a spot
+# One shard of phase 1 by compression's proofs (proof-bulk.ts --shard k --of N), or of the menus
+# along people's solves (human-menus.ts; metadata job=menus), at boot on a spot
 # VM made by run-proof-job.sh: install Node, fetch the code, the human corpus and the proofs made
 # so far (the run's seed, and this shard's own rows when relaunched), prove the shard's puzzles on
 # every CPU as memory allows, syncing the rows to results/<run>/shard-k/ every five minutes and at
@@ -8,6 +9,9 @@ BUCKET=gs://inkit-research-ml
 NODE=v22.22.2
 meta() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1"; }
 RUN=$(meta run); SHARD=$(meta shard); OF=$(meta of); HOURS=$(meta hours || echo 3)
+# the job: bulk (proof-bulk.ts → references/proof-bulk) or menus (human-menus.ts → references/proof-menus)
+JOB=$(meta job || echo bulk)
+if [ "$JOB" = menus ]; then OUTDIR=references/proof-menus; SCRIPT=puzzles/difficulty/human-menus.ts; else OUTDIR=references/proof-bulk; SCRIPT=puzzles/difficulty/proof-bulk.ts; fi
 SOUT=$BUCKET/results/$RUN/shard-$SHARD
 exec > /var/log/proof-job.log 2>&1
 set -x
@@ -21,17 +25,17 @@ export PATH=/opt/node/bin:$PATH
 cd /work
 gcloud storage cp -r "$BUCKET/private/code/src" "$BUCKET/private/code/puzzles" "$BUCKET/private/code/package.json" /work/
 ln -s /opt/deps/node_modules /work/node_modules
-mkdir -p references/ml/human-corpus references/proof-bulk
+mkdir -p references/ml/human-corpus $OUTDIR
 gcloud storage rsync -q "$BUCKET/private/human-corpus" references/ml/human-corpus
 # what's done: the seed (all shards' puzzles, skipped by id), then this shard's own rows
-gcloud storage rsync -q "$BUCKET/results/$RUN/seed" references/proof-bulk || true
+gcloud storage rsync -q "$BUCKET/results/$RUN/seed" $OUTDIR || true
 mkdir -p mine
 gcloud storage rsync -q "$SOUT/rows" mine || true
-for f in mine/*.jsonl; do [ -e "$f" ] && cat "$f" >> "references/proof-bulk/$(basename "$f")"; done
+for f in mine/*.jsonl; do [ -e "$f" ] && cat "$f" >> "$OUTDIR/$(basename "$f")"; done
 # from here on, new rows also go to mine/ (the seed stays out of this shard's upload)
-for f in references/proof-bulk/*.jsonl; do wc -l < "$f" > "$f.seed"; done
+for f in $OUTDIR/*.jsonl; do wc -l < "$f" > "$f.seed"; done
 sync_rows() {
-  for f in references/proof-bulk/*.jsonl; do
+  for f in $OUTDIR/*.jsonl; do
     n=$(cat "$f.seed" 2>/dev/null || echo 0)
     tail -n +$((n + 1)) "$f" > "mine/new-$(basename "$f")"
     cat "mine/$(basename "$f")" "mine/new-$(basename "$f")" 2>/dev/null > "mine/all-$(basename "$f")"
@@ -47,7 +51,7 @@ MEM_MB=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
 JOBS=$(nproc); [ $((MEM_MB / 1400)) -lt "$JOBS" ] && JOBS=$((MEM_MB / 1400))
 # stopped 5 minutes before the limit (a proof is killed at 60 s), so the last copy happens
 PROOF_CAP=60000 DEDUCE_JOBS=$JOBS timeout $((LIMIT - 300)) \
-  node --no-warnings puzzles/difficulty/proof-bulk.ts --shard "$SHARD" --of "$OF" > run.log 2>&1
+  node --no-warnings "$SCRIPT" --shard "$SHARD" --of "$OF" > run.log 2>&1
 STATUS=$?
 kill $SYNC
 sync_rows
