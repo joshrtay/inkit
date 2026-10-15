@@ -40,7 +40,7 @@ const LOG2 = Math.log2;
 /** a unit's place: its bounding box, 0-based; null where it spans the board (a row's columns) */
 export interface Geo { r0: number | null; c0: number | null; h: number | null; w: number | null; cr: number; cc: number }
 export interface Inst { atom: string; g: Geo }
-export interface PStep { insts: Inst[]; nFacts: number; factBits: number; win: Geo; round: number; cost: number; shape?: string }
+export interface PStep { insts: Inst[]; nFacts: number; factBits: number; win: Geo; round: number; cost: number; shape?: string; facts: string[]; cells: number[]; at: number }
 export interface Puzzle {
   key: string; id: string; set: string; genre: string; rows: number; cols: number;
   meta: Record<string, unknown>; solved: boolean; steps: PStep[]; human: boolean;
@@ -108,6 +108,10 @@ function givensOf(spec: any, cols: number): Givens {
 
 /** the human corpus's givens (human-corpus.ts), by its key, for the bulk proofs */
 const CORPUS_SPECS = new Map<string, Map<string, any>>();
+export function corpusSpec(genre: string, key: string): any {
+  corpusGivens(genre, key, 0);
+  return CORPUS_SPECS.get(genre)!.get(key);
+}
 function corpusGivens(genre: string, key: string, cols: number): Givens | undefined {
   if (!CORPUS_SPECS.has(genre)) {
     const m = new Map<string, any>(), f = `${REFS}ml/human-corpus/${genre}.jsonl`;
@@ -130,7 +134,7 @@ function enrich(atom: string, g: Geo, givens: Givens | undefined, rows: number, 
 }
 
 /** a raw step from proof-paths.ts as atoms with places */
-function toStep(s: any, rows: number, cols: number, givens?: Givens): PStep {
+function toStep(s: any, rows: number, cols: number, givens?: Givens, at = 0): PStep {
   const cells: [number, number][] = (s.x as number[]).map((i) => [Math.floor(i / cols), i % cols]);
   const win = cells.length ? box(cells) : place("the whole grid", rows, cols, null as never);
   const insts: Inst[] = [];
@@ -143,7 +147,7 @@ function toStep(s: any, rows: number, cols: number, givens?: Givens): PStep {
   // no explanation (the explainer gave up, or a cell with one option left): the window itself
   if (!insts.length) insts.push({ atom: s.cl?.[0] === "(not found)" ? `unexplained@t${s.t}` : "cell-only", g: win });
   insts.sort((a, b) => a.atom < b.atom ? -1 : a.atom > b.atom ? 1 : (a.g.cr - b.g.cr) || (a.g.cc - b.g.cc));
-  return { insts, nFacts: s.m.length, factBits: factBits(s.m, s.x.length), win, round: s.r, cost: s.c, shape: s.sh };
+  return { insts, nFacts: s.m.length, factBits: factBits(s.m, s.x.length), win, round: s.r, cost: s.c, shape: s.sh, facts: s.m, cells: s.x, at };
 }
 
 const HUMAN_SETS = new Set(["ba", "pilot", "psjp-akari", "psjp-slitherlink", "psjp-masyu", "psjp-simple-loop"]);
@@ -173,7 +177,7 @@ export function loadCorpus(sets?: string[]): Puzzle[] {
       const givens = !RICH.on ? undefined : bulk ? corpusGivens(d.genre, d.id, d.cols) : src != null ? psjpGivens(d.genre, String(src), d.cols) : undefined;
       out.push({
         key, id: String(d.id), set, genre: d.genre, rows: d.rows, cols: d.cols, meta: d.meta ?? {}, solved: d.solved,
-        steps: d.steps.map((s: any) => toStep(s, d.rows, d.cols, givens)), human: bulk || isHuman(set),
+        steps: d.steps.map((s: any, at: number) => toStep(s, d.rows, d.cols, givens, at)), human: bulk || isHuman(set),
       });
     }
   }
