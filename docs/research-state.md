@@ -1,5 +1,10 @@
 # Research: where things stand
 
+> **Start here:** this file holds the results, open questions, sequence and queue;
+> [research-ops.md](research-ops.md) holds what's running and how to check it, the cloud runbook,
+> spending, what needs the user's approval, and the working rules. Read both before continuing.
+
+
 A snapshot of the research agenda (2026-10-13): the aim, what's built, what we've learned, what's
 open, what's running and what's next. The design behind it is
 [learning-design.md](learning-design.md); detailed results are in
