@@ -1,6 +1,6 @@
 # Research trajectory: the best proof, not the solution
 
-Written 2026-10-15 from the thread on the research plan. [research-state.md](research-state.md) holds
+Written 2026-10-15 from the thread on the research plan; the objective and phase 1 revised the same day after the discussion of an intrinsic target (description length under a learned language), the analyst role for the model, and probabilistic expert weighting. [research-state.md](research-state.md) holds
 results and the queue; this file holds the direction those should now follow. Keep both current.
 
 ## The reframe
@@ -22,29 +22,52 @@ is its shape. Generation targets puzzles whose minimum proof has a wanted shape.
 model is a separate question (how people actually move), which this trajectory feeds but does not
 answer.
 
-## The objective: a cost over proofs
+## The objective: description length under a learned language of moves
 
-The universal part of elegance is **description length**. We already compute a subset-minimal
-explanation per step (deduce.ts, after Bogaerts et al. 2020). The proof-level cost extends that:
+The target is intrinsic. Take the engine's shared primitives (a primitive applied to a unit: the
+step signatures, 2,223 shapes, 89 shared across types) as the atoms. A **language** is a dictionary
+of symbols built on them: each symbol a reusable compound of symbols below it, with arguments
+(which row, which cells). The objective over the whole human corpus is two-part description length:
 
-| Term | What it measures | Human-free? |
-|---|---|---|
-| Size | rule instances and facts used over the whole proof | yes |
-| Reuse | the same lemma or shape applied again (symmetry in the puzzle shows up as repetition in the proof, which compresses) | yes |
-| Locality | how far apart the facts each step relies on are, on the board and in the constraint graph | yes, with a working-memory reading |
-| Splits | case analysis, counted and depth-weighted | yes |
-| Peak | the hardest single step | yes, but its weight against size is a human question |
-| Shape | one hinge then easy ("aha"), easy moves open at once, dead stretches | the human part |
+    total bits = Σ over symbols of its definition (its body coded in the symbols below it)
+               + Σ over paths, Σ over steps of  −log P(symbol | context) + cost of its arguments given the symbol and context
 
-The caveat is the one description length always carries: it is relative to the vocabulary of
-techniques, and that vocabulary is what we are also discovering (the miner). Costs move when the
-language grows; we have already seen it with the lemmas. So the cost model is versioned, and every
-result names the version.
+The language that minimises the total is the technique vocabulary; a path's elegance is its code
+length under that language. Nothing human is in the definition. The precedent is library learning
+in program induction (DreamCoder's wake-sleep: find programs, abstract what recurs into the
+library, find shorter programs under the new library).
 
-**Where people come in.** Not for finding elegant proofs. For weighting the terms and for
-validation. Validation does not need move traces: 12,000 Puzzle Square JP puzzles carry likes, and
-the standing fact is that our current path features scored −0.15 against them. Either the cost model
-misses elegance or likes measure something else; the tests below find out which.
+**What falls out of it.**
+
+- **Techniques** are, by definition, sub-proofs that recur often enough that naming them shortens
+  the corpus. The miner was hunting for these by hand. An abstraction earns its place when uses
+  times savings per use exceeds its definition.
+- **Cost and surprise are one quantity under two models.** Marginal (how often the symbol appears
+  at all) is how hard the move is; a step price is a Shannon code, −log frequency, which is what
+  the learned prices were approximating. Conditional (how likely it is *here*) is surprise: a common
+  symbol in an unexpected place is the aha. Surprise is a readout of the fitted model, never a term
+  in the objective (rewarding unpredictability rewards noise).
+- **The context model is the graph network.** It predicts the next move given the state; its
+  probability of a path is the path's code length (arithmetic coding). So the proof-search policy
+  is the compressor, and training it by maximum likelihood on shortest-code paths is one step of
+  the alternation below.
+- **Locality is a consequence, not a term.** Arguments predictable from where the solver was just
+  looking are nearly free; distant ones cost bits.
+- **Elegance as distinct from difficulty** is a shape statistic of where the bits fall along a
+  path: short total, concentrated in one or two steps. A testable claim, not a definition.
+- **Personal difficulty and curriculum.** MDL pays for the language once; a person pays to learn
+  it. A learner who knows a subset of the symbols has a personal code length for every path, and
+  the order in which symbols unlock short codes is the curriculum (learning-design.md).
+
+**The caveat** description length always carries: the language is relative to the corpus it
+compresses. Compress human-made puzzles' proofs, not the generator's; that is where "a human
+puzzle implies an elegant path exists" enters, as the prior. The cost model is versioned, every
+result names the version, and costs are never compared across versions.
+
+**Where people come in.** Not in the definition. As the external check that code length and
+surprise track what people call hard and elegant: likes with difficulty held fixed, ratings,
+Janko's expert order, Fable's interest judgement on the pilot set. The standing fact to beat is
+that the old path features scored −0.15 against likes.
 
 ## Phases
 
@@ -54,30 +77,63 @@ Best-first proof search with the existing step costs (sum, and separately max) o
 human puzzles that carry likes or ratings, against the greedy path.
 
 - **Measure:** the cost gap greedy → optimal; how often the paths differ and where; the correlation
-  of each path's cost with the source's difficulty rating and with likes (difficulty held fixed).
-- **Go:** optimal proofs differ from greedy on a meaningful share, or correlate better. Then the
-  search is worth learning to guide.
-- **No-go:** greedy is near optimal. Then search isn't the problem; the cost model is, and phase 1
-  runs alone.
+  of each path's cost with the source's rating and with likes (difficulty held fixed).
+- **Go:** optimal proofs differ from greedy on a meaningful share, or correlate better.
+- **No-go:** greedy is near optimal. Then search isn't the problem and phase 1 runs alone.
+- **Also log the choice set:** the full menu of available steps each round, not only the step
+  played. Elegance is about which path was taken among those that existed, and the menu is cheap
+  to record while solving.
 
-### 1. The cost model (CPU, local data, a week or two)
+### 1. Learn the language (CPU, then the GPU for the context model; weeks)
 
-Fit the terms above against what we have, each as a separate check so they can disagree:
+Alternate, EM-style, until the held-out total stops falling:
 
-- Puzzle Square JP likes with difficulty held fixed (12,000 puzzles, 4 types with likes);
-- Fable's interest judgement on the 72-puzzle pilot set (0.34 against likes, the only signal beyond
-  difficulty we have found);
-- Janko's recorded expert order: do experts follow low-cost proofs? (per solver; seven people);
-- Beast Academy's set order and Tatham's grades as difficulty checks on the cost's difficulty use.
+1. **Fix the language, find paths:** best-first search for each puzzle's shortest-code path.
+2. **Fix the paths, refit the language:** re-estimate symbol frequencies and the context model;
+   abstract recurring sub-proofs into new symbols where that shortens the total; drop symbols that
+   no longer pay for their definition. A step's minimal explanation isn't unique, so pick the
+   shortest-code one jointly with the language.
+3. **Score on held-out puzzles.** Fit on half, score bits on the other half; on training data alone
+   a symbol per puzzle "compresses" everything and the language cost only partly guards against it.
 
-Deliverable: cost model v1 with its weights and the correlation table, and a statement of which
-terms carried the signal. If none beats the −0.15 baseline, say so and stop this line: elegance
-isn't recoverable from our vocabulary, and the human-like branch moves up.
+**The model as analyst.** Forty thousand traces are millions of rows; no context window reads
+them. Fable works over a trace table (the puzzle catalog in research-state.md, plus a traces table
+with the choice sets) as an analyst: hypothesis, query, aggregate, refine. Its two jobs here are
+proposing candidate abstractions and names for them (contrasting pairs, greedy against optimum
+and liked against unliked at equal difficulty, are what to show it when it should *name* a
+difference) and proposing features that predict the external checks. The compression test and the
+held-out half decide what stays. Split the puzzles before it starts; every pattern it reports
+carries its effect size on the half it didn't explore. This generalises the mining harness from
+stuck moments to whole traces.
+
+**Probabilistic expert weighting.** Expert-set puzzles should shape the language more, and we're
+rarely sure a puzzle is expert-set. A mixture model fit by EM inside the same loop: each puzzle
+has a hidden class (expert-set, amateur-human, generated), each class its own symbol frequencies
+and context model over the shared language. The prior per puzzle comes from provenance (source,
+setter, likes, the human-likeness classifier); the posterior updates by how well each class's code
+compresses its path. Each puzzle weights the expert language by its posterior. Setters are the
+level above: a setter's quality is the pooled posterior of their puzzles, shrunk for small counts,
+and feeds back as the prior for their others. This is research-state.md's quality-weighting
+hierarchy made Bayesian with the language as the likelihood. Guards: anchor the ends (Nikoli,
+curated Janko and high-beauty Logic Masters pinned as expert; the generated set pinned as not),
+so it's semi-supervised and can't drift to "puzzles like the current favourites"; score code
+length relative to what difficulty predicts, or use the shape statistic, so "expert" can't collapse
+to "easy"; keep the provenance prior informative but not decisive. Check on held-out setters of
+known standing and against Opus's human-versus-generated reading; one source's house style
+dominating the expert class is drift.
+
+**Deliverable:** language v1 with its symbols, held-out bits against the atoms-only baseline, the
+correlation table against the external checks, and the per-puzzle and per-setter posteriors.
+**Cheap early check:** frequency-derived prices against the learned step prices on Singles, Sudoku
+and Loopy. **Stop:** if no language beats the atoms on held-out bits by a margin, or none of the
+readouts beats −0.15 against likes, say so; elegance isn't recoverable from our vocabulary, and the
+human-like branch moves up.
 
 ### 2. Learned proof search (GPU, one L4, weeks)
 
-The graph network gains two heads: a policy (which step next, over the solver's candidate steps)
-and a value (remaining proof cost under v1). Train on the optimal proofs from phases 0 and 1.
+The graph network gains two heads: a policy (which step next, over the solver's candidate steps;
+it is also language v1's context model) and a value (remaining code length under v1). Train on
+the shortest-code proofs from phase 1.
 Then expert iteration in the proper sense: policy-guided best-first search finds cheaper proofs
 than unguided search at the same budget; those proofs become the targets; retrain. Curriculum by
 the gap between greedy and best known.
@@ -111,7 +167,8 @@ solve logging with consent on inkit is its critical path and belongs on the prod
   preparatory measurements (where solver time goes on the frontier; the no-network baseline B0)
   are still worth a day, because phase 2's search budget depends on verification cost.
 - The intended-path experiment in research-state.md is phase 0 and 1 of this file.
-- Setter strength (research-state.md) feeds phase 1 as a weight on whose puzzles count as elegant.
+- Setter strength and quality weighting (research-state.md) become phase 1's mixture model.
+- The miner becomes the analyst over the trace table.
 
 ## Risks
 
@@ -124,6 +181,10 @@ solve logging with consent on inkit is its critical path and belongs on the prod
 4. **Search cost.** Best-first over proof states with clingo checks per step can be expensive on
    big boards; phase 0 says how expensive, and phase 2's value head exists to prune it.
 5. **Elegance isn't universal after all.** Possible. Phase 1 is the test, and it is cheap.
+6. **The analyst finds patterns that aren't there.** The held-out split and effect sizes are the
+   guard; without them expect twenty confident findings and three real ones.
+7. **The expert class drifts** to one source's house style or to "easy". The anchors and the
+   difficulty-relative scoring are the guard; check the posteriors against known setters.
 
 ## Which model to run it with
 

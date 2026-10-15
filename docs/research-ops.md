@@ -105,6 +105,9 @@ Janko reset the connection at 3 s and 4 s a request, so it now runs at 6 s.
   cloud.
 - **Stop processes by PID,** never by `pkill -f <pattern>`: patterns have matched the shell running
   them, more than once.
+- **Never switch the shared checkout's branch:** several sessions run in the Mac checkout at once.
+  Branch work goes in a git worktree or a scratchpad clone (references/ and node_modules
+  symlinked), and detached jobs start from that copy (CLAUDE.md).
 - **Agents** work in their own worktrees, merge main first, and never push. Merge their branches
   into main after reading the report. They sometimes leave background processes, so check with ps.
 - **Before the app's browser tests:** apply local database migrations (`npm --prefix app run
