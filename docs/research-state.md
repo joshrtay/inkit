@@ -564,6 +564,12 @@ Spearman, 95% bootstrap intervals; Puzzle Square JP n 474):
 - **So, as the trajectory says:** elegance isn't recoverable from this vocabulary, and the
   human-like branch moves up. The expert-weighting mixture and the Fable analyst runs were not
   started: with a language this flat there is nothing for the classes to differ on.
+- **Data (checked after, at about 1,000 puzzles):** with plain atoms the saving is flat in train
+  size (0.33%, 0.35%, 0.36% at 130, 250, 520 train puzzles), so more proofs won't change it. With
+  richer atoms it is still climbing, about 0.3–0.4 points a doubling (1.15%, 1.40%, 1.83% at 120,
+  240, 480; 71, 100, 114 compounds), so that verdict is data-limited: on that trend 40,000 puzzles
+  would give a few percent. The ceiling for any vocabulary is the symbol terms, about 17% of the
+  bits. `mdl.ts fit --frac 0.25` trains on a share of the train half.
 - **What would reopen it:** atoms coded after their place (the givens free, since the decoder has
   the puzzle), a context model over the full choice set (the graph network), and the Janko sets
   when the original phase 1 reaches them. Rerun with

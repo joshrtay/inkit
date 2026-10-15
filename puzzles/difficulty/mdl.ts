@@ -161,6 +161,13 @@ export function half(key: string): 0 | 1 {
   return ((h >>> 0) % 2) as 0 | 1;
 }
 
+/** a second, independent hash of a puzzle's key: 0–99 */
+const bucket = (key: string) => {
+  let h = 7;
+  for (let i = 0; i < key.length; i++) h = (Math.imul(h, 31) + key.charCodeAt(i) * 2654435761) >>> 0;
+  return Math.floor(((h ^ (h >>> 15)) >>> 0) / 2 ** 32 * 100);
+};
+
 // ---------- prequential code: Dirichlet processes keyed by context ----------
 
 const geoBase = (d: number | string) => d === "*" ? 0.2 : 0.8 * (1 / 3) * 0.5 ** Math.abs(d as number);
@@ -507,7 +514,9 @@ function main() {
     const sets = opt("sets", "") ? opt("sets", "").split(",") : undefined;
     RICH.on = args.includes("--rich");
     const all = loadCorpus(sets).filter((p) => p.human);
-    const train = all.filter((p) => half(p.key) === 0), test = all.filter((p) => half(p.key) === 1);
+    // --frac: train on a share of the train half (by a second hash), for a learning curve
+    const frac = +opt("frac", "1");
+    const train = all.filter((p) => half(p.key) === 0 && (frac >= 1 || bucket(p.key) < frac * 100)), test = all.filter((p) => half(p.key) === 1);
     const steps = (ps: Puzzle[]) => ps.reduce((s, p) => s + p.steps.length, 0);
     console.log(`human puzzles: ${all.length} (train ${train.length}, ${steps(train)} steps; test ${test.length}, ${steps(test)} steps)`);
     const o: FitOpts = { max: +opt("max", "200"), top: +opt("top", "30"), minCount: +opt("min", "5"), greedy: args.includes("--greedy"), em: +opt("em", "1") };
