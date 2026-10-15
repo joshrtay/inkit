@@ -158,6 +158,18 @@ export interface Options {
    *  no case split: unsolved then means no split-free path within the windows (a missing
    *  technique). A step's `open` is the tier-0 steps open that round, as usual */
   minPeak?: boolean;
+  /** best-first proof search (docs/research-trajectory.md, phase 0): the cheapest proof by the
+   *  sum of step costs, against the greedy path. A state is what's known; from each, every stage's
+   *  windows are checked, and the moves are: the usual round (the first stage that finds
+   *  something, within SLACK of its cheapest), only the cheapest steps (within PEAK_TIE, over
+   *  every stage), every step up to a few cost levels above the cheapest, and the cheapest plus one
+   *  dearer step (a hinge taken early). Stuck, a shallow case split is the only move (tier 2, as
+   *  the usual solve takes it); no search steps. The greedy path and the cheapest-only path (the
+   *  min-peak path: deductions only grow, so it is optimal for the max) are found first and seed
+   *  the bound; then states are expanded by g + ρ·open marks, ρ the greedy path's cost per mark
+   *  (an estimate, not a bound), pruning at the best proof so far, until `nodes` expansions or
+   *  the budget. The path returned is the best proof found; `search` reports all three */
+  search?: { nodes?: number; branch?: number };
 }
 
 /** Learned step prices (puzzles/difficulty/price.py → step-prices.json): a correction added to a
@@ -382,7 +394,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number } }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown> }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -1085,23 +1097,31 @@ end
   /** Turn windows' facts into candidate steps: each fact goes to the smallest window that found
    *  it, and facts with the same explanation make one step. */
   const explained = new Map<string, { stamp: number; e: Expl | null }>();
+  const sigOf = (w: Window) => { let x = ""; for (const m of progOf(w).marks) x += known[m] < 0 ? "." : known[m]; return x; };
   const candidates = (found: Map<Window, [number, boolean][]>, tier: Tier): (Step & { w: Window })[] => {
     const ws = [...found.keys()].sort((a, b) => a.size - b.size);
     const claimed = new Set<number>(), jobs: { w: Window; facts: [number, boolean][] }[] = [];
-    const stamp = (w: Window) => progOf(w).marks.reduce((a, m) => Math.max(a, decidedAt[m]), -1);
+    const stamp = (w: Window) => opts.search ? 0 : progOf(w).marks.reduce((a, m) => Math.max(a, decidedAt[m]), -1);
+    // (Options.search: branches share no history, so an explanation is kept by what its window knows)
+    const sigs = new Map<Window, string>();
+    const ek = (w: Window, m: number) => {
+      if (!opts.search) return `${w.label}|${m}`;
+      let x = sigs.get(w); if (x === undefined) { x = sigOf(w); sigs.set(w, x); }
+      return `${w.label}|${m}|${x}`;
+    };
     for (const w of ws) {
       const facts = found.get(w)!.filter(([m]) => !claimed.has(m));
       for (const [m] of facts) claimed.add(m);
       // explained before, with nothing new known in the window since: the same explanation
-      const fresh = facts.filter(([m]) => explained.get(`${w.label}|${m}`)?.stamp !== stamp(w));
+      const fresh = facts.filter(([m]) => explained.get(ek(w, m))?.stamp !== stamp(w));
       if (fresh.length) jobs.push({ w, facts: fresh });
     }
     const ex = explain(jobs), steps: (Step & { w: Window })[] = [];
-    for (const { w, facts } of jobs) ex.get(w)?.forEach((e, k) => explained.set(`${w.label}|${facts[k][0]}`, { stamp: stamp(w), e }));
+    for (const { w, facts } of jobs) ex.get(w)?.forEach((e, k) => explained.set(ek(w, facts[k][0]), { stamp: stamp(w), e }));
     for (const w of ws) {
       const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m)));
       if (!facts.length) continue;
-      const es = facts.map(([m]) => explained.get(`${w.label}|${m}`)?.e ?? null), byKey = new Map<string, Step & { w: Window }>();
+      const es = facts.map(([m]) => explained.get(ek(w, m))?.e ?? null), byKey = new Map<string, Step & { w: Window }>();
       facts.forEach(([m, v], k) => {
         const e = es[k];
         const key = e ? `${e.groups.join(",")}|${e.facts.join(",")}` : "none";
@@ -2072,7 +2092,156 @@ end
     return true;
   };
 
-  while (undecided > 0) {
+  // ---- Options.search: best-first over proofs ----
+  // a window's facts, kept by what the window knows (states revisit the same local pictures)
+  const winCache = new Map<Window, Map<string, [number, boolean][]>>();
+  const runCached = (ws: Window[]) => {
+    const out = new Map<Window, [number, boolean][]>(), todo: Window[] = [], sig = new Map<Window, string>();
+    for (const w of ws) {
+      if (!progOf(w).marks.some((m) => known[m] < 0)) continue;
+      const x = sigOf(w), hit = winCache.get(w)?.get(x);
+      if (hit) { if (hit.length) out.set(w, hit); continue; }
+      sig.set(w, x); todo.push(w); evaluatedAt.delete(w);
+    }
+    const f = runWindows(todo);
+    for (const w of todo) {
+      const fs = f.get(w) ?? [];
+      if (!winCache.has(w)) winCache.set(w, new Map());
+      winCache.get(w)!.set(sig.get(w)!, fs);
+      if (fs.length) out.set(w, fs);
+    }
+    return out;
+  };
+  interface SNode { known: Int8Array; g: number; peak: number; steps: Step[]; open: number; depth: number }
+  type Cand = Step & { w: Window };
+  const restore = (s: SNode) => { for (let m = 0; m < M; m++) known[m] = s.known[m]; undecided = s.open; round = s.depth + 1; };
+  const keyOf = (k: ArrayLike<number>) => { let x = ""; for (let m = 0; m < k.length; m++) x += k[m] < 0 ? "." : k[m]; return x; };
+  /** the moves from a state: named sets of candidate steps (or one split step), deduplicated by
+   *  the state each leads to */
+  const movesOf = (s: SNode, branch: number): { names: string[]; child: SNode }[] => {
+    restore(s);
+    addComponentLemmas(); addLoopLemmas(); addTechniques();
+    const byStage: Cand[][] = [], claimed = new Set<number>();
+    for (const [k, stage] of stages.entries()) {
+      const f = runCached([...new Set(stage.flatMap((fam) => family(fam)))]);
+      // a later stage's windows hold the earlier ones: their facts go to the earlier stage
+      for (const [w, fs] of f) { const left = fs.filter(([m]) => !claimed.has(m)); if (left.length) f.set(w, left); else f.delete(w); }
+      for (const fs of f.values()) for (const [m] of fs) claimed.add(m);
+      byStage.push(f.size ? candidates(f, k === 0 ? 0 : 1) : []);
+    }
+    const all = byStage.flat().sort((a, b) => a.cost - b.cost);
+    const sets: [string, Cand[]][] = [];
+    if (all.length) {
+      const first = byStage.find((c) => c.length)!, fmin = Math.min(...first.map((x) => x.cost)), min = all[0].cost;
+      sets.push(["greedy", first.filter((x) => x.cost <= fmin + SLACK)]);
+      const cheap = all.filter((x) => x.cost <= min + PEAK_TIE);
+      sets.push(["cheapest", cheap]);
+      const levels = [...new Set(all.map((x) => x.cost))].filter((c) => c > min + PEAK_TIE);
+      for (const c of levels.slice(0, branch)) sets.push([`up to ${c}`, all.filter((x) => x.cost <= c)]);
+      // a dearer step taken early, with the cheapest: those deciding the most per cost first
+      const dear = all.filter((x) => x.cost > min + PEAK_TIE).sort((a, b) => b.facts.length / b.cost - a.facts.length / a.cost);
+      for (const x of dear.slice(0, branch)) sets.push([`hinge ${x.where}`, [...cheap, x]]);
+    } else {
+      // stuck: the usual solve's shallow case split, the first refutable mark in its order
+      if ((opts.maxTier ?? 2) < 2) return [];
+      const res = hardRound(order().slice(0, maxSplits), 0);
+      const rank = new Map(order().slice(0, maxSplits).map((m, k) => [m, k]));
+      const ok = res.filter((x) => x.unsat && x.choices === 0).sort((a, b) => rank.get(a.m)! - rank.get(b.m)!);
+      if (!ok.length) return [];
+      const m = ok[0].m, v = answer[m] === 1;
+      sets.push(["split", [{ ...wideStep(m, v, 2), where: `assume ${factText(m, !v)}: a contradiction` }]]);
+    }
+    const out: { names: string[]; child: SNode }[] = [], seen = new Map<string, string[]>();
+    for (const [name, set] of sets) {
+      restore(s);
+      const steps = s.steps.slice();
+      let g = s.g, peak = s.peak;
+      for (const x of [...set].sort((a, b) => a.cost - b.cost)) {
+        const facts = x.facts.filter((f) => known[markOf.get(f.mark)!] < 0);
+        if (!facts.length) continue;
+        const { w: _w, ...step } = x;
+        steps.push({ ...step, facts, round, open: byStage[0]?.length ?? 0 });
+        for (const f of facts) settle(markOf.get(f.mark)!, f.value);
+        g += x.cost; peak = Math.max(peak, x.cost);
+      }
+      const key = keyOf(known);
+      if (steps.length === s.steps.length) continue;
+      const had = seen.get(key);
+      if (had) { had.push(name); continue; }
+      const names = [name];
+      seen.set(key, names);
+      out.push({ names, child: { known: Int8Array.from(known), g: +g.toFixed(2), peak, steps, open: undecided, depth: s.depth + 1 } });
+    }
+    restore(s);
+    return out;
+  };
+  let searchReport: Record<string, unknown> | undefined;
+  if (opts.search && !opts.quick) {
+    const nodes = opts.search.nodes ?? 200, branch = opts.search.branch ?? 3;
+    const root: SNode = { known: Int8Array.from(known), g: 0, peak: 0, steps: [], open: undecided, depth: 0 };
+    const best = new Map<string, number>([[keyOf(root.known), 0]]);
+    const queue: { f: number; n: SNode }[] = [];
+    let expanded = 0, outBudget = false;
+    const children = new Map<SNode, { names: string[]; child: SNode }[]>();
+    const expand = (n: SNode) => {
+      let c = children.get(n);
+      if (!c) { c = movesOf(n, branch); children.set(n, c); expanded++; }
+      return c;
+    };
+    /** follow one named move to the end (or a dead end), queueing the other children met */
+    const chain = (name: string, push: (n: SNode) => void): SNode | null => {
+      let n = root;
+      while (n.open > 0) {
+        if (Date.now() - t0 > budget) { outBudget = true; return null; }
+        const c = expand(n);
+        const next = c.find((x) => x.names.includes(name)) ?? c.find((x) => x.names.includes("split"));
+        for (const x of c) if (x !== next) push(x.child);
+        if (!next) return null;
+        n = next.child;
+      }
+      return n;
+    };
+    const later: SNode[] = [];
+    const greedy = chain("greedy", (x) => later.push(x));
+    const cheapest = chain("cheapest", (x) => later.push(x));
+    let inc = [greedy, cheapest].filter((x): x is SNode => !!x).sort((a, b) => a.g - b.g)[0] ?? null;
+    const rho = greedy ? greedy.g / Math.max(1, root.open) : 1;
+    const push = (n: SNode) => {
+      const k = keyOf(n.known), b = best.get(k);
+      if (b !== undefined && b <= n.g) return;
+      best.set(k, n.g);
+      if (inc && n.g >= inc.g) return;
+      if (n.open === 0) { if (!inc || n.g < inc.g) inc = n; return; }
+      queue.push({ f: n.g + rho * n.open, n });
+    };
+    for (const x of later) push(x);
+    let improvedAt = -1;
+    while (queue.length && expanded < nodes) {
+      if (Date.now() - t0 > budget) { outBudget = true; break; }
+      let bi = 0;
+      for (let i = 1; i < queue.length; i++) if (queue[i].f < queue[bi].f) bi = i;
+      const { n } = queue.splice(bi, 1)[0];
+      if (inc && n.g >= inc.g) continue;
+      if ((best.get(keyOf(n.known)) ?? Infinity) < n.g) continue;
+      const before = inc;
+      for (const x of expand(n)) push(x.child);
+      if (inc !== before) improvedAt = expanded;
+    }
+    const sum = (n: SNode | null) => (n ? n.g : null);
+    searchReport = {
+      greedy: greedy ? { sum: sum(greedy), peak: greedy.peak, steps: greedy.steps.length, rounds: greedy.depth } : null,
+      cheapest: cheapest ? { sum: sum(cheapest), peak: cheapest.peak, steps: cheapest.steps.length, rounds: cheapest.depth } : null,
+      best: inc ? { sum: inc.g, peak: inc.peak, steps: inc.steps.length, rounds: inc.depth } : null,
+      expanded, open: queue.length, exhausted: !queue.length && !outBudget && expanded < nodes, outOfBudget: outBudget, improvedAt, rho: +rho.toFixed(3),
+      greedyPath: greedy?.steps.map((x) => ({ cost: x.cost, where: x.where, facts: x.facts.map((f) => f.mark), round: x.round })),
+      cheapestPath: cheapest?.steps.map((x) => ({ cost: x.cost, where: x.where, facts: x.facts.map((f) => f.mark), round: x.round })),
+    };
+    if (inc) { restore(inc); path.push(...inc.steps); round = inc.depth; }
+    else if (outBudget) outOfTime = true;
+    else notes.push("stuck: no proof by windows and shallow case splits");
+  }
+
+  while (undecided > 0 && !(opts.search && !opts.quick)) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
     round++;
     addComponentLemmas();
@@ -2175,7 +2344,7 @@ end
   const own = new Set(groups.slice(0, ownGroups).filter((x) => x.label !== "the whole grid").map((x) => `${x.kind} (${x.label})`));
   const cited = new Set(path.flatMap((s) => s.because?.clues ?? []).filter((x) => own.has(x)));
   const usage = { used: cited.size, of: own.size };
-  return { path, profile, answer: answerMarks, initial, usage, ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
+  return { path, profile, answer: answerMarks, initial, usage, ...(searchReport ? { search: searchReport } : {}), ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
 }
 
 /** How step costs combine: a soft-max, D = (1/k)·log Σ exp(k·cost). One step costing Δ more than
