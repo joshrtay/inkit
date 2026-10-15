@@ -185,6 +185,10 @@ per type mean agreement figures can be off by 0.15.
 | Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band, and each genre's basic ones in hard); pricing them open |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
 | Why is Beast Academy's Akari backwards? | difficulty | look at their sets | open |
+| Is the network the bottleneck for hard human puzzles? | core, difficulty | the frontier measurement and the no-network baseline B0 (see the cheap-solver experiment) | to do, before any loop round |
+| Does a learned generator make human-like puzzles that lift the human test? | core, puzzles | train on specs, verify, judge downstream | after the human-like fleet |
+| Does the intended path predict likes beyond difficulty? | hints, puzzles | min-peak path features against likes | to do (CPU) |
+| How strong is each setter? | puzzles, core | the reputation formula on Puzzle Square JP's setters | to do (CPU) |
 
 ## Running now
 
@@ -229,18 +233,98 @@ training mix shows each source).
 **Experiment: a cheap solver for hard human puzzles (capability, not human-likeness).** Can a
 learned network plus an exact checker solve hard human puzzles step by step, with every move
 provably forced, more cheaply than our deduction solver (30 s–2 min, often timing out) or
-clingo's uniqueness search (also timing out on big boards)?
-- **The loop:** the network ranks candidate moves; the engine verifies the top few in order (does
-  this fact follow from what's known?); the first forced one is played; if none is, fall back to
-  our solver's windows, then a short case split on the network's top cell. Solved puzzles become
-  training data, the network is retrained, and the next round tries what's still unsolved.
-- **Judged on a fixed held-out set of hard human puzzles:** share solved by forced moves only,
-  checks and CPU-seconds and dollars per puzzle, against our solver and clingo on the same set.
-  Agreement with people is reported but isn't the goal; human-likeness is a separate line of
-  experiments.
+clingo's uniqueness search (also timing out on big boards)? Assessed 2026-10-15 (the thread's
+write-up: research/capability-loop-assessment.md in the project files); the plan below carries
+its corrections.
+- **What it is:** expert iteration with a verifier (a policy proposes, clingo keeps the forced
+  facts, the kept facts are supervised labels), not AlphaZero and not reinforcement learning: no
+  search amplifies the policy, nothing estimates value, and the curriculum is a fixed pile (the
+  ~11,000 human puzzles the solver doesn't finish). The reward is dense and sound, so plain
+  supervised learning on verified facts is the right tool.
+- **What it buys the aims:** solver coverage on the hard human tail (half of human Slitherlink,
+  Masyu, Nurikabe and Hitori), so training states on the right distribution, difficulty estimates
+  where the sources' ratings are and we have none, and hint candidates. It adds machine solve
+  paths on human puzzles, not human data: it does not teach human order, and forced-first order
+  is further from people than the solver's (28% against 36%).
+- **Measure first (CPU fleet, no GPU):** on every unfinished human puzzle, the stall state;
+  whether any open mark refutes by propagation alone; the conflicts the cheapest provable fact
+  needs; the baseline network's top-5 and top-20 recall of forced-now facts. This says whether the
+  network is the bottleneck: refuting one mark by propagation is milliseconds, and the deduction
+  solver's time goes to explanations and windows, not proofs.
+- **The bar: a no-network baseline (B0).** Refute every open mark by propagation, play the first
+  forced one, repeat; when none is, case-split on the most constrained mark with a small conflict
+  limit. No explanations, no windows. Its anytime curve (share of the hard set solved against
+  CPU-seconds a puzzle) is what the network has to beat.
+- **The loop, corrected:** the label is *forced now*, not "settled within three rounds"; every
+  verified fact counts, from partial solves too (an unsolved puzzle fixed 70% of the way yields 70%
+  of its facts); the Janko human moves on unfinished puzzles, clingo-verified, seed the frontier;
+  the corpus and human labels stay in every round's mix and fallback-found facts are up-weighted,
+  against self-distillation drift. Three rounds, with the stop rule set first (under 2 points of
+  solved share at the same budget ends it). A split head (which mark to case-split on) only if the
+  measurement shows most of the frontier needs search.
+- **Judged on a fixed held-out set of hard human puzzles,** fixed before round 1, by source and
+  difficulty band: anytime curves for B0, the deduction solver, clingo alone and each round;
+  checks and dollars per puzzle. Agreement with people is reported but isn't the goal.
 - **Forks from the registered snapshot** baseline-2026-10-14 (puzzles/difficulty/models.json;
   weights held in gs://inkit-research-ml/models/). Every network an experiment produces is
-  registered with its parent.
+  registered with its parent. **The human-like branch's parent is a test, not an assumption:**
+  fine-tune the baseline and the capability branch's later snapshot on Janko's moves and compare
+  agreement (Maia's precedent: predicting human moves trained better from human games than from a
+  strong engine). That branch is data-bound: seven Janko experts, no times; inkit's own solve logs
+  are on its critical path.
+- **Gate:** wait for §12's result (training on solver-labelled human puzzles) before GPU rounds. If
+  it doesn't lift the human test, the limit is move labels, not puzzle coverage, and the loop
+  waits.
+
+**Experiment: a learned generator from human puzzles (the pile the loop can't deepen).** Train a
+generative model of clue layouts on the human corpus, conditioned on genre, size and the source's
+rating; sample; keep what clingo proves unique, the human-likeness classifier accepts and a
+novelty check against the corpus passes.
+- **Why:** it needs specs, not solve paths, so all 39,467 human puzzles count today, including the
+  unfinished tail (the beyond-expert band the constructive generator can't make). The learning
+  curve says likeness, not volume, limits the network, and the generator is the only source of
+  more human-like puzzles. Generator and solver improving each other is where a self-improvement
+  loop applies here.
+- **Risks:** near-copies of others' puzzles on a public site (about 1,800 puzzles a genre,
+  Akari-heavy, some genres a few hundred): a novelty check by content key and edit distance before
+  anything is kept. Surface likeness without a setter's idea: the classifier sees symmetry and
+  clue density, not a hinge. Low uniqueness yield and a CPU bill on big boards.
+- **Judged downstream,** not on the classifier: does a network trained on its output lift the
+  human test above the baseline's 68%, and does Opus still tell its puzzles from human ones.
+- **Order:** the queued human-like constructive fleet first (built, about $20); this if the fleet
+  doesn't close the classifier gap.
+
+**Experiment: the intended path (what a human puzzle implies).** A setter builds around a path a
+person can follow: no guessing, usually one hinge, every clue load-bearing. So a human puzzle is
+evidence that a path with no case split and a low peak step cost exists, and the solver's failure
+to find one points at a missing technique rather than at the puzzle.
+- **Find it:** change the solver's round objective from "cheapest step each round" to "the path
+  that minimises its hardest step, with no split" (deduce.ts); flag puzzles where none exists under
+  budget as technique-missing (a sharper miner than stuck moments).
+- **Use it:** hints follow the intended path, not the expert's recorded order; its features (peak
+  cost, hinge count, clue usage, easy moves open at once) are interest candidates; it gives the
+  generator a setting objective (puzzles with a one-hinge, no-split path) rather than a surface one.
+- **Caution:** the path-feature interest estimate scored −0.15 against likes, so this
+  operationalisation needs its own test. Elegance under our cost model is only as good as the
+  prices. The implication holds for Nikoli, Logic Masters and curated Janko and weakly for open
+  posting, which is what quality weighting is for. The intended path is not how people solve;
+  the human-like branch still needs recorded moves.
+- **Cheap test (CPU, local data):** on puzzles with likes or beauty, min-peak path features
+  regressed on likes with difficulty held fixed. Predicting beyond difficulty where the old
+  estimate didn't is the go signal.
+
+**Setter strength: recorded, not computed (checked 2026-10-15).** Every corpus record carries a
+setter where the source names one (Puzzle Square JP user, Logic Masters author, puzz.link's
+collection name, which is a site or series, not a person; none for Janko or Nikoli). The only
+per-setter signal with numbers is Puzzle Square JP's likes and solves (about 12,000 puzzles;
+Logic Masters beauty covers 5). research-reputation.md's creator formula (a Bayesian-averaged like
+rate per puzzle with difficulty held fixed, pooled per creator with shrinkage) runs unchanged on
+those setters and hasn't been run: a CPU-only script against local data. Source-level priors
+until then: Nikoli (editorial) and Janko (curated, expert-solved) strongest; Logic Masters strong
+but nearly absent; Puzzle Square JP open posting, sorted by likes; the puzz.link database weakest
+(mixed, its "setter" a collection). Label-free signals that pool per setter the same way: the
+human-likeness score, and the intended-path elegance score if its test passes. Expect a coarse
+ranking: a few clearly strong setters and a long undifferentiated middle.
 
 **Queued after the human build lands: one puzzle catalog.**
 
@@ -305,17 +389,24 @@ waits on another:
 
 ## Next, in order
 
-1. **Gather the fleet;** audit 1%; make training load data in pieces.
-2. **Evaluation changes:** human-made test set, next-move agreement, key-move score, results by
-   band and family, seeds.
-3. **On the GPU, back to back:** the fair size test and the learning curve.
-4. **Labels from models where the pilot passed:** hint text from solver steps; stuck-moment moves
-   for the miner. (Interest at scale didn't hold: 0.06 beyond difficulty on 372 puzzles, Slitherlink
-   0.27; interest needs people's signals.)
-5. **Connectivity pricing** (CPU, alongside).
-6. **Structure as network input** for the whole-grid types.
+Done from the earlier list: the fleet gathered, the evaluation changes, the size test and learning
+curve, structure as input. Updated 2026-10-15.
+
+1. **Land §12** (training on human puzzles, the `next` step): it gates the capability loop and
+   decides whether coverage or move labels is the limit.
+2. **Two CPU-only tests on local data, in parallel, no spend:** the frontier measurement and B0
+   (is the network the bottleneck?); the intended-path test against likes; the Puzzle Square JP
+   setter score. Each is a day or less and each decides a later line.
+3. **The human-like constructive fleet** (about $20, built) once §12 is in, then the learned
+   generator if the classifier gap stays.
+4. **Capability loop rounds** only if §12 lifts the human test and the frontier measurement shows
+   an addressable set B0 doesn't already take.
+5. **Labels from models where the pilot passed:** hint text from solver steps; stuck-moment moves
+   for the miner.
+6. **Connectivity pricing** (CPU, alongside).
 7. **Per-genre techniques** for the generator's missing bands and genres.
-8. **For the site:** review the generated shortlist; build learning paths from the family map.
+8. **For the site:** solve logging with consent (the human-like branch's data source), review the
+   generated shortlist, learning paths from the family map.
 
 ## Spending to date
 
