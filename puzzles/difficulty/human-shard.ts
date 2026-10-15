@@ -151,6 +151,15 @@ async function main() {
   // ---- gather: the shards' caches → the training file, the status file, the counts
   function gather(corpus: any[], dirs: string[]) {
     if (!dirs.length) dirs = [cache];
+    // corpus puzzles found afterwards not to be human-made (references/ml/human-corpus-generated-keys.json:
+    // puzz.link's computer-made puzzles, which the first corpus kept): left out
+    const notHuman = `${ml}human-corpus-generated-keys.json`;
+    if (existsSync(notHuman)) {
+      const drop = new Set<string>(JSON.parse(readFileSync(notHuman, "utf8")));
+      const before = corpus.length;
+      corpus = corpus.filter((r) => !drop.has(r.key));
+      console.error(`${before - corpus.length} corpus puzzles left out as computer-made`);
+    }
     const byKey = new Map(corpus.map((r) => [r.key, r]));
     // the test sets by content: graphs-human.jsonl and the labels' test side
     const test = new Set<string>();

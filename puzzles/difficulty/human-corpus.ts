@@ -83,7 +83,11 @@ for (const d of dirJsonl(`${R}psjp-links`))
   items.push({ family: "psjp", via: "psjp-links", id: `psjp:${d.id}`, rank: 2, genre: d.genre, spec: d.spec, url: `https://puzsq.logicpuzzle.app/puzzle/${d.id}`, setter: d.user != null ? `psjp:${d.user}` : undefined, labels: psjpLabels(d.difficulty, d.favorite_n, d.answered_n, d.user) });
 
 // ---- puzz.link's database (its row may name the Puzzle Square JP id)
+// puzz.link's database also indexes computer-made puzzles (its `generated` flag: mostly
+// pzvSlitherBot's 1,947 Slitherlink): not human-made, so not in this corpus
+let generatedLeftOut = 0;
 for (const d of dirJsonl(`${R}puzzlink-db/converted`)) {
+  if (d.meta?.generated) { generatedLeftOut++; continue; }
   const m = d.meta ?? {};
   items.push({ family: "puzzlink", via: "puzzlink-db", id: `puzzlink:${d.sourceId}`, rank: 0, genre: d.genre, spec: d.spec, url: d.url, author: n(d.author), setter: n(m.sourceName) ? `puzzlink:${m.sourceName}` : undefined, licence: d.licence,
     labels: { puzzlink: { difficulty: n(m.difficulty) ?? null, difficulty5: n(m.difficulty5) ?? null, solves: n(m.solves) ?? null } },
@@ -199,6 +203,7 @@ lines.push(row("**all**", recs), "", "Overlaps (puzzles in exactly these sources
 const combos = new Map<string, number>();
 for (const r of recs) combos.set(r.sources.join(" + "), (combos.get(r.sources.join(" + ")) ?? 0) + 1);
 for (const [c, k] of [...combos].sort((a, b) => b[1] - a[1])) lines.push(`| ${c} | ${k} |`);
+lines.push("", `Left out as computer-made (puzz.link's generated flag): ${generatedLeftOut}.`);
 lines.push("", `With labels: psjp difficulty ${recs.filter((r) => r.labels.psjp?.difficulty != null).length}, likes ${recs.filter((r) => r.labels.psjp?.likes != null).length}; puzz.link difficulty ${recs.filter((r) => r.labels.puzzlink?.difficulty != null).length}; both ${recs.filter((r) => r.labels.psjp?.difficulty != null && r.labels.puzzlink?.difficulty != null).length}; lmd beauty ${recs.filter((r) => r.labels.lmd?.beauty != null).length}; Janko with a recorded order ${recs.filter((r) => r.humanOrder).length}.`);
 writeFileSync(`${out}summary.md`, lines.join("\n") + "\n");
 console.log(lines.join("\n"));
