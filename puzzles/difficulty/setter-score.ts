@@ -18,12 +18,14 @@
 // also held fixed (the site's like rates drift as it grows).
 //
 //   node puzzles/difficulty/setter-score.ts
-//   → references/psjp/setter-scores.json (local only), a summary on stdout
-import { readFileSync, writeFileSync } from "node:fs";
+//   → references/catalog/ (local only): psjp-setters.jsonl (one row per setter), psjp-puzzles.jsonl
+//     (one row per puzzle, with its human-corpus key where it has one) and psjp-setters.summary.json
+//     (the parameters and checks). Field guide: docs/research-setter-score.md
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { REFS_DIR } from "./janko.ts";
 
 const M = 10, M2 = 5, MIN_CELL = 20;
-const dir = `${REFS_DIR}psjp/`;
+const dir = `${REFS_DIR}psjp/`, out = `${REFS_DIR}catalog/`, corpusDir = `${REFS_DIR}ml/human-corpus/`;
 
 interface Raw { kind: number; difficulty: number; variation: number; registered: string; user: number; favorite_n: number; answered_n: number; id: string }
 interface P { id: string; user: number; genre: string; level: number; year: string; date: string; likes: number; solves: number }
@@ -89,7 +91,8 @@ function pearson(a: number[], b: number[]) {
 const spearman = (a: number[], b: number[]) => pearson(ranks(a), ranks(b));
 const r3 = (x: number) => Math.round(x * 1000) / 1000;
 
-const rLevel = residual(parFor(byLevel)), rYear = residual(parFor(byLevelYear)), rFlat = residual(parFor(flat));
+const parLevel = parFor(byLevel);
+const rLevel = residual(parLevel), rYear = residual(parFor(byLevelYear)), rFlat = residual(parFor(flat));
 const main = score(ps, rLevel);
 
 // split-half: each setter's puzzles by date, alternately
@@ -157,5 +160,20 @@ const summary = {
   clearlyAbove: sized.filter((s) => s.low > 1).length, clearlyBelow: sized.filter((s) => s.high < 1).length,
   top: sized.slice(0, 15), bottom: sized.slice(-5),
 };
-writeFileSync(`${dir}setter-scores.json`, JSON.stringify({ ...summary, all: setters }, null, 1));
+// ---- the catalog's tables (local only; JSON lines, which DuckDB reads as they are) ----
+const corpusKey = new Map<string, string>();
+if (existsSync(corpusDir)) for (const f of readdirSync(corpusDir).filter((f) => f.endsWith(".jsonl")))
+  for (const line of readFileSync(`${corpusDir}${f}`, "utf8").split("\n")) if (line) {
+    const r = JSON.parse(line) as { key: string; ids: string[] };
+    for (const id of r.ids) if (id.startsWith("psjp:")) corpusKey.set(id.slice(5), r.key);
+  }
+const params = { m: M, m2: M2, minCell: MIN_CELL, data: (readFileSync(`${dir}update.txt`, "utf8").trim()), built: new Date().toISOString().slice(0, 10) };
+mkdirSync(out, { recursive: true });
+writeFileSync(`${out}psjp-setters.jsonl`, setters.map((s) => JSON.stringify({ setter: `psjp:${s.user}`, ...s })).join("\n") + "\n");
+writeFileSync(`${out}psjp-puzzles.jsonl`, ps.map((p) => {
+  const [kind, variation] = p.genre.split("/").map(Number), par = parLevel(p);
+  return JSON.stringify({ psjp: p.id, key: corpusKey.get(p.id) ?? null, setter: `psjp:${p.user}`, kind, type: kinds[kind]?.name_e ?? null, variation,
+    level: p.level, registered: p.date, likes: p.likes, solves: p.solves, par: r3(par), q: Math.round((p.likes + M * par) / (p.solves + M) * 10000) / 10000, rel: r3(rLevel(p)) });
+}).join("\n") + "\n");
+writeFileSync(`${out}psjp-setters.summary.json`, JSON.stringify({ ...params, ...summary, inCorpus: corpusKey.size }, null, 1));
 console.log(JSON.stringify(summary, (k, v) => k === "genres" ? v.join(", ") : v, 1));
