@@ -1,6 +1,6 @@
 # Research trajectory: the best proof, not the solution
 
-Written 2026-10-15 from the thread on the research plan; the objective and phase 1 revised the same day after the discussion of an intrinsic target (description length under a learned language), the analyst role for the model, and probabilistic expert weighting. [research-state.md](research-state.md) holds
+Written 2026-10-15 from the thread on the research plan; the objective and phase 1 revised the same day (the revision is phase 1b; the original cost-model fit continues as 1a) after the discussion of an intrinsic target (description length under a learned language), the analyst role for the model, and probabilistic expert weighting. [research-state.md](research-state.md) holds
 results and the queue; this file holds the direction those should now follow. Keep both current.
 
 ## The reframe
@@ -79,12 +79,26 @@ human puzzles that carry likes or ratings, against the greedy path.
 - **Measure:** the cost gap greedy → optimal; how often the paths differ and where; the correlation
   of each path's cost with the source's rating and with likes (difficulty held fixed).
 - **Go:** optimal proofs differ from greedy on a meaningful share, or correlate better.
-- **No-go:** greedy is near optimal. Then search isn't the problem and phase 1 runs alone.
+- **No-go:** greedy is near optimal. Then search isn't the problem and phases 1a and 1b run alone.
 - **Also log the choice set:** the full menu of available steps each round, not only the step
   played. Elegance is about which path was taken among those that existed, and the menu is cheap
   to record while solving.
 
-### 1. Learn the language (CPU, then the GPU for the context model; weeks)
+### 1a. Fit the hand-written cost model (CPU, local data; running)
+
+The original phase 1, kept running in parallel with 1b as a baseline. Six hand-chosen terms over
+the proof (size, reuse, locality, splits, peak, shape), fit on about 2,300 puzzles against the
+external checks, each a separate test so they can disagree: Puzzle Square JP likes with difficulty
+held fixed; Fable's interest judgement on the 72-puzzle pilot set (0.34 against likes); Janko's
+expert order, per solver; Beast Academy's set order and Tatham's grades for the cost's difficulty
+use. Deliverable: cost model v1 with its weights, the correlation table, and which terms carried
+the signal. If 1b's learned language doesn't beat it on the same checks, the hand-written terms
+stay.
+
+### 1b. Learn the language (CPU, then the GPU for the context model; weeks)
+
+The intrinsic version of phase 1, run in its own thread ("Phase 1b: learned move language")
+alongside 1a.
 
 Alternate, EM-style, until the held-out total stops falling:
 
@@ -133,7 +147,7 @@ human-like branch moves up.
 
 The graph network gains two heads: a policy (which step next, over the solver's candidate steps;
 it is also language v1's context model) and a value (remaining code length under v1). Train on
-the shortest-code proofs from phase 1.
+the shortest-code proofs from phase 1b (or 1a's cheapest paths, if 1a wins).
 Then expert iteration in the proper sense: policy-guided best-first search finds cheaper proofs
 than unguided search at the same budget; those proofs become the targets; retrain. Curriculum by
 the gap between greedy and best known.
@@ -148,7 +162,7 @@ the gap between greedy and best known.
 - **Difficulty** = proof cost: against every rating source on the scoreboard, to beat the current
   0.3–0.9 spread, with the weak types (Masyu, Shikaku, Hitori, Loopy) the test.
 - **Hints** = the next step of the minimum proof, with the technique behind it.
-- **Interest** = proof-shape features, validated against likes in phase 1.
+- **Interest** = proof-shape features, validated against likes in phases 1a and 1b.
 - **Generation:** first, rejection-sample the constructive generator on a target proof shape
   (one hinge, no split, bounded locality); then the learned generator from human puzzles
   (research-state.md) with the same acceptance test. Opus's human-versus-generated judgement and
@@ -166,8 +180,8 @@ solve logging with consent on inkit is its critical path and belongs on the prod
 - The capability loop as written (solve more within budget) is withdrawn as a goal. Its
   preparatory measurements (where solver time goes on the frontier; the no-network baseline B0)
   are still worth a day, because phase 2's search budget depends on verification cost.
-- The intended-path experiment in research-state.md is phase 0 and 1 of this file.
-- Setter strength and quality weighting (research-state.md) become phase 1's mixture model.
+- The intended-path experiment in research-state.md is phases 0, 1a and 1b of this file.
+- Setter strength and quality weighting (research-state.md) become phase 1b's mixture model.
 - The miner becomes the analyst over the trace table.
 
 ## Risks
@@ -177,10 +191,10 @@ solve logging with consent on inkit is its critical path and belongs on the prod
 2. **Likes don't measure elegance.** The −0.15 may be likes measuring exposure and setter fame. Then
    validation needs Fable's judgement at scale or inkit's own signals, both costlier.
 3. **Vocabulary drift.** Every mined technique re-prices every proof. Version the cost model; re-run
-   phase 1 when the vocabulary changes; never compare costs across versions.
+   phase 1b when the vocabulary changes; never compare costs across versions.
 4. **Search cost.** Best-first over proof states with clingo checks per step can be expensive on
    big boards; phase 0 says how expensive, and phase 2's value head exists to prune it.
-5. **Elegance isn't universal after all.** Possible. Phase 1 is the test, and it is cheap.
+5. **Elegance isn't universal after all.** Possible. Phases 1a and 1b are the test, and they are cheap.
 6. **The analyst finds patterns that aren't there.** The held-out split and effect sizes are the
    guard; without them expect twenty confident findings and three real ones.
 7. **The expert class drifts** to one source's house style or to "easy". The anchors and the
