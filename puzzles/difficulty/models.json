@@ -1,0 +1,38 @@
+{
+  "about": "The graph network's registered snapshots: immutable weights in gs://inkit-research-ml/models/<id>/model.pt (private: trained on others' puzzles), each with its card here. Experiments fork from a snapshot by id and register what they produce with `parent` set. Metrics are from the run's own report (research-cross-type.md section given); 'human' is the human-made test set (graphs-human.jsonl), never trained on.",
+  "models": [
+    {
+      "id": "baseline-2026-10-14",
+      "parent": null,
+      "run": "graph-20261013-2329",
+      "from": "gs://inkit-research-ml/results/graph-20261013-2329/next/graph-policy-attention-next.pt",
+      "commit": "66bd6e9",
+      "config": { "width": 256, "heads": 8, "attention": true, "positions": true, "structure": true, "lrScale": true, "epochs": 8, "statesPerGenerated": 3 },
+      "data": { "corpus": ["graphs.jsonl", "graphs-scale.jsonl"], "generated": "graphs-gen.jsonl (133k, share 1)", "human": null, "evalOnly": ["beast-academy"] },
+      "metrics": { "corpusHeldOut": 0.800, "generatedHeldOut": 0.92, "keyMove": 0.47, "humanAnyMove": 0.68, "humanKeyMove": 0.35, "agreementWithPeople": 0.28, "solverAgreementWithPeople": 0.36 },
+      "notes": "Everything that helped so far, no human puzzles in training. The fork point for the cheap-solver loop (capability) and for human-likeness experiments. research-cross-type.md §14."
+    },
+    {
+      "id": "structure-w128-2026-10-13",
+      "parent": null,
+      "run": "graph-20261013-1435",
+      "from": "gs://inkit-research-ml/results/graph-20261013-1435/structure/graph-policy-attention-structure.pt",
+      "commit": "93e5ae4",
+      "config": { "width": 128, "heads": 8, "attention": true, "positions": true, "structure": true, "lrScale": true, "epochs": 16 },
+      "data": { "corpus": ["graphs.jsonl", "graphs-scale.jsonl"], "generated": null, "human": null },
+      "metrics": { "corpusHeldOut": 0.771 },
+      "notes": "Structure as input at width 128, the old test only (before the human test set and the leakage fix). research-cross-type.md §11."
+    },
+    {
+      "id": "curve-w128-full-2026-10-13",
+      "parent": null,
+      "run": "graph-20261013-1542",
+      "from": "gs://inkit-research-ml/results/graph-20261013-1542/curve/graph-policy-attention-curve-w128-1.pt",
+      "commit": "fc19302",
+      "config": { "width": 128, "heads": 8, "attention": true, "positions": true, "structure": false, "lrScale": true, "epochs": 4, "statesPerGenerated": 4 },
+      "data": { "corpus": ["graphs.jsonl", "graphs-scale.jsonl"], "generated": "graphs-gen.jsonl (share 1)", "human": null },
+      "metrics": { "corpusHeldOut": 0.742, "generatedHeldOut": 0.88, "keyMove": 0.43, "humanAnyMove": 0.61, "humanKeyMove": 0.30, "agreementWithPeople": 0.22 },
+      "notes": "The learning curve's full-data point, no structure. research-cross-type.md §13."
+    }
+  ]
+}

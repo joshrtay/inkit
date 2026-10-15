@@ -221,6 +221,22 @@ training mix shows each source).
   0.70, Numberlink 0.70, Nurikabe 0.68, Shikaku 0.66, Slitherlink 0.63, Fillomino 0.50). Our
   estimate as a third column comes with the run (human-corpus-solved.md).
 
+**Experiment: a cheap solver for hard human puzzles (capability, not human-likeness).** Can a
+learned network plus an exact checker solve hard human puzzles step by step, with every move
+provably forced, more cheaply than our deduction solver (30 s–2 min, often timing out) or
+clingo's uniqueness search (also timing out on big boards)?
+- **The loop:** the network ranks candidate moves; the engine verifies the top few in order (does
+  this fact follow from what's known?); the first forced one is played; if none is, fall back to
+  our solver's windows, then a short case split on the network's top cell. Solved puzzles become
+  training data, the network is retrained, and the next round tries what's still unsolved.
+- **Judged on a fixed held-out set of hard human puzzles:** share solved by forced moves only,
+  checks and CPU-seconds and dollars per puzzle, against our solver and clingo on the same set.
+  Agreement with people is reported but isn't the goal; human-likeness is a separate line of
+  experiments.
+- **Forks from the registered snapshot** baseline-2026-10-14 (puzzles/difficulty/models.json;
+  weights held in gs://inkit-research-ml/models/). Every network an experiment produces is
+  registered with its parent.
+
 **Queued after the human build lands: one puzzle catalog.**
 
 - **One local table** (DuckDB or Parquet in references/, never published), one row per distinct
