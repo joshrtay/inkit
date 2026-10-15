@@ -9,7 +9,10 @@
 // --retry runs again the ones stopped at the cap (the Mac sleeping stops a solve's clock and trips
 // it). Nurikabe is left out unless named: no Nurikabe solves by windows and shallow splits (phase 0).
 //
-//   DEDUCE_JOBS=2 node --no-warnings puzzles/difficulty/proof-bulk.ts [genre …] [--retry]
+//   DEDUCE_JOBS=2 node --no-warnings puzzles/difficulty/proof-bulk.ts [genre …] [--retry] [--shard k --of N]
+//
+// With --shard k --of N it takes only the puzzles whose key hashes to shard k (the cloud fleet:
+// puzzles/cloud/run-proof-job.sh).
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import type { Step } from "./deduce.ts";
@@ -71,7 +74,15 @@ async function proofOf(it: Item, budgetMs: number, capMs: number) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const named = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const argv = process.argv.slice(2), flag = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? Number(argv[i + 1]) : NaN; };
+  const shard = flag("shard"), of = flag("of");
+  const named = argv.filter((a, i) => !a.startsWith("--") && !["--shard", "--of"].includes(argv[i - 1]));
+  const mine = (key: string) => {
+    if (!(of > 1)) return true;
+    let h = 2166136261;
+    for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+    return Math.floor(((h >>> 0) / 2 ** 32) * of) === shard;
+  };
   const genres = readdirSync(CORPUS).filter((f) => f.endsWith(".jsonl")).map((f) => f.slice(0, -6))
     .filter((g) => named.length ? named.includes(g) : !SKIP.has(g)).sort();
   const budgetMs = Number(process.env.PROOF_BUDGET) || 30000, capMs = Number(process.env.PROOF_CAP) || 150000;
@@ -81,7 +92,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     let have = jsonl(out);
     if (process.argv.includes("--retry")) { have = have.filter((p) => !p.cap); writeFileSync(out, have.map((p) => JSON.stringify(p)).join("\n") + (have.length ? "\n" : "")); }
     const done = new Set(have.map((p) => p.id));
-    return seeded(jsonl(`${CORPUS}${g}.jsonl`).map(itemOf), 20261015).filter((it) => !done.has(it.id));
+    return seeded(jsonl(`${CORPUS}${g}.jsonl`).map(itemOf), 20261015).filter((it) => !done.has(it.id) && mine(it.id));
   });
   const todo: Item[] = [];
   for (let k = 0; queues.some((q) => k < q.length); k++) for (const q of queues) if (k < q.length) todo.push(q[k]);
