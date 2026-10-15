@@ -151,6 +151,13 @@ export interface Options {
    *  is known, so it solves when the full solver does with the same options (but for a lemma seen
    *  only in a state one of them passes through: loop chains join) */
   quick?: boolean;
+  /** the intended path (docs/research-state.md, "the intended path"): each round checks every
+   *  stage's windows, not just the first stage that finds something, and takes only the cheapest
+   *  steps (within PEAK_TIE), so the path's hardest step is as low as the windows allow (deductions
+   *  only grow as more is known, so cheapest-first never raises the peak). With maxTier 1 there is
+   *  no case split: unsolved then means no split-free path within the windows (a missing
+   *  technique). A step's `open` is the tier-0 steps open that round, as usual */
+  minPeak?: boolean;
 }
 
 /** Learned step prices (puzzles/difficulty/price.py → step-prices.json): a correction added to a
@@ -270,8 +277,8 @@ const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
 /** Step cost = 1 per distinct rule or clue kind held in mind + GROUP_COST per rule instance (a
  *  row, a box, a clue) + FACT_COST per earlier fact used + a case split's surcharge. */
 export const GROUP_COST = 0.5, FACT_COST = 0.2, TIER_COST = [0, 0, 2, 4] as const;
-/** Each round takes every step within SLACK of the cheapest. */
-const SLACK = 1;
+/** Each round takes every step within SLACK of the cheapest (Options.minPeak: within PEAK_TIE). */
+const SLACK = 1, PEAK_TIE = 0.05;
 /** clingo solves allowed per explanation (deletion stops there, keeping a larger set) */
 const MUS_SOLVES = 400;
 
@@ -375,7 +382,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number } }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -768,6 +775,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       groupOf[j] = gi;
     });
   }
+  const ownGroups = groups.length;   // the puzzle's own; the lemmas' and techniques' come later
   // ---- a window's program: its constraints and what defines their atoms ----
   interface Prog { rules: number[]; marks: number[]; blocks: Set<number> }
   const progCache = new Map<Window, Prog>();
@@ -2013,6 +2021,56 @@ end
   };
   let pool: number[] = [], deep: { m: number; cost: number }[] = [], sat: number[] = [], escalated = false, escalatedDeep = false;
   let splitSteps = 0;   // tier-2 steps taken (Options.maxSplitSteps)
+  // Options.minPeak: facts windows found that weren't taken yet (still sound: what's known only
+  // grows), with their stage, so the window needn't be checked again until its marks change
+  const pending = new Map<Window, { k: number; facts: [number, boolean][] }>();
+  // A later stage is checked only when nothing is open at or below the peak so far (a step there
+  // can't raise it) or WIDE_FLOOR (what only a later stage's windows see needs two rule instances
+  // or more: one would be inside a tier-0 window)
+  const WIDE_FLOOR = Number(process.env.DEDUCE_WIDE_FLOOR ?? BANDS[1][0]);
+  let peak = 0;
+  const minPeakRound = (): boolean => {
+    const byStage = stages.map(() => new Map<Window, [number, boolean][]>());
+    for (const [w, { k, facts }] of pending) {
+      const left = facts.filter(([m]) => known[m] < 0);
+      if (left.length) byStage[k].set(w, left);
+    }
+    pending.clear();
+    const c: (Step & { w: Window; k: number })[] = [];
+    const seen = new Set<Window>();
+    for (const [k, stage] of stages.entries()) {
+      if (c.length && Math.min(...c.map((s) => s.cost)) <= Math.max(peak, WIDE_FLOOR)) {
+        // not checked this round: what they found before waits for another
+        for (let j = k; j < stages.length; j++) for (const [w, fs] of byStage[j]) pending.set(w, { k: j, facts: fs });
+        break;
+      }
+      const ws = stage.flatMap((fam) => family(fam)).filter((w) => !seen.has(w) && (seen.add(w), true));
+      for (const [w, fs] of runWindows(ws)) byStage[k].set(w, fs);
+      if (byStage[k].size) c.push(...candidates(byStage[k], k === 0 ? 0 : 1).map((s) => ({ ...s, k })));
+    }
+    const open = c.filter((s) => s.k === 0).length;
+    if (entryPoints < 0) entryPoints = open;
+    if (!c.length) return false;
+    const min = Math.min(...c.map((s) => s.cost));
+    peak = Math.max(peak, min);
+    // everything at or below the peak so far goes now: it can't raise the peak
+    const upTo = Math.max(peak, min + PEAK_TIE);
+    c.sort((a, b) => a.cost - b.cost);
+    for (const s of c) {
+      const facts = s.facts.filter((x) => known[markOf.get(x.mark)!] < 0);
+      if (!facts.length) continue;
+      if (s.cost > upTo) {
+        const p0 = pending.get(s.w) ?? { k: s.k, facts: [] };
+        p0.facts.push(...facts.map((x) => [markOf.get(x.mark)!, x.value] as [number, boolean]));
+        pending.set(s.w, p0);
+        continue;
+      }
+      const { w: _w, k: _k, ...step } = s;
+      path.push({ ...step, facts, round, open });
+      for (const x of facts) settle(markOf.get(x.mark)!, x.value);
+    }
+    return true;
+  };
 
   while (undecided > 0) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
@@ -2021,7 +2079,8 @@ end
     addLoopLemmas();
     addTechniques();
     let progressed = false;
-    for (const [k, stage] of stages.entries()) {
+    if (opts.minPeak && !opts.quick) progressed = minPeakRound();
+    else for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
       const f = runWindows(tagged.map(([w]) => w));
       if (k === 0 && entryPoints < 0 && !f.size) entryPoints = 0;
@@ -2111,7 +2170,12 @@ end
   // doesn't hold them all)
   const answerMarks = markName.filter((_, m) => answer[m] === 1);
   const structure: Structure | undefined = opts.structure ? structureOf() : undefined;
-  return { path, profile, answer: answerMarks, initial, ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
+  // how many of the puzzle's own rule instances (clues, rows, areas: not the whole grid, not the
+  // lemmas') the path's explanations cite: a setter's puzzle uses every clue
+  const own = new Set(groups.slice(0, ownGroups).filter((x) => x.label !== "the whole grid").map((x) => `${x.kind} (${x.label})`));
+  const cited = new Set(path.flatMap((s) => s.because?.clues ?? []).filter((x) => own.has(x)));
+  const usage = { used: cited.size, of: own.size };
+  return { path, profile, answer: answerMarks, initial, usage, ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
 }
 
 /** How step costs combine: a soft-max, D = (1/k)·log Σ exp(k·cost). One step costing Δ more than
