@@ -483,3 +483,89 @@ the same fact when its explanation was cached, so the same facts are paid twice 
 71 steps and 187.4 against 56 and 145.9 deduplicated). The search's paths deduplicate. The usual
 path is left as it is, since its difficulty figures are built on it; fixing it is a separate
 change.
+
+## Phase 1 by compression: a learned language of moves (2026-10-15)
+
+[research-trajectory.md](research-trajectory.md), phase 1 as revised: two-part description length
+under a learned language, scored on held-out puzzles. Run beside the original phase 1 (the cost
+model fit), on that run's proofs as they stood (references/proof/*.jsonl, the cheapest-only path
+with shallow splits); nothing was solved again. Code: puzzles/difficulty/mdl.ts (the code and the
+learner), mdl-readout.ts (against people). Results in references/proof/mdl/.
+
+- **The code.** Atoms are the signature parts, primitive@unit (23 of them in these sets). A symbol
+  is a multiset of atoms. A step is coded as how many symbols, which (given the genre, and with
+  the context model the last step's first atom), where (the first place relative to the last
+  step's window, the next symbol's relative to the one before, a compound's other atoms relative
+  to its first under that symbol's own geometry) and the facts it decides. Every distribution is a
+  Dirichlet process (prequential), so learning the parameters is paid for, and held-out bits are
+  L(train + test) − L(train). A compound costs its definition once.
+- **The learner.** Greedy library learning: the commonest pairs of symbols sharing a step become
+  candidates; the one that most shortens train bits plus definitions is kept, until none does.
+  The path step of the alternation: the steps of a round (all found from the same knowledge, so
+  any order is a proof) are taken cheapest code first.
+- **The corpus:** the human sets so far (Puzzle Square JP's pilot and Akari, Beast Academy), about
+  720 puzzles and 50,000 steps, split in half by a hash of the puzzle. Tatham's (generated) are
+  scored only.
+
+**Held-out bits a step** (lower is better):
+
+| | atoms | learned language | saving |
+|---|---|---|---|
+| solver's order, genre only | 27.93 | 27.86 | 0.3% |
+| cheapest code first in a round | 27.13 | 27.06 | 0.3% |
+| and the last step's atom as context | 26.62 | 26.56 | 0.2% |
+| two passes of the alternation | 26.62 | 26.56 | 0.2% |
+| richer atoms (the givens in a local unit, edges touched), Puzzle Square JP only | 34.05 | 33.64 | 1.2% |
+
+- **Where the bits are** (atoms, context): places 12.7 a step, which facts 8.0, which symbols 2.9,
+  how many 1.6, how many facts 1.4. The language can only touch the symbol and place terms.
+- **What it learns** with plain atoms: 9 compounds, the obvious ones (an Akari number with the
+  sight line through it, Simple Loop's premature-loop check with the loop). With richer atoms, 78,
+  and they read as techniques: a pearl with the loop through it, by colour and edge; a Slitherlink
+  3 on an edge; an Akari 1 in a corner with its line. Real, but each saves little.
+- **The path and the context do more than the vocabulary:** ordering a round by code saves 2.9%,
+  the last step's atom as context 1.9% more. Both belong to the context model (phase 2's policy).
+- **The shape vocabulary** (each of signatures.ts's step shapes a symbol) codes worse than the
+  atoms: 31.9 bits a step against 26.3, too many symbols for their geometry to be learned.
+
+**Against people** (two folds, so each puzzle is scored by a code that never saw it; within-type
+Spearman, 95% bootstrap intervals; Puzzle Square JP n 474):
+
+| | difficulty | likes per solver, difficulty fixed |
+|---|---|---|
+| bits | 0.49 (0.42, 0.55) | 0.15 (0.06, 0.21) |
+| "what" bits (surprise under the context model) | 0.56 (0.51, 0.63) | 0.16 (0.08, 0.22) |
+| bits a step | 0.44 | 0.05 (−0.03, 0.14) |
+| concentration (top two steps' share: the elegance statistic) | 0.13 | −0.04 (−0.10, 0.06) |
+| step costs' sum (cost model v0) | 0.48 | 0.12 (0.02, 0.19) |
+| step costs' peak | 0.53 | 0.08 |
+| step count | 0.33 | 0.13 (0.04, 0.19) |
+
+- **Likes:** the code's 0.15 is length: the step count alone gets 0.13 and bits a step 0.05. On
+  this set the old costs get 0.12 too, so −0.15 (path features, Fable's 72) is not the bar here.
+- **Fable's interest placing** (55 solved of the 72; it agrees with likes at 0.36): the
+  concentration statistic runs the other way, −0.49 (−0.68, −0.18). Fable rates puzzles whose
+  bits are spread out as more interesting. Opus's (291): −0.14.
+- **Difficulty elsewhere:** Tatham's grade, "what" bits a step 0.63 against the peak cost's 0.61;
+  Beast Academy's tier, bits 0.47 against the cost sum's 0.36. The same with richer atoms.
+- **The cheap early check** (frequency prices against the learned step prices, Spearman over
+  Tatham's steps): Loopy 0.51, Akari 0.35, Sudoku 0.21, Singles 0.15 (0.60 with all the bits).
+  Partly the same quantity, not a replacement.
+
+**Verdict: no-go, by the stop rule.**
+
+- **No language beats the atoms on held-out bits by a margin:** 0.2–0.3%, 1.2% with richer atoms.
+  The proofs' bits are in where and what is decided, not in which compound of rules was used.
+- **No readout beats the old costs against likes** once length is taken out, and the elegance
+  statistic is flat against likes and reversed against Fable.
+- **What survives:** "what" bits are a little better than the step costs on difficulty (0.56 against
+  0.48–0.53), with no hand-set prices; the order within a round and the context carry real
+  structure (5%), which is the policy's job, not the vocabulary's.
+- **So, as the trajectory says:** elegance isn't recoverable from this vocabulary, and the
+  human-like branch moves up. The expert-weighting mixture and the Fable analyst runs were not
+  started: with a language this flat there is nothing for the classes to differ on.
+- **What would reopen it:** atoms coded after their place (the givens free, since the decoder has
+  the puzzle), a context model over the full choice set (the graph network), and the Janko sets
+  when the original phase 1 reaches them. Rerun with
+  `node --no-warnings puzzles/difficulty/mdl.ts fit --greedy --ctx [--rich]` and
+  `mdl-readout.ts [--rich]`; both take seconds.
