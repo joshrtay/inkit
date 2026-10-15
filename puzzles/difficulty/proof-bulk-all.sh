@@ -8,7 +8,7 @@ mkdir -p references/proof-bulk
 log=references/proof-bulk/run.log
 echo $$ > references/proof-bulk/run.pid
 echo "$$ started $(date)" >> "$log"
-run() { DEDUCE_JOBS=${DEDUCE_JOBS:-2} node --no-warnings puzzles/difficulty/proof-bulk.ts "$@" >> "$log" 2>&1; }
+run() { PROOF_CAP=${PROOF_CAP:-60000} DEDUCE_JOBS=${DEDUCE_JOBS:-2} node --no-warnings puzzles/difficulty/proof-bulk.ts "$@" >> "$log" 2>&1; }
 run
 run --retry
 echo "$$ finished $(date)" >> "$log"
