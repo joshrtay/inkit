@@ -87,17 +87,35 @@ function psjpGivens(genre: string, id: string, cols: number): Givens | undefined
     const f = `${REFS}psjp-full/converted/${genre}.jsonl`;
     if (existsSync(f)) for (const line of readFileSync(f, "utf8").split("\n")) {
       if (!line.trim()) continue;
-      const d = JSON.parse(line), g: Givens = new Map(), w = d.spec.size?.[1] ?? cols;
-      for (const x of d.spec.givens ?? []) {
-        if (x.at !== "cell") continue;
-        const k = x.cell[0] * w + x.cell[1];
-        const tok = x.kind === "pearl" ? x.value[0] : x.kind === "number" ? String(x.value) : x.kind === "block" ? "b" : "";
-        if (tok && (!g.has(k) || g.get(k) === "b")) g.set(k, tok);
-      }
-      PSJP_SPECS.set(`${genre}:${d.sourceId}`, g);
+      const d = JSON.parse(line);
+      PSJP_SPECS.set(`${genre}:${d.sourceId}`, givensOf(d.spec, cols));
     }
   }
   return PSJP_SPECS.get(`${genre}:${id}`);
+}
+
+/** a spec's cell givens as tokens */
+function givensOf(spec: any, cols: number): Givens {
+  const g: Givens = new Map(), w = spec.size?.[1] ?? cols;
+  for (const x of spec.givens ?? []) {
+    if (x.at !== "cell") continue;
+    const k = x.cell[0] * w + x.cell[1];
+    const tok = x.kind === "pearl" ? String(x.value)[0] : x.kind === "block" ? "b" : x.value != null && typeof x.value !== "object" ? String(x.value).slice(0, 2) : x.kind[0];
+    if (tok && (!g.has(k) || g.get(k) === "b")) g.set(k, tok);
+  }
+  return g;
+}
+
+/** the human corpus's givens (human-corpus.ts), by its key, for the bulk proofs */
+const CORPUS_SPECS = new Map<string, Map<string, any>>();
+function corpusGivens(genre: string, key: string, cols: number): Givens | undefined {
+  if (!CORPUS_SPECS.has(genre)) {
+    const m = new Map<string, any>(), f = `${REFS}ml/human-corpus/${genre}.jsonl`;
+    if (existsSync(f)) for (const line of readFileSync(f, "utf8").split("\n")) if (line.trim()) { const d = JSON.parse(line); m.set(d.key, d.spec); }
+    CORPUS_SPECS.set(genre, m);
+  }
+  const spec = CORPUS_SPECS.get(genre)!.get(key);
+  return spec ? givensOf(spec, cols) : undefined;
 }
 
 /** with richer atoms, a local unit also carries the givens inside it and how many edges it touches */
@@ -132,22 +150,30 @@ const HUMAN_SETS = new Set(["ba", "pilot", "psjp-akari", "psjp-slitherlink", "ps
 const isHuman = (set: string) => HUMAN_SETS.has(set) || set.startsWith("janko") || set.startsWith("psjp");
 
 /** every proof on disk, one row per puzzle (a puzzle in two sets is kept once) */
+export const BULK_DIR = `${REFS}proof-bulk/`;
+
+/** every proof on disk, one row per puzzle (a puzzle in two sets is kept once): the original
+ *  phase 1's sets, then the bulk run's (proof-bulk.ts, sets "bulk-<genre>") */
 export function loadCorpus(sets?: string[]): Puzzle[] {
-  const files = readdirSync(PROOF_DIR).filter((f) => f.endsWith(".jsonl")).map((f) => f.slice(0, -6))
-    .filter((s) => !sets || sets.includes(s)).sort();
+  const list = (dir: string, prefix: string) => existsSync(dir)
+    ? readdirSync(dir).filter((f) => f.endsWith(".jsonl")).map((f) => ({ dir, set: prefix + f.slice(0, -6) })) : [];
+  const files = [...list(PROOF_DIR, "").sort((a, b) => a.set < b.set ? -1 : 1), ...list(BULK_DIR, "bulk-")]
+    .filter((f) => !sets || sets.includes(f.set) || (f.set.startsWith("bulk-") && sets.includes("bulk")));
   const seen = new Set<string>(), out: Puzzle[] = [];
-  for (const set of files) {
-    for (const line of readFileSync(`${PROOF_DIR}${set}.jsonl`, "utf8").split("\n")) {
+  for (const { dir, set } of files) {
+    const bulk = set.startsWith("bulk-");
+    for (const line of readFileSync(`${dir}${bulk ? set.slice(5) : set}.jsonl`, "utf8").split("\n")) {
       if (!line.trim()) continue;
       const d = JSON.parse(line);
       if (!d.steps?.length) continue;
       const src = d.meta?.psjp ?? (set.startsWith("psjp") ? d.id : null);
-      const key = src != null ? `psjp:${d.genre}:${src}` : `${set}:${d.id}`;
+      const key = src != null ? `psjp:${d.genre}:${src}` : bulk ? `human:${d.id}` : `${set}:${d.id}`;
       if (seen.has(key)) continue;
       seen.add(key);
+      const givens = !RICH.on ? undefined : bulk ? corpusGivens(d.genre, d.id, d.cols) : src != null ? psjpGivens(d.genre, String(src), d.cols) : undefined;
       out.push({
         key, id: String(d.id), set, genre: d.genre, rows: d.rows, cols: d.cols, meta: d.meta ?? {}, solved: d.solved,
-        steps: d.steps.map((s: any) => toStep(s, d.rows, d.cols, src != null ? psjpGivens(d.genre, String(src), d.cols) : undefined)), human: isHuman(set),
+        steps: d.steps.map((s: any) => toStep(s, d.rows, d.cols, givens)), human: bulk || isHuman(set),
       });
     }
   }
