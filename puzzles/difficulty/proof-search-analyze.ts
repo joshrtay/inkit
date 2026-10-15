@@ -84,16 +84,16 @@ const groups: [string, Row[]][] = [...types.map((t) => [t, all.filter((r) => r.t
 for (const [name, rows] of groups) {
   if (rows.length < 8) continue;
   const gapB = rows.map((r) => (r.o.greedy_sum - r.o.best_sum) / r.o.greedy_sum);
-  const gapC = rows.map((r) => (r.o.greedy_sum - r.o.cheapest_sum) / r.o.greedy_sum);
-  const peakGap = rows.map((r) => r.o.greedy_peak - r.o.cheapest_peak);
+  const gapC = rows.filter((r) => Number.isFinite(r.o.cheapest_sum)).map((r) => (r.o.greedy_sum - r.o.cheapest_sum) / r.o.greedy_sum);
+  const peakGap = rows.filter((r) => Number.isFinite(r.o.cheapest_peak)).map((r) => r.o.greedy_peak - r.o.cheapest_peak);
   const exhausted = rows.filter((r) => r.o.exhausted === 1).length;
   console.log(`\n${name}: ${rows.length} puzzles (search exhausted under the bound on ${exhausted}; median ${median(rows.map((r) => r.o.expanded))} states expanded)`);
   console.log(`  sum, best vs greedy:     median gap ${pct(median(gapB))}, mean ${pct(mean(gapB))}; ≥2% on ${pct(gapB.filter((g) => g >= 0.02).length / rows.length)}, ≥5% on ${pct(gapB.filter((g) => g >= 0.05).length / rows.length)}, ≥10% on ${pct(gapB.filter((g) => g >= 0.1).length / rows.length)}`);
-  console.log(`  sum, cheapest vs greedy: median gap ${pct(median(gapC))}, mean ${pct(mean(gapC))}; cheapest dearer than greedy on ${pct(gapC.filter((g) => g < -0.005).length / rows.length)}`);
+  console.log(`  sum, cheapest vs greedy: median gap ${pct(median(gapC))}, mean ${pct(mean(gapC))}; cheapest dearer than greedy on ${pct(gapC.filter((g) => g < -0.005).length / gapC.length)} (of ${gapC.length} with both)`);
   console.log(`  search beyond cheapest:  best under both chains on ${pct(rows.filter((r) => r.o.best_sum < Math.min(r.o.greedy_sum, r.o.cheapest_sum) - 0.01).length / rows.length)}`);
-  console.log(`  max: greedy's peak above the min-peak on ${pct(peakGap.filter((g) => g > 0.005).length / rows.length)} (by ≥0.5 on ${pct(peakGap.filter((g) => g >= 0.5).length / rows.length)}; median where above ${median(peakGap.filter((g) => g > 0.005)).toFixed(2)})`);
+  console.log(`  max: greedy's peak above the min-peak on ${pct(peakGap.filter((g) => g > 0.005).length / peakGap.length)} (by ≥0.5 on ${pct(peakGap.filter((g) => g >= 0.5).length / peakGap.length)}; median where above ${median(peakGap.filter((g) => g > 0.005)).toFixed(2)})`);
   console.log(`  paths: ${pct(mean(rows.map((r) => r.o.best_differ)))} of greedy's steps not in the best proof; first difference ${mean(rows.map((r) => r.o.best_firstDiff)).toFixed(2)} of the way in; saving centred at ${mean(rows.map((r) => r.o.best_savingAt).filter(Number.isFinite)).toFixed(2)}; steps ${mean(rows.map((r) => r.o.greedy_steps)).toFixed(1)} → ${mean(rows.map((r) => r.o.best_steps)).toFixed(1)}`);
-  report[`gap:${name}`] = { n: rows.length, exhausted, medianBest: median(gapB), meanBest: mean(gapB), share2: gapB.filter((g) => g >= 0.02).length / rows.length, share5: gapB.filter((g) => g >= 0.05).length / rows.length, share10: gapB.filter((g) => g >= 0.1).length / rows.length, medianCheapest: median(gapC), peakAbove: peakGap.filter((g) => g > 0.005).length / rows.length, peakAbove05: peakGap.filter((g) => g >= 0.5).length / rows.length, differ: mean(rows.map((r) => r.o.best_differ)), firstDiff: mean(rows.map((r) => r.o.best_firstDiff)), savingAt: mean(rows.map((r) => r.o.best_savingAt).filter(Number.isFinite)) };
+  report[`gap:${name}`] = { n: rows.length, exhausted, medianBest: median(gapB), meanBest: mean(gapB), share2: gapB.filter((g) => g >= 0.02).length / rows.length, share5: gapB.filter((g) => g >= 0.05).length / rows.length, share10: gapB.filter((g) => g >= 0.1).length / rows.length, medianCheapest: median(gapC), peakAbove: peakGap.filter((g) => g > 0.005).length / peakGap.length, peakAbove05: peakGap.filter((g) => g >= 0.5).length / peakGap.length, differ: mean(rows.map((r) => r.o.best_differ)), firstDiff: mean(rows.map((r) => r.o.best_firstDiff)), savingAt: mean(rows.map((r) => r.o.best_savingAt).filter(Number.isFinite)) };
   const rr = ranked(rows);
   console.log(`  ${"cost".padEnd(14)} ${"vs difficulty".padStart(22)} ${"likes beyond difficulty".padStart(28)}`);
   for (const k of ["greedy_sum", "best_sum", "cheapest_sum", "greedy_peak", "cheapest_peak", "cells"]) {

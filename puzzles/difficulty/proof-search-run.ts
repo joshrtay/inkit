@@ -40,6 +40,8 @@ if (existsSync(out)) {
   const cols = head.split(",");
   for (const l of lines) rows.push(Object.fromEntries(l.split(",").map((v, i) => [cols[i], v])));
 }
+// --retry: run the capped ones again (the Mac sleeping stops a solve's clock and trips the cap)
+if (process.argv.includes("--retry")) for (let i = rows.length - 1; i >= 0; i--) if (rows[i].cap === "1") rows.splice(i, 1);
 const done = new Set(rows.map((r) => `${r.set}:${r.id}`));
 const todo = chosen.filter((it) => !done.has(`${it.set}:${it.id}`));
 const save = () => {
@@ -47,6 +49,8 @@ const save = () => {
   writeFileSync(out, [cols.join(","), ...rows.map((r) => cols.map((c) => r[c] ?? "").join(","))].join("\n") + "\n");
 };
 console.error(`${type}: ${items.length} puzzles with solvers, sample ${chosen.length}, ${todo.length} to run`);
+
+const cellsOf = (g: any) => { const z = g.size; return typeof z === "number" ? z * z : z?.rows && z?.cols ? z.rows * z.cols : Array.isArray(z) ? z[0] * z[1] : ""; };
 
 interface PStep { cost: number; where: string; facts: string[] }
 /** each fact's share of its step's cost, along a path */
@@ -75,7 +79,7 @@ const compare = (g: PStep[], b: PStep[]) => {
 let n = 0;
 await mapPool(todo, async (it) => {
   const t0 = Date.now();
-  const row: Record<string, unknown> = { id: it.id, set: it.set, user: it.user, likes: it.likes, solvers: it.solvers, perSolver: +(it.likes / it.solvers).toFixed(4), siteDifficulty: it.difficulty, cells: (it.grid.rows ?? 0) * (it.grid.cols ?? 0) };
+  const row: Record<string, unknown> = { id: it.id, set: it.set, user: it.user, likes: it.likes, solvers: it.solvers, perSolver: +(it.likes / it.solvers).toFixed(4), siteDifficulty: it.difficulty, cells: cellsOf(it.grid) };
   let what = "";
   try {
     const r = await deduceGuarded(it.grid, { budgetMs, maxTier: 2, search: { nodes } }, capMs);
