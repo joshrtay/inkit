@@ -221,6 +221,22 @@ training mix shows each source).
   0.70, Numberlink 0.70, Nurikabe 0.68, Shikaku 0.66, Slitherlink 0.63, Fillomino 0.50). Our
   estimate as a third column comes with the run (human-corpus-solved.md).
 
+**Queued after the human build lands: one puzzle catalog.**
+
+- **One local table** (DuckDB or Parquet in references/, never published), one row per distinct
+  puzzle, human and generated alike:
+  - **identity:** key, genre, size, pointers to the spec and the graph record;
+  - **origin:** human / ours / bot / unknown, with the evidence (source flag, setter, classifier
+    score);
+  - **source:** sources, setters, licence and verdict;
+  - **difficulty:** each source's raw rating, plus a normalised percentile within source and
+    genre, our estimate and our band;
+  - **quality:** likes, beauty, the setter score and human-likeness;
+  - **status:** unique, solver-finished, and the split (train / test / eval-only).
+- **Every pipeline step updates it** (crawls, conversion, generation, cloud builds).
+- **Checks** that fail loudly when a field like the generated flag goes missing.
+- **A short field guide.**
+
 **Queued after the first human-data run: quality weighting.**
 
 1. **A quality estimate per human puzzle,** shrunk down a hierarchy: the puzzle's own rating (Puzzle
