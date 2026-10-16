@@ -552,7 +552,7 @@ Spearman, 95% bootstrap intervals; Puzzle Square JP n 474):
   Tatham's steps): Loopy 0.51, Akari 0.35, Sudoku 0.21, Singles 0.15 (0.60 with all the bits).
   Partly the same quantity, not a replacement.
 
-**Verdict: no-go, by the stop rule.**
+**Verdict at the time: no-go, by the stop rule. Withdrawn the same evening (below): the code, not the vocabulary, decided it.**
 
 - **No language beats the atoms on held-out bits by a margin:** 0.2–0.3%, 1.2% with richer atoms.
   The proofs' bits are in where and what is decided, not in which compound of rules was used.
@@ -575,3 +575,71 @@ Spearman, 95% bootstrap intervals; Puzzle Square JP n 474):
   when the original phase 1 reaches them. Rerun with
   `node --no-warnings puzzles/difficulty/mdl.ts fit --greedy --ctx [--rich]` and
   `mdl-readout.ts [--rich]`; both take seconds.
+
+### Phase 1, continued (2026-10-15, evening): the full corpus, Fable's review, code v2
+
+**Proofs at scale.** proof-bulk.ts over the human corpus (39,467 puzzles; Nurikabe left out),
+686 on the Mac, then a spot CPU fleet (puzzles/cloud/run-proof-job.sh, 6 × n2-highcpu-32, about
+$8; one VM reclaimed and relaunched): 35,123 proofs in references/proof-bulk/ (local), about
+2 million steps. 70% of steps are tier 0, 17% tier 1, 13% case splits (in 54% of puzzles); 51%
+of puzzles fully solved, the rest partial proofs.
+
+**The learning curve on it** (held-out saving over the atoms, greedy order and context, old code;
+train puzzles from the train half of 26,829 with proofs; mdl.ts `--frac`):
+
+| train puzzles | 430 | 1,600 | 6,500 | 13,000 |
+|---|---|---|---|---|
+| plain atoms | 0.36% (12 compounds) | 0.38% (13) | 0.47% (20) | 0.53% (28) |
+| richer atoms | 1.49% (112) | 1.89% (183) | 2.18% (200) | 2.20% (200) |
+
+The two largest richer runs stopped at the learner's 200-symbol cap (`--max`), so their flattening
+is partly that. Log: references/proof/mdl/curve-full.log.
+
+**Fable's review** (one call, $0.63; prompt and answer in references/proof/mdl/fable/; the answer
+also in the project files as fable-on-higher-order-symbols.md):
+
+- **The no-go was the code's.** 83% of the bits were in terms no vocabulary can reach, and two of
+  them pay for what the decoder has: the facts a step decides follow from its explanation and the
+  state, and the clue values in the richer atoms come with the puzzle (why richer atoms coded
+  longer, 34 bits a step against 27). The symbol term was near its entropy already. Add to every
+  MDL gate an audit of the share of bits the language could reach.
+- **The code should be a choice from the menu:** the decoder has the puzzle and the state; a step
+  is one of the steps available; a symbol is an executable predicate over (state, candidate step)
+  with free variables, coded as −log P(symbol | context) + log2 of the matching candidates under a
+  locality prior. That is a policy's output, so phase 1's language and phase 2's network are one
+  object.
+- **Techniques are bindings and chains,** not multisets of one step's rules: the 5% from order and
+  context was the signal.
+- **Ranking:** library learning with variables (Stitch, anti-unification) over step programs,
+  extended to 2–4 chained steps; the next-step network as the ceiling and context model (the
+  sparse-autoencoder reading later, if a gap remains); grammar induction as a screen; embeddings
+  for choosing contrasts only; contrast batches for naming only.
+- **Validation:** Sudoku's published technique list (any method must rediscover naked and hidden
+  singles and pairs), and the Janko solve orders, not likes.
+
+**The user's correction, adopted:** the proofs are the solver's, cheapest-first over the whole
+board, not a person's chains, so a network that imitates them learns the solver. So: learn the
+menu (what's available: machine-checkable, no style) from the solver, and the choice from people
+(the 5,200 Janko puzzles with recorded orders; Maia's lesson); where there is no human order, the
+target is the shortest-code path, not the cheapest-only one; case splits stay out of the
+vocabulary. The Janko check moves to the first test.
+
+**Menus along people's solves.** deduce.ts Options.menus (at each position, every step every
+stage's windows find, none taken); human-menus.ts (8 positions a solve, the person's next 3 moves
+looked up in the menu), run on a fleet (PROOF_JOB=menus; resumed after the first 3-hour limit).
+First 655 puzzles (Akari, Easy as ABC; human-choice.ts, a conditional logit fitted on half the
+puzzles, bits a move on the other half):
+
+| | moves | not on the menu | uniform | price | nearness | both |
+|---|---|---|---|---|---|---|
+| Akari | 8,418 | 25% | 4.39 | 4.35 | 3.86 | 3.84 |
+| Easy as ABC | 1,677 | 31% | 4.23 | 4.10 | 4.03 | 3.87 |
+
+People's next move is predicted by nearness to their last move far more than by the solver's
+price (rank among the choices: 0.15 and 0.21 by distance, 0.38 and 0.30 by price, 0.50 chance).
+
+**Missed moves** (human-misses.ts; deduce.ts Options.from, until and closure): each move the menu
+didn't have, followed from the person's position with every window deduction each round and no
+splits, sorted as bookkeeping the recording leaves out (2–3 rounds, the chain all "no" facts), a
+chain the person ran in their head (2–3 rounds otherwise: a phrase), further, or not without a
+split (a missing technique or a guess). Running.
