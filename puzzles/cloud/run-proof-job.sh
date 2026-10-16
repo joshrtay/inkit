@@ -23,7 +23,7 @@ LOG=$REFS/ml/$RUN.txt
 if [ -z "${PROOF_NO_UPLOAD:-}" ]; then
   gcloud storage rsync -r -q "$REFS/ml/human-corpus" gs://inkit-research-ml/private/human-corpus
   gcloud storage cp -r "$ROOT/src" "$ROOT/puzzles" "$ROOT/package.json" gs://inkit-research-ml/private/code/
-  [ -d "$REFS/$OUT" ] && gcloud storage rsync -q -x 'run\..*' "$REFS/$OUT" "gs://inkit-research-ml/results/$RUN/seed"
+  [ -d "$REFS/$OUT" ] && gcloud storage rsync -q -x 'run\..*|misses.*' "$REFS/$OUT" "gs://inkit-research-ml/results/$RUN/seed"
 fi
 for K in $(seq 0 $((N - 1))); do
   [ -n "${PROOF_ONLY:-}" ] && [[ " $PROOF_ONLY " != *" $K "* ]] && continue
