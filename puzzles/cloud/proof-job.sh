@@ -43,6 +43,8 @@ sync_rows() {
   mkdir -p up; for f in mine/all-*.jsonl; do [ -s "$f" ] && cp "$f" "up/${f#mine/all-}"; done
   gcloud storage rsync -q up "$SOUT/rows"
   gcloud storage cp -q /var/log/proof-job.log "$SOUT/job.log"
+  [ -f run.log ] && gcloud storage cp -q run.log "$SOUT/run.log"
+  { date; uptime; free -m; } > load.txt; gcloud storage cp -q load.txt "$SOUT/load.txt"
 }
 ( set +x; while sleep 300; do sync_rows; done ) &
 SYNC=$!

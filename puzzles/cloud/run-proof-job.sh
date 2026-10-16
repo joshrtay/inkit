@@ -7,6 +7,7 @@
 # results/<run>/shard-k/ every five minutes; gather-proof.sh brings them back. Spot VMs that are
 # reclaimed are relaunched with PROOF_ONLY="k …" and resume=<run>: they carry on from their rows.
 #
+#   PROOF_MODEL=STANDARD: regular VMs (about 3 times the price; never reclaimed)
 #   [PROOF_JOB=menus] puzzles/cloud/run-proof-job.sh [VMs=8] [vCPUs=32] [hours=3] [region=us-central1] [resume run]
 #
 # About 34,400 puzzles; on the Mac a puzzle took about 21 s of one core, a vCPU here about half a
@@ -30,7 +31,7 @@ for K in $(seq 0 $((N - 1))); do
   made=""
   for Z in ${PROOF_ZONES:-a b c f}; do
     if gcloud compute instances create "$NAME" --project inkit-research --zone "$REGION-$Z" \
-      --machine-type "n2-highcpu-$CPUS" --provisioning-model SPOT \
+      --machine-type "n2-highcpu-$CPUS" --provisioning-model "${PROOF_MODEL:-SPOT}" \
       --image-family debian-12 --image-project debian-cloud --boot-disk-size 20GB \
       --scopes storage-rw,logging-write \
       --max-run-duration "${HOURS}h" --instance-termination-action DELETE \

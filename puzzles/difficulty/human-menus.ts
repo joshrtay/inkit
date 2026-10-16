@@ -19,7 +19,7 @@ import { REFS_DIR } from "./janko.ts";
 import { mapPool } from "./pool.ts";
 
 const OUT = `${REFS_DIR}proof-menus/`, CORPUS = `${REFS_DIR}ml/human-corpus/`;
-const POSITIONS = 8, NEXT = 3;
+const POSITIONS = Number(process.env.MENU_POSITIONS) || 4, NEXT = 3;
 const argv = process.argv.slice(2), flag = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? Number(argv[i + 1]) : NaN; };
 const shard = flag("shard"), of = flag("of"), limit = flag("limit");
 const named = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.startsWith("--"));
