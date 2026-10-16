@@ -49,7 +49,7 @@ await mapPool(todo, async (t) => {
       const k = r.path.findIndex((s) => s.facts.some((f) => f.mark === t.mark));
       // the steps before it that touch its window: the chain it rests on (roughly)
       const last = k >= 0 ? r.path[k] : null, near = last ? new Set(last.cells) : new Set<number>();
-      const before = last ? r.path.slice(0, k).filter((s) => s.round < last.round && s.cells.some((c) => near.has(c))) : [];
+      const before = last ? r.path.slice(0, k).filter((s) => (s.round ?? 0) < (last.round ?? 0) && s.cells.some((c) => near.has(c))) : [];
       row = {
         reached: !!last, rounds: last ? (last.round ?? 0) - (r.path[0].round ?? 0) + 1 : null, stepsBefore: before.length,
         noFactsOnly: before.every((s) => s.facts.every((f) => !f.value)),
