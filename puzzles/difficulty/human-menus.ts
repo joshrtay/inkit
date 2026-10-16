@@ -55,11 +55,13 @@ await mapPool(todo, async ({ genre, d }) => {
     const r = await deduceGuarded({ ...d.spec, genre: d.spec.genre ?? genre }, { budgetMs: 120000, menus: adds }, 240000);
     if (!r) row = { id: d.key, genre, cap: 1 };
     else {
+      const given = new Set((r.initial ?? []).map((x) => x.split("=")[0]));
       const positions = (r.menus ?? []).map((menu, j) => {
         const next = order.slice(at[j], at[j] + NEXT);
         return {
           at: at[j], of: order.length, menu: menu.map(item(d.spec.size[1])),
-          next: next.map((mark) => ({ mark, item: menu.findIndex((s) => s.facts.some((f) => f.mark === mark)) })),
+          // known: settled before this position by the puzzle itself (grounding, the givens): not a choice
+          next: next.map((mark) => ({ mark, item: menu.findIndex((s) => s.facts.some((f) => f.mark === mark)), ...(given.has(mark) ? { known: 1 } : {}) })),
         };
       });
       row = { id: d.key, genre, rows: d.spec.size[0], cols: d.spec.size[1], solver: d.solver, initial: r.initial?.length ?? 0, positions, notes: r.profile.notes };

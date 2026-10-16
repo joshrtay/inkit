@@ -38,7 +38,8 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl"))) {
       }
       let prev: { r: number; c: number } | null = null;
       const e = (missed[d.genre] ??= [0, 0]);
-      for (const nx of p.next as { mark: string; item: number }[]) {
+      for (const nx of p.next as { mark: string; item: number; known?: 1 }[]) {
+        if (nx.known) continue;
         e[1]++;
         const target = marks.get(nx.mark);
         if (!target) { e[0]++; prev = null; continue; }
