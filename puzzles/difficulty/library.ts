@@ -20,7 +20,7 @@
 // item's) and the solver's steps (proof-menus.ts rows, the first step after each position).
 //
 //   node --no-warnings puzzles/difficulty/library.ts [human|solver] [genre …] [--max 40] [--show 8]
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { REFS_DIR } from "./janko.ts";
 
 const argv = process.argv.slice(2), flag = (n: string, d: number) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -34,7 +34,12 @@ const hash = (key: string) => { let h = 2166136261; for (let i = 0; i < key.leng
 // clues: the puzzle's givens in the step's window (their values where a type has few); rel: where
 // the move is from the person's last move (touching, near, far; first at a position); after: the
 // last move's kinds of rule (a two-step phrase). rel and after are people's moves only
-const SLOTS = ["rules", "kinds", "facts", "marks", "size", "stage", "n", "clues", "rel", "after"] as const;
+// open: the fewest marks still open in a rule instance holding the move's mark (1: the move finishes
+// it); around: how many marks are settled in the cells next to it. Both from the person's state, for
+// puzzles with a graph record (graphs-human-labels.jsonl: its marks' cells and rule instances)
+// scan: the move's place in reading order among the choices (first, in the first quarter, later):
+// a person scanning the board top to bottom
+const SLOTS = ["rules", "kinds", "facts", "marks", "size", "stage", "n", "clues", "rel", "after", "open", "around", "scan"] as const;
 const MAX_FIXED = 3;  // an abstraction fixes at most this many slots
 const EXACT = flag("exact", 400);  // candidates scored exactly each round (the rest by a quick estimate)
 type Prog = string[];  // one value a slot
@@ -63,7 +68,7 @@ const cluesIn = (b: number[], gv: Givens | undefined) => {
   if (n.size > 4) return "many";
   return [...n.entries()].sort().map(([t, k]) => (k > 1 ? `${k}×${t}` : t)).join(" ") || "none";
 };
-const prog = (it: { c: number; k: number; b: number[]; m: string[]; cl: string[] }, gv?: Givens, rel = "", after = ""): Prog => {
+const prog = (it: { c: number; k: number; b: number[]; m: string[]; cl: string[] }, gv?: Givens, rel = "", after = "", state: string[] = ["", ""], scan = ""): Prog => {
   const rules = [...new Set(it.cl.map((x) => { const m = /^(.*?) \((.*)\)$/.exec(x); return m ? `${m[1]}@${unit(m[2])}` : x; }))].sort();
   const on = it.m.filter((f) => f.endsWith("=1")).length, off = it.m.length - on;
   const h = it.b[2] - it.b[0] + 1, w = it.b[3] - it.b[1] + 1;
@@ -78,18 +83,56 @@ const prog = (it: { c: number; k: number; b: number[]; m: string[]; cl: string[]
     cluesIn(it.b, gv),
     rel,
     after,
+    ...state,
+    scan,
   ];
 };
 
 // ---------- the moves ----------
+// the graph records, for the state slots: each mark's rule instances (the marks in each) and the
+// marks in the cells next to it, by the record's name and by its Janko id
+const STATE = new Map<string, { index: Map<string, number>; groups: number[][]; groupsOf: number[][]; near: number[][]; initial: number[] }>();
+if (source === "human" && existsSync(`${REFS_DIR}ml/graphs-human-labels.jsonl`))
+  for (const line of readFileSync(`${REFS_DIR}ml/graphs-human-labels.jsonl`, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    const d = JSON.parse(line), st = d.structure, cols = st.cols || 0;
+    const index = new Map<string, number>(st.marks.map((m: any, i: number) => [m.name, i]));
+    const byCell = new Map<number, number[]>();
+    st.marks.forEach((m: any, i: number) => { for (const c of m.cells) (byCell.get(c) ?? byCell.set(c, []).get(c)!).push(i); });
+    const groups: number[][] = st.groups.map((g: any) => { const cs = new Set(g.cells); return st.marks.flatMap((m: any, i: number) => (m.cells.every((c: number) => cs.has(c)) ? [i] : [])); });
+    const groupsOf: number[][] = st.marks.map(() => []);
+    groups.forEach((ms, g) => { for (const i of ms) groupsOf[i].push(g); });
+    const near: number[][] = st.marks.map((m: any, i: number) => {
+      const out = new Set<number>();
+      for (const c of m.cells) {
+        const r = cols ? Math.floor(c / cols) : 0, q = cols ? c % cols : c;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+          if (cols && (q + dc < 0 || q + dc >= cols)) continue;
+          for (const j of byCell.get((r + dr) * cols + q + dc) ?? []) if (j !== i) out.add(j);
+        }
+      }
+      return [...out];
+    });
+    const initial = (d.initial ?? []).flatMap((x: string) => { const i = index.get(x.split("=")[0]); return i === undefined ? [] : [i]; });
+    const rec = { index, groups, groupsOf, near, initial };
+    STATE.set(d.name, rec);
+    const m = /^janko ([^/]+)\/(.+)\.txt$/.exec(d.name);
+    if (m) STATE.set(`janko:${m[1]}/${m[2]}`, rec);
+  }
 const byGenre = new Map<string, Move[]>();
 for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "misses.jsonl")) {
   const genre = f.slice(0, -6);
   if (named.length && !named.includes(genre)) continue;
   const moves: Move[] = [];
   // the givens, as tokens: a kind, with its value where the type has at most 10 distinct values
-  const specs = new Map<string, any>();
-  for (const l of readFileSync(`${corpusDir}${genre}.jsonl`, "utf8").split("\n")) { const m = /^\{"key":"([^"]+)"/.exec(l); if (m) specs.set(m[1], JSON.parse(l).spec.givens ?? []); }
+  const specs = new Map<string, any>(), orders = new Map<string, string[]>(), ids = new Map<string, string[]>();
+  for (const l of readFileSync(`${corpusDir}${genre}.jsonl`, "utf8").split("\n")) {
+    const m = /^\{"key":"([^"]+)"/.exec(l);
+    if (!m) continue;
+    const d = JSON.parse(l);
+    specs.set(m[1], d.spec.givens ?? []); ids.set(m[1], [m[1], ...(d.ids ?? [])]);
+    if (d.humanOrder) orders.set(m[1], [...d.humanOrder].sort((a: any, b: any) => a[1] - b[1]).map((x: any) => x[0]));
+  }
   const distinct = new Set([...specs.values()].flatMap((gs: any[]) => gs.map((g) => `${g.kind}:${g.value ?? ""}`)));
   const givens = (id: string): Givens | undefined => specs.get(id)?.filter((g: any) => Array.isArray(g.cell)).map((g: any) => ({ r: g.cell[0], c: g.cell[1], edge: g.at === "edge", tok: distinct.size <= 12 ? `${g.kind}${g.value !== undefined ? `:${g.value}` : ""}` : g.kind }));
   for (const line of readFileSync(dir + f, "utf8").split("\n")) {
@@ -97,7 +140,20 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "mi
     const d = JSON.parse(line);
     if (!d.positions) continue;
     const test = hash(`split:${d.id}`) < 0.5, gv = givens(d.id);
+    const st = (ids.get(d.id) ?? []).map((i) => STATE.get(i)).find((x) => x), order = orders.get(d.id) ?? [];
     for (const p of d.positions) {
+      // the person's state here: the record's initial marks and theirs before this position
+      const known = new Set<number>(st?.initial ?? []);
+      if (st) for (const mk of order.slice(0, p.at)) { const i = st.index.get(mk); if (i !== undefined) known.add(i); }
+      const stateOf = (mark: string): string[] => {
+        const i = st?.index.get(mark);
+        if (!st || i === undefined) return ["?", "?"];
+        let open = Infinity;
+        for (const g of st.groupsOf[i]) { let n = 0; for (const j of st.groups[g]) if (!known.has(j)) n++; open = Math.min(open, n); }
+        let around = 0;
+        for (const j of st.near[i]) if (known.has(j)) around++;
+        return [open === Infinity ? "none" : open >= 4 ? "4+" : String(open), around >= 4 ? "4+" : String(around)];
+      };
       if (source === "solver") {
         const nx = p.next[0];
         if (!nx || nx.item < 0) continue;
@@ -123,7 +179,9 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "mi
           const keys = [...marks.entries()].filter(([, v]) => v.value === target.value);
           const dist = Float64Array.from(keys, ([, v]) => { if (!prev) return 0; const [r, c] = at(v.it); return Math.hypot(r - prev[0], c - prev[1]); });
           const rel = (i: number) => (!prev ? "first" : dist[i] <= 1 ? "touch" : dist[i] <= 3 ? "near" : "far");
-          moves.push({ test, cands: keys.map(([, v], i) => prog(v.it, gv, rel(i), after)), chosen: keys.findIndex(([k]) => k === nx.mark), dist });
+          const order = keys.map(([, v]) => { const [r, c] = at(v.it); return r * 1000 + c; }), sorted = [...order].sort((x, y) => x - y);
+          const scan = (i: number) => { const k = sorted.indexOf(order[i]); return k === 0 ? "first" : k <= (keys.length - 1) / 4 ? "early" : "late"; };
+          moves.push({ test, cands: keys.map(([k, v], i) => prog(v.it, gv, rel(i), after, stateOf(k), scan(i))), chosen: keys.findIndex(([k]) => k === nx.mark), dist });
           prev = at(target.it); after = prog(target.it)[1];
         }
       }
