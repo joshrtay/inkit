@@ -13,7 +13,8 @@ RUN=$(meta run); SHARD=$(meta shard); OF=$(meta of); HOURS=$(meta hours || echo 
 JOB=$(meta job || echo bulk)
 if [ "$JOB" = menus ]; then OUTDIR=references/proof-menus; SCRIPT=puzzles/difficulty/human-menus.ts; else OUTDIR=references/proof-bulk; SCRIPT=puzzles/difficulty/proof-bulk.ts; fi
 SOUT=$BUCKET/results/$RUN/shard-$SHARD
-exec > /var/log/proof-job.log 2>&1
+# also to the serial console, so a VM that never reaches its first sync can still be read
+exec > >(tee /var/log/proof-job.log > /dev/ttyS0) 2>&1
 set -x
 finish() { gcloud storage cp /var/log/proof-job.log "$SOUT/job.log"; shutdown -h now; }
 trap finish EXIT
