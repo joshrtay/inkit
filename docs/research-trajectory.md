@@ -156,6 +156,10 @@ the gap between greedy and best known.
   share of the hard human tail finished (coverage, the old capability goal, now a by-product).
 - **Fork point:** baseline-2026-10-14, registered as its child.
 - **Stop rule:** under 3% proof-cost improvement at equal budget in a round ends it.
+- **Human check, every round:** report agreement with people (graph_policy.py: the top guess in
+  the person's next 3 moves) on held-out Janko states beside proof cost. Proof cost is a reward we
+  define ourselves, and search will drive it down whether or not it tracks people. A round where
+  proof cost falls and agreement falls also ends it.
 
 ### 3. Products from the minimum proof (as each lands)
 
@@ -174,6 +178,15 @@ Trained on recorded moves (Janko's, then inkit's own). Test both parents, the ba
 proof-search snapshot, on agreement with people before choosing (Maia's precedent: human-move
 prediction trained better from human games than from a strong engine). This branch is data-bound:
 solve logging with consent on inkit is its critical path and belongs on the product plan now.
+
+**A third candidate parent: an LLM.** On 400 held-out Janko states over all 14 types, Opus's one
+move was in the person's next 3 moves 38% of the time, against 19% for baseline-2026-10-14 and
+21% for our solver (paired sign tests p ≤ 3e-9; docs/research-opus-human-moves.md). The baseline
+was never trained on human moves, so the fair comparison is against the network fine-tuned on
+Janko's moves; run that first. Also score every predictor with negative marks (crosses, "no line")
+excluded, since part of Opus's edge may be that it names the positive moves experts write first.
+If Opus still leads, either distil its clingo-checked choices into the network as labels (about
+$40 per 1,000 states) or move the puzzle encoder for a language model (learning-design.md) up.
 
 ## What this replaces
 
