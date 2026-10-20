@@ -647,4 +647,57 @@ price (rank among the choices: 0.15 and 0.21 by distance, 0.38 and 0.30 by price
 didn't have, followed from the person's position with every window deduction each round and no
 splits, sorted as bookkeeping the recording leaves out (2–3 rounds, the chain all "no" facts), a
 chain the person ran in their head (2–3 rounds otherwise: a phrase), further, or not without a
-split (a missing technique or a guess). Running.
+split (a missing technique or a guess). Results below.
+
+### Phase 1 v2: the verdict (2026-10-20)
+
+Run in the cloud thread "Phase 1b: learned move language, cloud" (branch claude/project-thread-i5qxx5).
+Full tables: /mnt/project-files/research/phase1b-human-choice-2026-10-20.md.
+
+**Data.** menus-gather.ts merged every menus run (4,244 puzzles from menus-20261020, about $7)
+and recomputed the `known` flag, which rows before 2026-10-16 lacked: Easy as ABC's 31% of moves
+off the menu was mostly marks the puzzle settles itself (really 2%). proof-menus.ts listed the
+menu at 16 points along the solver's own proofs (1,819 proofs, every type; run
+solver-menus-20261020, about $3.50). The human corpus leaves out the network's test puzzles, so
+every corpus puzzle with menus is on the tuned network's training side; human-test-corpus.ts
+rebuilt its 626 test puzzles from Janko's files and their menus were listed locally.
+
+**People's moves off the menu** (human-misses.ts, up to 150 a type): Akari and Masyu about two
+thirds bookkeeping or a 2–3 step chain, Easy as ABC 81% chains; Hitori 93%, Hidoku 85% and
+Numberlink 91% need a case split, so the solver lacks techniques people use there (connectivity
+in Hitori is the likely one). Fillomino's menus mostly fail (34 of 769 puzzles).
+
+**Code v2** (code-v2.ts): each solver step coded as a choice from its menu, facts, clues and
+place free. A step costs 2–6 bits where the old code charged about 27, and every bit is within a
+vocabulary's reach (against 17%): Fable's diagnosis of the old no-go holds. The solver's own kinds
+of step are a poor vocabulary alone; its price carries 20–45% of the bits (it takes the cheapest
+first).
+
+**Library learning over step programs** (library.ts: a step as slots, the rules on their units,
+the facts' values, kinds of mark, window size, stage, clue values, place from the last move, the
+last move's kind, open marks in its rule instances, settled neighbours, reading order; an
+abstraction fixes some slots; the library a mixture learned greedily, held-out bits). On the
+solver's steps 11–22%, nearly all "stage 0", its own policy. On people's moves 0–7% beyond the
+nearness prior, with generic abstractions; each added slot alone is a real null.
+
+**The network as the ceiling** (net_ceiling.py; human-tuned-2026-10-20 on its own test puzzles,
+same moves and choices), bits a move held out, and **what reads it off** (net_probe.py: a
+conditional logit on board features, with nearness):
+
+| type | near | network+near | library | price, kind and board features, with nearness | network's gain recovered |
+|---|---|---|---|---|---|
+| Akari | 3.19 | 2.56 | 3.19 | 3.03 | 25% |
+| Easy as ABC | 4.46 | 4.78 (fails on digits) | 4.28 | 3.49 | (beats the network) |
+| Hitori | 3.66 | 3.09 | 3.49 | 3.06 | 105% |
+| Masyu | 3.43 | 3.17 | 3.43 | 3.33 | 39% |
+| Minesweeper | 1.99 | 1.77 | 1.99 | 1.83 | 77% |
+
+**Verdict.** Fable's stop rule doesn't fire (the network beats nearness by 8–20%), but what it finds
+isn't a vocabulary. People's next move at the solver's grain is a graded policy: near the last
+move, the easiest step (the solver's price), and some kinds of step before others (Akari: number
+clues before light lines). Hard predicates (library.ts, and Stitch-style abstraction in general)
+code graded preferences badly, which is why library learning found 0–7%. The weighted model
+recovers most of the network's gain on Hitori and Minesweeper, less on Masyu and Akari; Akari's
+remaining three quarters is unexplained. The technique gap that does show is the other way round:
+moves people make that the solver can't make without a split (Hitori, Hidoku, Numberlink).
+

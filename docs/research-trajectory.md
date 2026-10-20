@@ -1,7 +1,65 @@
 # Research trajectory: the best proof, not the solution
 
-Written 2026-10-15 from the thread on the research plan; the objective and phase 1 revised the same day (the revision is phase 1b; the original cost-model fit continues as 1a) after the discussion of an intrinsic target (description length under a learned language), the analyst role for the model, and probabilistic expert weighting. [research-state.md](research-state.md) holds
+Written 2026-10-15 from the thread on the research plan, reassessed 2026-10-20 after phase 1b (the next section); the objective and phase 1 revised the same day (the revision is phase 1b; the original cost-model fit continues as 1a) after the discussion of an intrinsic target (description length under a learned language), the analyst role for the model, and probabilistic expert weighting. [research-state.md](research-state.md) holds
 results and the queue; this file holds the direction those should now follow. Keep both current.
+
+## Reassessment after phase 1b (2026-10-20): the human model becomes the core
+
+Proposed; the sections below it are the 2026-10-15 plan, kept for the record. Evidence: phase 0
+and phase 1 v2 in [research-state.md](research-state.md), docs/research-opus-human-moves.md.
+
+**What the results say about this plan's two load-bearing bets.**
+
+- *Search over proofs matters.* Phase 0: the cheapest-only path closes most of the gap to the
+  cheapest proof; search helps a little (most on Akari). The cost model, not the search, was the
+  bottleneck. Weak.
+- *A learned language of moves defines technique and elegance.* Phase 1 v2: with the code fixed
+  (each step a choice from its menu, every bit reachable), no vocabulary beyond the solver's own
+  kinds of step compresses the solver's proofs, and on people's moves library learning finds 0–7%
+  beyond nearness. What predicts people is graded, not symbolic: near the last move, the easiest
+  step, some kinds before others. Weak, at the solver's step grain.
+
+Neither result touches the products; they change the route. Difficulty, hints and interest are
+all questions about what a person does, and we now have a measured model of that: the
+human-tuned network (46% agreement with people's next moves, against Opus 35–38% and the solver
+38%) and a small readable model (nearness, price, kind of step) that recovers most of its gain on
+Hitori and Minesweeper and a quarter to two fifths on Akari and Masyu. The minimum proof was a
+stand-in for "the path a good solver takes"; the human model is that path directly.
+
+**The proposed order.**
+
+1. **Human move model v1** (days, CPU, mostly built). Per type: a conditional logit on nearness,
+   the solver's price, kind of step and board features, blended with the tuned network; scored in
+   bits a move and agreement on held-out Janko states. Deliverable: one model and its table.
+2. **Difficulty from the human model** (days, CPU). Simulate a person: from the start, sample moves
+   from the model over the solver's menu, take a case split where the menu is empty, and sum the
+   cost (bits a move, splits, the distance travelled). Test against Puzzle Square JP's and
+   puzz.link's ratings and Tatham's grades. The bar is what's on the scoreboard: "what" bits 0.56,
+   the cost model's peak 0.53. This is the decisive experiment: if the human model's cost doesn't
+   beat the proof cost on difficulty, the minimum proof comes back.
+3. **Close the techniques people use and the solver lacks** (CPU, an agent). The missed moves name
+   them: Hitori (93% of misses need a split; connectivity is the suspect), Hidoku (85%),
+   Numberlink (91%). Measure: the share of people's moves on the menu, per type. This feeds 1, 2 and
+   hints, and it is the one place a technique vocabulary showed up in the data.
+4. **Hints** = the human model's likely next move, filtered to correct moves (the tuned network's
+   guesses are 86% correct, so the filter matters). Product work, once 1 is in.
+5. **The human-like branch's data:** solve logging with consent on inkit stays on the product plan;
+   Janko's recordings are 14 types and one expert a puzzle.
+
+**Paused, with what would reopen each.**
+
+- *Phase 2, learned proof search:* reopens if step 2 loses to the proof cost on difficulty.
+- *Phase 1b's language machinery* (EM over shortest-code paths, the expert mixture, the analyst):
+  reopens at a coarser grain (steps cut from people's bursts of moves, Fable's fallback) if a
+  readable model is needed beyond step 1's.
+- *Elegance by compression:* no signal so far (likes against the old path features −0.15, the
+  concentration statistic flat). If it comes back, it is as a readout of the human model (the
+  moves a solution forces that the model finds unlikely), checked against likes and Fable's
+  interest placing.
+
+**Open questions this leaves.** Akari's unexplained three quarters of the network's gain; digit
+types, where the network fails and the readable model beats it (Easy as ABC 22% over nearness);
+whether nearness is people's habit or partly Janko's recording.
 
 ## The reframe
 
