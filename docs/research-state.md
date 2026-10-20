@@ -417,3 +417,69 @@ curve, structure as input. Updated 2026-10-15.
 | Anthropic API: can Opus tell human-made puzzles | $2.68 of ~$3 approved (cap $4) |
 | GPU runs (5) | ~$8 |
 | CPU generation (first batch + fleet) | ~$16–21 when the fleet ends |
+
+## Phase 0 of the trajectory: greedy against the cheapest proof (2026-10-15)
+
+[research-trajectory.md](research-trajectory.md), phase 0. Cost model v0: today's step costs
+(deduce.ts's costOf with step-prices.json), proof cost = their sum, and separately the max.
+
+- **The search:** deduce.ts's `Options.search`. A state is what's known; from each, every
+  stage's windows are checked (kept by what each window knows, so states share work). The
+  moves:
+  - the usual round (greedy);
+  - only the cheapest steps;
+  - every step up to the next few cost levels;
+  - the cheapest steps plus one dearer step (a hinge taken early);
+  - when stuck, the usual shallow case split (no tier-3 search).
+
+  It is seeded by the greedy path and the cheapest-only path, then expands by g + ρ·open marks
+  (ρ is greedy's cost per mark: an estimate, not a bound), pruning at the best proof so far, for
+  150 expansions. The cheapest-only path is optimal for the max: deductions only grow as more is
+  known. For the sum, the best found is an upper bound; the search never ran out of states.
+- **The run:** proof-search-run.ts, a seeded 60 per type of Puzzle Square JP's liked puzzles,
+  240 s budget, 3 jobs. Results are in references/psjp/proofsearch-<type>.csv;
+  proof-search-analyze.ts reads them.
+- **Coverage:** 134 of 300 usable: Slitherlink 36, Akari 23, Masyu 30, Simple Loop 45.
+  Nurikabe was stopped at 0 of 15, since none solves by windows plus shallow splits. Many caps
+  were the Mac sleeping, which stops a solve's clock and trips the guard. Run
+  `proof-search-run.ts <type> 60 150 240000 420000 --retry` to redo the capped puzzles.
+
+| | Slitherlink | Akari | Masyu | Simple Loop | pooled |
+|---|---|---|---|---|---|
+| best vs greedy, sum (median) | −36% | −11% | −19% | −46% | −31% |
+| puzzles ≥5% cheaper | 100% | 83% | 97% | 100% | 96% |
+| cheapest-only vs greedy (median) | −33% | −4% | −19% | −46% | −30% |
+| search beyond cheapest-only (median, mean) | 1%, 4% | 9%, 11% | 0%, 0.5% | 0%, 0.2% | |
+| greedy's peak above the min-peak | 28% | 48% | 13% | 40% | 32% |
+| greedy's steps not in the best proof | 70% | 34% | 57% | 80% | 64% |
+
+**Against people:** within-type Spearman, with bootstrap 95% intervals.
+
+- **With site difficulty**, pooled: greedy sum 0.36, best sum 0.39 (difference +0.03, interval
+  −0.05 to +0.11); greedy peak 0.44, min-peak 0.45.
+- **The only reliable gain** is Simple Loop's sum, 0.18 → 0.32 (+0.14, interval 0.04 to 0.31).
+  Greedy there takes 319 steps where the best proof takes 216.
+- **With likes**, difficulty held fixed: no cost does better than chance, pooled or in any
+  type (best − greedy −0.03, interval −0.11 to +0.05). On Masyu it is worse (−0.21, interval
+  −0.47 to +0.01).
+
+**Verdict:**
+
+- **Go, by the letter.** Optimal proofs differ from greedy's on nearly every puzzle (31% cheaper
+  pooled), so phase 1 proceeds.
+- **Most of the gap isn't search.** It comes from greedy's SLACK: it takes every step within 1 of
+  the cheapest, where waiting makes them cheaper. Taking only the cheapest steps closes it on its
+  own.
+- **Search beyond that matters on Akari only** (about 10%). Elsewhere it is 0–4%, near phase 2's
+  3% stop rule.
+- **Cheaper proofs don't track people better,** except Simple Loop's difficulty, and likes not
+  at all. So the cost model (phase 1) is the problem, as the no-go branch put it.
+- **For phase 2:** judge it against the cheapest-only path, not greedy, and start where the
+  headroom is (Akari). Re-test search after phase 1's cost model v1: a better cost may open
+  more room.
+
+**Side finding:** the usual solve's totalCost double-counts. In one round, two windows can take
+the same fact when its explanation was cached, so the same facts are paid twice (Akari 10041:
+71 steps and 187.4 against 56 and 145.9 deduplicated). The search's paths deduplicate. The usual
+path is left as it is, since its difficulty figures are built on it; fixing it is a separate
+change.
