@@ -68,6 +68,18 @@ Janko reset the connection at 3 s and 4 s a request, so it now runs at 6 s.
 - **Every VM** has a max run duration and deletes itself, but a VM that shuts itself down
   (finished) stays TERMINATED until deleted: the gather scripts delete them; check
   `gcloud compute instances list` after runs.
+- **Cloud Batch (preferred for new CPU runs):** `puzzles/cloud/run-batch.sh <script> <out dir>`
+  shards any resumable script (`--shard k --of N`, one appended JSON row per item) over spot VMs.
+  Batch retries reclaimed VMs and tasks that reach their per-attempt limit, each carrying on from
+  its synced rows, so nothing on the Mac watches it and the Mac can sleep. Logs go to Cloud
+  Logging. VMs run as `inkit-batch-vm`; cloud sessions launch as `inkit-cloud-claude` (a key in the
+  cloud environment's secrets). Gather with `gather-batch.sh <run> <out dir>`, which also copies
+  the merged rows to `data/<run>/`. One job per region (200 vCPUs each).
+- **Cloud sessions sign in with a service account:** the cloud environment carries
+  `GCP_SA_KEY_B64` (the `inkit-cloud-claude` key, base64); run `puzzles/cloud/session-login.sh`
+  once at a session's start. That account has Batch, Compute, logs and this bucket only, no IAM or
+  billing. Research data lives in `private/refs/<folder>/` (the Mac's references/), so a session
+  pulls what it needs from there instead of the Mac.
 - **Jobs:**
   - **GPU:** `run-graph-job.sh <zone> <step>`; steps are all, holdout, grid, scale, structure,
     curve and next, set in graph-job.sh.

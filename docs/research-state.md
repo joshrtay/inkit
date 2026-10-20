@@ -483,3 +483,163 @@ the same fact when its explanation was cached, so the same facts are paid twice 
 71 steps and 187.4 against 56 and 145.9 deduplicated). The search's paths deduplicate. The usual
 path is left as it is, since its difficulty figures are built on it; fixing it is a separate
 change.
+
+## Phase 1 by compression: a learned language of moves (2026-10-15)
+
+[research-trajectory.md](research-trajectory.md), phase 1 as revised: two-part description length
+under a learned language, scored on held-out puzzles. Run beside the original phase 1 (the cost
+model fit), on that run's proofs as they stood (references/proof/*.jsonl, the cheapest-only path
+with shallow splits); nothing was solved again. Code: puzzles/difficulty/mdl.ts (the code and the
+learner), mdl-readout.ts (against people). Results in references/proof/mdl/.
+
+- **The code.** Atoms are the signature parts, primitive@unit (23 of them in these sets). A symbol
+  is a multiset of atoms. A step is coded as how many symbols, which (given the genre, and with
+  the context model the last step's first atom), where (the first place relative to the last
+  step's window, the next symbol's relative to the one before, a compound's other atoms relative
+  to its first under that symbol's own geometry) and the facts it decides. Every distribution is a
+  Dirichlet process (prequential), so learning the parameters is paid for, and held-out bits are
+  L(train + test) − L(train). A compound costs its definition once.
+- **The learner.** Greedy library learning: the commonest pairs of symbols sharing a step become
+  candidates; the one that most shortens train bits plus definitions is kept, until none does.
+  The path step of the alternation: the steps of a round (all found from the same knowledge, so
+  any order is a proof) are taken cheapest code first.
+- **The corpus:** the human sets so far (Puzzle Square JP's pilot and Akari, Beast Academy), about
+  720 puzzles and 50,000 steps, split in half by a hash of the puzzle. Tatham's (generated) are
+  scored only.
+
+**Held-out bits a step** (lower is better):
+
+| | atoms | learned language | saving |
+|---|---|---|---|
+| solver's order, genre only | 27.93 | 27.86 | 0.3% |
+| cheapest code first in a round | 27.13 | 27.06 | 0.3% |
+| and the last step's atom as context | 26.62 | 26.56 | 0.2% |
+| two passes of the alternation | 26.62 | 26.56 | 0.2% |
+| richer atoms (the givens in a local unit, edges touched), Puzzle Square JP only | 34.05 | 33.64 | 1.2% |
+
+- **Where the bits are** (atoms, context): places 12.7 a step, which facts 8.0, which symbols 2.9,
+  how many 1.6, how many facts 1.4. The language can only touch the symbol and place terms.
+- **What it learns** with plain atoms: 9 compounds, the obvious ones (an Akari number with the
+  sight line through it, Simple Loop's premature-loop check with the loop). With richer atoms, 78,
+  and they read as techniques: a pearl with the loop through it, by colour and edge; a Slitherlink
+  3 on an edge; an Akari 1 in a corner with its line. Real, but each saves little.
+- **The path and the context do more than the vocabulary:** ordering a round by code saves 2.9%,
+  the last step's atom as context 1.9% more. Both belong to the context model (phase 2's policy).
+- **The shape vocabulary** (each of signatures.ts's step shapes a symbol) codes worse than the
+  atoms: 31.9 bits a step against 26.3, too many symbols for their geometry to be learned.
+
+**Against people** (two folds, so each puzzle is scored by a code that never saw it; within-type
+Spearman, 95% bootstrap intervals; Puzzle Square JP n 474):
+
+| | difficulty | likes per solver, difficulty fixed |
+|---|---|---|
+| bits | 0.49 (0.42, 0.55) | 0.15 (0.06, 0.21) |
+| "what" bits (surprise under the context model) | 0.56 (0.51, 0.63) | 0.16 (0.08, 0.22) |
+| bits a step | 0.44 | 0.05 (−0.03, 0.14) |
+| concentration (top two steps' share: the elegance statistic) | 0.13 | −0.04 (−0.10, 0.06) |
+| step costs' sum (cost model v0) | 0.48 | 0.12 (0.02, 0.19) |
+| step costs' peak | 0.53 | 0.08 |
+| step count | 0.33 | 0.13 (0.04, 0.19) |
+
+- **Likes:** the code's 0.15 is length: the step count alone gets 0.13 and bits a step 0.05. On
+  this set the old costs get 0.12 too, so −0.15 (path features, Fable's 72) is not the bar here.
+- **Fable's interest placing** (55 solved of the 72; it agrees with likes at 0.36): the
+  concentration statistic runs the other way, −0.49 (−0.68, −0.18). Fable rates puzzles whose
+  bits are spread out as more interesting. Opus's (291): −0.14.
+- **Difficulty elsewhere:** Tatham's grade, "what" bits a step 0.63 against the peak cost's 0.61;
+  Beast Academy's tier, bits 0.47 against the cost sum's 0.36. The same with richer atoms.
+- **The cheap early check** (frequency prices against the learned step prices, Spearman over
+  Tatham's steps): Loopy 0.51, Akari 0.35, Sudoku 0.21, Singles 0.15 (0.60 with all the bits).
+  Partly the same quantity, not a replacement.
+
+**Verdict at the time: no-go, by the stop rule. Withdrawn the same evening (below): the code, not the vocabulary, decided it.**
+
+- **No language beats the atoms on held-out bits by a margin:** 0.2–0.3%, 1.2% with richer atoms.
+  The proofs' bits are in where and what is decided, not in which compound of rules was used.
+- **No readout beats the old costs against likes** once length is taken out, and the elegance
+  statistic is flat against likes and reversed against Fable.
+- **What survives:** "what" bits are a little better than the step costs on difficulty (0.56 against
+  0.48–0.53), with no hand-set prices; the order within a round and the context carry real
+  structure (5%), which is the policy's job, not the vocabulary's.
+- **So, as the trajectory says:** elegance isn't recoverable from this vocabulary, and the
+  human-like branch moves up. The expert-weighting mixture and the Fable analyst runs were not
+  started: with a language this flat there is nothing for the classes to differ on.
+- **Data (checked after, at about 1,000 puzzles):** with plain atoms the saving is flat in train
+  size (0.33%, 0.35%, 0.36% at 130, 250, 520 train puzzles), so more proofs won't change it. With
+  richer atoms it is still climbing, about 0.3–0.4 points a doubling (1.15%, 1.40%, 1.83% at 120,
+  240, 480; 71, 100, 114 compounds), so that verdict is data-limited: on that trend 40,000 puzzles
+  would give a few percent. The ceiling for any vocabulary is the symbol terms, about 17% of the
+  bits. `mdl.ts fit --frac 0.25` trains on a share of the train half.
+- **What would reopen it:** atoms coded after their place (the givens free, since the decoder has
+  the puzzle), a context model over the full choice set (the graph network), and the Janko sets
+  when the original phase 1 reaches them. Rerun with
+  `node --no-warnings puzzles/difficulty/mdl.ts fit --greedy --ctx [--rich]` and
+  `mdl-readout.ts [--rich]`; both take seconds.
+
+### Phase 1, continued (2026-10-15, evening): the full corpus, Fable's review, code v2
+
+**Proofs at scale.** proof-bulk.ts over the human corpus (39,467 puzzles; Nurikabe left out),
+686 on the Mac, then a spot CPU fleet (puzzles/cloud/run-proof-job.sh, 6 × n2-highcpu-32, about
+$8; one VM reclaimed and relaunched): 35,123 proofs in references/proof-bulk/ (local), about
+2 million steps. 70% of steps are tier 0, 17% tier 1, 13% case splits (in 54% of puzzles); 51%
+of puzzles fully solved, the rest partial proofs.
+
+**The learning curve on it** (held-out saving over the atoms, greedy order and context, old code;
+train puzzles from the train half of 26,829 with proofs; mdl.ts `--frac`):
+
+| train puzzles | 430 | 1,600 | 6,500 | 13,000 |
+|---|---|---|---|---|
+| plain atoms | 0.36% (12 compounds) | 0.38% (13) | 0.47% (20) | 0.53% (28) |
+| richer atoms | 1.49% (112) | 1.89% (183) | 2.18% (200) | 2.20% (200) |
+
+The two largest richer runs stopped at the learner's 200-symbol cap (`--max`), so their flattening
+is partly that. Log: references/proof/mdl/curve-full.log.
+
+**Fable's review** (one call, $0.63; prompt and answer in references/proof/mdl/fable/; the answer
+also in the project files as fable-on-higher-order-symbols.md):
+
+- **The no-go was the code's.** 83% of the bits were in terms no vocabulary can reach, and two of
+  them pay for what the decoder has: the facts a step decides follow from its explanation and the
+  state, and the clue values in the richer atoms come with the puzzle (why richer atoms coded
+  longer, 34 bits a step against 27). The symbol term was near its entropy already. Add to every
+  MDL gate an audit of the share of bits the language could reach.
+- **The code should be a choice from the menu:** the decoder has the puzzle and the state; a step
+  is one of the steps available; a symbol is an executable predicate over (state, candidate step)
+  with free variables, coded as −log P(symbol | context) + log2 of the matching candidates under a
+  locality prior. That is a policy's output, so phase 1's language and phase 2's network are one
+  object.
+- **Techniques are bindings and chains,** not multisets of one step's rules: the 5% from order and
+  context was the signal.
+- **Ranking:** library learning with variables (Stitch, anti-unification) over step programs,
+  extended to 2–4 chained steps; the next-step network as the ceiling and context model (the
+  sparse-autoencoder reading later, if a gap remains); grammar induction as a screen; embeddings
+  for choosing contrasts only; contrast batches for naming only.
+- **Validation:** Sudoku's published technique list (any method must rediscover naked and hidden
+  singles and pairs), and the Janko solve orders, not likes.
+
+**The user's correction, adopted:** the proofs are the solver's, cheapest-first over the whole
+board, not a person's chains, so a network that imitates them learns the solver. So: learn the
+menu (what's available: machine-checkable, no style) from the solver, and the choice from people
+(the 5,200 Janko puzzles with recorded orders; Maia's lesson); where there is no human order, the
+target is the shortest-code path, not the cheapest-only one; case splits stay out of the
+vocabulary. The Janko check moves to the first test.
+
+**Menus along people's solves.** deduce.ts Options.menus (at each position, every step every
+stage's windows find, none taken); human-menus.ts (8 positions a solve, the person's next 3 moves
+looked up in the menu), run on a fleet (PROOF_JOB=menus; resumed after the first 3-hour limit).
+First 655 puzzles (Akari, Easy as ABC; human-choice.ts, a conditional logit fitted on half the
+puzzles, bits a move on the other half):
+
+| | moves | not on the menu | uniform | price | nearness | both |
+|---|---|---|---|---|---|---|
+| Akari | 8,418 | 25% | 4.39 | 4.35 | 3.86 | 3.84 |
+| Easy as ABC | 1,677 | 31% | 4.23 | 4.10 | 4.03 | 3.87 |
+
+People's next move is predicted by nearness to their last move far more than by the solver's
+price (rank among the choices: 0.15 and 0.21 by distance, 0.38 and 0.30 by price, 0.50 chance).
+
+**Missed moves** (human-misses.ts; deduce.ts Options.from, until and closure): each move the menu
+didn't have, followed from the person's position with every window deduction each round and no
+splits, sorted as bookkeeping the recording leaves out (2–3 rounds, the chain all "no" facts), a
+chain the person ran in their head (2–3 rounds otherwise: a phrase), further, or not without a
+split (a missing technique or a guess). Running.

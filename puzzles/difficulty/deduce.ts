@@ -170,6 +170,19 @@ export interface Options {
    *  (an estimate, not a bound), pruning at the best proof so far, until `nodes` expansions or
    *  the budget. The path returned is the best proof found; `search` reports all three */
   search?: { nodes?: number; branch?: number };
+  /** menus along a person's solve (phase 1's human choices): for each entry, its marks become
+   *  known (at the answer's values), then every step available there is listed, over every
+   *  stage's windows (no case splits), none taken. Entries add to what's known, so a person's
+   *  positions in order (the lemmas found at one stay true at the next). Returned as `menus`, with
+   *  no path */
+  menus?: string[][];
+  /** start from a person's position: these marks known (at the answer's values) before solving */
+  from?: string[];
+  /** stop as soon as all these marks are known (with `from`: how far a person's move was) */
+  until?: string[];
+  /** each round takes every step every stage's windows find (breadth first: a fact's round is its
+   *  depth, the fewest rounds of window deductions it needs) */
+  closure?: boolean;
 }
 
 /** Learned step prices (puzzles/difficulty/price.py → step-prices.json): a correction added to a
@@ -394,7 +407,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown> }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown> }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -1980,6 +1993,26 @@ end
   const structureOf = (): Structure => ({ cells: n, rows: g.kind === "square" ? g.rows : 0, cols: g.kind === "square" ? g.cols : 0, marks: markName.map((name, m) => ({ name, cells: markCells[m] })), groups: groups.map((x) => ({ kind: x.kind, label: x.label, cells: x.cells })) });
   if (opts.setupOnly)
     return { path: [], profile: profileOf([], false, 0, 0, Date.now() - t0, calls, ["setup only"]), initial, structure: structureOf(), ...(opts.answer ? { answer: markName.filter((_, m) => answer[m] === 1) } : {}) };
+  if (opts.from) for (const name of opts.from) { const m = markOf.get(name); if (m !== undefined) settle(m, answer[m] === 1); }
+  const untilMarks = (opts.until ?? []).map((x) => markOf.get(x)).filter((m): m is number => m !== undefined);
+  // Options.menus: at each of a person's positions, everything available, none taken
+  if (opts.menus) {
+    const menus: (Step & { stage: number })[][] = [];
+    for (const add of opts.menus) {
+      if (Date.now() - t0 > budget) { outOfTime = true; break; }
+      round++;
+      for (const name of add) { const m = markOf.get(name); if (m !== undefined) settle(m, answer[m] === 1); }
+      addComponentLemmas(); addLoopLemmas(); addTechniques();
+      const menu: (Step & { stage: number })[] = [], seen = new Set<Window>();
+      for (const [k, stage] of stages.entries()) {
+        const ws = stage.flatMap((fam) => family(fam)).filter((w) => !seen.has(w) && (seen.add(w), true));
+        const f = runWindows(ws);
+        if (f.size) for (const st of candidates(f, k === 0 ? 0 : 1)) { const { w: _w, ...step } = st; menu.push({ ...step, round, stage: k }); }
+      }
+      menus.push(menu);
+    }
+    return { path: [], menus, profile: profileOf([], false, 0, 0, Date.now() - t0, calls, outOfTime ? ["menus: out of time"] : ["menus"]), initial, ...(opts.structure ? { structure: structureOf() } : {}) };
+  }
 
   let entryPoints = -1;
   const order = (): number[] => {
@@ -2243,12 +2276,29 @@ end
 
   while (undecided > 0 && !(opts.search && !opts.quick)) {
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
+    if (untilMarks.length && untilMarks.every((m) => known[m] >= 0)) { notes.push("until: reached"); break; }
     round++;
     addComponentLemmas();
     addLoopLemmas();
     addTechniques();
     let progressed = false;
-    if (opts.minPeak && !opts.quick) progressed = minPeakRound();
+    if (opts.closure) {
+      const seen = new Set<Window>(), all: (Step & { w: Window })[] = [];
+      for (const [k, stage] of stages.entries()) {
+        const ws = stage.flatMap((fam) => family(fam)).filter((w) => !seen.has(w) && (seen.add(w), true));
+        const f = runWindows(ws);
+        if (f.size) all.push(...candidates(f, k === 0 ? 0 : 1));
+      }
+      for (const st of all) {
+        const facts = st.facts.filter((x) => known[markOf.get(x.mark)!] < 0);
+        if (!facts.length) continue;
+        const { w: _w, ...step } = st;
+        path.push({ ...step, facts, round });
+        for (const x of facts) settle(markOf.get(x.mark)!, x.value);
+      }
+      progressed = all.length > 0;
+    }
+    else if (opts.minPeak && !opts.quick) progressed = minPeakRound();
     else for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
       const f = runWindows(tagged.map(([w]) => w));
