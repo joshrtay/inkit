@@ -8,8 +8,9 @@
 //   2–3 rounds otherwise: a chain the person ran in their head and wrote down the end of: a phrase
 //   more, or never without a split: a deduction beyond the windows (a missing technique), or a guess
 //
-// One miss a position (the first of the person's next moves, if missed: its position is exact), up
-// to --per a genre. Rows to references/proof-menus/misses.jsonl; a summary at the end.
+// One miss a position (the first of the person's next moves, if missed: its position is exact; a
+// mark the puzzle settled itself is no move), up to --per a genre (a rerun tops each genre up).
+// Rows to references/proof-menus/misses.jsonl; a summary at the end.
 //
 //   DEDUCE_JOBS=2 node --no-warnings puzzles/difficulty/human-misses.ts [--per 150]
 import { appendFileSync, existsSync, readdirSync, readFileSync } from "node:fs";
@@ -22,7 +23,7 @@ const argv = process.argv.slice(2), per = Number(argv[argv.indexOf("--per") + 1]
 const jsonl = (f: string): any[] => existsSync(f) ? readFileSync(f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : [];
 const hash = (key: string) => { let h = 2166136261; for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619); return (h >>> 0) / 2 ** 32; };
 
-const done = new Set(jsonl(OUT).map((r) => `${r.id}@${r.at}`));
+const doneRows = jsonl(OUT), done = new Set(doneRows.map((r) => `${r.id}@${r.at}`));
 const todo: { genre: string; id: string; at: number; mark: string; from: string[]; spec: any }[] = [];
 for (const f of readdirSync(DIR).filter((x) => x.endsWith(".jsonl") && x !== "misses.jsonl")) {
   const genre = f.slice(0, -6);
@@ -32,10 +33,12 @@ for (const f of readdirSync(DIR).filter((x) => x.endsWith(".jsonl") && x !== "mi
     const d = specs.get(r.id);
     if (!r.positions || !d) continue;
     const order: string[] = [...d.humanOrder].sort((a: [string, number], b: [string, number]) => a[1] - b[1]).map((x: [string, number]) => x[0]);
-    for (const p of r.positions) if (p.next[0]?.item < 0 && !done.has(`${r.id}@${p.at}`))
+    for (const p of r.positions) if (p.next[0]?.item < 0 && !p.next[0].known && !done.has(`${r.id}@${p.at}`))
       cands.push({ genre, id: r.id, at: p.at, mark: p.next[0].mark, from: order.slice(0, p.at), spec: { ...d.spec, genre: d.spec.genre ?? genre } });
   }
-  todo.push(...cands.sort((a, b) => hash(`${a.id}@${a.at}`) - hash(`${b.id}@${b.at}`)).slice(0, per));
+  // a rerun tops a genre up to --per
+  const had = doneRows.filter((r) => r.genre === genre).length;
+  todo.push(...cands.sort((a, b) => hash(`${a.id}@${a.at}`) - hash(`${b.id}@${b.at}`)).slice(0, Math.max(0, per - had)));
 }
 console.error(`${todo.length} misses to follow`);
 let n = 0;
