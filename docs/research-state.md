@@ -647,4 +647,68 @@ price (rank among the choices: 0.15 and 0.21 by distance, 0.38 and 0.30 by price
 didn't have, followed from the person's position with every window deduction each round and no
 splits, sorted as bookkeeping the recording leaves out (2–3 rounds, the chain all "no" facts), a
 chain the person ran in their head (2–3 rounds otherwise: a phrase), further, or not without a
-split (a missing technique or a guess). Running.
+split (a missing technique or a guess). Results below.
+
+### Phase 1 v2: the verdict (2026-10-20)
+
+Run in the cloud thread "Phase 1b: learned move language, cloud" (branch claude/project-thread-i5qxx5).
+Full tables: /mnt/project-files/research/phase1b-human-choice-2026-10-20.md.
+
+**A bug, fixed before these numbers.** deduce.ts's `Options.menus` re-checks only windows whose
+marks changed since the last position, and dropped the rest, so every menu after a solve's first
+listed only what changed near the last position (three listings of the same position gave 26,
+0, 0 items). Fixed 2026-10-20 (a skipped window keeps what it found, each fact listed once a
+stage), and every menus run redone: people's solves on 2 × n2-standard-32 (run
+menus-fixed-20261020), the solver's proofs on 2 more (solver-menus-fixed-20261020), about $5
+together, and the network's test puzzles locally. The verdict below held; the numbers moved by a
+few points. Nothing else used `Options.menus` (the Opus checks and the digit fix did not).
+
+**Data.** Menus along people's solves: 2,998 puzzles of Akari, Easy as ABC, Hidoku, Hitori, Masyu
+and Minesweeper, 4 positions each, with the `known` flag (marks the puzzle settles itself; rows
+before 2026-10-16 lacked it, and Easy as ABC's 31% of moves off the menu was mostly those: really
+2%). proof-menus.ts lists the menu at 16 points along the solver's own proofs (1,816 proofs, every
+type). The human corpus leaves out the network's test puzzles, so every corpus puzzle with menus
+is on the tuned network's training side; human-test-corpus.ts rebuilt its test puzzles from
+Janko's files (714 of these six types) and their menus were listed locally.
+
+**People's moves off the menu** (human-misses.ts, up to 150 a type): Akari and Masyu about two
+thirds bookkeeping or a 2–3 step chain, Easy as ABC 76% chains; Hitori 93% and Hidoku 85% need a
+case split (Numberlink 91% on the earlier, smaller sample), so the solver lacks techniques people
+use there (connectivity in Hitori is the likely one). Fillomino's menus mostly fail (34 of 769
+puzzles), so it was left out of the rerun.
+
+**Code v2** (code-v2.ts): each solver step coded as a choice from its menu, facts, clues and
+place free. A step costs 1–4 bits where the old code charged about 27, and every bit is within a
+vocabulary's reach (against 17%): Fable's diagnosis of the old no-go holds. The solver's own kinds
+of step are a poor vocabulary alone, and add nothing once its price is in; the price carries
+25–50% of the bits (it takes the cheapest first).
+
+**Library learning over step programs** (library.ts: a step as slots, the rules on their units,
+the facts' values, kinds of mark, window size, stage, clue values, place from the last move, the
+last move's kind, open marks in its rule instances, settled neighbours, reading order; an
+abstraction fixes some slots; the library a mixture learned greedily, held-out bits). On the
+solver's steps 12–34% (0% on the split-heavy region types), nearly all "stage 0", its own policy.
+On people's moves 0–6% beyond the nearness prior, with generic abstractions; each added slot
+alone is a real null.
+
+**The network as the ceiling** (net_ceiling.py; human-tuned-2026-10-20 on its own test puzzles,
+same moves and choices), bits a move held out, and **what reads it off** (net_probe.py: a
+conditional logit on price, kind of step and board features, with nearness):
+
+| type | moves | near | network+near | library | readable model | network's gain recovered |
+|---|---|---|---|---|---|---|
+| Akari | 1,515 | 3.11 | 2.41 | 3.08 | 2.98 | 19% |
+| Easy as ABC | 633 | 4.47 | 4.47 (fails on digits) | 4.36 | 3.44 | (beats the network by 23%) |
+| Hitori | 2,553 | 3.67 | 3.09 | 3.46 | 3.07 | 103% |
+| Masyu | 1,642 | 3.52 | 3.25 | 3.52 | 3.44 | 30% |
+| Minesweeper | 395 | 2.10 | 1.84 | 2.10 | 1.93 | 65% |
+
+**Verdict.** Fable's stop rule doesn't fire (the network beats nearness by 8–23%), but what it finds
+isn't a vocabulary. People's next move at the solver's grain is a graded policy: near the last
+move, the easiest step (the solver's price), and some kinds of step before others (Akari: number
+clues before light lines). Hard predicates (library.ts, and Stitch-style abstraction in general)
+code graded preferences badly, which is why library learning found 0–6%. The weighted model
+recovers all of the network's gain on Hitori and two thirds on Minesweeper, a fifth to a third on
+Akari and Masyu; Akari's remaining four fifths is unexplained. The technique gap that does show is
+the other way round: moves people make that the solver can't make without a split (Hitori, Hidoku,
+Numberlink).
