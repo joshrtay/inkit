@@ -15,15 +15,15 @@ and phase 1 v2 in [research-state.md](research-state.md), docs/research-opus-hum
   bottleneck. Weak.
 - *A learned language of moves defines technique and elegance.* Phase 1 v2: with the code fixed
   (each step a choice from its menu, every bit reachable), no vocabulary beyond the solver's own
-  kinds of step compresses the solver's proofs, and on people's moves library learning finds 0–7%
+  kinds of step compresses the solver's proofs, and on people's moves library learning finds 0–6%
   beyond nearness. What predicts people is graded, not symbolic: near the last move, the easiest
   step, some kinds before others. Weak, at the solver's step grain.
 
 Neither result touches the products; they change the route. Difficulty, hints and interest are
 all questions about what a person does, and we now have a measured model of that: the
 human-tuned network (its top guess is in the person's next 3 moves 45% of the time, against
-Opus 38% and the solver 21%; 46%, 35% and 38% with negative marks left out) and a small readable model (nearness, price, kind of step) that recovers most of its gain on
-Hitori and Minesweeper and a quarter to two fifths on Akari and Masyu. The minimum proof was a
+Opus 38% and the solver 21%; 46%, 35% and 38% with negative marks left out) and a small readable model (nearness, price, kind of step) that recovers all of its gain on
+Hitori, two thirds on Minesweeper and a fifth to a third on Akari and Masyu. The minimum proof was a
 stand-in for "the path a good solver takes"; the human model is that path directly.
 
 **The proposed order.**
@@ -57,8 +57,8 @@ stand-in for "the path a good solver takes"; the human model is that path direct
   moves a solution forces that the model finds unlikely), checked against likes and Fable's
   interest placing.
 
-**Open questions this leaves.** Akari's unexplained three quarters of the network's gain; digit
-types, where the network fails and the readable model beats it (Easy as ABC 22% over nearness);
+**Open questions this leaves.** Akari's unexplained four fifths of the network's gain; digit
+types, where the network fails and the readable model beats it (Easy as ABC 23% over nearness);
 whether nearness is people's habit or partly Janko's recording.
 
 ## The reframe
