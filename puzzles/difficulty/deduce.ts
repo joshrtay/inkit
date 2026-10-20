@@ -1998,6 +1998,11 @@ end
   // Options.menus: at each of a person's positions, everything available, none taken
   if (opts.menus) {
     const menus: (Step & { stage: number })[][] = [];
+    // runWindows checks only windows whose marks changed since it last ran them, and nothing is
+    // taken here, so a window it skips still has what it found last time: keep that, less what's
+    // known since (before 2026-10-20 skipped windows were dropped, so every menu after the first
+    // listed only what changed near the last position)
+    const lastFacts = new Map<Window, [number, boolean][]>();
     for (const add of opts.menus) {
       if (Date.now() - t0 > budget) { outOfTime = true; break; }
       round++;
@@ -2006,8 +2011,20 @@ end
       const menu: (Step & { stage: number })[] = [], seen = new Set<Window>();
       for (const [k, stage] of stages.entries()) {
         const ws = stage.flatMap((fam) => family(fam)).filter((w) => !seen.has(w) && (seen.add(w), true));
-        const f = runWindows(ws);
-        if (f.size) for (const st of candidates(f, k === 0 ? 0 : 1)) { const { w: _w, ...step } = st; menu.push({ ...step, round, stage: k }); }
+        const fresh = runWindows(ws), f = new Map<Window, [number, boolean][]>();
+        for (const w of ws) {
+          if (evaluatedAt.get(w) === round) { if (fresh.has(w)) lastFacts.set(w, fresh.get(w)!); else lastFacts.delete(w); }
+          const left = lastFacts.get(w)?.filter(([m]) => known[m] < 0);
+          if (left?.length) f.set(w, left);
+        }
+        // each fact once a stage, from its smallest window, as on a first listing (with every
+        // explanation already cached, candidates lists a fact from every window that finds it)
+        const listed = new Set<string>();
+        if (f.size) for (const st of candidates(f, k === 0 ? 0 : 1)) {
+          const { w: _w, ...step } = st, facts = step.facts.filter((x) => !listed.has(x.mark));
+          for (const x of facts) listed.add(x.mark);
+          if (facts.length) menu.push({ ...step, facts, round, stage: k });
+        }
       }
       menus.push(menu);
     }
