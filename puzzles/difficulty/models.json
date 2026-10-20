@@ -2,6 +2,17 @@
   "about": "The graph network's registered snapshots: immutable weights in gs://inkit-research-ml/models/<id>/model.pt (private: trained on others' puzzles), each with its card here. Experiments fork from a snapshot by id and register what they produce with `parent` set. Metrics are from the run's own report (research-cross-type.md section given); 'human' is the human-made test set (graphs-human.jsonl), never trained on.",
   "models": [
     {
+      "id": "human-tuned-2026-10-20",
+      "parent": "baseline-2026-10-14",
+      "run": "tune-20261020-0545",
+      "from": "gs://inkit-research-ml/results/tune-20261020-0545/tune/best.pt",
+      "commit": "opus_human_tune.py",
+      "config": { "width": 256, "heads": 8, "attention": true, "positions": true, "structure": true, "lr": 3e-4, "epochs": 4 },
+      "data": { "corpus": null, "generated": null, "human": null, "humanLabels": "graphs-human-labels.jsonl, split train (2,669 puzzles, 244,188 states; 329 more held back to pick the epoch)" },
+      "metrics": { "agreementWithPeopleLabels": 0.466, "baselineAgreementWithPeopleLabels": 0.127, "opusHuman400": 0.45 },
+      "notes": "The baseline fine-tuned on Janko's move labels (opus_human_tune.py): predicts people's next moves, not correct ones (86% of its top guesses on opus-human's 400 states are correct). docs/research-opus-human-moves.md, 'The two checks'."
+    },
+    {
       "id": "baseline-2026-10-14",
       "parent": null,
       "run": "graph-20261013-2329",
