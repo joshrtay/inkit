@@ -29,7 +29,12 @@ const named = argv.slice(1).filter((a, i, xs) => !a.startsWith("--") && !xs[i - 
 const dir = `${REFS_DIR}${source === "solver" ? "proof-menus-solver" : "proof-menus"}/`;
 const hash = (key: string) => { let h = 2166136261; for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619); return (h >>> 0) / 2 ** 32; };
 
-const SLOTS = ["rules", "kinds", "facts", "marks", "size", "stage", "n"] as const;
+// clues: the puzzle's givens in the step's window (their values where a type has few); rel: where
+// the move is from the person's last move (touching, near, far; first at a position); after: the
+// last move's kinds of rule (a two-step phrase). rel and after are people's moves only
+const SLOTS = ["rules", "kinds", "facts", "marks", "size", "stage", "n", "clues", "rel", "after"] as const;
+const MAX_FIXED = 3;  // an abstraction fixes at most this many slots
+const EXACT = flag("exact", 400);  // candidates scored exactly each round (the rest by a quick estimate)
 type Prog = string[];  // one value a slot
 interface Move { test: boolean; cands: Prog[]; chosen: number; dist?: Float64Array }
 
@@ -45,7 +50,18 @@ const unit = (label: string) => {
   const cells = label.match(/r\d+c\d+/g);
   return cells ? `cells${Math.min(cells.length, 5)}` : "other";
 };
-const prog = (it: { c: number; k: number; b: number[]; m: string[]; cl: string[] }): Prog => {
+type Givens = { r: number; c: number; edge: boolean; tok: string }[];
+const cluesIn = (b: number[], gv: Givens | undefined) => {
+  if (!gv) return "?";
+  const n = new Map<string, number>();
+  for (const g of gv) {
+    const inside = g.edge ? (g.r >= b[0] && g.r <= b[2]) || (g.c >= b[1] && g.c <= b[3]) : g.r >= b[0] && g.r <= b[2] && g.c >= b[1] && g.c <= b[3];
+    if (inside) n.set(g.tok, (n.get(g.tok) ?? 0) + 1);
+  }
+  if (n.size > 4) return "many";
+  return [...n.entries()].sort().map(([t, k]) => (k > 1 ? `${k}×${t}` : t)).join(" ") || "none";
+};
+const prog = (it: { c: number; k: number; b: number[]; m: string[]; cl: string[] }, gv?: Givens, rel = "", after = ""): Prog => {
   const rules = [...new Set(it.cl.map((x) => { const m = /^(.*?) \((.*)\)$/.exec(x); return m ? `${m[1]}@${unit(m[2])}` : x; }))].sort();
   const on = it.m.filter((f) => f.endsWith("=1")).length, off = it.m.length - on;
   const h = it.b[2] - it.b[0] + 1, w = it.b[3] - it.b[1] + 1;
@@ -57,6 +73,9 @@ const prog = (it: { c: number; k: number; b: number[]; m: string[]; cl: string[]
     `${Math.min(h, w)}x${Math.max(h, w)}`,
     String(it.k),
     String(it.m.length <= 2 ? it.m.length : it.m.length <= 4 ? "3-4" : "5+"),
+    cluesIn(it.b, gv),
+    rel,
+    after,
   ];
 };
 
@@ -66,11 +85,16 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "mi
   const genre = f.slice(0, -6);
   if (named.length && !named.includes(genre)) continue;
   const moves: Move[] = [];
+  // the givens, as tokens: a kind, with its value where the type has at most 10 distinct values
+  const specs = new Map<string, any>();
+  for (const l of readFileSync(`${REFS_DIR}ml/human-corpus/${genre}.jsonl`, "utf8").split("\n")) { const m = /^\{"key":"([^"]+)"/.exec(l); if (m) specs.set(m[1], JSON.parse(l).spec.givens ?? []); }
+  const distinct = new Set([...specs.values()].flatMap((gs: any[]) => gs.map((g) => `${g.kind}:${g.value ?? ""}`)));
+  const givens = (id: string): Givens | undefined => specs.get(id)?.filter((g: any) => Array.isArray(g.cell)).map((g: any) => ({ r: g.cell[0], c: g.cell[1], edge: g.at === "edge", tok: distinct.size <= 12 ? `${g.kind}${g.value !== undefined ? `:${g.value}` : ""}` : g.kind }));
   for (const line of readFileSync(dir + f, "utf8").split("\n")) {
     if (!line.trim()) continue;
     const d = JSON.parse(line);
     if (!d.positions) continue;
-    const test = hash(`split:${d.id}`) < 0.5;
+    const test = hash(`split:${d.id}`) < 0.5, gv = givens(d.id);
     for (const p of d.positions) {
       if (source === "solver") {
         const nx = p.next[0];
@@ -79,7 +103,7 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "mi
         const by = new Map<string, any>();
         for (const it of p.menu) { const k = [...it.m].sort().join(" "), had = by.get(k); if (!had || it.c < had.c) by.set(k, it); }
         const keys = [...by.keys()], chosen = keys.indexOf([...p.menu[nx.item].m].sort().join(" "));
-        moves.push({ test, cands: keys.map((k) => prog(by.get(k))), chosen });
+        moves.push({ test, cands: keys.map((k) => prog(by.get(k), gv)), chosen });
       } else {
         // a mark, as its cheapest item; the choices are the marks set to the value the person set
         const marks = new Map<string, { it: any; value: string }>();
@@ -89,15 +113,16 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "mi
         }
         // each mark's place (its cheapest item's window centre), for the locality prior
         const at = (it: any) => [(it.b[0] + it.b[2]) / 2, (it.b[1] + it.b[3]) / 2];
-        let prev: number[] | null = null;
+        let prev: number[] | null = null, after = "none";
         for (const nx of p.next as { mark: string; known?: 1 }[]) {
           if (nx.known) continue;
           const target = marks.get(nx.mark);
-          if (!target) { prev = null; continue; }
+          if (!target) { prev = null; after = "none"; continue; }
           const keys = [...marks.entries()].filter(([, v]) => v.value === target.value);
           const dist = Float64Array.from(keys, ([, v]) => { if (!prev) return 0; const [r, c] = at(v.it); return Math.hypot(r - prev[0], c - prev[1]); });
-          moves.push({ test, cands: keys.map(([, v]) => prog(v.it)), chosen: keys.findIndex(([k]) => k === nx.mark), dist });
-          prev = at(target.it);
+          const rel = (i: number) => (!prev ? "first" : dist[i] <= 1 ? "touch" : dist[i] <= 3 ? "near" : "far");
+          moves.push({ test, cands: keys.map(([, v], i) => prog(v.it, gv, rel(i), after)), chosen: keys.findIndex(([k]) => k === nx.mark), dist });
+          prev = at(target.it); after = prog(target.it)[1];
         }
       }
     }
@@ -164,10 +189,17 @@ for (const [genre, moves] of [...byGenre.entries()].sort()) {
   const cache = new Map<string, Float64Array>(), near = codeLength([top], tr, te, cache).test;
   const kinds = [top, ...new Map(tr.map((m) => { const a = absOf(m.cands[m.chosen], 2); return [a.key, a]; })).values()];
   const kindBits = codeLength(kinds, tr, te, cache).test;
+  // --slots: each slot alone as the vocabulary (every value of it a symbol), against the prior alone
+  if (argv.includes("--slots")) console.log(`  ${genre}: ` + SLOTS.map((name, i) => {
+    const lib1 = [top, ...new Map(tr.map((m) => { const a = absOf(m.cands[m.chosen], 1 << i); return [a.key, a]; })).values()];
+    return `${name} ${codeLength(lib1, tr, te, cache).test.toFixed(2)} (${lib1.length - 1})`;
+  }).join(", "));
   // candidates: every abstraction of a training step, the commonest first
   const freq = new Map<string, { a: Abs; n: number }>();
   for (const m of tr) for (let mask = 1; mask < 1 << SLOTS.length; mask++) {
     if (mask & 1 && mask & 2) continue;  // the rules fix the kinds
+    let fixed = 0; for (let x = mask; x; x &= x - 1) fixed++;
+    if (fixed > MAX_FIXED) continue;
     const a = absOf(m.cands[m.chosen], mask), e = freq.get(a.key);
     if (e) e.n++; else freq.set(a.key, { a, n: 1 });
   }
@@ -186,12 +218,12 @@ for (const [genre, moves] of [...byGenre.entries()].sort()) {
       let g = 0;
       for (let i = 0; i < tr.length; i++) if (W[i] + c < cur.train[i]) g += cur.train[i] - W[i] - c;
       return { a, g: g - defBits(a, values) };
-    }).filter((e) => e.g > 0).sort((x, y) => y.g - x.g).slice(0, 20);
+    }).sort((x, y) => y.g - x.g).slice(0, EXACT);
     let best: { a: Abs; r: ReturnType<typeof codeLength>; t: number } | null = null;
     for (const { a } of est) {
       const r = codeLength([...lib, a], tr, null, cache), t = r.sum + defs() + defBits(a, values);
-      if (t < total && (!best || t < best.t)) best = { a, r, t };
-      else tried.add(a.key);
+      if (t >= total) tried.add(a.key);  // no use now; with a larger library, none later
+      else if (!best || t < best.t) best = { a, r, t };
     }
     if (!best) break;
     lib.push(best.a); cur = best.r; total = best.t;
