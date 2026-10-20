@@ -21,8 +21,8 @@ and phase 1 v2 in [research-state.md](research-state.md), docs/research-opus-hum
 
 Neither result touches the products; they change the route. Difficulty, hints and interest are
 all questions about what a person does, and we now have a measured model of that: the
-human-tuned network (46% agreement with people's next moves, against Opus 35–38% and the solver
-38%) and a small readable model (nearness, price, kind of step) that recovers most of its gain on
+human-tuned network (its top guess is in the person's next 3 moves 45% of the time, against
+Opus 38% and the solver 21%; 46%, 35% and 38% with negative marks left out) and a small readable model (nearness, price, kind of step) that recovers most of its gain on
 Hitori and Minesweeper and a quarter to two fifths on Akari and Masyu. The minimum proof was a
 stand-in for "the path a good solver takes"; the human model is that path directly.
 
