@@ -118,7 +118,7 @@ def score(model):
                 s, _ = p.state(k)
                 if p.people(s) is None or not len(p.people(s)): continue
                 g, _, mask, _ = gp.batch_states([(p, s, np.zeros((len(s), 2), np.float32))], True)
-                top = net(gp.to(g)).masked_fill(mask[:, None] == 0, -1e9).flatten().argmax().item()
+                top = net(gp.to(g)).cpu().masked_fill(mask[:, None] == 0, -1e9).flatten().argmax().item()
                 i = top // 2; x, v = p.cv[i]; t = s == 1
                 pos = dict(zip(p.cv[t, 1].tolist(), p.cv[t, 0].tolist()))
                 c["n"] += 1; c["correct"] += bool(p.truth[i]) == (top % 2 == 0)

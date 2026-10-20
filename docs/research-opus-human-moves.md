@@ -303,5 +303,56 @@ mixed fine-tune, so the full network's figure with these inputs is untested.
 don't carry; the fine-tune had 1,036 Hidoku states and learned almost nothing. The general form,
 not Hidoku's: for marks with a value, inputs relating a mark to marks of the same value (used
 elsewhere) and of the next value (placed next door), for the types whose rule links a number to
-the next (Hidoku, Honeycomb Paths). That needs a GPU fine-tune of the full network (about the
-3-hour spot L4 run of the two checks), which needs Josh's OK.
+the next (Hidoku, Honeycomb Paths).
+
+### The fine-tune with relation inputs
+
+Josh approved the GPU run. graph_policy.py's GRAPH_RELATIONS=1 gives every digit mark four more
+inputs: the same number placed in a cell sharing a rule instance (used), n − 1 and n + 1 placed
+next door (square grids with an "order" rule), and its cell filled. They are keyed on mark kind
+and rule primitive, never on a type's name. load_net() pads older weights with zero columns, so a
+loaded network is unchanged (checked: identical outputs). The fine-tune is the two checks' fine-tune
+with the switch on: baseline-2026-10-14, the same 2,669 training puzzles, lr 3e-4, one spot L4
+(run tune-20261020-1516, about 23 minutes an epoch). Epoch 4 was best on the held-back puzzles
+(49.2%; epoch 5 48.0%). It is registered as relations-tuned-2026-10-20.
+
+Every test-side state of the digit types (hidoku_relations.py `score`):
+
+| Type | States | Tuned before | With relations |
+|---|---|---|---|
+| Hidoku | 271 | 10% | **56.5%** |
+| Skyscrapers | 561 | 64% | 62% |
+| Easy as ABC | 533 (a fifth) | 65% | 65% |
+
+Its Hidoku top guesses are now correct 76% of the time (13% before), never name a number already
+placed (41% before), and always sit next to n − 1 or n + 1.
+
+Every type, the test side at 6 states a puzzle (opus_human_tune.py `heldout`; both networks on the
+same states):
+
+| Type | Tuned before | With relations |
+|---|---|---|
+| Hidoku | 7% | **50%** |
+| Easy as ABC | 60% | 64% |
+| Numberlink | 65% | 69% |
+| Masyu | 44% | 49% |
+| Slitherlink | 35% | 38% |
+| Akari, Fillomino, Hitori | 57%, 44%, 50% | the same |
+| Minesweeper | 61% | 59% |
+| Nonogram, Spiral Galaxies | 21%, 32% | 20%, 31% |
+| Star Battle | 54% | 51% |
+| Nurikabe | 54% | 49% |
+| Skyscrapers | 67% | 56% |
+| **Mean over types** | 46.6% | **49.0%** |
+
+- Hidoku's gap is closed as far as these numbers go: 56.5% against Opus's 71% (on its 28 states)
+  and the hand rule's 62%.
+- The mean gains 2.4 points, nearly all of it Hidoku. The rest move by a few points either way. At
+  20–90 puzzles a type and one run each, most of that is noise.
+- Skyscrapers may have lost a little: 64% to 62% on all 561 states (67% to 56% on the 126 sampled
+  ones). Its "used" input repeats what its rows and columns already say, and it gets no
+  next-door inputs (Skyscrapers has no order rule). This is untested; a second seed would tell.
+
+**Verdict:** the encoding was the cause, and four inputs fix Hidoku without Opus labels. Use
+relations-tuned-2026-10-20 as the human-like branch's parent in place of human-tuned-2026-10-20
+(load it with GRAPH_RELATIONS=1). The correctness filter is still needed.

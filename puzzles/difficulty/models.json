@@ -44,6 +44,36 @@
       "data": { "corpus": ["graphs.jsonl", "graphs-scale.jsonl"], "generated": "graphs-gen.jsonl (share 1)", "human": null },
       "metrics": { "corpusHeldOut": 0.742, "generatedHeldOut": 0.88, "keyMove": 0.43, "humanAnyMove": 0.61, "humanKeyMove": 0.30, "agreementWithPeople": 0.22 },
       "notes": "The learning curve's full-data point, no structure. research-cross-type.md §13."
+    },
+    {
+     "id": "relations-tuned-2026-10-20",
+     "parent": "baseline-2026-10-14",
+     "run": "tune-20261020-1516",
+     "from": "gs://inkit-research-ml/results/tune-20261020-1516/tune/best.pt",
+     "commit": "e80f593",
+     "config": {
+      "width": 256,
+      "heads": 8,
+      "attention": true,
+      "positions": true,
+      "structure": true,
+      "relations": true,
+      "lr": 0.0003,
+      "epochs": 4
+     },
+     "data": {
+      "corpus": null,
+      "generated": null,
+      "human": null,
+      "humanLabels": "graphs-human-labels.jsonl, split train (2,669 puzzles, 244,188 states; 329 more held back to pick the epoch)"
+     },
+     "metrics": {
+      "agreementWithPeopleLabels": 0.49,
+      "hidokuAllTestStates": 0.565,
+      "skyscrapersAllTestStates": 0.617,
+      "easyAsAbcAllTestStates": 0.653
+     },
+     "notes": "As human-tuned-2026-10-20, with GRAPH_RELATIONS=1 (load it with that set): a digit mark's number beside the others. Hidoku 56.5% against 10%. docs/research-opus-human-moves.md, 'Why Hidoku'."
     }
   ]
 }
