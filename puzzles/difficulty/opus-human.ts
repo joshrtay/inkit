@@ -20,6 +20,9 @@
 //   node --no-warnings puzzles/difficulty/opus-human.ts check                 → forced.jsonl (clingo)
 //   references/ml/.venv/bin/python puzzles/difficulty/opus_human_net.py       → net.jsonl
 //   node --no-warnings puzzles/difficulty/opus-human.ts report                → report.md
+//   python puzzles/difficulty/opus_human_tune.py score <model> net-<base|tuned>.jsonl   (or tune-job.sh)
+//   node --no-warnings puzzles/difficulty/opus-human.ts checks                → checks.md (the tuned
+//     network beside the rest, and every predictor with negative marks left out)
 //   node --no-warnings puzzles/difficulty/opus-human.ts show <id>             (the prompt, for checking)
 //
 // Everything goes to references/ml/opus-human/ (local only: the puzzles are Janko's). OPUS_CAP
@@ -422,7 +425,94 @@ function report() {
   console.log(text);
 }
 
+// ======== the two checks: a network tuned on people's moves, and no negative marks ========
+// `checks`: every predictor (Opus, the baseline network, the network fine-tuned on Janko's move
+// labels by opus_human_tune.py, our solver) scored twice on the same 400 states:
+// - as report() does (in the person's next 3; network and solver fair on the digit types);
+// - with negative marks left out ("no line", a cross, an unshaded cell, an empty Easy as ABC cell:
+//   any mark set false): the person's next 3 are the first 3 positive label marks they settled still
+//   open, and each predictor's guess is its best positive move (the network's highest-scored mark set
+//   true, the solver's first open positive fact along its path). Opus gave one move: a negative one
+//   counts as a miss, and a second row keeps only the states where Opus named a positive move.
+// Reads net-base.jsonl and net-tuned.jsonl (opus_human_tune.py score) beside opus.jsonl.
+async function checks() {
+  const items = loadItems();
+  const opus = new Map(readJsonl(`${OUT}opus.jsonl`).map((x) => [x.id, x]));
+  const nets = { base: new Map(readJsonl(`${OUT}net-base.jsonl`).map((x) => [x.id, x])), tuned: new Map(readJsonl(`${OUT}net-tuned.jsonl`).map((x) => [x.id, x])) };
+  if (!nets.base.size || !nets.tuned.size) throw new Error("net-base.jsonl and net-tuned.jsonl are needed (opus_human_tune.py score)");
+  const recs = new Map<string, any>();
+  for (const l of readFileSync(`${repo}references/ml/graphs-human-labels.jsonl`, "utf8").split("\n")) {
+    if (!l.includes('"split":"test"')) continue;
+    const d = JSON.parse(l); recs.set(d.name, d.humanOrder);
+  }
+  const key = (mv: MV | null | undefined) => (mv ? `${mv[0]}=${mv[1]}` : "");
+  const DIGITS = new Set(["easy-as-abc", "hidoku", "skyscrapers"]);
+  type Row = { it: Item; next: MV[]; posNext: MV[]; opus: MV | null; base: any; tuned: any; solverPos: MV | null };
+  const rows: Row[] = [];
+  const solves = await mapPool(items, async (it) => deduceCached(jankoOf(it.name).j.spec).catch(() => null), 2);
+  items.forEach((it, i) => {
+    const { j } = jankoOf(it.name), known = new Map(it.known), open = (m: string) => !known.has(m);
+    const order = (recs.get(it.name) as [string, number][]).map(([m]) => m).filter((m, k, a) => a.indexOf(m) === k && open(m));
+    const posNext = order.filter((m) => j.truth.get(m) === true).slice(0, 3).map((m): MV => [m, true]);
+    const steps = (solves[i]?.path ?? []).filter((s: any) => !s.choice);
+    const sp = steps.flatMap((s: any) => s.facts).find((f: any) => f.value && open(f.mark));
+    rows.push({ it, next: it.next, posNext, opus: opus.get(it.id)?.mark ?? null, base: nets.base.get(it.id), tuned: nets.tuned.get(it.id), solverPos: sp ? [sp.mark, true] : null });
+  });
+  const hitIn = (mv: MV | null | undefined, set: MV[]) => !!mv && set.some((x) => key(x) === key(mv));
+  // the guesses: as report() (fair: the best placement on digit types), and positive only
+  const fair = (r: Row) => {
+    const d = DIGITS.has(r.it.genre);
+    return { opus: r.opus, base: d ? r.base.place ?? r.base.top : r.base.top, tuned: d ? r.tuned.place ?? r.tuned.top : r.tuned.top, solver: d ? r.it.solverPlace ?? r.it.solverFirst : r.it.solverFirst };
+  };
+  const positive = (r: Row) => ({ opus: r.opus?.[1] ? r.opus : null, base: r.base.pos, tuned: r.tuned.pos, solver: r.solverPos });
+  const P = ["opus", "base", "tuned", "solver"] as const;
+  const tally = (rs: Row[], guess: (r: Row) => Record<(typeof P)[number], MV | null>, target: (r: Row) => MV[]) => {
+    const n = rs.length, hits = Object.fromEntries(P.map((p) => [p, rs.filter((r) => hitIn(guess(r)[p], target(r))).length])) as Record<(typeof P)[number], number>;
+    const top1 = Object.fromEntries(P.map((p) => [p, rs.filter((r) => target(r).length && key(target(r)[0]) === key(guess(r)[p])).length])) as Record<(typeof P)[number], number>;
+    return { n, hits, top1 };
+  };
+  const signP = (a: number, b: number) => { const n = a + b, k = Math.min(a, b); let p = 0, c = 1; for (let i = 0; i <= k; i++) { p += c / 2 ** n; c = (c * (n - i)) / (i + 1); } return Math.min(1, 2 * p); };
+  const paired = (rs: Row[], guess: (r: Row) => Record<(typeof P)[number], MV | null>, target: (r: Row) => MV[], a: (typeof P)[number], b: (typeof P)[number]) => {
+    const x = rs.filter((r) => hitIn(guess(r)[a], target(r)) && !hitIn(guess(r)[b], target(r))).length, y = rs.filter((r) => !hitIn(guess(r)[a], target(r)) && hitIn(guess(r)[b], target(r))).length;
+    return `${x} to ${y} (p = ${signP(x, y).toPrecision(2)})`;
+  };
+  const head = "| States | n | Opus | Network | Network tuned on people | Solver | Opus top-1 | Network top-1 | Tuned top-1 | Solver top-1 |\n|---|---|---|---|---|---|---|---|---|---|";
+  const line = (label: string, rs: Row[], guess: (r: Row) => Record<(typeof P)[number], MV | null>, target: (r: Row) => MV[]) => {
+    const s = tally(rs, guess, target);
+    return `| ${label} | ${s.n} | ${P.map((p) => pct(s.hits[p], s.n)).join(" | ")} | ${P.map((p) => pct(s.top1[p], s.n)).join(" | ")} |`;
+  };
+  const withPos = rows.filter((r) => r.posNext.length);
+  const opusPos = withPos.filter((r) => r.opus?.[1]);
+  const groups = (rs: Row[]) => { const m = new Map<string, Row[]>(); for (const r of rs) m.set(r.it.genre, [...(m.get(r.it.genre) ?? []), r]); return [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1)); };
+  const nNegNext = rows.reduce((a, r) => a + r.next.filter((x) => !x[1]).length, 0), nNext = rows.reduce((a, r) => a + r.next.length, 0);
+  const negBy = (p: (typeof P)[number]) => rows.filter((r) => { const g = fair(r)[p]; return g && !g[1]; }).length;
+  const out: string[] = [
+    "## As before (in the person's next 3; network and solver fair on the digit types)", "", head,
+    line("**all**", rows, fair, (r) => r.next),
+    ...["ordinary", "stuck"].map((k) => line(k, rows.filter((r) => r.it.kind === k), fair, (r) => r.next)),
+    line("the 11 non-digit types", rows.filter((r) => !DIGITS.has(r.it.genre)), fair, (r) => r.next),
+    line("digit types", rows.filter((r) => DIGITS.has(r.it.genre)), fair, (r) => r.next),
+    "", `Paired (exact sign test, states where one hits and the other misses): Opus against the tuned network ${paired(rows, fair, (r) => r.next, "opus", "tuned")}; tuned against the baseline ${paired(rows, fair, (r) => r.next, "tuned", "base")}; tuned against the solver ${paired(rows, fair, (r) => r.next, "tuned", "solver")}.`,
+    "", head, ...groups(rows).map(([g, rs]) => line(g, rs, fair, (r) => r.next)),
+    "", `Negative marks: ${nNegNext} of the people's ${nNext} next-3 moves; of the guesses, Opus ${negBy("opus")}, the network ${negBy("base")}, the tuned network ${negBy("tuned")}, the solver ${negBy("solver")} of ${rows.length}.`,
+    `Correct by the solution (the guess as scored above): ${P.map((p) => `${{ opus: "Opus", base: "the network", tuned: "the tuned network", solver: "the solver" }[p]} ${rows.filter((r) => { const g = fair(r)[p]; return g && jankoOf(r.it.name).j.truth.get(g[0]) === g[1]; }).length}`).join(", ")} of ${rows.length}.`,
+    "", "## Negative marks left out (the person's next 3 positive moves; each predictor's best positive move)", "", head,
+    line("**all with a positive move to come** (Opus's negatives count as misses)", withPos, positive, (r) => r.posNext),
+    line("**only where Opus named a positive move**", opusPos, positive, (r) => r.posNext),
+    ...["ordinary", "stuck"].map((k) => line(k, withPos.filter((r) => r.it.kind === k), positive, (r) => r.posNext)),
+    line("the 11 non-digit types", withPos.filter((r) => !DIGITS.has(r.it.genre)), positive, (r) => r.posNext),
+    line("the 11 non-digit types, only where Opus named a positive move", opusPos.filter((r) => !DIGITS.has(r.it.genre)), positive, (r) => r.posNext),
+    "", `Paired: Opus against the tuned network ${paired(withPos, positive, (r) => r.posNext, "opus", "tuned")} (on Opus's positive states ${paired(opusPos, positive, (r) => r.posNext, "opus", "tuned")}); Opus against the solver ${paired(withPos, positive, (r) => r.posNext, "opus", "solver")} (${paired(opusPos, positive, (r) => r.posNext, "opus", "solver")}); tuned against the baseline ${paired(withPos, positive, (r) => r.posNext, "tuned", "base")}.`,
+    "", head, ...groups(withPos).map(([g, rs]) => line(g, rs, positive, (r) => r.posNext)),
+    "", `States with no positive move to come: ${rows.length - withPos.length}. Opus named a negative move on ${withPos.length - opusPos.length} of the ${withPos.length}.`,
+  ];
+  const text = out.join("\n");
+  writeFileSync(`${OUT}checks.md`, text);
+  console.log(text);
+}
+
 if (cmd === "sample") await sample();
+else if (cmd === "checks") await checks();
 else if (cmd === "ask") await ask();
 else if (cmd === "check") await check();
 else if (cmd === "show") console.log(promptOf(loadItems().find((it) => it.id === argv[1]) ?? loadItems()[0]));

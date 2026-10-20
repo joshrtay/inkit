@@ -165,3 +165,81 @@ Two things it doesn't settle:
 - **One reply per state** at medium effort. Opus's own variance and other efforts are unmeasured.
 - **Leakage** looks small: Janko's puzzles are public, but shown as text grids at a mid-solve
   state; the person's recorded order isn't published with them.
+
+## The two checks (2026-10-20)
+
+The verdict above left two things open. Both are now run on the same 400 states. Code:
+puzzles/difficulty/opus_human_tune.py (the fine-tune and its scoring), puzzles/cloud/tune-job.sh
+and run-tune-job.sh (the GPU job), and `opus-human.ts checks` (both rescorings, → checks.md). The
+tuned network is registered as human-tuned-2026-10-20 (models.json).
+
+**1. A network fine-tuned on people's moves.** baseline-2026-10-14 was fine-tuned on the training
+side of graphs-human-labels.jsonl: 2,669 Janko puzzles, 244,188 states, each state's targets the
+person's next 3 moves.
+- No test puzzle was trained on. All 400 states come from the test side, which is held out by
+  puzzle, and a training record is also dropped if its content or name matches the test side or the
+  human test set (none did).
+- The epoch and learning rate were picked on 329 more training puzzles held back. Agreement there
+  went from 9% to 47% (best at learning rate 3e-4, epoch 4; 1e-4 got 2 epochs before the time
+  limit and reached 43%).
+- One spot L4 for about 3 hours (on-demand L4s were sold out in every zone tried); 22 minutes an
+  epoch.
+- On the whole test side (1,192 puzzles, 6 states each), agreement with people went from 13% to
+  47% (mean over types).
+
+| States | n | Opus | Network | Network tuned on people | Solver |
+|---|---|---|---|---|---|
+| **All, fair on digit types** | 400 | 38% (33–43) | 19% (15–23) | **45% (40–50)** | 21% (17–25) |
+| Top-1 | 400 | 23% (19–27) | 10% (7–13) | **27% (23–32)** | 11% (8–14) |
+| Ordinary | 317 | 39% (34–45) | 20% (16–24) | **50% (44–55)** | 20% (16–24) |
+| Stuck | 83 | **33% (23–43)** | 17% (10–26) | 27% (18–37) | 27% (18–37) |
+| The 11 non-digit types | 315 | 30% (25–35) | 16% (13–21) | **46% (41–52)** | 17% (13–21) |
+| Digit types | 85 | **67% (57–76)** | 29% (21–40) | 40% (30–51) | 36% (27–47) |
+
+Paired, the tuned network beats Opus 93 to 66 (p = 0.04), the baseline 128 to 25 and the solver 137
+to 42. It leads on 10 of 14 types, most on Numberlink (72% against 28%), Akari (66% against 38%) and
+Fillomino (41% against 10%). Opus still leads on Hidoku (71% against 14%), Skyscrapers (82% against
+57%) and Hitori (45% against 38%), and on the stuck states, which are our solver's states rather
+than the person's.
+
+Its guesses are less often right: 343 of 400 are correct by the solution (86%), against Opus's 391
+(98%). It learned what people do next, mistakes and guesses included, and nothing in it keeps to
+forced moves.
+
+**2. Negative marks left out.** Here the person's next 3 are the first 3 *positive* label marks
+they settled that are still open (crosses, "no line", unshaded cells and empty Easy as ABC cells
+are dropped). Each predictor's guess is its best positive move: the networks' highest-scored mark
+set true, and the solver's first open positive fact along its path. Opus gave one move per state,
+and on 130 of the 395 states with a positive move to come it was negative.
+
+| States | n | Opus | Network | Network tuned on people | Solver |
+|---|---|---|---|---|---|
+| **All** (Opus's negative moves count as misses) | 395 | 35% (31–40) | 31% (27–36) | **46% (41–51)** | 38% (34–43) |
+| Only where Opus named a positive move | 265 | **53% (47–59)** | 32% (26–38) | 51% (45–57) | 31% (26–37) |
+| The 11 non-digit types | 310 | 27% (22–32) | 29% (25–35) | **44% (39–50)** | 38% (33–43) |
+
+- With negatives out, the gap between Opus and the solver closes: 35% against 38% (75 to 87, p =
+  0.4). Most of Opus's edge over the untuned predictors was that they name crosses and people don't.
+- The tuned network leads Opus 100 to 60 (p = 0.002).
+- On the states where Opus did name a positive move, Opus and the tuned network tie (53% against
+  51%, 60 to 54, p = 0.6), and both are far ahead of the solver (31%). That subset is Opus's own
+  pick, so it flatters Opus. A fair test would ask Opus for its best positive move on the other 130
+  states (about $5).
+
+**Verdict: Opus no longer leads.** A network fine-tuned on Janko's moves for about a dollar or two
+of spot GPU predicts the person's next move better than Opus: 45% against 38% as first measured,
+and 46% against 35% with negatives left out. Opus keeps the digit types (Hidoku above all) and the
+solver's stuck states, and its moves are almost always forced.
+
+For the human-like branch, this makes the tuned network the parent, not an LLM. It is cheaper by
+orders of magnitude per move, it is already ahead, and it runs inside the pipeline. Two things it
+needs:
+- **A correctness filter.** 14% of its top guesses are wrong. For a player model, rank only the
+  moves our solver proves (or clingo forces), and keep the human ranking for the order.
+- **Help on the digit types.** Hidoku at 14% is the clear gap. Distilling Opus's moves there into
+  the network as labels (about $0.04 a state) is the cheap way to close it.
+
+Caveats: the same seven expert solvers are on both sides of the split (held out by puzzle, not by
+person), so this measures predicting *these* experts on new puzzles. The fine-tune was picked on a
+held-back slice and never saw the 400 states, but only two learning rates were tried. Stuck states
+are few (83).
