@@ -1,0 +1,80 @@
+{
+ "akari": {
+  "cost": -0.068,
+  "dist": -0.3916,
+  "items": 0.2488,
+  "kinds": {
+   "adjacent-count+lit": 0.3228,
+   "adjacent-count": 0.9116,
+   "lit": -1.2344
+  },
+  "other": 0,
+  "moves": 7105
+ },
+ "easy-as-abc": {
+  "cost": -0.4216,
+  "dist": -0.74,
+  "items": 0.5266,
+  "kinds": {
+   "first-seen+letters": -0.1574,
+   "letters": -1.0613,
+   "first-seen": 0.1505,
+   "": 1.0683
+  },
+  "other": 0,
+  "moves": 3877
+ },
+ "hidoku": {
+  "cost": -0.0121,
+  "dist": -0.9557,
+  "items": 0.9956,
+  "kinds": {
+   "number-path": -1.7825,
+   "": 1.7825
+  },
+  "other": 0,
+  "moves": 544
+ },
+ "hitori": {
+  "cost": -0.6943,
+  "dist": -0.4101,
+  "items": 0.1242,
+  "kinds": {
+   "no-adjacent+unique-unshaded": -0.4479,
+   "no-adjacent": 0.1029,
+   "unique-unshaded": 0.345
+  },
+  "other": 0,
+  "moves": 7582
+ },
+ "masyu": {
+  "cost": -0.0655,
+  "dist": -0.6312,
+  "items": 0.0983,
+  "kinds": {
+   "pearls": -0.1392,
+   "loop+pearls": -0.1194,
+   "loop": 0.2433,
+   "loop+pearls+premature": 0.0017,
+   "loop+premature": 0.0137
+  },
+  "other": 0,
+  "moves": 4963
+ },
+ "minesweeper": {
+  "cost": -0.6097,
+  "dist": -0.5423,
+  "items": 0.4546,
+  "kinds": {
+   "mine-count": 0
+  },
+  "other": 0,
+  "moves": 2785
+ },
+ "generic": {
+  "cost": -0.2708,
+  "dist": -0.5493,
+  "items": 0.3371,
+  "moves": 10544
+ }
+}
