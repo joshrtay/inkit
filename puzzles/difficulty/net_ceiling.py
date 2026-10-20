@@ -9,6 +9,8 @@
 #   net+near  ∝ exp(τ · logit − λ · distance)                    (τ, λ fitted on half the puzzles)
 #
 # Only puzzles on the network's test side (graphs-human-labels.jsonl split "test": never trained on).
+# The human corpus leaves those out, so their menus are their own run: human-test-corpus.ts, then
+# MENUS_CORPUS=references/ml/human-test-corpus/ MENUS_OUT=references/proof-menus-test/ human-menus.ts.
 # The network's state at a position is the record's initial marks and the person's marks before it
 # (at the answer's values), the same state the menu was listed from.
 #
@@ -28,27 +30,26 @@ def h32(key):
     for ch in key: h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
     return h / 2 ** 32
 
-# the network's test-side records, by the corpus's ids
+# the network's test-side records, by name (the test corpus's keys)
 recs = {}
 for line in open(REFS + "ml/graphs-human-labels.jsonl"):
     d = json.loads(line)
-    if d.get("split") != "test": continue
-    for i in gp.ids_of_name(d["name"]): recs[i] = d
+    if d.get("split") == "test": recs[d["name"]] = d
 net = gp.load_net(os.path.join(REFS, f"ml/models/{model}/model.pt")); net.eval()
 
 moves = {}   # genre → list of (test half, dist array, logit array, chosen)
-for f in sorted(os.listdir(REFS + "proof-menus")):
+for f in sorted(os.listdir(REFS + "proof-menus-test")):
     if not f.endswith(".jsonl") or f == "misses.jsonl": continue
     genre = f[:-6]
     corpus = {}
-    for line in open(REFS + f"ml/human-corpus/{genre}.jsonl"):
+    for line in open(REFS + f"ml/human-test-corpus/{genre}.jsonl"):
         d = json.loads(line); corpus[d["key"]] = d
     n_rows = 0
-    for line in open(REFS + "proof-menus/" + f):
+    for line in open(REFS + "proof-menus-test/" + f):
         row = json.loads(line)
         if "positions" not in row or row["id"] not in corpus: continue
         c = corpus[row["id"]]
-        rec = next((recs[i] for i in c.get("ids") or [] if i in recs), None)
+        rec = recs.get(row["id"])
         if not rec: continue
         n_rows += 1
         pz = gp.Puzzle(rec)

@@ -26,7 +26,9 @@ import { REFS_DIR } from "./janko.ts";
 const argv = process.argv.slice(2), flag = (n: string, d: number) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? Number(argv[i + 1]) : d; };
 const source = argv[0] === "solver" ? "solver" : "human", MAX = flag("max", 40), SHOW = flag("show", 8);
 const named = argv.slice(1).filter((a, i, xs) => !a.startsWith("--") && !xs[i - 1]?.startsWith("--"));
-const dir = `${REFS_DIR}${source === "solver" ? "proof-menus-solver" : "proof-menus"}/`;
+// MENUS_OUT and MENUS_CORPUS as human-menus.ts takes them (the network's test puzzles)
+const dir = process.env.MENUS_OUT ?? `${REFS_DIR}${source === "solver" ? "proof-menus-solver" : "proof-menus"}/`;
+const corpusDir = process.env.MENUS_CORPUS ?? `${REFS_DIR}ml/human-corpus/`;
 const hash = (key: string) => { let h = 2166136261; for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619); return (h >>> 0) / 2 ** 32; };
 
 // clues: the puzzle's givens in the step's window (their values where a type has few); rel: where
@@ -87,7 +89,7 @@ for (const f of readdirSync(dir).filter((x) => x.endsWith(".jsonl") && x !== "mi
   const moves: Move[] = [];
   // the givens, as tokens: a kind, with its value where the type has at most 10 distinct values
   const specs = new Map<string, any>();
-  for (const l of readFileSync(`${REFS_DIR}ml/human-corpus/${genre}.jsonl`, "utf8").split("\n")) { const m = /^\{"key":"([^"]+)"/.exec(l); if (m) specs.set(m[1], JSON.parse(l).spec.givens ?? []); }
+  for (const l of readFileSync(`${corpusDir}${genre}.jsonl`, "utf8").split("\n")) { const m = /^\{"key":"([^"]+)"/.exec(l); if (m) specs.set(m[1], JSON.parse(l).spec.givens ?? []); }
   const distinct = new Set([...specs.values()].flatMap((gs: any[]) => gs.map((g) => `${g.kind}:${g.value ?? ""}`)));
   const givens = (id: string): Givens | undefined => specs.get(id)?.filter((g: any) => Array.isArray(g.cell)).map((g: any) => ({ r: g.cell[0], c: g.cell[1], edge: g.at === "edge", tok: distinct.size <= 12 ? `${g.kind}${g.value !== undefined ? `:${g.value}` : ""}` : g.kind }));
   for (const line of readFileSync(dir + f, "utf8").split("\n")) {
