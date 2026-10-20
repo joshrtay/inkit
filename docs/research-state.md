@@ -96,6 +96,11 @@ per type mean agreement figures can be off by 0.15.
   - Attention and hide-and-fill pretraining don't help.
   - Width is untested: the wider runs had the wrong learning rate.
   - Whole-grid types stay under 40% (Nurikabe, Cave).
+  - **Opus predicts people better** (research-opus-human-moves.md): on 400 held-out Janko states over
+    all 14 types, its one move is in the person's next 3 moves 38% of the time, against 19% for this
+    network and 21% for our solver (fair on digit types; top-1 23% against 10–11%), and 96% of its
+    moves are correct. The "67% top guess" above is not a people measure: it is a correct move
+    within the solver's next 3 rounds.
 - **Transfer:** within families, yes; across them, barely.
   - The network's nearest move from another type shares its reasoning 29% of the time (chance 5%).
   - Left-out families still beat chance (lines and loops 30% against 14%), but four types fall to

@@ -48,7 +48,7 @@ const CAP = Number(process.env.OPUS_CAP) || 60;
 type MV = [string, boolean];
 interface Item {
   id: string; genre: string; type: string; name: string; file: string; person: string; kind: "ordinary" | "stuck";
-  k: number; rounds: number; known: MV[]; next: MV[]; solverStep: MV[]; solverFirst: MV | null; solverFinished: boolean | null;
+  k: number; rounds: number; known: MV[]; next: MV[]; solverStep: MV[]; solverFirst: MV | null; solverPlace: MV | null; solverFinished: boolean | null;
 }
 
 // ---- reading a held-out puzzle ----
@@ -114,9 +114,11 @@ async function sample() {
       const open = (m: string) => !known.has(m);
       const step = steps.find((s: any) => s.facts.some((f: any) => open(f.mark)));
       const stepFacts: MV[] = step ? step.facts.filter((f: any) => open(f.mark)).map((f: any) => [f.mark, f.value]) : [];
+      // digit types: its first placement still open (a digit set true), as people's labels there are
+      const place = /^digit\(/.test(x.humanOrder[0]?.[0] ?? "") ? steps.flatMap((s: any) => s.facts).find((f: any) => f.value && open(f.mark)) : undefined;
       items.push({
         id: `${g}-${kind}-${x.name.replace(/^janko /, "").replace(/[^\w]+/g, "_")}-${k}`, genre: g, type, name: x.name, file, person: x.solver || "?", kind, k, rounds: x.rounds.length,
-        known: [...known], next: label(known), solverStep: stepFacts, solverFirst: stepFacts[0] ?? null, solverFinished: x.solverFinished,
+        known: [...known], next: label(known), solverStep: stepFacts, solverFirst: stepFacts[0] ?? null, solverPlace: place ? [place.mark, true] : null, solverFinished: x.solverFinished,
       });
     });
     console.error(`${g}: ${picks.length} states (${stuck} stuck), ${bySolver.size} solvers, ${new Set(picks.map((x) => x.name)).size} puzzles`);
@@ -325,22 +327,30 @@ async function ask() {
 }
 
 // ======== check: is Opus's move forced by the rules and the state? (clingo) ========
+// Each move in its own process, killed at 90 s (clingo-wasm ignores --time-limit, and a big
+// Fillomino's refutation can run for hours): "timeout" then.
+function verdictOf(it: Item, mark: MV): string {
+  const { j } = jankoOf(it.name), [m, v] = mark, known = new Map(it.known);
+  if (known.has(m)) return known.get(m) === v ? "already known" : "contradicts the state";
+  const base = program(makePuzzle(j.spec)) + "\n" + [...known].map(([a, b]) => (b ? `:- not ${a}.` : `:- ${a}.`)).join("\n");
+  const sat = (extra: string) => { try { return clingoJson(`${base}\n${extra}`, 1).Result === "SATISFIABLE"; } catch { return null; } };
+  const withMove = sat(v ? `:- not ${m}.` : `:- ${m}.`);
+  if (withMove === null) return "clingo error";
+  if (!withMove) return "wrong";
+  const against = sat(v ? `:- ${m}.` : `:- not ${m}.`);
+  return against === null ? "clingo error" : against ? "not forced" : "forced";
+}
 async function check() {
-  await loadClingo();
+  if (argv[1] === "--one") { await loadClingo(); const it = loadItems().find((x) => x.id === argv[2])!; console.log(JSON.stringify({ verdict: verdictOf(it, JSON.parse(argv[3])) })); return; }
+  const { spawnSync } = await import("node:child_process");
   const items = new Map(loadItems().map((it) => [it.id, it]));
   const file = `${OUT}forced.jsonl`, done = new Set(readJsonl(file).map((x) => x.id));
   for (const o of readJsonl(`${OUT}opus.jsonl`)) {
     if (done.has(o.id) || !o.mark) continue;
     const it = items.get(o.id)!, { j } = jankoOf(it.name), [m, v] = o.mark as MV;
-    const known = new Map(it.known);
-    let verdict: string;
-    if (known.has(m)) verdict = known.get(m) === v ? "already known" : "contradicts the state";
-    else {
-      const base = program(makePuzzle(j.spec)) + "\n" + [...known].map(([a, b]) => (b ? `:- not ${a}.` : `:- ${a}.`)).join("\n");
-      const sat = (extra: string) => { try { return clingoJson(`${base}\n${extra}`, 1).Result === "SATISFIABLE"; } catch (e) { return null; } };
-      const withMove = sat(v ? `:- not ${m}.` : `:- ${m}.`), against = sat(v ? `:- ${m}.` : `:- not ${m}.`);
-      verdict = withMove === null || against === null ? "clingo error" : !withMove ? "wrong" : against ? "not forced" : "forced";
-    }
+    const r = spawnSync(process.execPath, ["--no-warnings", "--max-old-space-size=3072", new URL(import.meta.url).pathname, "check", "--one", o.id, JSON.stringify(o.mark)], { timeout: 90000, killSignal: "SIGKILL", encoding: "utf8" });
+    let verdict = "timeout";
+    try { verdict = JSON.parse(r.stdout.trim().split("\n").at(-1)!).verdict; } catch { if (r.status !== null && !r.signal) verdict = "clingo error"; }
     const correct = (j.truth.get(m) ?? false) === v;
     appendFileSync(file, JSON.stringify({ id: o.id, mark: o.mark, verdict, correct }) + "\n");
     console.error(`${o.id}: ${o.mark.join("=")} ${verdict}${correct ? "" : " (not the solution's)"}`);
@@ -385,6 +395,12 @@ function report() {
   const groups = <K extends string>(f: (it: Item) => K) => { const m = new Map<K, Row[]>(); for (const r of rows) m.set(f(r.it), [...(m.get(f(r.it)) ?? []), r]); return [...m].sort((a, b) => (a[0] < b[0] ? -1 : 1)); };
   const out: string[] = [head, line("**all**", rows)];
   for (const [k, rs] of groups((it) => it.kind)) out.push(line(k, rs));
+  const DIGITS = new Set(["easy-as-abc", "hidoku", "skyscrapers"]);
+  out.push(line("digit types (Easy as ABC, Hidoku, Skyscrapers)", rows.filter((r) => DIGITS.has(r.it.genre))), line("the other 11 types", rows.filter((r) => !DIGITS.has(r.it.genre))));
+  // on digit types the network and the solver mostly name eliminations, which are never people's
+  // labels: the same rows with their best placement as the guess
+  const asPlace = (rs: Row[]) => rs.map((r) => ({ ...r, n: r.n && { ...r.n, top: r.n.place ?? r.n.top }, it: { ...r.it, solverFirst: r.it.solverPlace ?? r.it.solverFirst, solverStep: r.it.solverPlace ? [r.it.solverPlace] : r.it.solverStep } }));
+  out.push(line("digit types, network's and solver's best placement", asPlace(rows.filter((r) => DIGITS.has(r.it.genre)))), line("**all, with placements on digit types**", asPlace(rows)));
   out.push("", head);
   for (const [k, rs] of groups((it) => it.genre)) out.push(line(k, rs));
   out.push("", head);

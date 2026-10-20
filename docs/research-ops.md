@@ -95,6 +95,7 @@ Janko reset the connection at 3 s and 4 s a request, so it now runs at 6 s.
 | Anthropic API: labeller pilot and interest confirmation | $17.69 | $15, then about $5.50 more |
 | Anthropic API: can Opus tell human-made puzzles | $2.68 | about $3 |
 | Anthropic API: uncertainty cascade | $0.59 | $3 |
+| Anthropic API: Opus as a predictor of people's moves (research-opus-human-moves.md) | $16.50 | $60 |
 | GPU runs (about 9 so far, at roughly $0.8 an hour on one L4) | about $15–20 | per run, about $2–5 each |
 | CPU: generation (first batch and the 15-VM fleet) | about $20 | about $20 |
 | CPU: human builds (three so far) | a few dollars | under $8 |

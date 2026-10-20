@@ -3,6 +3,7 @@
 # models/ into references/ml/models/), its config set before graph_policy is imported. Each state
 # is built on the puzzle's human-labelled record (graphs-human-labels.jsonl, split "test") from the
 # item's known marks; the top guess is the open mark and value scored highest, as score() takes it.
+# On digit types also the best placement (a digit set true), as a fairer guess there.
 # Random's chance is the person's next moves over twice the open marks, as score() has it.
 #
 #   references/ml/.venv/bin/python puzzles/difficulty/opus_human_net.py   → references/ml/opus-human/net.jsonl
@@ -39,10 +40,15 @@ with torch.no_grad():
         y = np.zeros((len(ms), 2), np.float32)
         g, _, mask, _ = gp.batch_states([(p, s, y)], gp.attends(net))
         lg = net(gp.to(g)).cpu()
-        top = lg.masked_fill(mask[:, None] == 0, -1e9).flatten().argmax().item()
+        masked = lg.masked_fill(mask[:, None] == 0, -1e9)
+        top = masked.flatten().argmax().item()
+        # digit types: the best placement (a digit true), since people's labels there are placements
+        place = None
+        if any(m.startswith("digit(") for m in ms):
+            i = masked[:, 0].argmax().item(); place = [ms[i], True]
         n_open = 2 * int(mask.sum().item())
         nxt = sum(1 for m, _ in it["next"] if m in idx and s[idx[m]] == 0)
-        out.append({"id": it["id"], "top": [ms[top // 2], top % 2 == 0], "random": nxt / max(1, n_open), "open": n_open // 2})
+        out.append({"id": it["id"], "top": [ms[top // 2], top % 2 == 0], "place": place, "random": nxt / max(1, n_open), "open": n_open // 2})
 with open(OUT + "net.jsonl", "w") as f:
     for r in out: f.write(json.dumps(r) + "\n")
 print(f"{len(out)} states scored → {OUT}net.jsonl")
