@@ -18,7 +18,8 @@ import { deduceGuarded } from "./deduce-guarded.ts";
 import { REFS_DIR } from "./janko.ts";
 import { mapPool } from "./pool.ts";
 
-const OUT = `${REFS_DIR}proof-menus/`, CORPUS = `${REFS_DIR}ml/human-corpus/`;
+// MENUS_CORPUS and MENUS_OUT: another corpus (the network's test puzzles: human-test-corpus.ts)
+const OUT = process.env.MENUS_OUT ?? `${REFS_DIR}proof-menus/`, CORPUS = process.env.MENUS_CORPUS ?? `${REFS_DIR}ml/human-corpus/`;
 const POSITIONS = Number(process.env.MENU_POSITIONS) || 4, NEXT = 3;
 const argv = process.argv.slice(2), flag = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? Number(argv[i + 1]) : NaN; };
 const shard = flag("shard"), of = flag("of"), limit = flag("limit");
