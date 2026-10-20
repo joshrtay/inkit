@@ -11,6 +11,8 @@ meta() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/
 RUN=$(meta run); SHARD=$(meta shard); OF=$(meta of); HOURS=$(meta hours || echo 3)
 # the job: bulk (proof-bulk.ts → references/proof-bulk) or menus (human-menus.ts → references/proof-menus)
 JOB=$(meta job || echo bulk)
+# extra arguments for the script (PROOF_ARGS in run-proof-job.sh: genres, --per)
+ARGS=$(meta args || true)
 # or solver-menus (proof-menus.ts → references/proof-menus-solver: the menus along the solver's proofs)
 if [ "$JOB" = menus ]; then OUTDIR=references/proof-menus; SCRIPT=puzzles/difficulty/human-menus.ts
 elif [ "$JOB" = solver-menus ]; then OUTDIR=references/proof-menus-solver; SCRIPT=puzzles/difficulty/proof-menus.ts
@@ -65,7 +67,7 @@ PER=1400; [ "$JOB" != bulk ] && PER=4000
 JOBS=$(nproc); [ $((MEM_MB / PER)) -lt "$JOBS" ] && JOBS=$((MEM_MB / PER))
 # stopped 5 minutes before the limit (a proof is killed at 60 s), so the last copy happens
 PROOF_CAP=60000 DEDUCE_JOBS=$JOBS timeout $((LIMIT - 300)) \
-  node --no-warnings "$SCRIPT" --shard "$SHARD" --of "$OF" > run.log 2>&1
+  node --no-warnings "$SCRIPT" $ARGS --shard "$SHARD" --of "$OF" > run.log 2>&1
 STATUS=$?
 kill $SYNC
 sync_rows

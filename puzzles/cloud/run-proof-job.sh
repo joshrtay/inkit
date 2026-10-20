@@ -9,6 +9,7 @@
 #
 #   PROOF_FAMILY=n2-standard: 4 GB a vCPU (the menus job: big boards' groundings outgrow highcpu's 1 GB)
 #   PROOF_MODEL=STANDARD: regular VMs (about 3 times the price; never reclaimed)
+#   PROOF_ARGS="akari hitori": arguments for the job's script (genres, --per)
 #   [PROOF_JOB=menus|solver-menus] puzzles/cloud/run-proof-job.sh [VMs=8] [vCPUs=32] [hours=3] [region=us-central1] [resume run]
 #
 # About 34,400 puzzles; on the Mac a puzzle took about 21 s of one core, a vCPU here about half a
@@ -36,7 +37,7 @@ for K in $(seq 0 $((N - 1))); do
       --image-family debian-12 --image-project debian-cloud --boot-disk-size 20GB \
       --scopes storage-rw,logging-write \
       --max-run-duration "${HOURS}h" --instance-termination-action DELETE \
-      --metadata "^|^run=${RESUME:-$RUN}|shard=$K|of=$N|hours=$HOURS|job=$JOB" \
+      --metadata "^|^run=${RESUME:-$RUN}|shard=$K|of=$N|hours=$HOURS|job=$JOB|args=${PROOF_ARGS:-}" \
       --metadata-from-file startup-script="$(dirname "$0")/proof-job.sh" > /tmp/proof-create-$K.txt 2>&1; then
       made="$REGION-$Z"; break
     fi
