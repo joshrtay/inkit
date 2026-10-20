@@ -243,3 +243,65 @@ Caveats: the same seven expert solvers are on both sides of the split (held out 
 person), so this measures predicting *these* experts on new puzzles. The fine-tune was picked on a
 held-back slice and never saw the 400 states, but only two learning rates were tried. Stuck states
 are few (83).
+
+## Why Hidoku (2026-10-20)
+
+The tuned network's one clear gap was "the digit types", Hidoku above all. Checked on CPU, with no
+retraining on GPU. Code: puzzles/difficulty/hidoku_relations.py (`rule`, `score`, `probe`).
+
+**The gap is Hidoku alone.** On every test-side state (the 400 had 28–29 a type), the tuned
+network agrees with people:
+
+| Type | Test states | Tuned network | Opus on its 28–29 |
+|---|---|---|---|
+| Skyscrapers | 561 | 64% | 82% |
+| Easy as ABC | 533 (a fifth) | 65% | 48% |
+| Hidoku | 271 | **10%** | 71% |
+
+So Skyscrapers and Easy as ABC need nothing special. Opus's Skyscrapers lead was 28 states.
+
+**On Hidoku the network can't see the numbers.**
+- Of its Hidoku top guesses, 13% are correct by the solution, and 41% name a number already placed
+  elsewhere in the grid.
+- The cause is the encoding (graph_policy.py). A digit mark's number is one input, n / 9 (up to
+  5.4 on a 7 × 7). Messages pool marks into cells and cells into rule instances by mean and max.
+  Nothing ties 23 to 22 and 24, or says that 23 is used once it's placed.
+  - Hidoku's rule instances are each cell's 3 × 3 neighbourhood (the "touches the next number"
+    constraint's footprint) and one whole-grid group. Neither says which numbers it is about.
+  - structure.py's glance features cover shading, lines, sizes and sight clues, none of them
+    digits.
+  - In the human-labelled states, writing a digit settles that cell's other digits, but the same
+    number stays open in every other cell. So a 7 × 7 state has ~1,500 open marks, most of them
+    numbers already used.
+- Hidoku is also nearly absent from training: 4 puzzles in the baseline's data, and 1,036 of the
+  244,188 tuned states (40 puzzles; Janko's over 4,000 digit marks, 8 × 8 and up, are left out).
+
+**What people do is simple.** A 30-line rule gets 62% on the same 271 states (61% on the training
+side): place a number whose neighbour in the sequence leaves it one free cell, a gap of one (both
+n − 1 and n + 1 placed) first. That is the move Opus names in its reasons ("5 must touch both 4
+and 6; the only cell touching both is r5c5").
+
+**The encoding, not the data, is the cause.** baseline-2026-10-14 fine-tuned on Hidoku's training
+states only (1,036; lr 3e-4; same seed; agreement on the 271 test states after each epoch):
+
+| Inputs | Epoch 1 | 2 | 3 | 4 |
+|---|---|---|---|---|
+| As is | 8% | 15% | 9% | 17% |
+| + 4 relation inputs per mark | 14% | 49% | **56%** | 50% |
+| + those and the cells n could still take | 17% | 41% | 51% | 52% |
+
+The relation inputs are: n − 1 placed next door, n + 1 placed next door, n placed anywhere, and the
+cell filled. They start at zero weight, so each run starts as the baseline. With every training
+state Hidoku's, the encoding as is still stays under 20%; four plain inputs take it to about 50%,
+near the hand rule and not far from Opus's 71% (28 states).
+
+Caveats: 271 states from 9 test puzzles, so per-epoch numbers move by several points (and no epoch
+was picked on held-out data: all four are shown). One seed. Training on Hidoku alone isn't the
+mixed fine-tune, so the full network's figure with these inputs is untested.
+
+**So:** fix the encoding before buying Opus labels. Labels can't teach a network what its inputs
+don't carry; the fine-tune had 1,036 Hidoku states and learned almost nothing. The general form,
+not Hidoku's: for marks with a value, inputs relating a mark to marks of the same value (used
+elsewhere) and of the next value (placed next door), for the types whose rule links a number to
+the next (Hidoku, Honeycomb Paths). That needs a GPU fine-tune of the full network (about the
+3-hour spot L4 run of the two checks), which needs Josh's OK.
