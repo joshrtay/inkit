@@ -11,7 +11,10 @@ meta() { curl -sf -H "Metadata-Flavor: Google" "http://metadata.google.internal/
 RUN=$(meta run); SHARD=$(meta shard); OF=$(meta of); HOURS=$(meta hours || echo 3)
 # the job: bulk (proof-bulk.ts → references/proof-bulk) or menus (human-menus.ts → references/proof-menus)
 JOB=$(meta job || echo bulk)
-if [ "$JOB" = menus ]; then OUTDIR=references/proof-menus; SCRIPT=puzzles/difficulty/human-menus.ts; else OUTDIR=references/proof-bulk; SCRIPT=puzzles/difficulty/proof-bulk.ts; fi
+# or solver-menus (proof-menus.ts → references/proof-menus-solver: the menus along the solver's proofs)
+if [ "$JOB" = menus ]; then OUTDIR=references/proof-menus; SCRIPT=puzzles/difficulty/human-menus.ts
+elif [ "$JOB" = solver-menus ]; then OUTDIR=references/proof-menus-solver; SCRIPT=puzzles/difficulty/proof-menus.ts
+else OUTDIR=references/proof-bulk; SCRIPT=puzzles/difficulty/proof-bulk.ts; fi
 SOUT=$BUCKET/results/$RUN/shard-$SHARD
 # also to the serial console, so a VM that never reaches its first sync can still be read
 exec > >(tee /var/log/proof-job.log > /dev/ttyS0) 2>&1
@@ -28,6 +31,8 @@ gcloud storage cp -r "$BUCKET/private/code/src" "$BUCKET/private/code/puzzles" "
 ln -s /opt/deps/node_modules /work/node_modules
 mkdir -p references/ml/human-corpus $OUTDIR
 gcloud storage rsync -q "$BUCKET/private/human-corpus" references/ml/human-corpus
+# the solver's proofs, which solver-menus follows
+[ "$JOB" = solver-menus ] && { mkdir -p references/proof-bulk; gcloud storage rsync -q -x 'run\..*' "$BUCKET/private/refs/proof-bulk" references/proof-bulk; }
 # what's done: the seed (all shards' puzzles, skipped by id), then this shard's own rows
 gcloud storage rsync -q "$BUCKET/results/$RUN/seed" $OUTDIR || true
 mkdir -p mine
@@ -56,7 +61,7 @@ MEM_MB=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
 # a job's memory: 1.4 GB for the proofs; the menus job holds every candidate step of a big board
 # (a 10 x 10 Fillomino's grounding alone is near 2.3 GB), so 4 GB. With no swap, running out
 # doesn't kill anything: the VM freezes (seen 2026-10-20 at 9 minutes, 22 jobs on 32 GB)
-PER=1400; [ "$JOB" = menus ] && PER=4000
+PER=1400; [ "$JOB" != bulk ] && PER=4000
 JOBS=$(nproc); [ $((MEM_MB / PER)) -lt "$JOBS" ] && JOBS=$((MEM_MB / PER))
 # stopped 5 minutes before the limit (a proof is killed at 60 s), so the last copy happens
 PROOF_CAP=60000 DEDUCE_JOBS=$JOBS timeout $((LIMIT - 300)) \
