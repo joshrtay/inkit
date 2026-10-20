@@ -61,6 +61,9 @@ const job = {
   taskGroups: [{
     taskCount: Number(tasks), parallelism: Number(parallel || tasks),
     taskSpec: {
+      // a whole VM per task: at the default of 2 vCPUs, Batch packs several tasks onto one VM,
+      // where they share its CPUs and each sizes its pool as if it had them all
+      computeResource: { cpuMilli: 1000 * Number(machine.split("-").pop()) },
       runnables: [{ script: { text: "bash /mnt/disks/inkit/" + code + "/puzzles/cloud/batch-task.sh" } }],
       environment: { variables: env },
       volumes: [{ gcs: { remotePath: bucket }, mountPath: "/mnt/disks/inkit", mountOptions: ["--implicit-dirs"] }],

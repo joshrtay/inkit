@@ -24,13 +24,14 @@ SOUT=$B/results/$RUN/shard-$K
 mkdir -p "$SOUT/rows"
 [ -e "$SOUT/done" ] && { echo "shard $K already done"; exit 0; }
 
-mkdir -p /opt/node /opt/deps /work
+W=/work/shard-$K  # its own dir, in case Batch ever puts two tasks on one VM
+mkdir -p /opt/node /opt/deps "$W"
 [ -x /opt/node/bin/node ] || curl -fsSL "https://nodejs.org/dist/$NODE/node-$NODE-linux-x64.tar.gz" | tar -xz -C /opt/node --strip-components=1
 export PATH=/opt/node/bin:$PATH
 [ -d /opt/deps/node_modules/clingo-wasm ] || (cd /opt/deps && npm init -y > /dev/null && npm install --no-audit --no-fund clingo-wasm@0.6.0)
-cd /work
-cp -r "$B/$CODE/." /work/
-ln -sfn /opt/deps/node_modules /work/node_modules
+cd "$W"
+cp -r "$B/$CODE/." "$W/"
+ln -sfn /opt/deps/node_modules "$W/node_modules"
 for pair in $INPUTS; do mkdir -p "${pair#*:}"; cp -r "$B/${pair%%:*}/." "${pair#*:}/"; done
 
 # what's done: the seed, then this shard's own rows (a retry carries on from them)
