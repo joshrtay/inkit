@@ -26,8 +26,10 @@ python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.i
   done ) &
 SYNC=$!
 T=puzzles/difficulty/opus_human_tune.py
+[ "$(meta relations)" = 1 ] && export GRAPH_RELATIONS=1
 TUNE_LRS="$(meta lrs || echo '3e-4 1e-4')" TUNE_EPOCHS=$(meta epochs || echo 6) TUNE_DEADLINE=$((11400 - SECONDS)) python3 $T train > results/train.txt 2>&1
 python3 $T score references/ml/models/baseline-2026-10-14/model.pt results/net-base.jsonl > results/score.txt 2>&1
 python3 $T score references/ml/opus-human/tune/best.pt results/net-tuned.jsonl >> results/score.txt 2>&1
 python3 $T heldout references/ml/models/baseline-2026-10-14/model.pt references/ml/opus-human/tune/best.pt > results/heldout.txt 2>&1
+python3 puzzles/difficulty/hidoku_relations.py score references/ml/opus-human/tune/best.pt > results/digits.txt 2>&1
 kill $SYNC

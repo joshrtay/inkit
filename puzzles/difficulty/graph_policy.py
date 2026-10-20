@@ -67,6 +67,13 @@ NPOS = 10 if POS else 0
 STRUCT = os.environ.get("GRAPH_STRUCTURE") == "1"
 if STRUCT: import structure
 NSC, NSM = (structure.CELL, structure.MARK) if STRUCT else (0, 0)
+# GRAPH_RELATIONS=1: what a digit mark's number means beside the others (Relations), as NREL more
+# inputs per mark: the same number placed in a cell sharing a rule instance (used), n - 1 and n + 1
+# placed next door (a side or a corner, square grids with an "order" rule), its cell filled. A
+# number is otherwise one input, n / 9, which nothing ties to n ± 1 (research-opus-human-moves.md,
+# "Why Hidoku"). load_net() starts the new inputs at zero weight
+RELATIONS = os.environ.get("GRAPH_RELATIONS") == "1"
+NREL = 4 if RELATIONS else 0
 sys.argv = [a for a in sys.argv if not a.startswith("--")]
 dev = torch.device(os.environ["GRAPH_DEVICE"]) if os.environ.get("GRAPH_DEVICE") else torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 
@@ -90,6 +97,44 @@ def unit_kind(label):
     return "local"
 
 # ---- a puzzle as tensors, and its states ----
+class Relations:
+    """GRAPH_RELATIONS's inputs for a puzzle's digit marks (zeros for other marks): from a state,
+    per mark, the same number placed in a cell sharing a rule instance, n - 1 and n + 1 placed next
+    door (square grids with an "order" rule; else 0), the mark's cell filled."""
+    def __init__(self, d):
+        st = d["structure"]; M, N = len(st["marks"]), st["cells"]
+        cell, val = np.full(M, -1), np.zeros(M, np.int64)
+        for i, m in enumerate(st["marks"]):
+            r = re.match(r"digit\((\d+),(\d+)\)$", m["name"])
+            if r: cell[i], val[i] = int(r.group(1)), int(r.group(2))
+        self.dig = np.nonzero(cell >= 0)[0]; self.M = M
+        self.cell, self.val, self.V = cell[self.dig], val[self.dig], int(val.max()) + 2
+        groups = [g["cells"] for g in st["groups"]]
+        self.cg = np.zeros((N, max(1, len(groups))), bool)   # cell × rule instance
+        for j, cs in enumerate(groups): self.cg[cs, j] = True
+        self.adj = None
+        R, C = st.get("rows") or 0, st.get("cols") or 0
+        if R * C == N and any(PRIM.get(g.get("kind")) == "order" for g in st["groups"]):
+            rc = np.array([divmod(c, C) for c in range(N)])
+            self.adj = (np.abs(rc[:, None] - rc[None]).max(2) == 1)
+    def features(self, s):
+        out = np.zeros((self.M, NREL), np.float32)
+        if not len(self.dig): return out
+        cell, val = self.cell, self.val; t = s[self.dig] == 1
+        filled = np.zeros(len(self.cg), bool); filled[cell[t]] = True
+        # which rule instances hold each number
+        held = np.zeros((self.V, self.cg.shape[1]), bool)
+        np.logical_or.at(held, val[t], self.cg[cell[t]])
+        f = out[self.dig]
+        f[:, 0] = (held[val] & self.cg[cell]).any(1)
+        if self.adj is not None:
+            near = np.zeros((self.V, len(self.cg)), bool)   # number × cells next to where it's placed
+            np.logical_or.at(near, val[t], self.adj[cell[t]])
+            f[:, 1], f[:, 2] = near[val - 1, cell], near[np.minimum(val + 1, self.V - 1), cell]
+        f[:, 3] = filled[cell]
+        out[self.dig] = f
+        return out
+
 class Puzzle:
     def __init__(self, d, keep_moves=False):
         self.genre, self.source, self.name = d["genre"], d["source"], d["name"]
@@ -118,6 +163,7 @@ class Puzzle:
             if kind in GIVENS: cf[c, GIVENS.index(kind)] = 1
             if v: cf[c, len(GIVENS)] = v / 9
         self.layout = structure.Layout(d) if STRUCT else None
+        self.relations = Relations(d) if RELATIONS else None
         if POS:
             # where each cell is (rows and columns from the cell's number; grids that aren't rows
             # of cells get none): row and column as fractions, distance to the nearest edge, and
@@ -226,13 +272,15 @@ def batch_states(items, attention=False):
     for (pz, s, y) in items:
         state = np.zeros((len(s), 3), np.float32); state[np.arange(len(s)), s] = 1
         if STRUCT: xc, xm = pz.layout.features(s); scs.append(torch.from_numpy(xc).float()); sms.append(torch.from_numpy(xm).float())
+        if RELATIONS: sms.append(torch.from_numpy(pz.relations.features(s)))
         mfs.append(torch.cat([pz.mf, torch.tensor(state)], 1)); cfs.append(pz.cf); gfs.append(pz.gf)
         mes.append(pz.me.long() + torch.tensor([om, oc])); ges.append(pz.ge.long() + torch.tensor([og, oc]))
         ys.append(torch.tensor(y)); masks.append(torch.tensor((s == 0).astype(np.float32)))
         offs.append((om, len(s)))
         om += len(s); oc += pz.nc; og += len(pz.gf)
     mf, cf = torch.cat(mfs), torch.cat(cfs)
-    if STRUCT: mf, cf = torch.cat([mf, torch.cat(sms)], 1), torch.cat([cf, torch.cat(scs)], 1)
+    if STRUCT: mf, cf = torch.cat([mf, torch.cat(sms[0::2] if RELATIONS else sms)], 1), torch.cat([cf, torch.cat(scs)], 1)
+    if RELATIONS: mf = torch.cat([mf, torch.cat(sms[1::2] if STRUCT else sms)], 1)
     groups = attention_groups(items, om, oc) if attention else None
     return (mf, cf, torch.cat(gfs), torch.cat(mes), torch.cat(ges), oc, groups), torch.cat(ys), torch.cat(masks), offs
 
@@ -296,7 +344,7 @@ class GraphNet(nn.Module):
         # global attention after rounds 2, 4 and 6
         self.att = nn.ModuleList([GlobalAttention(h, HEADS) for _ in range(rounds // 2)]) if attention else None
         self.fill = nn.Linear(h, 1)   # hide and fill: is this hidden mark true?
-        self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3 + NSM, h), nn.Linear(len(GIVENS) + 1 + NPOS + NSC, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
+        self.em, self.ec, self.eg = nn.Linear(len(MARKS) + 1 + 3 + NSM + NREL, h), nn.Linear(len(GIVENS) + 1 + NPOS + NSC, h), nn.Linear(len(PRIMS) + len(UNITS) + 2, h)
         self.rounds = rounds
         self.m2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2g = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
         self.g2c = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)]); self.c2m = nn.ModuleList([mlp(3 * h, h) for _ in range(rounds)])
@@ -625,7 +673,12 @@ PRE_EPOCHS = int(os.environ.get("GRAPH_PRE_EPOCHS", 30))   # hide and fill, befo
 MIN_TYPE = int(os.environ.get("GRAPH_MIN_TYPE", 20))   # types with fewer puzzles are left out of the means (and get no few-shot)
 
 def load_net(path):
-    net = new_net(); missing, extra = net.load_state_dict(torch.load(path, map_location=dev), strict=False)
+    net = new_net(); sd = torch.load(path, map_location=dev)
+    w = sd.get("em.weight")
+    if w is not None and w.shape[1] < net.em.weight.shape[1]:
+        # saved without GRAPH_RELATIONS: the new inputs start at zero weight (the same network)
+        sd["em.weight"] = torch.cat([w, torch.zeros(w.shape[0], net.em.weight.shape[1] - w.shape[1], device=w.device)], 1)
+    missing, extra = net.load_state_dict(sd, strict=False)
     assert not extra and all(k.startswith("fill.") for k in missing), (missing, extra)
     return net
 
