@@ -48,10 +48,16 @@ sync_rows() {
   { date; uptime; free -m; } > load.txt; gcloud storage cp -q load.txt "$SOUT/load.txt"
 }
 ( set +x; while sleep 300; do sync_rows; done ) &
+# health on the serial console every minute (memory, load, the job's progress)
+( set +x; while sleep 60; do echo "HEALTH $(date -u +%H:%M) $(uptime | sed 's/.*load/load/') $(free -m | awk '/Mem/ {print "mem used", $3, "of", $2}') rows $(cat $OUTDIR/*.jsonl 2>/dev/null | wc -l)" > /dev/ttyS0; done ) &
 SYNC=$!
 LIMIT=$((HOURS * 3600 - SECONDS))
 MEM_MB=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
-JOBS=$(nproc); [ $((MEM_MB / 1400)) -lt "$JOBS" ] && JOBS=$((MEM_MB / 1400))
+# a job's memory: 1.4 GB for the proofs; the menus job holds every candidate step of a big board
+# (a 10 x 10 Fillomino's grounding alone is near 2.3 GB), so 4 GB. With no swap, running out
+# doesn't kill anything: the VM freezes (seen 2026-10-20 at 9 minutes, 22 jobs on 32 GB)
+PER=1400; [ "$JOB" = menus ] && PER=4000
+JOBS=$(nproc); [ $((MEM_MB / PER)) -lt "$JOBS" ] && JOBS=$((MEM_MB / PER))
 # stopped 5 minutes before the limit (a proof is killed at 60 s), so the last copy happens
 PROOF_CAP=60000 DEDUCE_JOBS=$JOBS timeout $((LIMIT - 300)) \
   node --no-warnings "$SCRIPT" --shard "$SHARD" --of "$OF" > run.log 2>&1
