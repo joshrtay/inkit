@@ -996,3 +996,6 @@ where present), gs://inkit-research-ml/results/sim-logic*-20261021/gathered.
   the human model from the difficulty path. The plain solver estimate stays the default on games
   where solves stall. Region games still wait on the solver's missing techniques (step 3), not on
   a better feature.
+- **Done (Josh agreed 2026-10-21):** puzzles/difficulty/sim-fit.json is now the solver + logic model
+  (`sim_fit.py --logic --save`): solver estimate +0.04, cost sum +0.13, peak +0.05, steps −0.08,
+  splits −0.02, logic share −0.06, on features standardised within type.

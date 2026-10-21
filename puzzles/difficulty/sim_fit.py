@@ -15,7 +15,9 @@
 # type in the rows: types it never saw, rated by the same sources.
 #
 #   python3 puzzles/difficulty/sim_fit.py [--save] [--new] [--logic]
-# --save writes the model fitted on every FITTED type to puzzles/difficulty/sim-fit.json.
+# --save writes the model fitted on every FITTED type to puzzles/difficulty/sim-fit.json: with
+# --logic, the solver's features and the logic share only (the score in use since 2026-10-21; the
+# simulated person's features added nothing on new games), otherwise solver + sim.
 # --logic adds the share of the puzzle logic without case splits settles (sim-difficulty.ts logic,
 # rows in references/sim-logic/, and references/sim-logic-long/ in their place where present: the
 # types that hit the 120 s budget, rerun at 600 s), keeps only the puzzles that have it, fits it beside the solver's
@@ -220,6 +222,11 @@ if LOGIC:
 print("\nweights (fitted on everything; features standardised within type):")
 for k, x in sorted(zip(FEATS, w), key=lambda t: -abs(t[1])): print(f"  {k:18s} {x:+.3f}")
 if "--save" in sys.argv:
-    json.dump({"features": FEATS, "fitted on": FITTED, "weights": [round(float(x), 4) for x in w], "ridge": lam,
-               "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"},
+    feats = SETS["solver + logic"] if LOGIC else FEATS
+    j = [FEATS.index(c) for c in feats]
+    X = np.vstack([d[0][:, j] for d in data.values()]); y = np.concatenate([d[1] for d in data.values()])
+    ws = np.linalg.solve(X.T @ X + lam * len(y) / 100 * np.eye(len(j)), X.T @ y)
+    json.dump({"features": feats, "fitted on": FITTED, "weights": [round(float(x), 4) for x in ws], "ridge": lam,
+               "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"
+                       + (" --logic; logic settled = share of the open marks no-split logic settles (sim-difficulty.ts logic, 600 s on slow types)" if LOGIC else "")},
               open(os.path.join(HERE, "sim-fit.json"), "w"), indent=1)
