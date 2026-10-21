@@ -2382,6 +2382,25 @@ end
         if (dist[c] >= left) continue;
         for (const d of near(c)) if (dist[d] < 0 && ok(d)) { dist[d] = dist[c] + 1; reached[d] = 1; q.push(d); }
       }
+      // a cell it can't grow to its number without: without it, too few cells within reach
+      if (left > 0) {
+        const room = (cut: number) => {
+          const d2 = new Int32Array(n).fill(-1), q2 = [...I.cells];
+          for (const c of q2) d2[c] = 0;
+          let count = 0;
+          for (let k = 0; k < q2.length; k++) {
+            const c = q2[k];
+            if (dist[c] > 0) count++;
+            if (d2[c] >= left) continue;
+            for (const d of near(c)) if (d !== cut && d2[d] < 0 && dist[d] >= 0) { d2[d] = d2[c] + 1; q2.push(d); }
+          }
+          return count;
+        };
+        for (const c of q) if (dist[c] > 0 && state(c) < 0 && room(c) < left) {
+          const b = addTech("islands", [LIT(atomAt(c), true)], `what the island at ${rc(I.num[0])} needs`, I.cells.length);
+          if (b && I.cells.length + 1 <= techCap) ws.push(techWin(`islands: what ${rc(I.num[0])} needs`, unionBits(b, bitsOf(n, I.cells))));
+        }
+      }
       // short of its number: some way out stays unshaded
       if (left > 0) {
         const out = [...new Set(I.cells.flatMap(near))].filter((d) => state(d) < 0);

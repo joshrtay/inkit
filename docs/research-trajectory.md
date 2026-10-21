@@ -341,6 +341,10 @@ it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev
 and the `parity` lemma was mixed (one more finishes, 24 → 9 s on another, three slower), so neither
 goes in its finish set.
 
+A third islands rule, a cell an island can't reach its number without (without it, too few cells
+are within reach), with answers supplied: 9 of 16 dev Nurikabes finish in 60 s (two hard ones newly,
+a 6 × 7 with five clues in 54 s), and the quick ones get quicker (12 → 7 s, 16 → 11 s).
+
 What's left on Nurikabe is search a person would struggle with too (a 6 × 7 with five clues, two of
 them 6 and 8, takes about 7 s a fact by tier 3), plus puzzles with big islands (sizes 6–9).
 
