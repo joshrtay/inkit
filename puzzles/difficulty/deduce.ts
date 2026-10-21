@@ -405,6 +405,8 @@ const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
 const EXPLAIN_CORE = process.env.DEDUCE_CORE === "1" && !EXPLAIN_TEXT;
 /** DEDUCE_CORE=wide: core-seeded deletion only for case splits' and searches' explanations (wide
  *  steps), most of the explaining on loop genres, the windows' left as they are */
+/** the largest window program (characters) an explanation is tried for; DEDUCE_EXPLAIN_MAX */
+const EXPLAIN_MAX = Number(process.env.DEDUCE_EXPLAIN_MAX ?? 900_000);
 const WIDE_CORE = process.env.DEDUCE_CORE === "wide" && !EXPLAIN_TEXT;
 /** Options.rankWindows' logistic weights (lsize, lmarks, lopen, lchanged, changed share, open
  *  share, found last time, found nothing last time; per kind of window; fit 2026-10-21) */
@@ -1296,7 +1298,7 @@ end
         const tl = job.facts.map(([m, v]) => (v ? id(markAtom[m]) : -id(markAtom[m])));
         datum = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}},${local.size},{${flat.join(",")}},{${kl.join(",")}},{${tl.join(",")}}}`;
       }
-      if (size > 900_000) { notes.push(`${job.w.label}: too big to explain`); continue; }
+      if (size > EXPLAIN_MAX) { notes.push(`${job.w.label}: too big to explain (${size} characters)`); continue; }
       if (members.length && chars + size > EXPLAIN_CHUNK) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
       members.push(job); text.push(...mine); tables.push(table); data.push(datum); chars += size;
     }
