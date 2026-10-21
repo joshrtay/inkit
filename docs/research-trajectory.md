@@ -209,6 +209,7 @@ changes, each with the proof unchanged (identical paths on every example puzzle 
 | before (1021) | 3% | 14% | 50% | 60.3 s |
 | window checks (1021b) | 7% | 32% | 60% | 44.5 s |
 | and explanations (1021c) | 9% | 41% | 62% | 37.0 s |
+| and Spiral Galaxies' cell atoms (1021d) | 9% | 42% | 70% | 33.4 s |
 
 Native clingo was not faster than the WebAssembly build on these calls (1.26 s against 1.39 s), and
 clingo-wasm exposes only a one-shot `run`, so a persistent grounded control isn't available without
@@ -230,6 +231,22 @@ Sudoku 46 → 30 s), 0–15% elsewhere; every puzzle still finishes; case splits
 the difficulty estimate moved by more than 0.02 on 3 of 20 (Irregular Sudoku 0.57 → 0.64, Nonogram
 0.29 → 0.26, Easy as ABC 0.75 → 0.80). So after step 1 window checks are no longer the main cost,
 and a better ranker (the network) can't buy much: it stays off, and step 3 comes next.
+
+**Step 3, first read (2026-10-21).** Two findings. *Spiral Galaxies* wasn't slow, it was blind:
+its helper atoms had no footprint, so every window held the whole puzzle and each was too big to
+check (1,134 skipped a round), leaving only case splits. The finish set now turns on `cellAtoms` for
+it (b2d30d0): finished by 60 s 6% → 94% (1021d), median explain 47 → 11 s; at 300 s all 16 finish,
+the fifteen 10 × 10s in 10–24 s and the one 17 × 17 in 150 s (109 s explaining); facts 73% tier 0,
+8% tier 1, 19% tier 2, none from search. Other genres stayed within a puzzle of 1021c.
+*Core-seeded explanations* (`DEDUCE_CORE`, 4152705; off by default): deletion starts from clasp's
+unsat core instead of the whole window, 10–20% faster on most of 16 explain-bound dev puzzles (one
+Masyu 26 → 14 s), estimates within 0.02 but one (Hidoku 0.71 → 0.69); the sets differ, so it waits,
+with `rankWindows`, for a refit of the prices on the new paths.
+
+**Timing needs a fixed load.** The same Spiral Galaxies ran a median 2.2× slower with 32 solves to a
+VM (1021d) than with 16 over 128 vCPUs: full-VM runs overstate one solve's time, here by up to about
+2×. Before the gate the "one vCPU, wall clock" rule gets a fixed load (say 16 solves on an
+n2-standard-32) or a calibration against a few puzzles timed alone.
 
 **Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
 cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
