@@ -56,7 +56,7 @@
 // found, unexplained, which is all a yes or no needs.
 import { genres, makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { deduce, MINED_FAMILIES, REACH_FAMILY, TECHNIQUES, techniqueApplies, type Options } from "./deduce.ts";
+import { deduce, MINED_FAMILIES, REACH_FAMILY, TECHNIQUES, techniqueApplies, UNIQUENESS, type Options } from "./deduce.ts";
 
 export interface Band {
   name: string;
@@ -100,8 +100,8 @@ export const BAND_LIST: Band[] = [
   { name: "easy", stages: "t0", lemmas: [], lines: false, reach: false },
   { name: "medium", stages: "t0,pairs+strips", lemmas: [], lines: false, reach: false },
   { name: "hard", stages: "t0,pairs+strips+triples,count,techniques,extra+components", lemmas: ["loop"], lines: true, reach: false, byGenre: HARD_TECHNIQUES },
-  { name: "expert", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES) },
-  { name: "beyond", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES), splits: BEYOND_SPLITS },
+  { name: "expert", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES).filter((t) => !UNIQUENESS.has(t)) },
+  { name: "beyond", stages: "t0,pairs+strips+triples,count,techniques,extra+components+pockets", lemmas: ["loop", "component", "parity"], lines: true, reach: true, mined: true, techniques: Object.keys(TECHNIQUES).filter((t) => !UNIQUENESS.has(t)), splits: BEYOND_SPLITS },
 ];
 /** The bands reached without a case split (all but beyond): gen-set.ts's default bands. */
 export const EXPERT = BAND_LIST.findIndex((b) => b.name === "expert");
