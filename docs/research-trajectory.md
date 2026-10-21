@@ -283,6 +283,11 @@ none did), in the finish set:
   open cell whose loss would part two known cells of the area goes their way. Small gains: 8 dev
   Hitoris 131 → 109 s in all (one 25 → 9 s), 8 Caves 272 → 245 s and one more finishes.
 
+Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
+it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
+and the `parity` lemma was mixed (one more finishes, 24 → 9 s on another, three slower), so neither
+goes in its finish set.
+
 What's left on Nurikabe is search a person would struggle with too (a 6 × 7 with five clues, two of
 them 6 and 8, takes about 7 s a fact by tier 3), plus puzzles with big islands (sizes 6–9).
 
