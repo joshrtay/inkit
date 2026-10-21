@@ -171,6 +171,9 @@ export interface Options {
    *  no case split: unsolved then means no split-free path within the windows (a missing
    *  technique). A step's `open` is the tier-0 steps open that round, as usual */
   minPeak?: boolean;
+  /** called at the start of each round and once at the end: time so far, marks still open of all
+   *  of them, the path so far (solver-speed.ts: progress over time on long solves) */
+  onRound?: (ms: number, open: number, marks: number, path: Step[]) => void;
   /** best-first proof search (docs/research-trajectory.md, phase 0): the cheapest proof by the
    *  sum of step costs, against the greedy path. A state is what's known; from each, every stage's
    *  windows are checked, and the moves are: the usual round (the first stage that finds
@@ -2381,6 +2384,7 @@ end
   }
 
   while (undecided > 0 && !(opts.search && !opts.quick)) {
+    opts.onRound?.(Date.now() - t0, undecided, M, path);
     if (Date.now() - t0 > budget) { outOfTime = true; break; }
     if (untilMarks.length && untilMarks.every((m) => known[m] >= 0)) { notes.push("until: reached"); break; }
     round++;
@@ -2489,6 +2493,7 @@ end
     }
   }
   if (outOfTime) notes.push(`out of time after ${budget} ms with ${undecided} marks open`);
+  opts.onRound?.(Date.now() - t0, undecided, M, path);
 
   const profile = profileOf(path, undecided === 0, entryPoints < 0 ? 0 : entryPoints, round, Date.now() - t0, calls, [...new Set(notes)]);
   // the answer's true marks (some are settled in grounding, before any step, so a path alone
