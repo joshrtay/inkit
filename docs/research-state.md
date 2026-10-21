@@ -945,3 +945,43 @@ policy gets 120 s; 9–13% of runs capped and 1–2% errored, and those are left
   thirds) but not how human the order is, and not how well the cost tracks the rating. Greedy
   rewards over the solver's own menu don't add a new solver; what's missing is in the menu (the
   deductions), as the frontier and solver-speed results said. Not worth a learned-RL version.
+
+### Open models as human-move predictors (2026-10-21)
+
+Can a small open-weight model stand in for Opus at predicting people's next move? Same 400
+held-out Janko states and prompt as the Opus test (14 types, `opus-human.ts open`, OpenRouter,
+one move per state), each in two text formats: `grid` (the drawing Opus saw) and `listed` (the
+marks as a list of relations). Hit = the model's move is among the person's next 3.
+
+| Model, format | in next 3 | ordinary | stuck | digit types | other types | top-1 | correct | answered | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| Opus 5.5 (grid, PR #1) | **38%** | 39% | 33% | 67% | 30% | 23% | 98% | 100% | $15.43 |
+| Tuned network (PR #2/#3) | **45–49%** | 50% | 27% | 40% | 46% | 27% | 86% | 100% | — |
+| Gemma 4 31B, grid | 21% | 22% | 16% | 46% | 14% | 12% | 79% | 98% | $0.32 |
+| Gemma 4 31B, listed | 26% | 27% | 22% | 45% | 21% | 15% | 83% | 99% | $0.41 |
+| Qwen3.8 27B (low effort), grid | 22% | 24% | 15% | 54% | 13% | 14% | 57% | 61% | $8.97 |
+| Qwen3.8 27B (low effort), listed | 27% | 30% | 17% | 46% | 22% | 16% | 75% | 79% | $6.61 |
+| Qwen3.5 9B | — | | | | | | | 0 of 20 | $0.11 |
+
+(95% intervals are about ±4–5 points overall, ±9 on stuck and digit states; tuned-network row is
+PR #2's tuned model, with relations-tuned's 49% mean over types from PR #3.)
+
+- **Open models fall well short of Opus:** best is 26–27% against Opus 38% and the network's 45%.
+  Both are below Opus on every split, and below the network everywhere except digit types, where
+  they get 45–54% against the PR #2 network's 40% (relations-tuned closed most of that gap: Hidoku
+  10% → 56.5%).
+- **Listed beats grid by about 5 points** for both models, all of it on non-digit types (Gemma
+  14% → 21%, Qwen 13% → 22%). Small models misread the drawing; the relation list helps them.
+- **Qwen 27B is capable but runs out of room.** On the states where it answered, it hits 34–36%,
+  close to Opus, but it ran past the 16k-token limit on 36% (grid) and 20% (listed) of states, and
+  the answered ones are probably the easier ones. At medium effort it answered more (pilot 17 of
+  19) but cost ~$0.03 a call, over the budget for the full run.
+- **Qwen 9B never answered:** 0 of 20 in four settings (default thinking, medium with 32k tokens,
+  low, thinking off). It loops through the same checks until the limit.
+- **Correctness is the bigger gap.** Gemma's moves are right 79–83% of the time, Qwen's 75% when
+  listed, against Opus 98%. A wrong move can't be a human move, so a solver filter would help them,
+  as it does the network.
+- **Verdict:** none is a cheap substitute for Opus labels, and none approaches the tuned network,
+  which stays the human-like parent. If open labels are wanted for digit types (Qwen 54% on grid
+  digit states), Qwen 27B at medium effort in the listed format is the one to try; it would cost
+  about $10 per 400 states. Total spend: $17.66 including pilots.
