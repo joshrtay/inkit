@@ -309,7 +309,13 @@ read by the scoreboard) stops after a number of clingo calls instead, with the w
 90 s guard: the same example puzzles give identical results alone and with three other solves
 running. Calls vary in cost (one tier-3 search can take 10 s), so the count wants calibrating
 against the 15 s board before it replaces it, and a finer unit (clingo's conflicts and choices)
-may be needed if a few puzzles still reach the guard.
+may be needed if a few puzzles still reach the guard. Calibrated (2026-10-21, cloud): at 100, 200
+and 400 calls all 544 estimates were identical at 16 and 32 solves to a VM (the two 15 s baselines
+differed on 3). At 200 the means match the 15 s board exactly (Puzzle Square JP 0.57, Tatham 0.71;
+100 is 0.07 lower, 400 slightly lower); 19 Puzzle Square JP solves (Nurikabe, Numberlink, Spiral
+Galaxies) reach the 90 s guard, but they rate 0.9 either way. So the guard uses 200 calls, with
+its per-type baseline taken again at 200 (types differ from the 15 s board by up to 0.2, Shikaku
+−0.19, Simple Loop +0.22).
 
 Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
 it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
