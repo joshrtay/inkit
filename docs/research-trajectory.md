@@ -192,6 +192,33 @@ split-bound genres need steps 4 and 5 (Nurikabe settles 93% of its facts by spli
 faster split is still not human-style). The 14 example puzzles had pointed at explanations; the
 dev set says windows, which is why the profile came before any building.
 
+**Step 1 so far (2026-10-21; runs solver-speed-profile-1021b and 1021c, same settings).** Two
+changes, each with the proof unchanged (identical paths on every example puzzle that finishes and on
+30 dev-set puzzles, and identical as far as both go where one runs out of budget):
+
+- *Window checks* (bf8eebe): clingo's cautious mode drops facts from the running intersection one
+  answer at a time, and by default each answer is the nearest to the last, so a call over a few
+  hundred windows took ~3,600 answers. Random signs, no saved phases and a restart after each
+  answer: ~6. Star Battle finished by 30 s 0% → 93%, Akari 20% → 100%.
+- *Explanations* (1b6fcfd): the windows' rules are ground already, but were written as ASP text that
+  clingo parsed and ground again on every call (about half the time). They now go through clingo's
+  backend as number tables. Explain median 12.3 → 7.1 s.
+
+| dev set, 196 | finished ≤ 10 s | ≤ 30 s | ≤ 60 s | median total |
+|---|---|---|---|---|
+| before (1021) | 3% | 14% | 50% | 60.3 s |
+| window checks (1021b) | 7% | 32% | 60% | 44.5 s |
+| and explanations (1021c) | 9% | 41% | 62% | 37.0 s |
+
+Native clingo was not faster than the WebAssembly build on these calls (1.26 s against 1.39 s), and
+clingo-wasm exposes only a one-shot `run`, so a persistent grounded control isn't available without
+rebuilding it. What's left, by genre: Sudoku (16 × 16), Skyscrapers and Irregular Sudoku spend
+20–45 s checking many large windows that find nothing, which is step 2's case; Cave, Masyu, Simple
+Loop, Slitherlink, Hidoku and Spiral Galaxies spend 15–37 s explaining, which is step 3's; Nurikabe,
+Fillomino and Cave are split-bound (steps 4 and 5). Setup on some Nurikabes is dominated by clingo
+finding the answer (up to 47 s on one 10 × 10; no configuration fixes it), which a puzzle that comes
+with its answer (every published and inkit puzzle has one) would skip.
+
 **Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
 cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
 measure divergence against the human move model's own path. Whether hints need a different
