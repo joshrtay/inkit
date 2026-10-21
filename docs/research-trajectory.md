@@ -37,6 +37,9 @@ stand-in for "the path a good solver takes"; the human model is that path direct
    puzz.link's ratings and Tatham's grades. The bar is what's on the scoreboard: "what" bits 0.56,
    the cost model's peak 0.53. This is the decisive experiment: if the human model's cost doesn't
    beat the proof cost on difficulty, the minimum proof comes back.
+   *Result (2026-10-21, research-state.md):* neither replaces the other. The simulated cost
+   ties the bar on Puzzle Square JP (0.56; the solver 0.51 on the same puzzles) and wins on the
+   loop types and Masyu; the proof cost wins on Akari and Tatham's grades; ranks averaged, 0.61.
 3. **Close the techniques people use and the solver lacks** (CPU, an agent). The missed moves name
    them: Hitori (93% of misses need a split; connectivity is the suspect), Hidoku (85%),
    Numberlink (91%). Measure: the share of people's moves on the menu, per type. This feeds 1, 2 and

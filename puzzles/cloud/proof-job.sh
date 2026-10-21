@@ -16,6 +16,8 @@ ARGS=$(meta args || true)
 # or solver-menus (proof-menus.ts → references/proof-menus-solver: the menus along the solver's proofs)
 if [ "$JOB" = menus ]; then OUTDIR=references/proof-menus; SCRIPT=puzzles/difficulty/human-menus.ts
 elif [ "$JOB" = solver-menus ]; then OUTDIR=references/proof-menus-solver; SCRIPT=puzzles/difficulty/proof-menus.ts
+# or sim (sim-difficulty.ts: simulated solves of the rated puzzles; PROOF_ARGS="run psjp tatham …")
+elif [ "$JOB" = sim ]; then OUTDIR=references/sim-difficulty; SCRIPT=puzzles/difficulty/sim-difficulty.ts
 else OUTDIR=references/proof-bulk; SCRIPT=puzzles/difficulty/proof-bulk.ts; fi
 SOUT=$BUCKET/results/$RUN/shard-$SHARD
 # also to the serial console, so a VM that never reaches its first sync can still be read
@@ -35,6 +37,8 @@ mkdir -p references/ml/human-corpus $OUTDIR
 gcloud storage rsync -q "$BUCKET/private/human-corpus" references/ml/human-corpus
 # the solver's proofs, which solver-menus follows
 [ "$JOB" = solver-menus ] && { mkdir -p references/proof-bulk; gcloud storage rsync -q -x 'run\..*' "$BUCKET/private/refs/proof-bulk" references/proof-bulk; }
+# the rated puzzles, which sim solves
+[ "$JOB" = sim ] && for d in psjp tatham; do mkdir -p references/$d; gcloud storage rsync -r -q "$BUCKET/private/refs/$d" references/$d; done
 # what's done: the seed (all shards' puzzles, skipped by id), then this shard's own rows
 gcloud storage rsync -q "$BUCKET/results/$RUN/seed" $OUTDIR || true
 mkdir -p mine

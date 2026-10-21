@@ -65,7 +65,20 @@ export interface Step {
    *  (a hash), `shapeText` readable */
   shape?: string;
   shapeText?: string;
+  /** Options.simulate: the choice it was, among the menu's marks (see SimMove) */
+  sim?: SimMove;
 }
+
+/** A simulated person's move (Options.simulate): the chosen mark's probability, the entropy of the
+ *  choice and its log-partition (bits), how many marks there were, the distance from the last
+ *  move, and whether the menu was empty (a case split, then p is 1) */
+export interface SimMove { p: number; h: number; lse: number; n: number; dist: number; split?: 1 }
+
+/** The human move model a simulated person samples from (puzzles/difficulty/human-model.ts): a
+ *  conditional logit over the menu's marks on the cheapest step deciding the mark (its cost), the
+ *  distance of that step's window from the last move, log of how many steps decide it, and a weight
+ *  for the step's kind (its rules, "adjacent-count+lit"; kinds not listed get `other`) */
+export interface MoveModel { cost: number; dist: number; items: number; kinds?: Record<string, number>; other?: number }
 
 export interface Profile {
   solved: boolean;
@@ -176,6 +189,11 @@ export interface Options {
    *  positions in order (the lemmas found at one stay true at the next). Returned as `menus`, with
    *  no path */
   menus?: string[][];
+  /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
+   *  mark from everything every stage's windows find, under the move model, and takes the cheapest
+   *  step deciding it; an empty menu takes the usual case split (or, with none, the fact the least search proves). `samples` solves from the
+   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`) */
+  simulate?: { model: MoveModel; samples?: number; seed?: number };
   /** start from a person's position: these marks known (at the answer's values) before solving */
   from?: string[];
   /** stop as soon as all these marks are known (with `from`: how far a person's move was) */
@@ -407,7 +425,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown> }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -1114,11 +1132,11 @@ end
   const candidates = (found: Map<Window, [number, boolean][]>, tier: Tier): (Step & { w: Window })[] => {
     const ws = [...found.keys()].sort((a, b) => a.size - b.size);
     const claimed = new Set<number>(), jobs: { w: Window; facts: [number, boolean][] }[] = [];
-    const stamp = (w: Window) => opts.search ? 0 : progOf(w).marks.reduce((a, m) => Math.max(a, decidedAt[m]), -1);
+    const stamp = (w: Window) => opts.search || opts.simulate ? 0 : progOf(w).marks.reduce((a, m) => Math.max(a, decidedAt[m]), -1);
     // (Options.search: branches share no history, so an explanation is kept by what its window knows)
     const sigs = new Map<Window, string>();
     const ek = (w: Window, m: number) => {
-      if (!opts.search) return `${w.label}|${m}`;
+      if (!opts.search && !opts.simulate) return `${w.label}|${m}`;
       let x = sigs.get(w); if (x === undefined) { x = sigOf(w); sigs.set(w, x); }
       return `${w.label}|${m}|${x}`;
     };
@@ -2289,6 +2307,77 @@ end
     if (inc) { restore(inc); path.push(...inc.steps); round = inc.depth; }
     else if (outBudget) outOfTime = true;
     else notes.push("stuck: no proof by windows and shallow case splits");
+  }
+
+  // ---- Options.simulate: a simulated person ----
+  if (opts.simulate) {
+    const { model, samples = 1 } = opts.simulate;
+    let seed = (opts.simulate.seed ?? 1) >>> 0;
+    const rand = () => { seed = (seed + 0x6d2b79f5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 2 ** 32; };
+    const cols = spec.size[1];
+    const centre = (cells: number[]) => {
+      const rs = cells.map((i) => Math.floor(i / cols)), cs = cells.map((i) => i % cols);
+      return { r: (Math.min(...rs) + Math.max(...rs)) / 2, c: (Math.min(...cs) + Math.max(...cs)) / 2 };
+    };
+    const kindOf = (st: Step) => [...new Set((st.because?.clues ?? []).map((x) => x.split(" (")[0]))].sort().join("+");
+    const start: SNode = { known: Int8Array.from(known), g: 0, peak: 0, steps: [], open: undecided, depth: 0 };
+    const sims: { path: Step[]; solved: boolean }[] = [];
+    for (let k = 0; k < samples && !outOfTime; k++) {
+      restore(start);
+      const steps: Step[] = [];
+      let prev: { r: number; c: number } | null = null, stuck = false;
+      while (undecided > 0) {
+        if (Date.now() - t0 > budget) { outOfTime = true; break; }
+        round++;
+        addComponentLemmas(); addLoopLemmas(); addTechniques();
+        // the menu, as movesOf lists it: every stage's windows, each fact in its earliest stage
+        const menu: (Step & { w: Window })[] = [], claimed = new Set<number>();
+        for (const [j, stage] of stages.entries()) {
+          const f = runCached([...new Set(stage.flatMap((fam) => family(fam)))]);
+          for (const [w, fs] of f) { const left = fs.filter(([m]) => !claimed.has(m)); if (left.length) f.set(w, left); else f.delete(w); }
+          for (const fs of f.values()) for (const [m] of fs) claimed.add(m);
+          if (f.size) menu.push(...candidates(f, j === 0 ? 0 : 1));
+        }
+        if (!menu.length) {
+          // stuck: the usual solve's shallow case split, the first refutable mark in its order
+          const cand = order().slice(0, maxSplits), rank = new Map(cand.map((m, i) => [m, i]));
+          const res = hardRound(cand, Math.min(cand.length, maxDeep));
+          const ok = res.filter((x) => x.unsat && x.choices === 0).sort((a, b) => rank.get(a.m)! - rank.get(b.m)!);
+          // none refutable by propagation: the fact that takes the least search (tier 3), as the solve does
+          const deepest = res.filter((x) => x.unsat && x.choices > 0).sort((a, b) => a.cost - b.cost);
+          if (!ok.length && !deepest.length) { stuck = true; break; }
+          const m = ok.length ? ok[0].m : deepest[0].m, v = answer[m] === 1, tier = ok.length ? 2 : 3;
+          steps.push({ ...wideStep(m, v, tier), where: tier === 2 ? `assume ${factText(m, !v)}: a contradiction` : `search (${deepest[0].cost} choices and conflicts)`, round, sim: { p: 1, h: 0, lse: 0, n: 0, dist: 0, split: 1 } });
+          settle(m, v);
+          prev = centre(markCells[m]);
+          continue;
+        }
+        // the menu's marks, each with its cheapest step and how many steps decide it
+        const marks = new Map<number, { st: Step & { w: Window }; items: number }>();
+        for (const st of menu) for (const x of st.facts) {
+          const m = markOf.get(x.mark)!, had = marks.get(m);
+          if (known[m] >= 0) continue;
+          if (!had) marks.set(m, { st, items: 1 });
+          else { had.items++; if (st.cost < had.st.cost) had.st = st; }
+        }
+        const ms = [...marks.values()];
+        const dists = ms.map(({ st }) => { const c = centre(st.cells); return prev ? Math.hypot(c.r - prev.r, c.c - prev.c) : 0; });
+        const u = ms.map(({ st, items }, i) => model.cost * st.cost + model.dist * dists[i] + model.items * Math.log(items) + (model.kinds?.[kindOf(st)] ?? model.other ?? 0));
+        const mx = Math.max(...u), e = u.map((x) => Math.exp(x - mx)), z = e.reduce((a, b) => a + b, 0);
+        let x = rand() * z, i = 0;
+        while (i < e.length - 1 && x >= e[i]) { x -= e[i]; i++; }
+        const h = -e.reduce((a, q) => a + (q / z) * Math.log2(q / z || 1), 0);
+        const { st } = ms[i], facts = st.facts.filter((f) => known[markOf.get(f.mark)!] < 0);
+        const { w: _w, ...step } = st;
+        steps.push({ ...step, facts, round, sim: { p: e[i] / z, h, lse: (mx + Math.log(z)) / Math.LN2, n: ms.length, dist: dists[i] } });
+        for (const f of facts) settle(markOf.get(f.mark)!, f.value);
+        prev = centre(st.cells);
+      }
+      if (stuck) notes.push("simulate: stuck, no case split or search proves a fact");
+      sims.push({ path: steps, solved: undecided === 0 });
+    }
+    if (outOfTime) notes.push(`out of time after ${budget} ms`);
+    return { path: [], sims, profile: profileOf([], false, 0, round, Date.now() - t0, calls, [...new Set(notes)]), initial };
   }
 
   while (undecided > 0 && !(opts.search && !opts.quick)) {
