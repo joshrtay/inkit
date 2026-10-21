@@ -17,7 +17,8 @@
 #   python3 puzzles/difficulty/sim_fit.py [--save] [--new] [--logic]
 # --save writes the model fitted on every FITTED type to puzzles/difficulty/sim-fit.json.
 # --logic adds the share of the puzzle logic without case splits settles (sim-difficulty.ts logic,
-# rows in references/sim-logic/), keeps only the puzzles that have it, fits it beside the solver's
+# rows in references/sim-logic/, and references/sim-logic-long/ in their place where present: the
+# types that hit the 120 s budget, rerun at 600 s), keeps only the puzzles that have it, fits it beside the solver's
 # features and both, and adds two checks: how much of it the solver's features already carry, and
 # how every score does on the puzzles whose solves don't finish (where the costs are cut off).
 import glob, json, math, os, sys
@@ -31,7 +32,7 @@ FEATS = [f"sim {k}" for k in SIM] + [f"solver {k}" for k in SOLVER]
 LOGIC = "--logic" in sys.argv
 if LOGIC: FEATS.append("logic settled")
 logic = {}
-for f in sorted(glob.glob(os.path.join(HERE, "../../references/sim-logic/*.jsonl"))):
+for f in [f for d in ["sim-logic", "sim-logic-long"] for f in sorted(glob.glob(os.path.join(HERE, f"../../references/{d}/*.jsonl")))]:
     for line in open(f):
         r = json.loads(line)
         if isinstance(r.get("logic"), dict): logic[(r["set"], r["type"], r["id"])] = r["logic"]

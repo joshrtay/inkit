@@ -945,3 +945,54 @@ policy gets 120 s; 9–13% of runs capped and 1–2% errored, and those are left
   thirds) but not how human the order is, and not how well the cost tracks the rating. Greedy
   rewards over the solver's own menu don't add a new solver; what's missing is in the menu (the
   deductions), as the frontier and solver-speed results said. Not worth a learned-RL version.
+
+### The logic-settled share as a difficulty feature (2026-10-21)
+
+The rewards comparison found that the share of a puzzle logic without case splits settles falls
+with the rating. Is it a feature for the fitted difficulty model? `sim-difficulty.ts logic` runs
+the no-split policy (cheapest step, stop at an empty menu) on the 4,468 puzzles with sim rows and
+records the share of the marks open at the start that it settles (run sim-logic-20261021, 4 ×
+n2-standard-32 spot, 40 minutes). Sudoku, Solo, Star Battle, Spiral Galaxies, Nonogram and
+Skyscrapers mostly hit the 120 s budget (Solo all 266, after about 24 steps), so the share there
+measured speed, not logic; they were rerun at 600 s (sim-logic-long-20261021, 50 minutes; Solo
+and puzz.link Sudoku now finish 99–100%, Galaxies and Nonogram still cap 27–45%). Both runs cost
+about $2. Rows: references/sim-logic/, references/sim-logic-long/ (which replaces the first
+where present), gs://inkit-research-ml/results/sim-logic*-20261021/gathered.
+`python3 puzzles/difficulty/sim_fit.py --new --logic`.
+
+| | n | solver's estimate | fitted: solver only | fitted: both (solver + sim) | fitted: solver + logic | fitted: both + logic |
+|---|---|---|---|---|---|---|
+| Puzzle Square JP, fitted games (half held out) | 1,517 | 0.51 | 0.62 | 0.65 | 0.65 | 0.66 |
+| Tatham, fitted games (half held out) | 920 | 0.64 | 0.67 | 0.69 | 0.68 | 0.69 |
+| Puzzle Square JP, new games (8) | 421 | 0.41 | 0.24 | 0.19 | 0.32 | 0.23 |
+| … solves finish (Shikaku, Skyscrapers, Sudoku) | 144 | 0.59 | 0.61 | 0.60 | 0.65 | 0.61 |
+| Tatham Solo | 266 | 0.80 | 0.80 | 0.75 | 0.80 | 0.76 |
+| puzz.link, the fitted games (new raters) | 414 | 0.41 | 0.46 | 0.46 | 0.50 | 0.48 |
+| puzz.link, new games (11) | 617 | 0.48 | 0.43 | 0.36 | 0.44 | 0.38 |
+| … solves finish (6) | 387 | 0.58 | 0.57 | 0.52 | 0.57 | 0.53 |
+
+- **Beyond the solver's features: a little, on Puzzle Square JP only.** Solver + logic over solver
+  alone: +0.032 (95% 0.018 to 0.045) on Puzzle Square JP, +0.006 (−0.001 to 0.014) on Tatham.
+  Over solver + sim: +0.013 (0.005 to 0.021) and +0.001. Most of it is Masyu (0.57 to 0.65). The
+  solver's features explain 57–63% of the share's variance on the fitted games (it tracks the
+  solver's split count, −0.79 and −0.95), and what's left correlates −0.16 with the rating on
+  Puzzle Square JP and +0.08 on Tatham. It does about what the simulated person did (+0.034), with
+  one no-split pass instead of two human-model solves.
+- **On new games it transfers better than the simulated person did, but doesn't beat the solver's
+  estimate.** Solver + logic is the best fitted column on every new set: 0.32 against 0.19 for
+  solver + sim on Puzzle Square JP's new games, 0.80 against 0.75 on Solo, 0.44 against 0.36 on
+  puzz.link's. Where solves finish it matches or beats the plain solver estimate (0.65 against 0.59
+  on Puzzle Square JP, 0.80 = 0.80 on Solo, 0.57 against 0.58 on puzz.link), and it gives the best
+  score yet on puzz.link's new raters (0.50 against 0.41). Over all new games the plain estimate
+  still wins (0.41, 0.48), because every fitted model goes negative on Numberlink and Nurikabe.
+- **It does not rescue unfinished or region puzzles.** On the puzzles whose solves don't finish, the
+  share agrees with the rating 0.02 (Puzzle Square JP, 285 puzzles) and −0.10 (puzz.link, 146).
+  By type it is mixed in sign: Masyu +0.34 and Slitherlink +0.29, but Spiral Galaxies −0.24 to
+  −0.41 and Nurikabe −0.31 to +0.06. Numberlink settles 0% on every puzzle, so it has nothing to
+  say. On region games no-split logic barely starts (median share 0–15% on Nurikabe, Galaxies,
+  Shikaku, Fillomino), so the share is a floor, the same problem as the costs.
+- **Verdict:** keep it, as a cheap feature, not a new direction. Solver + logic should replace
+  solver + sim as the fitted score: as good on the fitted games, better on new ones, and it drops
+  the human model from the difficulty path. The plain solver estimate stays the default on games
+  where solves stall. Region games still wait on the solver's missing techniques (step 3), not on
+  a better feature.
