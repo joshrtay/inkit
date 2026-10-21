@@ -119,7 +119,11 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     model's bits a move along the solver's path, against the 300 s solver's path on the same puzzle.
   - *Difficulty unchanged:* the scoreboard's Spearman against Puzzle Square JP and Tatham with the
     fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
-    shows up here.
+    shows up here. The rule (Josh, 2026-10-21): scored with a budget of 200 clingo calls (not wall
+    clock, so it repeats exactly), the means within 0.02, and no type worse than the low end of its
+    own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
+    type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
+    bigger call budget, since at 200 none of its 20 finish and every one rates 0.9.
 
 **Targets** (on the test set, the clock above).
 
