@@ -114,6 +114,10 @@ export interface Profile {
 export interface Options {
   /** stop deducing after this long (the profile says so; default 20 s) */
   budgetMs?: number;
+  /** stop deducing after this many clingo calls as well (or DEDUCE_BUDGET_CALLS): a budget that
+   *  doesn't depend on the machine or its load, so a solve that runs out does so at the same place
+   *  every time. With it, a wall-clock budget left unset is a minute and a half (a guard only) */
+  budgetCalls?: number;
   /** tier-1 windows at most (smallest first) */
   maxPairWindows?: number;
   /** marks tried as tier-2 case splits per clingo call (most constrained first) */
@@ -163,7 +167,7 @@ export interface Options {
    *  windows, ranked by WINDOW_ODDS, is checked first, and the rest only if those find nothing, so
    *  a round takes the cheapest step among the likely windows' (the path can change; nothing
    *  unsound is taken, and a stage that finds nothing still checks everything). Default (or
-   *  DEDUCE_RANK) off. */
+   *  DEDUCE_RANK) off, 0.3 with `finish`. */
   rankWindows?: number;
   /** case splits (tier-2 steps) allowed in the whole solve: past this many it stops, unsolved, with
    *  a note (bands.ts's "beyond": a few shallow splits, not a split-driven solve). Default no limit */
@@ -337,7 +341,9 @@ export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; 
   fillomino: { techniques: ["sizes", "shapes"] },
   hidoku: { techniques: ["distance", "deadends"] },
   "honeycomb-paths": { techniques: ["distance", "deadends"] },
-  hitori: { lemmas: ["component"], techniques: ["joins"] },
+  // (not joins: with it Tatham's Singles agreement falls from 0.75 to 0.22, as the component
+  // lemma's did; it needs pricing first)
+  hitori: { lemmas: ["component"] },
   nurikabe: { techniques: ["islands", "joins"] },
   cave: { techniques: ["joins"] },
   "spiral-galaxies": { cellAtoms: true },
@@ -504,11 +510,13 @@ const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank
 
 /** Solve `spec` step by step. */
 export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
-  const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
+  const budgetCalls = opts.budgetCalls ?? (process.env.DEDUCE_BUDGET_CALLS ? Number(process.env.DEDUCE_BUDGET_CALLS) : undefined);
+  const t0 = Date.now(), budget = opts.budgetMs ?? (budgetCalls !== undefined ? 90000 : 20000);
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
   const p = makePuzzle(spec), g = p.grid, n = g.cellCount, notes: string[] = [];
   let calls = 0;
+  const overBudget = () => Date.now() - t0 > budget || (budgetCalls !== undefined && calls > budgetCalls);
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
   // DEDUCE_TECHNIQUES: the default techniques ("all": every one, where it applies)
@@ -1029,7 +1037,10 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
 
   // Aim 4, step 2 (Options.rankWindows): how likely a window's check is to find a fact, a logistic
   // fit on the traces of 35 dev-set solves (held-out AUC 0.88); features as in TraceRow
-  const rankShare = opts.rankWindows ?? (Number(process.env.DEDUCE_RANK) || 0);
+  // (the finish set ranks windows: the guard check of 2026-10-21 found agreement with Puzzle Square
+  // JP's and Tatham's ratings unchanged at 0.3)
+  const finishing = opts.finish ?? process.env.DEDUCE_FINISH === "1";
+  const rankShare = opts.rankWindows ?? (process.env.DEDUCE_RANK !== undefined ? Number(process.env.DEDUCE_RANK) || 0 : finishing ? 0.3 : 0);
   const windowOdds = (w: Window): number => {
     const pr = progOf(w), marks = pr.marks.length, open = pr.marks.filter((m) => known[m] < 0).length, last = evaluatedAt.get(w);
     if (!open) return -Infinity;
@@ -2443,7 +2454,7 @@ end
     // listed only what changed near the last position)
     const lastFacts = new Map<Window, [number, boolean][]>();
     for (const add of opts.menus) {
-      if (Date.now() - t0 > budget) { outOfTime = true; break; }
+      if (overBudget()) { outOfTime = true; break; }
       round++;
       for (const name of add) { const m = markOf.get(name); if (m !== undefined) settle(m, answer[m] === 1); }
       addComponentLemmas(); addLoopLemmas(); addTechniques();
@@ -2682,7 +2693,7 @@ end
     const chain = (name: string, push: (n: SNode) => void): SNode | null => {
       let n = root;
       while (n.open > 0) {
-        if (Date.now() - t0 > budget) { outBudget = true; return null; }
+        if (overBudget()) { outBudget = true; return null; }
         const c = expand(n);
         const next = c.find((x) => x.names.includes(name)) ?? c.find((x) => x.names.includes("split"));
         for (const x of c) if (x !== next) push(x.child);
@@ -2707,7 +2718,7 @@ end
     for (const x of later) push(x);
     let improvedAt = -1;
     while (queue.length && expanded < nodes) {
-      if (Date.now() - t0 > budget) { outBudget = true; break; }
+      if (overBudget()) { outBudget = true; break; }
       let bi = 0;
       for (let i = 1; i < queue.length; i++) if (queue[i].f < queue[bi].f) bi = i;
       const { n } = queue.splice(bi, 1)[0];
@@ -2749,7 +2760,7 @@ end
       const steps: Step[] = [];
       let prev: { r: number; c: number } | null = null, stuck = false;
       while (undecided > 0) {
-        if (Date.now() - t0 > budget) { outOfTime = true; break; }
+        if (overBudget()) { outOfTime = true; break; }
         round++;
         addComponentLemmas(); addLoopLemmas(); addTechniques();
         // the menu, as movesOf lists it: every stage's windows, each fact in its earliest stage
@@ -2809,7 +2820,7 @@ end
 
   while (undecided > 0 && !(opts.search && !opts.quick)) {
     opts.onRound?.(Date.now() - t0, undecided, M, path);
-    if (Date.now() - t0 > budget) { outOfTime = true; break; }
+    if (overBudget()) { outOfTime = true; break; }
     if (untilMarks.length && untilMarks.every((m) => known[m] >= 0)) { notes.push("until: reached"); break; }
     round++;
     addComponentLemmas();
@@ -2927,7 +2938,7 @@ end
       break;
     }
   }
-  if (outOfTime) notes.push(`out of time after ${budget} ms with ${undecided} marks open`);
+  if (outOfTime) notes.push(budgetCalls !== undefined && calls > budgetCalls ? `out of budget after ${calls} clingo calls with ${undecided} marks open` : `out of time after ${budget} ms with ${undecided} marks open`);
   opts.onRound?.(Date.now() - t0, undecided, M, path);
 
   const profile = profileOf(path, undecided === 0, entryPoints < 0 ? 0 : entryPoints, round, Date.now() - t0, calls, [...new Set(notes)]);

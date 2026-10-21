@@ -10,7 +10,7 @@
 //
 // Solves share the machine at GUARD_JOBS at a time (default 16, the scoreboard's own default on a
 // 32-vCPU machine), the same for every setting, since the budgets are wall-clock time.
-// GUARD_SETTINGS=a,b keeps only those settings.
+// GUARD_SETTINGS=a,b keeps only those settings; a setting can set DEDUCE_JOBS itself.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 
@@ -22,6 +22,9 @@ const SETTINGS = ([
   ["all", { DEDUCE_RANK: "0.3", DEDUCE_CORE: "1", DEDUCE_TECHNIQUES: "islands,joins" }],
   // the baseline again on another VM: how far Spearman moves from timing alone
   ["baseline-repeat", {}],
+  // a budget in clingo calls instead of 15 s (the wall clock only as a 90 s guard), each at two
+  // loads: it should repeat exactly
+  ...["100", "200", "400"].flatMap((n) => [[`calls${n}`, { DEDUCE_BUDGET_CALLS: n }], [`calls${n}-32jobs`, { DEDUCE_BUDGET_CALLS: n, DEDUCE_JOBS: "32" }]]),
 ] as [string, Record<string, string>][]).filter(([name]) => !process.env.GUARD_SETTINGS || process.env.GUARD_SETTINGS.split(",").includes(name));
 const repo = new URL("../../", import.meta.url).pathname;
 const args = process.argv.slice(2);
@@ -35,7 +38,7 @@ for (const [name, env] of SETTINGS.filter((_, i) => i % of === shard))
     if (done.has(`${name} ${section}`)) continue;
     const tmp = `${dir}${name}-${section}.tmp`, t0 = Date.now();
     const r = spawnSync(process.execPath, ["--no-warnings", `${repo}puzzles/difficulty/scoreboard.ts`, "--only", section, "--rows", tmp], {
-      env: { ...process.env, ...env, DEDUCE_JOBS: process.env.GUARD_JOBS ?? "16" }, encoding: "utf8", maxBuffer: 1 << 26,
+      env: { ...process.env, DEDUCE_JOBS: process.env.GUARD_JOBS ?? "16", ...env }, encoding: "utf8", maxBuffer: 1 << 26,
     });
     console.log(`# ${name} ${section}: exit ${r.status}, ${Math.round((Date.now() - t0) / 1000)} s\n${r.stdout}`);
     if (r.status !== 0) { console.error(r.stderr.slice(-4000)); process.exit(1); }

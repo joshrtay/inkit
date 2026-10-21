@@ -25,7 +25,7 @@ for (const section of sections) {
   for (const s of settings) {
     const rs = rows.filter((r) => r.setting === s && r.section === section);
     const wrong = rs.filter((r) => /wrong fact/.test(r.note)), errs = rs.filter((r) => r.note.startsWith("error"));
-    summary.push(`| ${section} | ${s} | ${f2(mean(s))} | ${s === "baseline" ? "" : sign(mean(s) - mean("baseline"))} | ${rs.filter((r) => r.solved).length} of ${rs.length} | ${rs.filter((r) => r.capped).length} | ${Math.round(rs.reduce((a, r) => a + r.ms, 0) / 1000)} | ${errs.length} | ${wrong.length} |`);
+    summary.push(`| ${section} | ${s} | ${f2(mean(s))} | ${s === "baseline" ? "" : sign(mean(s) - mean("baseline"))} | ${rs.filter((r) => r.solved).length} of ${rs.length} | ${rs.filter((r) => r.capped).length} | ${Math.round(rs.reduce((a, r) => a + r.ms, 0) / 1000)} | ${rs.filter((r) => /out of time/.test(r.note)).length} | ${rs.filter((r) => /out of budget/.test(r.note)).length} | ${errs.length} | ${wrong.length} |`);
   }
   out.push(`### ${section === "psjp" ? "Puzzle Square JP" : "Tatham"} per type\n\nSpearman per type; other settings as the change from baseline (moves of 0.05 or more in bold)\n\n| Type | n | ${settings.join(" | ")} |\n|---|---|${settings.map(() => "---").join("|")}|\n` +
     groups.map((g) => `| ${g} | ${rows.filter((r) => r.setting === "baseline" && r.section === section && r.group === g).length} | ${settings.map((s) => { if (s === "baseline") return f2(per[s][g]); const d = per[s][g] - per.baseline[g]; return Math.abs(d) >= 0.05 ? `**${sign(d)}**` : sign(d); }).join(" | ")} |`).join("\n") +
@@ -33,6 +33,6 @@ for (const section of sections) {
 }
 const wrong = rows.filter((r) => /wrong fact/.test(r.note));
 const other = [...new Map(rows.filter((r) => r.note.startsWith("error") && !/wrong fact/.test(r.note)).map((r) => [`${r.setting} ${r.note.slice(0, 60)}`, r])).values()];
-console.log([`### Summary\n\n| Section | Setting | Mean Spearman | vs baseline | Solved | Capped | Seconds of solving | Errors | Wrong facts |\n|---|---|---|---|---|---|---|---|---|\n${summary.join("\n")}`, ...out,
+console.log([`### Summary\n\n| Section | Setting | Mean Spearman | vs baseline | Solved | Capped | Seconds of solving | Out of time | Out of budget | Errors | Wrong facts |\n|---|---|---|---|---|---|---|---|---|---|---|\n${summary.join("\n")}`, ...out,
   `### Wrong facts\n\n${wrong.length ? wrong.map((r) => `- ${r.setting}, ${r.name}: ${r.note}`).join("\n") : "None."}`,
   `### Other errors (distinct)\n\n${other.length ? other.map((r) => `- ${r.setting}, ${r.name}: ${r.note}`).join("\n") : "None."}`].join("\n\n"));
