@@ -305,6 +305,14 @@ alone leaves Tatham unchanged and lifts Puzzle Square JP Nurikabe 0.00 → 0.13)
 anywhere. A repeat of the baseline on another VM moved loop genres by up to 0.17 from timing alone,
 so single-type moves there are noise.
 
+**Where explaining goes on loop genres (2026-10-21, local).** On a 14 × 14 Simple Loop all but a
+second of 30 s explaining is the case splits' explanations: the first neighbourhood never entails
+the split and the second is already the whole grid (about 1 s each, 27 of them); Masyu likewise (9
+of 9 s). Growing the neighbourhood a ring at a time doesn't help (the refutations are global: the
+loop). Core-seeded deletion only there (`DEDUCE_CORE=wide`, windows' explanations untouched): that
+Simple Loop finishes (61 s, unfinished → 44 s), Cave 21 → 19 s, Masyu 16 → 15 s, Hidoku unchanged
+(it has no splits). It goes to the guard like the rest.
+
 **Estimates depend on the clock.** The paths are deterministic (every other type repeated exactly);
 what isn't is the budget. The scoreboard gives each solve 15 s of wall clock, and an unsolved puzzle
 rates at least 0.9, so a slow puzzle near the line (Masyu and Simple Loop are explain-bound) rates
