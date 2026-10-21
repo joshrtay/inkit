@@ -64,6 +64,98 @@ stand-in for "the path a good solver takes"; the human model is that path direct
 types, where the network fails and the readable model beats it (Easy as ABC 23% over nearness);
 whether nearness is people's habit or partly Janko's recording.
 
+## Aim 4: a fast solver that still reasons like a person (proposed 2026-10-21)
+
+Proposed by Josh in the project thread. The first three products (difficulty, hints, interesting
+puzzles and sets) all run the deduction solver, and today it is too slow on the hard tail to run
+when a puzzle is uploaded, inside the simulated person, or at generation scale: 73% of the human
+corpus finishes by 30 s, 89% by 300 s (research/solver-speed-2026-10-21.md, project files), and
+step 3's techniques took the 196 stalled puzzles from 139 to 170 finished by 300 s
+(step3-missing-techniques-2026-10-21.md). The aim: **solve even the hardest puzzles in under 10
+seconds, without the path drifting far from how a person reasons.** This partly reopens the
+capability loop withdrawn below, but with a different measure: time to a human-style proof, not
+the share solved at any cost.
+
+**The tension.** The two halves pull against each other. clingo's search solves a whole puzzle in a
+median of about 2 s (the uniqueness check) and is the least human thing we have: it decides marks
+nobody could explain. The deduction solver is human-shaped because each step is a small window
+proved by a minimal explanation, and that is exactly where its time goes (Hidoku's rounds were
+~100 s of explaining eliminations, ~5 s of finding them). Every way to go faster sits somewhere on
+a line from "same proof, less work" to "let clingo decide":
+
+1. **Same path, faster** (no divergence by construction): fewer clingo calls (a persistent process,
+   incremental solving), windows not rechecked until their marks change, cheaper explanations
+   (step 3's batching; the rules near a fact first). Test: identical paths on the example puzzles
+   and the dev set.
+2. **The techniques people use and the solver lacks** (both goals agree): a technique replaces a
+   case split, and is faster. Nurikabe and Spiral Galaxies are the obvious next ones (both still
+   split every round); Fillomino's tail too. These change the path, toward people.
+3. **Scheduling and fallbacks** (speed for divergence): try the shallow split pool sooner instead of
+   running every window first; past a time budget with no progress, take a tier-3 search step or
+   let clingo settle a mark outright, labelled as such. This is what may be needed to hit 10 s on
+   the last few percent, and the guards below are what meter it.
+
+The order of work follows the line: 1 and 2 first, 3 only for what they leave.
+
+**Definitions.**
+
+- **Hardest corpus.** The human corpus build human-20261014-2153, unique puzzles with side ≤ 20
+  (27,978). The *hard pool* is the puzzles it didn't finish within 30 s (about 7,500, 27%).
+  *Dev set:* the 196 already sampled from it (solver-speed-300-1021); step 3 was tuned on them, so
+  their numbers are optimistic. *Test set:* a fresh sample of 400 from the same pool, stratified by
+  genre (equal counts per genre where the pool allows, so Nurikabe and Hidoku weigh as much as
+  Masyu), fixed seed, drawn once and only scored at a gate. Boards over 20 (413) are a separate
+  stretch band, reported but not in the target.
+- **Hardware and clock.** One vCPU of an n2-standard-32 (Cloud Batch, 32 solves a machine as in the
+  build; spot allowed, it runs about 10% slower), single-threaded. Wall clock from the spec to the
+  finished path, explanations and clingo included. Parallelism inside a solve doesn't count toward
+  the target; report it separately if it's tried.
+- **Human-style divergence**, three measures on the same runs:
+  - *Opaque share:* the share of marks settled by tier-3 search or a clingo fallback (marks no
+    window or shallow split explains). Tier-2 shallow splits (assume a mark, propagation
+    contradicts it) are human-like trial and counted separately as the *split share*.
+  - *Agreement with people:* on held-out Janko states, the share where the solver's next step is in
+    the person's next 3 moves (today: solver 21%, human-tuned network 45%); and the human move
+    model's bits a move along the solver's path, against the 300 s solver's path on the same puzzle.
+  - *Difficulty unchanged:* the scoreboard's Spearman against Puzzle Square JP and Tatham with the
+    fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
+    shows up here.
+
+**Targets** (on the test set, the clock above).
+
+| | today (dev set, 196) | milestone M1 | aim |
+|---|---|---|---|
+| finished ≤ 10 s | 0% (none finish by 30 s, by construction) | 90% | 100% |
+| finished ≤ 60 s | 39% | 100% | 100% |
+| unfinished at 300 s (gave up, died or still going) | 13% | 0 | 0 |
+| whole corpus (side ≤ 20) ≤ 10 s | ~62% of attempts in the build | 97% | 99% |
+| opaque share of marks | to measure | ≤ 2% | ≤ 1%, and none on puzzles that finish today without it |
+| split share of marks | to measure | ≤ 1.25 × the 300 s solver's | ≤ the 300 s solver's |
+| agreement with people (top 3) | 21% | ≥ 21% | ≥ 21% |
+| bits a move vs the 300 s path | 0 | ≤ +5% | ≤ +5% |
+| difficulty Spearman vs today | 0 | within 0.02 | within 0.02 |
+
+The speed rows are about a 10–30× speedup on the hard tail (step 3's median finishes there are
+40–185 s). The divergence rows are guards, not goals: a change that meets the speed target by
+breaking one is reported with the trade, and the choice of how much opacity to buy is Josh's.
+
+**First step: freeze the test set and profile where the time goes.** Draw the 400-puzzle test set
+from the build's status in the bucket (CPU, free). Extend deduce's `timing` (today build and clingo
+time) to split each round's time into window finding, explanation, shallow splits and tier-3
+search, and log the opaque and split shares. Run the dev set with `finish` on and a 60 s budget on
+Cloud Batch (4 spot n2-standard-32 for about 10 minutes, under $2, needs Josh's OK), plus the
+divergence baselines on the scoreboard and the Janko states (CPU). Deliverable: per genre, where
+the seconds go and which lever (1, 2 or 3) each genre needs, with a rough speedup bound for
+levers 1 and 2. **Gate:** if 1 and 2 can plausibly reach M1, build them first; if the profile says
+only fallbacks can, bring the trade (how much opaque share for how many seconds) to Josh before
+building them.
+
+**Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
+cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
+measure divergence against the human move model's own path. Whether hints need a different
+target: a hint is one next step from a position, which wants about a second, not a full solve in
+10.
+
 ## The reframe
 
 Solving is not the game. clingo solves every puzzle we have; a policy that solves faster is a

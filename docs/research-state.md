@@ -22,6 +22,9 @@ the research must deliver three products, all built on one shared core:
 - **Hints:** the move a person would find next, and the technique behind it, given in steps.
 - **Interesting puzzles and sequences:** puzzles that hinge on an idea, and sets that build ideas in
   order.
+- **A fast solver that reasons like a person** (added 2026-10-21): every puzzle, the hardest
+  included, in under 10 s, without drifting far from human-style steps. Targets and the first step
+  in [research-trajectory.md](research-trajectory.md), "Aim 4".
 
 ## What we have
 
