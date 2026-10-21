@@ -852,3 +852,78 @@ gs://inkit-research-ml/results/sim-new2-20261021/gathered.
   game's own human model (not the generic one) is what carries the sim's gain. That needs Janko
   recordings for the new games, which exist for Sudoku, Nurikabe, Shikaku and others. Region games
   wait on the solver.
+
+### Rewards as policies: a first look (2026-10-21)
+
+Question (thread "Where RL could help us"): different rewards should give different solvers; what
+does each reward's best policy do? The rules are an exact simulator, so no RL is needed to see it:
+reward-compare.ts runs each reward's greedy policy over the solver's menu (deduce.ts
+`Options.simulate` with `pick: "max"`, `score`, `noSplits`). Policies: cheapest step (forced marks,
+easiest first; deductions only grow, so also the lowest-peak path), the same with no case splits,
+nearest step to the last move, the human model's likeliest move (human-model.json's step logit,
+not the tuned network), and a sampled person. The trial on the 17 example puzzles in src/games came
+first; the full run on Janko's and Puzzle Square JP's puzzles is below it.
+
+Trial, 17 example puzzles (7 types):
+
+| policy | solved | settled | steps | splits | cost sum | cost peak | distance a move | bits a move (human model) |
+|---|---|---|---|---|---|---|---|---|
+| cheapest | 94% | 99% | 29.8 | 4.1 | 114 | 7.4 | 1.44 | 2.10 |
+| no splits | 47% | 72% | 19.9 | 0 | 61 | 4.1 | 1.47 | 2.23 |
+| nearest | 94% | 100% | 30.4 | 4.1 | 131 | 8.6 | 0.94 | 2.13 |
+| human, likeliest | 94% | 100% | 29.5 | 4.1 | 118 | 7.8 | 1.21 | 1.71 |
+| human, sampled | 94% | 100% | 28.9 | 4.1 | 122 | 8.7 | 1.61 | 2.29 |
+
+- Cheapest-first has the lowest peak (7.4 against 8.6–8.7), as it must, but not the lowest sum on
+  Slitherlink and Star Battle, where the human model's likeliest path is cheaper overall (160 vs
+  169, 67 vs 73): easiest-step-first is not cheapest-proof-first.
+- Nearness buys 35% less travel for 15% more cost and a higher peak.
+- No splits stalls on half the puzzles (Akari, Hitori, Masyu, Nurikabe), at 72% settled: the share
+  a pure-logic reward would have to learn new technique to finish.
+- Bits are scored by the human model itself, so "human, likeliest" wins them by construction.
+
+**Full run** (Cloud Batch reward-janko-20261021 and reward-psjp-20261021, 12 × n2-standard-8 spot,
+62 slot-hours, about $1–2; rows in gs://inkit-research-ml/data/reward-*-20261021/; tables from
+`reward-compare.ts report`). 20 puzzles a
+type: Janko's 14 types (up to 10 wide; 280 puzzles), Puzzle Square JP's 17 rated types (314). Each
+policy gets 120 s; 9–13% of runs capped and 1–2% errored, and those are left out of the means.
+
+| set | policy | solved | settled | steps | splits | cost sum | cost peak | distance | bits | rho with person |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Janko | cheapest | 59% | 90% | 44.5 | 5.0 | 176 | 7.6 | 1.62 | 3.22 | 0.40 |
+| Janko | no splits | 30% | 66% | 32.2 | 0 | 100 | 3.8 | 1.60 | 3.26 | 0.33 |
+| Janko | nearest | 59% | 92% | 43.8 | 5.0 | 205 | 8.8 | 0.74 | 3.11 | 0.37 |
+| Janko | human, likeliest | 59% | 92% | 44.4 | 5.1 | 191 | 8.1 | 0.99 | 2.70 | 0.39 |
+| Janko | human, sampled | 60% | 98% | 40.3 | 5.2 | 185 | 9.3 | 1.57 | 3.34 | 0.37 |
+| PSJP | cheapest | 64% | 89% | 64.4 | 12.9 | 238 | 7.8 | 1.76 | 3.07 | |
+| PSJP | no splits | 27% | 62% | 39.5 | 0 | 123 | 4.3 | 1.73 | 3.18 | |
+| PSJP | nearest | 65% | 92% | 64.5 | 12.8 | 274 | 8.8 | 0.83 | 2.87 | |
+| PSJP | human, likeliest | 66% | 93% | 64.5 | 12.8 | 252 | 8.2 | 1.06 | 2.53 | |
+| PSJP | human, sampled | 67% | 97% | 61.2 | 12.8 | 251 | 9.1 | 1.69 | 3.21 | |
+
+- **Agreement with the person's order (Janko):** no reward's policy beats cheapest-first. On the
+  168 puzzles where every policy finished, paired against cheapest (bootstrap 95%): human likeliest
+  −0.01 (−0.05, +0.03), sampled −0.02 (−0.08, +0.03), nearest −0.04 (−0.09, +0.01), no splits −0.06
+  (−0.09, −0.03). Nearness, which the human model weights most, makes the order no more human; it
+  helps on Masyu and Slitherlink (0.49 and 0.44 against 0.44 and 0.36) and hurts on Star Battle,
+  Easy as ABC and Minesweeper. Per type the spread is large: Minesweeper 0.68, Akari 0.61, Hitori
+  0.60, but Nonogram 0.05 and Skyscrapers 0.06 for every policy, where the solver's step order
+  itself is unlike people's. Rho is a whole-order measure; the human network's 45% top-3 on the
+  next move (PR #2) is the sharper test and isn't contradicted by this.
+- **Against the ratings (PSJP, mean within-type Spearman):** over all puzzles the costs barely
+  track the rating (cost peak 0.20–0.26, cost sum 0.08–0.10), far below step 2's 0.55. The cause is
+  the 120 s budget: a harder puzzle is less often finished (rating vs solved −0.40 to −0.46 for every
+  policy), and an unfinished path has a short, cheap sum. On the puzzles each policy finished, cost
+  sum is back to 0.45–0.55 and peak 0.41–0.58, step 2's level, with no policy clearly ahead (the
+  sampled person highest on sum at 0.55, on the most types, 13). Solved rates by type: Masyu,
+  Shikaku, Slitherlink, Cave, Hitori 18–20 of 20; Nonogram, Star Battle, Sudoku, Spiral Galaxies,
+  Numberlink, Nurikabe 1–3 of 20 (as in the solver-speed doc).
+- **How far pure logic gets is a difficulty signal.** The share no splits settles falls with the
+  rating (−0.34 over 17 types; the other policies −0.06 to −0.24), the strongest single readout over
+  all puzzles, and it is defined on
+  every puzzle, including the ones the solver can't finish. It belongs among the stall features of
+  the fitted difficulty model.
+- **Verdict:** the reward changes the path (nearness cuts travel 50%, no splits stops at two
+  thirds) but not how human the order is, and not how well the cost tracks the rating. Greedy
+  rewards over the solver's own menu don't add a new solver; what's missing is in the menu (the
+  deductions), as the frontier and solver-speed results said. Not worth a learned-RL version.

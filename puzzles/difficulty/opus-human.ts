@@ -23,12 +23,21 @@
 //   python puzzles/difficulty/opus_human_tune.py score <model> net-<base|tuned>.jsonl   (or tune-job.sh)
 //   node --no-warnings puzzles/difficulty/opus-human.ts checks                → checks.md (the tuned
 //     network beside the rest, and every predictor with negative marks left out)
-//   node --no-warnings puzzles/difficulty/opus-human.ts show <id>             (the prompt, for checking)
+//   node --no-warnings puzzles/difficulty/opus-human.ts show <id> [listed]    (the prompt, for checking)
+//   node --no-warnings puzzles/difficulty/opus-human.ts open <model,…> [grid|listed …] [--limit N]
+//                                                                          → open-<model>-<format>.jsonl
+//   node --no-warnings puzzles/difficulty/opus-human.ts openreport            → open-report.md
+//
+// `open` asks open-weight models the same question through an OpenAI-compatible API (OPEN_API_BASE,
+// default OpenRouter; key in OPEN_API_KEY or OPENROUTER_API_KEY), in two text formats: `grid` (the
+// drawing Opus saw) and `listed` (the drawing plus every cell, link or side spelled out one per line
+// with its clue and state: is the trouble small models have with grids the format or the model?).
+// OPEN_CAP_CALLS (default 3000) stops it. openreport scores them as report() scores Opus.
 //
 // Everything goes to references/ml/opus-human/ (local only: the puzzles are Janko's). OPUS_CAP
 // (dollars, default 60) stops the asking before the ledger would pass it.
 import Anthropic from "@anthropic-ai/sdk";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
@@ -269,7 +278,47 @@ function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }): MV | n
   return i === null ? null : [`shaded(${i})`, on];
 }
 
-function promptOf(it: Item): string {
+/** The state spelled out, one line per cell (or per link, or per cell side): its clue and what is
+ *  known, so a model reads relations rather than counting columns in a drawing. */
+function listed(spec: GridSpec, known: Map<string, boolean>): string {
+  const p = makePuzzle(spec), g = p.grid, R = g.rows, C = g.cols, genre = spec.genre!;
+  const name = (i: number) => `r${Math.floor(i / C) + 1}c${(i % C) + 1}`;
+  const area = (i: number) => (p.areas ? `area ${String.fromCharCode(65 + p.areas.of[i])}` : "");
+  const clue = (i: number) => [area(i), ...(p.cellGivens.get(i) ?? []).map((x: any) => (x.value !== undefined ? `clue ${Array.isArray(x.value) ? x.value.join(" ") : x.value}` : x.kind))].filter(Boolean).join(", ");
+  const isBlock = (i: number) => (p.cellGivens.get(i) ?? []).some((x: any) => x.kind === "block");
+  const state = (m: string, [a, b]: [string, string]) => { const v = known.get(m); return v === true ? a : v === false ? b : "undecided"; };
+  const lines: string[] = [];
+  if (["masyu", "numberlink", "fillomino", "spiral-galaxies"].includes(genre)) {
+    for (let i = 0; i < R * C; i++) { const c = clue(i); if (c) lines.push(`${name(i)}: ${c}`); }
+    const vals = VALUES[genre], mk = genre === "fillomino" || genre === "spiral-galaxies" ? "cut" : "line";
+    for (const l of g.links) { const [a, b] = l.cells.slice().sort((x, y) => x - y); lines.push(`${name(a)}-${name(b)}: ${state(`${mk}(${l.id})`, vals)}`); }
+  } else if (genre === "slitherlink") {
+    const W = C + 1;
+    for (let i = 0; i < R * C; i++) { const c = clue(i); if (c) lines.push(`${name(i)}: ${c}`); }
+    for (const bd of g.borders) {
+      const [a, b] = bd.corners.slice().sort((x, y) => x - y), r = Math.floor(a / W), c = a % W;
+      const where = b - a === 1 ? (r < R ? `r${r + 1}c${c + 1} top` : `r${r}c${c + 1} bottom`) : (c < C ? `r${r + 1}c${c + 1} left` : `r${r + 1}c${c} right`);
+      lines.push(`${where}: ${state(`fence(${bd.id})`, VALUES.slitherlink)}`);
+    }
+  } else if (["skyscrapers", "hidoku", "easy-as-abc"].includes(genre)) {
+    const D = genre === "hidoku" ? R * C : genre === "easy-as-abc" ? (p.rules.find((x) => x.rule === "letters") as any)?.count ?? 3 : R;
+    const show = (d: number) => (genre === "easy-as-abc" ? "ABCDEFG"[d - 1] : String(d));
+    for (let i = 0; i < R * C; i++) {
+      if (isBlock(i)) { lines.push(`${name(i)}: ${clue(i)}`); continue; }
+      const given = ((p.cellGivens.get(i) ?? []).find((x: any) => x.kind === "number") as any)?.value;
+      if (given !== undefined) { lines.push(`${name(i)}: given ${show(given)}`); continue; }
+      const c = clue(i), placed = [...Array(D)].map((_, k) => k + 1).find((d) => known.get(`digit(${i},${d})`) === true);
+      const out = [...Array(D)].map((_, k) => k + 1).filter((d) => known.get(`digit(${i},${d})`) === false);
+      lines.push(`${name(i)}: ${c ? c + "; " : ""}${placed ? `holds ${show(placed)}` : out.length === D && genre === "easy-as-abc" ? "empty" : out.length ? `not ${out.map(show).join(", ")}` : "undecided"}`);
+    }
+  } else {
+    const vals = VALUES[genre] ?? ["shaded", "unshaded"];
+    for (let i = 0; i < R * C; i++) { const c = clue(i); lines.push(`${name(i)}: ${c ? c + "; " : ""}${isBlock(i) ? "(no move here)" : state(`shaded(${i})`, vals)}`); }
+  }
+  return `Every ${["masyu", "numberlink", "fillomino", "spiral-galaxies", "slitherlink"].includes(genre) ? "clue, then every edge" : "cell"}, one per line (r = row, c = column, from 1):\n${lines.join("\n")}`;
+}
+
+function promptOf(it: Item, format: "grid" | "listed" = "grid"): string {
   const { j } = jankoOf(it.name);
   return `A person is solving this ${NAME[it.genre] ?? it.genre.replace(/-/g, " ")} puzzle.
 
@@ -277,7 +326,7 @@ Rules: ${rules(j.spec)} The puzzle has exactly one solution.
 
 Where they are now:
 
-${draw(j.spec, new Map(it.known))}
+${draw(j.spec, new Map(it.known))}${format === "listed" ? `\n\n${listed(j.spec, new Map(it.known))}` : ""}
 
 What single move will this person most likely make next? It must be a move you are certain of, deduced by logic (no guessing), and still undecided in the grid above. End your reply with JSON: ${moveForm(it.genre)}. Rows and columns count from 1.`;
 }
@@ -511,9 +560,67 @@ async function checks() {
   console.log(text);
 }
 
+// ======== open: open-weight models through an OpenAI-compatible API ========
+const slug = (m: string) => m.replace(/[^a-z0-9.]+/gi, "-").toLowerCase();
+async function askOpen() {
+  const key = process.env.OPEN_API_KEY ?? process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("no OPEN_API_KEY or OPENROUTER_API_KEY");
+  const base = process.env.OPEN_API_BASE ?? "https://openrouter.ai/api/v1", cap = Number(process.env.OPEN_CAP_CALLS) || 3000;
+  const models = (argv[1] ?? "").split(",").filter(Boolean);
+  const formats = (argv.slice(2).filter((a) => a === "grid" || a === "listed") as ("grid" | "listed")[]);
+  if (!models.length) throw new Error("name the models: open <model,…> [grid|listed …]");
+  let calls = 0;
+  for (const model of models) for (const format of formats.length ? formats : ["grid", "listed"] as const) {
+    const file = `${OUT}open-${slug(model)}-${format}.jsonl`, done = new Set(readJsonl(file).map((x) => x.id));
+    let todo = shuffled(loadItems(), `${SEED} order`).filter((it) => !done.has(it.id));
+    if (argv.includes("--limit")) todo = todo.slice(0, Math.max(0, opt("--limit", 20) - done.size));
+    console.error(`${model} ${format}: ${done.size} done, ${todo.length} to ask`);
+    await mapPool(todo, async (it) => {
+      if (++calls > cap) return;
+      const t0 = Date.now();
+      try {
+        let res: Response | null = null;
+        for (let a = 0; a < 5; a++) {
+          res = await fetch(`${base}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+            body: JSON.stringify({ model, max_tokens: 12000, messages: [{ role: "user", content: promptOf(it, format) }] }), signal: AbortSignal.timeout(10 * 60 * 1000) });
+          if (res.status !== 429 && res.status < 500) break;
+          await new Promise((r) => setTimeout(r, 2000 * 2 ** a));
+        }
+        const body = await res!.json() as any;
+        if (!res!.ok) throw new Error(`${res!.status} ${JSON.stringify(body).slice(0, 160)}`);
+        const text = String(body.choices?.[0]?.message?.content ?? ""), parsed = lastJson(text);
+        const mark = parsed ? markOf(jankoOf(it.name).j.spec, parsed) : null;
+        appendFileSync(file, JSON.stringify({ id: it.id, model, format, usage: body.usage, cost: body.usage?.cost, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, mark, text, at: new Date().toISOString() }) + "\n");
+        console.error(`${model} ${format} ${it.id}: ${mark ? mark.join("=") : "unparsed"}, ${Math.round((Date.now() - t0) / 1000)} s`);
+      } catch (e) { console.error(`${model} ${format} ${it.id}: failed (${(e as Error).message.slice(0, 160)})`); }
+    }, 8);
+  }
+}
+function openReport() {
+  const items = new Map(loadItems().map((it) => [it.id, it]));
+  const key = (mv: MV | null) => (mv ? `${mv[0]}=${mv[1]}` : "");
+  const DIGITS = new Set(["easy-as-abc", "hidoku", "skyscrapers"]);
+  const runs: [string, any[]][] = [["opus (grid)", readJsonl(`${OUT}opus.jsonl`)], ...readdirSync(OUT).filter((f) => f.startsWith("open-") && f.endsWith(".jsonl")).sort().map((f) => [f.slice(5, -6), readJsonl(OUT + f)] as [string, any[]])];
+  const out = ["| model and format | n | in next 3: all | ordinary | stuck | digit types | other types | top-1 | correct (the solution's) | valid move | cost |", "|---|---|---|---|---|---|---|---|---|---|---|"];
+  for (const [name, rs0] of runs) {
+    const rs = rs0.filter((r) => items.has(r.id)).map((r) => ({ r, it: items.get(r.id)! }));
+    if (!rs.length) continue;
+    const hit = (x: { r: any; it: Item }) => !!x.r.mark && x.it.next.some((n) => key(n) === key(x.r.mark));
+    const pc = (xs: typeof rs) => pct(xs.filter(hit).length, xs.length);
+    const correct = rs.filter((x) => x.r.mark && (jankoOf(x.it.name).j.truth.get(x.r.mark[0]) ?? false) === x.r.mark[1]).length;
+    const cost = rs.reduce((a, x) => a + (x.r.cost ?? x.r.dollars ?? 0), 0);
+    out.push(`| ${name} | ${rs.length} | **${pc(rs)}** | ${pc(rs.filter((x) => x.it.kind === "ordinary"))} | ${pc(rs.filter((x) => x.it.kind === "stuck"))} | ${pc(rs.filter((x) => DIGITS.has(x.it.genre)))} | ${pc(rs.filter((x) => !DIGITS.has(x.it.genre)))} | ${pct(rs.filter((x) => !!x.r.mark && key(x.it.next[0]) === key(x.r.mark)).length, rs.length)} | ${pct(correct, rs.length)} | ${pct(rs.filter((x) => !!x.r.mark).length, rs.length)} | $${cost.toFixed(2)} |`);
+  }
+  const text = out.join("\n");
+  writeFileSync(`${OUT}open-report.md`, text);
+  console.log(text);
+}
+
 if (cmd === "sample") await sample();
+else if (cmd === "open") await askOpen();
+else if (cmd === "openreport") openReport();
 else if (cmd === "checks") await checks();
 else if (cmd === "ask") await ask();
 else if (cmd === "check") await check();
-else if (cmd === "show") console.log(promptOf(loadItems().find((it) => it.id === argv[1]) ?? loadItems()[0]));
+else if (cmd === "show") console.log(promptOf(loadItems().find((it) => it.id === argv[1]) ?? loadItems()[0], argv[2] === "listed" ? "listed" : "grid"));
 else report();
