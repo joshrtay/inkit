@@ -174,11 +174,23 @@ been read.
 6. **Offline RL on the schedule**, last and only if 2–4 leave a gap: the order of checks as a
    policy, reward minus time with the divergence guards as penalties, from the logged runs.
 
-A first local read (14 example puzzles, 60 s budget, `finish` on, timing.phases): explaining steps
-took most of the time almost everywhere (Hidoku 15 of 18 s, Sudoku 1.5 of 2.5 s; one Nurikabe 51
-of 53 s, nearly all of it explaining its 20 case splits), and Fillomino's went to tier-3 search
-(54 of 61 s). If the dev set agrees, step 1's explanation work and step 3 come first, and Nurikabe
-needs step 5 more than it needs speed.
+**The profile (2026-10-21, run solver-speed-profile-1021; research/solver-timing-profile-2026-10-21.md
+in project files).** The dev set with `finish` on and a 60 s budget: 3% finished by 10 s, 14% by
+30 s, 50% by 60 s. Median per puzzle: setup 1.4 s, window checks 14.5 s, explanations 9.0 s, case
+split rounds 0.4 s. Four groups:
+
+- *Window-bound* (window checks 70–95% of the time, tiers 0–1 settle ≥ 92% of facts): Akari, Star
+  Battle, Sudoku, Skyscrapers, Easy as ABC, Irregular Sudoku, Wittgenstein Briquet.
+- *Explain-bound:* Hidoku (42 s, 66%), Simple Loop (74%), Masyu (59%), Cave (49%).
+- *Split-bound:* Nurikabe (split rounds 54 s; tier 2 settles 70% of facts, tier 3 23%) and
+  Fillomino (23 s; 27% and 12%); both also spend ~9 s in setup. Cave gets 41% of its facts from
+  tier 3, so it is far from human-style as well as slow.
+- *Spiral Galaxies:* none finished by 60 s, its time split between windows and explanations.
+
+So step 1 starts with the window checks (most genres, and the median), then explanations; the
+split-bound genres need steps 4 and 5 (Nurikabe settles 93% of its facts by splits or search, so a
+faster split is still not human-style). The 14 example puzzles had pointed at explanations; the
+dev set says windows, which is why the profile came before any building.
 
 **Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
 cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
