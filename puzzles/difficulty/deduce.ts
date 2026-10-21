@@ -163,7 +163,7 @@ export interface Options {
    *  windows, ranked by WINDOW_ODDS, is checked first, and the rest only if those find nothing, so
    *  a round takes the cheapest step among the likely windows' (the path can change; nothing
    *  unsound is taken, and a stage that finds nothing still checks everything). Default (or
-   *  DEDUCE_RANK) off. */
+   *  DEDUCE_RANK) off, 0.3 with `finish`. */
   rankWindows?: number;
   /** case splits (tier-2 steps) allowed in the whole solve: past this many it stops, unsolved, with
    *  a note (bands.ts's "beyond": a few shallow splits, not a split-driven solve). Default no limit */
@@ -337,7 +337,9 @@ export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; 
   fillomino: { techniques: ["sizes", "shapes"] },
   hidoku: { techniques: ["distance", "deadends"] },
   "honeycomb-paths": { techniques: ["distance", "deadends"] },
-  hitori: { lemmas: ["component"], techniques: ["joins"] },
+  // (not joins: with it Tatham's Singles agreement falls from 0.75 to 0.22, as the component
+  // lemma's did; it needs pricing first)
+  hitori: { lemmas: ["component"] },
   nurikabe: { techniques: ["islands", "joins"] },
   cave: { techniques: ["joins"] },
   "spiral-galaxies": { cellAtoms: true },
@@ -1029,7 +1031,10 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
 
   // Aim 4, step 2 (Options.rankWindows): how likely a window's check is to find a fact, a logistic
   // fit on the traces of 35 dev-set solves (held-out AUC 0.88); features as in TraceRow
-  const rankShare = opts.rankWindows ?? (Number(process.env.DEDUCE_RANK) || 0);
+  // (the finish set ranks windows: the guard check of 2026-10-21 found agreement with Puzzle Square
+  // JP's and Tatham's ratings unchanged at 0.3)
+  const finishing = opts.finish ?? process.env.DEDUCE_FINISH === "1";
+  const rankShare = opts.rankWindows ?? (process.env.DEDUCE_RANK !== undefined ? Number(process.env.DEDUCE_RANK) || 0 : finishing ? 0.3 : 0);
   const windowOdds = (w: Window): number => {
     const pr = progOf(w), marks = pr.marks.length, open = pr.marks.filter((m) => known[m] < 0).length, last = evaluatedAt.get(w);
     if (!open) return -Infinity;

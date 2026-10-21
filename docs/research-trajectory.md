@@ -291,6 +291,16 @@ change didn't touch moved by under a second at half the load, so the load effect
 Spiral Galaxies' 2.2× (42.8 s median here, about 16 s alone at a 300 s budget) is still unexplained
 and needs checking before the gate's timing rule is fixed.
 
+**The difficulty guard (2026-10-21, cloud; research/aim4/guard-check-2026-10-21.md in project
+files).** The scoreboard's Puzzle Square JP and Tatham sections with each parked change, mean
+Spearman against the baseline's 0.57 / 0.71: `rankWindows` 0.3, −0.00 / +0.00 (passes: it's now on
+with `finish`); `DEDUCE_CORE`, −0.01 / −0.02 (at the line; Singles 8 × 8 −0.15: stays off);
+islands and joins, +0.00 / −0.18 (fails, all of it joins on Hitori: Singles 0.75 → 0.22 at 6 × 6,
+as the component lemma did before, so joins leaves Hitori's finish set until it's priced; islands
+alone leaves Tatham unchanged and lifts Puzzle Square JP Nurikabe 0.00 → 0.13). No wrong facts
+anywhere. A repeat of the baseline on another VM moved loop genres by up to 0.17 from timing alone,
+so single-type moves there are noise.
+
 Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
 it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
 and the `parity` lemma was mixed (one more finishes, 24 → 9 s on another, three slower), so neither
