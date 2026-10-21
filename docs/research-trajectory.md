@@ -219,6 +219,18 @@ Fillomino and Cave are split-bound (steps 4 and 5). Setup on some Nurikabes is d
 finding the answer (up to 47 s on one 10 × 10; no configuration fixes it), which a puzzle that comes
 with its answer (every published and inkit puzzle has one) would skip.
 
+**Step 2, first read (2026-10-21, local).** Traces of 35 dev-set solves (2 a genre, not the ones
+measured below): only 0.7% (Akari) to 20% (Masyu) of window checks find a fact, outside Hidoku and
+Fillomino. A logistic model on what a trace row knows (size, open and changed marks, whether the
+window found something last time, its kind) ranks them with held-out AUC 0.88 (gradient boosting
+with the genre 0.90). `Options.rankWindows` (DEDUCE_RANK; off by default) checks a stage's likeliest
+30% first and the rest only when those find nothing. On 20 other dev puzzles of ten genres, 60 s
+budget: 487 → 425 s in all (13%), most on the Sudokus (Irregular Sudoku 37 → 16 s and 17 → 11 s,
+Sudoku 46 → 30 s), 0–15% elsewhere; every puzzle still finishes; case splits and search unchanged;
+the difficulty estimate moved by more than 0.02 on 3 of 20 (Irregular Sudoku 0.57 → 0.64, Nonogram
+0.29 → 0.26, Easy as ABC 0.75 → 0.80). So after step 1 window checks are no longer the main cost,
+and a better ranker (the network) can't buy much: it stays off, and step 3 comes next.
+
 **Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
 cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
 measure divergence against the human move model's own path. Whether hints need a different

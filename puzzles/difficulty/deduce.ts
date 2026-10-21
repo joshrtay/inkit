@@ -159,6 +159,12 @@ export interface Options {
    *  says unsolved, with a note); 2 allows shallow case splits (refuted by propagation alone) but no
    *  search, and spends no clingo time on deep candidates. Default 3 */
   maxTier?: Tier;
+  /** Aim 4, step 2: check each stage's windows likeliest first. The share given (0–1) of a stage's
+   *  windows, ranked by WINDOW_ODDS, is checked first, and the rest only if those find nothing, so
+   *  a round takes the cheapest step among the likely windows' (the path can change; nothing
+   *  unsound is taken, and a stage that finds nothing still checks everything). Default (or
+   *  DEDUCE_RANK) off. */
+  rankWindows?: number;
   /** case splits (tier-2 steps) allowed in the whole solve: past this many it stops, unsolved, with
    *  a note (bands.ts's "beyond": a few shallow splits, not a split-driven solve). Default no limit */
   maxSplitSteps?: number;
@@ -375,6 +381,10 @@ const CAUTIOUS = process.env.DEDUCE_CAUTIOUS_SLOW === "1" ? [] : ["--save-progre
  *  of an explanation call was reading the text. The same rules, switches and deletion order, so
  *  the same sets. DEDUCE_EXPLAIN_TEXT=1 goes back to the text (to compare). */
 const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
+/** Options.rankWindows' logistic weights (lsize, lmarks, lopen, lchanged, changed share, open
+ *  share, found last time, found nothing last time; per kind of window; fit 2026-10-21) */
+const WINDOW_ODDS = { b: -3.5217, w: [0.3831, -0.1833, 0.4256, 0.0089, 3.0288, -2.3744, 2.2513, 1.3486],
+  kinds: { area: 0.4048, around: 0.1545, clue: 0.7796, column: 0.1435, count: 0.0493, pair: -2.7454, row: 0.048, strip: -2.2674 } as Record<string, number> };
 /** clingo solves allowed per explanation (deletion stops there, keeping a larger set) */
 const MUS_SOLVES = 400;
 
@@ -1001,6 +1011,19 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     if (opts.trace) for (const [w, r] of rowsHere) { r.facts = found.get(w)?.length ?? 0; trace.push(r); }
     return found;
   });
+
+  // Aim 4, step 2 (Options.rankWindows): how likely a window's check is to find a fact, a logistic
+  // fit on the traces of 35 dev-set solves (held-out AUC 0.88); features as in TraceRow
+  const rankShare = opts.rankWindows ?? (Number(process.env.DEDUCE_RANK) || 0);
+  const windowOdds = (w: Window): number => {
+    const pr = progOf(w), marks = pr.marks.length, open = pr.marks.filter((m) => known[m] < 0).length, last = evaluatedAt.get(w);
+    if (!open) return -Infinity;
+    const changed = last === undefined ? marks : pr.marks.filter((m) => decidedAt[m] >= last).length, before = lastFound.get(w) ?? -1;
+    const x = [Math.log1p(w.size), Math.log1p(marks), Math.log1p(open), Math.log1p(changed), changed / Math.max(1, marks), open / Math.max(1, marks), before === 1 ? 1 : 0, before === 0 ? 1 : 0];
+    let z = WINDOW_ODDS.b + x.reduce((a, v, i) => a + v * WINDOW_ODDS.w[i], 0);
+    z += WINDOW_ODDS.kinds[windowKind(w.label)] ?? 0;
+    return z;
+  };
 
   // ---- explanations ----
   // A fact's explanation is a smallest set of rule instances (groups) and earlier facts that
@@ -2694,7 +2717,15 @@ end
     else if (opts.minPeak && !opts.quick) progressed = minPeakRound();
     else for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
-      const f = runWindows(tagged.map(([w]) => w));
+      let f: Map<Window, [number, boolean][]>;
+      if (rankShare > 0 && rankShare < 1 && tagged.length > 1) {
+        // likeliest first; the rest only if those find nothing
+        const ws = tagged.map(([w]) => w), odds = new Map(ws.map((w) => [w, windowOdds(w)]));
+        const ranked = [...new Set(ws)].sort((a, b) => odds.get(b)! - odds.get(a)!);
+        const cut = Math.max(1, Math.ceil(ranked.length * rankShare));
+        f = runWindows(ranked.slice(0, cut));
+        if (!f.size) f = runWindows(ranked.slice(cut));
+      } else f = runWindows(tagged.map(([w]) => w));
       if (k === 0 && entryPoints < 0 && !f.size) entryPoints = 0;
       if (!f.size) continue;
       if (opts.quick) {
