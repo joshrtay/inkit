@@ -6,11 +6,12 @@
 //
 // Sets: psjp (Puzzle Square JP's rated puzzles, references/psjp/<type>/, a spread sample of --per a
 // type) and tatham (Simon Tatham's graded puzzles, references/tatham/puzzles/, --per / 4 a file, a type per game
-// and size). Types
-// without recorded solves use the generic model. Rows to references/sim-difficulty/<set>-<type>.jsonl,
+// and size), and puzzlink (puzz.link's player ratings, difficulty5 1..5 from 5+ solves,
+// references/puzzlink-db/converted/, a spread sample of --pl-per a genre, leaving out any puzzle also
+// in Puzzle Square JP's rated set). Types without recorded solves use the generic model. Rows to references/sim-difficulty/<set>-<type>.jsonl,
 // appended; a rerun skips what's there.
 //
-//   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts run [psjp|tatham …] [--types akari,masyu] [--per 40] [--samples 2] [--shard k --of N]
+//   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts run [psjp|tatham|puzzlink …] [--types akari,masyu] [--per 40] [--pl-per 100] [--samples 2] [--shard k --of N]
 //   node --no-warnings puzzles/difficulty/sim-difficulty.ts report
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
@@ -74,9 +75,31 @@ if (argv[0] === "run") {
       });
     }
   }
+  if (sets.includes("puzzlink")) {
+    // puzz.link's ratings: a different set of raters; the puzzles Puzzle Square JP also rates left out
+    const dir = `${REFS_DIR}puzzlink-db/converted/`, plPer = Number(opt("pl-per") ?? 100);
+    const key = (g: GridSpec) => JSON.stringify([g.size, [...(g.givens ?? [])].map((x) => JSON.stringify(x)).sort()]);
+    const psjp = new Set<string>(), proot = `${REFS_DIR}psjp/`;
+    if (existsSync(proot)) for (const t of readdirSync(proot).filter((x) => !x.includes(".") && x !== "scripts"))
+      for (const f of readdirSync(`${proot}${t}`).filter((x) => /^\d+\.json$/.test(x))) { const d = JSON.parse(readFileSync(`${proot}${t}/${f}`, "utf8")); if (d.grid) psjp.add(key(d.grid)); }
+    for (const f of existsSync(dir) ? readdirSync(dir).filter((x) => x.endsWith(".jsonl")).sort() : []) {
+      const type = f.replace(".jsonl", "");
+      if (types && !types.includes(type)) continue;
+      const rated = readFileSync(dir + f, "utf8").split("\n").filter(Boolean).flatMap((l) => {
+        const d = JSON.parse(l), m = d.meta ?? {};
+        return m.difficulty5 && (m.solves ?? 0) >= 5 && !m.generated && !psjp.has(key(d.spec)) ? [{ id: d.sourceId as string, rated: m.difficulty5 as number, spec: { ...d.spec, genre: d.spec.genre ?? d.genre } as GridSpec }] : [];
+      });
+      rated.sort((a, b) => a.rated - b.rated || hash(a.id) - hash(b.id));
+      const step = Math.max(1, rated.length / plPer), had = done(`${OUT}puzzlink-${type}.jsonl`);
+      for (let i = 0; i < Math.min(plPer, rated.length); i++) {
+        const x = rated[Math.floor(i * step)];
+        if (!had.has(x.id)) jobs.push({ set: "puzzlink", type, genre: x.spec.genre!, ...x });
+      }
+    }
+  }
   const mine = jobs.filter((j) => of <= 1 || Math.floor(hash(`${j.set}:${j.type}:${j.id}`) * of) === shard);
   mkdirSync(OUT, { recursive: true });
-  console.error(`${new Date().toISOString()} ${mine.length} puzzles`);
+  console.error(`${new Date().toISOString()} ${mine.length} puzzles (of ${jobs.length})`);
   let n = 0;
   await mapPool(mine, async (j) => {
     const t0 = Date.now(), model = MODELS[j.genre] ?? MODELS.generic;

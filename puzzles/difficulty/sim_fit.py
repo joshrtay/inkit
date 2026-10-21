@@ -11,8 +11,11 @@
 # estimate alone, the simulated cost alone, the two ranks averaged (nothing fitted), and the same fit
 # on the solver's features only and the simulated person's only (what the simulation adds).
 #
-#   python3 puzzles/difficulty/sim_fit.py [--save]
-# --save writes the model fitted on everything to puzzles/difficulty/sim-fit.json.
+# The model is fitted on the games step 2 ran first (FITTED); --new scores it, frozen, on every other
+# type in the rows: types it never saw, rated by the same sources.
+#
+#   python3 puzzles/difficulty/sim_fit.py [--save] [--new]
+# --save writes the model fitted on every FITTED type to puzzles/difficulty/sim-fit.json.
 import glob, json, math, os, sys
 import numpy as np
 
@@ -21,6 +24,8 @@ ROWS = os.path.join(HERE, "../../references/sim-difficulty/")
 SIM = ["costSum", "costPeak", "h", "surprisal", "lse", "dist", "steps", "splits"]
 SOLVER = ["estimate", "costSum", "costPeak", "steps", "splits"]
 FEATS = [f"sim {k}" for k in SIM] + [f"solver {k}" for k in SOLVER]
+FITTED = {"psjp": ["akari", "hitori", "masyu", "simple-loop", "slitherlink"], "tatham": ["lightup", "loopy", "singles"]}
+fitted = lambda g: g.split(" ")[1].rsplit("-", 1)[0] in FITTED[g.split(" ")[0]] if g.startswith("tatham") else g.split(" ")[1] in FITTED["psjp"]
 
 def h32(key):
     h = 2166136261
@@ -59,6 +64,8 @@ def prepare(rows):
     return X, y
 
 data = {g: prepare(v) + ([r for _, _, r in v], [i for i, _, _ in v]) for g, v in types.items()}
+new = {g: v for g, v in data.items() if not fitted(g)}
+data = {g: v for g, v in data.items() if fitted(g)}
 
 def fit(groups, lam=1.0):
     X = np.vstack([data[g][0] for g in groups]); y = np.concatenate([data[g][1] for g in groups])
@@ -119,9 +126,27 @@ for s in ("psjp", "tatham"):
     ds.sort(); print(f"  {s}: {np.mean(ds):+.3f} ({ds[10]:+.3f}, {ds[389]:+.3f})")
 
 w = fit(list(data), lam)
+if "--new" in sys.argv:
+    # frozen: fitted on every FITTED type, scored on types it never saw (standardised within their own type)
+    cols = {k: [FEATS.index(c) for c in v] for k, v in SETS.items()}
+    ws = {k: (lambda j: (lambda X, y: np.linalg.solve(X.T @ X + lam * len(y) / 100 * np.eye(len(j)), X.T @ y))(
+        np.vstack([d[0][:, j] for d in data.values()]), np.concatenate([d[1] for d in data.values()])))(j) for k, j in cols.items()}
+    print("\nnew types, model frozen (fitted on the types above):\n")
+    print("| set and type | n | solver's estimate | simulated cost | ranks averaged | fitted: solver only | fitted: sim only | fitted: both |")
+    print("|---|---|---|---|---|---|---|---|")
+    nrows = []
+    for g in sorted(new):
+        X, _, rated, _ = new[g]; allk = np.ones(len(rated), bool)
+        v = [spearman(X[:, FEATS.index("solver estimate")], rated), spearman(X[:, FEATS.index("sim costSum")], rated),
+             spearman(rank(X[:, FEATS.index("sim costSum")]) + rank(X[:, FEATS.index("solver estimate")]), rated)]
+        v += [spearman(X[:, cols[k]] @ ws[k], rated) for k in ("solver", "sim", "both")]
+        nrows.append((g, len(rated), *v)); print(f"| {g} | {len(rated)} | " + " | ".join(f"{x:.2f}" for x in v) + " |")
+    for s_ in ("psjp", "tatham"):
+        rs = [r for r in nrows if r[0].startswith(s_)]; N = sum(r[1] for r in rs)
+        if N: print(f"| {s_}, within type (n-weighted) | {N} | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 8)) + " |")
 print("\nweights (fitted on everything; features standardised within type):")
 for k, x in sorted(zip(FEATS, w), key=lambda t: -abs(t[1])): print(f"  {k:18s} {x:+.3f}")
 if "--save" in sys.argv:
-    json.dump({"features": FEATS, "weights": [round(float(x), 4) for x in w], "ridge": lam,
+    json.dump({"features": FEATS, "fitted on": FITTED, "weights": [round(float(x), 4) for x in w], "ridge": lam,
                "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"},
               open(os.path.join(HERE, "sim-fit.json"), "w"), indent=1)
