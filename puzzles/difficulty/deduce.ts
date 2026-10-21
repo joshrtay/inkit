@@ -1420,7 +1420,8 @@ end
       bits = next;
       const w: Window = { label: `around ${markCells[m].map(rc).join("/")} (${level + 1} deep)`, cells: cellsOf(bits), bits, size: cellsOf(bits).length };
       if (!progOf(w).marks.includes(m)) continue;
-      const ex = explain([{ w, facts: [[m, v]] }]);
+      const tl = Date.now(), ex = explain([{ w, facts: [[m, v]] }]);
+      dbg(`wide step level ${level + 1}: ${w.size} cells, ${ex.get(w)?.[0] ? "explained" : "not entailed"}, ${Date.now() - tl} ms`);
       // (handed on, so the step isn't explained a second time)
       if (ex.get(w)?.[0]) return candidates(new Map([[w, [[m, v]]]]), tier, ex)[0];
     }
@@ -2434,6 +2435,7 @@ end
     // the program case splits work on: the local encoding where there is one (small), else the engine's
     const { lines, status, errors } = clingoRaw(lua + (local ? local.plain : program(p)), "--outf=3 --stats --forget-on-step=varScores,signs,lemmaScores,lemmas");
     dbg(`hard round: ${cand.length} candidates, ${Date.now() - th} ms`);
+    if (process.env.DEDUCE_DEBUG_SPLITS) dbg(lines.filter((l) => l.startsWith("C ")).join(" | "));
     if (status === 33 || status === 65 || status === 128) throw new Error(`clingo failed (${status}): ${errors.join("\n").slice(0, 300)}`);
     return lines.flatMap((l) => {
       const x = /^C (\d+) (\w+) (\w+) (\d+) (\d+)$/.exec(l);
@@ -2799,6 +2801,9 @@ end
       pool.sort((a, b) => rank.get(a)! - rank.get(b)!);
       const m = pool.shift()!, v = answer[m] === 1;
       splitSteps++;
+      // DEDUCE_SPLIT_FRESH: is the split refuted with no choices by a solver that hasn't searched
+      // the round's other candidates first? (what they taught it stays: lemmas are forgotten, units aren't)
+      if (process.env.DEDUCE_SPLIT_FRESH) { const r = hardRound([m], 0)[0]; dbg(`split fresh: ${r && r.unsat && r.choices === 0 ? "refuted" : "not refuted"} (${r?.choices} choices, ${r ? r.cost - r.choices : 0} conflicts)`); }
       if (opts.quick) {
         // settled at once, unexplained, as the windows' facts are
         path.push({ tier: 2, round, where: `assume ${factText(m, !v)}: a contradiction`, cells: markCells[m], facts: [{ mark: markName[m], value: v, text: factText(m, v) }], uses: ["splits"], cost: 0 });

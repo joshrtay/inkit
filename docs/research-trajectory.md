@@ -243,6 +243,33 @@ unsat core instead of the whole window, 10–20% faster on most of 16 explain-bo
 Masyu 26 → 14 s), estimates within 0.02 but one (Hidoku 0.71 → 0.69); the sets differ, so it waits,
 with `rankWindows`, for a refit of the prices on the new paths.
 
+**Step 4, first read (2026-10-21, local): case splits hide search.** A split round is one clingo
+call that assumes each candidate the wrong way in turn (about 80 on a 10 × 10 Nurikabe; the first 12
+searched up to 3,000 conflicts, the rest up to 50) and counts a candidate as tier 2 when it's refuted
+with no choices. Rounds are about 2 s and 70% of a Nurikabe's time, but mostly fixed cost (grounding
+about 0.5 s, the 12 searches about 0.5 s): trying only the nearest 20 first was slower, because a miss
+costs a second call and the pool kept for later rounds is lost. The bigger finding: clingo keeps what
+each candidate's search taught it, so later candidates are refuted "with no choices" thanks to the
+earlier searches. Checked alone, in a fresh call (`DEDUCE_SPLIT_FRESH`, a debug check on each split
+taken; 3 dev puzzles a genre, 4 for Nurikabe), the share of tier-2 splits that still need search:
+
+| genre | splits taken | need search alone |
+|---|---|---|
+| Simple Loop | 37 | 92% |
+| Hitori | 41 | 54% |
+| Nurikabe | 124 | 52% |
+| Cave | 50 | 40% |
+| Masyu | 31 | 29% |
+| Slitherlink | 22 | 5% |
+| Fillomino | 47 | 2% |
+| Spiral Galaxies | 73 | 0% |
+
+So the split share and the opaque share (the divergence guards) undercount search on those first
+five genres, and their difficulty estimates price some search as a split. The honest version (a
+split is tier 2 only if a fresh call refutes it with no choices; the rest are search) would move
+them toward tier 3 until step 5's techniques replace it. It changes estimates, so it waits for the
+same refit as `rankWindows` and `DEDUCE_CORE`; Aim 4's guards should count it from now on.
+
 **Timing needs a fixed load.** The same Spiral Galaxies ran a median 2.2× slower with 32 solves to a
 VM (1021d) than with 16 over 128 vCPUs: full-VM runs overstate one solve's time, here by up to about
 2×. Before the gate the "one vCPU, wall clock" rule gets a fixed load (say 16 solves on an
