@@ -949,7 +949,9 @@ marks as a list of relations). Hit = the model's move is among the person's next
 PR #2's tuned model, with relations-tuned's 49% mean over types from PR #3.)
 
 - **Open models fall well short of Opus:** best is 26–27% against Opus 38% and the network's 45%.
-  Both are below the network on every split, and below Opus on every split.
+  Both are below Opus on every split, and below the network everywhere except digit types, where
+  they get 45–54% against the PR #2 network's 40% (relations-tuned closed most of that gap: Hidoku
+  10% → 56.5%).
 - **Listed beats grid by about 5 points** for both models, all of it on non-digit types (Gemma
   14% → 21%, Qwen 13% → 22%). Small models misread the drawing; the relation list helps them.
 - **Qwen 27B is capable but runs out of room.** On the states where it answered, it hits 34–36%,
