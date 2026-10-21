@@ -13,7 +13,7 @@
 //
 //   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts run [psjp|tatham|puzzlink …] [--types akari,masyu] [--per 40] [--pl-per 100] [--samples 2] [--shard k --of N]
 //   node --no-warnings puzzles/difficulty/sim-difficulty.ts report
-//   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts logic [psjp|tatham|puzzlink …] [--shard k --of N]
+//   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts logic [psjp|tatham|puzzlink …] [--types …] [--budget 120] [--out sim-logic] [--shard k --of N]
 // logic: how far logic without case splits gets on the puzzles already in the rows (see below).
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
@@ -140,7 +140,7 @@ if (cmd === "logic") {
   // defined on every puzzle, including ones no solve finishes. Only the puzzles with rows in
   // references/sim-difficulty/ (it scores beside them in sim_fit.py); rows to
   // references/sim-logic/<set>-<type>.jsonl, appended; a rerun skips what's there.
-  const LOGIC = `${REFS_DIR}sim-logic/`, shard = Number(opt("shard") ?? 0), of = Number(opt("of") ?? 1);
+  const LOGIC = `${REFS_DIR}${opt("out") ?? "sim-logic"}/`, budget = 1000 * Number(opt("budget") ?? 120), shard = Number(opt("shard") ?? 0), of = Number(opt("of") ?? 1);
   const sets = words.length > 1 ? words.slice(1) : ["psjp", "tatham", "puzzlink"];
   const rows = new Map<string, Set<string>>(), had = new Map<string, Set<string>>();
   const jobs = listJobs(sets, opt("types")?.split(","), Infinity, Infinity, (file, id) => {
@@ -155,7 +155,7 @@ if (cmd === "logic") {
   await mapPool(mine, async (j) => {
     const t0 = Date.now(), row: Record<string, unknown> = { id: j.id, set: j.set, type: j.type, rated: j.rated };
     try {
-      const r = await deduceGuarded(j.spec, { budgetMs: 120000, simulate: { model: { cost: -50, dist: -0.01, items: 0 }, pick: "max", noSplits: true, samples: 1 } }, 180000);
+      const r = await deduceGuarded(j.spec, { budgetMs: budget, simulate: { model: { cost: -50, dist: -0.01, items: 0 }, pick: "max", noSplits: true, samples: 1 } }, budget + 60000);
       const s = r?.sims?.[0];
       if (!s) row.logic = "cap";
       else {
