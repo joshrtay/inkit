@@ -10,13 +10,14 @@
 //   tatham         Simon Tatham's generators' graded puzzles (references/tatham, generated
 //                  locally): our estimate against his grade, per game and size
 //
-//   node puzzles/difficulty/scoreboard.ts [--quick] [--only <section>] [--games a,b] [--psjp N] [--save]
+//   node puzzles/difficulty/scoreboard.ts [--quick] [--only <section>] [--games a,b] [--psjp N] [--save] [--rows <file>]
 //
 // --games keeps only these types in the Puzzle Square JP and Tatham sections (Tatham's names:
 // singles, filling, ...), for checking one solver change quickly.
 // --quick runs the examples only; --psjp sets the sample per type (default 20); --save makes this
 // board the one later runs compare against (references/scoreboard.json, local only, since the
-// rows come partly from others' puzzles).
+// rows come partly from others' puzzles). --rows writes each Puzzle Square JP and Tatham solve as a
+// JSON line (section, group, name, rating, estimate, time, note), for comparing runs puzzle by puzzle.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { convert, GENRE, loadSets, ORDER } from "./ba-convert.ts";
@@ -34,6 +35,7 @@ const perType = Number(args[args.indexOf("--psjp") + 1]) || 20;
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 const want = (section: string) => !only || only === section;
 const games = args.includes("--games") ? args[args.indexOf("--games") + 1].split(",") : null;
+const rowsFile = args.includes("--rows") ? args[args.indexOf("--rows") + 1] : null;
 const BUDGET = 15000, CAP = 120000;
 
 interface Solve { name: string; estimate: number; solved: boolean; ms: number; capped: boolean; note: string }
@@ -52,6 +54,7 @@ const t0 = Date.now();
 const board: Record<string, unknown> = { at: new Date().toISOString(), jobs: JOBS };
 const last = existsSync(boardFile) ? JSON.parse(readFileSync(boardFile, "utf8")) : null;
 const out: string[] = [];
+const dump: (Solve & { section: string; group: string; rated: number })[] = [];
 
 // ---- examples ----
 if (want("examples")) {
@@ -91,6 +94,7 @@ if (!quick && want("psjp") && existsSync(`${repo}references/psjp/data.json`)) {
     }
   }
   const rs = await mapPool(jobs, (j) => solve(j.name, j.spec));
+  rs.forEach((r, i) => dump.push({ section: "psjp", group: jobs[i].type, rated: jobs[i].rated, ...r }));
   const rows: string[] = [], psjp: Record<string, { n: number; rho: number; solved: number; seconds: number }> = {};
   for (const type of types) {
     const idx = jobs.map((j, i) => [j, i] as const).filter(([j]) => j.type === type);
@@ -149,6 +153,7 @@ if (!quick && want("tatham") && existsSync(tathamDir)) {
     }
   }
   const rs = await mapPool(jobs, (j) => solve(`${j.game} ${j.size} ${j.grade}`, j.spec));
+  rs.forEach((r, i) => dump.push({ section: "tatham", group: `${jobs[i].game} ${jobs[i].size}`, rated: jobs[i].grade, ...r }));
   const rows: string[] = [], tatham: Record<string, { rho: number; means: number[]; solved: number; n: number }> = {};
   for (const key of [...new Set(jobs.map((j) => `${j.game} ${j.size}`))]) {
     const idx = jobs.map((j, i) => [j, i] as const).filter(([j]) => `${j.game} ${j.size}` === key);
@@ -168,4 +173,5 @@ if (!quick && want("tatham") && existsSync(tathamDir)) {
 out.push(`\n${Math.round((Date.now() - t0) / 1000)} s on ${JOBS} jobs${last ? `; compared with the board saved ${String(last.at).slice(0, 16)}` : "; no saved board to compare with"}.`);
 if (last && last.jobs !== JOBS) out.push(`Note: the saved board ran with ${last.jobs ?? "unknown"} jobs and this one with ${JOBS}; solves near their time budget can differ for that reason alone.`);
 console.log(out.join("\n\n"));
+if (rowsFile) writeFileSync(rowsFile, dump.map((r) => JSON.stringify(r)).join("\n") + "\n");
 if (save) { writeFileSync(boardFile, JSON.stringify({ ...(only ? last ?? {} : {}), ...board }, null, 1)); console.log("Saved as the board to compare against."); }
