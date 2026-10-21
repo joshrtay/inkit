@@ -311,7 +311,9 @@ the split and the second is already the whole grid (about 1 s each, 27 of them);
 of 9 s). Growing the neighbourhood a ring at a time doesn't help (the refutations are global: the
 loop). Core-seeded deletion only there (`DEDUCE_CORE=wide`, windows' explanations untouched): that
 Simple Loop finishes (61 s, unfinished → 44 s), Cave 21 → 19 s, Masyu 16 → 15 s, Hidoku unchanged
-(it has no splits). It goes to the guard like the rest.
+(it has no splits). Under the gate rule it passes (means +0.002 / +0.004, no type below its
+interval; the Singles 8 × 8 −0.15 that plain `DEDUCE_CORE` had comes from these explanations too,
+but stays inside its interval), so it's on with `finish`.
 
 **Nurikabe can't be judged yet.** Under the gate rule islands changes nothing outside Nurikabe, and
 Nurikabe's verdict is an artifact: the 200-call baseline finishes 1 of 60 (every other one rates

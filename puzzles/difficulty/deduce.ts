@@ -404,7 +404,8 @@ const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
  *  needs the backend (not EXPLAIN_TEXT). */
 const EXPLAIN_CORE = process.env.DEDUCE_CORE === "1" && !EXPLAIN_TEXT;
 /** DEDUCE_CORE=wide: core-seeded deletion only for case splits' and searches' explanations (wide
- *  steps), most of the explaining on loop genres, the windows' left as they are */
+ *  steps), most of the explaining on loop genres, the windows' left as they are (on with `finish`;
+ *  DEDUCE_CORE=0 turns it off there) */
 /** the largest window program (characters) an explanation is tried for; DEDUCE_EXPLAIN_MAX */
 const EXPLAIN_MAX = Number(process.env.DEDUCE_EXPLAIN_MAX ?? 900_000);
 const WIDE_CORE = process.env.DEDUCE_CORE === "wide" && !EXPLAIN_TEXT;
@@ -1434,7 +1435,8 @@ end
   let coreNow = false;
   const wideStep = (m: number, v: boolean, tier: Tier) => {
     const tw = Date.now();
-    coreNow = WIDE_CORE;
+    // (on with `finish`: it passed the gate rule of 2026-10-21, means +0.002 / +0.004)
+    coreNow = WIDE_CORE || (finishing && process.env.DEDUCE_CORE === undefined && !EXPLAIN_TEXT);
     try { return wideStepIn(m, v, tier); } finally { coreNow = false; dbg(`wide step: ${Date.now() - tw} ms`); }
   };
   const wideStepIn = (m: number, v: boolean, tier: Tier) => {
