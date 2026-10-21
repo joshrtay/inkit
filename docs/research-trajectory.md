@@ -316,8 +316,8 @@ Simple Loop finishes (61 s, unfinished → 44 s), Cave 21 → 19 s, Masyu 16 →
 **Nurikabe can't be judged yet.** Under the gate rule islands changes nothing outside Nurikabe, and
 Nurikabe's verdict is an artifact: the 200-call baseline finishes 1 of 60 (every other one rates
 0.9), and the puzzles islands lets finish carry case splits explained over the whole grid, which on
-Nurikabe is a 7.6 MB program even at 8 × 8 (the engine's connectivity encoding), past clingo-wasm's
-limit, so those steps go unexplained and price at the fallback (rating about 0.95). Explaining them
+Nurikabe is a 7.6 MB program even at 8 × 8 (the engine's connectivity encoding), past the 1.2 MB
+our clingo-wasm wrapper takes (clingo.ts MAX_PROGRAM), so those steps go unexplained and price at the fallback (rating about 0.95). Explaining them
 needs a smaller encoding of the island rules for explanations (a local encoding, as Fillomino and
 Shikaku have) or native clingo; until then Nurikabe is left out of the guard.
 
