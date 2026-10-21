@@ -10,16 +10,19 @@
 //
 // Solves share the machine at GUARD_JOBS at a time (default 16, the scoreboard's own default on a
 // 32-vCPU machine), the same for every setting, since the budgets are wall-clock time.
+// GUARD_SETTINGS=a,b keeps only those settings.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 
-const SETTINGS: [string, Record<string, string>][] = [
+const SETTINGS = ([
   ["baseline", {}],
   ["rank", { DEDUCE_RANK: "0.3" }],
   ["core", { DEDUCE_CORE: "1" }],
   ["techniques", { DEDUCE_TECHNIQUES: "islands,joins" }],
   ["all", { DEDUCE_RANK: "0.3", DEDUCE_CORE: "1", DEDUCE_TECHNIQUES: "islands,joins" }],
-];
+  // the baseline again on another VM: how far Spearman moves from timing alone
+  ["baseline-repeat", {}],
+] as [string, Record<string, string>][]).filter(([name]) => !process.env.GUARD_SETTINGS || process.env.GUARD_SETTINGS.split(",").includes(name));
 const repo = new URL("../../", import.meta.url).pathname;
 const args = process.argv.slice(2);
 const shard = Number(args[args.indexOf("--shard") + 1]), of = Number(args[args.indexOf("--of") + 1]);
