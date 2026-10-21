@@ -72,7 +72,7 @@ export interface Step {
 /** A simulated person's move (Options.simulate): the chosen mark's probability, the entropy of the
  *  choice and its log-partition (bits), how many marks there were, the distance from the last
  *  move, and whether the menu was empty (a case split, then p is 1) */
-export interface SimMove { p: number; h: number; lse: number; n: number; dist: number; split?: 1 }
+export interface SimMove { p: number; h: number; lse: number; n: number; dist: number; split?: 1; ps?: number }
 
 /** The human move model a simulated person samples from (puzzles/difficulty/human-model.ts): a
  *  conditional logit over the menu's marks on the cheapest step deciding the mark (its cost), the
@@ -192,8 +192,12 @@ export interface Options {
   /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
    *  mark from everything every stage's windows find, under the move model, and takes the cheapest
    *  step deciding it; an empty menu takes the usual case split (or, with none, the fact the least search proves). `samples` solves from the
-   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`) */
-  simulate?: { model: MoveModel; samples?: number; seed?: number };
+   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`).
+   *  For other policies (reward-compare.ts): `pick: "max"` takes the model's likeliest mark instead
+   *  of sampling (a policy as a reward to maximise), `score` also gives each move's probability
+   *  under a second model (`sim.ps`: how human the policy's move was), and `noSplits` stops at an
+   *  empty menu instead of splitting (the solve ends unsolved) */
+  simulate?: { model: MoveModel; samples?: number; seed?: number; pick?: "sample" | "max"; score?: MoveModel; noSplits?: boolean };
   /** start from a person's position: these marks known (at the answer's values) before solving */
   from?: string[];
   /** stop as soon as all these marks are known (with `from`: how far a person's move was) */
@@ -2338,6 +2342,7 @@ end
           for (const fs of f.values()) for (const [m] of fs) claimed.add(m);
           if (f.size) menu.push(...candidates(f, j === 0 ? 0 : 1));
         }
+        if (!menu.length && opts.simulate.noSplits) { notes.push("simulate: no split allowed, stopped"); break; }
         if (!menu.length) {
           // stuck: the usual solve's shallow case split, the first refutable mark in its order
           const cand = order().slice(0, maxSplits), rank = new Map(cand.map((m, i) => [m, i]));
@@ -2362,14 +2367,18 @@ end
         }
         const ms = [...marks.values()];
         const dists = ms.map(({ st }) => { const c = centre(st.cells); return prev ? Math.hypot(c.r - prev.r, c.c - prev.c) : 0; });
-        const u = ms.map(({ st, items }, i) => model.cost * st.cost + model.dist * dists[i] + model.items * Math.log(items) + (model.kinds?.[kindOf(st)] ?? model.other ?? 0));
+        const util = (md: MoveModel) => ms.map(({ st, items }, i) => md.cost * st.cost + md.dist * dists[i] + md.items * Math.log(items) + (md.kinds?.[kindOf(st)] ?? md.other ?? 0));
+        const u = util(model);
         const mx = Math.max(...u), e = u.map((x) => Math.exp(x - mx)), z = e.reduce((a, b) => a + b, 0);
         let x = rand() * z, i = 0;
-        while (i < e.length - 1 && x >= e[i]) { x -= e[i]; i++; }
+        if (opts.simulate.pick === "max") i = u.indexOf(mx);
+        else while (i < e.length - 1 && x >= e[i]) { x -= e[i]; i++; }
+        let ps: number | undefined;
+        if (opts.simulate.score) { const v = util(opts.simulate.score), vm = Math.max(...v), ev = v.map((y) => Math.exp(y - vm)); ps = ev[i] / ev.reduce((a, b) => a + b, 0); }
         const h = -e.reduce((a, q) => a + (q / z) * Math.log2(q / z || 1), 0);
         const { st } = ms[i], facts = st.facts.filter((f) => known[markOf.get(f.mark)!] < 0);
         const { w: _w, ...step } = st;
-        steps.push({ ...step, facts, round, sim: { p: e[i] / z, h, lse: (mx + Math.log(z)) / Math.LN2, n: ms.length, dist: dists[i] } });
+        steps.push({ ...step, facts, round, sim: { p: e[i] / z, h, lse: (mx + Math.log(z)) / Math.LN2, n: ms.length, dist: dists[i], ...(ps !== undefined ? { ps } : {}) } });
         for (const f of facts) settle(markOf.get(f.mark)!, f.value);
         prev = centre(st.cells);
       }

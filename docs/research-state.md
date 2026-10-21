@@ -760,3 +760,31 @@ from the solver's estimate):
   JP (0.61). So the minimum proof stays as one input, not the definition of difficulty. Next: a
   difficulty model fitted on both (held-out), the log-partition checked on fresh puzzles, and a
   price-aware Akari model (people's moves, and the peak of what they needed).
+
+### Rewards as policies: a first look (2026-10-21)
+
+Question (thread "Where RL could help us"): different rewards should give different solvers; what
+does each reward's best policy do? The rules are an exact simulator, so no RL is needed to see it:
+reward-compare.ts runs each reward's greedy policy over the solver's menu (deduce.ts
+`Options.simulate` with `pick: "max"`, `score`, `noSplits`). Policies: cheapest step (forced marks,
+easiest first; deductions only grow, so also the lowest-peak path), the same with no case splits,
+nearest step to the last move, the human model's likeliest move, and a sampled person. Trial on the
+17 example puzzles in src/games (7 types; too few to generalise; the rated and Janko sets are the
+real run):
+
+| policy | solved | settled | steps | splits | cost sum | cost peak | distance a move | bits a move (human model) |
+|---|---|---|---|---|---|---|---|---|
+| cheapest | 94% | 99% | 29.8 | 4.1 | 114 | 7.4 | 1.44 | 2.10 |
+| no splits | 47% | 72% | 19.9 | 0 | 61 | 4.1 | 1.47 | 2.23 |
+| nearest | 94% | 100% | 30.4 | 4.1 | 131 | 8.6 | 0.94 | 2.13 |
+| human, likeliest | 94% | 100% | 29.5 | 4.1 | 118 | 7.8 | 1.21 | 1.71 |
+| human, sampled | 94% | 100% | 28.9 | 4.1 | 122 | 8.7 | 1.61 | 2.29 |
+
+- Cheapest-first has the lowest peak (7.4 against 8.6–8.7), as it must, but not the lowest sum on
+  Slitherlink and Star Battle, where the human model's likeliest path is cheaper overall (160 vs
+  169, 67 vs 73): easiest-step-first is not cheapest-proof-first.
+- Nearness buys 35% less travel for 15% more cost and a higher peak.
+- No splits stalls on half the puzzles (Akari, Hitori, Masyu, Nurikabe), at 72% settled: the share
+  a pure-logic reward would have to learn new technique to finish.
+- Bits are scored by the human model itself, so "human, likeliest" wins them by construction. The
+  real test is agreement with Janko's recorded orders and the ratings (the next run).
