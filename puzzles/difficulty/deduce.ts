@@ -325,12 +325,16 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
  *  flattens Tatham's Singles grades as priced now (0.71/0.80 to 0.58/0.44); citing the group's
  *  cells (DEDUCE_COMPONENT_CITE) brings Singles back (0.70/0.84) but not Puzzle Square JP's
  *  Hitori (0.66 to 0.40). */
-export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[] }> = {
+// (cellAtoms: Options.cellAtoms. Spiral Galaxies' helper atoms have no footprint without it, so every
+// window held the whole puzzle; past 8 × 8 or so each was too big to check, and only case splits went
+// on: none of 16 dev-set 10 × 10s finished in 60 s; with it, 3 of 3 tried in 13-29 s, 2026-10-21)
+export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean }> = {
   numberlink: { techniques: ["routes", "unique", "ends", "owners", "cuts"] },
   fillomino: { techniques: ["sizes", "shapes"] },
   hidoku: { techniques: ["distance", "deadends"] },
   "honeycomb-paths": { techniques: ["distance", "deadends"] },
   hitori: { lemmas: ["component"] },
+  "spiral-galaxies": { cellAtoms: true },
 };
 /** Techniques that hold only because the puzzle has one answer (a published puzzle does; a
  *  generator's candidate may not): kept out of the generator's bands. */
@@ -526,9 +530,9 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
   // Options.cellAtoms: Spiral Galaxies' gal(I,G) (cell I is in galaxy G) shown, to take cell I as
   // its footprint
-  const galAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "galaxies") && !local;
+  const galAtoms = !!(opts.cellAtoms ?? finish.cellAtoms) && p.rules.some((r) => r.rule === "galaxies") && !local;
   // and Fill-in's put(E,S) (entry E goes in slot S), footprint the slot's cells
-  const putAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "fill-in") && !local;
+  const putAtoms = !!(opts.cellAtoms ?? finish.cellAtoms) && p.rules.some((r) => r.rule === "fill-in") && !local;
   const slots = putAtoms ? fillSlots(p) : [];
   const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
   const G: Ground = parseAspif(ground(prog));
