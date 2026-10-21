@@ -13,6 +13,8 @@
 //
 //   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts run [psjp|tatham|puzzlink …] [--types akari,masyu] [--per 40] [--pl-per 100] [--samples 2] [--shard k --of N]
 //   node --no-warnings puzzles/difficulty/sim-difficulty.ts report
+//   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/sim-difficulty.ts logic [psjp|tatham|puzzlink …] [--shard k --of N]
+// logic: how far logic without case splits gets on the puzzles already in the rows (see below).
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { spearman } from "./calibrate.ts";
@@ -24,6 +26,8 @@ import { fromTatham, TATHAM } from "./tatham.ts";
 
 const OUT = `${REFS_DIR}sim-difficulty/`;
 const argv = process.argv.slice(2), opt = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
+// the words, without the options and their values (Batch puts --shard k --of N first): the command, then the sets
+const words = argv.filter((a, i) => !a.startsWith("--") && !argv[i - 1]?.startsWith("--")), cmd = words[0];
 const hash = (key: string) => { let h = 2166136261; for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619); return (h >>> 0) / 2 ** 32; };
 const MODELS = JSON.parse(readFileSync(new URL("./human-model.json", import.meta.url), "utf8")) as Record<string, MoveModel>;
 
@@ -40,12 +44,13 @@ const readouts = (path: Step[]) => {
   };
 };
 
-if (argv[0] === "run") {
-  const sets = argv.slice(1).filter((a, i, xs) => !a.startsWith("--") && !xs[i - 1]?.startsWith("--"));
-  const types = opt("types")?.split(","), per = Number(opt("per") ?? 40), samples = Number(opt("samples") ?? 2);
-  const shard = Number(opt("shard") ?? 0), of = Number(opt("of") ?? 1);
-  const jobs: { set: string; type: string; genre: string; id: string; rated: number; spec: GridSpec }[] = [];
-  const done = (file: string) => new Set(existsSync(file) ? readFileSync(file, "utf8").split("\n").flatMap((l) => { const m = /^\{"id":"([^"]+)"/.exec(l); return m ? [m[1]] : []; }) : []);
+type Job = { set: string; type: string; genre: string; id: string; rated: number; spec: GridSpec };
+const idsIn = (file: string) => new Set(existsSync(file) ? readFileSync(file, "utf8").split("\n").flatMap((l) => { const m = /^\{"id":"([^"]+)"/.exec(l); return m ? [m[1]] : []; }) : []);
+
+/** the rated puzzles of these sets: a spread sample of `per` a type (`plPer` for puzz.link), each
+ *  passed through `keep(file, id)`, the rows file it belongs to (under OUT) and its id */
+function listJobs(sets: string[], types: string[] | undefined, per: number, plPer: number, keep: (file: string, id: string) => boolean): Job[] {
+  const jobs: Job[] = [], done = (file: string) => ({ has: (id: string) => !keep(file.slice(OUT.length), id) });
   if (!sets.length || sets.includes("psjp")) {
     const root = `${REFS_DIR}psjp/`, data = JSON.parse(readFileSync(`${root}data.json`, "utf8")) as Record<string, { difficulty: number }>;
     for (const type of readdirSync(root).filter((t) => !t.includes(".") && t !== "scripts" && (!types || types.includes(t))).sort()) {
@@ -77,7 +82,7 @@ if (argv[0] === "run") {
   }
   if (sets.includes("puzzlink")) {
     // puzz.link's ratings: a different set of raters; the puzzles Puzzle Square JP also rates left out
-    const dir = `${REFS_DIR}puzzlink-db/converted/`, plPer = Number(opt("pl-per") ?? 100);
+    const dir = `${REFS_DIR}puzzlink-db/converted/`;
     const key = (g: GridSpec) => JSON.stringify([g.size, [...(g.givens ?? [])].map((x) => JSON.stringify(x)).sort()]);
     const psjp = new Set<string>(), proot = `${REFS_DIR}psjp/`;
     if (existsSync(proot)) for (const t of readdirSync(proot).filter((x) => !x.includes(".") && x !== "scripts"))
@@ -97,6 +102,15 @@ if (argv[0] === "run") {
       }
     }
   }
+  return jobs;
+}
+
+if (cmd === "run") {
+  const sets = words.slice(1);
+  const types = opt("types")?.split(","), per = Number(opt("per") ?? 40), samples = Number(opt("samples") ?? 2);
+  const shard = Number(opt("shard") ?? 0), of = Number(opt("of") ?? 1);
+  const had = new Map<string, Set<string>>();
+  const jobs = listJobs(sets, types, per, Number(opt("pl-per") ?? 100), (file, id) => { if (!had.has(file)) had.set(file, idsIn(OUT + file)); return !had.get(file)!.has(id); });
   const mine = jobs.filter((j) => of <= 1 || Math.floor(hash(`${j.set}:${j.type}:${j.id}`) * of) === shard)
     // in a hashed order, so a run cut short loses a random slice of every type, not the last types
     .sort((a, b) => hash(`order:${a.set}:${a.id}`) - hash(`order:${b.set}:${b.id}`));
@@ -119,7 +133,45 @@ if (argv[0] === "run") {
   });
 }
 
-if (argv[0] === "report") {
+if (cmd === "logic") {
+  // How far logic without case splits gets on the same puzzles (the reward comparison's "nosplit"
+  // policy: the cheapest step each time, stopping where the menu is empty instead of splitting).
+  // Deductions only grow, so where it stops doesn't depend on the order. The share it settles is
+  // defined on every puzzle, including ones no solve finishes. Only the puzzles with rows in
+  // references/sim-difficulty/ (it scores beside them in sim_fit.py); rows to
+  // references/sim-logic/<set>-<type>.jsonl, appended; a rerun skips what's there.
+  const LOGIC = `${REFS_DIR}sim-logic/`, shard = Number(opt("shard") ?? 0), of = Number(opt("of") ?? 1);
+  const sets = words.length > 1 ? words.slice(1) : ["psjp", "tatham", "puzzlink"];
+  const rows = new Map<string, Set<string>>(), had = new Map<string, Set<string>>();
+  const jobs = listJobs(sets, opt("types")?.split(","), Infinity, Infinity, (file, id) => {
+    if (!rows.has(file)) { rows.set(file, idsIn(OUT + file)); had.set(file, idsIn(LOGIC + file)); }
+    return rows.get(file)!.has(id) && !had.get(file)!.has(id);
+  });
+  const mine = jobs.filter((j) => of <= 1 || Math.floor(hash(`${j.set}:${j.type}:${j.id}`) * of) === shard)
+    .sort((a, b) => hash(`order:${a.set}:${a.id}`) - hash(`order:${b.set}:${b.id}`));
+  mkdirSync(LOGIC, { recursive: true });
+  console.error(`${new Date().toISOString()} ${mine.length} puzzles (of ${jobs.length})`);
+  let n = 0;
+  await mapPool(mine, async (j) => {
+    const t0 = Date.now(), row: Record<string, unknown> = { id: j.id, set: j.set, type: j.type, rated: j.rated };
+    try {
+      const r = await deduceGuarded(j.spec, { budgetMs: 120000, simulate: { model: { cost: -50, dist: -0.01, items: 0 }, pick: "max", noSplits: true, samples: 1 } }, 180000);
+      const s = r?.sims?.[0];
+      if (!s) row.logic = "cap";
+      else {
+        const facts = s.path.reduce((a, x) => a + x.facts.length, 0);
+        // capped: out of time before the menu ran dry, so the share is a floor
+        row.logic = { solved: s.solved, settled: s.open ? +(facts / s.open).toFixed(4) : 1, open: s.open, capped: r!.profile.notes.some((x) => x.startsWith("out of time")),
+          steps: s.path.length, costSum: +s.path.reduce((a, x) => a + x.cost, 0).toFixed(2), costPeak: Math.max(0, ...s.path.map((x) => x.cost)) };
+      }
+    } catch (e) { row.error = (e as Error).message.slice(0, 200); }
+    appendFileSync(`${LOGIC}${j.set}-${j.type}.jsonl`, JSON.stringify({ ...row, ms: Date.now() - t0 }) + "\n");
+    const l = row.logic as { settled?: number } | undefined;
+    console.error(`${++n}/${mine.length} ${j.set} ${j.type} ${j.id} ${((Date.now() - t0) / 1000).toFixed(0)} s: ${row.error ?? (typeof l === "object" ? `settled ${l.settled}` : l)}`);
+  });
+}
+
+if (cmd === "report") {
   // per type, Spearman of each readout (the mean over samples; unsolved samples kept: their cost is
   // a floor) with the rating, a bootstrap 95% interval; then the within-type mean over psjp types
   const rows = existsSync(OUT) ? readdirSync(OUT).filter((f) => f.endsWith(".jsonl")).flatMap((f) => readFileSync(OUT + f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l))) : [];
