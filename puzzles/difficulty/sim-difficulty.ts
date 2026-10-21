@@ -97,7 +97,9 @@ if (argv[0] === "run") {
       }
     }
   }
-  const mine = jobs.filter((j) => of <= 1 || Math.floor(hash(`${j.set}:${j.type}:${j.id}`) * of) === shard);
+  const mine = jobs.filter((j) => of <= 1 || Math.floor(hash(`${j.set}:${j.type}:${j.id}`) * of) === shard)
+    // in a hashed order, so a run cut short loses a random slice of every type, not the last types
+    .sort((a, b) => hash(`order:${a.set}:${a.id}`) - hash(`order:${b.set}:${b.id}`));
   mkdirSync(OUT, { recursive: true });
   console.error(`${new Date().toISOString()} ${mine.length} puzzles (of ${jobs.length})`);
   let n = 0;
