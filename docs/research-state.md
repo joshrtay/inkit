@@ -806,3 +806,49 @@ the pooled figures by 0.01 or 0.02.)
   Tatham games, so "game held out" means generalising from at most seven others. Next: test the
   score on fresh puzzles of a type outside these (puzz.link ratings), and inkit's own solve logs
   once there are enough of them.
+
+### Step 2, continued: the fitted model on new games and new raters (2026-10-21)
+
+The model fitted on both, frozen as it was fitted on the eight games above, was scored on puzzles
+it never saw (run sim-new2-20261021, 3 × n2-standard-32 for 2 hours, about $10 with a first launch
+stopped at 12 minutes; 82% of 2,319 puzzles finished before the cap, a random slice of each type
+because the run's order is hashed). There were three tests. The first was 8 more Puzzle Square JP
+games (Numberlink was dropped after 60 puzzles: the simulated person stalls there). The second was
+Tatham's Solo at five grades. The third was puzz.link's player ratings (1 to 5, from 5+ solves),
+up to 100 puzzles a game, leaving out every puzzle Puzzle Square JP also rates. New games use the
+generic human model (no recorded solves). Spearman within type, n-weighted; "solves finish" keeps
+the types where both solves finish 80%+ of the time:
+
+| | n | solver's estimate | simulated cost | fitted: solver only | fitted: sim only | fitted: both |
+|---|---|---|---|---|---|---|
+| Puzzle Square JP, new games (8) | 422 | 0.41 | 0.04 | 0.23 | 0.09 | 0.18 |
+| … solves finish (Shikaku, Skyscrapers, Sudoku) | 144 | 0.59 | 0.30 | 0.61 | 0.41 | 0.60 |
+| Tatham Solo (5 grades) | 266 | 0.80 | 0.34 | 0.80 | 0.46 | 0.75 |
+| puzz.link, the fitted games (new raters) | 414 | 0.41 | 0.43 | 0.46 | 0.47 | 0.46 |
+| puzz.link, new games (11) | 621 | 0.46 | 0.29 | 0.42 | 0.30 | 0.35 |
+| … solves finish (6) | 391 | 0.56 | 0.40 | 0.54 | 0.39 | 0.50 |
+
+Per type: `python3 puzzles/difficulty/sim_fit.py --new`. Rows in references/sim-difficulty/ and
+gs://inkit-research-ml/results/sim-new2-20261021/gathered.
+
+- **On new games, the fitted model doesn't transfer.** The solver's plain estimate is as good or
+  better everywhere: 0.59 against 0.60 on the Puzzle Square JP games that finish, 0.80 against
+  0.75 on Solo, 0.56 against 0.50 on puzz.link's. The simulated person's cost with the generic
+  model is weak on new games (0.30–0.41), and the fit leans on it for the loop types it was fitted
+  on. So the 0.63 "game held out" figure was optimistic: those held-out games were siblings (loop
+  games among loop games).
+- **On the same games with new raters, the gain holds but is small.** puzz.link's players on Akari,
+  Masyu, Slitherlink, Simple Loop and Hitori: fitted 0.46, simulated cost alone 0.43, solver 0.41.
+  puzz.link's five-level ratings agree with Puzzle Square JP's only 0.63 on shared puzzles, which
+  caps what any score can reach here.
+- **Where the solves stall, nothing measures difficulty.** Nurikabe (13% of puzzles finish both
+  solves), Spiral Galaxies (14–23%), Numberlink (26%) and Fillomino (9 of 74 usable) give
+  near-zero or negative agreement for every score, because a cut-off solve's cost is a floor. This
+  is the solver bottleneck already known on region games, not a difficulty finding.
+- **Verdict:** the fitted score is good on the games it was fitted on, with a real gain from the
+  simulated person on loop games, and is not a general difficulty score. For a new game, the
+  solver's estimate is the better default until that game has recorded human moves. Next, in
+  order: fit per genre family (loop, number, region) rather than one model, and test whether a
+  game's own human model (not the generic one) is what carries the sim's gain. That needs Janko
+  recordings for the new games, which exist for Sudoku, Nurikabe, Shikaku and others. Region games
+  wait on the solver.

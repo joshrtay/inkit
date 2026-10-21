@@ -25,7 +25,9 @@ SIM = ["costSum", "costPeak", "h", "surprisal", "lse", "dist", "steps", "splits"
 SOLVER = ["estimate", "costSum", "costPeak", "steps", "splits"]
 FEATS = [f"sim {k}" for k in SIM] + [f"solver {k}" for k in SOLVER]
 FITTED = {"psjp": ["akari", "hitori", "masyu", "simple-loop", "slitherlink"], "tatham": ["lightup", "loopy", "singles"]}
-fitted = lambda g: g.split(" ")[1].rsplit("-", 1)[0] in FITTED[g.split(" ")[0]] if g.startswith("tatham") else g.split(" ")[1] in FITTED["psjp"]
+def fitted(g):
+    src, t = g.split(" ")
+    return src in FITTED and (t.rsplit("-", 1)[0] if src == "tatham" else t) in FITTED[src]
 
 def h32(key):
     h = 2166136261
@@ -46,13 +48,15 @@ def spearman(x, y):
     return float((a * b).sum() / d) if d else 0.0
 
 # ---- the puzzles, by type ----
-types = {}
+types, finished = {}, {}
 for f in sorted(glob.glob(ROWS + "*.jsonl")):
     for line in open(f):
         r = json.loads(line)
         if not isinstance(r.get("sims"), list) or not r["sims"] or not isinstance(r.get("solver"), dict): continue
         x = [np.mean([s[k] for s in r["sims"]]) for k in SIM] + [r["solver"][k] for k in SOLVER]
         types.setdefault(f"{r['set']} {r['type']}", []).append((r["id"], x, r["rated"]))
+        # whether both solves finished: an unfinished solve's costs are cut off, a floor, not a measure
+        finished.setdefault(f"{r['set']} {r['type']}", []).append(all(q["solved"] for q in r["sims"]) and bool(r["solver"].get("solved")))
 types = {g: v for g, v in types.items() if len(v) >= 20}
 
 def prepare(rows):
@@ -132,18 +136,25 @@ if "--new" in sys.argv:
     ws = {k: (lambda j: (lambda X, y: np.linalg.solve(X.T @ X + lam * len(y) / 100 * np.eye(len(j)), X.T @ y))(
         np.vstack([d[0][:, j] for d in data.values()]), np.concatenate([d[1] for d in data.values()])))(j) for k, j in cols.items()}
     print("\nnew types, model frozen (fitted on the types above):\n")
-    print("| set and type | n | solver's estimate | simulated cost | ranks averaged | fitted: solver only | fitted: sim only | fitted: both |")
-    print("|---|---|---|---|---|---|---|---|")
+    print("| set and type | n | both solves finish | solver's estimate | simulated cost | ranks averaged | fitted: solver only | fitted: sim only | fitted: both |")
+    print("|---|---|---|---|---|---|---|---|---|")
+    fin = lambda g: np.mean(finished[g])
     nrows = []
     for g in sorted(new):
         X, _, rated, _ = new[g]; allk = np.ones(len(rated), bool)
         v = [spearman(X[:, FEATS.index("solver estimate")], rated), spearman(X[:, FEATS.index("sim costSum")], rated),
              spearman(rank(X[:, FEATS.index("sim costSum")]) + rank(X[:, FEATS.index("solver estimate")]), rated)]
         v += [spearman(X[:, cols[k]] @ ws[k], rated) for k in ("solver", "sim", "both")]
-        nrows.append((g, len(rated), *v)); print(f"| {g} | {len(rated)} | " + " | ".join(f"{x:.2f}" for x in v) + " |")
-    for s_ in ("psjp", "tatham"):
-        rs = [r for r in nrows if r[0].startswith(s_)]; N = sum(r[1] for r in rs)
-        if N: print(f"| {s_}, within type (n-weighted) | {N} | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 8)) + " |")
+        nrows.append((g, len(rated), *v)); print(f"| {g} | {len(rated)} | {fin(g):.0%} | " + " | ".join(f"{x:.2f}" for x in v) + " |")
+    # puzz.link's ratings split: the games the model was fitted on (new raters) and games new to it
+    seen = lambda g: g.split(" ")[1] in FITTED["psjp"] + ["lightup", "loopy", "singles"]
+    groups = [("psjp, new games", lambda g: g.startswith("psjp")), ("tatham, new games", lambda g: g.startswith("tatham")),
+              ("puzz.link, fitted games (new raters)", lambda g: g.startswith("puzzlink") and seen(g)),
+              ("puzz.link, new games", lambda g: g.startswith("puzzlink") and not seen(g))]
+    # and each again on the types where both solves mostly finish (80%+): elsewhere the costs are cut off
+    for name, f in groups + [(n + ", solves finish", (lambda f: lambda g: f(g) and fin(g) >= 0.8)(f)) for n, f in groups]:
+        rs = [r for r in nrows if f(r[0])]; N = sum(r[1] for r in rs)
+        if N: print(f"| **{name}** (n-weighted, {len(rs)} types) | {N} | | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 8)) + " |")
 print("\nweights (fitted on everything; features standardised within type):")
 for k, x in sorted(zip(FEATS, w), key=lambda t: -abs(t[1])): print(f"  {k:18s} {x:+.3f}")
 if "--save" in sys.argv:
