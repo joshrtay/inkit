@@ -210,6 +210,7 @@ changes, each with the proof unchanged (identical paths on every example puzzle 
 | window checks (1021b) | 7% | 32% | 60% | 44.5 s |
 | and explanations (1021c) | 9% | 41% | 62% | 37.0 s |
 | and Spiral Galaxies' cell atoms (1021d) | 9% | 42% | 70% | 33.4 s |
+| and islands, joins (1021e, 16 solves a VM) | 10% | 48% | 73% | 31.2 s |
 
 Native clingo was not faster than the WebAssembly build on these calls (1.26 s against 1.39 s), and
 clingo-wasm exposes only a one-shot `run`, so a persistent grounded control isn't available without
@@ -282,6 +283,13 @@ none did), in the finish set:
 - *joins* (any shaded or unshaded area that must be connected: Hitori, Cave, Nurikabe's sea): an
   open cell whose loss would part two known cells of the area goes their way. Small gains: 8 dev
   Hitoris 131 → 109 s in all (one 25 → 9 s), 8 Caves 272 → 245 s and one more finishes.
+
+On the whole dev set (1021e, 16 solves to a VM): Nurikabe finished by 60 s 0% → 31% (5 of 16), its
+facts by tier 7/69/24% → 62/26/12% (windows now settle most), though split rounds are still a 41 s
+median and setup 10 s; Hitori median 22.4 → 13.8 s, 88% by 30 s; Cave 7% → 21% by 30 s. Genres the
+change didn't touch moved by under a second at half the load, so the load effect is small there;
+Spiral Galaxies' 2.2× (42.8 s median here, about 16 s alone at a 300 s budget) is still unexplained
+and needs checking before the gate's timing rule is fixed.
 
 Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
 it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
