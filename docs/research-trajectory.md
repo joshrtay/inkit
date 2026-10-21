@@ -119,7 +119,11 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     model's bits a move along the solver's path, against the 300 s solver's path on the same puzzle.
   - *Difficulty unchanged:* the scoreboard's Spearman against Puzzle Square JP and Tatham with the
     fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
-    shows up here.
+    shows up here. The rule (Josh, 2026-10-21): scored with a budget of 200 clingo calls (not wall
+    clock, so it repeats exactly), the means within 0.02, and no type worse than the low end of its
+    own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
+    type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
+    bigger call budget, since at 200 none of its 20 finish and every one rates 0.9.
 
 **Targets** (on the test set, the clock above).
 
@@ -316,6 +320,13 @@ differed on 3). At 200 the means match the 15 s board exactly (Puzzle Square JP 
 Galaxies) reach the 90 s guard, but they rate 0.9 either way. So the guard uses 200 calls, with
 its per-type baseline taken again at 200 (types differ from the 15 s board by up to 0.2, Shikaku
 −0.19, Simple Loop +0.22).
+At 200 calls (exact repeats), per type with n ≥ 10, no setting stays within 0.02 everywhere:
+`rankWindows` moves Masyu −0.24, Slitherlink +0.17, Spiral Galaxies +0.15, Numberlink −0.14;
+`DEDUCE_CORE` Masyu −0.22, Singles 8 × 8 −0.15; islands changes only Nurikabe (+0.10, three new
+solves); joins on Cave −0.03. Means stay within 0.02 for all. But at n = 20 a type's Spearman has
+about ±0.2 sampling error, so a 0.02 per-type rule flags any change of path, not harm; and Nurikabe
+can't be judged at 200 calls (the baseline solves none of 20, so all rate 0.9). The per-type rule
+needs rewriting: bigger samples, or one-sided (no type worse than its bootstrap interval).
 
 Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
 it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
