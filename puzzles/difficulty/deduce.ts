@@ -314,6 +314,10 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   // one before it beside it too (dead ends)
   distance: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
   deadends: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
+  // Shaded or unshaded cells that must join (Nurikabe, Hitori, Cave...): a cell they can't do without
+  joins: (p) => p.grid.kind === "square" && !p.figure && p.marks.includes("shade") && p.rules.some((r) => r.rule === "connected" || r.rule === "unshaded-connected"),
+  // Nurikabe: where each island can still grow
+  islands: (p) => p.grid.kind === "square" && !p.figure && p.marks.includes("shade") && ["size-clue", "connected"].every((x) => p.rules.some((r) => r.rule === x)) && p.rules.some((r) => r.rule === "one-each" && r.of === "number"),
   // Easy as ABC: a letter's places in two rows and two columns (an X-wing)
   fish: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "letters"),
   // Fill-in: the entries each slot still fits, the slots each entry still fits (needs Options.cellAtoms)
@@ -333,7 +337,9 @@ export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; 
   fillomino: { techniques: ["sizes", "shapes"] },
   hidoku: { techniques: ["distance", "deadends"] },
   "honeycomb-paths": { techniques: ["distance", "deadends"] },
-  hitori: { lemmas: ["component"] },
+  hitori: { lemmas: ["component"], techniques: ["joins"] },
+  nurikabe: { techniques: ["islands", "joins"] },
+  cave: { techniques: ["joins"] },
   "spiral-galaxies": { cellAtoms: true },
 };
 /** Techniques that hold only because the puzzle has one answer (a published puzzle does; a
@@ -2327,7 +2333,88 @@ end
     }
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, routes: routesRound, unique: uniqueRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  // Nurikabe (technique "islands"): where each island can still grow. An island is its number's
+  // known unshaded cells; it grows through cells not shaded and not beside another numbered
+  // island, at most its number less its size away. A cell no island can reach is shaded, and an
+  // island short of its number can't have every way out shaded. Each constraint holds given
+  // what's known (it only grows), as the component lemma's do.
+  const islandsRound = (): Window[] => {
+    if (g.kind !== "square") return [];
+    const atomAt = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? undefined : markAtom[m] || (known[m] === 1 ? 0 : undefined); };
+    const state = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
+    const nums = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number" && typeof x.value === "number") nums.set(i, x.value);
+    const near = (i: number) => g.cellLinks[i].map((l) => otherEnd(l, i)).filter((d) => !p.blocked.has(d));
+    // the known unshaded groups, and their numbers
+    const comp = new Int32Array(n).fill(-1), comps: { cells: number[]; num: number[] }[] = [];
+    for (let i = 0; i < n; i++) {
+      if (comp[i] >= 0 || p.blocked.has(i) || state(i) !== 0) continue;
+      const cells = [i]; comp[i] = comps.length;
+      for (let k = 0; k < cells.length; k++) for (const d of near(cells[k])) if (comp[d] < 0 && state(d) === 0) { comp[d] = comps.length; cells.push(d); }
+      comps.push({ cells, num: cells.filter((c) => nums.has(c)) });
+    }
+    const islands = comps.map((c, k) => ({ ...c, k })).filter((c) => c.num.length === 1);
+    if (comps.some((c) => c.num.length > 1)) return [];
+    const reached = new Uint8Array(n), ws: Window[] = [];
+    for (const I of islands) {
+      const left = nums.get(I.num[0])! - I.cells.length;
+      if (left < 0) return [];
+      // beside another numbered island: never this one's
+      const ok = (d: number) => state(d) !== 1 && !(comp[d] >= 0 && comp[d] !== I.k && comps[comp[d]].num.length)
+        && !near(d).some((e) => comp[e] >= 0 && comp[e] !== I.k && comps[comp[e]].num.length);
+      const dist = new Int32Array(n).fill(-1), q = [...I.cells];
+      for (const c of q) { dist[c] = 0; reached[c] = 1; }
+      for (let k = 0; k < q.length; k++) {
+        const c = q[k];
+        if (dist[c] >= left) continue;
+        for (const d of near(c)) if (dist[d] < 0 && ok(d)) { dist[d] = dist[c] + 1; reached[d] = 1; q.push(d); }
+      }
+      // short of its number: some way out stays unshaded
+      if (left > 0) {
+        const out = [...new Set(I.cells.flatMap(near))].filter((d) => state(d) < 0);
+        const b = addTech("islands", out.map((d) => LIT(atomAt(d), true)), `the ways out of the island at ${rc(I.num[0])}`, I.cells.length);
+        if (b && I.cells.length + out.length <= techCap) ws.push(techWin(`islands: the ways out of ${rc(I.num[0])}`, unionBits(b, bitsOf(n, I.cells))));
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      if (p.blocked.has(i) || state(i) >= 0 || reached[i]) continue;
+      if (addTech("islands", [LIT(atomAt(i), false)], `the islands that reach ${rc(i)}`)) ws.push(techWin(`islands: ${rc(i)}`, bitsOf(n, [i, ...near(i)])));
+    }
+    return ws;
+  };
+
+  // Shaded or unshaded cells that must all join (techniques "joins": rules connected and
+  // unshaded-connected): a cell they can't do without. Were an open cell to go the other way and
+  // two known cells of the kind be left with no way to each other through cells that could still
+  // be of it, they'd never join; so it goes their way. Each constraint holds given what's known.
+  const joinsRound = (): Window[] => {
+    if (g.kind !== "square") return [];
+    const state = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
+    const atomAt = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? undefined : markAtom[m] || (known[m] === 1 ? 0 : undefined); };
+    const near = (i: number) => g.cellLinks[i].map((l) => otherEnd(l, i)).filter((d) => !p.blocked.has(d));
+    const ws: Window[] = [];
+    for (const [want, rule] of [[1, "connected"], [0, "unshaded-connected"]] as const) {
+      if (!p.rules.some((r) => r.rule === rule)) continue;
+      const kin = [...Array(n).keys()].filter((i) => !p.blocked.has(i) && state(i) === want);
+      if (kin.length < 2) continue;
+      // open cells whose loss parts the known cells: those still joined to the first without it
+      const parts = (cut?: number) => {
+        const seen = new Uint8Array(n), q = [kin[0]];
+        seen[kin[0]] = 1; if (cut !== undefined) seen[cut] = 1;
+        for (let k = 0; k < q.length; k++) for (const d of near(q[k])) if (!seen[d] && state(d) !== 1 - want) { seen[d] = 1; q.push(d); }
+        return kin.some((c) => !seen[c]);
+      };
+      if (parts()) continue;   // apart already: the solver's own rules will say so
+      for (let i = 0; i < n; i++) {
+        if (p.blocked.has(i) || state(i) >= 0 || !parts(i)) continue;
+        const b = addTech("joins", [LIT(atomAt(i), want === 0)], `what ${rc(i)} joins`);
+        if (b) ws.push(techWin(`joins: ${rc(i)}`, bitsOf(n, [i, ...near(i)])));
+      }
+    }
+    return ws;
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, routes: routesRound, unique: uniqueRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound, islands: islandsRound, joins: joinsRound };
   const addTechniques = timed("lemmas", () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));

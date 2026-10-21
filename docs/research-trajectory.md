@@ -270,6 +270,22 @@ split is tier 2 only if a fresh call refutes it with no choices; the rest are se
 them toward tier 3 until step 5's techniques replace it. It changes estimates, so it waits for the
 same refit as `rankWindows` and `DEDUCE_CORE`; Aim 4's guards should count it from now on.
 
+**Step 5, first techniques (2026-10-21, local; written by Claude here, not by a model in a loop).**
+Two techniques a person uses, each a sound constraint from what's known (any wrong fact throws, and
+none did), in the finish set:
+
+- *islands* (Nurikabe): where each island can still grow, through cells not shaded and not beside
+  another numbered island, at most its number less its size away. A cell no island reaches is
+  shaded; an island short of its number keeps a way out. On the 16 dev Nurikabes (60 s, three solves
+  on four cores): 8 finish, against 1 without (one 10 × 10, 45 → 9 s); on the first 8, splits that
+  still need search alone go from 54% to 18% of those taken, and there are fewer of them.
+- *joins* (any shaded or unshaded area that must be connected: Hitori, Cave, Nurikabe's sea): an
+  open cell whose loss would part two known cells of the area goes their way. Small gains: 8 dev
+  Hitoris 131 → 109 s in all (one 25 → 9 s), 8 Caves 272 → 245 s and one more finishes.
+
+What's left on Nurikabe is search a person would struggle with too (a 6 × 7 with five clues, two of
+them 6 and 8, takes about 7 s a fact by tier 3), plus puzzles with big islands (sizes 6–9).
+
 **Timing needs a fixed load.** The same Spiral Galaxies ran a median 2.2× slower with 32 solves to a
 VM (1021d) than with 16 over 128 vCPUs: full-VM runs overstate one solve's time, here by up to about
 2×. Before the gate the "one vCPU, wall clock" rule gets a fixed load (say 16 solves on an
