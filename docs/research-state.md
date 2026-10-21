@@ -712,3 +712,51 @@ recovers all of the network's gain on Hitori and two thirds on Minesweeper, a fi
 Akari and Masyu; Akari's remaining four fifths is unexplained. The technique gap that does show is
 the other way round: moves people make that the solver can't make without a split (Hitori, Hidoku,
 Numberlink).
+
+### Step 2: difficulty from the human model (2026-10-21)
+
+The reassessed trajectory's decisive test. A simulated person (deduce.ts `Options.simulate`)
+solves each rated puzzle from the start: each move samples a mark from everything every stage's
+windows find, under the human move model (human-model.ts → human-model.json: the conditional logit
+on price, distance from the last move, log of the steps deciding the mark, and kind of step,
+fitted per type on the menus along Janko's solves; a generic model without kinds, pooled, for
+types with no recordings), and takes the cheapest step deciding it; an empty menu takes the
+solver's case split, or its search. sim-difficulty.ts runs two simulated people a puzzle on every
+rated Puzzle Square JP puzzle of Akari, Masyu, Slitherlink, Simple Loop and Hitori (1,523) and
+Tatham's graded Light Up, Singles and Loopy (920), beside the solver's own solve (run
+sim-20261021: 3 × n2-standard-32, 47 minutes, about $4). Rows: references/sim-difficulty/,
+gs://inkit-research-ml/results/sim-20261021/.
+
+Spearman with the rating within type (psjp pooled n-weighted; paired bootstrap of the difference
+from the solver's estimate):
+
+| | simulated solve's step costs, summed | solver's estimate | solver's peak step | both, ranks averaged |
+|---|---|---|---|---|
+| Puzzle Square JP | 0.56 (+0.05, 0.005 to 0.09) | 0.51 | 0.51 | 0.61 (+0.10, 0.07 to 0.12) |
+| Akari (519) | 0.52 | 0.71 | 0.70 | 0.67 |
+| Masyu (618) | 0.53 | 0.32 | 0.40 | 0.53 |
+| Slitherlink (272, generic model) | 0.61 | 0.48 | 0.36 | 0.59 |
+| Simple Loop (79, generic model) | 0.74 | 0.68 | 0.60 | 0.76 |
+| Hitori (29) | 0.70 | 0.64 | 0.49 | 0.68 |
+| Tatham | 0.49 (−0.15, −0.20 to −0.09) | 0.64 | 0.61 | 0.63 (−0.01) |
+| Light Up (360) | 0.51–0.55 | 0.85 | 0.84–0.86 | 0.76–0.78 |
+| Loopy (320, generic model) | 0.40–0.41 | 0.37–0.43 | 0.35–0.39 | 0.44–0.48 |
+| Singles (240) | 0.51–0.56 | 0.60–0.65 | 0.53–0.57 | 0.62–0.63 |
+
+- **Against the bar** ("what" bits 0.56, the step costs' peak 0.53 on Puzzle Square JP): the
+  simulated cost alone ties it (0.56) and beats the solver on the same puzzles by 0.05; with the
+  solver's estimate, ranks averaged and nothing fitted, 0.61. It wins on the loop types and Masyu,
+  where the solver's price is weakest, and loses on Akari and on Tatham's grades, which are
+  defined by the techniques his own solver needs (the proof cost mirrors that).
+- **Why Akari loses:** the Akari model's price weight is near zero (people there choose by
+  nearness and kind of step, not by how easy a step is), so the sum over a sampled path is mostly
+  path noise; the peak of the solver's path is what tracks the rating.
+- **The model's own bits don't measure difficulty:** the entropy and surprisal of the choices run
+  the wrong way (−0.07 pooled; hard puzzles offer fewer moves). The log-partition (how unattractive
+  the best options are) does carry signal: 0.63 on Tatham's Loopy against 0.37–0.43, 0.47 on Masyu.
+  Chosen after seeing the table, so it's a lead, not a result.
+- **Verdict:** the human model's cost doesn't replace the proof cost, and the proof cost doesn't
+  replace it: each wins where the other is weak, and together they clear the bar on Puzzle Square
+  JP (0.61). So the minimum proof stays as one input, not the definition of difficulty. Next: a
+  difficulty model fitted on both (held-out), the log-partition checked on fresh puzzles, and a
+  price-aware Akari model (people's moves, and the peak of what they needed).
