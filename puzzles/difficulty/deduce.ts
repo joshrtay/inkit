@@ -362,6 +362,14 @@ const COMPONENT_CITE = process.env.DEDUCE_COMPONENT_CITE === "1";
  *  for a model of the whole call every time deletion keeps an element (a 10 × 10 Hidoku: 33 ms a
  *  fact at 900,000, 10 ms at 100,000) */
 const EXPLAIN_CHUNK = Number(process.env.DEDUCE_EXPLAIN_CHUNK) || 100_000;
+/** clingo's search settings for the window checks (cautious consequences: what holds in every
+ *  answer). Each refinement must drop a fact from the running intersection, and by default clingo
+ *  finds the answer nearest the last one, so a call over a few hundred windows took thousands of
+ *  answers to drop nothing at a time; random signs, no saved phases and a restart after each answer
+ *  make each answer differ widely (a Star Battle call: 3,680 answers, 1.2 s → 6, 0.06 s). The
+ *  consequences are the same whatever the search does, so every path is unchanged.
+ *  DEDUCE_CAUTIOUS_SLOW=1 puts back clingo's defaults (to compare). */
+const CAUTIOUS = process.env.DEDUCE_CAUTIOUS_SLOW === "1" ? [] : ["--save-progress=0", "--sign-def=rnd", "--restart-on-model"];
 /** clingo solves allowed per explanation (deletion stops there, keeping a larger set) */
 const MUS_SOLVES = 400;
 
@@ -950,7 +958,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       calls++;
       const tc = Date.now();
       timing.buildMs += tc - tb;
-      const res = clingoJson(["asp 1 0 0", ...lines, "0"].join("\n"), 0, ["--enum-mode=cautious", "--quiet=1"]);
+      const res = clingoJson(["asp 1 0 0", ...lines, "0"].join("\n"), 0, ["--enum-mode=cautious", "--quiet=1", ...CAUTIOUS]);
       timing.clingoMs += Date.now() - tc;
       dbg(`round ${round}: ${members.length} windows, ${chars} chars, ${res.Call?.[0]?.Witnesses?.length} models, ${Date.now() - tc} ms`);
       if (res.Result === "UNSATISFIABLE") throw new Error("a window has no answer: the known facts are wrong");
