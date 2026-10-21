@@ -370,6 +370,11 @@ const EXPLAIN_CHUNK = Number(process.env.DEDUCE_EXPLAIN_CHUNK) || 100_000;
  *  consequences are the same whatever the search does, so every path is unchanged.
  *  DEDUCE_CAUTIOUS_SLOW=1 puts back clingo's defaults (to compare). */
 const CAUTIOUS = process.env.DEDUCE_CAUTIOUS_SLOW === "1" ? [] : ["--save-progress=0", "--sign-def=rnd", "--restart-on-model"];
+/** Explanations build each window's ground program through clingo's backend from number tables
+ *  (the rules are ground already), not as ASP text clingo must parse and ground again: about half
+ *  of an explanation call was reading the text. The same rules, switches and deletion order, so
+ *  the same sets. DEDUCE_EXPLAIN_TEXT=1 goes back to the text (to compare). */
+const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
 /** clingo solves allowed per explanation (deletion stops there, keeping a larger set) */
 const MUS_SOLVES = 400;
 
@@ -1049,31 +1054,84 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   });
   const explainByClingo = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
     const out = new Map<Window, (Expl | null)[]>();
-    let text: string[] = [], tables: string[] = [], members: { w: Window; facts: [number, boolean][] }[] = [];
+    let text: string[] = [], tables: string[] = [], data: string[] = [], members: { w: Window; facts: [number, boolean][] }[] = [];
     const flush = () => {
       if (!members.length) return;
       calls++;
-      const lua = `#script (lua)
-local function S(n, W, x) return clingo.Function(n, {clingo.Number(W), clingo.Number(x)}) end
-function main(prg)
-  prg:ground({{"base", {}}})
+      // the script, from the windows' text (EXPLAIN_TEXT) or their number tables (data): each
+      // window W is { W, its groups, its known marks, the facts to explain, and (data) its atom
+      // count, its rules flat [type (0 rule, 1 choice, 2 constraint; +3 with a weight body), gate
+      // (0 none, -1 e, g + 1), heads n, heads..., body n, body..., (weight) bound, weights...], the
+      // known marks' forbidden literals, the facts' forbidden literals }
+      const build = EXPLAIN_TEXT ? `  prg:ground({{"base", {}}})
   local wins = {${tables.join(",")}}
   for _, w in ipairs(wins) do
     local W = w[1]
     local elems = {}
-    for _, G in ipairs(w[2]) do elems[#elems + 1] = {"g", G, S("g", W, G)} end
-    for _, m in ipairs(w[3]) do elems[#elems + 1] = {"k", m, S("k", W, m)} end
+    for _, G in ipairs(w[2]) do elems[#elems + 1] = {"g", G, {S("g", W, G), true}} end
+    for _, m in ipairs(w[3]) do elems[#elems + 1] = {"k", m, {S("k", W, m), true}} end
     local on = {clingo.Function("e", {clingo.Number(W)}), true}
+    local tOf = function(m) return {S("t", W, m), true} end` : `  local wins = {${data.join(",")}}
+  local b = prg:backend()
+  local built = {}
+  for _, w in ipairs(wins) do
+    local A = {}
+    for i = 1, w[5] do A[i] = b:add_atom() end
+    local function lit(x) if x > 0 then return A[x] else return -A[-x] end end
+    local e, gA, kA, tA, free = b:add_atom(), {}, {}, {}, {}
+    free[1] = e
+    for _, G in ipairs(w[2]) do gA[G] = b:add_atom(); free[#free + 1] = gA[G] end
+    for _, m in ipairs(w[3]) do kA[m] = b:add_atom(); free[#free + 1] = kA[m] end
+    for _, m in ipairs(w[4]) do tA[m] = b:add_atom(); free[#free + 1] = tA[m] end
+    b:add_rule{head = free, body = {}, choice = true}
+    local R, i = w[6], 1
+    while i <= #R do
+      local ty, gate, h, body = R[i], R[i + 1], {}, {}
+      local nh = R[i + 2]
+      for j = 1, nh do h[j] = A[R[i + 2 + j]] end
+      i = i + 3 + nh
+      local nb = R[i]
+      for j = 1, nb do body[j] = lit(R[i + j]) end
+      i = i + 1 + nb
+      if ty >= 3 then
+        ty = ty - 3
+        local wl = {}
+        for j = 1, nb do wl[j] = {body[j], R[i + j]} end
+        local aux = b:add_atom()
+        b:add_weight_rule{head = {aux}, lower = R[i], body = wl}
+        body = {aux}
+        i = i + 1 + nb
+      end
+      if gate == -1 then body[#body + 1] = e elseif gate > 0 then body[#body + 1] = gA[gate - 1] end
+      b:add_rule{head = h, body = body, choice = ty == 1}
+    end
+    for j, m in ipairs(w[3]) do b:add_rule{head = {}, body = {lit(w[7][j]), kA[m]}} end
+    for j, m in ipairs(w[4]) do b:add_rule{head = {}, body = {lit(w[8][j]), tA[m]}} end
+    built[#built + 1] = {e, gA, kA, tA}
+  end
+  b:close()
+  for n, w in ipairs(wins) do
+    local W = w[1]
+    local e, gA, kA, tA = built[n][1], built[n][2], built[n][3], built[n][4]
+    local elems = {}
+    for _, G in ipairs(w[2]) do elems[#elems + 1] = {"g", G, gA[G]} end
+    for _, m in ipairs(w[3]) do elems[#elems + 1] = {"k", m, kA[m]} end
+    local on = e
+    local tOf = function(m) return tA[m] end`;
+      const lua = `#script (lua)
+local function S(n, W, x) return clingo.Function(n, {clingo.Number(W), clingo.Number(x)}) end
+function main(prg)
+${build}
     local solves = 0
     local function unsat(t, set)
-      local a = {on, {t, true}}
-      for _, i in ipairs(set) do a[#a + 1] = {elems[i][3], true} end
+      local a = {on, t}
+      for _, i in ipairs(set) do a[#a + 1] = elems[i][3] end
       solves = solves + 1
       return prg:solve({assumptions = a}).unsatisfiable == true
     end
     local cache = {}
     for _, m in ipairs(w[4]) do
-      local t = S("t", W, m)
+      local t = tOf(m)
       local found, capped = nil, false
       for _, c in ipairs(cache) do if unsat(t, c) then found = c break end end
       if not found then
@@ -1107,7 +1165,7 @@ end
 #end.
 `;
       const te = Date.now();
-      const { lines, status, errors } = clingoRaw(lua + text.join("\n"), "--outf=3");
+      const { lines, status, errors } = clingoRaw(EXPLAIN_TEXT ? lua + text.join("\n") : lua, "--outf=3");
       dbg(`explain: ${members.length} windows, ${members.reduce((a, j) => a + j.facts.length, 0)} facts, ${text.reduce((a, l) => a + l.length, 0)} chars, ${Date.now() - te} ms`);
       if (status === 33 || status === 65 || status === 128) throw new Error(`clingo failed (${status}): ${errors.join("\n").slice(0, 300)}`);
       for (const l of lines) {
@@ -1119,7 +1177,7 @@ end
         const parts = (x[5] ?? "").split(",").filter(Boolean);
         out.get(job.w)![k] = { groups: parts.filter((q) => q[0] === "g").map((q) => +q.slice(1)), facts: parts.filter((q) => q[0] === "k").map((q) => +q.slice(1)), capped: x[4] === "1" };
       }
-      text = []; tables = []; members = [];
+      text = []; tables = []; data = []; members = [];
     };
     let chars = 0;
     for (const job of jobs) {
@@ -1146,10 +1204,29 @@ end
       // free externals: switched on by assumptions, otherwise the solver may leave them off
       mine.push(`#external e(${W}). [free]`, ...[...gs].map((gi) => `#external g(${W},${gi}). [free]`), ...kn.map((m) => `#external k(${W},${m}). [free]`), ...job.facts.map(([m]) => `#external t(${W},${m}). [free]`));
       const table = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}}}`;
+      // (chunks are cut by the text's size either way, so a window is explained in the same company)
       const size = mine.reduce((x, l) => x + l.length + 1, 0) + table.length;
+      let datum = "";
+      if (!EXPLAIN_TEXT) {
+        const local = new Map<number, number>(), id = (a: number) => { let i = local.get(a); if (i === undefined) local.set(a, (i = local.size + 1)); return i; };
+        const lid = (l: number) => (l < 0 ? -id(-l) : id(l));
+        const flat: number[] = [];
+        for (const k of pr.rules) {
+          const r = rules[k], j = consOf[k], gi = j >= 0 ? groupOf[j] : -1;
+          if (j < 0 && r.choice && !r.head.length) continue;
+          const ty = (j >= 0 ? 2 : r.choice ? 1 : 0) + (r.bound === null ? 0 : 3);
+          const gate = j >= 0 ? (gi >= 0 ? gi + 1 : -1) : r.choice ? -1 : 0;
+          const head = j >= 0 ? [] : r.head.map(id);
+          flat.push(ty, gate, head.length, ...head, r.body.length, ...r.body.map(lid));
+          if (r.bound !== null) flat.push(r.bound, ...r.weights);
+        }
+        const kl = kn.map((m) => (known[m] ? -id(markAtom[m]) : id(markAtom[m])));
+        const tl = job.facts.map(([m, v]) => (v ? id(markAtom[m]) : -id(markAtom[m])));
+        datum = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}},${local.size},{${flat.join(",")}},{${kl.join(",")}},{${tl.join(",")}}}`;
+      }
       if (size > 900_000) { notes.push(`${job.w.label}: too big to explain`); continue; }
       if (members.length && chars + size > EXPLAIN_CHUNK) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
-      members.push(job); text.push(...mine); tables.push(table); chars += size;
+      members.push(job); text.push(...mine); tables.push(table); data.push(datum); chars += size;
     }
     flush();
     return out;
