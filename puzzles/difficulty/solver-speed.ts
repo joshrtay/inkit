@@ -19,7 +19,9 @@
 //   SPEED_TECH, deduce's techniques ("all": every TECHNIQUES entry, each where it applies);
 //   SPEED_LEMMAS, its lemmas (comma-separated); SPEED_CELL_ATOMS=1, its cellAtoms;
 //   SPEED_MAX_TIER, its maxTier; SPEED_FINISH=1, its finish (each genre's FINISH techniques and
-//   lemmas); SPEED_GENRES, only these genres (comma-separated).
+//   lemmas); SPEED_GENRES, only these genres (comma-separated); SPEED_ANSWERS=1, a record's
+//   `answer` (its true marks, speed-answers.ts) is handed to deduce, so setup needn't find it (a
+//   published puzzle comes with its answer).
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -34,10 +36,10 @@ if (process.argv[2] === "--child") {
   let input = "";
   process.stdin.on("data", (d) => { input += d; });
   process.stdin.on("end", async () => {
-    const { spec, budgetMs } = JSON.parse(input);
+    const { spec, budgetMs, answer } = JSON.parse(input);
     try {
       const r = await deduce(spec, {
-        budgetMs, structure: true,
+        budgetMs, structure: true, ...(answer ? { answer } : {}),
         ...(tech ? { techniques: tech } : {}), ...(env.SPEED_LEMMAS !== undefined ? { lemmas: env.SPEED_LEMMAS.split(",").filter(Boolean) } : {}),
         ...(env.SPEED_CELL_ATOMS === "1" ? { cellAtoms: true } : {}), ...(env.SPEED_FINISH === "1" ? { finish: true } : {}), ...(env.SPEED_MAX_TIER ? { maxTier: Number(env.SPEED_MAX_TIER) as 1 | 2 | 3 } : {}),
         onRound: (ms, open, marks, path) => {
@@ -100,6 +102,6 @@ async function main() {
       console.error(`${++n}/${todo.length} ${r.genre} ${row.finished ? "finished" : killed ? "killed" : "unfinished"} ${(row.ms / 1000).toFixed(0)} s`);
       resolve();
     });
-    child.stdin.end(JSON.stringify({ spec: r.spec, budgetMs: BUDGET }));
+    child.stdin.end(JSON.stringify({ spec: r.spec, budgetMs: BUDGET, ...(process.env.SPEED_ANSWERS === "1" && r.answer ? { answer: r.answer } : {}) }));
   }));
 }

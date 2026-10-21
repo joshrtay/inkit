@@ -140,6 +140,7 @@ export interface Options {
    *  labels, without our solve). With `answer` (the solution's true marks, from elsewhere) those
    *  first facts are checked against it; without, no answer is looked for. Returns no steps. */
   setupOnly?: boolean;
+  /** the answer's true marks, if known (setupOnly, above; or a solve, which then doesn't look for it) */
   answer?: string[];
   /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
   families?: FamilySpec[];
@@ -402,6 +403,9 @@ const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
  *  not always the same one, so step prices (and paths) can move. Off by default (DEDUCE_CORE=1);
  *  needs the backend (not EXPLAIN_TEXT). */
 const EXPLAIN_CORE = process.env.DEDUCE_CORE === "1" && !EXPLAIN_TEXT;
+/** DEDUCE_CORE=wide: core-seeded deletion only for case splits' and searches' explanations (wide
+ *  steps), most of the explaining on loop genres, the windows' left as they are */
+const WIDE_CORE = process.env.DEDUCE_CORE === "wide" && !EXPLAIN_TEXT;
 /** Options.rankWindows' logistic weights (lsize, lmarks, lopen, lchanged, changed share, open
  *  share, found last time, found nothing last time; per kind of window; fit 2026-10-21) */
 const WINDOW_ODDS = { b: -3.5217, w: [0.3831, -0.1833, 0.4256, 0.0089, 3.0288, -2.3744, 2.2513, 1.3486],
@@ -657,10 +661,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the answer (to aim case splits at, and to check every deduction against) ----
   calls++;
   // (a local encoding gives the same answer as the engine's: tests/unit/deduce-local.test.ts)
-  // (setupOnly: the answer given, or none looked for)
+  // (setupOnly: the answer given, or none looked for; otherwise the answer given, if one is, is
+  // taken as it is: a published puzzle comes with it, and a wrong one shows as a wrong fact)
   const answer = new Uint8Array(M), markOf = new Map(markName.map((x, m) => [x, m]));
   for (let m = 0; m < M; m++) if (markAtom[m] === 0) answer[m] = 1;
-  if (!opts.setupOnly) {
+  if (!opts.setupOnly && !opts.answer) {
     const first = clingoJson(local ? local.plain : program(p), 1);
     if (first.Result !== "SATISFIABLE") throw new Error("the puzzle has no solution");
     for (const v of first.Call?.[0]?.Witnesses?.[0]?.Value ?? []) { const m = markOf.get(v); if (m !== undefined) answer[m] = 1; }
@@ -1204,7 +1209,7 @@ ${build}
       if not found then
         local set = {}
         for i = 1, #elems do set[i] = i end
-        if ${EXPLAIN_CORE ? "coreOf(t, set)" : "unsat(t, set)"} then
+        if ${EXPLAIN_CORE || coreNow ? "coreOf(t, set)" : "unsat(t, set)"} then
           local size = math.max(1, math.floor(#set / 2))
           while true do
             local i = 1
@@ -1424,9 +1429,11 @@ end
   /** A fact found by a case split or search: explained in the smallest neighbourhood that
    *  entails it (the tier-0 windows through its cells, then those touching them, and so on),
    *  falling back to the whole grid. */
+  let coreNow = false;
   const wideStep = (m: number, v: boolean, tier: Tier) => {
     const tw = Date.now();
-    try { return wideStepIn(m, v, tier); } finally { dbg(`wide step: ${Date.now() - tw} ms`); }
+    coreNow = WIDE_CORE;
+    try { return wideStepIn(m, v, tier); } finally { coreNow = false; dbg(`wide step: ${Date.now() - tw} ms`); }
   };
   const wideStepIn = (m: number, v: boolean, tier: Tier) => {
     let bits = bitsOf(n, markCells[m]);
@@ -2379,6 +2386,25 @@ end
         const c = q[k];
         if (dist[c] >= left) continue;
         for (const d of near(c)) if (dist[d] < 0 && ok(d)) { dist[d] = dist[c] + 1; reached[d] = 1; q.push(d); }
+      }
+      // a cell it can't grow to its number without: without it, too few cells within reach
+      if (left > 0) {
+        const room = (cut: number) => {
+          const d2 = new Int32Array(n).fill(-1), q2 = [...I.cells];
+          for (const c of q2) d2[c] = 0;
+          let count = 0;
+          for (let k = 0; k < q2.length; k++) {
+            const c = q2[k];
+            if (dist[c] > 0) count++;
+            if (d2[c] >= left) continue;
+            for (const d of near(c)) if (d !== cut && d2[d] < 0 && dist[d] >= 0) { d2[d] = d2[c] + 1; q2.push(d); }
+          }
+          return count;
+        };
+        for (const c of q) if (dist[c] > 0 && state(c) < 0 && room(c) < left) {
+          const b = addTech("islands", [LIT(atomAt(c), true)], `what the island at ${rc(I.num[0])} needs`, I.cells.length);
+          if (b && I.cells.length + 1 <= techCap) ws.push(techWin(`islands: what ${rc(I.num[0])} needs`, unionBits(b, bitsOf(n, I.cells))));
+        }
       }
       // short of its number: some way out stays unshaded
       if (left > 0) {

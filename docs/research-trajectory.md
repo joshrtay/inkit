@@ -305,6 +305,14 @@ alone leaves Tatham unchanged and lifts Puzzle Square JP Nurikabe 0.00 → 0.13)
 anywhere. A repeat of the baseline on another VM moved loop genres by up to 0.17 from timing alone,
 so single-type moves there are noise.
 
+**Where explaining goes on loop genres (2026-10-21, local).** On a 14 × 14 Simple Loop all but a
+second of 30 s explaining is the case splits' explanations: the first neighbourhood never entails
+the split and the second is already the whole grid (about 1 s each, 27 of them); Masyu likewise (9
+of 9 s). Growing the neighbourhood a ring at a time doesn't help (the refutations are global: the
+loop). Core-seeded deletion only there (`DEDUCE_CORE=wide`, windows' explanations untouched): that
+Simple Loop finishes (61 s, unfinished → 44 s), Cave 21 → 19 s, Masyu 16 → 15 s, Hidoku unchanged
+(it has no splits). It goes to the guard like the rest.
+
 **Estimates depend on the clock.** The paths are deterministic (every other type repeated exactly);
 what isn't is the budget. The scoreboard gives each solve 15 s of wall clock, and an unsolved puzzle
 rates at least 0.9, so a slow puzzle near the line (Masyu and Simple Loop are explain-bound) rates
@@ -328,10 +336,22 @@ about ±0.2 sampling error, so a 0.02 per-type rule flags any change of path, no
 can't be judged at 200 calls (the baseline solves none of 20, so all rate 0.9). The per-type rule
 needs rewriting: bigger samples, or one-sided (no type worse than its bootstrap interval).
 
+**Puzzles that come with their answer.** Setup solves the puzzle once with clingo to know the answer
+(case splits are aimed with it, and every fact is checked against it). On Nurikabe that's slow: for
+the 16 dev puzzles a median of about 6 s and up to 58 s. Every published puzzle comes with its
+answer, so a solve given `answer` now takes it instead (a wrong one shows as a wrong fact), and
+`speed-answers.ts` finds them once for a sample (solver-speed.ts hands them on with
+SPEED_ANSWERS=1). On four dev Nurikabes setup fell 50 → 3.6 s, 30 → 4.4 s, 11 → 2.3 s and 5.2 →
+2.0 s, with the same estimates; the one that finishes went 14.6 → 11.7 s.
+
 Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
 it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
 and the `parity` lemma was mixed (one more finishes, 24 → 9 s on another, three slower), so neither
 goes in its finish set.
+
+A third islands rule, a cell an island can't reach its number without (without it, too few cells
+are within reach), with answers supplied: 9 of 16 dev Nurikabes finish in 60 s (two hard ones newly,
+a 6 × 7 with five clues in 54 s), and the quick ones get quicker (12 → 7 s, 16 → 11 s).
 
 What's left on Nurikabe is search a person would struggle with too (a 6 × 7 with five clues, two of
 them 6 and 8, takes about 7 s a fact by tier 3), plus puzzles with big islands (sizes 6–9).
