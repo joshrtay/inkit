@@ -16,6 +16,8 @@
 //
 //   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/reward-compare.ts run [examples|psjp|janko] [--types akari,hitori] [--per 20]
 //   node --no-warnings puzzles/difficulty/reward-compare.ts report
+// With --shard k --of N a run takes only the puzzles whose id hashes to shard k (Cloud Batch:
+// puzzles/cloud/run-batch.sh puzzles/difficulty/reward-compare.ts reward-compare --args "run janko --per 20").
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { spearman } from "./calibrate.ts";
@@ -25,7 +27,9 @@ import { JANKO_TYPES, readType, REFS_DIR } from "./janko.ts";
 import { mapPool } from "./pool.ts";
 
 const OUT = `${REFS_DIR}reward-compare/`;
-const argv = process.argv.slice(2), opt = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
+const args = process.argv.slice(2), opt = (n: string) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined; };
+// the words, without the options and their values (Batch puts --shard k --of N first)
+const argv = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"));
 const hash = (key: string) => { let h = 2166136261; for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619); return (h >>> 0) / 2 ** 32; };
 const MODELS = JSON.parse(readFileSync(new URL("./human-model.json", import.meta.url), "utf8")) as Record<string, MoveModel>;
 
@@ -76,7 +80,8 @@ if (argv[0] === "run") {
   mkdirSync(OUT, { recursive: true });
   const file = `${OUT}${set}.jsonl`;
   const had = new Set(existsSync(file) ? readFileSync(file, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l).id) : []);
-  const todo = jobs.filter((j) => !had.has(j.id));
+  const shard = opt("shard"), of = Number(opt("of") ?? 1);
+  const todo = jobs.filter((j) => !had.has(j.id) && (shard === undefined || Math.floor(hash(`shard:${j.id}`) * of) === Number(shard)));
   console.error(`${todo.length} puzzles to run (${jobs.length} chosen)`);
   let n = 0;
   await mapPool(todo, async (j) => {
@@ -109,12 +114,35 @@ if (argv[0] === "report") {
   const rows = existsSync(OUT) ? readdirSync(OUT).filter((f) => f.endsWith(".jsonl")).flatMap((f) => readFileSync(OUT + f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l))) : [];
   const keys = ["solved", "settled", "steps", "splits", "costSum", "costPeak", "dist", "bits", "rho"] as const;
   const mean = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
-  const groups = [["all", rows], ...[...new Set(rows.map((r) => r.type))].sort().map((t) => [t, rows.filter((r) => r.type === t)])] as [string, any[]][];
+  // each set on its own (Janko's and the rated site's types share names but not puzzles)
+  const groups = [...new Set(rows.map((r) => r.set))].sort().flatMap((set) => {
+    const of = rows.filter((r) => r.set === set);
+    return [[`${set}: all`, of], ...[...new Set(of.map((r) => r.type))].sort().map((t) => [`${set}: ${t}`, of.filter((r) => r.type === t)])];
+  }) as [string, any[]][];
   for (const [g, rs] of groups) {
     console.log(`\n### ${g} (${rs.length} puzzles)\n\n| policy | ${keys.join(" | ")} |\n|---|${"---|".repeat(keys.length)}`);
     for (const p of Object.keys(POLICIES)) {
       const ok = rs.map((r) => r[p]).filter((x) => x && typeof x === "object");
       console.log(`| ${p} | ${keys.map((k) => { const v = mean(ok.map((x) => k === "solved" ? (x.solved ? 1 : 0) : x[k]).filter((v) => typeof v === "number" && Number.isFinite(v))); return Number.isFinite(v) ? (k === "solved" || k === "settled" ? `${Math.round(v * 100)}%` : v.toFixed(2)) : "-"; }).join(" | ")} |`);
+    }
+  }
+  // the rated set: within each type, Spearman of each policy's readouts with the site's difficulty
+  // rating, then the mean over types (types rank differently, so they aren't pooled)
+  const rated = rows.filter((r) => r.set === "psjp").flatMap((r) => {
+    try { const d = JSON.parse(readFileSync(`${REFS_DIR}psjp/${r.id}`, "utf8")); return d.rating?.difficulty != null ? [{ ...r, rating: d.rating.difficulty }] : []; } catch { return []; }
+  });
+  if (rated.length) {
+    const ks = ["costPeak", "costSum", "settled", "steps", "splits"] as const, types = [...new Set(rated.map((r) => r.type))].sort();
+    console.log(`\n### against the ratings (psjp, ${rated.length} rated puzzles, ${types.length} types; mean within-type Spearman)\n\n| policy | ${ks.join(" | ")} |\n|---|${"---|".repeat(ks.length)}`);
+    for (const p of Object.keys(POLICIES)) {
+      console.log(`| ${p} | ${ks.map((k) => {
+        const per = types.flatMap((t) => {
+          const ok = rated.filter((r) => r.type === t && r[p] && typeof r[p] === "object" && Number.isFinite(r[p][k]));
+          const rho = ok.length >= 5 ? spearman(ok.map((r) => r.rating), ok.map((r) => r[p][k])) : NaN;
+          return Number.isFinite(rho) ? [rho] : [];
+        });
+        return per.length ? `${mean(per).toFixed(2)} (${per.length})` : "-";
+      }).join(" | ")} |`);
     }
   }
 }
