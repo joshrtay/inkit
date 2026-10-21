@@ -140,6 +140,7 @@ export interface Options {
    *  labels, without our solve). With `answer` (the solution's true marks, from elsewhere) those
    *  first facts are checked against it; without, no answer is looked for. Returns no steps. */
   setupOnly?: boolean;
+  /** the answer's true marks, if known (setupOnly, above; or a solve, which then doesn't look for it) */
   answer?: string[];
   /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
   families?: FamilySpec[];
@@ -657,10 +658,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the answer (to aim case splits at, and to check every deduction against) ----
   calls++;
   // (a local encoding gives the same answer as the engine's: tests/unit/deduce-local.test.ts)
-  // (setupOnly: the answer given, or none looked for)
+  // (setupOnly: the answer given, or none looked for; otherwise the answer given, if one is, is
+  // taken as it is: a published puzzle comes with it, and a wrong one shows as a wrong fact)
   const answer = new Uint8Array(M), markOf = new Map(markName.map((x, m) => [x, m]));
   for (let m = 0; m < M; m++) if (markAtom[m] === 0) answer[m] = 1;
-  if (!opts.setupOnly) {
+  if (!opts.setupOnly && !opts.answer) {
     const first = clingoJson(local ? local.plain : program(p), 1);
     if (first.Result !== "SATISFIABLE") throw new Error("the puzzle has no solution");
     for (const v of first.Call?.[0]?.Witnesses?.[0]?.Value ?? []) { const m = markOf.get(v); if (m !== undefined) answer[m] = 1; }

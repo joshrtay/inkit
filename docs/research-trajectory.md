@@ -328,6 +328,14 @@ about ±0.2 sampling error, so a 0.02 per-type rule flags any change of path, no
 can't be judged at 200 calls (the baseline solves none of 20, so all rate 0.9). The per-type rule
 needs rewriting: bigger samples, or one-sided (no type worse than its bootstrap interval).
 
+**Puzzles that come with their answer.** Setup solves the puzzle once with clingo to know the answer
+(case splits are aimed with it, and every fact is checked against it). On Nurikabe that's slow: for
+the 16 dev puzzles a median of about 6 s and up to 58 s. Every published puzzle comes with its
+answer, so a solve given `answer` now takes it instead (a wrong one shows as a wrong fact), and
+`speed-answers.ts` finds them once for a sample (solver-speed.ts hands them on with
+SPEED_ANSWERS=1). On four dev Nurikabes setup fell 50 → 3.6 s, 30 → 4.4 s, 11 → 2.3 s and 5.2 →
+2.0 s, with the same estimates; the one that finishes went 14.6 → 11.7 s.
+
 Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
 it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
 and the `parity` lemma was mixed (one more finishes, 24 → 9 s on another, three slower), so neither
