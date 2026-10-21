@@ -25,7 +25,13 @@ const SETTINGS = ([
   // a budget in clingo calls instead of 15 s (the wall clock only as a 90 s guard), each at two
   // loads: it should repeat exactly
   ...["100", "200", "400"].flatMap((n) => [[`calls${n}`, { DEDUCE_BUDGET_CALLS: n }], [`calls${n}-32jobs`, { DEDUCE_BUDGET_CALLS: n, DEDUCE_JOBS: "32" }]]),
-] as [string, Record<string, string>][]).filter(([name]) => !process.env.GUARD_SETTINGS || process.env.GUARD_SETTINGS.split(",").includes(name));
+  // the guard at its budget, 200 calls; joins only on the types its finish set uses it for
+  ["c200-baseline", { DEDUCE_BUDGET_CALLS: "200" }],
+  ["c200-rank", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_RANK: "0.3" }],
+  ["c200-core", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_CORE: "1" }],
+  ["c200-islands", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "islands" }],
+  ["c200-joins", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "joins" }, ["--games", "cave,nurikabe"]],
+] as [string, Record<string, string>, string[]?][]).filter(([name]) => !process.env.GUARD_SETTINGS || process.env.GUARD_SETTINGS.split(",").includes(name));
 const repo = new URL("../../", import.meta.url).pathname;
 const args = process.argv.slice(2);
 const shard = Number(args[args.indexOf("--shard") + 1]), of = Number(args[args.indexOf("--of") + 1]);
@@ -33,11 +39,11 @@ const dir = `${repo}references/${process.env.OUT ?? "guard-check"}/`, file = `${
 mkdirSync(dir, { recursive: true });
 const done = new Set(existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => { const r = JSON.parse(l); return `${r.setting} ${r.section}`; }) : []);
 
-for (const [name, env] of SETTINGS.filter((_, i) => i % of === shard))
+for (const [name, env, extra = []] of SETTINGS.filter((_, i) => i % of === shard))
   for (const section of ["psjp", "tatham"]) {
     if (done.has(`${name} ${section}`)) continue;
     const tmp = `${dir}${name}-${section}.tmp`, t0 = Date.now();
-    const r = spawnSync(process.execPath, ["--no-warnings", `${repo}puzzles/difficulty/scoreboard.ts`, "--only", section, "--rows", tmp], {
+    const r = spawnSync(process.execPath, ["--no-warnings", `${repo}puzzles/difficulty/scoreboard.ts`, "--only", section, "--rows", tmp, ...extra], {
       env: { ...process.env, DEDUCE_JOBS: process.env.GUARD_JOBS ?? "16", ...env }, encoding: "utf8", maxBuffer: 1 << 26,
     });
     console.log(`# ${name} ${section}: exit ${r.status}, ${Math.round((Date.now() - t0) / 1000)} s\n${r.stdout}`);
