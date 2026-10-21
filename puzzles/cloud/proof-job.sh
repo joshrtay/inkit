@@ -39,6 +39,7 @@ gcloud storage rsync -q "$BUCKET/private/human-corpus" references/ml/human-corpu
 [ "$JOB" = solver-menus ] && { mkdir -p references/proof-bulk; gcloud storage rsync -q -x 'run\..*' "$BUCKET/private/refs/proof-bulk" references/proof-bulk; }
 # the rated puzzles, which sim solves
 [ "$JOB" = sim ] && for d in psjp tatham; do mkdir -p references/$d; gcloud storage rsync -r -q "$BUCKET/private/refs/$d" references/$d; done
+[ "$JOB" = sim ] && { mkdir -p references/puzzlink-db/converted; gcloud storage rsync -q "$BUCKET/private/refs/puzzlink-db/converted" references/puzzlink-db/converted; }
 # what's done: the seed (all shards' puzzles, skipped by id), then this shard's own rows
 gcloud storage rsync -q "$BUCKET/results/$RUN/seed" $OUTDIR || true
 mkdir -p mine

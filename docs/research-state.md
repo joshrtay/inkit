@@ -778,3 +778,170 @@ Not on by default: Hitori's component lemma flattens Tatham's Singles as priced 
 falls (0.66 to 0.40). Next: refit the step prices with the techniques on, and with complete
 explanations (trying the rules near a fact first gives much cheaper sets than the window-wide
 reuse does now: Sudoku 2's hardest step 5.9 to 3.7).
+
+### Step 2, continued: one difficulty model fitted on both (2026-10-21)
+
+sim_fit.py fits one ridge regression on the same rows. The features are the simulated person's solve
+(step costs summed and peak, the human model's entropy, surprisal and log-partition, distance, steps,
+splits; the mean of the two samples) and the solver's (estimate, step costs summed and peak, steps,
+splits). Each is log-scaled and standardised within its type, the rating is ranked within its type,
+and one model covers every type. Held out two ways: half the puzzles of every type by hash, and a
+whole game left out (both of its sizes). Spearman within type on held-out puzzles:
+
+| | solver's estimate | simulated cost | ranks averaged | fitted: solver only | fitted: sim only | fitted: both | both, game held out |
+|---|---|---|---|---|---|---|---|
+| Puzzle Square JP (1,517) | 0.51 | 0.55 | 0.60 | 0.62 | 0.64 | **0.65** | 0.63 |
+| Akari (519) | 0.71 | 0.52 | 0.67 | 0.70 | 0.66 | 0.71 | 0.72 |
+| Masyu (618) | 0.32 | 0.53 | 0.53 | 0.57 | 0.64 | 0.61 | 0.58 |
+| Slitherlink (272) | 0.48 | 0.61 | 0.59 | 0.54 | 0.59 | 0.59 | 0.57 |
+| Simple Loop (79) | 0.68 | 0.74 | 0.76 | 0.72 | 0.77 | 0.77 | 0.77 |
+| Hitori (29) | 0.64 | 0.70 | 0.68 | 0.55 | 0.58 | 0.59 | 0.60 |
+| Tatham (920) | 0.64 | 0.49 | 0.62 | 0.67 | 0.61 | **0.69** | 0.67 |
+| Light Up (360) | 0.85 | 0.51–0.55 | 0.76–0.78 | 0.83 | 0.64–0.71 | 0.81–0.84 | 0.81–0.85 |
+| Loopy (320) | 0.37–0.43 | 0.40–0.41 | 0.44–0.48 | 0.48–0.57 | 0.56–0.58 | 0.55–0.62 | 0.52–0.55 |
+| Singles (240) | 0.60–0.65 | 0.51–0.56 | 0.62–0.63 | 0.61–0.63 | 0.54–0.59 | 0.59–0.64 | 0.57–0.62 |
+
+(Easy as ABC is left out: fewer than 20 puzzles. The ridge strength barely matters: 0.1 to 50 moves
+the pooled figures by 0.01 or 0.02.)
+
+- **Against the bar:** the model fitted on both clears it held out: 0.65 on Puzzle Square JP (0.63
+  with the whole game unseen), against 0.53–0.56 and the solver's 0.51. On Tatham it reaches 0.69
+  against the solver's 0.64. It is the best or near best on every type, so it doesn't trade
+  Akari for Masyu as the unfitted ranks did.
+- **What the simulation adds:** less than the headline suggests. Most of the gain is the fit
+  itself: the solver's own features, weighted, already reach 0.62 (Masyu 0.32 → 0.57; its peak and
+  step count carry what the estimate loses). Adding the simulated person gives +0.03 on Puzzle
+  Square JP (paired bootstrap 0.025 to 0.045) and +0.02 on Tatham (0.00 to 0.04). These intervals
+  resample puzzles, not the fit, so they're narrower than the truth. The gain sits on the loop
+  types (Masyu, Slitherlink, Simple Loop, Loopy), where the simulated person alone beats the
+  solver's features alone. On Akari, Light Up and Singles the solver's features are all it needs.
+- **Weights** (fitted on everything): the solver's peak and summed step cost (+0.08 each), the
+  simulated cost summed (+0.06), the solver's steps (−0.06), then the simulated surprisal (−0.04),
+  distance (+0.04) and log-partition (+0.02). Saved as puzzles/difficulty/sim-fit.json.
+- **Verdict:** a usable difficulty score now exists: about 0.65 within type on held-out puzzles, a
+  clear step past the 0.53–0.56 bar. The simulated person earns a place on loop types and adds
+  little elsewhere. Caveats: one rating source a set; and only five Puzzle Square JP types and three
+  Tatham games, so "game held out" means generalising from at most seven others. Next: test the
+  score on fresh puzzles of a type outside these (puzz.link ratings), and inkit's own solve logs
+  once there are enough of them.
+
+### Step 2, continued: the fitted model on new games and new raters (2026-10-21)
+
+The model fitted on both, frozen as it was fitted on the eight games above, was scored on puzzles
+it never saw (run sim-new2-20261021, 3 × n2-standard-32 for 2 hours, about $10 with a first launch
+stopped at 12 minutes; 82% of 2,319 puzzles finished before the cap, a random slice of each type
+because the run's order is hashed). There were three tests. The first was 8 more Puzzle Square JP
+games (Numberlink was dropped after 60 puzzles: the simulated person stalls there). The second was
+Tatham's Solo at five grades. The third was puzz.link's player ratings (1 to 5, from 5+ solves),
+up to 100 puzzles a game, leaving out every puzzle Puzzle Square JP also rates. New games use the
+generic human model (no recorded solves). Spearman within type, n-weighted; "solves finish" keeps
+the types where both solves finish 80%+ of the time:
+
+| | n | solver's estimate | simulated cost | fitted: solver only | fitted: sim only | fitted: both |
+|---|---|---|---|---|---|---|
+| Puzzle Square JP, new games (8) | 422 | 0.41 | 0.04 | 0.23 | 0.09 | 0.18 |
+| … solves finish (Shikaku, Skyscrapers, Sudoku) | 144 | 0.59 | 0.30 | 0.61 | 0.41 | 0.60 |
+| Tatham Solo (5 grades) | 266 | 0.80 | 0.34 | 0.80 | 0.46 | 0.75 |
+| puzz.link, the fitted games (new raters) | 414 | 0.41 | 0.43 | 0.46 | 0.47 | 0.46 |
+| puzz.link, new games (11) | 621 | 0.46 | 0.29 | 0.42 | 0.30 | 0.35 |
+| … solves finish (6) | 391 | 0.56 | 0.40 | 0.54 | 0.39 | 0.50 |
+
+Per type: `python3 puzzles/difficulty/sim_fit.py --new`. Rows in references/sim-difficulty/ and
+gs://inkit-research-ml/results/sim-new2-20261021/gathered.
+
+- **On new games, the fitted model doesn't transfer.** The solver's plain estimate is as good or
+  better everywhere: 0.59 against 0.60 on the Puzzle Square JP games that finish, 0.80 against
+  0.75 on Solo, 0.56 against 0.50 on puzz.link's. The simulated person's cost with the generic
+  model is weak on new games (0.30–0.41), and the fit leans on it for the loop types it was fitted
+  on. So the 0.63 "game held out" figure was optimistic: those held-out games were siblings (loop
+  games among loop games).
+- **On the same games with new raters, the gain holds but is small.** puzz.link's players on Akari,
+  Masyu, Slitherlink, Simple Loop and Hitori: fitted 0.46, simulated cost alone 0.43, solver 0.41.
+  puzz.link's five-level ratings agree with Puzzle Square JP's only 0.63 on shared puzzles, which
+  caps what any score can reach here.
+- **Where the solves stall, nothing measures difficulty.** Nurikabe (13% of puzzles finish both
+  solves), Spiral Galaxies (14–23%), Numberlink (26%) and Fillomino (9 of 74 usable) give
+  near-zero or negative agreement for every score, because a cut-off solve's cost is a floor. This
+  is the solver bottleneck already known on region games, not a difficulty finding.
+- **Verdict:** the fitted score is good on the games it was fitted on, with a real gain from the
+  simulated person on loop games, and is not a general difficulty score. For a new game, the
+  solver's estimate is the better default until that game has recorded human moves. Next, in
+  order: fit per genre family (loop, number, region) rather than one model, and test whether a
+  game's own human model (not the generic one) is what carries the sim's gain. That needs Janko
+  recordings for the new games, which exist for Sudoku, Nurikabe, Shikaku and others. Region games
+  wait on the solver.
+
+### Rewards as policies: a first look (2026-10-21)
+
+Question (thread "Where RL could help us"): different rewards should give different solvers; what
+does each reward's best policy do? The rules are an exact simulator, so no RL is needed to see it:
+reward-compare.ts runs each reward's greedy policy over the solver's menu (deduce.ts
+`Options.simulate` with `pick: "max"`, `score`, `noSplits`). Policies: cheapest step (forced marks,
+easiest first; deductions only grow, so also the lowest-peak path), the same with no case splits,
+nearest step to the last move, the human model's likeliest move (human-model.json's step logit,
+not the tuned network), and a sampled person. The trial on the 17 example puzzles in src/games came
+first; the full run on Janko's and Puzzle Square JP's puzzles is below it.
+
+Trial, 17 example puzzles (7 types):
+
+| policy | solved | settled | steps | splits | cost sum | cost peak | distance a move | bits a move (human model) |
+|---|---|---|---|---|---|---|---|---|
+| cheapest | 94% | 99% | 29.8 | 4.1 | 114 | 7.4 | 1.44 | 2.10 |
+| no splits | 47% | 72% | 19.9 | 0 | 61 | 4.1 | 1.47 | 2.23 |
+| nearest | 94% | 100% | 30.4 | 4.1 | 131 | 8.6 | 0.94 | 2.13 |
+| human, likeliest | 94% | 100% | 29.5 | 4.1 | 118 | 7.8 | 1.21 | 1.71 |
+| human, sampled | 94% | 100% | 28.9 | 4.1 | 122 | 8.7 | 1.61 | 2.29 |
+
+- Cheapest-first has the lowest peak (7.4 against 8.6–8.7), as it must, but not the lowest sum on
+  Slitherlink and Star Battle, where the human model's likeliest path is cheaper overall (160 vs
+  169, 67 vs 73): easiest-step-first is not cheapest-proof-first.
+- Nearness buys 35% less travel for 15% more cost and a higher peak.
+- No splits stalls on half the puzzles (Akari, Hitori, Masyu, Nurikabe), at 72% settled: the share
+  a pure-logic reward would have to learn new technique to finish.
+- Bits are scored by the human model itself, so "human, likeliest" wins them by construction.
+
+**Full run** (Cloud Batch reward-janko-20261021 and reward-psjp-20261021, 12 × n2-standard-8 spot,
+62 slot-hours, about $1–2; rows in gs://inkit-research-ml/data/reward-*-20261021/; tables from
+`reward-compare.ts report`). 20 puzzles a
+type: Janko's 14 types (up to 10 wide; 280 puzzles), Puzzle Square JP's 17 rated types (314). Each
+policy gets 120 s; 9–13% of runs capped and 1–2% errored, and those are left out of the means.
+
+| set | policy | solved | settled | steps | splits | cost sum | cost peak | distance | bits | rho with person |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Janko | cheapest | 59% | 90% | 44.5 | 5.0 | 176 | 7.6 | 1.62 | 3.22 | 0.40 |
+| Janko | no splits | 30% | 66% | 32.2 | 0 | 100 | 3.8 | 1.60 | 3.26 | 0.33 |
+| Janko | nearest | 59% | 92% | 43.8 | 5.0 | 205 | 8.8 | 0.74 | 3.11 | 0.37 |
+| Janko | human, likeliest | 59% | 92% | 44.4 | 5.1 | 191 | 8.1 | 0.99 | 2.70 | 0.39 |
+| Janko | human, sampled | 60% | 98% | 40.3 | 5.2 | 185 | 9.3 | 1.57 | 3.34 | 0.37 |
+| PSJP | cheapest | 64% | 89% | 64.4 | 12.9 | 238 | 7.8 | 1.76 | 3.07 | |
+| PSJP | no splits | 27% | 62% | 39.5 | 0 | 123 | 4.3 | 1.73 | 3.18 | |
+| PSJP | nearest | 65% | 92% | 64.5 | 12.8 | 274 | 8.8 | 0.83 | 2.87 | |
+| PSJP | human, likeliest | 66% | 93% | 64.5 | 12.8 | 252 | 8.2 | 1.06 | 2.53 | |
+| PSJP | human, sampled | 67% | 97% | 61.2 | 12.8 | 251 | 9.1 | 1.69 | 3.21 | |
+
+- **Agreement with the person's order (Janko):** no reward's policy beats cheapest-first. On the
+  168 puzzles where every policy finished, paired against cheapest (bootstrap 95%): human likeliest
+  −0.01 (−0.05, +0.03), sampled −0.02 (−0.08, +0.03), nearest −0.04 (−0.09, +0.01), no splits −0.06
+  (−0.09, −0.03). Nearness, which the human model weights most, makes the order no more human; it
+  helps on Masyu and Slitherlink (0.49 and 0.44 against 0.44 and 0.36) and hurts on Star Battle,
+  Easy as ABC and Minesweeper. Per type the spread is large: Minesweeper 0.68, Akari 0.61, Hitori
+  0.60, but Nonogram 0.05 and Skyscrapers 0.06 for every policy, where the solver's step order
+  itself is unlike people's. Rho is a whole-order measure; the human network's 45% top-3 on the
+  next move (PR #2) is the sharper test and isn't contradicted by this.
+- **Against the ratings (PSJP, mean within-type Spearman):** over all puzzles the costs barely
+  track the rating (cost peak 0.20–0.26, cost sum 0.08–0.10), far below step 2's 0.55. The cause is
+  the 120 s budget: a harder puzzle is less often finished (rating vs solved −0.40 to −0.46 for every
+  policy), and an unfinished path has a short, cheap sum. On the puzzles each policy finished, cost
+  sum is back to 0.45–0.55 and peak 0.41–0.58, step 2's level, with no policy clearly ahead (the
+  sampled person highest on sum at 0.55, on the most types, 13). Solved rates by type: Masyu,
+  Shikaku, Slitherlink, Cave, Hitori 18–20 of 20; Nonogram, Star Battle, Sudoku, Spiral Galaxies,
+  Numberlink, Nurikabe 1–3 of 20 (as in the solver-speed doc).
+- **How far pure logic gets is a difficulty signal.** The share no splits settles falls with the
+  rating (−0.34 over 17 types; the other policies −0.06 to −0.24), the strongest single readout over
+  all puzzles, and it is defined on
+  every puzzle, including the ones the solver can't finish. It belongs among the stall features of
+  the fitted difficulty model.
+- **Verdict:** the reward changes the path (nearness cuts travel 50%, no splits stops at two
+  thirds) but not how human the order is, and not how well the cost tracks the rating. Greedy
+  rewards over the solver's own menu don't add a new solver; what's missing is in the menu (the
+  deductions), as the frontier and solver-speed results said. Not worth a learned-RL version.

@@ -1,0 +1,34 @@
+{
+ "features": [
+  "sim costSum",
+  "sim costPeak",
+  "sim h",
+  "sim surprisal",
+  "sim lse",
+  "sim dist",
+  "sim steps",
+  "sim splits",
+  "solver estimate",
+  "solver costSum",
+  "solver costPeak",
+  "solver steps",
+  "solver splits"
+ ],
+ "weights": [
+  0.0631,
+  -0.033,
+  -0.0096,
+  -0.0392,
+  0.0225,
+  0.0388,
+  -0.0058,
+  0.0252,
+  0.026,
+  0.0806,
+  0.0832,
+  -0.0564,
+  -0.0274
+ ],
+ "ridge": 1.0,
+ "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"
+}
