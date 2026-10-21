@@ -5,7 +5,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { bandNamed, HARD_TECHNIQUES, optionsOf, quickSolve, techniquesOf, without } from "../../../puzzles/difficulty/bands.ts";
-import { deduce, TECHNIQUES, techniqueApplies } from "../../../puzzles/difficulty/deduce.ts";
+import { deduce, TECHNIQUES, techniqueApplies, UNIQUENESS } from "../../../puzzles/difficulty/deduce.ts";
 import { makePuzzle } from "../../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../../src/engine/types.ts";
 
@@ -21,6 +21,9 @@ const GENRES: Record<string, string[]> = {
   ends: ["simple-path", "numberlink"],
   cuts: ["simple-path", "numberlink"],
   owners: ["numberlink"],
+  routes: ["numberlink"],
+  // without every cell used only, and no example is (see the test below)
+  unique: [],
   mirror: ["spiral-galaxies"],
   distance: ["hidoku"],
   deadends: ["hidoku"],
@@ -29,13 +32,15 @@ const GENRES: Record<string, string[]> = {
   sizes: ["fillomino"],
   shapes: ["fillomino"],
 };
-const UNSOLVED = new Set(["numberlink/1.json", "fillomino/1.json", "fillomino/2.json", "fillomino/3.json"]);
+const UNSOLVED = new Set(["fillomino/1.json", "fillomino/2.json", "fillomino/3.json"]);
 const expert = bandNamed("expert");
 
 describe("per-genre techniques", () => {
   it("are all in the expert band; hard has a genre's basic ones; easy and medium none", () => {
     expect(Object.keys(GENRES).sort()).toEqual(Object.keys(TECHNIQUES).sort());
-    expect(techniquesOf(expert)).toEqual(expect.arrayContaining(Object.keys(TECHNIQUES)));
+    // all but the ones that need the puzzle to have one answer (a generator's candidate may not)
+    expect(techniquesOf(expert)).toEqual(expect.arrayContaining(Object.keys(TECHNIQUES).filter((t) => !UNIQUENESS.has(t))));
+    for (const t of UNIQUENESS) expect(techniquesOf(expert)).not.toContain(t);
     const hard = bandNamed("hard");
     for (const name of ["easy", "medium"]) for (const g of Object.keys(HARD_TECHNIQUES)) expect(techniquesOf(bandNamed(name), g).filter((t) => t in TECHNIQUES)).toEqual([]);
     expect(techniquesOf(hard).filter((t) => t in TECHNIQUES)).toEqual([]);
@@ -72,6 +77,14 @@ describe("per-genre techniques", () => {
     expect((await quickSolve(spec, bandNamed("hard"), 60000)).solved).toBe(true);
     expect((await quickSolve(spec, bandNamed("medium"), 60000)).solved).toBe(false);
   }, 120000);
+
+  it("unique: Numberlink without every cell used, one answer: sound, and solves it without case splits", async () => {
+    // four rows, each joined straight across: the only answer
+    const spec: GridSpec = { genre: "numberlink", size: [4, 4], givens: [0, 1, 2, 3].flatMap((r) => [0, 3].map((c) => ({ at: "cell" as const, cell: [r, c] as [number, number], kind: "number" as const, value: r + 1 }))) };
+    const r = await deduce(spec, { techniques: ["unique", "routes"], maxTier: 1, budgetMs: 30000 });
+    expect(r.profile.solved).toBe(true);
+    expect(techniqueApplies("unique", makePuzzle(spec), "numberlink")).toBe(true);
+  }, 60000);
 
   it("off by default", async () => {
     const [, spec] = examples("shikaku")[0];
