@@ -465,7 +465,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -907,8 +907,17 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the solve ----
   const path: Step[] = [];
   const decidedAt = new Int32Array(M).fill(-1);   // the round each mark was settled in
-  const trace: TraceRow[] = [], lastFound = new Map<Window, number>(), timing = { buildMs: 0, clingoMs: 0 };
+  const trace: TraceRow[] = [], lastFound = new Map<Window, number>(), timing = { buildMs: 0, clingoMs: 0, phases: {} as Record<string, number> };
   const evaluatedAt = new Map<Window, number>();
+  // where the time goes (timing.phases, ms): each named phase exclusive of the phases it calls;
+  // "setup" is everything before the solve, "other" the rest
+  timing.phases.setup = Date.now() - t0;
+  let phase = "other", phaseT = Date.now();
+  const switchTo = (to: string) => { const now = Date.now(); timing.phases[phase] = (timing.phases[phase] ?? 0) + now - phaseT; phase = to; phaseT = now; };
+  const timed = <A extends unknown[], R>(name: string, f: (...a: A) => R) => (...a: A): R => {
+    const prev = phase; switchTo(name);
+    try { return f(...a); } finally { switchTo(prev); }
+  };
   let round = 0, undecided = known.filter((v) => v < 0).length, outOfTime = false;
   const settle = (m: number, v: boolean) => {
     if (known[m] >= 0) return false;
@@ -918,7 +927,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   };
 
   /** Cautious consequences of each (changed) window; returns the windows' new facts. */
-  const runWindows = (ws: Window[]): Map<Window, [number, boolean][]> => {
+  const runWindows = timed("windows", (ws: Window[]): Map<Window, [number, boolean][]> => {
     const todo = ws.filter((w) => {
       const pr = progOf(w);
       if (!pr.marks.some((m) => known[m] < 0)) return false;
@@ -978,7 +987,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     for (const w of todo) lastFound.set(w, found.has(w) ? 1 : 0);
     if (opts.trace) for (const [w, r] of rowsHere) { r.facts = found.get(w)?.length ?? 0; trace.push(r); }
     return found;
-  };
+  });
 
   // ---- explanations ----
   // A fact's explanation is a smallest set of rule instances (groups) and earlier facts that
@@ -997,7 +1006,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // starting deletion from the rules round a fact's cells instead moved Sudoku 2's hardest step
   // from 5.9 to 3.7, so it waits for a refit).
   const techBlocks = new Set(techBlock.values());
-  const explain = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
+  const explain = timed("explain", (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
     const out = new Map<Window, (Expl | null)[]>(), rest: { w: Window; facts: [number, boolean][] }[] = [], at = new Map<Window, number[]>();
     for (const job of jobs) {
       // literal → the cheapest such constraint, with the known facts the rest of its body needs
@@ -1029,7 +1038,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       out.set(w, res);
     }
     return out;
-  };
+  });
   const explainByClingo = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
     const out = new Map<Window, (Expl | null)[]>();
     let text: string[] = [], tables: string[] = [], members: { w: Window; facts: [number, boolean][] }[] = [];
@@ -1302,7 +1311,7 @@ end
   // solving, each with a window of the group and its neighbours; once true, true for good.
   const componentW: Window[] = [], lemmaSeen = new Set<string>(), firstAdded = constraints.length;
   let techAdded = 0;   // constraints the per-genre techniques added (counted apart from ROOM)
-  const addComponentLemmas = () => {
+  const addComponentLemmas = timed("lemmas", () => {
     if (g.kind !== "square" || p.figure || !lemmasOn.includes("component")) return;
     const kinds: [boolean, boolean][] = [[false, p.rules.some((r) => r.rule === "unshaded-connected")], [true, p.rules.some((r) => r.rule === "connected")]];
     // a cell's shading: true, false, null unknown, undefined blocked
@@ -1350,14 +1359,14 @@ end
         if (cells.length <= 3 * Math.max(g.rows, g.cols)) componentW.push(win(`the group at ${rc(comp[0])} and its ways out`, cells));
       }
     }
-  };
+  });
 
   // premature loops (Tatham's loop deductions): for a single loop, a known chain of line that isn't
   // all the line known can't close on itself, so the gap between its two ends stays empty. Added
   // as constraints while solving (the chain, the gap and one known piece of line elsewhere), each
   // with a window of the chain; once true, true for good.
   const LOOP = lemmaNames.indexOf("loop") >= 0 ? p.rules.length + lemmaNames.indexOf("loop") : -1;
-  const addLoopLemmas = () => {
+  const addLoopLemmas = timed("lemmas", () => {
     const loop = p.rules.find((r) => r.rule === "loop");
     if (LOOP < 0 || !loop || g.kind !== "square" || p.figure) return;
     const fence = loop.of === "fence";
@@ -1405,7 +1414,7 @@ end
       groups.push({ kind: "premature", label: `the line through ${rc(mid)}`, cells: cs, extent: chain.length });
       if (cs.length <= 4 * Math.max(g.rows, g.cols)) componentW.push(win(`the line ending at ${rc(mid)}`, cs));
     }
-  };
+  });
 
   // pockets (asked for again and again by the mining harness): for a loop, an open area of its
   // graph, the points (or cells) that still need line, joined by undecided edges, with the loose
@@ -2181,10 +2190,10 @@ end
   };
 
   const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, routes: routesRound, unique: uniqueRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
-  const addTechniques = () => {
+  const addTechniques = timed("lemmas", () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
-  };
+  });
 
   dbg("setup");
   // single cells first, silently: a given's own cell (a printed digit rules out the others)
@@ -2254,7 +2263,7 @@ end
   /** One clingo call (a Lua script over the engine's program): for each candidate mark, assume
    *  it the other way from the answer and see what it takes to refute. The first `deepCount`
    *  candidates get a real search (tier 3); the rest only propagation (tier 2). */
-  const hardRound = (cand: number[], deepCount: number, deepLimit = DEEP_LIMIT) => {
+  const hardRound = timed("splits", (cand: number[], deepCount: number, deepLimit = DEEP_LIMIT) => {
     calls++;
     const lit = (m: number, v: boolean) => `{clingo.parse_term("${markName[m]}"), ${v}}`;
     const knowns: string[] = [];
@@ -2293,7 +2302,7 @@ end
       const x = /^C (\d+) (\w+) (\w+) (\d+) (\d+)$/.exec(l);
       return x ? [{ m: +x[1], sat: x[2] === "true", unsat: x[3] === "true", choices: +x[4], cost: +x[4] + +x[5] }] : [];
     });
-  };
+  });
   let pool: number[] = [], deep: { m: number; cost: number }[] = [], sat: number[] = [], escalated = false, escalatedDeep = false;
   let splitSteps = 0;   // tier-2 steps taken (Options.maxSplitSteps)
   // Options.minPeak: facts windows found that weren't taken yet (still sound: what's known only
@@ -2694,6 +2703,7 @@ end
   const own = new Set(groups.slice(0, ownGroups).filter((x) => x.label !== "the whole grid").map((x) => `${x.kind} (${x.label})`));
   const cited = new Set(path.flatMap((s) => s.because?.clues ?? []).filter((x) => own.has(x)));
   const usage = { used: cited.size, of: own.size };
+  switchTo("other");
   return { path, profile, answer: answerMarks, initial, usage, ...(searchReport ? { search: searchReport } : {}), ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
 }
 

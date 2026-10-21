@@ -150,6 +150,36 @@ levers 1 and 2. **Gate:** if 1 and 2 can plausibly reach M1, build them first; i
 only fallbacks can, bring the trade (how much opaque share for how many seconds) to Josh before
 building them.
 
+**The steps after it, one at a time** (Josh, 2026-10-21: pursue all of these, in turn). Each is
+measured on the dev set against the targets above, and each starts only after the one before it has
+been read.
+
+1. **Engineering, same path** (lever 1): a persistent, incremental clingo process; cheaper
+   explanations. Proof unchanged, checked by identical paths.
+2. **Learned window ranking** (lever 1, with the network): a head on the graph network
+   (relations-tuned-2026-10-20 as parent) ranks the windows and marks to check next; the solver
+   checks the top few and sweeps everything only when they find nothing. clingo still proves every
+   step, so it stays sound. Labels are free: every logged round says which windows produced a fact.
+   Trained on people's moves too, so it should move the path toward people, not away.
+3. **Predicted explanations** (lever 1): a head guesses the set of rules and facts a step needs,
+   and one clingo call confirms it (deletion from there if it's too big, the full search if it's
+   wrong). Same proof, if the guess is checked to be minimal.
+4. **Predicted case splits** (lever 3, cheaper): a classifier on which marks propagation refutes,
+   from the logged tier-2 rounds, so a split round tries 20 candidates, not 300.
+5. **Techniques written by a model** (lever 2): Opus or Fable writes candidate Nurikabe and Spiral
+   Galaxies techniques as clingo rules; kept only if each is proved sound (no answer of any test
+   puzzle breaks it, and clingo shows it follows from the rules) and it cuts splits on the dev set.
+   Open-weight models only if it takes thousands of tries. Not inside the solve: one model call is
+   seconds, the budget 10.
+6. **Offline RL on the schedule**, last and only if 2–4 leave a gap: the order of checks as a
+   policy, reward minus time with the divergence guards as penalties, from the logged runs.
+
+A first local read (14 example puzzles, 60 s budget, `finish` on, timing.phases): explaining steps
+took most of the time almost everywhere (Hidoku 15 of 18 s, Sudoku 1.5 of 2.5 s; one Nurikabe 51
+of 53 s, nearly all of it explaining its 20 case splits), and Fillomino's went to tier-3 search
+(54 of 61 s). If the dev set agrees, step 1's explanation work and step 3 come first, and Nurikabe
+needs step 5 more than it needs speed.
+
 **Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
 cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
 measure divergence against the human move model's own path. Whether hints need a different
