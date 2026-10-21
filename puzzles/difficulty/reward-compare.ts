@@ -12,12 +12,13 @@
 //
 // Each solve's readouts: solved, share of the puzzle settled, steps, case splits, step costs summed
 // and peak, distance a move, and how human its moves were: bits a move under the human model (lower
-// is more human). Rows to references/reward-compare/<set>.jsonl, appended; a rerun skips what's there.
+// is more human), and on Janko's puzzles the rank agreement with the person's recorded order (rho). Rows to references/reward-compare/<set>.jsonl, appended; a rerun skips what's there.
 //
 //   DEDUCE_JOBS=4 node --no-warnings puzzles/difficulty/reward-compare.ts run [examples|psjp|janko] [--types akari,hitori] [--per 20]
 //   node --no-warnings puzzles/difficulty/reward-compare.ts report
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
+import { spearman } from "./calibrate.ts";
 import type { MoveModel, Step } from "./deduce.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
 import { JANKO_TYPES, readType, REFS_DIR } from "./janko.ts";
@@ -48,7 +49,7 @@ const readouts = (path: Step[], solved: boolean, total: number) => {
   };
 };
 
-interface Job { set: string; type: string; genre: string; id: string; spec: GridSpec }
+interface Job { set: string; type: string; genre: string; id: string; spec: GridSpec; settled?: Map<string, number> }
 
 if (argv[0] === "run") {
   const set = argv[1] ?? "examples", types = opt("types")?.split(","), per = Number(opt("per") ?? 20);
@@ -69,7 +70,7 @@ if (argv[0] === "run") {
   } else if (set === "janko") {
     for (const type of Object.keys(JANKO_TYPES).filter((t) => !types || types.includes(t))) {
       const all = readType(type).filter((x) => x.j.spec.size[0] <= 10).sort((a, b) => hash(a.f) - hash(b.f)).slice(0, per);
-      for (const { f, j } of all) jobs.push({ set, type, genre: j.spec.genre ?? JANKO_TYPES[type].genre, id: `${type}/${f}`, spec: j.spec });
+      for (const { f, j } of all) jobs.push({ set, type, genre: j.spec.genre ?? JANKO_TYPES[type].genre, id: `${type}/${f}`, spec: j.spec, settled: j.settled });
     }
   }
   mkdirSync(OUT, { recursive: true });
@@ -90,7 +91,15 @@ if (argv[0] === "run") {
       } catch (e) { row[name] = `error: ${(e as Error).message.slice(0, 120)}`; }
     }
     const total = Math.max(0, ...Object.keys(POLICIES).map((k) => { const x = row[k] as any; return x?.path ? x.path.reduce((a: number, s: Step) => a + s.facts.length, 0) : 0; }));
-    for (const k of Object.keys(POLICIES)) { const x = row[k] as any; if (x?.path) row[k] = readouts(x.path, x.solved, total); }
+    // Janko: agreement with the person's order (Spearman over the marks both settled)
+    const agree = (path: Step[]) => {
+      if (!j.settled) return undefined;
+      const at = new Map<string, number>();
+      path.forEach((s, k) => { for (const f of s.facts) if (!at.has(f.mark)) at.set(f.mark, k); });
+      const ms = [...j.settled.keys()].filter((m) => at.has(m));
+      return ms.length >= 3 ? +spearman(ms.map((m) => j.settled!.get(m)!), ms.map((m) => at.get(m)!)).toFixed(3) : undefined;
+    };
+    for (const k of Object.keys(POLICIES)) { const x = row[k] as any; if (x?.path) row[k] = { ...readouts(x.path, x.solved, total), rho: agree(x.path) }; }
     appendFileSync(file, JSON.stringify({ ...row, ms: Date.now() - t0 }) + "\n");
     console.error(`${++n}/${todo.length} ${j.id} ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   });
@@ -98,14 +107,14 @@ if (argv[0] === "run") {
 
 if (argv[0] === "report") {
   const rows = existsSync(OUT) ? readdirSync(OUT).filter((f) => f.endsWith(".jsonl")).flatMap((f) => readFileSync(OUT + f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l))) : [];
-  const keys = ["solved", "settled", "steps", "splits", "costSum", "costPeak", "dist", "bits"] as const;
+  const keys = ["solved", "settled", "steps", "splits", "costSum", "costPeak", "dist", "bits", "rho"] as const;
   const mean = (xs: number[]) => xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
   const groups = [["all", rows], ...[...new Set(rows.map((r) => r.type))].sort().map((t) => [t, rows.filter((r) => r.type === t)])] as [string, any[]][];
   for (const [g, rs] of groups) {
     console.log(`\n### ${g} (${rs.length} puzzles)\n\n| policy | ${keys.join(" | ")} |\n|---|${"---|".repeat(keys.length)}`);
     for (const p of Object.keys(POLICIES)) {
       const ok = rs.map((r) => r[p]).filter((x) => x && typeof x === "object");
-      console.log(`| ${p} | ${keys.map((k) => { const v = mean(ok.map((x) => k === "solved" ? (x.solved ? 1 : 0) : x[k])); return Number.isFinite(v) ? (k === "solved" || k === "settled" ? `${Math.round(v * 100)}%` : v.toFixed(2)) : "-"; }).join(" | ")} |`);
+      console.log(`| ${p} | ${keys.map((k) => { const v = mean(ok.map((x) => k === "solved" ? (x.solved ? 1 : 0) : x[k]).filter((v) => typeof v === "number" && Number.isFinite(v))); return Number.isFinite(v) ? (k === "solved" || k === "settled" ? `${Math.round(v * 100)}%` : v.toFixed(2)) : "-"; }).join(" | ")} |`);
     }
   }
 }
