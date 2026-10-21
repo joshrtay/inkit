@@ -187,7 +187,7 @@ per type mean agreement figures can be off by 0.15.
 | Do Janko's recordings hold solve times? | difficulty | check the files | **no**: moves only, no times. And the ~6,700 recorded solves are by 7 experienced solvers (Rainer 2,109; Steve C 1,125; Jürgen Helbig 996; Angela Janko 784; Otto Janko 711; Groffin 562; Emma 410), so "human order" means expert order, a third of it one person: report agreement per solver. inkit's own solve times are the human difficulty source |
 | Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints yes; difficulty no; interest no at scale (Slitherlink a little); sequences unclear (research-llm-labels.md) |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
-| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band, and each genre's basic ones in hard); pricing them open |
+| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band, and each genre's basic ones in hard); step 3 (2026-10-21) added Numberlink's routes and uniqueness and the `finish` set: 170 of 196 stalled puzzles finish by 300 s (was 139); pricing them open |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
 | Why is Beast Academy's Akari backwards? | difficulty | look at their sets | open |
 | Is the network the bottleneck for hard human puzzles? | core, difficulty | the frontier measurement and the no-network baseline B0 (see the cheap-solver experiment) | to do, before any loop round |
@@ -760,3 +760,21 @@ from the solver's estimate):
   JP (0.61). So the minimum proof stays as one input, not the definition of difficulty. Next: a
   difficulty model fitted on both (held-out), the log-partition checked on fresh puzzles, and a
   price-aware Akari model (people's moves, and the peak of what they needed).
+
+### Step 3: the missing techniques (2026-10-21)
+
+Write-up: research/step3-missing-techniques-2026-10-21.md (project files). On the 196 hand-made
+puzzles the solver stalled on, with Options.finish (each genre's techniques, unpriced, off by
+default): 170 finish by 300 s (was 139), 76 by 60 s (was 55). Numberlink 15 of 16 (was 3), from two
+new techniques, `routes` (where each pair's line can run; routes.ts) and `unique` (what one answer
+rules out: no bend round a 2 × 2, no line beside or round its empty cells, no line touching itself;
+kept out of the generator's bands). Hidoku 14 of 16 (was 0): its rounds were spent explaining
+thousands of eliminations; technique facts now skip clingo and explanations run in smaller
+batches (12 rounds in 67 s where it did 3–5 in 300 s), with every example's estimate unchanged.
+Fillomino 11 (was 7) from sizes and shapes. Still stuck: Nurikabe and Spiral Galaxies.
+
+Not on by default: Hitori's component lemma flattens Tatham's Singles as priced (0.71/0.80 to
+0.58/0.44); citing the group's cells fixes Singles (0.70/0.84) but Puzzle Square JP Hitori still
+falls (0.66 to 0.40). Next: refit the step prices with the techniques on, and with complete
+explanations (trying the rules near a fact first gives much cheaper sets than the window-wide
+reuse does now: Sudoku 2's hardest step 5.9 to 3.7).
