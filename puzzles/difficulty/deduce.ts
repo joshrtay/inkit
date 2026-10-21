@@ -381,6 +381,11 @@ const CAUTIOUS = process.env.DEDUCE_CAUTIOUS_SLOW === "1" ? [] : ["--save-progre
  *  of an explanation call was reading the text. The same rules, switches and deletion order, so
  *  the same sets. DEDUCE_EXPLAIN_TEXT=1 goes back to the text (to compare). */
 const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
+/** Aim 4, step 3: an explanation's deletion starts from the elements clasp's refutation used (its
+ *  unsat core) instead of the whole window, so far fewer solves. Still a subset-minimal set, but
+ *  not always the same one, so step prices (and paths) can move. Off by default (DEDUCE_CORE=1);
+ *  needs the backend (not EXPLAIN_TEXT). */
+const EXPLAIN_CORE = process.env.DEDUCE_CORE === "1" && !EXPLAIN_TEXT;
 /** Options.rankWindows' logistic weights (lsize, lmarks, lopen, lchanged, changed share, open
  *  share, found last time, found nothing last time; per kind of window; fit 2026-10-21) */
 const WINDOW_ODDS = { b: -3.5217, w: [0.3831, -0.1833, 0.4256, 0.0089, 3.0288, -2.3744, 2.2513, 1.3486],
@@ -1153,6 +1158,24 @@ ${build}
       return prg:solve({assumptions = a}).unsatisfiable == true
     end
     local cache = {}
+    -- (EXPLAIN_CORE) the whole set's check, and if it holds, deletion starts from clasp's core:
+    -- the elements the refutation used, in their order
+    local function coreOf(t, set)
+      local a = {on, t}
+      for _, i in ipairs(set) do a[#a + 1] = elems[i][3] end
+      solves = solves + 1
+      local h = prg:solve({assumptions = a, yield = true})
+      local r = h:get()
+      if r.unsatisfiable ~= true then h:close() return false end
+      local inCore = {}
+      for _, l in ipairs(h:core()) do inCore[math.floor(l)] = true end
+      h:close()
+      local keep = {}
+      for _, i in ipairs(set) do if inCore[elems[i][3]] then keep[#keep + 1] = i end end
+      for k = #set, 1, -1 do set[k] = nil end
+      for k, i in ipairs(keep) do set[k] = i end
+      return true
+    end
     for _, m in ipairs(w[4]) do
       local t = tOf(m)
       local found, capped = nil, false
@@ -1160,7 +1183,7 @@ ${build}
       if not found then
         local set = {}
         for i = 1, #elems do set[i] = i end
-        if unsat(t, set) then
+        if ${EXPLAIN_CORE ? "coreOf(t, set)" : "unsat(t, set)"} then
           local size = math.max(1, math.floor(#set / 2))
           while true do
             local i = 1
@@ -1330,7 +1353,7 @@ end
    *  it, and facts with the same explanation make one step. */
   const explained = new Map<string, { stamp: number; e: Expl | null }>();
   const sigOf = (w: Window) => { let x = ""; for (const m of progOf(w).marks) x += known[m] < 0 ? "." : known[m]; return x; };
-  const candidates = (found: Map<Window, [number, boolean][]>, tier: Tier): (Step & { w: Window })[] => {
+  const candidates = (found: Map<Window, [number, boolean][]>, tier: Tier, pre?: Map<Window, (Expl | null)[]>): (Step & { w: Window })[] => {
     const ws = [...found.keys()].sort((a, b) => a.size - b.size);
     const claimed = new Set<number>(), jobs: { w: Window; facts: [number, boolean][] }[] = [];
     const stamp = (w: Window) => opts.search || opts.simulate ? 0 : progOf(w).marks.reduce((a, m) => Math.max(a, decidedAt[m]), -1);
@@ -1348,7 +1371,8 @@ end
       const fresh = facts.filter(([m]) => explained.get(ek(w, m))?.stamp !== stamp(w));
       if (fresh.length) jobs.push({ w, facts: fresh });
     }
-    const ex = explain(jobs), steps: (Step & { w: Window })[] = [];
+    // (pre: the jobs' explanations, found already by the caller)
+    const ex = pre ?? explain(jobs), steps: (Step & { w: Window })[] = [];
     for (const { w, facts } of jobs) ex.get(w)?.forEach((e, k) => explained.set(ek(w, facts[k][0]), { stamp: stamp(w), e }));
     for (const w of ws) {
       const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m)));
@@ -1392,8 +1416,9 @@ end
       bits = next;
       const w: Window = { label: `around ${markCells[m].map(rc).join("/")} (${level + 1} deep)`, cells: cellsOf(bits), bits, size: cellsOf(bits).length };
       if (!progOf(w).marks.includes(m)) continue;
-      const e = explain([{ w, facts: [[m, v]] }]).get(w)?.[0];
-      if (e) return candidates(new Map([[w, [[m, v]]]]), tier)[0];
+      const ex = explain([{ w, facts: [[m, v]] }]);
+      // (handed on, so the step isn't explained a second time)
+      if (ex.get(w)?.[0]) return candidates(new Map([[w, [[m, v]]]]), tier, ex)[0];
     }
     return candidates(new Map([[ALL, [[m, v]]]]), tier)[0];
   };
