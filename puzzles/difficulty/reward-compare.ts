@@ -133,16 +133,31 @@ if (argv[0] === "report") {
   });
   if (rated.length) {
     const ks = ["costPeak", "costSum", "settled", "steps", "splits"] as const, types = [...new Set(rated.map((r) => r.type))].sort();
-    console.log(`\n### against the ratings (psjp, ${rated.length} rated puzzles, ${types.length} types; mean within-type Spearman)\n\n| policy | ${ks.join(" | ")} |\n|---|${"---|".repeat(ks.length)}`);
+    // every puzzle, then only the ones the policy finished (an unfinished path is short and cheap,
+    // and harder puzzles are finished less often within the budget)
+    for (const only of [false, true]) {
+    console.log(`\n### against the ratings${only ? ", finished solves only" : ""} (psjp, ${rated.length} rated puzzles, ${types.length} types; mean within-type Spearman, types counted)\n\n| policy | ${ks.join(" | ")} |\n|---|${"---|".repeat(ks.length)}`);
     for (const p of Object.keys(POLICIES)) {
       console.log(`| ${p} | ${ks.map((k) => {
         const per = types.flatMap((t) => {
-          const ok = rated.filter((r) => r.type === t && r[p] && typeof r[p] === "object" && Number.isFinite(r[p][k]));
+          const ok = rated.filter((r) => r.type === t && r[p] && typeof r[p] === "object" && Number.isFinite(r[p][k]) && (!only || r[p].solved));
           const rho = ok.length >= 5 ? spearman(ok.map((r) => r.rating), ok.map((r) => r[p][k])) : NaN;
           return Number.isFinite(rho) ? [rho] : [];
         });
         return per.length ? `${mean(per).toFixed(2)} (${per.length})` : "-";
       }).join(" | ")} |`);
+    }
+    }
+  }
+  // Janko: each policy's rho against cheapest's, on the puzzles where every policy has one
+  const both = rows.filter((r) => r.set === "janko" && Object.keys(POLICIES).every((p) => typeof r[p]?.rho === "number"));
+  if (both.length) {
+    console.log(`\n### rho paired against cheapest (janko, ${both.length} puzzles; bootstrap 95%)\n\n| policy | rho | minus cheapest |\n|---|---|---|`);
+    let seed = 1; const rnd = () => (seed = (Math.imul(seed, 1103515245) + 12345) >>> 0) / 2 ** 32;
+    for (const p of Object.keys(POLICIES)) {
+      const d = both.map((r) => r[p].rho - r.cheapest.rho);
+      const boot = Array.from({ length: 2000 }, () => mean(d.map(() => d[Math.floor(rnd() * d.length)]))).sort((a, b) => a - b);
+      console.log(`| ${p} | ${mean(both.map((r) => r[p].rho)).toFixed(3)} | ${mean(d).toFixed(3)} (${boot[50].toFixed(3)}, ${boot[1949].toFixed(3)}) |`);
     }
   }
 }
