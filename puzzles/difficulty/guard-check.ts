@@ -48,6 +48,7 @@ const SETTINGS = ([
   // Fillomino's compact encoding (local.ts) against the engine's, with the finish set
   ["fl200-finish", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1" }, ["--games", "fillomino"]],
   ["fl200-finish-nolocal", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_LOCAL: "0" }, ["--games", "fillomino"]],
+  ["fl200-finish-on", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_LOCAL: "fillomino" }, ["--games", "fillomino"]],
 ] as [string, Record<string, string>, string[]?][]).filter(([name]) => !process.env.GUARD_SETTINGS || process.env.GUARD_SETTINGS.split(",").includes(name));
 const repo = new URL("../../", import.meta.url).pathname;
 const args = process.argv.slice(2);
