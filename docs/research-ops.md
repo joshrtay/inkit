@@ -27,6 +27,9 @@ After one, rerun the start commands; each resumes from its cache.
 **Done crawls:**
 - Puzzle Square JP (references/psjp-full/, 78,238 puzzles; converted with `puzzles/difficulty/sources/psjp.ts`);
 - puzz.link database (references/puzzlink-db/);
+- Thinky Dailies (references/thinky-dailies/thinky-dailies.json, 2026-10-21: all 220 puzzles of seasons 1–4 with
+  rules, every hint (1,783), difficulty 1–5, genre, solution and penpa-edit source; crawled from the browser pane
+  because Cloudflare blocks plain clients);
 - LMI Expo (references/lmi-expo/; time figures only, since its puzzles need a login);
 - puzzlekit and Nikoli 100.
 
@@ -39,6 +42,13 @@ After one, rerun the start commands; each resumes from its cache.
   pushback (403, 429, block pages, robots).
 
 Janko reset the connection at 3 s and 4 s a request, so it now runs at 6 s.
+
+Until 2026-10-22 janko_crawl.py read the Lizenz cell wrong on Creative Commons pages (the label cell
+holds a badge) and where the value cell has attributes, so 10,307 puzzles were recorded with no
+licence. Fixed; `janko_crawl.py --remeta` rebuilt meta.jsonl from the cache (10,937 CC BY-NC-SA,
+1,536 truly none stated). Anything that counted Janko licences before then undercounted CC.
+The fixed meta.jsonl, summary.json and converted/<genre>.jsonl (with `meta.jankoLevel` and Janko's
+solutions) are in gs://inkit-research-ml/private/refs/janko-full/ (uploaded 2026-10-22).
 
 ## Google Cloud (project inkit-research)
 
