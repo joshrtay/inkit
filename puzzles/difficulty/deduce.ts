@@ -3047,13 +3047,14 @@ export function profileOf(path: Step[], solved: boolean, entryPoints: number, ro
 /** One 0..1 number: f(D_steps) + w·rule load. D_steps of 3 (only easy and medium steps) maps to
  *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. A solve stops at
  *  0.9; unsolved counts as harder than any solve, whatever its path so far: 0.95 out of clingo
- *  calls (Options.budgetCalls), 1 out of time (stopped by the clock, as a capped run is). On the
- *  guard (2026-10-22) unsolved below some solves held Nurikabe down; pricing unsolved by its path
- *  instead ran against the ratings (Numberlink −0.66), and capped runs are the hardest. */
+ *  calls (Options.budgetCalls), 0.97 out of time or stuck, and a run capped from outside (no
+ *  result: the scoreboard's) 1. On the guard (2026-10-22) unsolved below some solves held Nurikabe
+ *  down; pricing unsolved by its path instead ran against the ratings (Numberlink −0.66); and capped
+ *  runs are the hardest (Numberlink rated 2.8–3.0 against 1.8–1.9 for out of time). */
 export const LOAD_WEIGHT = 0.25;
 export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved"> & { notes?: string[] }): number {
   const clamp = (x: number) => Math.min(1, Math.max(0, x));
   const x = (1 - LOAD_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5);
-  if (!p.solved) return p.notes?.some((n) => n.startsWith("out of budget after")) ? 0.95 : 1;
+  if (!p.solved) return p.notes?.some((n) => n.startsWith("out of budget after")) ? 0.95 : 0.97;
   return +Math.min(x, 0.9).toFixed(3);
 }
