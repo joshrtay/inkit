@@ -12,7 +12,7 @@ import type { Settings } from "~/sketchpad/to-puzzle";
 import { RulesPanel, SettingField } from "./RulesPanel";
 import { LookPanel } from "./LookPanel";
 
-const SUDOKUS = new Set<GenreName>(["sudoku", "thermo-sudoku", "irregular-sudoku"]);
+const SUDOKUS = new Set<GenreName>(["sudoku", "thermo-sudoku", "german-whispers", "irregular-sudoku"]);
 /** Rules a type's puzzles may add (not its own): offered beside its own, as the old editor's toolbar
  *  did. One with settings is on while any is set; one without, a switch. */
 const OPTIONAL: Partial<Record<GenreName, RuleName[]>> = {

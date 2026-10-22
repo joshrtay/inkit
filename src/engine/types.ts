@@ -9,6 +9,7 @@ export type Given =
   // different number, worked out while solving, and `value` isn't used (0)
   | { at: "cell"; cell: RC; kind: "number"; value: number; letter?: string }
   | { at: "cell"; cell: RC; kind: "block" }                      // a rock: no marks, not part of any loop or region
+  | { at: "cell"; cell: RC; kind: "crossing" }                   // where pipes cross (Hamiltonian Plumbers): straight through, both ways
   | { at: "cell"; cell: RC; kind: "compass"; value: { n?: number; e?: number; s?: number; w?: number } }
   | { at: "cell"; cell: RC; kind: "symbol"; value: string }                   // a symbol (★, or a color name for a colored one: Rose Windows' roses)
   | { at: "cell"; cell: RC; kind: "palisade"; value: number; opposite?: boolean }   // how many of the cell's sides are region borders (0-4); with 2, opposite or (default) at a corner
@@ -24,7 +25,9 @@ export type Given =
   | { at: "aside"; kind: "lengths"; value: number[] }                        // the lengths a lattice path's segments have, each used once, as squares (5 is √5), drawn under the board
   | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
   | { at: "edge"; cell: RC; side: Side; kind: "first" | "skyscraper"; value: number }   // outside the grid, looking in: the first letter seen (Easy as ABC) / how many buildings are seen (Skyscrapers)
+  | { at: "edge"; cell: RC; side: Side; kind: "inlet"; value: number }      // a pipe end outside the grid (Hamiltonian Plumbers): the pipe enters the cell beside it from that side and joins the other end with the same number
   | { at: "cells"; cells: RC[]; kind: "thermo" }                              // a thermometer from its bulb (first cell) to its tip
+  | { at: "cells"; cells: RC[]; kind: "whisper" }                             // a German Whispers line: digits next to each other on it differ by at least the gap
   | { at: "point"; point: RC; kind: "galaxy" }                                // a galaxy centre in half-cell units: [2r+1, 2c+1] is a cell's centre, even numbers lie on lines
   | { at: "row" | "col"; index: number; kind: "runs"; value: number[] }      // nonogram clue beside a row / above a column
   | { at: "row" | "col"; index: number; kind: "total"; value: number }      // how many shaded cells in that row / column (Aquarium)
@@ -142,9 +145,11 @@ export interface Puzzle {
   /** mistakes allowed (0 = free play) */
   hearts: number;
   /** clues outside the grid (not doors): the cell they look in at, from which side */
-  edgeClues: { cell: number; side: Side; kind: "first" | "skyscraper"; value: number }[];
+  edgeClues: { cell: number; side: Side; kind: "first" | "skyscraper" | "inlet"; value: number }[];
   /** thermometers, bulb first */
   thermos: number[][];
+  /** German Whispers lines, in order along the line */
+  whispers: number[][];
   /** galaxy centres, in half-cell units */
   galaxies: [number, number][];
   /** a digit puzzle whose cells may stay empty (Easy as ABC) */
