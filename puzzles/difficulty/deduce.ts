@@ -175,6 +175,11 @@ export interface Options {
    *  no case split: unsolved then means no split-free path within the windows (a missing
    *  technique). A step's `open` is the tier-0 steps open that round, as usual */
   minPeak?: boolean;
+  /** cheapest first (as minPeak), stopping where the cheapest step left costs more than this (the profile says
+   *  unsolved, with a note "ceiling"): what a reader who only takes steps up to this cost can reach
+   *  (walkthrough-loop.ts's reader; deductions only grow, so the cheapest-first path takes every
+   *  step at or under it before stopping). No case splits */
+  ceiling?: number;
   /** called at the start of each round and once at the end: time so far, marks still open of all
    *  of them, the path so far (solver-speed.ts: progress over time on long solves) */
   onRound?: (ms: number, open: number, marks: number, path: Step[]) => void;
@@ -2304,7 +2309,7 @@ end
   // can't raise it) or WIDE_FLOOR (what only a later stage's windows see needs two rule instances
   // or more: one would be inside a tier-0 window)
   const WIDE_FLOOR = Number(process.env.DEDUCE_WIDE_FLOOR ?? BANDS[1][0]);
-  let peak = 0;
+  let peak = 0, overCeiling = false;
   const minPeakRound = (): boolean => {
     const byStage = stages.map(() => new Map<Window, [number, boolean][]>());
     for (const [w, { k, facts }] of pending) {
@@ -2328,9 +2333,10 @@ end
     if (entryPoints < 0) entryPoints = open;
     if (!c.length) return false;
     const min = Math.min(...c.map((s) => s.cost));
+    if (opts.ceiling !== undefined && min > opts.ceiling) { overCeiling = true; return false; }
     peak = Math.max(peak, min);
     // everything at or below the peak so far goes now: it can't raise the peak
-    const upTo = Math.max(peak, min + PEAK_TIE);
+    const upTo = opts.ceiling !== undefined ? Math.min(opts.ceiling, Math.max(peak, min + PEAK_TIE)) : Math.max(peak, min + PEAK_TIE);
     c.sort((a, b) => a.cost - b.cost);
     for (const s of c) {
       const facts = s.facts.filter((x) => known[markOf.get(x.mark)!] < 0);
@@ -2598,7 +2604,7 @@ end
       }
       progressed = all.length > 0;
     }
-    else if (opts.minPeak && !opts.quick) progressed = minPeakRound();
+    else if ((opts.minPeak || opts.ceiling !== undefined) && !opts.quick) progressed = minPeakRound();
     else for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
       const f = runWindows(tagged.map(([w]) => w));
@@ -2626,6 +2632,7 @@ end
       break;
     }
     if (progressed) continue;
+    if (opts.ceiling !== undefined) { notes.push(overCeiling ? `ceiling: every step left costs more than ${opts.ceiling}` : "ceiling: nothing more by windows"); break; }
     const maxTier = opts.maxTier ?? 3;
     if (maxTier < 2) { notes.push("stuck: only a case split or search would go on"); break; }
     if (opts.maxSplitSteps !== undefined && splitSteps >= opts.maxSplitSteps) { notes.push(`stuck: more than ${opts.maxSplitSteps} case splits`); break; }
