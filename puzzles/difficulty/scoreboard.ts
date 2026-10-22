@@ -44,7 +44,7 @@ const solve = async (name: string, spec: GridSpec): Promise<Solve> => {
   const t0 = Date.now();
   try {
     const r = await deduceGuarded(spec, { budgetMs: BUDGET, ...(CALLS !== undefined ? { budgetCalls: CALLS } : {}) }, CAP);
-    if (!r) return { name, estimate: 0.91, solved: false, ms: Date.now() - t0, capped: true, note: "cap" };
+    if (!r) return { name, estimate: 1, solved: false, ms: Date.now() - t0, capped: true, note: "cap" };
     return { name, estimate: r.profile.estimate, solved: r.profile.solved, ms: Date.now() - t0, capped: false, note: r.profile.notes.join("; ") };
   } catch (e) { return { name, estimate: NaN, solved: false, ms: Date.now() - t0, capped: false, note: `error: ${(e as Error).message.slice(0, 80)}` }; }
 };

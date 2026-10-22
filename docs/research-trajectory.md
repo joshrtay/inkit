@@ -373,9 +373,12 @@ in all (232 s → 268 s) and stalled one, so it was dropped.
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
 passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
 above its interval: a confirmed gain; means PSJP +0.034 held out, Tatham 0). Proposed in the price
-(245a137; Josh adopted it 2026-10-22 02:34Z):
-a solve stops at 0.9 and an unsolved one is 0.91 and up by its path so far (estimateOf; the
-scoreboard's capped runs 0.91).
+(245a137; Josh adopted it 2026-10-22 02:34Z): a solve stops at 0.9 and an unsolved one was 0.91 and
+up by its path so far. That failed the guard (PSJP mean −0.073, Numberlink 0.29 → −0.48): capped runs
+priced 0.91, the bottom of the unsolved, though they're the hardest, and the path term runs against
+the ratings among unsolved runs (Numberlink −0.66, Spiral Galaxies −0.43). So unsolved is now one
+price, whatever its path: 0.95 out of clingo calls, 1 out of time (stopped by the clock, as a capped
+run is). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409).
 
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
