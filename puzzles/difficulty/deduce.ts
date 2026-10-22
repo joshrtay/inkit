@@ -3033,10 +3033,13 @@ export function profileOf(path: Step[], solved: boolean, entryPoints: number, ro
 
 /** One 0..1 number: f(D_steps) + w·rule load. D_steps of 3 (only easy and medium steps) maps to
  *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. Unsolved (out
- *  of time) counts as hard. */
+ *  of time) counts as harder than any solve: 0.91 and up, by its path so far, where a solve stops
+ *  at 0.9 (2026-10-22: before, unsolved was 0.9 or its path's, below the solves that priced above
+ *  0.9, though stalls are the hardest; on held-out PSJP Nurikabe ranking them on top took the
+ *  agreement 0.12 → 0.29 and moved no other type). */
 export const LOAD_WEIGHT = 0.25;
 export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved">): number {
   const clamp = (x: number) => Math.min(1, Math.max(0, x));
   const x = (1 - LOAD_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5);
-  return +clamp(p.solved ? x : Math.max(x, 0.9)).toFixed(3);
+  return +(p.solved ? Math.min(x, 0.9) : 0.91 + 0.09 * x).toFixed(3);
 }

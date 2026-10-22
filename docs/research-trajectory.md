@@ -363,6 +363,19 @@ question: explained steps carry many size-clue groups (the region rules are tagg
 untagged, each was a group of its own), so 9 of 16 rate at the ceiling, and the 8 × 8s still have
 whole-grid splits too big to explain, which price below explained ones.
 
+The guard failed it (Fillomino agreement 0.12 on the guard sample, below the engine's interval;
+0.29 against 0.37 held out; 16 of 31 held-out finishes at 0.88–0.90 whatever the rating), so it is
+off by default (DEDUCE_LOCAL=fillomino turns it on) until its steps are priced. Narrowing the owner
+atoms' footprint (own(I,C) on cells I and C) made windows faster on some puzzles but the 16 slower
+in all (232 s → 268 s) and stalled one, so it was dropped.
+
+**Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
+0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
+passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
+above its interval: a confirmed gain; means PSJP +0.034 held out, Tatham 0). So the price now does it:
+a solve stops at 0.9 and an unsolved one is 0.91 and up by its path so far (estimateOf; the
+scoreboard's capped runs 0.91).
+
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
 those unexplained duplicates were taken at times (priced at the fallback). A window now lists a
