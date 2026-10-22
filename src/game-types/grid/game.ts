@@ -6,7 +6,10 @@
 // it glides between junctions, slides round corners, and backing up takes the stroke back.
 //   shade         tap cycles shaded / empty mark / clear; dragging paints what the first cell got
 //   color         pick a pot and paint cells (regions puzzles)
-//   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too
+//   digit         tap a cell, then a number on the pad or the keyboard; pencil notes too. Or a
+//                 number first, then the cells it goes in (Good Sudoku): the board shows where
+//                 it can't go, the pad fades what the picked cell can't take, repeats turn red at
+//                 once and a placed digit leaves the notes that see it (sudoku-assist.ts)
 // A maze (doors in its edge) is drawn with fence; once its walls check out, the player walks it
 // (walk.ts), and it's solved on the way out. Paint puzzles (figures of pieces) play in figure.ts.
 // A panel (panel.ts) is drawn as one line from a start (or on from the tip of the line): it
@@ -29,6 +32,7 @@ import * as Line from "./line-input";
 import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
 import { createFigure } from "./figure";
 import { createShaped, isShaped } from "./shaped.ts";
+import { assistFor, autoNotes, candidates, clashes, notesSeeing, placed } from "./sudoku-assist.ts";
 import { boardKey, familyOf, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
 
 type Layer = keyof Board;
@@ -39,6 +43,7 @@ const S = 48, M = 26;                           // cell size and plain margin, i
 const CELL_PX = 64, BOARD_MIN = 400;             // a cell's size on screen, and the narrowest board, in CSS pixels
 const NS = "http://www.w3.org/2000/svg";
 const PREFS = "inkit:nonogram-prefs";            // nonogram helpers
+const AUTO_NOTES = "inkit:auto-notes";           // Sudoku: notes kept by the player
 
 /** Line colors for Numberlink pairs, by number. */
 const LINK_COLORS = ["#3fb0e6", "#ef5a6a", "#7cc68f", "#f29a38", "#a77bd6", "#f07ab8", "#f7cf3d", "#4fb3a9", "#c98a5b"];
@@ -58,6 +63,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // paint on the grid's cells (Binary Puzzle, Abstract Art): pick a pot and paint; printed colors stay
   const paintGrid = marks.includes("paint");
   const tiles = tileSpec(p);   // Twins and Triplets: digits are drawn as tiles
+  const sudoku = digits ? assistFor(p) : null;   // the rules with local logic: houses, thermometers
   const nonogram = p.rowRuns.size + p.colRuns.size > 0;
   const links = p.rules.some((s) => s.rule === "links");
   const palette = p.style.palette ?? (paintGrid ? ["#ef5a6a", "#f7cf3d", "#3fb0e6"] : []);
@@ -271,6 +277,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   // ---- drawing the board ----
   const status = q<HTMLElement>(".status");
   let solved = false, reported = false, sel = -1, pencilMode = false;
+  let armed = 0;   // a number picked first on the pad: taps put it in squares
+  let autoOn = false;   // auto-notes (Sudoku)
+  const padKeys = [...root.querySelectorAll<HTMLButtonElement>("[data-digit]")].filter((b) => Number(b.dataset.digit) > 0);
   const say = (text: string, tone: "" | "good" | "warn" | "good said" = "") => { status.className = `status ${tone}`.trim(); status.textContent = text; };
 
   /** colors to show: the player's paint, or (once solved) a coloring of the panes they cut */
@@ -303,13 +312,17 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   function render() {
     gWash.replaceChildren(); gWater.replaceChildren(); gLines.querySelectorAll(".mark").forEach((n) => n.remove()); gMarks.replaceChildren();
     const colors = glassColors();
-    // digits: selection, its row/column/box, and matching digits
+    // digits: selection, its row/column/box, and matching digits; a number picked first shows
+    // every copy of it and shades the squares it can't go in, so its open spots stand out
+    const focus = armed || (sel >= 0 ? board.digit[sel] : 0);
+    const clash = sudoku ? clashes(sudoku, board) : new Set<number>();
     if (digits) {
       const near = peers(sel);
       for (let i = 0; i < g.cellCount; i++) {
         if (i === sel) cellRect(i, "sel", gMarks);
         else if (near.has(i)) cellRect(i, "peer", gMarks);
-        else if (sel >= 0 && board.digit[sel] && board.digit[i] === board.digit[sel]) cellRect(i, "same", gMarks);
+        else if (focus && board.digit[i] === focus) cellRect(i, "same", gMarks);
+        else if (armed && sudoku && !p.blocked.has(i) && (board.digit[i] || sudoku.blocked(board, i, armed))) cellRect(i, "ruled", gMarks);
       }
     }
     // light bulbs light their row and column up to a black cell
@@ -343,13 +356,13 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       if (digits && board.digit[i] && tiles) {
         gMarks.insertAdjacentHTML("beforeend", `<g data-flash="cell:${i}">${tileSvg(tileOf(tiles, board.digit[i]), x, y, S)}</g>`);
       } else if (digits && board.digit[i]) {
-        el("text", { class: givenDigit.has(i) ? "digit given" : "digit", x, y: y + 2, "data-flash": `cell:${i}` }, gMarks).textContent = label(board.digit[i]);
+        el("text", { class: `digit${givenDigit.has(i) ? " given" : ""}${clash.has(i) ? " clash" : ""}`, x, y: y + 2, "data-flash": `cell:${i}` }, gMarks).textContent = label(board.digit[i]);
       } else if (digits && board.pencil[i]) {
         const per = Math.ceil(Math.sqrt(p.digits));
         for (let d = 1; d <= p.digits; d++) if (board.pencil[i] & (1 << d)) {
           const k = d - 1, px = x - S / 2 + (S / per) * ((k % per) + 0.5), py = y - S / 2 + (S / per) * (Math.floor(k / per) + 0.5);
           if (tiles) gMarks.insertAdjacentHTML("beforeend", tileSvg(tileOf(tiles, d), px, py, S / per));
-          else el("text", { class: "pencil", x: px, y: py + 1 }, gMarks).textContent = label(d);
+          else el("text", { class: d === focus ? "pencil focus" : "pencil", x: px, y: py + 1 }, gMarks).textContent = label(d);
         }
       }
     }
@@ -391,6 +404,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       n.classList.toggle("done", have === want); n.classList.toggle("over", have > want);
     }
     root.classList.toggle("solved", solved);
+    if (digits) padState();
     applyFlash();
   }
 
@@ -510,7 +524,13 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     put(layer, i, v);
     if (mirror && layer === "fence") put(layer, mirrorBorder(g, i, mirror), v);   // the mirror line draws itself
   };
-  const commit = () => { if (changes.length) { history.push(changes); afterChange(); } else render(); changes = []; };
+  const commit = () => {
+    // auto-notes join the change that called for them, so one undo takes both back
+    if (autoOn && sudoku && changes.some(([l]) => l === "digit" || l === "pencil")) {
+      const erased = changes.flatMap(([l, i, was]): [number, number][] => (l === "digit" && was && !board.digit[i] ? [[i, was]] : []));
+      for (const [i, v] of autoNotes(sudoku, p, board, erased)) put("pencil", i, v);
+    }
+    if (changes.length) { history.push(changes); afterChange(); } else render(); changes = []; };
   const toBoard = (evt: PointerEvent) => {
     const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
     const r = pt.matrixTransform(svg.getScreenCTM()!.inverse());
@@ -618,8 +638,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       return;
     }
     if (digits) {
-      const i = cellAt(pt);
-      sel = i >= 0 && !givenDigit.has(i) && !p.blocked.has(i) ? i : -1;
+      const i = cellAt(pt), open = i >= 0 && !givenDigit.has(i) && !p.blocked.has(i);
+      if (armed && givenDigit.has(i)) { setArmed(givenDigit.get(i)!); return; }   // a printed digit picks its number
+      if (armed && open) { sel = i; enter(armed); sel = -1; render(); return; }             // the picked number goes in
+      if (armed) { setArmed(0); return; }
+      // a printed digit can be picked too, to see its copies; picked again, a square lets go
+      sel = i >= 0 && !p.blocked.has(i) && i !== sel ? i : -1;
       render();
       return;
     }
@@ -716,16 +740,36 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
 
   // ---- digits: the pad, pencil notes and the keyboard ----
   const enter = (d: number) => {
-    if (sel < 0 || solved) return;
+    if (sel < 0 || solved || givenDigit.has(sel)) return;
     changes = []; clearProblems();
     if (d === 0) { set("digit", sel, 0); set("pencil", sel, 0); }
     else if (pencilMode) { if (!board.digit[sel]) set("pencil", sel, board.pencil[sel] ^ (1 << d)); }
-    else set("digit", sel, d);   // re-entering a digit keeps it; erase clears
+    else if (armed && board.digit[sel] === d) set("digit", sel, 0);   // a number put in again, picked first, comes out
+    else {
+      set("digit", sel, d);   // re-entering a digit keeps it; erase clears
+      if (sudoku) for (const [j, v] of notesSeeing(sudoku, board, sel, d)) set("pencil", j, v);   // and it leaves the notes that see it
+    }
     commit();
   };
+  /** the pad: the number picked first pressed, what the picked square can't take faded, a number
+   *  that's all placed ticked off */
+  function padState() {
+    const count = sudoku?.perDigit ? placed(p, board) : null;
+    const open = sudoku && sel >= 0 && !board.digit[sel] ? candidates(sudoku, p, board, sel) : -1;
+    for (const b of padKeys) {
+      const d = Number(b.dataset.digit);
+      b.setAttribute("aria-pressed", String(armed === d));
+      b.classList.toggle("faded", open >= 0 && !(open & (1 << d)));
+      b.classList.toggle("used", !!count && count[d] >= sudoku!.perDigit);
+    }
+  }
+  const setArmed = (d: number) => { armed = d; if (d) sel = -1; render(); };
   const pencilBtn = root.querySelector<HTMLButtonElement>("[data-pencil]");
   const setPencil = (on: boolean) => { pencilMode = on; pencilBtn?.setAttribute("aria-pressed", String(on)); };
-  root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => b.addEventListener("click", () => enter(Number(b.dataset.digit))));
+  // with no square picked, a number is picked first (and picked again, let go)
+  // (a printed digit picked lets the pad pick a number too; typed, a number picks only with nothing picked)
+  const press = (d: number, typed = false) => { if ((sel < 0 || (!typed && givenDigit.has(sel))) && d > 0 && !solved) setArmed(armed === d ? 0 : d); else enter(d); };
+  root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => b.addEventListener("click", () => press(Number(b.dataset.digit))));
   // Twins and Triplets: the pad's buttons are its tiles
   if (tiles) root.querySelectorAll<HTMLButtonElement>("[data-digit]").forEach((b) => {
     const d = Number(b.dataset.digit);
@@ -735,6 +779,22 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     b.innerHTML = `<svg class="grid-game-tile" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">${tileSvg(t, 16, 16, 40)}</svg>`;
   });
   pencilBtn?.addEventListener("click", () => setPencil(!pencilMode));
+  // auto-notes (Sudoku): every empty square's notes filled in and kept up; a choice kept in this browser
+  const autoBtn = root.querySelector<HTMLButtonElement>("[data-auto]");
+  if (!sudoku) autoBtn?.remove();
+  else {
+    try { autoOn = localStorage.getItem(AUTO_NOTES) === "on"; } catch { /* off */ }
+    autoBtn?.setAttribute("aria-pressed", String(autoOn));
+    autoBtn?.addEventListener("click", () => {
+      autoOn = !autoOn;
+      autoBtn.setAttribute("aria-pressed", String(autoOn));
+      try { localStorage.setItem(AUTO_NOTES, autoOn ? "on" : "off"); } catch { /* play without saving */ }
+      if (!autoOn || solved) return;
+      changes = [];
+      for (let i = 0; i < g.cellCount; i++) if (!board.digit[i] && !p.blocked.has(i)) set("pencil", i, candidates(sudoku, p, board, i));
+      commit();
+    });
+  }
   const onKey = (e: KeyboardEvent) => {
     const t = e.target;
     if (t instanceof Element && t.closest("input, textarea, select, dialog")) return;
@@ -749,16 +809,19 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const moves: Record<string, [number, number]> = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
     if (e.key in moves) {
       e.preventDefault();
+      armed = 0;
       let [r, c] = sel >= 0 ? g.rc(sel) : [0, -1];
       const [dr, dc] = moves[e.key];
       do { r = (r + dr + g.rows) % g.rows; c = (c + dc + g.cols) % g.cols; } while ((givenDigit.has(g.cell(r, c)) || p.blocked.has(g.cell(r, c))) && g.cell(r, c) !== sel);
       sel = g.cell(r, c); render();
     }
     // a digit shown as a symbol (Easy as ABC's letters, a fill-in's 0-9) goes by its symbol
-    else if (p.style.symbols && p.style.symbols.toLowerCase().includes(e.key.toLowerCase()) && e.key.length === 1) enter(p.style.symbols.toLowerCase().indexOf(e.key.toLowerCase()) + 1);
-    else if (/^[1-9]$/.test(e.key) && Number(e.key) <= p.digits) enter(Number(e.key));
+    else if (p.style.symbols && p.style.symbols.toLowerCase().includes(e.key.toLowerCase()) && e.key.length === 1) press(p.style.symbols.toLowerCase().indexOf(e.key.toLowerCase()) + 1, true);
+    else if (/^[1-9]$/.test(e.key) && Number(e.key) <= p.digits) press(Number(e.key), true);
     else if (e.key === "Backspace" || e.key === "Delete" || e.key === "0") enter(0);
+    else if (e.key === "Escape") { sel = -1; setArmed(0); }
     else if (e.key === "p" || e.key === "P") setPencil(!pencilMode);
+    else if (e.key === "a" || e.key === "A") autoBtn?.click();
   };
   document.addEventListener("keydown", onKey);
 
@@ -806,9 +869,10 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     confirming = false; delete reset.dataset.confirm;
     for (const k of Object.keys(board) as Layer[]) board[k].fill(0);
     for (const [i, d] of givenDigit) board.digit[i] = d;
+    if (autoOn && sudoku) for (const [i, v] of autoNotes(sudoku, p, board)) board.pencil[i] = v;
     for (const [i, c] of givenColor) board.color[i] = c;
     lockWalls(); walk?.stop(); if (saved) delete saved.trail;
-    ticks.clear(); history = []; solved = false; reported = false; sel = -1;
+    ticks.clear(); history = []; solved = false; reported = false; sel = -1; armed = 0;
     root.classList.remove("revealed", "titled"); say(""); unstamp(root); clearProblems(); afterChange();
   });
   root.querySelectorAll<HTMLInputElement>("[data-pref]").forEach((box) => {
