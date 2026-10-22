@@ -1,10 +1,10 @@
 // The AI creators' schedule: post slots in their time zones (across clock changes), the difficulty
 // curves, which scheduled drafts are due, and the admin endpoint's checks of a queued post.
 import { describe, expect, it } from "vitest";
-import { PERSONAS, GENERATOR_GENRES, type Persona } from "~/ai/personas";
-import { PERSONA_ICONS, personaIcon } from "~/ai/icons";
+import { PERSONAS, GENERATOR_GENRES, type Persona } from "~site/ai/personas.ts";
+import { PERSONA_ICONS, personaIcon } from "~site/ai/icons.ts";
 import { WIP_KINDS } from "~/games/kinds";
-import { dayLength, difficultyOf, dueToPublish, isoWeek, isPrime, localDate, moonLit, pairRole, planFor, postInstant, seriesIndex, slotsBetween, tideStrength, zonedTime } from "~/ai/schedule";
+import { dayLength, difficultyOf, dueToPublish, isoWeek, isPrime, localDate, moonLit, pairRole, planFor, postInstant, seriesIndex, slotsBetween, tideStrength, zonedTime } from "~site/ai/schedule.ts";
 import { checkScheduleRequest, sha256 } from "~/ai/request";
 
 const persona = (over: Partial<Persona> & { schedule: Persona["schedule"] }): Persona => ({ ...PERSONAS[1], ...over });

@@ -8,8 +8,8 @@ import { z } from "zod";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { guides } from "../../src/guides/guides.ts";
 import type { GenerateOptions } from "../grid/generate.ts";
-import type { GenrePlan, Persona } from "../../app/app/ai/personas.ts";
-import { difficultyOf, lessonFor, localDate, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
+import type { GenrePlan, Persona } from "../../src/ai/personas.ts";
+import { difficultyOf, lessonFor, localDate, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../src/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Score, type Scorer } from "./score.ts";
 
 /** The model that writes titles and descriptions, and its price per million tokens (input, output). */

@@ -24,7 +24,7 @@ import { Avatar } from "~/components/Avatar";
 import { CreateMenu } from "~/components/Shell";
 import { AiBadge } from "~/components/AiBadge";
 import { Pic } from "~/components/Explore";
-import { personaByHandle } from "~/ai/personas";
+import { personaByHandle } from "~site/ai/personas.ts";
 import { kindName } from "~/games/kinds";
 import "~site/game-types/grid/styles.css";
 
@@ -74,7 +74,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     draftSets: draftSetCards,
     collection: { slug: collection.slug, title: collection.title, description: collection.description, personal: !!collection.personalOf, deleted: !!collection.deletedAt, since: collection.createdAt },
     person: person && { handle: person.handle, name: person.name, ai: person.isAi },
-    // an AI creator's "How I make puzzles" (app/ai/personas.ts)
+    // an AI creator's "How I make puzzles" (src/ai/personas.ts)
     persona: person?.isAi ? aiProfile(person.handle) : null,
     members,
     games: (shownTab === "puzzles" ? withPictures(published) : withoutPictures(published)).map((g) => ({ ...g, solved: solved.has(g.id) })),

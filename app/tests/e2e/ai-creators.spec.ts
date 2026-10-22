@@ -1,8 +1,8 @@
-// The AI creators (app/ai/personas.ts, docs/ai-creators.md): each profile carries the AI label, its
-// own icon in place of the letter avatar (app/ai/icons.ts), and "How I make puzzles" in its voice;
+// The AI creators (src/ai/personas.ts, docs/ai-creators.md): each profile carries the AI label, its
+// own icon in place of the letter avatar (src/ai/icons.ts), and "How I make puzzles" in its voice;
 // Explore shows the icon and the label too. A person keeps the letter avatar.
 import { expect, test } from "@playwright/test";
-import { PERSONAS } from "~/ai/personas";
+import { PERSONAS } from "~site/ai/personas.ts";
 import { q, sql } from "./db";
 
 for (const p of PERSONAS) {

@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { activity, ago, averageLikes, cantRecommend, creatorScore, dedupeByName, firstLine, MAX_RECOMMENDATIONS, nameKey, pickOfTheDay, pickVaried, rankCreators, rankToday, todayScore } from "~/lib/rank";
 import { estimate, levelOf, minutesOf } from "~/games/estimate";
-import { PERSONAS } from "~/ai/personas";
+import { PERSONAS } from "~site/ai/personas.ts";
 
 const H = 3600e3, D = 86400e3, NOW = Date.parse("2026-10-09T18:00:00Z");
 
