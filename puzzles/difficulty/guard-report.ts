@@ -1,10 +1,12 @@
 // guard-check.ts's rows as a table: each setting's Spearman with the ratings per type and section
 // (the mean over types), time, solved and capped counts, errors, against the baseline.
 //   node puzzles/difficulty/guard-report.ts references/guard-check/rows.jsonl [--base <setting>]
-// The guard (docs/research-trajectory.md, Aim 4): a setting passes when its mean over types is
-// within 0.02 of the base's, in each section, and no type falls below the low end of the base's
-// own 95% bootstrap interval for that type (puzzles resampled, 2,000 times, fixed seed). A type
-// whose base estimates are all equal has no interval and isn't judged.
+// The guard (docs/research-trajectory.md, Aim 4), one-sided: a setting passes when its mean over
+// types, in each section, is no more than 0.02 below the base's, and no type falls below the low
+// end of the base's own 95% bootstrap interval for that type (puzzles resampled, 2,000 times, fixed
+// seed). A type above the interval's high end is a gain to confirm on held-out puzzles
+// (guard-check.ts GUARD_SHIFT) before it counts. A type whose base estimates are all equal has no
+// interval and isn't judged.
 import { readFileSync } from "node:fs";
 import { spearman } from "./calibrate.ts";
 
@@ -49,8 +51,8 @@ for (const section of sections) {
   const worst = (s: string) => kept(s).filter((g) => ci[g]).map((g) => ({ g, by: per[s][g] - ci[g]![0] })).sort((a, b) => a.by - b.by)[0];
   for (const s of settings.filter((s) => s !== base && kept(s).length)) {
     const w = worst(s), dm = mean(s) - mean(base, s), below = kept(s).filter((g) => ci[g] && per[s][g] < ci[g]![0]);
-    const pass = Math.abs(dm) <= 0.02 + 1e-9 && !below.length;
-    verdicts.push(`| ${section} | ${s} | ${(dm >= 0 ? "+" : "") + dm.toFixed(3)} | ${below.length ? below.map((g) => `${g} ${f2(per[s][g])} < ${f2(ci[g]![0])}`).join("; ") : "none"} | ${w ? `${w.g}: ${f2(per[s][w.g])} vs base ${f2(per[base][w.g])}, interval ${f2(ci[w.g]![0])} to ${f2(ci[w.g]![1])}` : "–"} | ${pass ? "pass" : "FAIL"} |`);
+    const pass = dm >= -0.02 - 1e-9 && !below.length, above = kept(s).filter((g) => ci[g] && per[s][g] > ci[g]![1]);
+    verdicts.push(`| ${section} | ${s} | ${(dm >= 0 ? "+" : "") + dm.toFixed(3)} | ${below.length ? below.map((g) => `${g} ${f2(per[s][g])} < ${f2(ci[g]![0])}`).join("; ") : "none"} | ${w ? `${w.g}: ${f2(per[s][w.g])} vs base ${f2(per[base][w.g])}, interval ${f2(ci[w.g]![0])} to ${f2(ci[w.g]![1])}` : "–"} | ${above.length ? above.map((g) => `${g} ${f2(per[s][g])} > ${f2(ci[g]![1])}`).join("; ") : "none"} | ${pass ? "pass" : "FAIL"} |`);
   }
   for (const s of settings) {
     const rs = rows.filter((r) => r.setting === s && r.section === section);
@@ -63,6 +65,6 @@ for (const section of sections) {
 }
 const wrong = rows.filter((r) => /wrong fact/.test(r.note));
 const other = [...new Map(rows.filter((r) => r.note.startsWith("error") && !/wrong fact/.test(r.note)).map((r) => [`${r.setting} ${r.note.slice(0, 60)}`, r])).values()];
-console.log([`### Guard\n\nPass: mean within 0.02 of ${base} and no type below the low end of ${base}'s 95% bootstrap interval\n\n| Section | Setting | Mean vs base | Types below their interval | Worst type | Verdict |\n|---|---|---|---|---|---|\n${verdicts.join("\n")}`, `### Summary\n\n| Section | Setting | Mean Spearman | vs base | Solved | Capped | Seconds of solving | Out of time | Out of budget | Errors | Wrong facts |\n|---|---|---|---|---|---|---|---|---|---|---|\n${summary.join("\n")}`, ...out,
+console.log([`### Guard\n\nPass: mean no more than 0.02 below ${base}'s and no type below the low end of ${base}'s 95% bootstrap interval; gains above the high end are confirmed on held-out puzzles before they count\n\n| Section | Setting | Mean vs base | Types below their interval | Worst type | Gains to confirm | Verdict |\n|---|---|---|---|---|---|---|\n${verdicts.join("\n")}`, `### Summary\n\n| Section | Setting | Mean Spearman | vs base | Solved | Capped | Seconds of solving | Out of time | Out of budget | Errors | Wrong facts |\n|---|---|---|---|---|---|---|---|---|---|---|\n${summary.join("\n")}`, ...out,
   `### Wrong facts\n\n${wrong.length ? wrong.map((r) => `- ${r.setting}, ${r.name}: ${r.note}`).join("\n") : "None."}`,
   `### Other errors (distinct)\n\n${other.length ? other.map((r) => `- ${r.setting}, ${r.name}: ${r.note}`).join("\n") : "None."}`].join("\n\n"));

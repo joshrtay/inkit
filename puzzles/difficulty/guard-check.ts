@@ -12,6 +12,7 @@
 // 32-vCPU machine), the same for every setting, since the budgets are wall-clock time.
 // GUARD_SETTINGS=a,b keeps only those settings; a setting can set DEDUCE_JOBS itself. GUARD_PSJP=N
 // sets Puzzle Square JP's sample per type (the guard's gates use 60); Tatham keeps its usual sample.
+// GUARD_SHIFT=1,2,3 takes PSJP's held-out puzzles (scoreboard.ts --psjp-shift), for confirming a gain.
 import { spawnSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 
@@ -54,7 +55,7 @@ for (const [name, env, extra = []] of SETTINGS.filter((_, i) => i % of === shard
   for (const section of ["psjp", "tatham"]) {
     if (done.has(`${name} ${section}`)) continue;
     const tmp = `${dir}${name}-${section}.tmp`, t0 = Date.now();
-    const r = spawnSync(process.execPath, ["--no-warnings", `${repo}puzzles/difficulty/scoreboard.ts`, "--only", section, "--rows", tmp, ...extra, ...(section === "psjp" && process.env.GUARD_PSJP ? ["--psjp", process.env.GUARD_PSJP] : [])], {
+    const r = spawnSync(process.execPath, ["--no-warnings", `${repo}puzzles/difficulty/scoreboard.ts`, "--only", section, "--rows", tmp, ...extra, ...(section === "psjp" && process.env.GUARD_PSJP ? ["--psjp", process.env.GUARD_PSJP] : []), ...(section === "psjp" && process.env.GUARD_SHIFT ? ["--psjp-shift", process.env.GUARD_SHIFT] : [])], {
       env: { ...process.env, DEDUCE_JOBS: process.env.GUARD_JOBS ?? "16", ...env }, encoding: "utf8", maxBuffer: 1 << 26,
     });
     console.log(`# ${name} ${section}: exit ${r.status}, ${Math.round((Date.now() - t0) / 1000)} s\n${r.stdout}`);

@@ -35,6 +35,8 @@ const perType = Number(args[args.indexOf("--psjp") + 1]) || 20;
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 const want = (section: string) => !only || only === section;
 const games = args.includes("--games") ? args[args.indexOf("--games") + 1].split(",") : null;
+// --psjp-shift 1,2,3 takes the puzzles between the usual sample's (held out from it) instead
+const shifts = args.includes("--psjp-shift") ? args[args.indexOf("--psjp-shift") + 1].split(",").map(Number) : [0];
 const rowsFile = args.includes("--rows") ? args[args.indexOf("--rows") + 1] : null;
 // DEDUCE_BUDGET_CALLS: a budget in clingo calls instead (the same on any machine and load), with
 // the wall clock only as a guard
@@ -90,7 +92,7 @@ if (!quick && want("psjp") && existsSync(`${repo}references/psjp/data.json`)) {
     const files = readdirSync(`${root}${type}`).filter((f) => /^\d+\.json$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b));
     // a spread sample: every k-th file
     const step = Math.max(1, Math.floor(files.length / perType));
-    for (const f of files.filter((_, i) => i % step === 0).slice(0, perType)) {
+    for (const f of files.filter((_, i) => shifts.includes(i % step)).slice(0, perType * shifts.length)) {
       const d = JSON.parse(readFileSync(`${root}${type}/${f}`, "utf8"));
       const rated = data[d.source?.psjp]?.difficulty;
       if (rated) jobs.push({ type, name: `${type}/${f}`, spec: { ...d.grid, genre: d.grid.genre ?? type }, rated });
