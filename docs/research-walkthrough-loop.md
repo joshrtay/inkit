@@ -4,7 +4,8 @@
 `puzzles/difficulty/walkthrough-loop.ts` (the loop, the solver's checks, the commands),
 `puzzles/difficulty/walkthrough-core.ts` (the format, the feedback, the measures, the library;
 tested in `walkthrough-core.test.ts`), `puzzles/difficulty/walkthrough-known.json` (named techniques
-for the rediscovery check), `puzzles/difficulty/walkthrough-seed.json` (the seed library), and a `ceiling` option in `deduce.ts`. It builds on the walkthrough
+for the rediscovery check), `puzzles/difficulty/walkthrough-seed.json` (the seed library, with a hint
+ladder per entry), `puzzles/difficulty/walkthrough-hints.ts` (the hint test), and a `ceiling` option in `deduce.ts`. It builds on the walkthrough
 pilot (`research-opus-walkthroughs.md`, `opus-walkthrough.ts`).
 
 ## The idea
@@ -241,6 +242,88 @@ grain.
 5. *Refactor drift*: the score falls but meaning is lost in merges. The examples stay attached to
    entries, so a spot check reads the merged entry against its examples.
 
+## Hints: which kind helps a stuck solver
+
+Josh (2026-10-22): hints are what people will use, so test several kinds of hint directly. Nothing
+like a library of reasoning hints exists to borrow: puzzle apps give location hints or the answer,
+and tutoring research (worked examples, hint ladders that end in a bottom-out hint) says how to
+pace hints, not what a good one says for a given puzzle. So this is measured, on its own track: it
+needs only the reader and the abc states, not the library's or A/B/C's answers, and it's cheap, so
+it can run first.
+
+**The setup** (`walkthrough-hints.ts`). A state is a held-out Janko position after the reader (the
+solver up to the genre's ceiling) has filled in everything easy: where a person who knows the easy
+moves would be stuck and ask for help. The frontier is what one solver step, or a short case split,
+decides from there. A weaker model, the student, gets the state and one hint and names one cell it
+is now sure of (or says it's stuck; it's told a wrong answer is worse than none).
+
+**The arms**, each a kind of hint:
+
+| arm | from | what it says |
+|---|---|---|
+| none | – | nothing: the floor (how often the student finds a frontier move alone, guesses included) |
+| solver-where | the solver's cheapest step, no language model | "Look at row 3." |
+| solver-clues | the same step | "Look at row 3 (lit) together.": the rule instances the step uses |
+| location | Opus | where to look, not why |
+| question | Opus | one Socratic question |
+| technique | Opus | the technique's name and what it says in general, not applied here |
+| what-if | Opus | a counterfactual to try ("what would happen if …?") |
+| library | Opus picks a seed entry and fills in its question | the entry's genre-free nudge plus its question for this spot |
+| ladder | Opus | four hints, vaguest first, shown one more at a time until the student gets it |
+| explain | Opus | the bottom-out explanation, answer included: the ceiling, and the leak check's control |
+
+Opus writes all its kinds in one call per state, two ways: grounded (shown the solver's frontier,
+told to aim at the step a strong person would see next) and free (no solver). The difference says
+whether the solver is needed to write good hints, or only to check them.
+
+**Measures**, per student and arm, over state × repeat:
+
+- *success*: the move is true and on the frontier. Also *true leap* (true but off the frontier: a
+  lucky guess, or reasoning past it), *wrong* (a hint that misleads is worse than none), *no
+  answer*.
+- *the gain over no hint*, paired by state, with a bootstrap interval; and the same on the states
+  the student never gets alone (where a hint can matter).
+- *leak*: a sentence names a frontier cell and a word for its value, either way ("r3c4 can't be a
+  bulb"). *Names the cell*: it points at one. Both heuristics (`hintLeak`); the report keeps the
+  hints to read. A fair arm (all but explain) should leak rarely; pinpointing is allowed but counted,
+  since a hint that names the cell is close to the answer in a binary genre.
+- *rungs needed* for the ladder (1–4, 5 = not found), and *found by rung k*.
+- *the person's next*: of the successes, how many are the move the Janko solver made next.
+- *length* in words.
+
+**Students and sizes.** Haiku 5.5 at low effort is the main student (cheap, and weak enough that
+hints have room), 3 repeats; Sonnet 5.5 at low effort is the second, 2 repeats, on the grounded
+hints only. 100 states from the abc sample (`states` skips ones the reader finishes). Paired by
+state, 100 states × 3 repeats give about ±7 points on a gain.
+
+**Costs.** Writing: about $0.09 a state (Opus, medium effort), so $18 for 100 states both ways.
+Students: about 11–12 calls a state per repeat (nine single hints plus the ladder's rungs). Haiku
+about $0.001 a call: $7 for both groundings. Sonnet about $0.018 a call: about $40 on the grounded
+hints. **H1**: 30 states, both groundings, Haiku: about $8. **H2**: the other 70, and Sonnet on the
+grounded hints: about $60.
+
+**Stop rules and decisions.**
+
+- *Headroom* (after H1): no-hint success must be at most 60% and explain at least 70%. A higher
+  floor means the student is too strong or the states too easy (use harder states, or lower
+  effort); a lower ceiling means the student can't follow even the answer's reasoning (use Sonnet
+  as the main student).
+- *The best fair hint*: the arm with the highest success among those leaking under 10%.
+- *Is the language model needed?* If the best fair Opus arm doesn't beat solver-where by 10 points
+  (paired interval above zero), ship the solver's hints: free, instant, never wrong.
+- *Is the solver needed to write them?* If free hints are within 5 points of grounded ones, Opus can
+  write hints alone (the solver only checks them).
+- *Can a library write them?* If library is within 5 points of question, templated questions are
+  good enough, and hints can come from the library (the seed now, a learned one after the library
+  test) without an Opus call per puzzle.
+- *The ladder* is worth its turns if it finds the step by rung 4 within 10 points of explain, with a
+  mean under 2.5 rungs.
+
+**What it can't say.** A model helped by a hint isn't a person helped by one. The arms are built to
+map onto hint buttons on inkit, so the winner (and the runner-up) can go to an A/B test there, with
+the next move and its time logged after a hint. That is the real test, and it gives inkit's first
+human hint data.
+
 ## Sample sizes
 
 The pilot's 20 states gave first-move intervals of about ±20 points: too noisy to separate arms.
@@ -269,8 +352,10 @@ writes a whole walkthrough, so about $0.20–0.30. Estimates (to be replaced by 
 | 3 | A/B/C, 30 states, the best library frozen in: draft, then rounds A, B, C (about 2 revisions each) | ~$50 |
 | 4 | the other 70 states, same arms | ~$120 |
 | 5 | tool use, A and the better of B and C, 50 states | ~$80 |
+| H1 | hints: 30 states, Opus writes them grounded and free, Haiku as student (its own track; can go first) | ~$8 |
+| H2 | hints: the other 70 states, and Sonnet as second student on the grounded hints | ~$60 |
 
-About $520 if every stage runs (dropping seeded-frozen saves about $8 a genre); each stage needs Josh's OK. `LOOP_CAP` (default $25) stops any one
+About $590 if every stage runs (dropping seeded-frozen saves about $8 a genre); each stage needs Josh's OK. `LOOP_CAP` (default $25) stops any one
 command before its ledger would pass it. The cloud environment has no Anthropic key yet (the
 OpenRouter credit ran out during the pilot); tool use needs the Anthropic key.
 
@@ -302,7 +387,8 @@ Not part of this plan's spending, but what it feeds:
 1. **The human move model.** Clean walkthroughs that pass the guard give a whole human-like order
    per puzzle (the reader's marks between the insights). Test: adding them to the relations-tuned
    network's fine-tune data raises agreement with people on held-out Janko states.
-2. **Hints.** Each insight's hint and idea is a hint ladder at the ceiling's level.
+2. **Hints.** Each insight's hint and idea is a hint ladder at the ceiling's level; the hint test
+   says which kind of hint to write from them.
 3. **Techniques for the solver** (Aim 4 step 5 from the other side). Library entries are candidate
    techniques; one that compiles to a clingo rule, is proved sound and cuts case splits joins the
    solver.
@@ -319,6 +405,11 @@ Not part of this plan's spending, but what it feeds:
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts draft abc --limit 30     (paid)
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts refine abc --arm A       (paid; B, C; --mode tools)
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts report abc --ceiling-q 0.4,0.8
+    node --no-warnings puzzles/difficulty/walkthrough-hints.ts dry                     (free, the hint test with stand-ins)
+    node --no-warnings puzzles/difficulty/walkthrough-hints.ts states --n 30           (free; after sample abc and calibrate abc)
+    node --no-warnings puzzles/difficulty/walkthrough-hints.ts write --grounding solver (paid; then --grounding free)
+    node --no-warnings puzzles/difficulty/walkthrough-hints.ts student --model haiku --grounding solver (paid; free; sonnet)
+    node --no-warnings puzzles/difficulty/walkthrough-hints.ts report
 
 Everything goes to `references/ml/walkloop/` (local only: the puzzles are Janko's) and the bucket.
 
@@ -330,6 +421,12 @@ goes from a flagged draft to clean in one revision, B's and C's feedback list th
 library's refactor shortens its description length, and the tools answer. The Nurikabe example
 shows the coverage limit above: the solver's windows find nothing from its start, so the stand-in
 can't finish it without search.
+
+The hint test's dry run (`walkthrough-hints.ts dry`) builds a stuck state on the same three examples
+(the reader at a low ceiling), writes stand-in hints from the solver's cheapest step, and uses a
+stand-in student that takes a frontier cell when a hint names one and otherwise guesses half the
+time. It checks that the scoring and report hold together: explain leaks and always works, the
+solver's location hint doesn't leak, and the ladder is found by the rung that names the cells.
 
 ## Open questions
 

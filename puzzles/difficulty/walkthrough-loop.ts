@@ -61,27 +61,29 @@ const argv = process.argv.slice(2), cmd = argv[0] ?? "report";
 const opt = (name: string, d: string) => { const k = argv.indexOf(name); return k >= 0 ? argv[k + 1] : d; };
 const num = (name: string, d: number) => Number(opt(name, String(d)));
 const SEED = "walkthrough-loop 2026-10-22";
-const PRICE = { input: 4 / 1e6, output: 20 / 1e6 };
 const EFFORT = process.env.LOOP_EFFORT || "medium", MAX_TOKENS = Number(process.env.LOOP_TOKENS) || 32000;
+/** who is asked: the model on Anthropic and on OpenRouter, its price per token, effort and output cap */
+export interface Model { id: string; openrouter: string; price: { input: number; output: number }; effort: string; maxTokens: number }
+export const OPUS: Model = { id: "claude-opus-5-5", openrouter: "anthropic/claude-opus-5.5", price: { input: 4 / 1e6, output: 20 / 1e6 }, effort: EFFORT, maxTokens: MAX_TOKENS };
 const CAP = Number(process.env.LOOP_CAP) || 25;
 const MOCK = process.env.WALK_MOCK === "1" || cmd === "dry";
 /** the reader's ceiling when a set has no calibration: the solver's "medium" band */
-const DEFAULT_CEILING = BANDS[1][0];
+export const DEFAULT_CEILING = BANDS[1][0];
 const TOOL_CALLS = 30;
 /** the reader and the menus use the genre's extra techniques (deduce.ts FINISH: Nurikabe islands and
  *  so on): more of what people do counts as following; LOOP_FINISH=0 leaves them out */
-const FINISH = process.env.LOOP_FINISH !== "0";
+export const FINISH = process.env.LOOP_FINISH !== "0";
 
 // ======== items ========
-interface LoopItem {
+export interface LoopItem {
   id: string; set: "abc" | "lib" | "example"; genre: string; known: MV[];
   /** Janko: the record's name and the person; lib: train or test, and the place in the sequence */
   name?: string; person?: string; part?: "train" | "test"; seq?: number;
   /** example: the file under src/games/ */
   file?: string;
 }
-const dir = (set: string) => { const d = `${OUT}${set}/`; mkdirSync(d, { recursive: true }); return d; };
-const loadSet = (set: string): LoopItem[] => JSON.parse(readFileSync(`${dir(set)}items.json`, "utf8")).items;
+export const dir = (set: string) => { const d = `${OUT}${set}/`; mkdirSync(d, { recursive: true }); return d; };
+export const loadSet = (set: string): LoopItem[] => JSON.parse(readFileSync(`${dir(set)}items.json`, "utf8")).items;
 
 /** graphs-human-labels.jsonl records by name (the person's order, the split) */
 const labelRecs = (() => {
@@ -139,7 +141,7 @@ function sample(which: string) {
 }
 
 // ======== a puzzle's context: spec, solution, structure ========
-interface Ctx {
+export interface Ctx {
   item: LoopItem; spec: GridSpec; rows: number; cols: number;
   truth: Map<string, boolean>; marks: number; markNames: string[]; initial: Set<string>;
   /** the engine's program, for the case-split check */
@@ -148,7 +150,7 @@ interface Ctx {
   groupCells: Map<string, number[]>;
 }
 const ctxCache = new Map<string, Ctx>();
-async function ctxOf(item: LoopItem): Promise<Ctx> {
+export async function ctxOf(item: LoopItem): Promise<Ctx> {
   if (ctxCache.has(item.id)) return ctxCache.get(item.id)!;
   let spec: GridSpec, truth: Map<string, boolean>;
   if (item.set === "example") {
@@ -172,23 +174,23 @@ async function ctxOf(item: LoopItem): Promise<Ctx> {
   ctxCache.set(item.id, ctx);
   return ctx;
 }
-const valueOf = (ctx: Ctx, m: string) => ctx.truth.get(m) ?? false;
+export const valueOf = (ctx: Ctx, m: string) => ctx.truth.get(m) ?? false;
 /** A move as Opus wrote it, as one of our marks ("mark:shaded(3)" with "true"/"false": the stand-in's form). */
-function markOfMove(ctx: Ctx, m: RawMove): MV | null {
+export function markOfMove(ctx: Ctx, m: RawMove): MV | null {
   if (String(m?.at ?? "").startsWith("mark:")) return [m.at.slice(5), m.value === "true"];
   return m?.at ? markOf(ctx.spec, m) : null;
 }
 
 // ======== the solver's probes ========
 /** The reader: from what's known, every step up to the ceiling, cheapest first, until none is left. */
-async function reader(ctx: Ctx, known: Map<string, boolean>, ceiling: number): Promise<{ added: MV[]; solved: boolean; open: number }> {
+export async function reader(ctx: Ctx, known: Map<string, boolean>, ceiling: number): Promise<{ added: MV[]; solved: boolean; open: number }> {
   const r = await deduce(ctx.spec, { from: [...known.keys()], ceiling, finish: FINISH, budgetMs: 60000 });
   const added: MV[] = [], seen = new Set([...known.keys(), ...ctx.initial]);
   for (const s of r.path) for (const f of s.facts) if (!seen.has(f.mark)) { seen.add(f.mark); added.push([f.mark, f.value]); }
   return { added, solved: r.profile.solved, open: Math.max(0, ctx.marks - seen.size) };
 }
 /** Everything one step decides from what's known (no case splits), each with its smallest reason. */
-async function menu(ctx: Ctx, known: Map<string, boolean>): Promise<MenuStep[]> {
+export async function menu(ctx: Ctx, known: Map<string, boolean>): Promise<MenuStep[]> {
   const r = await deduce(ctx.spec, { from: [...known.keys()], menus: [[]], finish: FINISH, budgetMs: 60000 });
   // the same facts found in several windows (or stages): the cheapest only
   const best = new Map<string, MenuStep>();
@@ -211,7 +213,7 @@ async function bySplit(ctx: Ctx, known: Map<string, boolean>, mv: MV): Promise<b
   return r.Result === "UNSATISFIABLE" && (r.Stats?.Core?.Choices ?? 1) === 0;
 }
 /** The undecided marks a short case split settles, as menu steps (kind "case split"). */
-async function splits(ctx: Ctx, known: Map<string, boolean>, tries: number): Promise<MenuStep[]> {
+export async function splits(ctx: Ctx, known: Map<string, boolean>, tries: number): Promise<MenuStep[]> {
   const out: MenuStep[] = [];
   for (const m of ctx.markNames.filter((x) => !known.has(x) && !ctx.initial.has(x)).slice(0, tries)) {
     const mv: MV = [m, valueOf(ctx, m)];
@@ -220,7 +222,7 @@ async function splits(ctx: Ctx, known: Map<string, boolean>, tries: number): Pro
   return out;
 }
 /** The cells a mark is on (a cell's, or the two cells of a link or border). */
-function cellsOfMark(ctx: Ctx, m: string): number[] {
+export function cellsOfMark(ctx: Ctx, m: string): number[] {
   const q = /^(\w+)\((\d+)(?:,(\d+))?\)$/.exec(m);
   if (!q) return [];
   const g = makePuzzle(ctx.spec).grid, id = Number(q[2]);
@@ -229,7 +231,7 @@ function cellsOfMark(ctx: Ctx, m: string): number[] {
   return [id];
 }
 /** A mark in words, roughly as the solver says it ("r2c3 no bulb", "r1c1 3", "r2c2–r2c3 line"). */
-function markText(ctx: Ctx, [m, v]: MV): string {
+export function markText(ctx: Ctx, [m, v]: MV): string {
   const rc = (c: number) => `r${Math.floor(c / ctx.cols) + 1}c${(c % ctx.cols) + 1}`, cells = cellsOfMark(ctx, m).map(rc).join("–");
   const d = /^digit\(\d+,(\d+)\)$/.exec(m);
   if (d) return `${cells} ${v ? "" : "not "}${d[1]}`;
@@ -317,7 +319,7 @@ async function calibrate(set: string) {
   }
   writeFileSync(`${dir(set)}ceilings.json`, JSON.stringify({ q, ceilings: out, search }, null, 1));
 }
-const ceilingOf = (set: string, genre: string): number => {
+export const ceilingOf = (set: string, genre: string): number => {
   const f = `${OUT}${set}/ceilings.json`;
   return existsSync(f) ? JSON.parse(readFileSync(f, "utf8")).ceilings[genre] ?? DEFAULT_CEILING : DEFAULT_CEILING;
 };
@@ -369,19 +371,22 @@ ${fb}
 Revise the walkthrough: keep what is right, fix what is flagged, add or drop insights as needed, and keep it explaining logic, not moves. Reply with the complete revised walkthrough as JSON only, in the same form.`;
 
 // ======== asking Opus ========
-interface Turn { role: "user" | "assistant"; content: any }
-interface Reply { text: string; content: any[]; cost: number; usage: unknown; finish: string; toolUses: { id: string; name: string; input: any }[] }
+export interface Turn { role: "user" | "assistant"; content: any }
+export interface Reply { text: string; content: any[]; cost: number; usage: unknown; finish: string; toolUses: { id: string; name: string; input: any }[] }
 let spent = 0;
-function guard(promptChars: number) {
-  const worst = (promptChars / 3) * PRICE.input + MAX_TOKENS * PRICE.output;
+/** the ledger, for another harness sharing this one's cap (walkthrough-hints.ts) */
+export const ledger = { get spent() { return spent; }, set spent(x: number) { spent = x; } };
+function guard(promptChars: number, who: Model) {
+  const worst = (promptChars / 3) * who.price.input + who.maxTokens * who.price.output;
   if (!MOCK && spent + worst > CAP) throw new Error(`the ledger would pass $${CAP} ($${spent.toFixed(2)} spent)`);
 }
-async function askOpus(turns: Turn[], tools?: Anthropic.Tool[]): Promise<Reply> {
-  guard(JSON.stringify(turns).length);
+export async function askOpus(turns: Turn[], tools?: Anthropic.Tool[], who: Model = OPUS): Promise<Reply> {
+  const PRICE = who.price;
+  guard(JSON.stringify(turns).length, who);
   if (process.env.ANTHROPIC_API_KEY) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 20 * 60 * 1000, maxRetries: 4 });
     const res = await client.messages.stream({
-      model: "claude-opus-5-5", max_tokens: MAX_TOKENS, thinking: { type: "adaptive" }, output_config: { effort: EFFORT as "medium" },
+      model: who.id, max_tokens: who.maxTokens, thinking: { type: "adaptive" }, output_config: { effort: who.effort as "medium" },
       messages: turns as Anthropic.MessageParam[], ...(tools ? { tools } : {}),
     } as any).finalMessage();
     const cost = res.usage.input_tokens * PRICE.input + res.usage.output_tokens * PRICE.output;
@@ -398,7 +403,7 @@ async function askOpus(turns: Turn[], tools?: Anthropic.Tool[]): Promise<Reply> 
   for (let a = 0; a < 5; a++) {
     res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "anthropic/claude-opus-5.5", max_tokens: MAX_TOKENS, reasoning: { effort: EFFORT }, messages: turns.map((t) => ({ role: t.role, content: typeof t.content === "string" ? t.content : JSON.stringify(t.content) })) }),
+      body: JSON.stringify({ model: who.openrouter, max_tokens: who.maxTokens, reasoning: { effort: who.effort }, messages: turns.map((t) => ({ role: t.role, content: typeof t.content === "string" ? t.content : JSON.stringify(t.content) })) }),
       signal: AbortSignal.timeout(20 * 60 * 1000),
     });
     if (res.status !== 429 && res.status < 500) break;
@@ -637,7 +642,7 @@ async function libraryCmd(genre: string) {
     } catch (e) { console.error(`${it.id}: ${(e as Error).message}`); if (/ledger/.test((e as Error).message)) break; }
   }
 }
-const loadSeed = () => JSON.parse(readFileSync(new URL("./walkthrough-seed.json", import.meta.url), "utf8")).entries as SeedEntry[];
+export const loadSeed = () => JSON.parse(readFileSync(new URL("./walkthrough-seed.json", import.meta.url), "utf8")).entries as SeedEntry[];
 /** One refactor: Opus proposes, the description length decides (kept only if it doesn't grow). */
 async function refactorLib(lib: Library, genre: string): Promise<{ lib: Library; note: unknown }> {
   const before = descriptionLength(lib, genre).total;
@@ -659,18 +664,18 @@ async function refactorLib(lib: Library, genre: string): Promise<{ lib: Library;
 }
 
 // ======== report ========
-const pct = (k: number, n: number) => { if (!n) return "–"; const [a, b] = wilson(k, n); return `${Math.round((100 * k) / n)}% (${Math.round(100 * a)}–${Math.round(100 * b)})`; };
-const meanOf = (xs: number[]) => { const ys = xs.filter(Number.isFinite); return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : NaN; };
-const f2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : "–");
+export const pct = (k: number, n: number) => { if (!n) return "–"; const [a, b] = wilson(k, n); return `${Math.round((100 * k) / n)}% (${Math.round(100 * a)}–${Math.round(100 * b)})`; };
+export const meanOf = (xs: number[]) => { const ys = xs.filter(Number.isFinite); return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : NaN; };
+export const f2 = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : "–");
 /** the person's order from the item's state: each mark they settled, first time, at the solution's value */
-function humanOrder(ctx: Ctx): MV[] | null {
+export function humanOrder(ctx: Ctx): MV[] | null {
   const rec = ctx.item.name ? labelRecs().get(ctx.item.name) : null;
   if (!rec) return null;
   const known = new Set(ctx.item.known.map(([m]) => m)), seen = new Set<string>();
   return (rec.humanOrder as [string, number][]).map(([m]) => m).filter((m) => !known.has(m) && !seen.has(m) && seen.add(m)).map((m): MV => [m, valueOf(ctx, m)]);
 }
 /** A paired bootstrap of the mean difference by item (95%). */
-function bootstrap(diffs: number[], n = 2000): [number, number] {
+export function bootstrap(diffs: number[], n = 2000): [number, number] {
   const xs = diffs.filter(Number.isFinite);
   if (!xs.length) return [NaN, NaN];
   let s = 1;

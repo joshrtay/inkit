@@ -242,7 +242,11 @@ export interface Library { entries: Entry[]; free: (Entry["examples"][number] & 
 export const emptyLibrary = (): Library => ({ entries: [], free: [], next: 1, puzzles: 0, log: [] });
 
 /** A seed entry (walkthrough-seed.json): a genre-free pattern from existing reasoning language. */
-export interface SeedEntry { name: string; template: string; when: string; concludes: string; primitives?: string[]; source?: string }
+export interface SeedEntry {
+  name: string; template: string; when: string; concludes: string; primitives?: string[]; source?: string;
+  /** the entry as a hint ladder, vaguest first: a genre-free nudge, then a question with slots (the hint test) */
+  ladder?: string[];
+}
 /** A library holding the seed's entries for one genre (ids S1, S2, …: kept apart from Opus's L ids;
  *  their text counts in the description length like any entry's). */
 export function seedLibrary(genre: string, seed: SeedEntry[]): Library {
@@ -332,3 +336,48 @@ export function descriptionLength(lib: Library, genre: string): { library: numbe
   for (const e of es) for (const x of e.examples) insights += choose + bitsGiven(x.idea, e.template);
   return { library, insights, total: library + insights };
 }
+
+// ---------- hints (walkthrough-hints.ts) ----------
+/** The cells a hint names, in any of the forms people write: "r3c4", "R3 C4", "row 3, column 4",
+ *  "(3,4)". Rows and columns count from 1; cells off the grid are left out. */
+export function cellsInText(text: string, rows: number, cols: number): number[] {
+  const out = new Set<number>();
+  const add = (r: number, c: number) => { if (r >= 1 && c >= 1 && r <= rows && c <= cols) out.add((r - 1) * cols + c - 1); };
+  for (const q of text.matchAll(/\br\s*(\d+)\s*,?\s*c\s*(\d+)/gi)) add(+q[1], +q[2]);
+  for (const q of text.matchAll(/\brow\s+(\d+)\s*,?\s*(?:and\s+)?col(?:umn)?\s+(\d+)/gi)) add(+q[1], +q[2]);
+  for (const q of text.matchAll(/\((\d+)\s*,\s*(\d+)\)/g)) add(+q[1], +q[2]);
+  return [...out].sort((a, b) => a - b);
+}
+
+/** Does a hint give the answer away? Per sentence: it pinpoints when it names a cell the next step
+ *  decides, and it leaks when the same sentence also uses a word for its value ("r3c4 must be a
+ *  bulb"; either polarity: "r3c4 can't be a bulb" gives "no bulb" away just as well). A heuristic (a value said in other words gets past it), so the report also shows hints to read. */
+export function hintLeak(text: string, targets: { cells: number[]; words: string[] }[], rows: number, cols: number): { pinpoint: boolean; leak: boolean } {
+  let pinpoint = false, leak = false;
+  for (const sentence of text.split(/(?<=[.!?;])\s+|\n+/)) {
+    const named = new Set(cellsInText(sentence, rows, cols)), low = sentence.toLowerCase();
+    for (const t of targets) {
+      if (!t.cells.some((c) => named.has(c))) continue;
+      pinpoint = true;
+      for (const word of t.words) {
+        const w = word.toLowerCase().trim().replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
+        if (w && new RegExp("(^|[^a-z0-9])" + w + "($|[^a-z0-9])").test(low)) leak = true;
+      }
+    }
+  }
+  return { pinpoint, leak };
+}
+
+/** What a student's move did: success (true, not known yet, and on the frontier: one step or a short
+ *  case split decides it now), correct (true but a leap from here: a guess that happened to be right,
+ *  or reasoning beyond the frontier), already (known), wrong, or none (stuck or unreadable). */
+export type MoveResult = "success" | "correct" | "already" | "wrong" | "none";
+export function scoreMove(mv: MV | null, truth: (m: string) => boolean, known: Set<string>, frontier: Set<string>): MoveResult {
+  if (!mv) return "none";
+  if (known.has(mv[0])) return truth(mv[0]) === mv[1] ? "already" : "wrong";
+  if (truth(mv[0]) !== mv[1]) return "wrong";
+  return frontier.has(mv[0]) ? "success" : "correct";
+}
+
+/** A progressive ladder: the rung (1-based) at which the student first succeeds, or rungs + 1. */
+export const rungsNeeded = (results: MoveResult[], rungs: number) => { const k = results.indexOf("success"); return k < 0 ? rungs + 1 : k + 1; };

@@ -2,8 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  absorb, along, applyRefactor, type Audit, cellsOfRefs, citation, clean, descriptionLength, emptyLibrary, feedback, firstIn3, gap,
-  type InsightCheck, type MenuStep, nearest, parseWalk, sameWalk, seedLibrary, spearman, type Walk,
+  absorb, along, applyRefactor, type Audit, cellsInText, cellsOfRefs, citation, clean, descriptionLength, emptyLibrary, feedback, firstIn3, gap,
+  hintLeak, type InsightCheck, type MenuStep, nearest, parseWalk, rungsNeeded, sameWalk, scoreMove, seedLibrary, spearman, type Walk,
 } from "./walkthrough-core.ts";
 
 const ins = (concludes: [string, string][], extra: object = {}) => ({ idea: "i", clues: [], technique: "t", hint: "h", concludes: concludes.map(([at, value]) => ({ at, value })), ...extra });
@@ -148,4 +148,39 @@ test("a seeded library: the seed's entries under S ids, counted in the descripti
   const used = absorb(lib, { insights: [ins([], { idea: "r2c3 is the only cell left that can light r2c5, so the bulb goes there", uses: "S1" })] }, "p1", "akari");
   assert.equal(used.entries[0].examples.length, 1);
   assert.equal(used.next, 1);   // Opus's own entries still start at L1
+});
+
+test("hints: the cells a hint names, and whether it gives the answer away", () => {
+  assert.deepEqual(cellsInText("Look at R3C4, then row 1, column 2 and (2,2); r9c9 is off the grid.", 3, 4), [1, 5, 11]);
+  const t = [{ cells: [5], words: ["bulb", "no bulb"] }];
+  assert.deepEqual(hintLeak("Look at row 2.", t, 3, 4), { pinpoint: false, leak: false });
+  assert.deepEqual(hintLeak("What lights r2c2?", t, 3, 4), { pinpoint: true, leak: false });
+  assert.deepEqual(hintLeak("Which cells can see r2c2? A bulb at r1c1 would see it.", t, 3, 4), { pinpoint: true, leak: false });
+  assert.deepEqual(hintLeak("So r2c2 can't hold a bulb.", t, 3, 4), { pinpoint: true, leak: true });
+  // a word inside another word isn't the value
+  assert.equal(hintLeak("r2c2 is in the bulbous corner", t, 3, 4).leak, false);
+  // digits: the number said beside the cell
+  assert.equal(hintLeak("r1c1 must be 4.", [{ cells: [0], words: ["4"] }], 3, 4).leak, true);
+  assert.equal(hintLeak("r1c1 sees 3 towers.", [{ cells: [0], words: ["4"] }], 3, 4).leak, false);
+});
+
+test("hints: a student's move, and the rungs a ladder needed", () => {
+  const truth = (m: string) => m !== "b", known = new Set(["k"]), frontier = new Set(["a"]);
+  assert.equal(scoreMove(["a", true], truth, known, frontier), "success");
+  assert.equal(scoreMove(["c", true], truth, known, frontier), "correct");
+  assert.equal(scoreMove(["b", true], truth, known, frontier), "wrong");
+  assert.equal(scoreMove(["k", true], truth, known, frontier), "already");
+  assert.equal(scoreMove(["k", false], truth, known, frontier), "wrong");
+  assert.equal(scoreMove(null, truth, known, frontier), "none");
+  assert.equal(rungsNeeded(["none", "wrong", "success"], 4), 3);
+  assert.equal(rungsNeeded(["none", "none", "none", "none"], 4), 5);
+});
+
+test("every seed entry has a ladder: a nudge without slots, then a question", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const e of JSON.parse(readFileSync(new URL("./walkthrough-seed.json", import.meta.url), "utf8")).entries) {
+    assert.equal(e.ladder?.length, 2, e.name);
+    assert.doesNotMatch(e.ladder[0], /\{/, e.name);
+    assert.match(e.ladder[1], /\?$/, e.name);
+  }
 });
