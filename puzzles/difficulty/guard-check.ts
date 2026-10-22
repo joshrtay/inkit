@@ -42,6 +42,13 @@ const SETTINGS = ([
   ["c200-finish-kbc", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_KNOWN_BY_CELL: "1" }],
   ["c200-finish-digits", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1" }, ["--games", "sudoku,skyscrapers"]],
   ["c200-finish-kbc-digits", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_KNOWN_BY_CELL: "1" }, ["--games", "sudoku,skyscrapers"]],
+  // Janko's Hidokus rated by Janko's level (input mapped to references/psjp): the default, the finish
+  // set, and the finish set reading a cell's known digits as one element, at 200 and 1,000 calls
+  ...["200", "1000"].flatMap((n) => [
+    [`hk${n}-default`, { DEDUCE_BUDGET_CALLS: n }, ["--games", "hidoku"]],
+    [`hk${n}-finish`, { DEDUCE_BUDGET_CALLS: n, DEDUCE_FINISH: "1" }, ["--games", "hidoku"]],
+    [`hk${n}-finish-kbc`, { DEDUCE_BUDGET_CALLS: n, DEDUCE_FINISH: "1", DEDUCE_KNOWN_BY_CELL: "1" }, ["--games", "hidoku"]],
+  ]),
   ["c200-joins", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "joins" }, ["--games", "cave,nurikabe"]],
   // Nurikabe stalls at 200 calls (nothing solves), so it's judged at 1,000
   ["n1000-baseline", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "nurikabe"]],
