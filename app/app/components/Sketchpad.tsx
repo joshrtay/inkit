@@ -67,6 +67,7 @@ const STAMPS: { id: StampKind; label: string; tip?: string }[] = [
   { id: "hoshi", label: "Hoshi dot" }, { id: "start", label: "Start" }, { id: "end", label: "End" }, { id: "crest", label: "Crest" },
   { id: "triangle", label: "Triangles" }, { id: "shape", label: "Shape" }, { id: "eraser", label: "Eraser symbol" },
   { id: "thermo", label: "Thermometer", tip: "Thermometer: drag from the bulb through the squares" },
+  { id: "whisper", label: "Whisper line", tip: "Whisper line (German Whispers): drag through the squares" },
   { id: "inequality", label: "Inequality", tip: "A < sign on a line, pointing at the smaller side" },
   { id: "palisade", label: "Palisade mark", tip: "Palisade: how many of the square's sides are borders" },
 ];
@@ -91,7 +92,7 @@ const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
   <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: stampSvg(s, 16, 16, ICON_SIZE[s.stamp] ?? 40) }} /></span>
 );
 /** The square a stamp's button draws it in (a shaded square fills it; the rest sit in it). */
-const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44, inequality: 60, palisade: 60, thermo: 44 };
+const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44, inequality: 60, palisade: 60, thermo: 44, whisper: 44 };
 /** The shape pad's size, in squares. */
 const PAD = 5;
 const cellsKey = (cells: RC[]) => JSON.stringify(m.normalCells(cells));
@@ -145,8 +146,8 @@ type Gesture =
   | { kind: "stamps"; on: boolean; seen: string[]; last: XY }
   /** squares dragged into an area: the first square's (letter), or a new one (null) */
   | { kind: "region"; letter: string | null; cells: [number, number][]; areas: string[]; last: XY }
-  /** a thermometer, dragged from its bulb through the squares */
-  | { kind: "thermo"; cells: [number, number][] }
+  /** a thermometer (or a whisper line), dragged from its bulb through the squares */
+  | { kind: "thermo"; cells: [number, number][]; line?: "whisper" }
   /** rubbing out: things (not gaps), or breaking grid lines (along level or upright ones), or mending them */
   | { kind: "erase"; last: XY; mode: "items" | "gap" | "mend"; side?: m.EdgeAt["side"] };
 
@@ -474,9 +475,9 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
         break;
       }
       case "stamp": {
-        if (stampKind === "thermo") {
+        if (stampKind === "thermo" || stampKind === "whisper") {
           const cell = m.cellAt(bg, p);
-          if (cell) { begin({ kind: "thermo", cells: [[cell.r, cell.c]] }); show(base); }
+          if (cell) { begin({ kind: "thermo", cells: [[cell.r, cell.c]], ...(stampKind === "whisper" ? { line: "whisper" as const } : {}) }); show(base); }
           break;
         }
         const at = m.stampAnchor(bg, p, stampKind, snapping), next = m.stamp(base, current(at));
@@ -571,7 +572,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
           const cell = m.cellAt(base.grid, q), mid = cell && m.pointOf(base.grid, cell);
           if (cell && mid && Math.hypot(mid.x - q.x, mid.y - q.y) < S * 0.38) gg.cells = m.thermoStep(gg.cells, cell.r, cell.c);
         }
-        show(gg.cells.length > 1 ? m.add(base, { kind: "thermo", cells: gg.cells }) : base);
+        show(gg.cells.length > 1 ? m.add(base, { kind: "thermo", cells: gg.cells, ...(gg.line ? { line: gg.line } : {}) }) : base);
         break;
       }
       case "erase": {
@@ -608,7 +609,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
       }
       case "pen": next = m.add(base, { kind: "pen", weight, points: m.penStroke(base.grid, gg.points, snapping) }); break;
       case "brush": next = m.add(base, { kind: "brush", color: wash, points: m.penStroke(base.grid, gg.points, false) }); break;
-      case "thermo": next = m.thermo(base, gg.cells); break;
+      case "thermo": next = m.thermo(base, gg.cells, gg.line); break;
       case "line": {
         const line = m.straightLine(base.grid, gg.from, p, snapping), a = m.pointOf(base.grid, line.from), b = m.pointOf(base.grid, line.to);
         next = Math.hypot(a.x - b.x, a.y - b.y) < 2 ? base : m.add(base, { kind: "line", weight, ...line });
@@ -654,7 +655,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
   const markup = (it: m.Item) => itemSvg(d, it);
   const ghost = (() => {
     if (!hover || gesture.current || typing) return "";
-    if (tool === "stamp" && stampKind === "thermo") {
+    if (tool === "stamp" && (stampKind === "thermo" || stampKind === "whisper")) {
       const at = m.cellAt(g, hover);
       if (at) { const q = m.pointOf(g, at); return `<circle class="spot" cx="${q.x}" cy="${q.y}" r="${S * 0.36}"/>`; }
       return "";
@@ -833,6 +834,7 @@ export function Sketchpad({ handle, onChange, actions, initial, kit = null, type
             <StampIcon s={{ stamp: "palisade", count: 2, opposite: true }} /><span>Opposite</span></button>}
         </>}
         {stampKind === "thermo" && <p className="sp-pal-note">Drag from the bulb through the squares. Tap a bulb to remove it.</p>}
+        {stampKind === "whisper" && <p className="sp-pal-note">Drag through the squares. Tap an end to remove it.</p>}
         {stampKind === "shape" && row("Shape", <>
           <span className="sp-shapes" role="group" aria-label="Shape">
             {SHAPES.map((x) => <button key={x.name} type="button" className="sp-btn sp-thumb" aria-pressed={cellsKey(x.cells) === cellsKey(pad)} aria-label={x.name} data-tip={x.name}

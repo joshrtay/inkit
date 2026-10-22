@@ -29,7 +29,7 @@ export interface Estimate {
 
 /** Clues per cell that's usual for a type (most givens are clues); anything not listed is 0.3. */
 const USUAL_DENSITY: Record<string, number> = {
-  sudoku: 0.38, "thermo-sudoku": 0.2, "irregular-sudoku": 0.35, akari: 0.25, masyu: 0.22, slitherlink: 0.45, nurikabe: 0.18,
+  sudoku: 0.38, "thermo-sudoku": 0.2, "german-whispers": 0.15, "irregular-sudoku": 0.35, akari: 0.25, masyu: 0.22, slitherlink: 0.45, nurikabe: 0.18,
   "star-battle": 0.02, hitori: 1, skyscrapers: 0.3, kakuro: 0.3, "spiral-galaxies": 0.15, numberlink: 0.2, shikaku: 0.15,
   hidoku: 0.3, fillomino: 0.4, minesweeper: 0.3, cave: 0.2, aquarium: 0.25, panel: 0.25,
 };

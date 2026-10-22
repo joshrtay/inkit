@@ -235,7 +235,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "simple-loop" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "simple-loop" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "german-whispers", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -441,6 +441,29 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
         thermos.push({ at: "cells", cells: path.map(at), kind: "thermo" });
       }
       const base: GridSpec = { genre, size: [rows, cols], givens: thermos };
+      const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: full.digit[i] }));
+      result = await narrow(base, full, pool);
+    } else if (genre === "german-whispers") {
+      // a full grid, whisper lines traced through digits far enough apart, then given digits until
+      // it's the only one
+      const base0: GridSpec = { genre, size: [rows, cols], givens: [] };
+      const full = await randomBoard(base0, "");
+      if (!full) continue;
+      const gap = Math.ceil(cols / 2), lines: Given[] = [], used = new Set<number>();
+      for (let t = 0; t < 60 && lines.length < Math.round(rows * 0.6); t++) {
+        let cur = Math.floor(rand() * rows * cols);
+        if (used.has(cur)) continue;
+        const path = [cur];
+        while (path.length < 6) {
+          const next = shuffle(near4(cur)).find((j) => !used.has(j) && !path.includes(j) && Math.abs(full.digit[j] - full.digit[cur]) >= gap);
+          if (next === undefined) break;
+          path.push(next); cur = next;
+        }
+        if (path.length < 3) continue;
+        path.forEach((i) => used.add(i));
+        lines.push({ at: "cells", cells: path.map(at), kind: "whisper" });
+      }
+      const base: GridSpec = { genre, size: [rows, cols], givens: lines };
       const pool: Given[] = Array.from({ length: rows * cols }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: full.digit[i] }));
       result = await narrow(base, full, pool);
     } else if (genre === "skyscrapers" || genre === "easy-as-abc") {

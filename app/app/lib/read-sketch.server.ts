@@ -51,6 +51,8 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   row 2r+1, col 2c+1; the line below cell (r, c) is row 2r+2; a corner is an even row and an even column.`,
   "thermo-sudoku": `thermo-sudoku (Thermo Sudoku): a sudoku (usually 6x6 or 9x9) with printed digits {kind: "number", value} and
   thermometers drawn through cells: {kind: "thermo", path: [cells from the bulb to the tip]}.`,
+  "german-whispers": `german-whispers (German Whispers): a sudoku (usually 6x6 or 9x9) with printed digits {kind: "number", value} and
+  green lines drawn through cells: {kind: "whisper", path: [cells from one end to the other]}.`,
   skyscrapers: `skyscrapers: an n x n grid with numbers outside it, beside rows and above / below columns: {kind: "skyscraper",
   value, cell: the cell next to the number, side: which side of that cell the number is on}. Printed digits inside are {kind: "number"}.`,
   "easy-as-abc": `easy-as-abc (Easy as ABC): letters outside the grid: {kind: "first", value: 1 for A, 2 for B..., cell: the cell next
@@ -190,6 +192,7 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   first: "a letter outside the grid (easy-as-abc): row, col of the cell next to it; value its side of that cell and the letter's number (A = 1), e.g. \"left 2\"",
   skyscraper: "a number outside the grid (skyscrapers): row, col of the cell next to it; value its side of that cell and the number, e.g. \"top 3\"",
   thermo: "a thermometer (thermo-sudoku): row, col of its bulb; value every cell from the bulb to the tip as row,col pairs, e.g. \"2,0 2,1 1,1\"",
+  whisper: "a green line through cells (german-whispers): row, col of one end; value every cell along it as row,col pairs, e.g. \"2,0 2,1 1,1\"",
   galaxy: "a galaxy circle (spiral-galaxies): row, col = its centre in half-cell steps (a cell's centre is 2r+1, 2c+1; even numbers are on lines); value \"\"",
   door: "an arrow at the outside edge (mazes, simple-path): row, col of the cell beside it; value that cell's side and in or out, e.g. \"top in\"",
   // panels: corners are 0..rows, 0..cols; a stretch of grid line is a corner and "right" / "below"
@@ -237,6 +240,7 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "first-seen": "a letter outside is the first one seen from that side (comes with easy-as-abc)",
   skyscrapers: "a number outside counts the buildings seen from there (comes with skyscrapers)",
   thermo: "digits rise from a thermometer's bulb to its tip (comes with thermo-sudoku)",
+  whispers: "neighbours on a green line differ by at least gap (half the largest digit, rounded up, if unset; comes with german-whispers)",
   "unshaded-connected": "the white cells form one connected group (comes with cave)",
   "shaded-to-edge": "every group of shaded cells touches the edge (comes with cave)",
   sight: "a number counts the white cells it sees in its row and column, itself included (comes with cave)",
@@ -650,7 +654,7 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
     case "pearl": return { at: "cell", cell, kind, value: v.includes("black") ? "black" : "white" };
     case "first": case "skyscraper": { const n = num(v); return side && n !== null ? { at: "edge", cell, side, kind, value: n } : null; }
     case "door": return side ? { at: "edge", cell, side, kind, role: v.includes("out") ? "out" : "in" } : null;
-    case "thermo": {
+    case "thermo": case "whisper": {
       const cells = [...v.matchAll(/(\d+)\s*,\s*(\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
       return cells.length > 1 ? { at: "cells", cells, kind } : null;
     }

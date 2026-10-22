@@ -112,6 +112,13 @@ export const genres = {
     rules: [{ rule: "galaxies" }],
     style: { palette: ["#4f9fdc", "#f2c23a", "#e2667a", "#6cbf7e", "#a77bd6", "#f29a52"] },
   },
+  // German Whispers: a sudoku whose green lines join digits far apart: neighbours on a line differ by
+  // at least half the largest digit, rounded up (5 on a 9×9, 3 on a 6×6)
+  "german-whispers": {
+    marks: ["digit"],
+    rules: [{ rule: "latin" }, { rule: "boxes" }, { rule: "whispers" }],
+    style: {},
+  },
   // Thermo Sudoku: a sudoku whose thermometers rise from the bulb
   "thermo-sudoku": {
     marks: ["digit"],
@@ -275,7 +282,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
   const grid = fig ? fig.grid : geometry === "hex" ? hexGrid(rows0, cols0) : geometry === "lattice" ? latticeGrid(rows0, cols0, pegCells) : squareGrid(rows0, cols0);
   const cellGivens = new Map<number, Given[]>(), borderGivens = new Map<number, Given[]>(), cornerGivens = new Map<number, Given[]>();
   const doors = new Map<number, "in" | "out">();
-  const edgeClues: Puzzle["edgeClues"] = [], thermos: number[][] = [], galaxies: [number, number][] = [];
+  const edgeClues: Puzzle["edgeClues"] = [], thermos: number[][] = [], whispers: number[][] = [], galaxies: [number, number][] = [];
   const rowRuns = new Map<number, number[]>(), colRuns = new Map<number, number[]>();
   const rowTotals = new Map<number, number>(), colTotals = new Map<number, number>();
   const blocked = new Set<number>(), walls = new Set<number>(), gaps = new Set<number>();
@@ -333,8 +340,8 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
         return grid.cell(r, c);
       });
       if (cells.length < 2 || g.cells.some(([r, c], k) => k > 0 && Math.max(Math.abs(r - g.cells[k - 1][0]), Math.abs(c - g.cells[k - 1][1])) !== 1))
-        throw new Error("a thermometer runs through two or more cells, each next to the one before");
-      thermos.push(cells);
+        throw new Error(`a ${g.kind === "whisper" ? "whisper line" : "thermometer"} runs through two or more cells, each next to the one before`);
+      (g.kind === "whisper" ? whispers : thermos).push(cells);
     } else if (g.at === "point") {
       const [y, x] = g.point;
       if (y < 1 || x < 1 || y > 2 * grid.rows - 1 || x > 2 * grid.cols - 1) throw new Error(`a galaxy centre must be inside the grid (${y},${x})`);
@@ -384,7 +391,7 @@ export function makePuzzle(spec: GridSpec, { unfinished = false }: { unfinished?
     spec, grid, cellGivens, borderGivens, cornerGivens, lineGivens, gaps, doors, rules, rowRuns, colRuns, rowTotals, colTotals, blocked, walls,
     digits: (rules.find((s) => s.rule === "letters")?.count as number | undefined) ?? (tiles ? tileCount(tiles) : fillIn ? symbols.length : (pathDigits || mexDigits || spec.size[1])),
     pegs, lengths,
-    blanks: rules.some((s) => s.rule === "letters") || !!tiles, edgeClues, thermos, galaxies,
+    blanks: rules.some((s) => s.rule === "letters") || !!tiles, edgeClues, thermos, whispers, galaxies,
     bank, areas: areasOf(spec, grid, unfinished), figure: fig?.pieces ?? null, hearts: spec.hearts ?? genre?.hearts ?? 0, marks,
     style, entries,
   };

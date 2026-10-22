@@ -190,6 +190,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const [bx, by] = center(t[0]);
     el("circle", { class: "thermo-bulb", cx: bx, cy: by, r: S * 0.36 }, gTint);
   }
+  // German Whispers lines: a green line under the digits
+  for (const w of p.whispers) el("polyline", { class: "whisper", points: w.map((i) => center(i).join(",")).join(" ") }, gTint);
   // galaxy centres
   for (const [y, x] of p.galaxies) el("circle", { class: "galaxy", cx: ML + (x * S) / 2, cy: MT + (y * S) / 2, r: 7 }, gGivens);
   // clues outside the grid, beside the row / column they look along

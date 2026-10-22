@@ -15,6 +15,7 @@ export const KIND_NAMES: Record<GenreName, string> = {
   minesweeper: "Minesweeper",
   "spiral-galaxies": "Spiral Galaxies",
   "thermo-sudoku": "Thermo Sudoku",
+  "german-whispers": "German Whispers",
   skyscrapers: "Skyscrapers",
   "easy-as-abc": "Easy as ABC",
   aquarium: "Aquarium",

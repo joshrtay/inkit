@@ -25,6 +25,7 @@ export type Given =
   | { at: "edge"; cell: RC; side: Side; kind: "door"; role: "in" | "out" }   // an opening in the outside edge, beside a cell (mazes)
   | { at: "edge"; cell: RC; side: Side; kind: "first" | "skyscraper"; value: number }   // outside the grid, looking in: the first letter seen (Easy as ABC) / how many buildings are seen (Skyscrapers)
   | { at: "cells"; cells: RC[]; kind: "thermo" }                              // a thermometer from its bulb (first cell) to its tip
+  | { at: "cells"; cells: RC[]; kind: "whisper" }                             // a German Whispers line: digits next to each other on it differ by at least the gap
   | { at: "point"; point: RC; kind: "galaxy" }                                // a galaxy centre in half-cell units: [2r+1, 2c+1] is a cell's centre, even numbers lie on lines
   | { at: "row" | "col"; index: number; kind: "runs"; value: number[] }      // nonogram clue beside a row / above a column
   | { at: "row" | "col"; index: number; kind: "total"; value: number }      // how many shaded cells in that row / column (Aquarium)
@@ -145,6 +146,8 @@ export interface Puzzle {
   edgeClues: { cell: number; side: Side; kind: "first" | "skyscraper"; value: number }[];
   /** thermometers, bulb first */
   thermos: number[][];
+  /** German Whispers lines, in order along the line */
+  whispers: number[][];
   /** galaxy centres, in half-cell units */
   galaxies: [number, number][];
   /** a digit puzzle whose cells may stay empty (Easy as ABC) */

@@ -125,6 +125,11 @@ export function thermoSvg(pts: XY[], S: number): string {
     + (pts[0] ? tag("circle", { class: "thermo-bulb", cx: pts[0].x, cy: pts[0].y, r: S * 0.36 }) : "");
 }
 
+/** A German Whispers line through these points, as the boards draw one (picture.ts): green. */
+export function whisperSvg(pts: XY[]): string {
+  return tag("polyline", { class: "whisper", points: pts.map((p) => `${f1(p.x)},${f1(p.y)}`).join(" ") });
+}
+
 /** Panes' < on a line, as the boards draw it (region-clues.ts): a small circle on the line with
  *  the sign in it, its point toward the smaller side. `toward`: which way it points. */
 function inequalitySvg(x: number, y: number, S: number, toward: XY): string {
@@ -164,6 +169,8 @@ export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "co
     case "palisade": return palisadeSvg(s.count ?? 2, !!s.opposite, x, y, S);
     // the button's picture: a short thermometer
     case "thermo": return thermoSvg([{ x: x - S * 0.2, y: y + S * 0.2 }, { x: x + S * 0.24, y: y - S * 0.24 }], S * 0.45).replace('class="thermo"', `class="thermo" style="stroke-width:${f1(S * 0.2)}"`);
+    // and a short green zigzag
+    case "whisper": return whisperSvg([{ x: x - S * 0.3, y: y + S * 0.2 }, { x: x - S * 0.1, y: y - S * 0.2 }, { x: x + S * 0.1, y: y + S * 0.2 }, { x: x + S * 0.3, y: y - S * 0.2 }]).replace('class="whisper"', `class="whisper" style="stroke-width:${f1(S * 0.12)}"`);
   }
 }
 
@@ -187,7 +194,7 @@ export function itemSvg(d: Drawing, it: Item): string {
       return tag("text", { class: `clue sp-text${it.small ? " small" : ""}${onDark(d, it) ? " on-rock" : ""}`, x: p.x, y: p.y + size * 0.06, style: `font-size:${f1(size)}px` }, esc(it.text));
     }
     case "gap": return "";   // the grid leaves it out (gridSvg)
-    case "thermo": return thermoSvg(it.cells.map(([r, c]) => at({ at: "cell", r, c })), S);
+    case "thermo": { const pts = it.cells.map(([r, c]) => at({ at: "cell", r, c })); return it.line === "whisper" ? whisperSvg(pts) : thermoSvg(pts, S); }
   }
 }
 

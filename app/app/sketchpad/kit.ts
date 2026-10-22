@@ -28,7 +28,7 @@ const MAKES: Record<Part, { tools?: Tool[]; stamps?: StampKind[] }> = {
   star: { stamps: ["crest"] }, triangle: { stamps: ["triangle"] }, shape: { stamps: ["shape"] }, eraser: { stamps: ["eraser"] },
   start: { stamps: ["start"] }, end: { stamps: ["end"] }, hexagon: { stamps: ["hoshi"] }, galaxy: { stamps: ["galaxy"] },
   twins: { stamps: ["diamond"] }, opposites: { stamps: ["open-diamond"] }, bank: { stamps: ["shape"] },
-  inequality: { stamps: ["inequality"] }, palisade: { stamps: ["palisade"] }, thermo: { stamps: ["thermo"] },
+  inequality: { stamps: ["inequality"] }, palisade: { stamps: ["palisade"] }, thermo: { stamps: ["thermo"] }, whisper: { stamps: ["whisper"] },
   wall: { tools: ["pen", "line"] }, door: { tools: ["pen", "line"] },
   // areas: their borders drawn, or squares dragged into an area (the Areas tool redraws the borders)
   areas: { tools: ["pen", "line", "region"] },
@@ -61,7 +61,7 @@ export function kitFor(genre: GenreName): Kit | null {
   // Twins and Triplets' numbers are tiles: stones, crests and triangles, not writing
   if (genre === "twins-and-triplets") { tools.delete("text"); ["stone", "crest", "triangle"].forEach((s) => stamps.add(s as StampKind)); }
   // a sudoku's areas are its boxes, which come with the grid; only Irregular Sudoku draws its own
-  if (genre === "sudoku" || genre === "thermo-sudoku") { tools.delete("pen"); tools.delete("line"); tools.delete("region"); }
+  if (genre === "sudoku" || genre === "thermo-sudoku" || genre === "german-whispers") { tools.delete("pen"); tools.delete("line"); tools.delete("region"); }
   if (stamps.size) tools.add("stamp");
   return { tools: TOOL_ORDER.filter((t) => tools.has(t)), stamps: [...stamps], colours: COLOURS[genre] ?? {}, look: profile.look ?? "lines" };
 }

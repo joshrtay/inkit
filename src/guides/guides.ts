@@ -19,6 +19,7 @@ const corner = (r: number, c: number, value: number): Given => ({ at: "corner", 
 const pearl = (r: number, c: number, value: "white" | "black"): Given => ({ at: "cell", cell: [r, c], kind: "pearl", value });
 const outside = (r: number, c: number, side: Side, kind: "first" | "skyscraper", value: number): Given => ({ at: "edge", cell: [r, c], side, kind, value });
 const thermo = (...cells: RC[]): Given => ({ at: "cells", cells, kind: "thermo" });
+const whisper = (...cells: RC[]): Given => ({ at: "cells", cells, kind: "whisper" });
 const galaxy = (y: number, x: number): Given => ({ at: "point", point: [y, x], kind: "galaxy" });
 const dots = (i: number, value: number[]): Given => ({ at: "cell", cell: [0, i], kind: "dots", value });
 const total = (at: "row" | "col", index: number, value: number): Given => ({ at, index, kind: "total", value });
@@ -618,6 +619,23 @@ export const guides: Record<GenreName, Guide> = {
     ],
     controls: "Tap a cell, then a number (or type it). Pencil adds small notes.",
     example: "thermo-sudoku/1.json",
+  },
+  "german-whispers": {
+    name: "German Whispers", aka: ["German Whispers Sudoku"], category: "Numbers", ink: "#2f7a4a",
+    summary: "A sudoku with green lines: digits next to each other on a line are far apart.",
+    origin: "German Whispers is a modern Sudoku variant whose green lines spread through online puzzle setters in the 2010s and 2020s; on a 9×9 grid, neighbours on a line differ by at least 5.",
+    credit: { note: "Its inventor isn't settled.", source: { label: "GMPuzzles", url: "https://www.gmpuzzles.com/blog/?p=34926" } },
+    rules: [
+      { text: "It's a sudoku: every row, column and box has each digit once.", checks: ["latin", "boxes"], pictures: [
+        { ok: true, note: "A sudoku", size: [4, 4], digits: ["1234", "3412", "2143", "4321"] },
+      ] },
+      { text: "Along a green line, digits next to each other differ by at least half the largest digit, rounded up: 2 on a 4×4, 3 on a 6×6, 5 on a 9×9.", checks: ["whispers"], pictures: [
+        { ok: true, note: "4, 1, 4", size: [4, 4], givens: [whisper([1, 1], [2, 1], [2, 2])], digits: ["1234", "3412", "2143", "4321"] },
+        { ok: false, note: "1 and 2: too close", size: [4, 4], givens: [whisper([0, 0], [0, 1])], digits: ["1234", "3412", "2143", "4321"] },
+      ] },
+    ],
+    controls: "Tap a cell, then a number (or type it). Pencil adds small notes.",
+    example: "german-whispers/1.json",
   },
   skyscrapers: {
     name: "Skyscrapers", aka: ["Towers"], category: "Numbers", ink: "#26398f",

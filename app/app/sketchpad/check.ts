@@ -142,6 +142,7 @@ const KIND_OF: Record<Problem["kind"], ItemKind> = { rule: "rule", incomplete: "
 function ruleTip(text: string, digits: string): string {
   if (/too big/.test(text)) return "Change it to one that fits, or erase it.";
   if (/thermometer/.test(text)) return "Digits rise from the bulb. Change or erase one.";
+  if (/green line/.test(text)) return "Neighbours on a green line are far apart. Change or erase one.";
   const where = /in row/.test(text) ? "row" : /in column/.test(text) ? "column" : /in a box/.test(text) ? "box" : /in an area/.test(text) ? "area" : /in a line/.test(text) ? "line" : "";
   return where ? `Each ${where} holds ${digits} once. Change or erase one.` : "Each can appear only once. Change or erase one.";
 }

@@ -90,6 +90,7 @@ export const PROFILES: Record<GenreName, Profile | null> = {
   minesweeper: { reads: ["number"] },
   "spiral-galaxies": { reads: ["galaxy"] },
   "thermo-sudoku": { reads: [...SUDOKU, "thermo"] },
+  "german-whispers": { reads: [...SUDOKU, "whisper"] },
   skyscrapers: { reads: ["number", "skyscraper"] },
   "easy-as-abc": { reads: ["number", "first"] },
   "irregular-sudoku": { reads: SUDOKU },
@@ -527,7 +528,7 @@ export const READERS: Record<Part, Reader | null> = {
   // the thermometer tool's; or a line through square centres, from the bulb (a stone at one end)
   thermo: (cx) => {
     for (const t of cx.each("thermo")) {
-      if (t.cells.length < 2 || !t.cells.every(([r, c]) => cx.inside(r, c))) continue;
+      if (t.line || t.cells.length < 2 || !t.cells.every(([r, c]) => cx.inside(r, c))) continue;
       cx.give({ at: "cells", cells: t.cells.map(([r, c]) => [r, c] as [number, number]), kind: "thermo" }, t.id);
     }
     for (const { s, part } of cx.parts("centres")) {
@@ -540,6 +541,18 @@ export const READERS: Record<Part, Reader | null> = {
       const bulb = first ?? last;
       if (bulb) cx.take(bulb.s.id);
       cx.give({ at: "cells", cells, kind: "thermo" }, s.id);
+    }
+  },
+  // the whisper tool's; or a line through square centres (no bulb: German Whispers' lines have no direction)
+  whisper: (cx) => {
+    for (const t of cx.each("thermo")) {
+      if (t.line !== "whisper" || t.cells.length < 2 || !t.cells.every(([r, c]) => cx.inside(r, c))) continue;
+      cx.give({ at: "cells", cells: t.cells.map(([r, c]) => [r, c] as [number, number]), kind: "whisper" }, t.id);
+    }
+    for (const { s, part } of cx.parts("centres")) {
+      if (!part.cells.every(([r, c]) => cx.inside(r, c))) continue;
+      cx.claim(s, part);
+      cx.give({ at: "cells", cells: part.cells, kind: "whisper" }, s.id);
     }
   },
   galaxy: (cx) => {
@@ -672,7 +685,7 @@ export const READERS: Record<Part, Reader | null> = {
 
 /** The order readers run in: where two could take an item, the first does. */
 const READ_ORDER: Part[] = [
-  "door", "compass", "thermo", "box-lines", "major-lines",
+  "door", "compass", "thermo", "whisper", "box-lines", "major-lines",
   "block", "number", "symbol", "palisade", "pearl", "dots", "peg", "square", "star", "triangle", "shape", "eraser",
   "wall", "areas", "twins", "opposites", "inequality", "difference", "count", "watchtower", "bank",
   "first", "skyscraper", "total", "runs", "galaxy", "start", "end", "hexagon", "gap", "color", "picture", "lengths", "entries",
@@ -685,7 +698,7 @@ const lineColor = (c: m.SymbolColor | undefined) => (c === "blue" || c === "yell
 const STAMP_WORDS: Record<m.StampKind, string> = {
   stone: "A stone", star: "A star", rock: "A shaded square", x: "An X", dot: "A dot", galaxy: "A circle", diamond: "A ◆", "open-diamond": "A ◇",
   hoshi: "A dot on the line", start: "A start", end: "An end", crest: "A crest", triangle: "A triangle", shape: "A shape", eraser: "An eraser",
-  inequality: "A < sign", palisade: "A palisade mark", thermo: "A thermometer",
+  inequality: "A < sign", palisade: "A palisade mark", thermo: "A thermometer", whisper: "A whisper line",
 };
 function words(it: m.Item): string {
   switch (it.kind) {
@@ -694,7 +707,7 @@ function words(it: m.Item): string {
     case "wash": case "brush": return "A wash";
     case "gap": return "A gap in a line";
     case "pen": case "line": return "A line";
-    case "thermo": return "A thermometer";
+    case "thermo": return it.line === "whisper" ? "A whisper line" : "A thermometer";
   }
 }
 

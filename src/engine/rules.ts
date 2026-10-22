@@ -128,6 +128,9 @@ const linesOf = (p: Puzzle) => {
     ...Array.from({ length: g.cols }, (_, c) => Array.from({ length: g.rows }, (_, r) => g.cell(r, c)))];
 };
 /** The cells of a row or column, from the side a clue outside the grid looks in from. */
+/** How far apart digits next to each other on a German Whispers line must be: the rule's own gap,
+ *  else half the largest digit, rounded up (5 on a 9×9, 3 on a 6×6). */
+export const whisperGap = (s: RuleSpec, p: Puzzle) => (typeof s.gap === "number" ? s.gap : Math.ceil(p.digits / 2));
 export const rayIn = (p: Puzzle, cell: number, side: string) => {
   const g = p.grid, [r, c] = g.rc(cell);
   return side === "left" ? Array.from({ length: g.cols }, (_, x) => g.cell(r, x)) : side === "right" ? Array.from({ length: g.cols }, (_, x) => g.cell(r, g.cols - 1 - x))
@@ -454,6 +457,15 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
         .map((t) => ({ message: "Digits must rise along a thermometer, from the bulb up.", cells: t }));
     },
     asp: (_s, p) => p.thermos.flatMap((t) => t.slice(1).map((i, k) => `:- digit(${t[k]},X), digit(${i},Y), Y <= X.`)).join("\n"),
+  },
+  whispers: {
+    describe: (s, p) => `Along a green line, digits next to each other differ by at least ${whisperGap(s, p)}.`,
+    check(s, p, b) {
+      const gap = whisperGap(s, p);
+      return p.whispers.filter((w) => w.some((i, k) => k > 0 && b.digit[i] && b.digit[w[k - 1]] && Math.abs(b.digit[i] - b.digit[w[k - 1]]) < gap))
+        .map((w) => ({ message: `Digits next to each other on a green line must differ by at least ${gap}.`, cells: w }));
+    },
+    asp: (s, p) => { const gap = whisperGap(s, p); return p.whispers.flatMap((w) => w.slice(1).map((i, k) => `:- digit(${w[k]},X), digit(${i},Y), |X-Y| < ${gap}.`)).join("\n"); },
   },
   latin: {
     describe: (_s, p) => `Fill every cell with a digit from 1 to ${p.digits}. Each row and each column has every digit once.`,

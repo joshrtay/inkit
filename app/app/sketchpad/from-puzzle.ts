@@ -278,6 +278,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
         break;
       }
       case "thermo": d = m.add(d, { kind: "thermo", cells: gv.cells.map(([r, c]) => [r, c] as [number, number]) }); break;
+      case "whisper": d = m.add(d, { kind: "thermo", line: "whisper", cells: gv.cells.map(([r, c]) => [r, c] as [number, number]) }); break;
       case "galaxy": {
         const [y, x] = gv.point, at: m.Anchor = y % 2 && x % 2 ? { at: "cell", r: (y - 1) / 2, c: (x - 1) / 2 }
           : !(y % 2) && !(x % 2) ? { at: "corner", r: y / 2, c: x / 2 }

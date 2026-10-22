@@ -119,6 +119,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     const [bx, by] = center(t[0]);
     out.tint += tag("circle", { class: "thermo-bulb", cx: bx, cy: by, r: S * 0.36 });
   }
+  for (const w of p.whispers) out.tint += tag("polyline", { class: "whisper", points: w.map((i) => center(i).join(",")).join(" ") });
   for (const [y, x] of p.galaxies) out.givens += tag("circle", { class: "galaxy", cx: ML + (x * S) / 2, cy: MT + (y * S) / 2, r: 7 });
   for (const c of p.edgeClues) {
     const [cx, cy] = center(c.cell), d = S / 2 + 18;
