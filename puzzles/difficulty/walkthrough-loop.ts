@@ -23,11 +23,12 @@
 //   node --no-warnings puzzles/difficulty/walkthrough-loop.ts sample lib [--genres a,b] [--train 25] [--test 10]
 //                                                                                    → lib/items.json
 //   node --no-warnings puzzles/difficulty/walkthrough-loop.ts calibrate <set> [--q 0.6]   → <set>/ceilings.json
-//   node --no-warnings puzzles/difficulty/walkthrough-loop.ts draft abc [--limit N]       → abc/draft.jsonl (paid)
-//   node --no-warnings puzzles/difficulty/walkthrough-loop.ts refine abc --arm A|B|C [--mode rounds|tools] [--rounds 4] [--limit N]
+//   node --no-warnings puzzles/difficulty/walkthrough-loop.ts draft abc [--limit N] [--library <file>|seed]  → abc/draft.jsonl (paid)
+//   node --no-warnings puzzles/difficulty/walkthrough-loop.ts refine abc --arm A|B|C [--mode rounds|tools] [--rounds 4] [--limit N] [--library …]
 //                                                                                    → abc/<mode>-<arm>.jsonl (paid)
-//   node --no-warnings puzzles/difficulty/walkthrough-loop.ts library <genre> --arm none|grow|frozen [--paradigm A] [--every 10] [--train-too]
-//                                                                                    → lib/<genre>-<arm>.jsonl, lib/<genre>-library.json (paid)
+//   node --no-warnings puzzles/difficulty/walkthrough-loop.ts library <genre> --arm none|grow|frozen|seeded|seeded-frozen|seed-only
+//     [--paradigm A] [--every 10] [--train-too]
+//                                                                                    → lib/<genre>-<arm>.jsonl, lib/<genre>-<grow|seeded>-library.json (paid)
 //   node --no-warnings puzzles/difficulty/walkthrough-loop.ts report <set> [--ceiling-q 0.4,0.6,0.8]  → <set>/report.md (free)
 //   node --no-warnings puzzles/difficulty/walkthrough-loop.ts show <set> <id> [--arm A]   (the prompt and, if run, the feedback)
 //   node --no-warnings puzzles/difficulty/walkthrough-loop.ts dry [akari/1,nurikabe/1]    (free: the whole loop on the repo's
@@ -51,7 +52,7 @@ import { draw, jankoOf, loadItems, markOf, moveForm, NAME, readJsonl, rules, VAL
 import {
   absorb, along, type Audit, applyRefactor, clean, citation, cellsOfRefs, descriptionLength, emptyLibrary, feedback, firstIn3, grounded,
   type Insight, type InsightCheck, type Library, libraryBlock, type MenuStep, minimal, nearest, type MV, type Paradigm, parseWalk, type RawMove,
-  type RefactorOp, sameWalk, sound, spearman, sufficient, type Walk,
+  type RefactorOp, sameWalk, type SeedEntry, seedLibrary, sound, spearman, sufficient, type Walk,
 } from "./walkthrough-core.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
@@ -509,7 +510,7 @@ async function runTool(ctx: Ctx, paradigm: Paradigm, ceiling: number, name: stri
   return "No such tool here.";
 }
 async function refineTools(ctx: Ctx, paradigm: Paradigm, ceiling: number): Promise<RoundRec[]> {
-  const prompt = `${promptOf(ctx)}\n\nYou can ask a careful reader with a solver while you write, through the tools. Use them as a person would test their ideas; when you are satisfied, reply with the final walkthrough as JSON only.`;
+  const prompt = `${promptOf(ctx, libFor(ctx.item.genre))}\n\nYou can ask a careful reader with a solver while you write, through the tools. Use them as a person would test their ideas; when you are satisfied, reply with the final walkthrough as JSON only.`;
   const turns: Turn[] = [{ role: "user", content: prompt }], tools = toolsFor(paradigm), calls: { name: string; input: unknown; out: string }[] = [];
   let cost = 0, text = "", finish = "";
   for (let k = 0; k <= TOOL_CALLS; k++) {
@@ -531,13 +532,22 @@ async function refineTools(ctx: Ctx, paradigm: Paradigm, ceiling: number): Promi
 }
 
 // ======== commands: draft, refine ========
+/** --library <file> (a library the library test saved, e.g. lib/akari-seeded-library-trained.json,
+ *  or "seed"): A/B/C written with that library in the prompt, fixed. The draft and every arm must
+ *  use the same one. */
+function libFor(genre: string): string | undefined {
+  const f = opt("--library", "");
+  if (!f) return undefined;
+  const lib: Library = f === "seed" ? seedLibrary(genre, loadSeed()) : JSON.parse(readFileSync(f.startsWith("/") ? f : `${OUT}${f}`, "utf8"));
+  return libraryBlock(lib, genre);
+}
 async function draftCmd(set: string) {
   const file = `${dir(set)}draft.jsonl`, done = new Set(readJsonl(file).filter((x) => x.rec.walk).map((x) => x.id));
   spent = readJsonl(file).reduce((s, x) => s + (x.rec.cost ?? 0), 0);
   let todo = loadSet(set).filter((it) => !done.has(it.id));
   if (argv.includes("--limit")) todo = todo.slice(0, num("--limit", 2));
   for (const it of todo) {
-    const ctx = await ctxOf(it), d = await draftOf(ctx, ceilingOf(set, it.genre)).catch((e) => { console.error(`${it.id}: ${(e as Error).message}`); return null; });
+    const ctx = await ctxOf(it), d = await draftOf(ctx, ceilingOf(set, it.genre), libFor(it.genre)).catch((e) => { console.error(`${it.id}: ${(e as Error).message}`); return null; });
     if (!d) { if (spent >= CAP) break; continue; }
     appendFileSync(file, JSON.stringify({ id: it.id, turns: d.turns, rec: d.rec, at: new Date().toISOString() }) + "\n");
     console.error(`${it.id}: ${d.rec.walk ? `${d.rec.walk.insights.length} insights` : "unparsed"}, $${d.rec.cost.toFixed(3)} (total $${spent.toFixed(2)})`);
@@ -557,7 +567,7 @@ async function refineCmd(set: string) {
       if (mode === "tools") recs = await refineTools(ctx, paradigm, ceiling);
       else {
         // every paradigm revises the same first draft
-        const d = drafts.get(it.id) ?? (await draftOf(ctx, ceiling));
+        const d = drafts.get(it.id) ?? (await draftOf(ctx, ceiling, libFor(it.genre)));
         recs = await refineRounds(ctx, paradigm, ceiling, { turns: d.turns, rec: d.rec }, rounds);
         if (drafts.has(it.id)) recs[0] = { ...recs[0], cost: 0 };   // the draft's cost is the draft's
       }
@@ -577,19 +587,24 @@ Refactor it so the library plus everything written with it gets shorter (now ${M
 
 Reply with JSON only: {"ops": [{"op": "merge", "ids": ["L1", "L4"], "into": {"name": "…", "template": "…", "when": "…", "concludes": "…"}} | {"op": "split", "id": "L2", "into": [{"name": "…", "template": "…", "when": "…", "concludes": "…", "examples": ["<item>#<k>"]}, …]} | {"op": "reword", "id": "L3", "template": "…"} | {"op": "drop", "id": "L5"}, …]}`;
 
+/** The library arms. none: no library. grow: empty, absorbing and refactoring. seeded: the same,
+ *  starting from the seed (walkthrough-seed.json). frozen, seeded-frozen: grow's or seeded's library
+ *  as it stood after the last training puzzle, fixed. seed-only: the seed, fixed. The frozen arms,
+ *  seed-only and none run on the test puzzles only (none on all with --train-too, for a learning
+ *  curve beside grow's). */
+const ARMS = ["none", "grow", "frozen", "seeded", "seeded-frozen", "seed-only"];
 async function libraryCmd(genre: string) {
   const arm = opt("--arm", "none"), paradigm = opt("--paradigm", "A") as Paradigm, every = num("--every", 10), rounds = num("--rounds", 4);
-  const libFile = `${dir("lib")}${genre}-library.json`, file = `${dir("lib")}${genre}-${arm}.jsonl`;
+  if (!ARMS.includes(arm)) throw new Error(`--arm is one of ${ARMS.join(", ")}`);
+  const base = arm.startsWith("seed") ? "seeded" : "grow", growing = arm === "grow" || arm === "seeded";
+  const libFile = `${dir("lib")}${genre}-${base}-library.json`, snap = `${dir("lib")}${genre}-${base}-library-trained.json`, file = `${dir("lib")}${genre}-${arm}.jsonl`;
   const rows = readJsonl(file), done = new Set(rows.map((x) => x.id));
   spent = rows.reduce((s, x) => s + x.cost, 0);
   const all = loadSet("lib").filter((it) => it.genre === genre).sort((a, b) => a.seq! - b.seq!);
-  // frozen: grow's library as it stood after the last training puzzle, on the test puzzles only;
-  // none: the test puzzles too, unless --train-too (a learning curve to set beside grow's)
-  const items = arm === "frozen" || (arm === "none" && !argv.includes("--train-too")) ? all.filter((it) => it.part === "test") : all;
-  let lib: Library = arm === "grow" && existsSync(libFile) ? JSON.parse(readFileSync(libFile, "utf8")) : emptyLibrary();
-  if (arm === "frozen") {
-    const snap = `${dir("lib")}${genre}-library-trained.json`;
-    if (!existsSync(snap)) throw new Error(`run grow over the training puzzles first (${snap})`);
+  const items = growing || (arm === "none" && argv.includes("--train-too")) ? all : all.filter((it) => it.part === "test");
+  let lib: Library = growing && existsSync(libFile) ? JSON.parse(readFileSync(libFile, "utf8")) : base === "seeded" ? seedLibrary(genre, loadSeed()) : emptyLibrary();
+  if (arm.endsWith("frozen")) {
+    if (!existsSync(snap)) throw new Error(`run ${base} over the training puzzles first (${snap})`);
     lib = JSON.parse(readFileSync(snap, "utf8"));
   }
   for (const it of items) {
@@ -601,20 +616,28 @@ async function libraryCmd(genre: string) {
       const recs = await refineRounds(ctx, paradigm, ceiling, d, rounds);
       const last = recs[recs.length - 1];
       let refactor: unknown = null;
-      if (arm === "grow" && last.walk) {
-        lib = absorb(lib, last.walk, it.id, genre);
-        if (lib.puzzles % every === 0) refactor = await refactorLib(lib, genre).then((r) => { lib = r.lib; return r.note; });
-        writeFileSync(libFile, JSON.stringify(lib, null, 1));
-        const lastTrain = all.filter((x) => x.part === "train").at(-1);
-        if (it.id === lastTrain?.id) writeFileSync(`${dir("lib")}${genre}-library-trained.json`, JSON.stringify(lib, null, 1));
+      // a fixed library still counts its uses (in a copy), so its description length can be compared
+      if (last.walk && arm !== "none") {
+        const next = absorb(lib, last.walk, it.id, genre);
+        if (growing) {
+          lib = next;
+          if (lib.puzzles % every === 0) refactor = await refactorLib(lib, genre).then((r) => { lib = r.lib; return r.note; });
+          writeFileSync(libFile, JSON.stringify(lib, null, 1));
+          if (it.id === all.filter((x) => x.part === "train").at(-1)?.id) writeFileSync(snap, JSON.stringify(lib, null, 1));
+        } else {
+          // fixed: new entries proposed are counted, not kept
+          lib = { ...next, entries: next.entries.filter((e) => lib.entries.some((x) => x.id === e.id)), next: lib.next };
+        }
       }
       const cost = recs.reduce((s, r) => s + r.cost, 0);
       const dl = arm === "none" ? null : descriptionLength(lib, genre);
-      appendFileSync(file, JSON.stringify({ id: it.id, arm, paradigm, part: it.part, seq: it.seq, ceiling, rounds: recs, cost, library: arm === "none" ? null : { size: lib.entries.filter((e) => e.genre === genre).length, dl }, refactor, at: new Date().toISOString() }) + "\n");
+      const proposed = last.walk?.insights.filter((i) => i.new_entry && !i.uses).length ?? 0;
+      appendFileSync(file, JSON.stringify({ id: it.id, arm, paradigm, part: it.part, seq: it.seq, ceiling, rounds: recs, cost, library: arm === "none" ? null : { size: lib.entries.filter((e) => e.genre === genre).length, dl, proposed }, refactor, at: new Date().toISOString() }) + "\n");
       console.error(`${it.id}: ${recs.length} round(s), ${last.audit?.verdict.clean ? "clean" : "not clean"}, library ${dl ? `${lib.entries.length} entries, ${Math.round(dl.total)} bits` : "none"}, $${cost.toFixed(3)} (total $${spent.toFixed(2)})`);
     } catch (e) { console.error(`${it.id}: ${(e as Error).message}`); if (/ledger/.test((e as Error).message)) break; }
   }
 }
+const loadSeed = () => JSON.parse(readFileSync(new URL("./walkthrough-seed.json", import.meta.url), "utf8")).entries as SeedEntry[];
 /** One refactor: Opus proposes, the description length decides (kept only if it doesn't grow). */
 async function refactorLib(lib: Library, genre: string): Promise<{ lib: Library; note: unknown }> {
   const before = descriptionLength(lib, genre).total;
@@ -704,7 +727,7 @@ async function report(set: string) {
   const items = new Map(loadSet(set).map((it) => [it.id, it]));
   const out: string[] = [`# Walkthrough loop: ${set}\n`];
   const runs: [string, any[]][] = set === "lib"
-    ? [...new Set([...items.values()].map((it) => it.genre))].flatMap((g) => ["none", "grow", "frozen"].map((a): [string, any[]] => [`${g} ${a}`, readJsonl(`${dir(set)}${g}-${a}.jsonl`)]))
+    ? [...new Set([...items.values()].map((it) => it.genre))].flatMap((g) => ARMS.map((a): [string, any[]] => [`${g} ${a}`, readJsonl(`${dir(set)}${g}-${a}.jsonl`)]))
     : [["draft", readJsonl(`${dir(set)}draft.jsonl`).map((x) => ({ id: x.id, rounds: [x.rec], cost: x.rec.cost, ceiling: ceilingOf(set, items.get(x.id)?.genre ?? "") }))],
       ...["rounds", "tools"].flatMap((m) => (["A", "B", "C"] as const).map((p): [string, any[]] => [`${m} ${p}`, readJsonl(`${dir(set)}${m}-${p}.jsonl`)]))];
   // the draft is audited here if no run has (draft.jsonl keeps only the reply)
@@ -745,11 +768,13 @@ async function quantileCeiling(set: string, genre: string, q: number): Promise<n
 }
 /** The library's own measures: growth, reuse, description length against step kinds as a library. */
 function libraryReport(items: LoopItem[]): string[] {
-  const out = ["## The library\n", "Reuse: share of insights naming an entry. DL: the library's two-part description length (bits) after each puzzle. Kinds baseline: the same insights written with the solver's step kinds as the library (each insight filed under its cheapest step's kind): if the learned library is no shorter, it is only renaming the solver's kinds.\n", "| genre | puzzles | entries | reuse, first third | reuse, last third | DL now | DL with step kinds | refactors kept |", "|---|---|---|---|---|---|---|---|"];
-  for (const g of new Set(items.map((it) => it.genre))) {
-    const rows = readJsonl(`${OUT}lib/${g}-grow.jsonl`);
+  const out = ["## The library\n", "Reuse: share of insights naming an entry. DL: the library's two-part description length (bits) after each puzzle. Kinds baseline: the same insights written with the solver's step kinds as the library (each insight filed under its cheapest step's kind): if the learned library is no shorter, it is only renaming the solver's kinds.\n", "| genre | arm | puzzles | entries (seed / Opus's) | reuse, first third | reuse, last third | seed entries used | DL now | DL with step kinds | refactors kept |", "|---|---|---|---|---|---|---|---|---|---|"];
+  for (const g of new Set(items.map((it) => it.genre))) for (const base of ["grow", "seeded"]) {
+    const rows = readJsonl(`${OUT}lib/${g}-${base}.jsonl`);
     if (!rows.length) continue;
-    const lib: Library = existsSync(`${OUT}lib/${g}-library.json`) ? JSON.parse(readFileSync(`${OUT}lib/${g}-library.json`, "utf8")) : emptyLibrary();
+    const f = `${OUT}lib/${g}-${base}-library.json`;
+    const lib: Library = existsSync(f) ? JSON.parse(readFileSync(f, "utf8")) : emptyLibrary();
+    const mine = lib.entries.filter((e) => e.genre === g), seeds = mine.filter((e) => e.id.startsWith("S"));
     const reuse = (rs: any[]) => { const ins = rs.flatMap((r) => r.rounds.at(-1).walk?.insights ?? []); return pct(ins.filter((i: Insight) => !!i.uses).length, ins.length); };
     const third = Math.max(1, Math.floor(rows.length / 3));
     // the kinds baseline: entries = step kinds, examples = each insight's idea under its first forced step's kind
@@ -765,18 +790,22 @@ function libraryReport(items: LoopItem[]): string[] {
       });
     }
     const kept = rows.filter((r) => r.refactor?.kept).length, tried = rows.filter((r) => r.refactor).length;
-    out.push(`| ${g} | ${rows.length} | ${lib.entries.filter((e) => e.genre === g).length} | ${reuse(rows.slice(0, third))} | ${reuse(rows.slice(-third))} | ${Math.round(descriptionLength(lib, g).total)} | ${Math.round(descriptionLength(kinds, g).total)} | ${kept} of ${tried} |`);
+    out.push(`| ${g} | ${base} | ${rows.length} | ${seeds.length} / ${mine.length - seeds.length} | ${reuse(rows.slice(0, third))} | ${reuse(rows.slice(-third))} | ${seeds.filter((e) => e.examples.length).length} of ${seeds.length} | ${Math.round(descriptionLength(lib, g).total)} | ${Math.round(descriptionLength(kinds, g).total)} | ${kept} of ${tried} |`);
   }
-  out.push("", "Known techniques: lib/known-sheet.md lists every entry beside the genre's named techniques (walkthrough-known.json) for a blind match.\n");
+  out.push("", "Known techniques: lib/known-sheet.md lists every entry Opus made (not the seed's) beside the genre's named techniques (walkthrough-known.json) for a blind match.\n");
   // the sheet for the rediscovery check
   const known = JSON.parse(readFileSync(new URL("./walkthrough-known.json", import.meta.url), "utf8")) as Record<string, { name: string; says: string }[]>;
+  const key = ["# Which library each sheet entry came from (don't open before matching)\n"];
   const sheet = ["# Library entries and known techniques\n", "Match each entry to a known technique (or none), without looking at which arm or puzzle it came from.\n"];
   for (const g of new Set(items.map((it) => it.genre))) {
-    const f = `${OUT}lib/${g}-library.json`;
-    if (!existsSync(f)) continue;
-    const lib: Library = JSON.parse(readFileSync(f, "utf8"));
-    sheet.push(`## ${g}\n`, "Known:", ...(known[g] ?? []).map((t, i) => `${i + 1}. **${t.name}**: ${t.says}`), "", "Entries (shuffled):", ...shuffled(lib.entries.filter((e) => e.genre === g), `${SEED} sheet ${g}`).map((e) => `- ${e.id}: ${e.template} (when ${e.when}; concludes ${e.concludes}; used ${e.examples.length}×)`), "");
+    // both libraries' entries in one shuffled list, renumbered, so the matcher can't tell the arms apart
+    const es = ["grow", "seeded"].flatMap((base) => { const f = `${OUT}lib/${g}-${base}-library.json`; return existsSync(f) ? (JSON.parse(readFileSync(f, "utf8")) as Library).entries.filter((e) => e.genre === g && !e.id.startsWith("S")).map((e) => ({ ...e, base })) : []; });
+    if (!es.length) continue;
+    const order = shuffled(es, `${SEED} sheet ${g}`);
+    sheet.push(`## ${g}\n`, "Known:", ...(known[g] ?? []).map((t, i) => `${i + 1}. **${t.name}**: ${t.says}`), "", "Entries (shuffled):", ...order.map((e, i) => `- E${i + 1}: ${e.template} (when ${e.when}; concludes ${e.concludes}; used ${e.examples.length}×)`), "");
+    key.push(`## ${g}`, ...order.map((e, i) => `- E${i + 1}: ${e.base} ${e.id}`), "");
   }
+  writeFileSync(`${OUT}lib/known-sheet-key.md`, key.join("\n"));
   writeFileSync(`${OUT}lib/known-sheet.md`, sheet.join("\n"));
   return out;
 }

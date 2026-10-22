@@ -4,7 +4,7 @@
 `puzzles/difficulty/walkthrough-loop.ts` (the loop, the solver's checks, the commands),
 `puzzles/difficulty/walkthrough-core.ts` (the format, the feedback, the measures, the library;
 tested in `walkthrough-core.test.ts`), `puzzles/difficulty/walkthrough-known.json` (named techniques
-for the rediscovery check), and a `ceiling` option in `deduce.ts`. It builds on the walkthrough
+for the rediscovery check), `puzzles/difficulty/walkthrough-seed.json` (the seed library), and a `ceiling` option in `deduce.ts`. It builds on the walkthrough
 pilot (`research-opus-walkthroughs.md`, `opus-walkthrough.ts`).
 
 ## The idea
@@ -21,6 +21,12 @@ explanation is (so "complete and elegant" can be checked), how Opus and the solv
 much the solver may say before the walkthrough stops being Opus's (human-like) and becomes the
 solver's. A fourth question rides on it: can Opus build up reusable insights across puzzles? That
 one gets its own controlled test.
+
+**The order of work** (Josh, 2026-10-22): the library test runs first. A reusable, minimal set of
+insights has to exist before it's worth tuning how the solver talks to Opus, and the library test
+needs only the audit and one fixed paradigm (A), not A/B/C's answer. It also shows early whether
+the loop converges at all. A/B/C then runs with the best library frozen into the prompt (or none,
+if the library test fails), so its walkthroughs are written in the library's terms.
 
 ## What a good explanation is
 
@@ -140,6 +146,31 @@ feedback (a better library might just mean better refinement) and with puzzle or
 might simply be easier). So the library test holds everything else fixed: one paradigm, one puzzle
 sequence, one ceiling, the same rounds, and varies only the library.
 
+**Reasoning language that already exists: the seed.** People have named a lot of reasoning
+already, and the test should find out whether that is enough before crediting Opus with
+inventing anything:
+
+- *Puzzles*: Sudoku's technique ladder (singles, locked subsets, pointing and claiming, X-Wing and
+  fish, chains), with ratings built on it (Sudoku Explainer, HoDoKu); Nikoli's and the puzzle
+  communities' technique pages per genre; Tatham's solvers, which grade deductions by level; our
+  own guides (`src/guides/guides.ts`), with rules and worked examples per genre.
+- *Logic and constraint solving*: unit propagation, Hall's theorem (a locked subset is k places for
+  k values), implication chains (Sudoku's alternating inference chains are strong and weak links in
+  an implication graph), proof by cases, proof by contradiction, uniqueness arguments.
+- *Mathematical problem solving*: Pólya's heuristics, and Engel's strategies (invariants and parity,
+  pigeonhole, the extremal principle, colouring, double counting).
+- *Our solver*: the type-free rule primitives (`signatures.ts`: count, each-once, pattern,
+  connect, size, sum, sight, order), which Phase 1 showed already cover single moves.
+
+`walkthrough-seed.json` turns these into 20 **genre-free** entries (only place, only option,
+saturated, satisfied, locked subset, intersection, cover and rows, forbidden pattern, must connect,
+cut off, out of reach, no early loop, dead end, parity, extremes first, counting both ways, chain,
+try and fail, both cases agree, one solution), each with its source and the primitives it rests on.
+The seed is genre-free on purpose: genre techniques people have named (corner 3, adjacent 3s, clue
+N) stay out of it, so the rediscovery check still asks whether Opus can turn general reasoning
+into the genre techniques people use. The seed's text counts in the description length like any
+entry's, so a seeded library has to earn its own bits.
+
 **The arms** (`library <genre> --arm …`), per genre:
 
 - **none**: no library. The control.
@@ -151,6 +182,17 @@ sequence, one ceiling, the same rounds, and varies only the library.
   drops rarely used ones. A refactor is kept only if it doesn't increase the description length.
 - **frozen**: grow's library as it stood after the last training puzzle, fixed, on the held-out
   puzzles. This is the transfer test: does a library learned on some puzzles help on new ones?
+- **seed-only**: the seed, fixed, on the held-out puzzles. Is existing reasoning language enough
+  by itself?
+- **seeded**: grow, but starting from the seed. What does Opus add to existing language, and does
+  it specialise the general patterns into genre techniques?
+- **seeded-frozen**: seeded's library after training, fixed, on the held-out puzzles.
+
+The comparisons that answer the questions: seed-only against none (does existing language help?),
+frozen against none (does a learned one?), seeded-frozen against seed-only and against frozen (is
+existing language plus learning better than either?). A fixed library still records which entries
+were used and which insights proposed a new one, so the description length and the share of
+insights the library couldn't express are comparable across arms.
 
 **The sequence.** Whole Janko puzzles from the empty grid (side ≤ 8), so the person's whole
 recorded order is there for alignment and the walkthroughs cover whole solves. Per genre, 25
@@ -203,15 +245,15 @@ grain.
 
 The pilot's 20 states gave first-move intervals of about ±20 points: too noisy to separate arms.
 
+- **Library (first): 3 genres × (25 training + 10 held-out)**. Thirty paired held-out puzzles per
+  comparison detect only large effects on clean rate (about 20 points); the library's own measures
+  (reuse, description length over the sequence, rediscovery) carry more of the weight. If the first
+  genre shows signal, the held-out set grows to 25 per genre.
 - **A/B/C: 100 Janko states** (14 types, about 7 each, ≤ 100 cells, 8–60 of the person's moves still
   to come; `sample abc`). Every arm revises the same draft on the same states, so comparisons are
   paired by state with a bootstrap. First-move rates get about ±10 points; the along-the-way hit
   rate, pooled over about 2,000 moves but clustered by state, roughly ±4 points on a paired
   difference. The first 30 states run as stage 1 and their spread sets the final n.
-- **Library: 3 genres × (25 training + 10 held-out)**. Thirty paired held-out puzzles per comparison
-  detect only large effects on clean rate (about 20 points); the library's own measures (reuse,
-  description length over the sequence, rediscovery) carry more of the weight. If the first genre
-  shows signal, the held-out set grows to 25 per genre.
 
 ## Costs
 
@@ -222,33 +264,36 @@ writes a whole walkthrough, so about $0.20–0.30. Estimates (to be replaced by 
 | stage | what | estimate |
 |---|---|---|
 | 0 | dry run on the repo's example puzzles, the solver standing in for Opus | free (done) |
-| 1 | 30 states: draft, then rounds A, B, C (about 2 revisions each) | ~$50 |
-| 2 | the other 70 states, same arms | ~$120 |
-| 3 | tool use, A and the better of B and C, 50 states | ~$80 |
-| 4 | library, first genre: grow over 25 training puzzles, then none and frozen on 10 held-out | ~$45 |
-| 5 | library, two more genres | ~$90 |
+| 1 | library, first genre (Akari): grow and seeded over 25 training + 10 held-out puzzles; none, frozen, seed-only and seeded-frozen on the 10 held-out | ~$90 |
+| 2 | library, two more genres | ~$180 |
+| 3 | A/B/C, 30 states, the best library frozen in: draft, then rounds A, B, C (about 2 revisions each) | ~$50 |
+| 4 | the other 70 states, same arms | ~$120 |
+| 5 | tool use, A and the better of B and C, 50 states | ~$80 |
 
-About $385 if every stage runs; each stage needs Josh's OK. `LOOP_CAP` (default $25) stops any one
+About $520 if every stage runs (dropping seeded-frozen saves about $8 a genre); each stage needs Josh's OK. `LOOP_CAP` (default $25) stops any one
 command before its ledger would pass it. The cloud environment has no Anthropic key yet (the
 OpenRouter credit ran out during the pilot); tool use needs the Anthropic key.
 
 ## Stop rules
 
-- **After stage 1.** (a) The loop must converge: in at least one arm, half the states clean within
-  4 revisions. If not, the check or the prompt is wrong; fix before spending more. (b) Refinement
-  must buy something: at least one arm 15 points above the draft on clean rate. If not, stop; the
-  pilot's drafts are as good as it gets.
+- **The loop must converge** (checked in stage 1, on the library runs, with paradigm A): half the
+  puzzles clean within 4 revisions. If not, the check or the prompt is wrong; fix before spending
+  more.
+- **After stage 3** (A/B/C's first 30 states): refinement must buy something, at least one arm 15
+  points above the draft on clean rate. If not, stop; the drafts are as good as it gets.
 - **The human-shape guard** (any stage). An arm whose along-the-way rate is below the draft's by
   more than 3 points, with the paired interval excluding zero, has lost the human shape; its
   walkthroughs aren't used for training, whatever their clean rate.
-- **Tool use** runs only if rounds pass stage 1.
-- **Library, after the first genre's training sequence** (about $30): stop if reuse in the last
-  third of the sequence is under 20%, or the description length per insight isn't falling, or the
-  learned library saves under 5% against both no library and the step-kinds library (Phase 1's
-  stop rule, carried over).
-- **Library success**: frozen beats none on the held-out puzzles (fewer words or insights at an
-  equal or better clean rate, alignment within the guard), and at least 3 entries per genre match
-  named techniques blind, with no unsound entry among the most used.
+- **Tool use** runs only if rounds pass stage 3.
+- **Library, after the first genre** (stage 1): stop the learned arms if reuse in the last third of
+  the sequence is under 20%, or the description length per insight isn't falling, or the learned
+  library saves under 5% against both no library and the step-kinds library (Phase 1's stop rule,
+  carried over). If seed-only does as well as frozen and seeded-frozen, existing language is
+  enough: keep the seed, skip library learning, and go on to A/B/C with the seed.
+- **Library success**: a library arm beats none on the held-out puzzles (fewer words or insights at
+  an equal or better clean rate, alignment within the guard), and at least 3 entries per genre that
+  Opus made match named techniques blind, with no unsound entry among the most used. The winning
+  arm's library is the one A/B/C uses.
 
 ## What gets trained on the result, later
 
@@ -265,14 +310,15 @@ Not part of this plan's spending, but what it feeds:
 ## The code
 
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts dry                      (free, the whole loop with a stand-in)
+    node --no-warnings puzzles/difficulty/walkthrough-loop.ts sample lib --genres akari,slitherlink,skyscrapers --train 25 --test 10
+    node --no-warnings puzzles/difficulty/walkthrough-loop.ts calibrate lib
+    node --no-warnings puzzles/difficulty/walkthrough-loop.ts library akari --arm grow (paid; then seeded, none, frozen, seed-only, seeded-frozen)
+    node --no-warnings puzzles/difficulty/walkthrough-loop.ts report lib
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts sample abc --n 100
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts calibrate abc
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts draft abc --limit 30     (paid)
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts refine abc --arm A       (paid; B, C; --mode tools)
     node --no-warnings puzzles/difficulty/walkthrough-loop.ts report abc --ceiling-q 0.4,0.8
-    node --no-warnings puzzles/difficulty/walkthrough-loop.ts sample lib --genres akari,slitherlink,skyscrapers --train 25 --test 10
-    node --no-warnings puzzles/difficulty/walkthrough-loop.ts library akari --arm grow (paid; then none, frozen)
-    node --no-warnings puzzles/difficulty/walkthrough-loop.ts report lib
 
 Everything goes to `references/ml/walkloop/` (local only: the puzzles are Janko's) and the bucket.
 

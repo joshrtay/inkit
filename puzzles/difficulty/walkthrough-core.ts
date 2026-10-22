@@ -241,6 +241,17 @@ export interface Entry {
 export interface Library { entries: Entry[]; free: (Entry["examples"][number] & { genre: string })[]; next: number; puzzles: number; log: string[] }
 export const emptyLibrary = (): Library => ({ entries: [], free: [], next: 1, puzzles: 0, log: [] });
 
+/** A seed entry (walkthrough-seed.json): a genre-free pattern from existing reasoning language. */
+export interface SeedEntry { name: string; template: string; when: string; concludes: string; primitives?: string[]; source?: string }
+/** A library holding the seed's entries for one genre (ids S1, S2, …: kept apart from Opus's L ids;
+ *  their text counts in the description length like any entry's). */
+export function seedLibrary(genre: string, seed: SeedEntry[]): Library {
+  const lib = emptyLibrary();
+  lib.entries = seed.map((e, i) => ({ id: `S${i + 1}`, genre, name: e.name, template: e.template, when: e.when, concludes: e.concludes, examples: [], born: -1 }));
+  lib.log.push(`seeded with ${seed.length} entries`);
+  return lib;
+}
+
 /** The library as the prompt shows it: the genre's entries, most used first, at most `cap`. */
 export function libraryBlock(lib: Library, genre: string, cap = 40): string {
   const es = lib.entries.filter((e) => e.genre === genre).sort((a, b) => b.examples.length - a.examples.length || a.born - b.born).slice(0, cap);

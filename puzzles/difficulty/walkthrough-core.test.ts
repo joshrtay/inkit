@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   absorb, along, applyRefactor, type Audit, cellsOfRefs, citation, clean, descriptionLength, emptyLibrary, feedback, firstIn3, gap,
-  type InsightCheck, type MenuStep, nearest, parseWalk, sameWalk, spearman, type Walk,
+  type InsightCheck, type MenuStep, nearest, parseWalk, sameWalk, seedLibrary, spearman, type Walk,
 } from "./walkthrough-core.ts";
 
 const ins = (concludes: [string, string][], extra: object = {}) => ({ idea: "i", clues: [], technique: "t", hint: "h", concludes: concludes.map(([at, value]) => ({ at, value })), ...extra });
@@ -135,4 +135,17 @@ test("the library: absorb, refactor, description length", () => {
     { name: "b", template: "b", when: "", concludes: "", examples: ["p3#1"] },
   ] }]).lib;
   assert.deepEqual(split.entries.map((e) => e.examples.length), [2, 1]);
+});
+
+test("a seeded library: the seed's entries under S ids, counted in the description length, reusable", async () => {
+  const { readFileSync } = await import("node:fs");
+  const seed = JSON.parse(readFileSync(new URL("./walkthrough-seed.json", import.meta.url), "utf8")).entries;
+  const lib = seedLibrary("akari", seed);
+  assert.equal(lib.entries.length, seed.length);
+  assert.equal(lib.entries[0].id, "S1");
+  assert.ok(descriptionLength(lib, "akari").library > 0);
+  assert.equal(descriptionLength(lib, "nurikabe").library, 0);
+  const used = absorb(lib, { insights: [ins([], { idea: "r2c3 is the only cell left that can light r2c5, so the bulb goes there", uses: "S1" })] }, "p1", "akari");
+  assert.equal(used.entries[0].examples.length, 1);
+  assert.equal(used.next, 1);   // Opus's own entries still start at L1
 });
