@@ -210,7 +210,8 @@ export interface Options {
   /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
    *  mark from everything every stage's windows find, under the move model, and takes the cheapest
    *  step deciding it; an empty menu takes the usual case split (or, with none, the fact the least search proves). `samples` solves from the
-   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`).
+   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`, and
+   *  `open`, the marks undecided at the start: a stopped solve settled its facts' share of them).
    *  For other policies (reward-compare.ts): `pick: "max"` takes the model's likeliest mark instead
    *  of sampling (a policy as a reward to maximise), `score` also gives each move's probability
    *  under a second model (`sim.ps`: how human the policy's move was), and `noSplits` stops at an
@@ -521,7 +522,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean; open: number }[] }> {
   const budgetCalls = opts.budgetCalls ?? (process.env.DEDUCE_BUDGET_CALLS ? Number(process.env.DEDUCE_BUDGET_CALLS) : undefined);
   const t0 = Date.now(), budget = opts.budgetMs ?? (budgetCalls !== undefined ? 90000 : 20000);
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
@@ -2806,7 +2807,7 @@ end
     };
     const kindOf = (st: Step) => [...new Set((st.because?.clues ?? []).map((x) => x.split(" (")[0]))].sort().join("+");
     const start: SNode = { known: Int8Array.from(known), g: 0, peak: 0, steps: [], open: undecided, depth: 0 };
-    const sims: { path: Step[]; solved: boolean }[] = [];
+    const sims: { path: Step[]; solved: boolean; open: number }[] = [];
     for (let k = 0; k < samples && !outOfTime; k++) {
       restore(start);
       const steps: Step[] = [];
@@ -2864,7 +2865,7 @@ end
         prev = centre(st.cells);
       }
       if (stuck) notes.push("simulate: stuck, no case split or search proves a fact");
-      sims.push({ path: steps, solved: undecided === 0 });
+      sims.push({ path: steps, solved: undecided === 0, open: start.open });
     }
     if (outOfTime) notes.push(`out of time after ${budget} ms`);
     return { path: [], sims, profile: profileOf([], false, 0, round, Date.now() - t0, calls, [...new Set(notes)]), initial };

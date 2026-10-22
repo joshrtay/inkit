@@ -27,6 +27,7 @@ function markup(l: Layout) {
   const pad = l.digits
     ? `<div class="paper-bar pad" role="group" aria-label="Digits"><div class="group">${keys}</div>
        <div class="group"><button class="word" data-pencil type="button" aria-pressed="false" title="Pencil notes (P)">pencil</button>
+       <button class="word" data-auto type="button" aria-pressed="false" title="Auto-notes: every square's possible digits, kept up (A)">auto</button>
        <button class="word" data-digit="0" type="button" title="Erase (Backspace)">erase</button></div></div>`
     : "";
   const sign = l.title

@@ -67,7 +67,7 @@ cut(L) :- adj(I,J,L), blocked(I), not blocked(J).
     out.push(p.marks.includes("regions")
       ? "open(I) :- cell(I), not blocked(I).\nconn(I,J) :- adj(I,J,L), not cut(L), open(I), open(J)."
       : linesCut(p) ? "open(I) :- cell(I).\nconn(I,J) :- adj(I,J,L), lb(L,B), not fence(B)."
-      : "open(I) :- cell(I), not shaded(I).\nconn(I,J) :- adj(I,J,_), open(I), open(J).");
+      : "open(I) :- cell(I), not shaded(I), not blocked(I).\nconn(I,J) :- adj(I,J,_), open(I), open(J).");
     out.push(`
 reach(I,I) :- open(I).
 reach(I,K) :- reach(I,J), conn(J,K)${bound ? ", near(I,K)" : ""}.${bound ? "\n:- reach(I,J), conn(J,K), not near(I,K).   % no region is that big" : ""}

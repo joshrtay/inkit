@@ -14,8 +14,15 @@
 # The model is fitted on the games step 2 ran first (FITTED); --new scores it, frozen, on every other
 # type in the rows: types it never saw, rated by the same sources.
 #
-#   python3 puzzles/difficulty/sim_fit.py [--save] [--new]
-# --save writes the model fitted on every FITTED type to puzzles/difficulty/sim-fit.json.
+#   python3 puzzles/difficulty/sim_fit.py [--save] [--new] [--logic]
+# --save writes the model fitted on every FITTED type to puzzles/difficulty/sim-fit.json: with
+# --logic, the solver's features and the logic share only (the score in use since 2026-10-21; the
+# simulated person's features added nothing on new games), otherwise solver + sim.
+# --logic adds the share of the puzzle logic without case splits settles (sim-difficulty.ts logic,
+# rows in references/sim-logic/, and references/sim-logic-long/ in their place where present: the
+# types that hit the 120 s budget, rerun at 600 s), keeps only the puzzles that have it, fits it beside the solver's
+# features and both, and adds two checks: how much of it the solver's features already carry, and
+# how every score does on the puzzles whose solves don't finish (where the costs are cut off).
 import glob, json, math, os, sys
 import numpy as np
 
@@ -24,6 +31,13 @@ ROWS = os.path.join(HERE, "../../references/sim-difficulty/")
 SIM = ["costSum", "costPeak", "h", "surprisal", "lse", "dist", "steps", "splits"]
 SOLVER = ["estimate", "costSum", "costPeak", "steps", "splits"]
 FEATS = [f"sim {k}" for k in SIM] + [f"solver {k}" for k in SOLVER]
+LOGIC = "--logic" in sys.argv
+if LOGIC: FEATS.append("logic settled")
+logic = {}
+for f in [f for d in ["sim-logic", "sim-logic-long"] for f in sorted(glob.glob(os.path.join(HERE, f"../../references/{d}/*.jsonl")))]:
+    for line in open(f):
+        r = json.loads(line)
+        if isinstance(r.get("logic"), dict): logic[(r["set"], r["type"], r["id"])] = r["logic"]
 FITTED = {"psjp": ["akari", "hitori", "masyu", "simple-loop", "slitherlink"], "tatham": ["lightup", "loopy", "singles"]}
 def fitted(g):
     src, t = g.split(" ")
@@ -54,6 +68,10 @@ for f in sorted(glob.glob(ROWS + "*.jsonl")):
         r = json.loads(line)
         if not isinstance(r.get("sims"), list) or not r["sims"] or not isinstance(r.get("solver"), dict): continue
         x = [np.mean([s[k] for s in r["sims"]]) for k in SIM] + [r["solver"][k] for k in SOLVER]
+        if LOGIC:
+            l = logic.get((r["set"], r["type"], r["id"]))
+            if not l: continue
+            x.append(l["settled"])
         types.setdefault(f"{r['set']} {r['type']}", []).append((r["id"], x, r["rated"]))
         # whether both solves finished: an unfinished solve's costs are cut off, a floor, not a measure
         finished.setdefault(f"{r['set']} {r['type']}", []).append(all(q["solved"] for q in r["sims"]) and bool(r["solver"].get("solved")))
@@ -84,7 +102,11 @@ base = lambda g, keep, k: spearman(data[g][0][keep, FEATS.index(k)], np.array(da
 def both(g, keep):
     X = data[g][0][keep]; return spearman(rank(X[:, FEATS.index("sim costSum")]) + rank(X[:, FEATS.index("solver estimate")]), np.array(data[g][2])[keep])
 
-SETS = {"both": FEATS, "solver": [f for f in FEATS if f.startswith("solver")], "sim": [f for f in FEATS if f.startswith("sim")]}
+SETS = {"both": [f for f in FEATS if not f.startswith("logic")], "solver": [f for f in FEATS if f.startswith("solver")], "sim": [f for f in FEATS if f.startswith("sim")]}
+if LOGIC: SETS.update({"logic": ["logic settled"], "solver + logic": SETS["solver"] + ["logic settled"], "both + logic": FEATS})
+LABEL = {"both": "fitted: both", "solver": "fitted: solver only", "sim": "fitted: sim only", "logic": "logic share alone (fitted sign)",
+         "solver + logic": "fitted: solver + logic", "both + logic": "fitted: both + logic"}
+FITS = ["solver", "sim", "both"] + (["logic", "solver + logic", "both + logic"] if LOGIC else [])
 def heldout_half(cols, lam=1.0):
     """per type, each half scored by the model fitted on the other halves of every type"""
     j = [FEATS.index(c) for c in cols]; out = {}
@@ -107,27 +129,29 @@ for g in sorted(data):
     rho_new = spearman(data[g][0] @ fit(others, lam), data[g][2])
     allk = np.ones(len(ids), bool)
     rows.append((g, len(ids), base(g, allk, "solver estimate"), base(g, allk, "sim costSum"), both(g, allk),
-                 spearman(held["solver"][g], data[g][2]), spearman(held["sim"][g], data[g][2]), spearman(held["both"][g], data[g][2]), rho_new))
+                 *[spearman(held[k][g], data[g][2]) for k in FITS], rho_new))
 
-print("| set and type | n | solver's estimate | simulated cost | ranks averaged | fitted: solver only | fitted: sim only | fitted: both | both, type held out |")
-print("|---|---|---|---|---|---|---|---|---|")
+head = ["solver's estimate", "simulated cost", "ranks averaged"] + [LABEL[k] for k in FITS] + ["both + logic, type held out" if LOGIC else "both, type held out"]
+print("| set and type | n | " + " | ".join(head) + " |")
+print("|---|---|" + "---|" * len(head))
 for g, n, *v in rows: print(f"| {g} | {n} | " + " | ".join(f"{x:.2f}" for x in v) + " |")
 for s in ("psjp", "tatham"):
     rs = [r for r in rows if r[0].startswith(s)]; N = sum(r[1] for r in rs)
-    print(f"| {s}, within type (n-weighted) | {N} | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 9)) + " |")
+    print(f"| {s}, within type (n-weighted) | {N} | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 2 + len(head))) + " |")
 
 # paired bootstrap (puzzles resampled within type) of both minus solver only, half held out
 rng = np.random.default_rng(1)
-print("\nboth minus solver only, half held out, 95% bootstrap:")
-for s in ("psjp", "tatham"):
-    gs = [g for g in data if g.startswith(s)]; N = sum(len(data[g][3]) for g in gs); ds = []
-    for _ in range(400):
-        d = 0
-        for g in gs:
-            i = rng.integers(0, len(data[g][3]), len(data[g][3])); r = np.array(data[g][2])[i]
-            d += len(i) * (spearman(held["both"][g][i], r) - spearman(held["solver"][g][i], r))
-        ds.append(d / N)
-    ds.sort(); print(f"  {s}: {np.mean(ds):+.3f} ({ds[10]:+.3f}, {ds[389]:+.3f})")
+for a, b in [("both", "solver")] + ([("solver + logic", "solver"), ("both + logic", "both")] if LOGIC else []):
+    print(f"\n{a} minus {b}{' only' if b == 'solver' else ''}, half held out, 95% bootstrap:")
+    for s in ("psjp", "tatham"):
+        gs = [g for g in data if g.startswith(s)]; N = sum(len(data[g][3]) for g in gs); ds = []
+        for _ in range(400):
+            d = 0
+            for g in gs:
+                i = rng.integers(0, len(data[g][3]), len(data[g][3])); r = np.array(data[g][2])[i]
+                d += len(i) * (spearman(held[a][g][i], r) - spearman(held[b][g][i], r))
+            ds.append(d / N)
+        ds.sort(); print(f"  {s}: {np.mean(ds):+.3f} ({ds[10]:+.3f}, {ds[389]:+.3f})")
 
 w = fit(list(data), lam)
 if "--new" in sys.argv:
@@ -136,15 +160,18 @@ if "--new" in sys.argv:
     ws = {k: (lambda j: (lambda X, y: np.linalg.solve(X.T @ X + lam * len(y) / 100 * np.eye(len(j)), X.T @ y))(
         np.vstack([d[0][:, j] for d in data.values()]), np.concatenate([d[1] for d in data.values()])))(j) for k, j in cols.items()}
     print("\nnew types, model frozen (fitted on the types above):\n")
-    print("| set and type | n | both solves finish | solver's estimate | simulated cost | ranks averaged | fitted: solver only | fitted: sim only | fitted: both |")
-    print("|---|---|---|---|---|---|---|---|---|")
+    nhead = ["solver's estimate", "simulated cost", "ranks averaged"] + [LABEL[k] for k in FITS] + (["logic share alone"] if LOGIC else [])
+    print("| set and type | n | both solves finish | " + " | ".join(nhead) + " |")
+    print("|---|---|---|" + "---|" * len(nhead))
     fin = lambda g: np.mean(finished[g])
     nrows = []
     for g in sorted(new):
         X, _, rated, _ = new[g]; allk = np.ones(len(rated), bool)
         v = [spearman(X[:, FEATS.index("solver estimate")], rated), spearman(X[:, FEATS.index("sim costSum")], rated),
              spearman(rank(X[:, FEATS.index("sim costSum")]) + rank(X[:, FEATS.index("solver estimate")]), rated)]
-        v += [spearman(X[:, cols[k]] @ ws[k], rated) for k in ("solver", "sim", "both")]
+        v += [spearman(X[:, cols[k]] @ ws[k], rated) for k in FITS]
+        # unfitted: less settled is harder
+        if LOGIC: v.append(spearman(-X[:, FEATS.index("logic settled")], rated))
         nrows.append((g, len(rated), *v)); print(f"| {g} | {len(rated)} | {fin(g):.0%} | " + " | ".join(f"{x:.2f}" for x in v) + " |")
     # puzz.link's ratings split: the games the model was fitted on (new raters) and games new to it
     seen = lambda g: g.split(" ")[1] in FITTED["psjp"] + ["lightup", "loopy", "singles"]
@@ -154,10 +181,52 @@ if "--new" in sys.argv:
     # and each again on the types where both solves mostly finish (80%+): elsewhere the costs are cut off
     for name, f in groups + [(n + ", solves finish", (lambda f: lambda g: f(g) and fin(g) >= 0.8)(f)) for n, f in groups]:
         rs = [r for r in nrows if f(r[0])]; N = sum(r[1] for r in rs)
-        if N: print(f"| **{name}** (n-weighted, {len(rs)} types) | {N} | | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 8)) + " |")
+        if N: print(f"| **{name}** (n-weighted, {len(rs)} types) | {N} | | " + " | ".join(f"{sum(r[1] * r[k] for r in rs) / N:.2f}" for k in range(2, 2 + len(nhead))) + " |")
+if LOGIC:
+    # 1. how much of the logic share the solver's own features already carry: within type, the share
+    #    regressed on them (R²), and the rank agreement of what's left over with the rating
+    every = {**data, **new}
+    print("\nlogic share against the solver's features, within type (n-weighted):")
+    print("| set | n | share vs rating | share vs solver estimate | vs solver splits | R² from solver features | leftover vs rating |")
+    print("|---|---|---|---|---|---|---|")
+    js, jl = [FEATS.index(c) for c in SETS["solver"]], FEATS.index("logic settled")
+    acc = {}
+    for g, (X, _, rated, _) in every.items():
+        A = np.c_[X[:, js], np.ones(len(X))]; c, *_ = np.linalg.lstsq(A, X[:, jl], rcond=None); e = X[:, jl] - A @ c
+        r2 = 1 - e.var() / X[:, jl].var() if X[:, jl].var() > 0 else float("nan")
+        v = (spearman(X[:, jl], rated), spearman(X[:, jl], X[:, FEATS.index("solver estimate")]), spearman(X[:, jl], X[:, FEATS.index("solver splits")]), r2, spearman(e, rated))
+        key = g.split(" ")[0] + (", fitted games" if g in data else ", new games")
+        acc.setdefault(key, []).append((len(rated), v))
+    for key in sorted(acc):
+        N = sum(n for n, _ in acc[key]); ok = lambda k: [(n, v[k]) for n, v in acc[key] if np.isfinite(v[k])]
+        print(f"| {key} | {N} | " + " | ".join(f"{sum(n * x for n, x in ok(k)) / max(1, sum(n for n, _ in ok(k))):.2f}" for k in range(5)) + " |")
+    # 2. where the solves don't finish: each score on just those puzzles, within type (types with 8+)
+    print("\npuzzles whose solves don't finish (within type, n-weighted over types with 8+ such puzzles):")
+    print("| set | types | n | solver's estimate | simulated cost | logic share (less is harder) |")
+    print("|---|---|---|---|---|---|")
+    fin_all = dict(finished)
+    acc = {}
+    for g, (X, _, rated, ids) in every.items():
+        f = np.array(fin_all[g]) if len(fin_all[g]) == len(ids) else None
+        if f is None: continue
+        m = ~f
+        if m.sum() < 8: continue
+        r = np.array(rated)[m]
+        v = (spearman(X[m, FEATS.index("solver estimate")], r), spearman(X[m, FEATS.index("sim costSum")], r), spearman(-X[m, jl], r))
+        acc.setdefault(g.split(" ")[0], []).append((g, int(m.sum()), v))
+    for key in sorted(acc):
+        N = sum(n for _, n, _ in acc[key])
+        print(f"| {key} | {len(acc[key])} | {N} | " + " | ".join(f"{sum(n * v[k] for _, n, v in acc[key]) / N:.2f}" for k in range(3)) + " |")
+        for g, n, v in sorted(acc[key]): print(f"|   {g} | | {n} | " + " | ".join(f"{x:.2f}" for x in v) + " |")
+
 print("\nweights (fitted on everything; features standardised within type):")
 for k, x in sorted(zip(FEATS, w), key=lambda t: -abs(t[1])): print(f"  {k:18s} {x:+.3f}")
 if "--save" in sys.argv:
-    json.dump({"features": FEATS, "fitted on": FITTED, "weights": [round(float(x), 4) for x in w], "ridge": lam,
-               "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"},
+    feats = SETS["solver + logic"] if LOGIC else FEATS
+    j = [FEATS.index(c) for c in feats]
+    X = np.vstack([d[0][:, j] for d in data.values()]); y = np.concatenate([d[1] for d in data.values()])
+    ws = np.linalg.solve(X.T @ X + lam * len(y) / 100 * np.eye(len(j)), X.T @ y)
+    json.dump({"features": feats, "fitted on": FITTED, "weights": [round(float(x), 4) for x in ws], "ridge": lam,
+               "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"
+                       + (" --logic; logic settled = share of the open marks no-split logic settles (sim-difficulty.ts logic, 600 s on slow types)" if LOGIC else "")},
               open(os.path.join(HERE, "sim-fit.json"), "w"), indent=1)

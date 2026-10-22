@@ -369,7 +369,7 @@ test("a grid, a stone and a number; undo and redo by key; the drawing downloaded
   await expect(board).toBeVisible();
   // with no type, every stamp, in one list (many belong to several types)
   await tool(page, "Stamp");
-  await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(18);
+  await expect(page.getByRole("group", { name: "Stamps" }).getByRole("button")).toHaveCount(20);
 
   // a grid: 336 units across is 7 squares of a board's 48; then one row fewer
   await tool(page, "Grid");

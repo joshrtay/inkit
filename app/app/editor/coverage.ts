@@ -31,7 +31,8 @@ export type Setting =
 /** Every rule block, in plain words, with every setting it takes. */
 export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   loop: { label: "One loop", settings: [{ key: "of", label: "drawn", type: "choice", choices: ["fence", "loop"] }, { key: "cover", label: "through every open cell", type: "flag" }] },
-  path: { label: "One path from the way in to the way out", settings: [{ key: "cover", label: "through every open cell", type: "flag" }] },
+  plumbing: { label: "Pipes join matching ends, crossing only at crossings", settings: [] },
+  path: { label: "One path from the way in to the way out (or, along the grid lines, between two ends)", settings: [{ key: "of", label: "drawn", type: "choice", choices: ["fence"], none: "through the cells" }, { key: "cover", label: "through every open cell", type: "flag" }] },
   links: { label: "Join matching numbers with lines", settings: [{ key: "cover", label: "every cell used", type: "flag" }] },
   pearls: { label: "Pearls: straight through white, turn on black", settings: [] },
   sides: { label: "Numbers count the loop's sides", settings: [] },
@@ -56,6 +57,7 @@ export const RULES: Record<RuleName, { label: string; settings: Setting[] }> = {
   "first-seen": { label: "Letters outside are the first seen", settings: [] },
   skyscrapers: { label: "Numbers outside count buildings seen", settings: [] },
   thermo: { label: "Digits rise along thermometers", settings: [] },
+  whispers: { label: "Digits on green lines far apart", settings: [{ key: "gap", label: "differ by at least", type: "number" }] },
   connected: { label: "Shaded cells connect", settings: [] },
   "no-pool": { label: "No 2×2 shaded block", settings: [] },
   size: { label: "Region size", settings: [{ key: "is", label: "exactly", type: "number" }, { key: "min", label: "at least", type: "number" }, { key: "max", label: "at most", type: "number" }] },
