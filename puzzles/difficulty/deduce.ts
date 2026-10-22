@@ -337,11 +337,13 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
 // (cellAtoms: Options.cellAtoms. Spiral Galaxies' helper atoms have no footprint without it, so every
 // window held the whole puzzle; past 8 × 8 or so each was too big to check, and only case splits went
 // on: none of 16 dev-set 10 × 10s finished in 60 s; with it, 3 of 3 tried in 13-29 s, 2026-10-21)
-export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean }> = {
+export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean; knownByCell?: boolean }> = {
   numberlink: { techniques: ["routes", "unique", "ends", "owners", "cuts"] },
   fillomino: { techniques: ["sizes", "shapes"] },
-  hidoku: { techniques: ["distance", "deadends"] },
-  "honeycomb-paths": { techniques: ["distance", "deadends"] },
+  // (knownByCell: see explainByClingo; passed the guard 2026-10-22, on for Hidoku, where explaining
+  // eliminated digits was most of the time)
+  hidoku: { techniques: ["distance", "deadends"], knownByCell: true },
+  "honeycomb-paths": { techniques: ["distance", "deadends"], knownByCell: true },
   // (not joins: with it Tatham's Singles agreement falls from 0.75 to 0.22, as the component
   // lemma's did; it needs pricing first)
   hitori: { lemmas: ["component"] },
@@ -376,8 +378,9 @@ const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
 /** Step cost = 1 per distinct rule or clue kind held in mind + GROUP_COST per rule instance (a
  *  row, a box, a clue) + FACT_COST per earlier fact used + a case split's surcharge. */
 export const GROUP_COST = 0.5, FACT_COST = 0.2, TIER_COST = [0, 0, 2, 4] as const;
-/** explanations take a cell's known digits as one fact (DEDUCE_KNOWN_BY_CELL=1): see explainByClingo */
-const KNOWN_BY_CELL = process.env.DEDUCE_KNOWN_BY_CELL === "1";
+/** explanations take a cell's known digits as one fact (DEDUCE_KNOWN_BY_CELL=1, or a finish set's
+ *  knownByCell; =0 off): see explainByClingo */
+const KNOWN_BY_CELL_ENV = process.env.DEDUCE_KNOWN_BY_CELL;
 /** Each round takes every step within SLACK of the cheapest (Options.minPeak: within PEAK_TIE). */
 const SLACK = 1, PEAK_TIE = 0.05;
 /** the component lemma's constraints cite the group's cells (DEDUCE_COMPONENT_CITE=1): see
@@ -1053,6 +1056,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // (the finish set ranks windows: the guard check of 2026-10-21 found agreement with Puzzle Square
   // JP's and Tatham's ratings unchanged at 0.3)
   const finishing = opts.finish ?? process.env.DEDUCE_FINISH === "1";
+  const knownByCell = KNOWN_BY_CELL_ENV === "1" || (KNOWN_BY_CELL_ENV !== "0" && !!finish.knownByCell);
   const rankShare = opts.rankWindows ?? (process.env.DEDUCE_RANK !== undefined ? Number(process.env.DEDUCE_RANK) || 0 : finishing ? 0.3 : 0);
   const windowOdds = (w: Window): number => {
     const pr = progOf(w), marks = pr.marks.length, open = pr.marks.filter((m) => known[m] < 0).length, last = evaluatedAt.get(w);
@@ -1305,7 +1309,7 @@ end
         // left in it, as a person reads a cell's candidates (an explanation then counts the cells)
         const reps: number[] = [], lits: number[][] = [], at = new Map<string, number>();
         for (const m of kn) {
-          const key = KNOWN_BY_CELL && markName[m].startsWith("digit(") ? `c${markCells[m][0]}` : `m${m}`;
+          const key = knownByCell && markName[m].startsWith("digit(") ? `c${markCells[m][0]}` : `m${m}`;
           let j = at.get(key);
           if (j === undefined) { j = reps.length; at.set(key, j); reps.push(m); lits.push([]); }
           lits[j].push(known[m] ? -id(markAtom[m]) : id(markAtom[m]));
