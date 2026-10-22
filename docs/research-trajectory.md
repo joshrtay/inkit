@@ -379,6 +379,15 @@ was 16). So it is on with the finish set (and DEDUCE_LOCAL=fillomino); the defau
 engine's encoding, which the guard didn't judge against it. Puzzles with more than 3,500 owner and
 size choices fall back to the engine's: on the guard a few ran out of clingo-wasm's memory or size.
 
+**Hidoku: a cell's candidates as one fact.** On the 16 dev Hidokus explaining is about 70% of the
+time (7 finish by 60 s, with the answer supplied). Nearly every explained fact is taken (4,039
+explained, 3,847 taken on one), at about 6 solves a fact, so the cost is how many elements deletion
+works over: a window's known marks, hundreds of eliminated digits. With DEDUCE_KNOWN_BY_CELL=1 a
+cell's known digits are one element (what's left in the cell, as a person reads its candidates),
+and an explanation counts the cells it reads. Explaining is 40–50% faster and 12 of 16 finish by
+60 s; it lowers prices (fewer facts counted; dev estimates 0.62–0.85 against 0.72–0.85), so it is
+off until the guard judges it. Off, every estimate is unchanged.
+
 **Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
 passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,

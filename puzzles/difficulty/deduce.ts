@@ -376,6 +376,8 @@ const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
 /** Step cost = 1 per distinct rule or clue kind held in mind + GROUP_COST per rule instance (a
  *  row, a box, a clue) + FACT_COST per earlier fact used + a case split's surcharge. */
 export const GROUP_COST = 0.5, FACT_COST = 0.2, TIER_COST = [0, 0, 2, 4] as const;
+/** explanations take a cell's known digits as one fact (DEDUCE_KNOWN_BY_CELL=1): see explainByClingo */
+const KNOWN_BY_CELL = process.env.DEDUCE_KNOWN_BY_CELL === "1";
 /** Each round takes every step within SLACK of the cheapest (Options.minPeak: within PEAK_TIE). */
 const SLACK = 1, PEAK_TIE = 0.05;
 /** the component lemma's constraints cite the group's cells (DEDUCE_COMPONENT_CITE=1): see
@@ -1165,7 +1167,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       if gate == -1 then body[#body + 1] = e elseif gate > 0 then body[#body + 1] = gA[gate - 1] end
       b:add_rule{head = h, body = body, choice = ty == 1}
     end
-    for j, m in ipairs(w[3]) do b:add_rule{head = {}, body = {lit(w[7][j]), kA[m]}} end
+    for j, m in ipairs(w[3]) do for _, x in ipairs(w[7][j]) do b:add_rule{head = {}, body = {lit(x), kA[m]}} end end
     for j, m in ipairs(w[4]) do b:add_rule{head = {}, body = {lit(w[8][j]), tA[m]}} end
     built[#built + 1] = {e, gA, kA, tA}
   end
@@ -1238,13 +1240,14 @@ ${build}
         print("E " .. W .. " " .. m .. " " .. (capped and "1" or "0") .. " " .. table.concat(parts, ","))
       else print("X " .. W .. " " .. m) end
     end
+    print("S " .. solves)
   end
 end
 #end.
 `;
       const te = Date.now();
       const { lines, status, errors } = clingoRaw(EXPLAIN_TEXT ? lua + text.join("\n") : lua, "--outf=3");
-      dbg(`explain: ${members.length} windows, ${members.reduce((a, j) => a + j.facts.length, 0)} facts, ${text.reduce((a, l) => a + l.length, 0)} chars, ${Date.now() - te} ms`);
+      dbg(`explain: ${lines.filter((l) => l.startsWith("S ")).reduce((a, l) => a + +l.slice(2), 0)} solves, ${members.length} windows, ${members.reduce((a, j) => a + j.facts.length, 0)} facts, ${text.reduce((a, l) => a + l.length, 0)} chars, ${Date.now() - te} ms`);
       if (status === 33 || status === 65 || status === 128) throw new Error(`clingo failed (${status}): ${errors.join("\n").slice(0, 300)}`);
       for (const l of lines) {
         const x = /^([EX]) (\d+) (\d+)(?: (\d) ?(.*))?$/.exec(l);
@@ -1298,9 +1301,17 @@ end
           flat.push(ty, gate, head.length, ...head, r.body.length, ...r.body.map(lid));
           if (r.bound !== null) flat.push(r.bound, ...r.weights);
         }
-        const kl = kn.map((m) => (known[m] ? -id(markAtom[m]) : id(markAtom[m])));
+        // the known marks, one element each; or (KNOWN_BY_CELL) a cell's known digits as one, what's
+        // left in it, as a person reads a cell's candidates (an explanation then counts the cells)
+        const reps: number[] = [], lits: number[][] = [], at = new Map<string, number>();
+        for (const m of kn) {
+          const key = KNOWN_BY_CELL && markName[m].startsWith("digit(") ? `c${markCells[m][0]}` : `m${m}`;
+          let j = at.get(key);
+          if (j === undefined) { j = reps.length; at.set(key, j); reps.push(m); lits.push([]); }
+          lits[j].push(known[m] ? -id(markAtom[m]) : id(markAtom[m]));
+        }
         const tl = job.facts.map(([m, v]) => (v ? id(markAtom[m]) : -id(markAtom[m])));
-        datum = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}},${local.size},{${flat.join(",")}},{${kl.join(",")}},{${tl.join(",")}}}`;
+        datum = `{${W},{${[...gs].join(",")}},{${reps.join(",")}},{${job.facts.map(([m]) => m).join(",")}},${local.size},{${flat.join(",")}},{${lits.map((l) => `{${l.join(",")}}`).join(",")}},{${tl.join(",")}}}`;
       }
       if (size > EXPLAIN_MAX) { notes.push(`${job.w.label}: too big to explain (${size} characters)`); continue; }
       if (members.length && chars + size > EXPLAIN_CHUNK) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
