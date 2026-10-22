@@ -25,7 +25,7 @@
 //   node --no-warnings puzzles/difficulty/opus-walkthrough.ts report                → walk-report.md, walk-samples.md
 //   node --no-warnings puzzles/difficulty/opus-walkthrough.ts show <id>             (the prompt)
 //
-// Opus is asked from Anthropic when ANTHROPIC_API_KEY is set, else through OpenRouter
+// Opus is asked from Anthropic when INKIT_ANTHROPIC_KEY (or ANTHROPIC_API_KEY) is set, else through OpenRouter
 // (anthropic/claude-opus-5.5, key in OPENROUTER_API_KEY), as opus-human.ts's `open` asks open
 // models. WALK_CAP (dollars, default 20) stops the asking before the ledger would pass it. Everything goes to references/ml/opus-human/ (local only: the puzzles
 // are Janko's and Puzzle Square JP's).
@@ -170,11 +170,13 @@ function walkJson(text: string): any {
 }
 
 // ======== ask ========
-// Opus straight from Anthropic when ANTHROPIC_API_KEY is set (as opus-human.ts asks it on the Mac), else through OpenRouter
+// Opus straight from Anthropic when INKIT_ANTHROPIC_KEY or ANTHROPIC_API_KEY is set (as opus-human.ts asks it on the Mac), else through OpenRouter
 interface Reply { model: string; text: string; usage: unknown; cost: number; out: number; finish: string }
 function opus(): (prompt: string) => Promise<Reply> {
-  if (process.env.ANTHROPIC_API_KEY) {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 20 * 60 * 1000, maxRetries: 4 });
+  // INKIT_ANTHROPIC_KEY first: a cloud environment's own ANTHROPIC_API_KEY would also sign in Claude Code itself
+  const anthropicKey = process.env.INKIT_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    const client = new Anthropic({ apiKey: anthropicKey, timeout: 20 * 60 * 1000, maxRetries: 4 });
     return async (prompt) => {
       const res = await client.messages.stream({
         model: "claude-opus-5-5", max_tokens: MAX_TOKENS, thinking: { type: "adaptive" }, output_config: { effort: EFFORT as "medium" },
@@ -186,7 +188,7 @@ function opus(): (prompt: string) => Promise<Reply> {
     };
   }
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("no ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
+  if (!apiKey) throw new Error("no INKIT_ANTHROPIC_KEY, ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
   return async (prompt) => {
     let res: Response | null = null;
     for (let a = 0; a < 5; a++) {
