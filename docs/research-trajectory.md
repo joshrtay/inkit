@@ -126,7 +126,9 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
     type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
     bigger call budget, since at 200 none of its 20 finish and every one rates 0.9: 1,000 calls (with
-    the local encoding 56 of 60 finish there).
+    the local encoding 56 of 60 finish there). So does any type where fewer than about 1 in 5 runs
+    finish at 200 calls (Josh, 2026-10-22: Numberlink, 2 of 60), whose agreement there only ranks how
+    runs stop.
 
 **Targets** (on the test set, the clock above).
 
