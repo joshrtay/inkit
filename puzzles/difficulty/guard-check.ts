@@ -37,6 +37,9 @@ const SETTINGS = ([
   ["c200-nurikabe", { DEDUCE_BUDGET_CALLS: "200" }, ["--games", "nurikabe"]],
   // types that finish under 1 in 5 at 200 calls are judged at 1,000 (the guard rule, 5ecb89a)
   ["c1000-low", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "numberlink,nurikabe,square-jam"]],
+  // the finish set, with and without explanations reading a cell's known digits as one element
+  ["c200-finish", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1" }],
+  ["c200-finish-kbc", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_KNOWN_BY_CELL: "1" }],
   ["c200-joins", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "joins" }, ["--games", "cave,nurikabe"]],
   // Nurikabe stalls at 200 calls (nothing solves), so it's judged at 1,000
   ["n1000-baseline", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "nurikabe"]],
