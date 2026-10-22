@@ -148,7 +148,7 @@ export const VALUES: Record<string, [string, string]> = {
   "star-battle": ["star", "no star"], akari: ["bulb", "no bulb"], hitori: ["shaded", "unshaded"], nurikabe: ["wall", "island"],
   minesweeper: ["mine", "no mine"], nonogram: ["filled", "empty"],
   masyu: ["line", "no line"], numberlink: ["line", "no line"], slitherlink: ["line", "no line"],
-  fillomino: ["wall", "same region"], "spiral-galaxies": ["wall", "same region"],
+  fillomino: ["wall", "same region"], "spiral-galaxies": ["wall", "same region"], cave: ["shaded", "cave"],
 };
 export function rules(spec: GridSpec): string {
   const p = makePuzzle(spec), R = spec.size[0], C = spec.size[1];
@@ -236,7 +236,7 @@ export function draw(spec: GridSpec, known: Map<string, boolean>): string {
 export function moveForm(genre: string): string {
   if (genre === "slitherlink") return `{"at": "r3c4 top" (a cell and one of its sides: top, bottom, left, right), "value": "line" | "no line", "reason": "one line"}`;
   if (["masyu", "numberlink", "fillomino", "spiral-galaxies"].includes(genre)) { const [a, b] = VALUES[genre]; return `{"at": "r3c4-r3c5" (two cells side by side), "value": "${a}" | "${b}", "reason": "one line"}`; }
-  if (genre === "skyscrapers" || genre === "hidoku") return `{"at": "r3c4", "value": "<number>", "reason": "one line"}: a number to write in an empty cell`;
+  if (genre === "skyscrapers" || genre === "hidoku" || genre === "sudoku") return `{"at": "r3c4", "value": "<number>", "reason": "one line"}: a number to write in an empty cell`;
   if (genre === "easy-as-abc") return `{"at": "r3c4", "value": "<letter>" | "empty", "reason": "one line"}`;
   const [a, b] = VALUES[genre];
   return `{"at": "r3c4", "value": "${a}" | "${b}", "reason": "one line"}`;
@@ -246,7 +246,7 @@ export function moveForm(genre: string): string {
 export function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }): MV | null {
   const p = makePuzzle(spec), g = p.grid, genre = spec.genre!, at = String(move.at ?? "").toLowerCase().trim(), value = String(move.value ?? "").toLowerCase().trim();
   const cell = (s: string) => { const q = /r(\d+)\s*c(\d+)/.exec(s); if (!q) return null; const [r, c] = [+q[1] - 1, +q[2] - 1]; return r >= 0 && c >= 0 && r < g.rows && c < g.cols ? g.cell(r, c) : null; };
-  if (genre === "skyscrapers" || genre === "hidoku" || genre === "easy-as-abc") {
+  if (genre === "skyscrapers" || genre === "hidoku" || genre === "sudoku" || genre === "easy-as-abc") {
     const i = cell(at);
     if (i === null) return null;
     if (genre === "easy-as-abc") {
@@ -280,7 +280,7 @@ export function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }):
 
 /** The state spelled out, one line per cell (or per link, or per cell side): its clue and what is
  *  known, so a model reads relations rather than counting columns in a drawing. */
-function listed(spec: GridSpec, known: Map<string, boolean>): string {
+export function listed(spec: GridSpec, known: Map<string, boolean>): string {
   const p = makePuzzle(spec), g = p.grid, R = g.rows, C = g.cols, genre = spec.genre!;
   const name = (i: number) => `r${Math.floor(i / C) + 1}c${(i % C) + 1}`;
   const area = (i: number) => (p.areas ? `area ${String.fromCharCode(65 + p.areas.of[i])}` : "");
@@ -300,8 +300,8 @@ function listed(spec: GridSpec, known: Map<string, boolean>): string {
       const where = b - a === 1 ? (r < R ? `r${r + 1}c${c + 1} top` : `r${r}c${c + 1} bottom`) : (c < C ? `r${r + 1}c${c + 1} left` : `r${r + 1}c${c} right`);
       lines.push(`${where}: ${state(`fence(${bd.id})`, VALUES.slitherlink)}`);
     }
-  } else if (["skyscrapers", "hidoku", "easy-as-abc"].includes(genre)) {
-    const D = genre === "hidoku" ? R * C : genre === "easy-as-abc" ? (p.rules.find((x) => x.rule === "letters") as any)?.count ?? 3 : R;
+  } else if (["skyscrapers", "hidoku", "sudoku", "easy-as-abc"].includes(genre)) {
+    const D = genre === "hidoku" ? R * C : genre === "easy-as-abc" ? (p.rules.find((x) => x.rule === "letters") as any)?.count ?? 3 : genre === "sudoku" ? p.digits : R;
     const show = (d: number) => (genre === "easy-as-abc" ? "ABCDEFG"[d - 1] : String(d));
     for (let i = 0; i < R * C; i++) {
       if (isBlock(i)) { lines.push(`${name(i)}: ${clue(i)}`); continue; }
@@ -334,7 +334,7 @@ What single move will this person most likely make next? It must be a move you a
 // ======== ask ========
 export const loadItems = (): Item[] => JSON.parse(readFileSync(`${OUT}items.json`, "utf8")).items;
 export const readJsonl = (f: string) => (existsSync(f) ? readFileSync(f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : []);
-function lastJson(text: string): any {
+export function lastJson(text: string): any {
   for (let end = text.lastIndexOf("}"); end >= 0; end = text.lastIndexOf("}", end - 1))
     for (let start = text.lastIndexOf("{", end); start >= 0; start = text.lastIndexOf("{", start - 1)) {
       try { const x = JSON.parse(text.slice(start, end + 1)); if (x && typeof x === "object" && "at" in x) return x; } catch { /* not this span */ }
