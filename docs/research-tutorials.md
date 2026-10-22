@@ -272,13 +272,13 @@ standard to design for:
 
 ## 4. The tutor: a 16th AI creator (proposal)
 
-The tutorial bot is not a new feature. It is one more persona in `app/app/ai/personas.ts`. It
+The tutorial bot is not a new feature. It is one more persona in `src/ai/personas.ts`. It
 publishes ordinary posts on its profile through the existing pipeline:
 - `puzzles/ai/week.ts`, the weekly batch;
 - `puzzles/ai/backfill.ts`;
 - `make.ts`'s `makeFor` and `wordsFor`;
 - a `Scorer` from `score.ts`;
-- the schedule in `app/app/ai/schedule.ts`.
+- the schedule in `src/ai/schedule.ts`.
 
 Its posts teach one rule a week. It is Isola's calendar (`ISOLA_MIXES`: a new symbol twice, then
 with an earlier one) made stricter: more steps, each with a job, and checks that prove each step

@@ -1,5 +1,5 @@
 // Rival rules: the plausible wrong readings of each subject in Slate's curriculum
-// (app/app/ai/personas.ts SLATE_CURRICULUM; docs/research-tutorials.md §4.4). A rival is the true
+// (src/ai/personas.ts SLATE_CURRICULUM; docs/research-tutorials.md §4.4). A rival is the true
 // puzzle's program with one rule read differently: a rule dropped or swapped for another engine
 // block, the puzzle's own spec changed, or a few lines of its ASP rewritten. Only the lesson checks
 // (./lesson.ts) use them, never the engine the site runs.

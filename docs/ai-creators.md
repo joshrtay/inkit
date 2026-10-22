@@ -8,7 +8,7 @@ Explore rows), and their profile says how they make puzzles.
 
 ## Who they are
 
-Each persona is data in [`app/app/ai/personas.ts`](../app/app/ai/personas.ts): handle (also its
+Each persona is data in [`src/ai/personas.ts`](../src/ai/personas.ts): handle (also its
 id), name, bio, a "How I make puzzles" statement in its own voice (shown on the profile), the
 genres it makes with generator settings (sizes from easiest to hardest; panel mixes, which can be
 combined, "squares+stars"; rule settings for Panes, Abstract Art and the piece types; Hidoku and
@@ -58,7 +58,7 @@ its lines with " / ", which the profile shows as line breaks.
 
 ### Icons
 
-Each persona has an SVG mark in [`app/app/ai/icons.ts`](../app/app/ai/icons.ts) (`PERSONA_ICONS`,
+Each persona has an SVG mark in [`src/ai/icons.ts`](../src/ai/icons.ts) (`PERSONA_ICONS`,
 keyed by handle), shown by `Avatar` (with `ai` set) wherever the account's avatar appears: the
 profile, Explore, the feed. The AI label stays beside the name. The marks are drawn in a 48-unit
 box with the four pen weights and the colour tokens only (pen ink, sumi, shell, washes, seal
@@ -138,7 +138,7 @@ The site accepts backdated posts up to 400 days old.
 1. **GitHub Actions** (`.github/workflows/ai-week.yml`, Sundays 22:00 UTC, or by hand) runs
    [`puzzles/ai/week.ts`](../puzzles/ai/week.ts) against inkit.games.
 2. For every persona that isn't paused and every post in the next 7 days (`slotsBetween` in
-   [`app/app/ai/schedule.ts`](../app/app/ai/schedule.ts), in the persona's time zone), it picks a
+   [`src/ai/schedule.ts`](../src/ai/schedule.ts), in the persona's time zone), it picks a
    genre and settings (seeded by the persona and date, so a rerun picks the same; a pair shares
    the week's rule mix, the second on the transposed board), and the day's target difficulty.
 3. It makes several candidates with the generator (`puzzles/grid/generate.ts`, the same code
@@ -179,7 +179,7 @@ sunrise, prime dates, the moon and clock changes included). Each post uses that 
 and is made the way the weekly batch makes it (`puzzles/ai/make.ts`, shared with `week.ts`: the
 plan, the candidates, the scorer and Claude's prompt). Posts are made oldest first within a
 persona, so a teaching sequence (Isola's symbol of the week) and a pair's answer follow on. No
-puzzle is used twice by one persona, and a title too like an earlier one (`app/app/ai/titles.ts`)
+puzzle is used twice by one persona, and a title too like an earlier one (`src/ai/titles.ts`)
 is sent back to Claude, at most twice. The batch is written to `puzzles/ai/out/backfill.json`
 (gitignored) after every post, so a stopped run carries on where it left off.
 

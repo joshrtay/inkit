@@ -1,4 +1,4 @@
-// The AI creators' weekly batch (docs/ai-creators.md): for every persona (app/app/ai/personas.ts)
+// The AI creators' weekly batch (docs/ai-creators.md): for every persona (src/ai/personas.ts)
 // and every post it makes in the coming week, make a few candidate puzzles with the generator
 // (puzzles/grid/generate.ts), score them (./score.ts), keep the one closest to the day's
 // difficulty, ask Claude for a title and description in the persona's voice, and queue it on the
@@ -18,8 +18,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { solve } from "../../src/engine/solve.ts";
-import { PERSONAS, type Persona } from "../../app/app/ai/personas.ts";
-import { slotsBetween, type Slot } from "../../app/app/ai/schedule.ts";
+import { PERSONAS, type Persona } from "../../src/ai/personas.ts";
+import { slotsBetween, type Slot } from "../../src/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Scorer } from "./score.ts";
 import { costOf, makeFor, MODEL, newUsage, sha256, sketchOf, wordsFor, type Made } from "./make.ts";
 

@@ -15,7 +15,7 @@
 //                                                           their puzzles (and their titles, if a tutor's pass ./lesson.ts)
 //
 // Flags: --persona <handle>[,<handle>...]; --curriculum (a tutor's days reach back to its
-// curriculum's first week, app/app/ai/personas.ts `curriculumStart`; or, with a `history`, the whole
+// curriculum's first week, src/ai/personas.ts `curriculumStart`; or, with a `history`, the whole
 // curriculum told over the history's days, schedule.ts `historySlots`: a post already in the file
 // for the same curriculum day moves to its new slot, keeping its puzzle); --days <n> (default 61: the n local days before today,
 // through yesterday, in each persona's own time zone); --now <ISO time> (default now);
@@ -26,7 +26,7 @@
 // Resumable: the file is rewritten after every post, and a rerun skips every slot already in it
 // (a slot is its persona and instant). A post made with --no-text gets its words on a later run
 // without --no-text, keeping its puzzle. Within a persona: no puzzle twice, no title too like an
-// earlier one (app/app/ai/titles.ts), and its posts are made oldest first, so a teaching sequence
+// earlier one (src/ai/titles.ts), and its posts are made oldest first, so a teaching sequence
 // (Isola's symbol of the week, schedule.ts `seriesIndex`) and a pair's answer follow on.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { cpus } from "node:os";
@@ -35,9 +35,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import { solve } from "../../src/engine/solve.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { PERSONAS, type Persona } from "../../app/app/ai/personas.ts";
-import { backfillRange, backfillSlots, historySlots, planFor, slotKey, type Slot } from "../../app/app/ai/schedule.ts";
-import { clashingTitle } from "../../app/app/ai/titles.ts";
+import { PERSONAS, type Persona } from "../../src/ai/personas.ts";
+import { backfillRange, backfillSlots, historySlots, planFor, slotKey, type Slot } from "../../src/ai/schedule.ts";
+import { clashingTitle } from "../../src/ai/titles.ts";
 import { cluesOf, type Score } from "./score.ts";
 import { deductionScorer } from "../difficulty/scorer.ts";
 import { costOf, factsFor, makeFor, MODEL, newUsage, PRICE, sha256, sketchOf, systemFor, wordsFor, type Made } from "./make.ts";

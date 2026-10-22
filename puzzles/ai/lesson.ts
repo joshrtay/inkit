@@ -3,7 +3,7 @@
 // with them, the contrasts derived from the day before's board, and the check that a title or
 // description never states the rule.
 //
-// The checks, by step (app/app/ai/personas.ts LessonStep):
+// The checks, by step (src/ai/personas.ts LessonStep):
 //   every day        one solution (a panel: at least one); the rule load stays at the subject's
 //                    own (Friday's combination: plus its company's); the subject's symbols are on
 //                    the board and needed (taken away, the answer or the number of answers
@@ -25,8 +25,8 @@ import { solve } from "../../src/engine/solve.ts";
 import { regionsOf } from "../../src/engine/derive.ts";
 import { guides } from "../../src/guides/guides.ts";
 import type { GenerateOptions } from "../grid/generate.ts";
-import type { LessonStep, Persona, Subject } from "../../app/app/ai/personas.ts";
-import { lessonFor, lessonSettings, lessonSizes, type Lesson, type Slot } from "../../app/app/ai/schedule.ts";
+import type { LessonStep, Persona, Subject } from "../../src/ai/personas.ts";
+import { lessonFor, lessonSettings, lessonSizes, type Lesson, type Slot } from "../../src/ai/schedule.ts";
 import { deductionPaths, deductionScorer } from "../difficulty/scorer.ts";
 import { ruleLoad, type Score, type Scorer } from "./score.ts";
 import { answers, boardKey, breaks, rivalKind, rivalProgram, RIVALS, type Rival, type RivalVerdict } from "./rivals.ts";
