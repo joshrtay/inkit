@@ -9,6 +9,8 @@
 //               meet at a point
 //   Nurikabe    each unshaded cell belongs to one number within reach (nurikabeProgram): no
 //               region pairs, so the whole grid grounds to some kB, where the engine's gives MBs
+//   Fillomino   each cell has a size and belongs to its region's first cell within that size's
+//               reach (fillominoProgram): the engine's counts every region at every size
 //
 // The marks are the engine's own (cut(L): a border drawn on link L), so the solver's facts are the
 // same, and it checks each one against the engine's answer: an encoding that disagreed would stop
@@ -24,6 +26,8 @@ export interface Local {
   /** with `picks`: the candidate shapes, each shown as pick(id): the number it's for (Square Jam:
    *  the number inside, or -1), its cells, the links inside it (uncut) and round it (cut) */
   shapes?: { clue: number; cells: number[]; inside: number[]; border: number[] }[];
+  /** helper atoms named by their cell first (sz(I,V)): shown, to take cell I as their footprint */
+  cellAtoms?: string[];
 }
 
 const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.flatMap((g) => (g.kind === "number" && g.letter === undefined ? [[i, g.value] as [number, number]] : [])));
@@ -33,6 +37,7 @@ const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.fla
 export function localProgram(p: Puzzle, genre: string | undefined, picks = false): Local | null {
   const names = p.rules.map((r) => r.rule).join(",");
   if (process.env.DEDUCE_LOCAL !== "0" && genre === "nurikabe" && names === "size-clue,one-each,connected,no-pool" && p.rules[1].of === "number") return nurikabeProgram(p);
+  if (process.env.DEDUCE_LOCAL !== "0" && genre === "fillomino" && names === "size-clue,neighbors-differ-size") return fillominoProgram(p);
   const shikaku = genre === "shikaku" && names === "rectangles,one-each,size-clue";
   const jam = genre === "square-jam" && names === "squares,no-four-corners,side-clue";
   if (!shikaku && !jam) return null;
@@ -185,4 +190,71 @@ function nurikabeProgram(p: Puzzle): Local | null {
   out.push("#show shaded/1.", "#show own/2.");
   const text = out.join("\n");
   return { text, plain: `${text}\nrbk(0..3).` };
+}
+
+/** Fillomino (rules size-clue, neighbors-differ-size: blocks 0–1). Each cell has a size sz(I,V)
+ *  and an owner own(I,C), its region's first cell (C ≤ I, close enough for some size); an uncut link joins
+ *  cells of one owner and size, a cut parts owners; an owner's cells are joined to it and number
+ *  its size. Those say what a region and its size are (the engine's regions and size/2).
+ *  A number is its cell's size (size-clue); neighbours of one size aren't cut (neighbors-differ-size).
+ *  A region with no number is no bigger than the numberless cells joined to it, which bounds the
+ *  sizes (where the engine's counts every region to the whole grid). */
+function fillominoProgram(p: Puzzle): Local | null {
+  const g = p.grid;
+  if (g.kind !== "square" || p.figure || p.blocked.size || p.walls.size) return null;
+  const clues = numberClues(p);
+  const givens = [...p.cellGivens.values()].flat();
+  if (givens.length !== clues.length || givens.some((x) => x.kind !== "number")) return null;
+  const clueAt = new Map(clues), n = g.cellCount, tag = (k: number) => `rbk(${k})`;
+  const ends = (lk: number) => g.links[lk].cells as [number, number];
+  const near = (i: number) => g.cellLinks[i].map((lk) => { const [x, y] = ends(lk); return x === i ? y : x; });
+  const dist = (a: number, b: number) => { const [ra, ca] = g.rc(a), [rb, cb] = g.rc(b); return Math.abs(ra - rb) + Math.abs(ca - cb); };
+  // the sizes a cell can have: a number's, within its reach; or, numberless, up to its numberless group
+  const group = new Int32Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    if (clueAt.has(i) || group[i]) continue;
+    const cs = [i], seen = new Set(cs);
+    for (let k = 0; k < cs.length; k++) for (const d of near(cs[k])) if (!clueAt.has(d) && !seen.has(d)) { seen.add(d); cs.push(d); }
+    for (const c of cs) group[c] = cs.length;
+  }
+  const vals: number[][] = Array.from({ length: n }, (_, i) => {
+    if (clueAt.has(i)) return [];
+    const vs = new Set<number>();
+    for (let v = 1; v <= group[i]; v++) vs.add(v);
+    for (const [c, v] of clues) if (dist(i, c) <= v - 1) vs.add(v);
+    return [...vs].sort((a, b) => a - b);
+  });
+  // a number's cell: its number, or (size-clue aside) any size a neighbour can have
+  for (const [c, v] of clues) vals[c] = [...new Set([v, ...near(c).flatMap((d) => vals[d])])].sort((a, b) => a - b);
+  const has = (i: number, v: number) => vals[i].includes(v);
+  // the owners a cell can have: an earlier (or the same) cell sharing a size it reaches
+  const cand: number[][] = Array.from({ length: n }, (_, i) => [...Array(i + 1).keys()].filter((c) => vals[i].some((v) => has(c, v) && dist(i, c) <= v - 1)));
+  // facts, and rules over them (clingo grounds them: written out, an 8 × 8 is past clingo-wasm's size)
+  const out: string[] = [`{cut(L)} :- link(L).`];
+  g.links.forEach((_, lk) => { const [a, b] = ends(lk); out.push(`link(${lk}). lk(${lk},${a},${b}). lk(${lk},${b},${a}).`); });
+  for (let i = 0; i < n; i++) out.push(`cl(${i}). ${vals[i].map((v) => `val(${i},${v}).`).join(" ")} ${cand[i].map((c) => `cand(${i},${c}).`).join(" ")}`);
+  for (const [c, v] of clues) out.push(`num(${c},${v}).`);
+  // (what a region and its size are is tagged size-clue, with the numbers: the engine's leaves its
+  // regions untagged, but here they're constraints over many cells, each a group of its own,
+  // which made every step dear)
+  const T = tag(0);
+  out.push(`1 {sz(I,V) : val(I,V)} 1 :- cl(I).
+1 {own(I,C) : cand(I,C)} 1 :- cl(I).
+:- own(I,C), I != C, not own(C,C), ${T}.
+% uncut: one size, one owner; cut: two owners (an owned cell's size is its owner's, joined by uncut links)
+:- lk(L,A,B), not cut(L), sz(A,V), not sz(B,V), ${T}.
+:- lk(L,A,B), not cut(L), own(A,C), not own(B,C), ${T}.
+:- lk(L,A,B), cut(L), own(A,C), own(B,C), ${T}.
+% an owner's cells: joined to it, and as many as its size
+r(C,C) :- own(C,C).
+r(J,C) :- r(I,C), lk(L,I,J), not cut(L), own(J,C).
+:- own(J,C), not r(J,C), ${T}.
+:- own(C,C), #sum{1,I : own(I,C); -V,s : sz(C,V)} != 0, ${T}.
+% size-clue: a number is its cell's size
+:- num(C,V), not sz(C,V), ${T}.
+% neighbors-differ-size
+:- lk(L,A,B), cut(L), sz(A,V), sz(B,V), ${tag(1)}.`);
+  out.push("#show cut/1.", "#show sz/2.", "#show own/2.");
+  const text = out.join("\n");
+  return { text, plain: `${text}\nrbk(0..1).`, cellAtoms: ["sz", "own"] };
 }

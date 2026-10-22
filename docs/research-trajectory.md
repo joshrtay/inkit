@@ -350,6 +350,19 @@ are the hardest. Finished-only rho is 0.36–0.46, and ranking stalls above ever
 (local) and 0.35 (engine) held out. That is post hoc on one type, so changing stall pricing needs
 its own guard run on every type and a held-out check.
 
+**A local encoding for Fillomino.** The engine counts every region at every size (size/2 over all
+roots, 2.5 MB ground at 6 × 6, 14 MB at 8 × 8), so whole-grid steps were too big to explain and
+windows saw nothing: every step was a case split or search. local.ts now gives each cell a size and
+an owner (its region's first cell, close enough for some size); uncut links join cells of one size
+and owner, and an owner's cells are joined to it and number its size. A numberless region is no
+bigger than the numberless cells joined to it, which bounds the sizes. Ground: 170–420 kB at 6 × 6,
+1.2 MB at 8 × 8; the same unique answers on all 16 dev Fillominos and the examples (unit test). With
+finish and the answer supplied, all 16 finish in 4–29 s (1022a: half by 60 s); splits 37–63 s fall to
+0.1–13 s, and windows now find steps (tier 0 a third to a half of the facts). Prices are the open
+question: explained steps carry many size-clue groups (the region rules are tagged size-clue; left
+untagged, each was a group of its own), so 9 of 16 rate at the ceiling, and the 8 × 8s still have
+whole-grid splits too big to explain, which price below explained ones.
+
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
 those unexplained duplicates were taken at times (priced at the fallback). A window now lists a

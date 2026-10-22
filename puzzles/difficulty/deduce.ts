@@ -594,6 +594,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // chosen freely, from facts), every constraint over them would hold in every window, so each
   // window would hold the whole puzzle
   if (galAtoms) for (const [name, lit] of G.outputs) { const x = /^gal\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); }
+  if (local?.cellAtoms) { const re = new RegExp(`^(?:${local.cellAtoms.join("|")})\\((\\d+),`); for (const [name, lit] of G.outputs) { const x = re.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); } }
   if (putAtoms) for (const [name, lit] of G.outputs) { const x = /^put\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, slots[+x[2]]); }
   const defs: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const usedIn: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
