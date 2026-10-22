@@ -37,6 +37,8 @@ const want = (section: string) => !only || only === section;
 const games = args.includes("--games") ? args[args.indexOf("--games") + 1].split(",") : null;
 // --psjp-shift 1,2,3 takes the puzzles between the usual sample's (held out from it) instead
 const shifts = args.includes("--psjp-shift") ? args[args.indexOf("--psjp-shift") + 1].split(",").map(Number) : [0];
+// --tatham-skip N skips each Tatham file's first N puzzles (the usual sample's, for held-out ones)
+const tathamSkip = args.includes("--tatham-skip") ? Number(args[args.indexOf("--tatham-skip") + 1]) : 0;
 const rowsFile = args.includes("--rows") ? args[args.indexOf("--rows") + 1] : null;
 // DEDUCE_BUDGET_CALLS: a budget in clingo calls instead (the same on any machine and load), with
 // the wall clock only as a guard
@@ -150,7 +152,7 @@ if (!quick && want("tatham") && existsSync(tathamDir)) {
   for (const f of readdirSync(tathamDir).filter((x) => x.endsWith(".txt")).sort()) {
     const game = f.split("-")[0];
     if (!TATHAM[game] || (games && !games.includes(game))) continue;
-    for (const id of readFileSync(tathamDir + f, "utf8").trim().split("\n").slice(0, perGrade)) {
+    for (const id of readFileSync(tathamDir + f, "utf8").trim().split("\n").slice(tathamSkip, tathamSkip + perGrade)) {
       const r = fromTatham(game, id);
       if (!r) continue;
       const grade = TATHAM[game].grades.indexOf(r.grade);

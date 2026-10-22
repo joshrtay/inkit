@@ -1,6 +1,6 @@
 // guard-check.ts's rows as a table: each setting's Spearman with the ratings per type and section
 // (the mean over types), time, solved and capped counts, errors, against the baseline.
-//   node puzzles/difficulty/guard-report.ts references/guard-check/rows.jsonl [--base <setting>]
+//   node puzzles/difficulty/guard-report.ts references/guard-check/rows.jsonl [--base <setting>] [--stalls-top]
 // The guard (docs/research-trajectory.md, Aim 4), one-sided: a setting passes when its mean over
 // types, in each section, is no more than 0.02 below the base's, and no type falls below the low
 // end of the base's own 95% bootstrap interval for that type (puzzles resampled, 2,000 times, fixed
@@ -12,6 +12,10 @@ import { spearman } from "./calibrate.ts";
 
 interface Row { setting: string; section: string; group: string; name: string; rated: number; estimate: number | null; solved: boolean; ms: number; capped: boolean; note: string }
 const rows: Row[] = readFileSync(process.argv[2], "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+// --stalls-top: also judge each setting with every unfinished solve ranked above every finished one
+// (finished estimates top out at 1), as "<setting>+top"
+if (process.argv.includes("--stalls-top"))
+  rows.push(...rows.filter((r) => Number.isFinite(r.estimate)).map((r) => ({ ...r, setting: `${r.setting}+top`, estimate: r.solved ? r.estimate : 1.05 })));
 const base = process.argv.includes("--base") ? process.argv[process.argv.indexOf("--base") + 1] : "baseline";
 const settings = [...new Set(rows.map((r) => r.setting))], sections = ["psjp", "tatham"];
 const rho = (rs: Row[]) => { const ok = rs.filter((r) => Number.isFinite(r.estimate)); return spearman(ok.map((r) => r.estimate!), ok.map((r) => r.rated)); };
