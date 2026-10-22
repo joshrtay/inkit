@@ -37,7 +37,8 @@ const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.fla
 export function localProgram(p: Puzzle, genre: string | undefined, picks = false): Local | null {
   const names = p.rules.map((r) => r.rule).join(",");
   if (process.env.DEDUCE_LOCAL !== "0" && genre === "nurikabe" && names === "size-clue,one-each,connected,no-pool" && p.rules[1].of === "number") return nurikabeProgram(p);
-  if (process.env.DEDUCE_LOCAL !== "0" && genre === "fillomino" && names === "size-clue,neighbors-differ-size") return fillominoProgram(p);
+  // (Fillomino's only with DEDUCE_LOCAL=fillomino: faster, but its steps price badly, 2026-10-22's guard)
+  if (process.env.DEDUCE_LOCAL === "fillomino" && genre === "fillomino" && names === "size-clue,neighbors-differ-size") return fillominoProgram(p);
   const shikaku = genre === "shikaku" && names === "rectangles,one-each,size-clue";
   const jam = genre === "square-jam" && names === "squares,no-four-corners,side-clue";
   if (!shikaku && !jam) return null;

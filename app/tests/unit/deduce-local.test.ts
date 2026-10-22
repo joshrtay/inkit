@@ -29,7 +29,9 @@ describe("local encodings", () => {
   // Nurikabe (shaded cells) and Fillomino (cut links): owners within reach, no region pairs
   it.each([...examples("nurikabe"), ...examples("fillomino")])("%s: the same answers as the engine's, ground far smaller", async (_name, spec) => {
     await loadClingo();
+    if (spec.genre === "fillomino") process.env.DEDUCE_LOCAL = "fillomino";   // (off by default)
     const p = makePuzzle(spec), local = localProgram(p, spec.genre);
+    delete process.env.DEDUCE_LOCAL;
     if (!local) return;   // (other rules: an allowed-sizes Fillomino)
     const mark = spec.genre === "nurikabe" ? "shaded(" : "cut(";
     const mine = answers(local.plain, mark), theirs = answers(program(p), mark);
