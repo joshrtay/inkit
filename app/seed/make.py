@@ -5,7 +5,7 @@
 Wyatt (no password, so this account can't sign in), his personal collection, and every grid
 puzzle from the current site (../src/games), as sketches. Number Line Mazes and Three Coats
 levels are converted to the engine's maze and coats genres.
-Also the AI creators (app/ai/personas.ts, read with Node): their accounts and collections,
+Also the AI creators (src/ai/personas.ts, read with Node): their accounts and collections,
 the same rows the site's ensurePersona makes (app/lib/ai.server.ts).
 """
 import json
@@ -34,7 +34,7 @@ out = [
 APP = Path(__file__).resolve().parents[1]
 personas = json.loads(subprocess.check_output(
     ["node", "--input-type=module", "-e",
-     "const m = await import('./app/ai/personas.ts'); console.log(JSON.stringify(m.PERSONAS.map(({ handle, name, bio, recommends }) => ({ handle, name, bio, recommends: recommends ?? [] }))))"],
+     "const m = await import('../src/ai/personas.ts'); console.log(JSON.stringify(m.PERSONAS.map(({ handle, name, bio, recommends }) => ({ handle, name, bio, recommends: recommends ?? [] }))))"],
     cwd=APP))
 for p in personas:
     h = p["handle"]
