@@ -121,7 +121,8 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
     shows up here. The rule (Josh, 2026-10-21): scored with a budget of 200 clingo calls (not wall
     clock, so it repeats exactly), neither mean more than 0.02 lower (one-sided since 2026-10-22, Josh: a
-    gain passes), and no type worse than the low end of its
+    gain passes, but a gain past the noise range counts only once a fresh sample of puzzles
+    outside the guard's confirms it), and no type worse than the low end of its
     own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
     type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
     bigger call budget, since at 200 none of its 20 finish and every one rates 0.9: 1,000 calls (with
