@@ -35,6 +35,8 @@ const SETTINGS = ([
   ["c200-islands", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "islands" }],
   ["c200-corewide", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_CORE: "wide" }],
   ["c200-nurikabe", { DEDUCE_BUDGET_CALLS: "200" }, ["--games", "nurikabe"]],
+  // types that finish under 1 in 5 at 200 calls are judged at 1,000 (the guard rule, 5ecb89a)
+  ["c1000-low", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "numberlink,nurikabe,square-jam"]],
   ["c200-joins", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "joins" }, ["--games", "cave,nurikabe"]],
   // Nurikabe stalls at 200 calls (nothing solves), so it's judged at 1,000
   ["n1000-baseline", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "nurikabe"]],
