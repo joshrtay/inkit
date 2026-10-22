@@ -137,6 +137,22 @@ export function symbolSvg(x: { kind: string; color?: string; value?: unknown; ro
 }
 
 /** The dots and the symbols: over the line. */
+/** The ends of a path along the grid lines, off a panel (Slitherlink Path): an arrow out of the
+ *  grid at each, the way a maze's doors are drawn. */
+/** The sides of the grid a path's end arrows point out of (off a panel), for the margins. */
+export const endSides = (p: Puzzle): string[] => p.rules.some((s) => s.rule === "panel-line") ? [] : endsOf(p).map((v) => {
+  const [dx, dy] = outward(p.grid, v);
+  return dy < 0 ? "top" : dy > 0 ? "bottom" : dx < 0 ? "left" : "right";
+});
+
+export function endArrows(p: Puzzle, fr: PanelFrame): string {
+  return endsOf(p).map((v) => {
+    const [x, y] = cornerXY(p.grid, fr, v), [ux, uy] = outward(p.grid, v);
+    const [ax, ay, hx, hy] = [x + ux * 6, y + uy * 6, x + ux * 34, y + uy * 34], bx = hx - 7 * ux, by = hy - 7 * uy;
+    return tag("path", { class: "arrow", d: `M${ax} ${ay}L${hx} ${hy}M${bx - 6 * uy} ${by + 6 * ux}L${hx} ${hy}L${bx + 6 * uy} ${by - 6 * ux}` });
+  }).join("");
+}
+
 export function panelSymbols(p: Puzzle, fr: PanelFrame): string {
   const g = p.grid, out: string[] = [];
   for (const h of hexagonsOf(p)) {

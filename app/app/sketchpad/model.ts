@@ -73,8 +73,11 @@ export const STAMP_SNAP = {
   crest: ["cell"], triangle: ["cell"], shape: ["cell"], eraser: ["cell"],
   // Panes: a < sign on a line (pointing at the smaller side), a palisade mark in a square
   inequality: ["edge"], palisade: ["cell"],
-  // a thermometer: dragged from its bulb through the squares (a "thermo" item, not a stamp)
-  thermo: ["cell"],
+  // Hamiltonian Plumbers: where pipes cross
+  crossing: ["cell"],
+  // a thermometer: dragged from its bulb through the squares (a "thermo" item, not a stamp); a
+  // whisper line (German Whispers) the same way, a "thermo" item with `line: "whisper"`
+  thermo: ["cell"], whisper: ["cell"],
 } satisfies Record<string, Snap[]>;
 export type StampKind = keyof typeof STAMP_SNAP;
 
@@ -94,8 +97,9 @@ export type Item =
    *  rather than its first; `opposite` a palisade's two inked sides opposite, not at a corner */
   | { id: number; kind: "stamp"; stamp: StampKind; at: Anchor; color?: SymbolColor; count?: number; cells?: [number, number][];
       hollow?: boolean; rotate?: boolean; hidden?: boolean; flip?: boolean; opposite?: boolean }
-  /** a thermometer: the squares it runs through, from its bulb, drawn as the boards draw one */
-  | { id: number; kind: "thermo"; cells: [number, number][] }
+  /** a thermometer: the squares it runs through, from its bulb, drawn as the boards draw one; with
+   *  `line: "whisper"`, a German Whispers line through those squares instead */
+  | { id: number; kind: "thermo"; cells: [number, number][]; line?: "whisper" }
   /** a number, letter or word, handwritten; `small`: half size (corner sums, compass and border numbers) */
   | { id: number; kind: "text"; at: Anchor; text: string; small?: boolean }
   /** a break in a grid line (a panel's gap): the line between two corners, left out */
@@ -475,13 +479,15 @@ export function hit(d: Drawing, p: XY, reach = 8, only?: (it: Item) => boolean):
 }
 
 /** A thermometer through these squares, from its bulb: two or more, each next to the last (a side
- *  or a corner), none twice. Tapping a bulb with one square takes that thermometer off. */
-export function thermo(d: Drawing, cells: [number, number][]): Drawing {
+ *  or a corner), none twice. Tapping a bulb with one square takes that thermometer off. A whisper
+ *  line (`line`) is drawn and taken off the same way, from either end. */
+export function thermo(d: Drawing, cells: [number, number][], line?: "whisper"): Drawing {
   if (cells.length === 1) {
-    const there = d.items.find((it) => it.kind === "thermo" && it.cells[0][0] === cells[0][0] && it.cells[0][1] === cells[0][1]);
+    const at = (x: [number, number]) => x[0] === cells[0][0] && x[1] === cells[0][1];
+    const there = d.items.find((it) => it.kind === "thermo" && (it.line ?? null) === (line ?? null) && (at(it.cells[0]) || (line && at(it.cells[it.cells.length - 1]))));
     return there ? remove(d, [there.id]) : d;
   }
-  return cells.length < 2 ? d : add(d, { kind: "thermo", cells });
+  return cells.length < 2 ? d : add(d, { kind: "thermo", cells, ...(line ? { line } : {}) });
 }
 /** The next square of a thermometer being dragged: added if it's next to the last; going back
  *  onto the one before takes the last off. */

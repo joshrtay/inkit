@@ -35,6 +35,9 @@
 .grid-game .galaxy { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
 .grid-game .thermo { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); stroke-width: calc(var(--wash-stroke) * 1.33); stroke-linecap: round; stroke-linejoin: round; }   /* a thermometer's tube: wider than a river */
 .grid-game .thermo-bulb { fill: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); }
+/* Hamiltonian Plumbers: where pipes may cross, a faint plus under the line */
+.grid-game .crossing { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 22%, transparent); stroke-width: var(--wash-stroke); stroke-linecap: round; }
+.grid-game .whisper { fill: none; stroke: var(--wash-green); stroke-width: calc(var(--wash-stroke) * 0.6); stroke-linecap: round; stroke-linejoin: round; }   /* a German Whispers line: thinner than a thermometer, green */
 .grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: var(--pen-fine); stroke-linejoin: round; filter: var(--wash); }
 
 /* clues are handwritten in the board's ink */
