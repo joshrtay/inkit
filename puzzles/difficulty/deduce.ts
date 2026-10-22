@@ -1393,9 +1393,10 @@ end
       let x = sigs.get(w); if (x === undefined) { x = sigOf(w); sigs.set(w, x); }
       return `${w.label}|${m}|${x}`;
     };
+    const claimer = new Map<number, Window>();
     for (const w of ws) {
       const facts = found.get(w)!.filter(([m]) => !claimed.has(m));
-      for (const [m] of facts) claimed.add(m);
+      for (const [m] of facts) { claimed.add(m); claimer.set(m, w); }
       // explained before, with nothing new known in the window since: the same explanation
       const fresh = facts.filter(([m]) => explained.get(ek(w, m))?.stamp !== stamp(w));
       if (fresh.length) jobs.push({ w, facts: fresh });
@@ -1404,7 +1405,10 @@ end
     const ex = pre ?? explain(jobs), steps: (Step & { w: Window })[] = [];
     for (const { w, facts } of jobs) ex.get(w)?.forEach((e, k) => explained.set(ek(w, facts[k][0]), { stamp: stamp(w), e }));
     for (const w of ws) {
-      const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m)));
+      // (a fact another window claimed is listed here only with an explanation of its own: before
+      // 2026-10-22 it was listed unexplained when the claimer's was cached, and taken at times)
+      const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m))
+        && (claimer.get(m) === w || explained.has(ek(w, m))));
       if (!facts.length) continue;
       const es = facts.map(([m]) => explained.get(ek(w, m))?.e ?? null), byKey = new Map<string, Step & { w: Window }>();
       facts.forEach(([m, v], k) => {

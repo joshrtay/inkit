@@ -323,6 +323,22 @@ our clingo-wasm wrapper takes (clingo.ts MAX_PROGRAM), so those steps go unexpla
 needs a smaller encoding of the island rules for explanations (a local encoding, as Fillomino and
 Shikaku have) or native clingo; until then Nurikabe is left out of the guard.
 
+**A local encoding for Nurikabe.** local.ts now encodes Nurikabe the way people think of it: each
+unshaded cell belongs to one number within reach (own(I,C)), neighbours both unshaded share an
+owner, a number owns its size and each owned cell joins it, the shaded cells join, no 2 × 2 is all
+shaded. It never pairs regions, so a whole-grid program is 40–130 kB where the engine's is 4–7.6 MB,
+and it gives the engine's answers (unique on all 16 dev Nurikabes). With finish and the answer
+supplied, all 16 dev Nurikabes finish in 0.9–11.3 s (13 by 10 s; before: 9 of 16 by 60 s), every
+step explained. The two examples solve in 0.25–0.37 s (engine encoding 1–2.5 s) with no search
+steps (engine: 1 and 3): owner atoms let propagation see what the engine's reach encoding needed
+search for, so ratings move (example 1: 0.76 → 0.49 with finish). Whether they move the right
+way is the guard's call (Nurikabe on PSJP at 200 calls). DEDUCE_LOCAL=0 turns it off.
+
+The same run found a listing bug in every genre: a fact another window claimed was also listed by
+any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
+those unexplained duplicates were taken at times (priced at the fallback). A window now lists a
+claimed fact only with an explanation of its own (deduce.ts candidates).
+
 **Estimates depend on the clock.** The paths are deterministic (every other type repeated exactly);
 what isn't is the budget. The scoreboard gives each solve 15 s of wall clock, and an unsolved puzzle
 rates at least 0.9, so a slow puzzle near the line (Masyu and Simple Loop are explain-bound) rates
