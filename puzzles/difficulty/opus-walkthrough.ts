@@ -44,7 +44,9 @@ const OUT = `${repo}references/ml/opus-human/`, PSJP = `${repo}references/psjp/`
 const argv = process.argv.slice(2), cmd = argv[0] ?? "report";
 const opt = (name: string, d: number) => { const k = argv.indexOf(name); return k >= 0 ? Number(argv[k + 1]) : d; };
 const SEED = "opus-walkthrough 2026-10-22";
-const MODEL = "anthropic/claude-opus-5.5", PRICE = { input: 4 / 1e6, output: 20 / 1e6 }, MAX_TOKENS = 32000;
+const MODEL = "anthropic/claude-opus-5.5", PRICE = { input: 4 / 1e6, output: 20 / 1e6 };
+// a walkthrough from the empty grid can spend the whole allowance thinking: WALK_EFFORT and WALK_TOKENS set the trade
+const EFFORT = process.env.WALK_EFFORT || "medium", MAX_TOKENS = Number(process.env.WALK_TOKENS) || 32000;
 const CAP = Number(process.env.WALK_CAP) || 20;
 const key = (mv: MV | null | undefined) => (mv ? `${mv[0]}=${mv[1]}` : "");
 
@@ -170,10 +172,11 @@ function walkJson(text: string): any {
 async function ask() {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("no OPENROUTER_API_KEY");
-  const file = `${OUT}walk.jsonl`, done = new Map(readJsonl(file).map((x) => [x.id, x]));
-  let spent = [...done.values()].reduce((a, x) => a + (x.cost ?? 0), 0), reserved = 0;
+  // a reply with no walkthrough in it (out of tokens) is asked again, but its cost still counts
+  const file = `${OUT}walk.jsonl`, rows = readJsonl(file), done = new Map(rows.filter((x) => x.parsed).map((x) => [x.id, x]));
+  let spent = rows.reduce((a, x) => a + (x.cost ?? 0), 0), reserved = 0;
   let todo = shuffled(loadWalk(), `${SEED} order`).filter((w) => !done.has(w.id));
-  if (argv.includes("--only")) todo = todo.filter((w) => w.set === argv[argv.indexOf("--only") + 1]);
+  if (argv.includes("--only")) { const o = argv[argv.indexOf("--only") + 1]; todo = todo.filter((w) => w.set === o || w.genre === o); }
   if (argv.includes("--limit")) todo = todo.slice(0, opt("--limit", 2));
   console.error(`${done.size} done ($${spent.toFixed(2)}), ${todo.length} to ask, cap $${CAP}`);
   await mapPool(todo, async (w) => {
@@ -186,7 +189,7 @@ async function ask() {
       for (let a = 0; a < 5; a++) {
         res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, reasoning: { effort: "medium" }, messages: [{ role: "user", content: prompt }] }),
+          body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, reasoning: { effort: EFFORT }, messages: [{ role: "user", content: prompt }] }),
           signal: AbortSignal.timeout(20 * 60 * 1000),
         });
         if (res.status !== 429 && res.status < 500) break;
@@ -197,7 +200,7 @@ async function ask() {
       const cost = body.usage?.cost ?? ((body.usage?.prompt_tokens ?? 0) * PRICE.input + (body.usage?.completion_tokens ?? 0) * PRICE.output);
       spent += cost;
       const text = String(body.choices?.[0]?.message?.content ?? ""), parsed = walkJson(text);
-      appendFileSync(file, JSON.stringify({ id: w.id, model: MODEL, usage: body.usage, cost, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, text, at: new Date().toISOString() }) + "\n");
+      appendFileSync(file, JSON.stringify({ id: w.id, model: MODEL, effort: EFFORT, maxTokens: MAX_TOKENS, usage: body.usage, cost, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, text, at: new Date().toISOString() }) + "\n");
       console.error(`${w.id}: ${parsed ? `${parsed.steps.length} steps` : "unparsed"}, ${body.usage?.completion_tokens} out, $${cost.toFixed(3)} (total $${spent.toFixed(2)}), ${Math.round((Date.now() - t0) / 1000)} s`);
     } catch (e) {
       console.error(`${w.id}: failed (${(e as Error).message.slice(0, 200)})`);
