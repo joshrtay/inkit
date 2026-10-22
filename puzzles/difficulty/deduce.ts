@@ -30,6 +30,7 @@ import type { Given, GridSpec, Puzzle } from "../../src/engine/types.ts";
 import { outputLine, parseAspif, ruleLine, type Ground, type Rule } from "./aspif.ts";
 import { clingoJson, clingoRaw, ground, loadClingo } from "./clingo.ts";
 import { localProgram } from "./local.ts";
+import { routes } from "./routes.ts";
 import { countSets, countSystems } from "./counting.ts";
 import { PRIMITIVE, unitKind } from "./signatures.ts";
 
@@ -140,6 +141,9 @@ export interface Options {
   families?: FamilySpec[];
   /** the lemmas the solver adds ("component", "parity", "loop"); default DEDUCE_LEMMAS, else "loop" */
   lemmas?: string[];
+  /** add the genre's FINISH techniques and lemmas to the others (or DEDUCE_FINISH=1): for solves
+   *  where finishing matters more than the step costs (they're unpriced) */
+  finish?: boolean;
   /** per-genre techniques (TECHNIQUES), for the generator's bands only (bands.ts): constraints
    *  each implies from what's known, added each round like the lemmas, with windows over them (the
    *  stage family "techniques"). Default none */
@@ -195,7 +199,8 @@ export interface Options {
   /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
    *  mark from everything every stage's windows find, under the move model, and takes the cheapest
    *  step deciding it; an empty menu takes the usual case split (or, with none, the fact the least search proves). `samples` solves from the
-   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`).
+   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`, and
+   *  `open`, the marks undecided at the start: a stopped solve settled its facts' share of them).
    *  For other policies (reward-compare.ts): `pick: "max"` takes the model's likeliest mark instead
    *  of sampling (a policy as a reward to maximise), `score` also gives each move's probability
    *  under a second model (`sim.ps`: how human the policy's move was), and `noSplits` stops at an
@@ -286,6 +291,12 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   ends: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "path" || r.rule === "links"),
   // Simple Path, Simple Loop and Numberlink with every cell used: a part of the grid with few ways out
   cuts: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.cover && (r.rule === "path" || r.rule === "links" || (r.rule === "loop" && r.of === "loop"))),
+  // Numberlink: where each pair's line can still run, and the cells it must pass (routes.ts)
+  routes: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links"),
+  // Numberlink without every cell used, by uniqueness (UNIQUENESS: only for puzzles with one
+  // answer): a line never bends round a 2 × 2 or passes two empty cells beside it, and never
+  // touches itself
+  unique: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links" && !r.cover),
   // Numberlink: the cells each pair can still reach
   owners: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "links"),
   // Fillomino (regions cut by borders, numbers their sizes): parts that close, stay apart or must
@@ -303,6 +314,22 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   // Fill-in: the entries each slot still fits, the slots each entry still fits (needs Options.cellAtoms)
   slots: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "fill-in"),
 };
+/** What each genre needs to finish the hand-made puzzles the default solver stalls on (the 196
+ *  stalled at 30 s in the human build, docs/research-state.md, "Step 3"): techniques
+ *  and lemmas, unpriced, so off unless asked for (Options.finish). Hitori's component lemma
+ *  flattens Tatham's Singles grades as priced now (0.71/0.80 to 0.58/0.44); citing the group's
+ *  cells (DEDUCE_COMPONENT_CITE) brings Singles back (0.70/0.84) but not Puzzle Square JP's
+ *  Hitori (0.66 to 0.40). */
+export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[] }> = {
+  numberlink: { techniques: ["routes", "unique", "ends", "owners", "cuts"] },
+  fillomino: { techniques: ["sizes", "shapes"] },
+  hidoku: { techniques: ["distance", "deadends"] },
+  "honeycomb-paths": { techniques: ["distance", "deadends"] },
+  hitori: { lemmas: ["component"] },
+};
+/** Techniques that hold only because the puzzle has one answer (a published puzzle does; a
+ *  generator's candidate may not): kept out of the generator's bands. */
+export const UNIQUENESS = new Set(["unique"]);
 export const techniqueApplies = (t: string, p: Puzzle, genre?: string) => TECHNIQUES[t]?.(p, genre) ?? false;
 
 /** A puzzle as a graph: cells, marks on cells, and rule instances (each a kind on a set of cells). */
@@ -329,6 +356,13 @@ const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
 export const GROUP_COST = 0.5, FACT_COST = 0.2, TIER_COST = [0, 0, 2, 4] as const;
 /** Each round takes every step within SLACK of the cheapest (Options.minPeak: within PEAK_TIE). */
 const SLACK = 1, PEAK_TIE = 0.05;
+/** the component lemma's constraints cite the group's cells (DEDUCE_COMPONENT_CITE=1): see
+ *  addComponentLemmas */
+const COMPONENT_CITE = process.env.DEDUCE_COMPONENT_CITE === "1";
+/** characters of windows per explanation call (DEDUCE_EXPLAIN_CHUNK): small, since clingo looks
+ *  for a model of the whole call every time deletion keeps an element (a 10 × 10 Hidoku: 33 ms a
+ *  fact at 900,000, 10 ms at 100,000) */
+const EXPLAIN_CHUNK = Number(process.env.DEDUCE_EXPLAIN_CHUNK) || 100_000;
 /** clingo solves allowed per explanation (deletion stops there, keeping a larger set) */
 const MUS_SOLVES = 400;
 
@@ -432,7 +466,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean; open: number }[] }> {
   const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
@@ -440,7 +474,10 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   let calls = 0;
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
-  const techOn = new Set((opts.techniques ?? []).filter((t) => techniqueApplies(t, p, spec.genre)));
+  // DEDUCE_TECHNIQUES: the default techniques ("all": every one, where it applies)
+  const techEnv = process.env.DEDUCE_TECHNIQUES === "all" ? Object.keys(TECHNIQUES) : process.env.DEDUCE_TECHNIQUES?.split(",").filter(Boolean);
+  const finish = (opts.finish ?? process.env.DEDUCE_FINISH === "1") ? FINISH[spec.genre ?? ""] ?? {} : {};
+  const techOn = new Set([...(opts.techniques ?? techEnv ?? []), ...(finish.techniques ?? [])].filter((t) => techniqueApplies(t, p, spec.genre)));
   const local = localProgram(p, spec.genre, techOn.has("rects") || techOn.has("rectpairs"));
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
@@ -451,7 +488,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // lemma finds Hitori's connectivity moves without search but prices them as easy, so Tatham's
   // easy and tricky Singles grades rated alike (agreement 0.75 to 0.04): on once it's priced. Loop
   // parity helped little for 11% more time.
-  const lemmasOn = opts.lemmas ?? (process.env.DEDUCE_LEMMAS ?? "loop").split(",");
+  const lemmasOn = [...(opts.lemmas ?? (process.env.DEDUCE_LEMMAS ?? "loop").split(",")), ...(finish.lemmas ?? [])];
   const parity = local || !lemmasOn.includes("parity") ? null : parityLemma(p, p.rules.length);
   if (parity) lemmaNames.push("parity");
   const COMPONENT = p.rules.length + lemmaNames.length; lemmaNames.push("component");
@@ -953,7 +990,48 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // subset-minimal one.
   const ALL: Window = win("the whole grid", Array.from({ length: n }, (_, i) => i));
   interface Expl { groups: number[]; facts: number[]; capped: boolean }
+  // A fact that one technique constraint of its window rules out the other way, given known facts
+  // for the rest of its body (Hidoku's distances: thousands a round), is explained by that
+  // constraint and those facts, a subset-minimal set like any other, without asking clingo. Only
+  // the techniques' constraints, so the puzzle's own steps keep the sets the step prices were
+  // fitted on (often larger than needed: the script tries the sets found for earlier facts first;
+  // starting deletion from the rules round a fact's cells instead moved Sudoku 2's hardest step
+  // from 5.9 to 3.7, so it waits for a refit).
+  const techBlocks = new Set(techBlock.values());
   const explain = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
+    const out = new Map<Window, (Expl | null)[]>(), rest: { w: Window; facts: [number, boolean][] }[] = [], at = new Map<Window, number[]>();
+    for (const job of jobs) {
+      // literal → the cheapest such constraint, with the known facts the rest of its body needs
+      const unit = new Map<number, { gi: number; facts: number[] }>();
+      for (const k of progOf(job.w).rules) {
+        const r = rules[k], j = consOf[k];
+        if (j < 0 || groupOf[j] < 0 || r.bound !== null || !r.body.length || !techBlocks.has(r.block)) continue;
+        let open = 0, lit = 0;
+        const facts: number[] = [];
+        for (const l of r.body) {
+          const m = atomMark.get(Math.abs(l));
+          if (m !== undefined && known[m] === (l > 0 ? 1 : 0)) { facts.push(m); continue; }
+          open++; lit = l;
+          if (open > 1) break;
+        }
+        if (open !== 1) continue;
+        const had = unit.get(lit);
+        if (!had || had.facts.length > facts.length) unit.set(lit, { gi: groupOf[j], facts });
+      }
+      const res: (Expl | null)[] = job.facts.map(([m, v]) => { const a = markAtom[m], u = a > 0 ? unit.get(v ? -a : a) : undefined; return u ? { groups: [u.gi], facts: u.facts, capped: false } : null; });
+      const left = job.facts.flatMap((f, k) => (res[k] ? [] : [k]));
+      if (left.length < job.facts.length) out.set(job.w, res);
+      if (left.length) { rest.push({ w: job.w, facts: left.map((k) => job.facts[k]) }); at.set(job.w, left); }
+    }
+    if (!rest.length) return out;
+    for (const [w, es] of explainByClingo(rest)) {
+      const left = at.get(w)!, res = out.get(w) ?? jobs.find((j) => j.w === w)!.facts.map(() => null);
+      es.forEach((e, k) => { res[left[k]] = e; });
+      out.set(w, res);
+    }
+    return out;
+  };
+  const explainByClingo = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
     const out = new Map<Window, (Expl | null)[]>();
     let text: string[] = [], tables: string[] = [], members: { w: Window; facts: [number, boolean][] }[] = [];
     const flush = () => {
@@ -1051,17 +1129,17 @@ end
       for (const [m, v] of job.facts) mine.push(`:- ${v ? "" : "not "}${A(markAtom[m])}, t(${W},${m}).`);
       // free externals: switched on by assumptions, otherwise the solver may leave them off
       mine.push(`#external e(${W}). [free]`, ...[...gs].map((gi) => `#external g(${W},${gi}). [free]`), ...kn.map((m) => `#external k(${W},${m}). [free]`), ...job.facts.map(([m]) => `#external t(${W},${m}). [free]`));
-      const size = mine.reduce((x, l) => x + l.length + 1, 0);
+      const table = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}}}`;
+      const size = mine.reduce((x, l) => x + l.length + 1, 0) + table.length;
       if (size > 900_000) { notes.push(`${job.w.label}: too big to explain`); continue; }
-      if (chars + size > 900_000) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
-      members.push(job); text.push(...mine); chars += size;
-      tables.push(`{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}}}`);
+      if (members.length && chars + size > EXPLAIN_CHUNK) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
+      members.push(job); text.push(...mine); tables.push(table); chars += size;
     }
     flush();
     return out;
   };
   const explainRest = (jobs: { w: Window; facts: [number, boolean][] }[], acc: Map<Window, (Expl | null)[]>) => {
-    for (const [w, e] of explain(jobs)) acc.set(w, e);
+    for (const [w, e] of explainByClingo(jobs)) acc.set(w, e);
     return acc;
   };
 
@@ -1252,7 +1330,13 @@ end
         if (lemmaSeen.has(key) || constraints.length - firstAdded - techAdded >= ROOM - 1) continue;
         lemmaSeen.add(key);
         // the violation: every unknown neighbour goes the other way
-        const body = [...open].map((j) => { const a = markAtom[markOf.get(`shaded(${j})`)!]; return want ? -a : a; });
+        const lit = (j: number, v: boolean) => { const a = markAtom[markOf.get(`shaded(${j})`)!]; return v ? a : -a; };
+        const body = [...open].map((j) => lit(j, !want));
+        // COMPONENT_CITE: said of the group's own cells too, so an explanation must cite the facts
+        // that make the group: it costs what seeing the group does
+        if (COMPONENT_CITE) {
+          for (const c of comp) if (markOf.has(`shaded(${c})`) && markAtom[markOf.get(`shaded(${c})`)!] > 0) body.push(lit(c, want));
+        }
         const k = rules.length, jx = constraints.length;
         rules.push({ choice: false, head: [], bound: null, body, weights: [], block: COMPONENT });
         constraints.push(k); consOf[k] = jx;
@@ -1621,6 +1705,103 @@ end
     for (let i = 0; i < n; i++) if (g.cellLinks[i].some((l) => lineState(l) < 0)) ws.push(techWin(`owners: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
     return ws;
   };
+
+  // Numberlink (technique "routes", routes.ts): where each pair's line can still run. A pair can
+  // use a cell only if some simple path between its numbers, through cells no other pair holds,
+  // passes it; a cell every such path passes is the pair's, and with every cell used, so is a cell
+  // only one pair can use. A link no pair can use is ruled out. Windows: each cell with its
+  // neighbours, as owners.
+  const routesRound = (): Window[] => {
+    if (!linkNums.size) return [];
+    const ends = new Map<number, number[]>();
+    for (const [c, v] of linkNums) { if (!ends.has(v)) ends.set(v, []); ends.get(v)!.push(c); }
+    const values = [...ends.keys()];
+    if (values.some((v) => ends.get(v)!.length !== 2)) return [];
+    const index = new Map(values.map((v, k) => [v, k]));
+    const owner = new Int32Array(n).fill(-1);
+    for (const c of p.blocked) owner[c] = -2;
+    for (const pc of linePieces([...linkNums.keys()])) {
+      const vs = [...new Set(pc.cells.filter((c) => linkNums.has(c)).map((c) => linkNums.get(c)!))];
+      if (vs.length === 1) for (const c of pc.cells) owner[c] = index.get(vs[0])!;
+    }
+    const open = (c: number) => !p.blocked.has(c);
+    const edges = g.links.filter((l) => lineState(l.id) !== 0 && l.cells.every(open)).map((l) => l.cells as [number, number]);
+    const cover = p.rules.some((r) => r.rule === "links" && r.cover);
+    const r = routes({ n, edges, pairs: values.map((v) => ends.get(v) as [number, number]), owner, cover });
+    if (r.contradiction) return [];
+    for (let l = 0; l < g.links.length; l++) {
+      if (lineState(l) >= 0) continue;
+      const [x, y] = g.links[l].cells;
+      if (r.use.some((u) => u[x] && u[y])) continue;
+      addTech("routes", [LIT(lineAtom(l), true)], `where the lines through ${rc(x)} can run`);
+    }
+    const ws: Window[] = [];
+    for (let i = 0; i < n; i++) if (g.cellLinks[i].some((l) => lineState(l) < 0)) ws.push(techWin(`routes: ${rc(i)}`, bitsOf(n, [i, ...g.cellLinks[i].map((l) => otherEnd(l, i))])));
+    return ws;
+  };
+
+  // Numberlink without every cell used (technique "unique"): what one answer rules out. Were a
+  // line to go round three sides of a 2 × 2, it could cut across the fourth, leaving two cells
+  // empty: another answer. Were it to run beside two empty cells of a 2 × 2, it could bend round
+  // them: another answer; were it to turn round a 2 × 2's fourth cell with that cell empty, it
+  // could go through it instead. So none happens (said once, of each 2 × 2's links). And a line that
+  // touches itself away from its own next cell could cut across there; so a piece of line with a
+  // number can't grow into a cell beside another cell of its number's line, but where that is the
+  // free end of the other piece, which it may join (each round, of the pieces drawn).
+  let uniqueDone = false;
+  const uniqueRound = (): Window[] => {
+    if (!linkNums.size || g.kind !== "square") return [];
+    const ws: Window[] = [];
+    const linkBetween = (a: number, b: number) => g.cellLinks[a].find((l) => otherEnd(l, a) === b);
+    if (!uniqueDone) {
+      uniqueDone = true;
+      for (let r = 0; r + 1 < g.rows; r++) for (let c = 0; c + 1 < g.cols; c++) {
+        const tl = g.cell(r, c), tr = g.cell(r, c + 1), bl = g.cell(r + 1, c), br = g.cell(r + 1, c + 1);
+        if ([tl, tr, bl, br].some((x) => p.blocked.has(x))) continue;
+        // the four sides in order round the square, each with the two cells on the far side
+        const sides: [number, number, number][] = [[linkBetween(tl, tr)!, bl, br], [linkBetween(tr, br)!, tl, bl], [linkBetween(br, bl)!, tl, tr], [linkBetween(bl, tl)!, tr, br]];
+        const label = `the square at ${rc(tl)}`, cells = bitsOf(n, [tl, tr, bl, br]);
+        for (let k = 0; k < 4; k++) addTech("unique", sides.filter((_, j) => j !== k).map(([l]) => LIT(lineAtom(l), true)), label);
+        const empty = (z: number) => g.cellLinks[z].map((m) => LIT(lineAtom(m), false));
+        for (const [l, x, y] of sides) {
+          if (linkNums.has(x) || linkNums.has(y)) continue;
+          addTech("unique", [LIT(lineAtom(l), true), ...empty(x), ...empty(y)], label);
+        }
+        // a turn round the square's fourth cell, with that cell empty, could go through it instead
+        const turns: [number, number, number][] = [[sides[0][0], sides[1][0], bl], [sides[1][0], sides[2][0], tl], [sides[2][0], sides[3][0], tr], [sides[3][0], sides[0][0], br]];
+        for (const [l1, l2, e] of turns) {
+          if (linkNums.has(e)) continue;
+          addTech("unique", [LIT(lineAtom(l1), true), LIT(lineAtom(l2), true), ...empty(e)], label);
+        }
+        ws.push(techWin(`unique: ${label}`, cells));
+      }
+      uniqueFixed = ws;
+    }
+    const pieces = linePieces([...linkNums.keys()]), pieceOf = new Int32Array(n).fill(-1);
+    pieces.forEach((pc, k) => { for (const c of pc.cells) pieceOf[c] = k; });
+    const value = pieces.map((pc) => { const vs = [...new Set(pc.cells.filter((c) => linkNums.has(c)).map((c) => linkNums.get(c)!))]; return vs.length === 1 ? vs[0] : undefined; });
+    const freeTip = (k: number, c: number) => pieces[k].tips.includes(c) && (!linkNums.has(c) || !pieces[k].links.length);
+    const out: Window[] = [];
+    pieces.forEach((pc, k) => {
+      const v = value[k];
+      if (v === undefined) return;
+      for (const t of new Set(pc.tips)) {
+        if (!freeTip(k, t)) continue;
+        for (const l of g.cellLinks[t]) {
+          if (lineState(l) >= 0) continue;
+          const u = otherEnd(l, t);
+          if (pieceOf[u] >= 0 || linkNums.has(u)) continue;
+          const touch = g.cellLinks[u].map((m) => otherEnd(m, u)).find((z) => z !== t && pieceOf[z] >= 0 && value[pieceOf[z]] === v && !(pieceOf[z] !== k && freeTip(pieceOf[z], z)));
+          if (touch === undefined) continue;
+          const links = [...new Set([...pc.links, ...pieces[pieceOf[touch]].links])];
+          const bits = addTechFitting("unique", [LIT(lineAtom(l), true), ...links.map((m) => LIT(lineAtom(m), true))], [LIT(lineAtom(l), true)], `the line ending at ${rc(t)}`, links.length);
+          if (bits) out.push(techWin(`unique: the line ending at ${rc(t)}`, unionBits(bits, bitsOf(n, [u, touch]))));
+        }
+      }
+    });
+    return [...uniqueFixed.filter((w) => w.cells.some((c) => g.cellLinks[c].some((l) => lineState(l) < 0))), ...out.filter((w) => w.size <= techCap)];
+  };
+  let uniqueFixed: Window[] = [];
 
   // Simple Path and Simple Loop with every cell visited (technique "cuts"): a part of the grid
   // that the line can only leave by one, two or three links (what's undecided and drawn; walls,
@@ -2000,7 +2181,7 @@ end
     }
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
+  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, routes: routesRound, unique: uniqueRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
   const addTechniques = () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
@@ -2328,7 +2509,7 @@ end
     };
     const kindOf = (st: Step) => [...new Set((st.because?.clues ?? []).map((x) => x.split(" (")[0]))].sort().join("+");
     const start: SNode = { known: Int8Array.from(known), g: 0, peak: 0, steps: [], open: undecided, depth: 0 };
-    const sims: { path: Step[]; solved: boolean }[] = [];
+    const sims: { path: Step[]; solved: boolean; open: number }[] = [];
     for (let k = 0; k < samples && !outOfTime; k++) {
       restore(start);
       const steps: Step[] = [];
@@ -2386,7 +2567,7 @@ end
         prev = centre(st.cells);
       }
       if (stuck) notes.push("simulate: stuck, no case split or search proves a fact");
-      sims.push({ path: steps, solved: undecided === 0 });
+      sims.push({ path: steps, solved: undecided === 0, open: start.open });
     }
     if (outOfTime) notes.push(`out of time after ${budget} ms`);
     return { path: [], sims, profile: profileOf([], false, 0, round, Date.now() - t0, calls, [...new Set(notes)]), initial };

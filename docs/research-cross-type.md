@@ -267,7 +267,7 @@ beside the per-type table (unchanged, so earlier results stay comparable):
   beside our solver's next step (any of its facts, and its first fact alone) and random; per type
   and per person (seven people made the ~6,700 recorded solves, Rainer about a third, so the pooled
   number leans on one person's habits). The states are the solver's rounds, not the person's own
-  positions. Janko's files hold no solve times: no difficulty labels from them.
+  positions. Janko's files hold no solve times: no difficulty labels from them. (But Janko's index pages rank each folder by solving time, "leicht", 1–8, "schwer": `meta.jankoLevel` in janko-full.ts's output since 2026-10-22.)
 - **Key move:** the share where the top guess is the round's key fact, a fact of its costliest
   step (the costs the records already carry), with random's line.
 - **By band and by family:** a fixed 1% of the generated puzzles (by a hash of the name) held out,

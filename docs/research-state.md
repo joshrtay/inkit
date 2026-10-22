@@ -184,10 +184,10 @@ per type mean agreement figures can be off by 0.15.
 | Do our tests measure the right thing? | all | human-made puzzles held out, agreement with people's next moves, key-move score, results by band and family, repeated seeds | building now |
 | Can connectivity steps be priced? | difficulty | price group steps from Singles labels; centre with the lemma on | to do |
 | Does the order of a solve carry difficulty? | difficulty | path features against ratings (solves as vectors, step 1) | after pricing |
-| Do Janko's recordings hold solve times? | difficulty | check the files | **no**: moves only, no times. And the ~6,700 recorded solves are by 7 experienced solvers (Rainer 2,109; Steve C 1,125; Jürgen Helbig 996; Angela Janko 784; Otto Janko 711; Groffin 562; Emma 410), so "human order" means expert order, a third of it one person: report agreement per solver. inkit's own solve times are the human difficulty source |
+| Do Janko's recordings hold solve times? | difficulty | check the files | **no**: moves only, no times. And the ~6,700 recorded solves are by 7 experienced solvers (Rainer 2,109; Steve C 1,125; Jürgen Helbig 996; Angela Janko 784; Otto Janko 711; Groffin 562; Emma 410), so "human order" means expert order, a third of it one person: report agreement per solver. inkit's own solve times are the human difficulty source. *(2026-10-22: Janko's folder index pages do rank puzzles by solving time, "leicht", 1–8, "schwer"; janko-full.ts now puts `meta.jankoLevel` (0–9) on all 14,229 converted Janko puzzles)* |
 | Can Opus or Fable label difficulty, hints, interest, sequences? | all | pilot against answer keys | done: hints yes; difficulty no; interest no at scale (Slitherlink a little); sequences unclear (research-llm-labels.md) |
 | What makes a puzzle interesting, beyond one person's taste? | puzzles | public likes and ratings; inkit's own signals; a validated model judge | partly measured (Puzzle Square JP likes) |
-| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band, and each genre's basic ones in hard); pricing them open |
+| Which techniques is the solver missing? | puzzles, difficulty | per-genre techniques (Minesweeper chains, Hidoku distances, Galaxies symmetry, Shikaku rectangles) | done for ten genres (expert band, and each genre's basic ones in hard); step 3 (2026-10-21) added Numberlink's routes and uniqueness and the `finish` set: 170 of 196 stalled puzzles finish by 300 s (was 139); pricing them open |
 | Can a set be built from the family map, and judged? | puzzles | sequences checked against Beast Academy's order | to do |
 | Why is Beast Academy's Akari backwards? | difficulty | look at their sets | open |
 | Is the network the bottleneck for hard human puzzles? | core, difficulty | the frontier measurement and the no-network baseline B0 (see the cheap-solver experiment) | to do, before any loop round |
@@ -761,6 +761,24 @@ from the solver's estimate):
   difficulty model fitted on both (held-out), the log-partition checked on fresh puzzles, and a
   price-aware Akari model (people's moves, and the peak of what they needed).
 
+### Step 3: the missing techniques (2026-10-21)
+
+Write-up: research/step3-missing-techniques-2026-10-21.md (project files). On the 196 hand-made
+puzzles the solver stalled on, with Options.finish (each genre's techniques, unpriced, off by
+default): 170 finish by 300 s (was 139), 76 by 60 s (was 55). Numberlink 15 of 16 (was 3), from two
+new techniques, `routes` (where each pair's line can run; routes.ts) and `unique` (what one answer
+rules out: no bend round a 2 × 2, no line beside or round its empty cells, no line touching itself;
+kept out of the generator's bands). Hidoku 14 of 16 (was 0): its rounds were spent explaining
+thousands of eliminations; technique facts now skip clingo and explanations run in smaller
+batches (12 rounds in 67 s where it did 3–5 in 300 s), with every example's estimate unchanged.
+Fillomino 11 (was 7) from sizes and shapes. Still stuck: Nurikabe and Spiral Galaxies.
+
+Not on by default: Hitori's component lemma flattens Tatham's Singles as priced (0.71/0.80 to
+0.58/0.44); citing the group's cells fixes Singles (0.70/0.84) but Puzzle Square JP Hitori still
+falls (0.66 to 0.40). Next: refit the step prices with the techniques on, and with complete
+explanations (trying the rules near a fact first gives much cheaper sets than the window-wide
+reuse does now: Sudoku 2's hardest step 5.9 to 3.7).
+
 ### Step 2, continued: one difficulty model fitted on both (2026-10-21)
 
 sim_fit.py fits one ridge regression on the same rows. The features are the simulated person's solve
@@ -927,3 +945,97 @@ policy gets 120 s; 9–13% of runs capped and 1–2% errored, and those are left
   thirds) but not how human the order is, and not how well the cost tracks the rating. Greedy
   rewards over the solver's own menu don't add a new solver; what's missing is in the menu (the
   deductions), as the frontier and solver-speed results said. Not worth a learned-RL version.
+
+### Open models as human-move predictors (2026-10-21)
+
+Can a small open-weight model stand in for Opus at predicting people's next move? Same 400
+held-out Janko states and prompt as the Opus test (14 types, `opus-human.ts open`, OpenRouter,
+one move per state), each in two text formats: `grid` (the drawing Opus saw) and `listed` (the
+marks as a list of relations). Hit = the model's move is among the person's next 3.
+
+| Model, format | in next 3 | ordinary | stuck | digit types | other types | top-1 | correct | answered | cost |
+|---|---|---|---|---|---|---|---|---|---|
+| Opus 5.5 (grid, PR #1) | **38%** | 39% | 33% | 67% | 30% | 23% | 98% | 100% | $15.43 |
+| Tuned network (PR #2/#3) | **45–49%** | 50% | 27% | 40% | 46% | 27% | 86% | 100% | — |
+| Gemma 4 31B, grid | 21% | 22% | 16% | 46% | 14% | 12% | 79% | 98% | $0.32 |
+| Gemma 4 31B, listed | 26% | 27% | 22% | 45% | 21% | 15% | 83% | 99% | $0.41 |
+| Qwen3.8 27B (low effort), grid | 22% | 24% | 15% | 54% | 13% | 14% | 57% | 61% | $8.97 |
+| Qwen3.8 27B (low effort), listed | 27% | 30% | 17% | 46% | 22% | 16% | 75% | 79% | $6.61 |
+| Qwen3.5 9B | — | | | | | | | 0 of 20 | $0.11 |
+
+(95% intervals are about ±4–5 points overall, ±9 on stuck and digit states; tuned-network row is
+PR #2's tuned model, with relations-tuned's 49% mean over types from PR #3.)
+
+- **Open models fall well short of Opus:** best is 26–27% against Opus 38% and the network's 45%.
+  Both are below Opus on every split, and below the network everywhere except digit types, where
+  they get 45–54% against the PR #2 network's 40% (relations-tuned closed most of that gap: Hidoku
+  10% → 56.5%).
+- **Listed beats grid by about 5 points** for both models, all of it on non-digit types (Gemma
+  14% → 21%, Qwen 13% → 22%). Small models misread the drawing; the relation list helps them.
+- **Qwen 27B is capable but runs out of room.** On the states where it answered, it hits 34–36%,
+  close to Opus, but it ran past the 16k-token limit on 36% (grid) and 20% (listed) of states, and
+  the answered ones are probably the easier ones. At medium effort it answered more (pilot 17 of
+  19) but cost ~$0.03 a call, over the budget for the full run.
+- **Qwen 9B never answered:** 0 of 20 in four settings (default thinking, medium with 32k tokens,
+  low, thinking off). It loops through the same checks until the limit.
+- **Correctness is the bigger gap.** Gemma's moves are right 79–83% of the time, Qwen's 75% when
+  listed, against Opus 98%. A wrong move can't be a human move, so a solver filter would help them,
+  as it does the network.
+- **Verdict:** none is a cheap substitute for Opus labels, and none approaches the tuned network,
+  which stays the human-like parent. If open labels are wanted for digit types (Qwen 54% on grid
+  digit states), Qwen 27B at medium effort in the listed format is the one to try; it would cost
+  about $10 per 400 states. Total spend: $17.66 including pilots.
+
+### The logic-settled share as a difficulty feature (2026-10-21)
+
+The rewards comparison found that the share of a puzzle logic without case splits settles falls
+with the rating. Is it a feature for the fitted difficulty model? `sim-difficulty.ts logic` runs
+the no-split policy (cheapest step, stop at an empty menu) on the 4,468 puzzles with sim rows and
+records the share of the marks open at the start that it settles (run sim-logic-20261021, 4 ×
+n2-standard-32 spot, 40 minutes). Sudoku, Solo, Star Battle, Spiral Galaxies, Nonogram and
+Skyscrapers mostly hit the 120 s budget (Solo all 266, after about 24 steps), so the share there
+measured speed, not logic; they were rerun at 600 s (sim-logic-long-20261021, 50 minutes; Solo
+and puzz.link Sudoku now finish 99–100%, Galaxies and Nonogram still cap 27–45%). Both runs cost
+about $2. Rows: references/sim-logic/, references/sim-logic-long/ (which replaces the first
+where present), gs://inkit-research-ml/results/sim-logic*-20261021/gathered.
+`python3 puzzles/difficulty/sim_fit.py --new --logic`.
+
+| | n | solver's estimate | fitted: solver only | fitted: both (solver + sim) | fitted: solver + logic | fitted: both + logic |
+|---|---|---|---|---|---|---|
+| Puzzle Square JP, fitted games (half held out) | 1,517 | 0.51 | 0.62 | 0.65 | 0.65 | 0.66 |
+| Tatham, fitted games (half held out) | 920 | 0.64 | 0.67 | 0.69 | 0.68 | 0.69 |
+| Puzzle Square JP, new games (8) | 421 | 0.41 | 0.24 | 0.19 | 0.32 | 0.23 |
+| … solves finish (Shikaku, Skyscrapers, Sudoku) | 144 | 0.59 | 0.61 | 0.60 | 0.65 | 0.61 |
+| Tatham Solo | 266 | 0.80 | 0.80 | 0.75 | 0.80 | 0.76 |
+| puzz.link, the fitted games (new raters) | 414 | 0.41 | 0.46 | 0.46 | 0.50 | 0.48 |
+| puzz.link, new games (11) | 617 | 0.48 | 0.43 | 0.36 | 0.44 | 0.38 |
+| … solves finish (6) | 387 | 0.58 | 0.57 | 0.52 | 0.57 | 0.53 |
+
+- **Beyond the solver's features: a little, on Puzzle Square JP only.** Solver + logic over solver
+  alone: +0.032 (95% 0.018 to 0.045) on Puzzle Square JP, +0.006 (−0.001 to 0.014) on Tatham.
+  Over solver + sim: +0.013 (0.005 to 0.021) and +0.001. Most of it is Masyu (0.57 to 0.65). The
+  solver's features explain 57–63% of the share's variance on the fitted games (it tracks the
+  solver's split count, −0.79 and −0.95), and what's left correlates −0.16 with the rating on
+  Puzzle Square JP and +0.08 on Tatham. It does about what the simulated person did (+0.034), with
+  one no-split pass instead of two human-model solves.
+- **On new games it transfers better than the simulated person did, but doesn't beat the solver's
+  estimate.** Solver + logic is the best fitted column on every new set: 0.32 against 0.19 for
+  solver + sim on Puzzle Square JP's new games, 0.80 against 0.75 on Solo, 0.44 against 0.36 on
+  puzz.link's. Where solves finish it matches or beats the plain solver estimate (0.65 against 0.59
+  on Puzzle Square JP, 0.80 = 0.80 on Solo, 0.57 against 0.58 on puzz.link), and it gives the best
+  score yet on puzz.link's new raters (0.50 against 0.41). Over all new games the plain estimate
+  still wins (0.41, 0.48), because every fitted model goes negative on Numberlink and Nurikabe.
+- **It does not rescue unfinished or region puzzles.** On the puzzles whose solves don't finish, the
+  share agrees with the rating 0.02 (Puzzle Square JP, 285 puzzles) and −0.10 (puzz.link, 146).
+  By type it is mixed in sign: Masyu +0.34 and Slitherlink +0.29, but Spiral Galaxies −0.24 to
+  −0.41 and Nurikabe −0.31 to +0.06. Numberlink settles 0% on every puzzle, so it has nothing to
+  say. On region games no-split logic barely starts (median share 0–15% on Nurikabe, Galaxies,
+  Shikaku, Fillomino), so the share is a floor, the same problem as the costs.
+- **Verdict:** keep it, as a cheap feature, not a new direction. Solver + logic should replace
+  solver + sim as the fitted score: as good on the fitted games, better on new ones, and it drops
+  the human model from the difficulty path. The plain solver estimate stays the default on games
+  where solves stall. Region games still wait on the solver's missing techniques (step 3), not on
+  a better feature.
+- **Done (Josh agreed 2026-10-21):** puzzles/difficulty/sim-fit.json is now the solver + logic model
+  (`sim_fit.py --logic --save`): solver estimate +0.04, cost sum +0.13, peak +0.05, steps −0.08,
+  splits −0.02, logic share −0.06, on features standardised within type.

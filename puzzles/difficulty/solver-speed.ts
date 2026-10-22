@@ -9,10 +9,16 @@
 // - Each solve runs in its own process: budget SPEED_BUDGET_S (300 s, checked between rounds),
 //   killed at SPEED_CAP_S (400 s); one row per puzzle appended to references/<OUT>/rows.jsonl
 //   (OUT default solver-speed), skipping keys already there (a resumed Batch task):
-//   { key, genre, side, marks, finished, killed, ms, notes, rounds: [[ms, open, splits, searches]] }
+//   { key, genre, side, marks, finished, killed, ms, notes, uses, maxCost, perTier, estimate, rounds: [[ms, open, splits, searches]] }
 //   where rounds has the marks still open at the start of each round and at the end, and the
-//   tier-2 (case split) and tier-3 (search) steps taken so far.
+//   tier-2 (case split) and tier-3 (search) steps taken so far, and uses the steps each rule,
+//   lemma or technique took part in.
 // - With --shard k --of N it takes the puzzles whose key hashes to shard k (run-batch.sh).
+// - Solver settings beyond human-shard.ts's (to measure a technique before and after):
+//   SPEED_TECH, deduce's techniques ("all": every TECHNIQUES entry, each where it applies);
+//   SPEED_LEMMAS, its lemmas (comma-separated); SPEED_CELL_ATOMS=1, its cellAtoms;
+//   SPEED_MAX_TIER, its maxTier; SPEED_FINISH=1, its finish (each genre's FINISH techniques and
+//   lemmas); SPEED_GENRES, only these genres (comma-separated).
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -21,7 +27,8 @@ const self = fileURLToPath(import.meta.url);
 
 if (process.argv[2] === "--child") {
   // one solve: a line per round ("P ms open marks splits searches") and the result ("R {...}")
-  const { deduce } = await import("./deduce.ts");
+  const { deduce, TECHNIQUES } = await import("./deduce.ts");
+  const env = process.env, tech = env.SPEED_TECH === "all" ? Object.keys(TECHNIQUES) : env.SPEED_TECH?.split(",").filter(Boolean);
   process.stdout.on("error", () => process.exit(0));
   let input = "";
   process.stdin.on("data", (d) => { input += d; });
@@ -30,13 +37,18 @@ if (process.argv[2] === "--child") {
     try {
       const r = await deduce(spec, {
         budgetMs, structure: true,
+        ...(tech ? { techniques: tech } : {}), ...(env.SPEED_LEMMAS !== undefined ? { lemmas: env.SPEED_LEMMAS.split(",").filter(Boolean) } : {}),
+        ...(env.SPEED_CELL_ATOMS === "1" ? { cellAtoms: true } : {}), ...(env.SPEED_FINISH === "1" ? { finish: true } : {}), ...(env.SPEED_MAX_TIER ? { maxTier: Number(env.SPEED_MAX_TIER) as 1 | 2 | 3 } : {}),
         onRound: (ms, open, marks, path) => {
           let splits = 0, searches = 0;
           for (const s of path) { if (s.tier === 2) splits++; else if (s.tier === 3) searches++; }
           process.stdout.write(`P ${ms} ${open} ${marks} ${splits} ${searches}\n`);
         },
       });
-      process.stdout.write(`R ${JSON.stringify({ solved: r.profile.solved, notes: r.profile.notes, ms: r.profile.ms })}\n`);
+      // the steps each rule, lemma or technique took part in
+      const uses: Record<string, number> = {};
+      for (const s of r.path) for (const u of new Set(s.uses)) uses[u] = (uses[u] ?? 0) + 1;
+      process.stdout.write(`R ${JSON.stringify({ solved: r.profile.solved, notes: r.profile.notes, ms: r.profile.ms, uses, maxCost: r.profile.maxCost, perTier: r.profile.perTier, estimate: r.profile.estimate })}\n`);
     } catch (e) { process.stdout.write(`R ${JSON.stringify({ error: String((e as Error).message ?? e).slice(0, 200) })}\n`); }
   });
 } else await main();
@@ -56,7 +68,8 @@ async function main() {
   for (const f of readdirSync(sampleDir).filter((x) => x.endsWith(".jsonl")).sort())
     for (const l of readFileSync(`${sampleDir}${f}`, "utf8").split("\n")) if (l.trim()) items.push(JSON.parse(l));
   const done = new Set(existsSync(out) ? readFileSync(out, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l).key) : []);
-  const todo = items.filter((r) => parseInt(r.key.slice(0, 8), 16) % N === K && !done.has(r.key));
+  const genres = process.env.SPEED_GENRES?.split(",").filter(Boolean);
+  const todo = items.filter((r) => parseInt(r.key.slice(0, 8), 16) % N === K && !done.has(r.key) && (!genres || genres.includes(r.genre)));
   console.error(`shard ${K} of ${N}: ${todo.length} to do (budget ${BUDGET / 1000} s, killed at ${CAP / 1000} s)`);
 
   let n = 0;
@@ -78,7 +91,7 @@ async function main() {
     child.on("close", () => {
       clearTimeout(timer);
       const row = { key: r.key, genre: r.genre, side: Math.max(...r.spec.size), marks, finished: !!result?.solved, killed, ms: Date.now() - t0,
-        notes: result?.notes ?? (result?.error ? [`error: ${result.error}`] : killed ? [] : ["child died"]), rounds };
+        notes: result?.notes ?? (result?.error ? [`error: ${result.error}`] : killed ? [] : ["child died"]), uses: result?.uses, maxCost: result?.maxCost, perTier: result?.perTier, estimate: result?.estimate, rounds };
       appendFileSync(out, JSON.stringify(row) + "\n");
       console.error(`${++n}/${todo.length} ${r.genre} ${row.finished ? "finished" : killed ? "killed" : "unfinished"} ${(row.ms / 1000).toFixed(0)} s`);
       resolve();

@@ -1,34 +1,34 @@
 {
  "features": [
-  "sim costSum",
-  "sim costPeak",
-  "sim h",
-  "sim surprisal",
-  "sim lse",
-  "sim dist",
-  "sim steps",
-  "sim splits",
   "solver estimate",
   "solver costSum",
   "solver costPeak",
   "solver steps",
-  "solver splits"
+  "solver splits",
+  "logic settled"
  ],
+ "fitted on": {
+  "psjp": [
+   "akari",
+   "hitori",
+   "masyu",
+   "simple-loop",
+   "slitherlink"
+  ],
+  "tatham": [
+   "lightup",
+   "loopy",
+   "singles"
+  ]
+ },
  "weights": [
-  0.0631,
-  -0.033,
-  -0.0096,
-  -0.0392,
-  0.0225,
-  0.0388,
-  -0.0058,
-  0.0252,
-  0.026,
-  0.0806,
-  0.0832,
-  -0.0564,
-  -0.0274
+  0.0444,
+  0.1283,
+  0.0512,
+  -0.0832,
+  -0.018,
+  -0.0609
  ],
  "ridge": 1.0,
- "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py"
+ "note": "features: signed log1p, standardised within type; sim-fit by sim_fit.py --logic; logic settled = share of the open marks no-split logic settles (sim-difficulty.ts logic, 600 s on slow types)"
 }

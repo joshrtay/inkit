@@ -3,6 +3,7 @@
 # published. Writes references/janko-full/, leaving references/janko/ alone.
 #
 #   nohup python3 -I puzzles/difficulty/sources/janko_crawl.py > /dev/null 2>&1 &
+#   python3 -I puzzles/difficulty/sources/janko_crawl.py --remeta   meta.jsonl again from the cache
 #
 # Crawl rules: our own fetcher (robots.txt blocks site copiers such as HTTrack), one connection,
 # 3 s between requests, an honest User-Agent, every response cached (cache/), a stop on HTTP errors
@@ -87,8 +88,22 @@ def discover():
     save()
 
 def cell(h, label):
-    m = re.search(rf"<td>\s*{label}:\s*</td>\s*<td>(.*?)</td>", h, re.S)
-    return html.unescape(re.sub(r"<[^>]+>", "", m.group(1))).strip() if m else ""
+    # the Lizenz label cell also holds a Creative Commons badge (<br><a><img></a>) on CC pages
+    m = re.search(rf"<td>\s*{label}:(?:\s*<br>.*?)?\s*</td>\s*<td[^>]*>(.*?)</td>", h, re.S)
+    return re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", "", m.group(1)))).strip() if m else ""
+
+def remeta():
+    """Rewrites meta.jsonl's footer fields from the cached pages (no network), after a fix to cell()."""
+    path = os.path.join(OUT, "meta.jsonl")
+    lines = [json.loads(l) for l in open(path) if l.strip().endswith("}")]
+    for rec in lines:
+        body = fetch.cached(rec["url"])
+        if body:
+            h = body.decode("utf-8", "replace")
+            rec.update(author=cell(h, "Autor"), quelle=cell(h, "Quelle"), licence=cell(h, "Lizenz"))
+    open(path + ".tmp", "w").write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in lines))
+    os.replace(path + ".tmp", path)
+    log(f"remeta: {len(lines)} records")
 
 def puzzles():
     meta = open(os.path.join(OUT, "meta.jsonl"), "a")
@@ -119,6 +134,9 @@ def puzzles():
                 state["done"][folder] = done; save(); progress(f"fetching {folder} {done}/{len(ids)}")
         state["done"][folder] = done; save(); progress(f"fetched {folder}")
         log(f"done {folder}: {done}/{len(ids)}")
+
+if __name__ == "__main__" and "--remeta" in sys.argv:
+    remeta(); sys.exit(0)
 
 if __name__ == "__main__":
     # kill <pid> ends it cleanly (state saved as it goes; crawl.pid removed)

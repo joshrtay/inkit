@@ -17,8 +17,10 @@ const opposites = (a: RC, b: RC): Given => ({ at: "border", cells: [a, b], kind:
 const door = (r: number, c: number, side: Side, role: "in" | "out"): Given => ({ at: "edge", cell: [r, c], side, kind: "door", role });
 const corner = (r: number, c: number, value: number): Given => ({ at: "corner", corner: [r, c], kind: "count", value });
 const pearl = (r: number, c: number, value: "white" | "black"): Given => ({ at: "cell", cell: [r, c], kind: "pearl", value });
-const outside = (r: number, c: number, side: Side, kind: "first" | "skyscraper", value: number): Given => ({ at: "edge", cell: [r, c], side, kind, value });
+const outside = (r: number, c: number, side: Side, kind: "first" | "skyscraper" | "inlet", value: number): Given => ({ at: "edge", cell: [r, c], side, kind, value });
+const crossing = (r: number, c: number): Given => ({ at: "cell", cell: [r, c], kind: "crossing" });
 const thermo = (...cells: RC[]): Given => ({ at: "cells", cells, kind: "thermo" });
+const whisper = (...cells: RC[]): Given => ({ at: "cells", cells, kind: "whisper" });
 const galaxy = (y: number, x: number): Given => ({ at: "point", point: [y, x], kind: "galaxy" });
 const dots = (i: number, value: number[]): Given => ({ at: "cell", cell: [0, i], kind: "dots", value });
 const total = (at: "row" | "col", index: number, value: number): Given => ({ at, index, kind: "total", value });
@@ -127,6 +129,44 @@ export const guides: Record<GenreName, Guide> = {
     ],
     controls: "Drag along the dotted lines to draw. Tap a line to cycle line, ✕ and empty.",
     example: "slitherlink/1.json",
+  },
+  "slitherlink-path": {
+    name: "Slitherlink Path", aka: [], category: "Lines", ink: "#26398f",
+    summary: "Slitherlink with a path instead of a loop: join the two ends along the dotted lines; each number counts the sides of its cell the path uses.",
+    origin: "Slitherlink Path is a variant of Nikoli's Slitherlink in which the line runs between two ends on the outside edge instead of closing into a loop.",
+    credit: { note: "A variant of Slitherlink; its inventor isn't settled.", source: { label: "Nikoli (Slitherlink)", url: "https://www.nikoli.co.jp/en/puzzles/slitherlink/" } },
+    rules: [
+      { text: "Draw one path along the grid lines from one end to the other. It never branches or crosses itself.", checks: ["path"], pictures: [
+        { ok: true, note: "End to end", size: [1, 2], givens: [end(0, 0), end(1, 2)], fence: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 2], [1, 2]]] },
+        { ok: false, note: "Misses an end", size: [1, 2], givens: [end(0, 0), end(1, 2)], fence: [[[0, 0], [1, 0], [1, 1], [0, 1]]] },
+      ] },
+      { text: "A number says how many of its cell's four sides the path runs along.", checks: ["sides"], pictures: [
+        { ok: true, note: "3 sides", size: [1, 2], givens: [end(0, 1), end(1, 1), num(0, 0, 3)], fence: [[[0, 1], [0, 0], [1, 0], [1, 1]]] },
+        { ok: false, note: "Not 2 sides", size: [1, 2], givens: [end(0, 1), end(1, 1), num(0, 0, 2)], fence: [[[0, 1], [0, 0], [1, 0], [1, 1]]] },
+      ] },
+    ],
+    controls: "Drag along the dotted lines to draw. Tap a line to cycle line, ✕ and empty.",
+    example: "slitherlink-path/1.json",
+  },
+  "hamiltonian-plumbers": {
+    name: "Hamiltonian Plumbers", aka: [], category: "Lines", ink: "#26398f",
+    summary: "Pipe every cell: join each pair of matching ends outside the grid, crossing only at the crossings.",
+    origin: "Portponky, the developer of the games Recursed and Only Sliding, made Hamiltonian Plumbers in 2021. Its setters draw the pipe ends as shapes; here they're numbers.",
+    credit: { inventor: "Portponky", year: "2021", source: { label: "Thinky Games", url: "https://thinkygames.com/games/recursed/" } },
+    rules: [
+      { text: "Join each pair of matching pipe ends outside the grid with one pipe through the cells. Every cell has a pipe through it, and pipes never branch.", checks: ["plumbing"], pictures: [
+        { ok: true, note: "Every cell used", size: [1, 3], givens: [outside(0, 0, "left", "inlet", 1), outside(0, 2, "right", "inlet", 1)], lines: [[[0, 0], [0, 1], [0, 2]]] },
+        { ok: false, note: "A cell left empty", size: [1, 3], givens: [outside(0, 0, "left", "inlet", 1), outside(0, 1, "top", "inlet", 1)], lines: [[[0, 0], [0, 1]]] },
+      ] },
+      { text: "Pipes cross only at the crossings, and go straight through them both ways: all four sides are used.", checks: ["plumbing"], pictures: [
+        { ok: true, note: "Straight through", size: [3, 3], givens: [outside(0, 0, "left", "inlet", 1), outside(2, 2, "right", "inlet", 1), outside(2, 0, "bottom", "inlet", 2), outside(0, 2, "top", "inlet", 2), crossing(1, 1)],
+          lines: [[[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]], [[2, 0], [1, 0], [1, 1], [1, 2], [0, 2]]] },
+        { ok: false, note: "No crossing there", size: [3, 3], givens: [outside(0, 0, "left", "inlet", 1), outside(2, 2, "right", "inlet", 1), outside(2, 0, "bottom", "inlet", 2), outside(0, 2, "top", "inlet", 2)],
+          lines: [[[0, 0], [0, 1], [1, 1], [2, 1], [2, 2]], [[2, 0], [1, 0], [1, 1], [1, 2], [0, 2]]] },
+      ] },
+    ],
+    controls: "Drag from cell to cell to lay pipe; drag back over a pipe to take it up.",
+    example: "hamiltonian-plumbers/1.json",
   },
   masyu: {
     name: "Masyu", aka: ["Pearl"], category: "Lines", ink: "#2b2b30",
@@ -619,6 +659,23 @@ export const guides: Record<GenreName, Guide> = {
     controls: "Tap a cell, then a number (or type it). Pencil adds small notes.",
     example: "thermo-sudoku/1.json",
   },
+  "german-whispers": {
+    name: "German Whispers", aka: ["German Whispers Sudoku"], category: "Numbers", ink: "#2f7a4a",
+    summary: "A sudoku with green lines: digits next to each other on a line are far apart.",
+    origin: "German Whispers is a modern Sudoku variant whose green lines spread through online puzzle setters in the 2010s and 2020s; on a 9×9 grid, neighbours on a line differ by at least 5.",
+    credit: { note: "Its inventor isn't settled.", source: { label: "GMPuzzles", url: "https://www.gmpuzzles.com/blog/?p=34926" } },
+    rules: [
+      { text: "It's a sudoku: every row, column and box has each digit once.", checks: ["latin", "boxes"], pictures: [
+        { ok: true, note: "A sudoku", size: [4, 4], digits: ["1234", "3412", "2143", "4321"] },
+      ] },
+      { text: "Along a green line, digits next to each other differ by at least half the largest digit, rounded up: 2 on a 4×4, 3 on a 6×6, 5 on a 9×9.", checks: ["whispers"], pictures: [
+        { ok: true, note: "4, 1, 4", size: [4, 4], givens: [whisper([1, 1], [2, 1], [2, 2])], digits: ["1234", "3412", "2143", "4321"] },
+        { ok: false, note: "1 and 2: too close", size: [4, 4], givens: [whisper([0, 0], [0, 1])], digits: ["1234", "3412", "2143", "4321"] },
+      ] },
+    ],
+    controls: "Tap a cell, then a number (or type it). Pencil adds small notes.",
+    example: "german-whispers/1.json",
+  },
   skyscrapers: {
     name: "Skyscrapers", aka: ["Towers"], category: "Numbers", ink: "#26398f",
     summary: "Fill in building heights; the numbers outside count the buildings you can see.",
@@ -853,7 +910,7 @@ export const guides: Record<GenreName, Guide> = {
     origin: "Sum Blobs comes from Beast Academy, the maths puzzle books for kids from Art of Problem Solving.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 2", url: "https://beastacademy.com/books/puzzles2" } },
     rules: [
-      { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written with the puzzle (here 6).", checks: ["region-sum"], pictures: [
+      { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written under the puzzle (here 6).", checks: ["region-sum"], pictures: [
         { ok: true, note: "6, 6 and 6", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["aab", "ccb"] },
         { ok: false, note: "7 and 5", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["abb", "aab"] },
       ] },

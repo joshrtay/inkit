@@ -566,6 +566,11 @@ async function askOpen() {
   const key = process.env.OPEN_API_KEY ?? process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("no OPEN_API_KEY or OPENROUTER_API_KEY");
   const base = process.env.OPEN_API_BASE ?? "https://openrouter.ai/api/v1", cap = Number(process.env.OPEN_CAP_CALLS) || 3000;
+  // thinking models spend the whole budget reasoning at their default effort; OPEN_EFFORT (OpenRouter's
+  // reasoning.effort, e.g. low or medium) and OPEN_MAX_TOKENS keep the answer inside it. OPEN_CAP_DOLLARS
+  // stops the run once the spend logged across all open-*.jsonl passes it.
+  const effort = process.env.OPEN_EFFORT, maxTokens = Number(process.env.OPEN_MAX_TOKENS) || 12000, capDollars = Number(process.env.OPEN_CAP_DOLLARS) || Infinity;
+  let spent = readdirSync(OUT).filter((f) => f.startsWith("open-") && f.endsWith(".jsonl")).flatMap((f) => readJsonl(OUT + f)).reduce((a, r) => a + (r.cost ?? 0), 0);
   const models = (argv[1] ?? "").split(",").filter(Boolean);
   const formats = (argv.slice(2).filter((a) => a === "grid" || a === "listed") as ("grid" | "listed")[]);
   if (!models.length) throw new Error("name the models: open <model,…> [grid|listed …]");
@@ -576,21 +581,22 @@ async function askOpen() {
     if (argv.includes("--limit")) todo = todo.slice(0, Math.max(0, opt("--limit", 20) - done.size));
     console.error(`${model} ${format}: ${done.size} done, ${todo.length} to ask`);
     await mapPool(todo, async (it) => {
-      if (++calls > cap) return;
+      if (++calls > cap || spent > capDollars) return;
       const t0 = Date.now();
       try {
         let res: Response | null = null;
         for (let a = 0; a < 5; a++) {
           res = await fetch(`${base}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-            body: JSON.stringify({ model, max_tokens: 12000, messages: [{ role: "user", content: promptOf(it, format) }] }), signal: AbortSignal.timeout(10 * 60 * 1000) });
+            body: JSON.stringify({ model, max_tokens: maxTokens, ...(effort ? { reasoning: { effort } } : {}), messages: [{ role: "user", content: promptOf(it, format) }] }), signal: AbortSignal.timeout(10 * 60 * 1000) });
           if (res.status !== 429 && res.status < 500) break;
           await new Promise((r) => setTimeout(r, 2000 * 2 ** a));
         }
         const body = await res!.json() as any;
         if (!res!.ok) throw new Error(`${res!.status} ${JSON.stringify(body).slice(0, 160)}`);
+        spent += body.usage?.cost ?? 0;
         const text = String(body.choices?.[0]?.message?.content ?? ""), parsed = lastJson(text);
         const mark = parsed ? markOf(jankoOf(it.name).j.spec, parsed) : null;
-        appendFileSync(file, JSON.stringify({ id: it.id, model, format, usage: body.usage, cost: body.usage?.cost, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, mark, text, at: new Date().toISOString() }) + "\n");
+        appendFileSync(file, JSON.stringify({ id: it.id, model, format, usage: body.usage, cost: body.usage?.cost, effort, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, mark, text, at: new Date().toISOString() }) + "\n");
         console.error(`${model} ${format} ${it.id}: ${mark ? mark.join("=") : "unparsed"}, ${Math.round((Date.now() - t0) / 1000)} s`);
       } catch (e) { console.error(`${model} ${format} ${it.id}: failed (${(e as Error).message.slice(0, 160)})`); }
     }, 8);

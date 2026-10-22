@@ -10,8 +10,10 @@
 //   tatham         Simon Tatham's generators' graded puzzles (references/tatham, generated
 //                  locally): our estimate against his grade, per game and size
 //
-//   node puzzles/difficulty/scoreboard.ts [--quick] [--only <section>] [--psjp N] [--save]
+//   node puzzles/difficulty/scoreboard.ts [--quick] [--only <section>] [--games a,b] [--psjp N] [--save]
 //
+// --games keeps only these types in the Puzzle Square JP and Tatham sections (Tatham's names:
+// singles, filling, ...), for checking one solver change quickly.
 // --quick runs the examples only; --psjp sets the sample per type (default 20); --save makes this
 // board the one later runs compare against (references/scoreboard.json, local only, since the
 // rows come partly from others' puzzles).
@@ -31,6 +33,7 @@ const quick = args.includes("--quick"), save = args.includes("--save");
 const perType = Number(args[args.indexOf("--psjp") + 1]) || 20;
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 const want = (section: string) => !only || only === section;
+const games = args.includes("--games") ? args[args.indexOf("--games") + 1].split(",") : null;
 const BUDGET = 15000, CAP = 120000;
 
 interface Solve { name: string; estimate: number; solved: boolean; ms: number; capped: boolean; note: string }
@@ -77,7 +80,7 @@ if (!quick && want("psjp") && existsSync(`${repo}references/psjp/data.json`)) {
   const data = JSON.parse(readFileSync(`${root}data.json`, "utf8")) as Record<string, { difficulty: number }>;
   const types = readdirSync(root).filter((t) => existsSync(`${root}${t}`) && !t.includes(".") && t !== "scripts").sort();
   const jobs: { type: string; name: string; spec: GridSpec; rated: number }[] = [];
-  for (const type of types) {
+  for (const type of types.filter((t) => !games || games.includes(t))) {
     const files = readdirSync(`${root}${type}`).filter((f) => /^\d+\.json$/.test(f)).sort((a, b) => parseInt(a) - parseInt(b));
     // a spread sample: every k-th file
     const step = Math.max(1, Math.floor(files.length / perType));
@@ -137,7 +140,7 @@ if (!quick && want("tatham") && existsSync(tathamDir)) {
   const jobs: { game: string; size: string; grade: number; spec: GridSpec }[] = [];
   for (const f of readdirSync(tathamDir).filter((x) => x.endsWith(".txt")).sort()) {
     const game = f.split("-")[0];
-    if (!TATHAM[game]) continue;
+    if (!TATHAM[game] || (games && !games.includes(game))) continue;
     for (const id of readFileSync(tathamDir + f, "utf8").trim().split("\n").slice(0, perGrade)) {
       const r = fromTatham(game, id);
       if (!r) continue;
