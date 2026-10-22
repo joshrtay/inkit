@@ -120,10 +120,13 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
   - *Difficulty unchanged:* the scoreboard's Spearman against Puzzle Square JP and Tatham with the
     fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
     shows up here. The rule (Josh, 2026-10-21): scored with a budget of 200 clingo calls (not wall
-    clock, so it repeats exactly), the means within 0.02, and no type worse than the low end of its
+    clock, so it repeats exactly), neither mean more than 0.02 lower (one-sided since 2026-10-22, Josh: a
+    gain passes, but a type above its interval's high end counts as a gain only once held-out PSJP
+    puzzles confirm it: guard-report.ts lists those, scoreboard `--psjp-shift`), and no type worse than the low end of its
     own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
     type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
-    bigger call budget, since at 200 none of its 20 finish and every one rates 0.9.
+    bigger call budget, since at 200 none of its 20 finish and every one rates 0.9: 1,000 calls (with
+    the local encoding 56 of 60 finish there).
 
 **Targets** (on the test set, the clock above).
 
@@ -215,6 +218,9 @@ changes, each with the proof unchanged (identical paths on every example puzzle 
 | and explanations (1021c) | 9% | 41% | 62% | 37.0 s |
 | and Spiral Galaxies' cell atoms (1021d) | 9% | 42% | 70% | 33.4 s |
 | and islands, joins (1021e, 16 solves a VM) | 10% | 48% | 73% | 31.2 s |
+| and core wide, Nurikabe encoding, listing fix, answers supplied (1022a) | 21% | 64% | 86% | 23.0 s |
+
+1022a (4a27191): Nurikabe went from 0/19/31% to 69/100/100% by 10/30/60 s (median 60.9 s → 7.0 s). Supplied answers cut setup everywhere (median 1.5 s → 0.9 s), so part of the gain in untouched types is that. Time over 10 s now sits in Fillomino (18%, splits median 44 s, 50% by 60 s), Hidoku (16%, explaining 36 s), Spiral Galaxies (11%), Cave (10%) and Numberlink (9%).
 
 Native clingo was not faster than the WebAssembly build on these calls (1.26 s against 1.39 s), and
 clingo-wasm exposes only a one-shot `run`, so a persistent grounded control isn't available without
@@ -333,6 +339,29 @@ step explained. The two examples solve in 0.25–0.37 s (engine encoding 1–2.5
 steps (engine: 1 and 3): owner atoms let propagation see what the engine's reach encoding needed
 search for, so ratings move (example 1: 0.76 → 0.49 with finish). Whether they move the right
 way is the guard's call (Nurikabe on PSJP at 200 calls). DEDUCE_LOCAL=0 turns it off.
+
+The guard sample showed a gain (Nurikabe rho −0.24 → +0.22 at 200 calls), but it did not hold on
+180 held-out PSJP Nurikabes: engine +0.09 against local −0.02 at 200 calls, +0.07 against +0.02 at
+1,000. The guard sample's −0.24 was an artifact of the sample. So the encoding is a speed and
+finishing win (157 against 59 of the 180 finish, none too big to explain, a quarter of the time),
+not a difficulty gain. Nurikabe's agreement is held back by stall pricing instead: an unfinished
+solve rates 0.9, below finished Nurikabes (0.95–1.0 whatever their rating), though the unfinished
+are the hardest. Finished-only rho is 0.36–0.46, and ranking stalls above every finish gives 0.45
+(local) and 0.35 (engine) held out. That is post hoc on one type, so changing stall pricing needs
+its own guard run on every type and a held-out check.
+
+**A local encoding for Fillomino.** The engine counts every region at every size (size/2 over all
+roots, 2.5 MB ground at 6 × 6, 14 MB at 8 × 8), so whole-grid steps were too big to explain and
+windows saw nothing: every step was a case split or search. local.ts now gives each cell a size and
+an owner (its region's first cell, close enough for some size); uncut links join cells of one size
+and owner, and an owner's cells are joined to it and number its size. A numberless region is no
+bigger than the numberless cells joined to it, which bounds the sizes. Ground: 170–420 kB at 6 × 6,
+1.2 MB at 8 × 8; the same unique answers on all 16 dev Fillominos and the examples (unit test). With
+finish and the answer supplied, all 16 finish in 4–29 s (1022a: half by 60 s); splits 37–63 s fall to
+0.1–13 s, and windows now find steps (tier 0 a third to a half of the facts). Prices are the open
+question: explained steps carry many size-clue groups (the region rules are tagged size-clue; left
+untagged, each was a group of its own), so 9 of 16 rate at the ceiling, and the 8 × 8s still have
+whole-grid splits too big to explain, which price below explained ones.
 
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
