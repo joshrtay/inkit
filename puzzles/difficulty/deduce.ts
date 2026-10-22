@@ -340,10 +340,10 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
 export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean; knownByCell?: boolean }> = {
   numberlink: { techniques: ["routes", "unique", "ends", "owners", "cuts"] },
   fillomino: { techniques: ["sizes", "shapes"] },
-  // (knownByCell: see explainByClingo; passed the guard 2026-10-22, on for Hidoku, where explaining
-  // eliminated digits was most of the time)
-  hidoku: { techniques: ["distance", "deadends"], knownByCell: true },
-  "honeycomb-paths": { techniques: ["distance", "deadends"], knownByCell: true },
+  // (knownByCell, see explainByClingo, is off: much faster on Hidoku, but no rated Hidokus exist to
+  // judge it by, and on fresh Sudokus it took agreement 0.75 → 0.48, 2026-10-22)
+  hidoku: { techniques: ["distance", "deadends"] },
+  "honeycomb-paths": { techniques: ["distance", "deadends"] },
   // (not joins: with it Tatham's Singles agreement falls from 0.75 to 0.22, as the component
   // lemma's did; it needs pricing first)
   hitori: { lemmas: ["component"] },

@@ -388,10 +388,16 @@ and an explanation counts the cells it reads. Explaining is 40–50% faster and 
 60 s; it lowers prices (fewer facts counted; dev estimates 0.62–0.85 against 0.72–0.85), so it is
 off until the guard judges it. Off, every estimate is unchanged.
 
-It passed (finish, 200 calls: PSJP −0.006, Tatham −0.014, held out −0.001/−0.001, no type below
-its interval; only digit types move, Sudoku −0.14 and Solo −0.10 on the guard sample, Solo flat held
-out, Sudoku untested on unseen puzzles). It is on in Hidoku's finish set (knownByCell); other digit
-genres wait for a fresh-draw Sudoku check. DEDUCE_KNOWN_BY_CELL=0 turns it off, =1 on everywhere.
+It passed the guard's rule (finish, 200 calls: PSJP −0.006, Tatham −0.014, held out −0.001/−0.001,
+no type below its interval; only digit types move, Sudoku −0.14 and Solo −0.10 on the guard sample),
+but on a fresh draw Sudoku falls 0.75 → 0.48 (below its interval) and Skyscrapers 0.79 → 0.73, so the
+guard sample's Sudoku drop was real. No rated Hidokus exist (PSJP and Tatham have none), so it can't
+be judged where it helps most; it stays off (DEDUCE_KNOWN_BY_CELL=1 turns it on). Reading a cell's
+candidates as one fact prices a Sudoku step too cheaply: which digits are gone, and why, is the step.
+
+**Stop prices confirmed.** On a second fresh draw (801 rated PSJP puzzles in 14 types no run had
+touched), 9afa78c passes against the pre-change baseline: PSJP +0.048, Tatham 0, no type below its
+interval; Nurikabe 0.13 → 0.52, Numberlink +0.16, Spiral Galaxies +0.11, the rest within 0.01.
 
 **Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
