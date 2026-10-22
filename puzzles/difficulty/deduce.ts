@@ -555,18 +555,20 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // and Fill-in's put(E,S) (entry E goes in slot S), footprint the slot's cells
   const putAtoms = !!(opts.cellAtoms ?? finish.cellAtoms) && p.rules.some((r) => r.rule === "fill-in") && !local;
   const slots = putAtoms ? fillSlots(p) : [];
-  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1, local.free ?? 0)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
   const G: Ground = parseAspif(ground(prog));
   dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
 
   // ---- blocks: strip the rbk tags ----
-  const tagAtom = new Map<number, number>();
+  const tagAtom = new Map<number, number>(), freeRules = new Set<unknown>();
   for (const [name, lit] of G.outputs) { const m = /^rbk\((\d+)\)$/.exec(name); if (m && lit > 0) tagAtom.set(lit, +m[1]); }
   for (const r of G.rules) {
     if (!tagAtom.size) break;
     const k = r.body.findIndex((l) => tagAtom.has(l));
     if (k >= 0) { r.block = tagAtom.get(r.body[k])!; r.body.splice(k, 1); if (r.bound !== null) r.weights.splice(k, 1); }
+    // (a local encoding's definitions, Local.free: no rule's, and no group in any explanation)
+    if (local?.free !== undefined && r.block === local.free) { r.block = -1; freeRules.add(r); }
   }
   const rules = G.rules;
 
@@ -906,7 +908,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     constraints.forEach((k, j) => { if (cellsOf(cfp[j]).length) for (const w of within(j)) { const key = `${rules[k].block}|${w.label}`; count.set(key, (count.get(key) ?? 0) + 1); } });
     constraints.forEach((k, j) => {
       const cs = cellsOf(cfp[j]), block = rules[k].block;
-      if (block < 0 && cs.length <= 1) return;
+      if (block < 0 && (cs.length <= 1 || freeRules.has(rules[k]))) return;
       const kind = block >= 0 ? ruleName(block) : "regions";
       const u = cs.length ? within(j).sort((a, b) => (count.get(`${block}|${b.label}`) ?? 0) - (count.get(`${block}|${a.label}`) ?? 0) || a.size - b.size)[0] : undefined;
       const label = u ? u.label : cs.length === 0 || cs.length > cap0 ? "the whole grid" : cs.length <= 3 ? cs.map(rc).join(" ") : `near ${rc(cs[0])}–${rc(cs.at(-1)!)}`;
@@ -3032,14 +3034,15 @@ export function profileOf(path: Step[], solved: boolean, entryPoints: number, ro
 }
 
 /** One 0..1 number: f(D_steps) + w·rule load. D_steps of 3 (only easy and medium steps) maps to
- *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. Unsolved (out
- *  of time) counts as harder than any solve: 0.91 and up, by its path so far, where a solve stops
- *  at 0.9 (2026-10-22: before, unsolved was 0.9 or its path's, below the solves that priced above
- *  0.9, though stalls are the hardest; on held-out PSJP Nurikabe ranking them on top took the
- *  agreement 0.12 → 0.29 and moved no other type). */
+ *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. A solve stops at
+ *  0.9; unsolved counts as harder than any solve, whatever its path so far: 0.95 out of clingo
+ *  calls (Options.budgetCalls), 1 out of time (stopped by the clock, as a capped run is). On the
+ *  guard (2026-10-22) unsolved below some solves held Nurikabe down; pricing unsolved by its path
+ *  instead ran against the ratings (Numberlink −0.66), and capped runs are the hardest. */
 export const LOAD_WEIGHT = 0.25;
-export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved">): number {
+export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved"> & { notes?: string[] }): number {
   const clamp = (x: number) => Math.min(1, Math.max(0, x));
   const x = (1 - LOAD_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5);
-  return +(p.solved ? Math.min(x, 0.9) : 0.91 + 0.09 * x).toFixed(3);
+  if (!p.solved) return p.notes?.some((n) => n.startsWith("out of budget after")) ? 0.95 : 1;
+  return +Math.min(x, 0.9).toFixed(3);
 }

@@ -28,6 +28,9 @@ export interface Local {
   shapes?: { clue: number; cells: number[]; inside: number[]; border: number[] }[];
   /** helper atoms named by their cell first (sz(I,V)): shown, to take cell I as their footprint */
   cellAtoms?: string[];
+  /** the tag of rules that only say what the helper atoms mean (Fillomino's regions and sizes): no
+   *  rule's, so they're in every explanation for free, as the engine's region definitions are */
+  free?: number;
 }
 
 const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.flatMap((g) => (g.kind === "number" && g.letter === undefined ? [[i, g.value] as [number, number]] : [])));
@@ -235,10 +238,9 @@ function fillominoProgram(p: Puzzle): Local | null {
   g.links.forEach((_, lk) => { const [a, b] = ends(lk); out.push(`link(${lk}). lk(${lk},${a},${b}). lk(${lk},${b},${a}).`); });
   for (let i = 0; i < n; i++) out.push(`cl(${i}). ${vals[i].map((v) => `val(${i},${v}).`).join(" ")} ${cand[i].map((c) => `cand(${i},${c}).`).join(" ")}`);
   for (const [c, v] of clues) out.push(`num(${c},${v}).`);
-  // (what a region and its size are is tagged size-clue, with the numbers: the engine's leaves its
-  // regions untagged, but here they're constraints over many cells, each a group of its own,
-  // which made every step dear)
-  const T = tag(0);
+  // (what a region and its size are: free, rbk(2), as the engine's region rules are definitions;
+  // tagged size-clue, they made every step dear, a group for each unit they touched, 2026-10-22's guard)
+  const T = tag(2);
   out.push(`1 {sz(I,V) : val(I,V)} 1 :- cl(I).
 1 {own(I,C) : cand(I,C)} 1 :- cl(I).
 :- own(I,C), I != C, not own(C,C), ${T}.
@@ -252,10 +254,10 @@ r(J,C) :- r(I,C), lk(L,I,J), not cut(L), own(J,C).
 :- own(J,C), not r(J,C), ${T}.
 :- own(C,C), #sum{1,I : own(I,C); -V,s : sz(C,V)} != 0, ${T}.
 % size-clue: a number is its cell's size
-:- num(C,V), not sz(C,V), ${T}.
+:- num(C,V), not sz(C,V), ${tag(0)}.
 % neighbors-differ-size
 :- lk(L,A,B), cut(L), sz(A,V), sz(B,V), ${tag(1)}.`);
   out.push("#show cut/1.", "#show sz/2.", "#show own/2.");
   const text = out.join("\n");
-  return { text, plain: `${text}\nrbk(0..1).`, cellAtoms: ["sz", "own"] };
+  return { text, plain: `${text}\nrbk(0..2).`, cellAtoms: ["sz", "own"], free: 2 };
 }
