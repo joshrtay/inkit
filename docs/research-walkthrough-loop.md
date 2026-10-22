@@ -271,6 +271,7 @@ is now sure of (or says it's stuck; it's told a wrong answer is worse than none)
 | library | Opus picks a seed entry and fills in its question | the entry's genre-free nudge plus its question for this spot |
 | ladder | Opus | four hints, vaguest first, shown one more at a time until the student gets it |
 | explain | Opus | the bottom-out explanation, answer included: the ceiling, and the leak check's control |
+| human ladder | Thinky Dailies (below) | the puzzle author's own hints, shown one more at a time like the ladder |
 
 Opus writes all its kinds in one call per state, two ways: grounded (shown the solver's frontier,
 told to aim at the step a strong person would see next) and free (no solver). The difference says
@@ -319,6 +320,26 @@ grounded hints: about $60.
 - *The ladder* is worth its turns if it finds the step by rung 4 within 10 points of explain, with a
   mean under 2.5 rungs.
 
+**A human reference: Thinky Dailies.** Josh's scrape (thread "Thinky Games dailies scrape";
+local only in `references/`, never in the repo or anything public) has 220 puzzles: 199 penpa-edit
+grids, mostly in genres the engine has, and 21 visual riddles. With them come 1,783 hint ladders
+written by people (about 7 a puzzle, general to specific, plain text) and the author's difficulty,
+1 to 5. There are no solutions and no solve stats. It adds three things:
+
+- *A human hint arm.* On the grid puzzles the engine can read (penpa to GridSpec; clingo supplies
+  the solution and proves it unique), stuck states are made the same way, and the author's ladder
+  is given rung by rung. Our arms are then set against hints a person wrote, by rungs needed and
+  leak. The ladder is per puzzle, not per position, so it's shown from the start of the solve,
+  where the author meant it, as its own small set (about 30 states), apart from the Janko states.
+- *A style reference.* The 1,783 rungs show how people pace a ladder: how many rungs, when a cell
+  is first named, how much each says. Opus's ladders and the library's questions are compared on
+  the same measures, and the human ladders can be shown to Opus as examples (a variant to try
+  once the plain arms are measured).
+- *Another rated set for the model calibration.* The author ratings are one more scale (one
+  setter, not measured solve rates, like PSJP's). Their visual riddles are left out.
+
+Parsing the penpa grids is the first step, and is free; the human arm then adds about $2 to H1.
+
 **What it can't say.** A model helped by a hint isn't a person helped by one. The arms are built to
 map onto hint buttons on inkit, so the winner (and the runner-up) can go to an A/B test there, with
 the next move and its time logged after a hint. That is the real test, and it gives inkit's first
@@ -352,10 +373,10 @@ writes a whole walkthrough, so about $0.20–0.30. Estimates (to be replaced by 
 | 3 | A/B/C, 30 states, the best library frozen in: draft, then rounds A, B, C (about 2 revisions each) | ~$50 |
 | 4 | the other 70 states, same arms | ~$120 |
 | 5 | tool use, A and the better of B and C, 50 states | ~$80 |
-| H1 | hints: 30 states, Opus writes them grounded and free, Haiku as student (its own track; can go first) | ~$8 |
+| H1 | hints: 30 states, Opus writes them grounded and free, Haiku as student (its own track; can go first); plus about 30 Thinky states with the authors' ladders | ~$10 |
 | H2 | hints: the other 70 states, and Sonnet as second student on the grounded hints | ~$60 |
 
-About $590 if every stage runs (dropping seeded-frozen saves about $8 a genre); each stage needs Josh's OK. `LOOP_CAP` (default $25) stops any one
+About $592 if every stage runs (dropping seeded-frozen saves about $8 a genre); each stage needs Josh's OK. `LOOP_CAP` (default $25) stops any one
 command before its ledger would pass it. The cloud environment has no Anthropic key yet (the
 OpenRouter credit ran out during the pilot); tool use needs the Anthropic key.
 
