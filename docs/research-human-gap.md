@@ -410,6 +410,9 @@ though only 2 pairs of 8).
 - **Puzzles over 12 × 12 aren't solved** (the solver is too slow at that size). Their sizes,
   settings, density and symmetry are in.
 - **Janko's Skyscrapers, Abc End View, Hidoku and Minesweeper** (about 2,000 puzzles) have no
-  reader in janko.ts. They would add human puzzles for four genres.
+  reader in janko.ts. They would add human puzzles for four genres. *(2026-10-22: janko-full.ts
+  converts them all now; Hidoku's 530 are in references/janko-full/converted/hidoku.jsonl with
+  Janko's solutions, every one unique under our solver, all CC BY-NC-SA, each with
+  Janko's level from his index pages, `meta.jankoLevel`.)*
 - **A pooled classifier** with the genre as a feature: per genre was enough, since the
   differences are genre-specific.
