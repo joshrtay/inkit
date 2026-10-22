@@ -1,0 +1,70 @@
+{
+  "_about": "Techniques solvers have already named, per genre, for the insight library's rediscovery check (docs/research-walkthrough-loop.md). Written from common solving guides (Nikoli's and puzzle communities'), in our words. A library entry matches one when it states the same pattern, at any wording or generality.",
+  "akari": [
+    { "name": "Zero clue", "says": "a 0 clue rules out a bulb on every cell beside it" },
+    { "name": "Saturated clue", "says": "a clue with as many open neighbours as its number gets a bulb on each of them (a 4 always; a 3 on an edge; a 2 in a corner)" },
+    { "name": "Satisfied clue", "says": "a clue that already touches its number of bulbs rules out its other neighbours" },
+    { "name": "Only light source", "says": "a cell that can be lit from only one cell (or must hold the bulb itself) forces a bulb there" },
+    { "name": "Diagonal pair", "says": "two clues that share open neighbours: the shared cells' count settles the cells only one clue touches (e.g. a 3 diagonal to a 1)" },
+    { "name": "Bulbs see each other", "says": "a cell in sight of a bulb can't hold one; two cells in the same corridor can't both" },
+    { "name": "Lit cell rule", "says": "a cell already lit needs no bulb; cells that would leave an unlit cell with no source are ruled out" }
+  ],
+  "slitherlink": [
+    { "name": "Zero clue", "says": "a 0 has no line on any of its four sides" },
+    { "name": "Corner 3", "says": "a 3 in a corner of the grid has lines on both outer sides" },
+    { "name": "Corner 1", "says": "a 1 in a corner has no line on either outer side" },
+    { "name": "Corner 2", "says": "a 2 in a corner forces lines on the outer edges of its two neighbours along the border" },
+    { "name": "Adjacent 3s", "says": "two 3s side by side have lines on the side between them and on both outer sides, with no line on the extensions of the middle one" },
+    { "name": "Diagonal 3s", "says": "two 3s diagonally touching have lines on the two outer corners away from each other" },
+    { "name": "3 next to 0", "says": "a 3 beside a 0 gets the three sides away from the 0, and the line bends around" },
+    { "name": "Dead end", "says": "a dot with three no-line edges has no line on its fourth; a dot with one line and one way out continues that way" },
+    { "name": "Line into a corner of a 1 or 3", "says": "a line arriving at a corner of a 3 forces the two far sides; arriving at a 1 rules out the two near sides" },
+    { "name": "Parity / no small loops", "says": "the loop crosses any closed curve an even number of times; a line can't close off a loop that leaves other lines out" }
+  ],
+  "nurikabe": [
+    { "name": "Ones are islands of one", "says": "a 1 is surrounded by wall on every side" },
+    { "name": "Cell between two clues", "says": "a cell touching two different numbered islands is wall" },
+    { "name": "Unreachable cell", "says": "a cell no island can reach within its size is wall" },
+    { "name": "Complete island", "says": "an island that has its full size is sealed with wall all round" },
+    { "name": "Only way out", "says": "an incomplete island with one open neighbour must grow there; a wall group with one exit must continue there" },
+    { "name": "No 2x2 wall", "says": "a 2x2 block of three walls makes the fourth cell island" },
+    { "name": "Diagonal islands", "says": "two islands touching diagonally make both shared neighbours wall" },
+    { "name": "Wall connectivity", "says": "all walls must join up, so a cell whose being island would cut a wall group off is wall" }
+  ],
+  "skyscrapers": [
+    { "name": "Clue 1", "says": "a 1 sees only the tallest, so the tallest stands next to it" },
+    { "name": "Clue N", "says": "a clue equal to the size sees every building, so the line rises 1, 2, …, N from it" },
+    { "name": "Distance from a clue", "says": "a clue of k rules out the tallest from the first k − 1 cells, and generally height h from cell positions that would hide too many" },
+    { "name": "Clue pair on a line", "says": "opposite clues on one line together bound where the tallest can stand (e.g. 1 and 2)" },
+    { "name": "Hidden single", "says": "a height with only one possible cell left in its row or column goes there" },
+    { "name": "Naked single", "says": "a cell with only one possible height left takes it" },
+    { "name": "Visibility counting", "says": "with some heights placed, count what the clue can still see to place or rule out the rest" }
+  ],
+  "masyu": [
+    { "name": "White on the edge", "says": "a white pearl on the border runs along the border" },
+    { "name": "Black near the edge", "says": "a black pearl next to the border (or one cell in) sends a line straight away from it" },
+    { "name": "Three whites in a row", "says": "three white pearls in a line all run across that line" },
+    { "name": "Two blacks side by side", "says": "adjacent black pearls send their lines away from each other" },
+    { "name": "White must turn after", "says": "a white pearl's line turns in at least one of the cells before or after it" },
+    { "name": "No small loops", "says": "a line that would close a loop leaving other pearls out is ruled out" }
+  ],
+  "hidoku": [
+    { "name": "Forced neighbour", "says": "a number whose successor (or predecessor) has only one open neighbouring cell goes there" },
+    { "name": "Gap path", "says": "two placed numbers k apart need a path of k − 1 cells between them, which pins the cells in a tight gap" },
+    { "name": "Endpoint cell", "says": "a cell with only one open neighbour must hold the end of a chain" },
+    { "name": "Distance bound", "says": "a cell farther (in king moves) from a placed number than their difference can't hold it" }
+  ],
+  "fillomino": [
+    { "name": "Ones are alone", "says": "a 1 is walled on every side" },
+    { "name": "Complete region", "says": "a region with as many cells as its number is walled all round" },
+    { "name": "Only way out", "says": "a region short of its size with one open neighbour grows there" },
+    { "name": "Same numbers can't touch", "says": "two different regions with the same number can't share a side, so the edge between equal-number cells from different regions is impossible" },
+    { "name": "Unreachable cell", "says": "a cell no given number can reach forms its own region from the sizes still possible" }
+  ],
+  "star-battle": [
+    { "name": "Stars can't touch", "says": "the eight cells around a star hold no star" },
+    { "name": "Region in a line", "says": "a region confined to one row or column claims that line's stars, ruling out the rest of the line" },
+    { "name": "N regions in N lines", "says": "N regions confined to N rows (or columns) use all their stars, ruling out other cells there" },
+    { "name": "2x2 block", "says": "a 2x2 block holds at most one star" }
+  ]
+}
