@@ -1537,7 +1537,7 @@ export function tileOf(s: RuleSpec, d: number) {
 export const sizesOf = (s: RuleSpec) => [...new Set(Array.isArray(s.sizes) ? (s.sizes as unknown[]).filter((x): x is number => Number.isInteger(x) && (x as number) > 0) : [])].sort((a, b) => a - b);
 const sizeList = (s: RuleSpec) => { const z = sizesOf(s); return z.length > 1 ? `${z.slice(0, -1).join(", ")} or ${z.at(-1)}` : String(z[0] ?? "no"); };
 /** region-sum's target (10 if it doesn't say), and region-count's number of pieces (2). */
-const sumTarget = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 10);
+export const sumTarget = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 10);
 const regionCount = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 2);
 /** The symmetries a piece may have: a mirror (any of four), a half turn, or either. */
 const symmetriesOf = (s: RuleSpec) => (s.symmetry === "mirror" ? MIRRORS : s.symmetry === "turn" ? [HALF_TURN] : [...MIRRORS, HALF_TURN]);

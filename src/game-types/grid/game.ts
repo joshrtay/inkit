@@ -19,6 +19,7 @@ import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
 import { regionsOf } from "../../engine/derive.ts";
 import { blockFor, boxesOf, boxLines, colorName, fillSlots, runsOf, symbolOf, tileOf, tileSpec, type Hint } from "../../engine/rules.ts";
+import { captionOf } from "./caption";
 import { entriesDone, entryList } from "./entry-list";
 import { emptyBoard, type Board } from "../../engine/types.ts";
 import type { GridClientConfig } from "./types";
@@ -98,8 +99,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const totalsRoom = (side: string) => (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0;
   // clues outside the grid (Skyscrapers, Easy as ABC) sit beside the row or column they look along
   const edgeRoom = (side: string) => (p.edgeClues.some((c) => c.side === side) ? 38 : 0);
-  // a shape bank (Panes) sits under the grid
-  const bankRoom = (side: string) => (side === "bottom" ? bankLayout(p, S).height + entryList(p, g.cols * S).height : 0);
+  // a shape bank (Panes) sits under the grid, then a fill-in's list, then the puzzle's own number (caption.ts)
+  const bankRoom = (side: string) => (side === "bottom" ? bankLayout(p, S).height + entryList(p, g.cols * S).height + captionOf(p).height : 0);
   const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side), edgeRoom(side), bankRoom(side));
   const shadeClues = p.rules.some((s) => blockFor(s).shadeClues);   // Hitori shades the numbers
   const label = (d: number) => symbolOf(p, d);
@@ -257,6 +258,9 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       t.textContent = it.text; entryEls.push([it.k, t]);
     }
   }
+  // the puzzle's own number under it all (Sum Blobs' target)
+  const caption = captionOf(p);
+  if (caption.text) el("text", { class: "clue caption", x: X(0) + (g.cols * S) / 2, y: Y(g.rows) + bankLayout(p, S).height + entryList(p, g.cols * S).height + caption.y }, gClues).textContent = caption.text;
 
   const totalEls: [number[], number, SVGTextElement][] = [];
   for (const [r, k] of p.rowTotals) {
