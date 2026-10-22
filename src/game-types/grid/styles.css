@@ -259,3 +259,12 @@
 .grid-game .border-clue, .grid-game .bank { pointer-events: none; }
 /* still pictures (picture.ts: guides, the editor, lists) get the board's pen wobble too */
 .grid-game svg.picture { filter: url(#pen); }
+
+/* Sudoku helpers (sudoku-assist.ts): a number picked first shades where it can't go; a repeat
+   is red at once; the pad fades what the picked square can't take and ticks off a number all placed */
+.grid-game .ruled { fill: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
+.grid-game .digit.clash, .grid-game .digit.given.clash { fill: var(--paper-red); }
+.grid-game .pencil.focus { fill: var(--paper-ink); }
+.grid-game .pad .num.faded { opacity: 0.32; }
+.grid-game .pad .num.used { opacity: 0.32; text-decoration: line-through; text-decoration-thickness: 2px; }
+.grid-game .pad .num[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-yellow) 45%, transparent); text-decoration: none; opacity: 1; }
