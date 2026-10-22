@@ -126,7 +126,9 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
     type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
     bigger call budget, since at 200 none of its 20 finish and every one rates 0.9: 1,000 calls (with
-    the local encoding 56 of 60 finish there).
+    the local encoding 56 of 60 finish there). So does any type where fewer than about 1 in 5 runs
+    finish at 200 calls (Josh, 2026-10-22: Numberlink, 2 of 60), whose agreement there only ranks how
+    runs stop.
 
 **Targets** (on the test set, the clock above).
 
@@ -369,6 +371,23 @@ off by default (DEDUCE_LOCAL=fillomino turns it on) until its steps are priced. 
 atoms' footprint (own(I,C) on cells I and C) made windows faster on some puzzles but the 16 slower
 in all (232 s → 268 s) and stalled one, so it was dropped.
 
+Pricing fixed (8b4734b): the region rules are now free in explanations, as the engine's region
+definitions are, instead of each counting as a size-clue group. The guard then passes it with the
+finish set at 200 calls: guard sample 0.37 against the engine's 0.37, held out 0.47 against 0.39, a
+fresh draw 0.45 against 0.42; the ceiling is mostly gone (1 of 31 held-out finishes at 0.88 or more,
+was 16). So it is on with the finish set (and DEDUCE_LOCAL=fillomino); the default solve keeps the
+engine's encoding, which the guard didn't judge against it. Puzzles with more than 3,500 owner and
+size choices fall back to the engine's: on the guard a few ran out of clingo-wasm's memory or size.
+
+**Hidoku: a cell's candidates as one fact.** On the 16 dev Hidokus explaining is about 70% of the
+time (7 finish by 60 s, with the answer supplied). Nearly every explained fact is taken (4,039
+explained, 3,847 taken on one), at about 6 solves a fact, so the cost is how many elements deletion
+works over: a window's known marks, hundreds of eliminated digits. With DEDUCE_KNOWN_BY_CELL=1 a
+cell's known digits are one element (what's left in the cell, as a person reads its candidates),
+and an explanation counts the cells it reads. Explaining is 40–50% faster and 12 of 16 finish by
+60 s; it lowers prices (fewer facts counted; dev estimates 0.62–0.85 against 0.72–0.85), so it is
+off until the guard judges it. Off, every estimate is unchanged.
+
 **Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
 passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
@@ -378,7 +397,10 @@ up by its path so far. That failed the guard (PSJP mean −0.073, Numberlink 0.2
 priced 0.91, the bottom of the unsolved, though they're the hardest, and the path term runs against
 the ratings among unsolved runs (Numberlink −0.66, Spiral Galaxies −0.43). So unsolved is now one
 price, whatever its path: 0.95 out of clingo calls, 1 out of time (stopped by the clock, as a capped
-run is). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409).
+run is). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
+fresh draw of 967 rated PSJP puzzles never used before, it passes the means (guard +0.016, held out
++0.105, fresh −0.013) but fails Numberlink on the fresh draw (0.67 → 0.41): Numberlink finishes 2 of
+60 at 200 calls, so its agreement only ranks how runs stop. Nurikabe's gain replicates (+0.13 fresh).
 
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and

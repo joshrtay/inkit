@@ -37,11 +37,11 @@ const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.fla
 
 /** `picks`: also show each candidate shape's pick atom and list the shapes (for the generator's
  *  rectangle technique, deduce.ts). */
-export function localProgram(p: Puzzle, genre: string | undefined, picks = false): Local | null {
+export function localProgram(p: Puzzle, genre: string | undefined, picks = false, finishing = false): Local | null {
   const names = p.rules.map((r) => r.rule).join(",");
   if (process.env.DEDUCE_LOCAL !== "0" && genre === "nurikabe" && names === "size-clue,one-each,connected,no-pool" && p.rules[1].of === "number") return nurikabeProgram(p);
-  // (Fillomino's only with DEDUCE_LOCAL=fillomino: faster, but its steps price badly, 2026-10-22's guard)
-  if (process.env.DEDUCE_LOCAL === "fillomino" && genre === "fillomino" && names === "size-clue,neighbors-differ-size") return fillominoProgram(p);
+  // (Fillomino's with the finish set, or DEDUCE_LOCAL=fillomino: judged only there, 2026-10-22's guard)
+  if ((process.env.DEDUCE_LOCAL === "fillomino" || (finishing && process.env.DEDUCE_LOCAL !== "0")) && genre === "fillomino" && names === "size-clue,neighbors-differ-size") return fillominoProgram(p);
   const shikaku = genre === "shikaku" && names === "rectangles,one-each,size-clue";
   const jam = genre === "square-jam" && names === "squares,no-four-corners,side-clue";
   if (!shikaku && !jam) return null;
@@ -233,6 +233,10 @@ function fillominoProgram(p: Puzzle): Local | null {
   const has = (i: number, v: number) => vals[i].includes(v);
   // the owners a cell can have: an earlier (or the same) cell sharing a size it reaches
   const cand: number[][] = Array.from({ length: n }, (_, i) => [...Array(i + 1).keys()].filter((c) => vals[i].some((v) => has(c, v) && dist(i, c) <= v - 1)));
+  // too many owner and size choices ground past what clingo-wasm holds (on the guard, a few ran out
+  // of memory or past its program size): the engine's encoding, then (the 16 hard dev Fillominos, up
+  // to 8 × 8, have at most 3,362, the largest grounding to 1.2 MB)
+  if (cand.reduce((a, c) => a + c.length, 0) + vals.reduce((a, v) => a + v.length, 0) > 3500) return null;
   // facts, and rules over them (clingo grounds them: written out, an 8 × 8 is past clingo-wasm's size)
   const out: string[] = [`{cut(L)} :- link(L).`];
   g.links.forEach((_, lk) => { const [a, b] = ends(lk); out.push(`link(${lk}). lk(${lk},${a},${b}). lk(${lk},${b},${a}).`); });
