@@ -404,7 +404,10 @@ const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
  *  needs the backend (not EXPLAIN_TEXT). */
 const EXPLAIN_CORE = process.env.DEDUCE_CORE === "1" && !EXPLAIN_TEXT;
 /** DEDUCE_CORE=wide: core-seeded deletion only for case splits' and searches' explanations (wide
- *  steps), most of the explaining on loop genres, the windows' left as they are */
+ *  steps), most of the explaining on loop genres, the windows' left as they are (on with `finish`;
+ *  DEDUCE_CORE=0 turns it off there) */
+/** the largest window program (characters) an explanation is tried for; DEDUCE_EXPLAIN_MAX */
+const EXPLAIN_MAX = Number(process.env.DEDUCE_EXPLAIN_MAX ?? 900_000);
 const WIDE_CORE = process.env.DEDUCE_CORE === "wide" && !EXPLAIN_TEXT;
 /** Options.rankWindows' logistic weights (lsize, lmarks, lopen, lchanged, changed share, open
  *  share, found last time, found nothing last time; per kind of window; fit 2026-10-21) */
@@ -1296,7 +1299,7 @@ end
         const tl = job.facts.map(([m, v]) => (v ? id(markAtom[m]) : -id(markAtom[m])));
         datum = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}},${local.size},{${flat.join(",")}},{${kl.join(",")}},{${tl.join(",")}}}`;
       }
-      if (size > 900_000) { notes.push(`${job.w.label}: too big to explain`); continue; }
+      if (size > EXPLAIN_MAX) { notes.push(`${job.w.label}: too big to explain (${size} characters)`); continue; }
       if (members.length && chars + size > EXPLAIN_CHUNK) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
       members.push(job); text.push(...mine); tables.push(table); data.push(datum); chars += size;
     }
@@ -1390,9 +1393,10 @@ end
       let x = sigs.get(w); if (x === undefined) { x = sigOf(w); sigs.set(w, x); }
       return `${w.label}|${m}|${x}`;
     };
+    const claimer = new Map<number, Window>();
     for (const w of ws) {
       const facts = found.get(w)!.filter(([m]) => !claimed.has(m));
-      for (const [m] of facts) claimed.add(m);
+      for (const [m] of facts) { claimed.add(m); claimer.set(m, w); }
       // explained before, with nothing new known in the window since: the same explanation
       const fresh = facts.filter(([m]) => explained.get(ek(w, m))?.stamp !== stamp(w));
       if (fresh.length) jobs.push({ w, facts: fresh });
@@ -1401,7 +1405,10 @@ end
     const ex = pre ?? explain(jobs), steps: (Step & { w: Window })[] = [];
     for (const { w, facts } of jobs) ex.get(w)?.forEach((e, k) => explained.set(ek(w, facts[k][0]), { stamp: stamp(w), e }));
     for (const w of ws) {
-      const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m)));
+      // (a fact another window claimed is listed here only with an explanation of its own: before
+      // 2026-10-22 it was listed unexplained when the claimer's was cached, and taken at times)
+      const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m))
+        && (claimer.get(m) === w || explained.has(ek(w, m))));
       if (!facts.length) continue;
       const es = facts.map(([m]) => explained.get(ek(w, m))?.e ?? null), byKey = new Map<string, Step & { w: Window }>();
       facts.forEach(([m, v], k) => {
@@ -1432,7 +1439,8 @@ end
   let coreNow = false;
   const wideStep = (m: number, v: boolean, tier: Tier) => {
     const tw = Date.now();
-    coreNow = WIDE_CORE;
+    // (on with `finish`: it passed the gate rule of 2026-10-21, means +0.002 / +0.004)
+    coreNow = WIDE_CORE || (finishing && process.env.DEDUCE_CORE === undefined && !EXPLAIN_TEXT);
     try { return wideStepIn(m, v, tier); } finally { coreNow = false; dbg(`wide step: ${Date.now() - tw} ms`); }
   };
   const wideStepIn = (m: number, v: boolean, tier: Tier) => {

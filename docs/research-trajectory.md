@@ -311,7 +311,33 @@ the split and the second is already the whole grid (about 1 s each, 27 of them);
 of 9 s). Growing the neighbourhood a ring at a time doesn't help (the refutations are global: the
 loop). Core-seeded deletion only there (`DEDUCE_CORE=wide`, windows' explanations untouched): that
 Simple Loop finishes (61 s, unfinished → 44 s), Cave 21 → 19 s, Masyu 16 → 15 s, Hidoku unchanged
-(it has no splits). It goes to the guard like the rest.
+(it has no splits). Under the gate rule it passes (means +0.002 / +0.004, no type below its
+interval; the Singles 8 × 8 −0.15 that plain `DEDUCE_CORE` had comes from these explanations too,
+but stays inside its interval), so it's on with `finish`.
+
+**Nurikabe can't be judged yet.** Under the gate rule islands changes nothing outside Nurikabe, and
+Nurikabe's verdict is an artifact: the 200-call baseline finishes 1 of 60 (every other one rates
+0.9), and the puzzles islands lets finish carry case splits explained over the whole grid, which on
+Nurikabe is a 7.6 MB program even at 8 × 8 (the engine's connectivity encoding), past the 1.2 MB
+our clingo-wasm wrapper takes (clingo.ts MAX_PROGRAM), so those steps go unexplained and price at the fallback (rating about 0.95). Explaining them
+needs a smaller encoding of the island rules for explanations (a local encoding, as Fillomino and
+Shikaku have) or native clingo; until then Nurikabe is left out of the guard.
+
+**A local encoding for Nurikabe.** local.ts now encodes Nurikabe the way people think of it: each
+unshaded cell belongs to one number within reach (own(I,C)), neighbours both unshaded share an
+owner, a number owns its size and each owned cell joins it, the shaded cells join, no 2 × 2 is all
+shaded. It never pairs regions, so a whole-grid program is 40–130 kB where the engine's is 4–7.6 MB,
+and it gives the engine's answers (unique on all 16 dev Nurikabes). With finish and the answer
+supplied, all 16 dev Nurikabes finish in 0.9–11.3 s (13 by 10 s; before: 9 of 16 by 60 s), every
+step explained. The two examples solve in 0.25–0.37 s (engine encoding 1–2.5 s) with no search
+steps (engine: 1 and 3): owner atoms let propagation see what the engine's reach encoding needed
+search for, so ratings move (example 1: 0.76 → 0.49 with finish). Whether they move the right
+way is the guard's call (Nurikabe on PSJP at 200 calls). DEDUCE_LOCAL=0 turns it off.
+
+The same run found a listing bug in every genre: a fact another window claimed was also listed by
+any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
+those unexplained duplicates were taken at times (priced at the fallback). A window now lists a
+claimed fact only with an explanation of its own (deduce.ts candidates).
 
 **Estimates depend on the clock.** The paths are deterministic (every other type repeated exactly);
 what isn't is the budget. The scoreboard gives each solve 15 s of wall clock, and an unsolved puzzle

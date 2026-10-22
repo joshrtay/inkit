@@ -7,6 +7,8 @@
 //   Shikaku     a number's region is a rectangle of that area holding it and no other number
 //   Square Jam  every region is a square; a number gives its square's side; four regions never
 //               meet at a point
+//   Nurikabe    each unshaded cell belongs to one number within reach (nurikabeProgram): no
+//               region pairs, so the whole grid grounds to some kB, where the engine's gives MBs
 //
 // The marks are the engine's own (cut(L): a border drawn on link L), so the solver's facts are the
 // same, and it checks each one against the engine's answer: an encoding that disagreed would stop
@@ -30,6 +32,7 @@ const numberClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.fla
  *  rectangle technique, deduce.ts). */
 export function localProgram(p: Puzzle, genre: string | undefined, picks = false): Local | null {
   const names = p.rules.map((r) => r.rule).join(",");
+  if (process.env.DEDUCE_LOCAL !== "0" && genre === "nurikabe" && names === "size-clue,one-each,connected,no-pool" && p.rules[1].of === "number") return nurikabeProgram(p);
   const shikaku = genre === "shikaku" && names === "rectangles,one-each,size-clue";
   const jam = genre === "square-jam" && names === "squares,no-four-corners,side-clue";
   if (!shikaku && !jam) return null;
@@ -106,4 +109,80 @@ export function localProgram(p: Puzzle, genre: string | undefined, picks = false
   if (picks) out.push("#show pick/1.");
   const text = out.join("\n");
   return { text, plain: `${text}\nrbk(0..${Math.max(0, p.rules.length - 1)}).`, ...(picks ? { shapes: listed } : {}) };
+}
+
+/** Nurikabe (rules size-clue, one-each number, connected, no-pool, in that order: blocks 0–3). An
+ *  unshaded cell is owned by one number close enough to reach it (own(I,C), shown, so its footprint
+ *  is its cell); neighbours both unshaded have one owner (one-each); a number owns its size, joined
+ *  to it (r(I,C), recursive: its footprint the number's reach) (size-clue); the shaded cells are
+ *  joined to the first of them (connected); no 2 × 2 is all shaded (no-pool). */
+function nurikabeProgram(p: Puzzle): Local | null {
+  const g = p.grid;
+  if (g.kind !== "square" || p.figure || p.blocked.size || p.walls.size) return null;
+  const clues = numberClues(p);
+  const givens = [...p.cellGivens.values()].flat();
+  if (givens.length !== clues.length || givens.some((x) => x.kind !== "number") || !clues.length) return null;
+  const clueAt = new Map(clues), n = g.cellCount;
+  const near = (i: number) => g.cellLinks[i].map((lk) => { const [x, y] = g.links[lk].cells; return x === i ? y : x; });
+  const dist = (a: number, b: number) => { const [ra, ca] = g.rc(a), [rb, cb] = g.rc(b); return Math.abs(ra - rb) + Math.abs(ca - cb); };
+  const tag = (k: number) => `rbk(${k})`;
+  const out: string[] = [];
+  // the candidates: a number reaches a cell within its size less one (and not another number's)
+  const cand: number[][] = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i++) {
+    if (clueAt.has(i)) { cand[i].push(i); continue; }
+    for (const [c, v] of clues) if (dist(i, c) <= v - 1) cand[i].push(c);
+  }
+  for (let i = 0; i < n; i++) {
+    if (clueAt.has(i)) { out.push(`own(${i},${i}).`); continue; }
+    out.push(`{shaded(${i})}.`);
+    // unshaded: owned by exactly one of its candidates (none: shaded)
+    if (cand[i].length) {
+      out.push(`{${cand[i].map((c) => `own(${i},${c})`).join(";")}} :- not shaded(${i}).`);
+      out.push(`:- not shaded(${i}), ${cand[i].map((c) => `not own(${i},${c})`).join(", ")}, ${tag(1)}.`);
+      for (let a = 0; a < cand[i].length; a++) for (let b = a + 1; b < cand[i].length; b++) out.push(`:- own(${i},${cand[i][a]}), own(${i},${cand[i][b]}), ${tag(1)}.`);
+    }
+    else out.push(`:- not shaded(${i}), ${tag(0)}.`);
+  }
+  const owns = (i: number, c: number) => cand[i].includes(c);
+  const shadeLit = (i: number, v: boolean) => (clueAt.has(i) ? (v ? null : "") : v ? `shaded(${i})` : `not shaded(${i})`);
+  for (let i = 0; i < n; i++) for (const j of near(i)) {
+    if (j < i) continue;
+    // two unshaded neighbours: one owner (a pair of numbers side by side can't be)
+    for (const c of cand[i]) {
+      const ji = shadeLit(j, false);
+      if (owns(j, c)) out.push(`:- own(${i},${c}), ${ji ? `${ji}, ` : ""}not own(${j},${c}), ${tag(1)}.`);
+      else out.push(`:- own(${i},${c}), ${ji ? `${ji}, ` : ""}${tag(1)}.`);
+    }
+    for (const c of cand[j]) {
+      const ij = shadeLit(i, false);
+      if (owns(i, c)) out.push(`:- own(${j},${c}), ${ij ? `${ij}, ` : ""}not own(${i},${c}), ${tag(1)}.`);
+      else out.push(`:- own(${j},${c}), ${ij ? `${ij}, ` : ""}${tag(1)}.`);
+    }
+  }
+  // a number's island: its size, joined to it
+  for (const [c, v] of clues) {
+    const mine = [...Array(n).keys()].filter((i) => owns(i, c));
+    out.push(`:- not ${v} #count{${mine.map((i) => `${i}:own(${i},${c})`).join(";")}} ${v}, ${tag(0)}.`);
+    out.push(`r(${c},${c}).`);
+    for (const j of mine) for (const i of near(j)) if (owns(i, c) && j !== c) out.push(`r(${j},${c}) :- r(${i},${c}), own(${j},${c}).`);
+    for (const j of mine) if (j !== c) out.push(`:- own(${j},${c}), not r(${j},${c}), ${tag(0)}.`);
+  }
+  // the shaded cells, joined to the first of them
+  const free = [...Array(n).keys()].filter((i) => !clueAt.has(i));
+  free.forEach((i, k) => {
+    if (k > 0) { const h = free[k - 1]; out.push(`pre(${i}) :- shaded(${h}).`, `pre(${i}) :- pre(${h}).`); }
+    out.push(k > 0 ? `sea(${i}) :- shaded(${i}), not pre(${i}).` : `sea(${i}) :- shaded(${i}).`);
+    for (const j of near(i)) if (!clueAt.has(j)) out.push(`sea(${j}) :- sea(${i}), shaded(${j}).`);
+    out.push(`:- shaded(${i}), not sea(${i}), ${tag(2)}.`);
+  });
+  // no 2 × 2 all shaded
+  for (let y = 0; y + 1 < g.rows; y++) for (let x = 0; x + 1 < g.cols; x++) {
+    const q = [g.cell(y, x), g.cell(y, x + 1), g.cell(y + 1, x), g.cell(y + 1, x + 1)];
+    if (q.some((i) => clueAt.has(i))) continue;
+    out.push(`:- ${q.map((i) => `shaded(${i})`).join(", ")}, ${tag(3)}.`);
+  }
+  out.push("#show shaded/1.", "#show own/2.");
+  const text = out.join("\n");
+  return { text, plain: `${text}\nrbk(0..3).` };
 }
