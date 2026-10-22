@@ -218,6 +218,9 @@ changes, each with the proof unchanged (identical paths on every example puzzle 
 | and explanations (1021c) | 9% | 41% | 62% | 37.0 s |
 | and Spiral Galaxies' cell atoms (1021d) | 9% | 42% | 70% | 33.4 s |
 | and islands, joins (1021e, 16 solves a VM) | 10% | 48% | 73% | 31.2 s |
+| and core wide, Nurikabe encoding, listing fix, answers supplied (1022a) | 21% | 64% | 86% | 23.0 s |
+
+1022a (4a27191): Nurikabe went from 0/19/31% to 69/100/100% by 10/30/60 s (median 60.9 s → 7.0 s). Supplied answers cut setup everywhere (median 1.5 s → 0.9 s), so part of the gain in untouched types is that. Time over 10 s now sits in Fillomino (18%, splits median 44 s, 50% by 60 s), Hidoku (16%, explaining 36 s), Spiral Galaxies (11%), Cave (10%) and Numberlink (9%).
 
 Native clingo was not faster than the WebAssembly build on these calls (1.26 s against 1.39 s), and
 clingo-wasm exposes only a one-shot `run`, so a persistent grounded control isn't available without
