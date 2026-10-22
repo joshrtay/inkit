@@ -188,14 +188,38 @@ ladder and on a 50-item subset for the top rungs (enough to estimate their gap).
 | D. next-move agreement | the 400 Janko states already run on Opus 5.5 | 1 call each | human-likeness, separate from skill |
 | E. whole solves | 30 of A | a solve | does A predict finishing? |
 
+### Difficulty tiers
+
+The parts above are sorted by what they measure, not by how hard they are. For IRT to tell 12
+test-takers apart, every rung needs items it passes about half the time. If most items sit where
+everyone passes or everyone fails, those items carry no information. So items are also built in
+three tiers, across the parts:
+
+| tier | items | should sit near 50% for |
+|---|---|---|
+| floor | grid-reading probes; stuck states one step from a forced move; Thinky levels 1-2 (70 puzzles); the perception-only listing format | Haiku and Sonnet at low effort |
+| middle | rated stuck states in the middle rating bands; Thinky levels 3-4 (50 puzzles); Expo puzzles of median time | Sonnet high, Opus low |
+| ceiling | stuck states where our solver needs a long chain or a case split; top-rated puzz.link puzzles; Expo's slowest puzzles; whole solves of hard puzzles | Opus at high effort |
+
+**The ceiling is the thin tier.** Thinky has no level-5 puzzles and only 10 at level 4, so the
+strongest rungs may clear most of C. The hard items have to come from puzz.link's top ratings and
+from the solver's own cost: a stuck state that needs an expensive deduction is hard by
+construction, even without a human rating. The solver's cost gives a free first ranking of every
+item before any model sees it.
+
+**Calibrating the tiers.** Rank items by solver cost and human rating (free), then pilot only the
+two ends of the ladder, Haiku low and Opus high. An item both pass or both fail tells us nothing
+about the rungs between them. Drop those items and fill whichever tier comes out thin, then run
+the full ladder. Each tier should also carry the same spread of genres, so that a tier is not just
+a stand-in for "the genres a model finds hard".
+
 Outputs: θ per model × effort with intervals, a one- versus two-factor comparison (perception versus
 deduction, using grid-reading probe items in A), where the rating bands and Expo times fall on θ, and
 the Thinky share-of-ladder against difficulty beyond ladder length.
 
 **Order and gates.** First the free steps: build A and
-B from what is in the bucket, and dry-run the harness. Then a pilot of A on Haiku low and Opus high
-only: if both pass nearly everything (or nothing) the bands are wrong and get redrawn before the
-full ladder runs. Costs to be estimated from the pilot's tokens; every paid step needs Josh's OK
+B from what is in the bucket, and dry-run the harness. Then the tier pilot above, on Haiku low and Opus high only: items both pass or both fail are
+dropped, and thin tiers are refilled before the full ladder runs. Costs to be estimated from the pilot's tokens; every paid step needs Josh's OK
 and an Anthropic key in the cloud environment.
 
 **Inkit logging to plan alongside.** The benchmark's measures map to log fields: solved, time,
