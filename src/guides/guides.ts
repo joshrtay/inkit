@@ -853,7 +853,7 @@ export const guides: Record<GenreName, Guide> = {
     origin: "Sum Blobs comes from Beast Academy, the maths puzzle books for kids from Art of Problem Solving.",
     credit: { popularizer: "Beast Academy (Art of Problem Solving)", source: { label: "Beast Academy Puzzles 2", url: "https://beastacademy.com/books/puzzles2" } },
     rules: [
-      { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written with the puzzle (here 6).", checks: ["region-sum"], pictures: [
+      { text: "Split the grid into regions of squares joined side by side. The numbers in every region add up to the target written under the puzzle (here 6).", checks: ["region-sum"], pictures: [
         { ok: true, note: "6, 6 and 6", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["aab", "ccb"] },
         { ok: false, note: "7 and 5", size: [2, 3], rules: [{ rule: "region-sum", is: 6 }], givens: [num(0, 0, 1), num(0, 1, 5), num(0, 2, 3), num(1, 0, 2), num(1, 1, 4), num(1, 2, 3)], regions: ["abb", "aab"] },
       ] },
