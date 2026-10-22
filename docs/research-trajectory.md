@@ -372,7 +372,8 @@ in all (232 s → 268 s) and stalled one, so it was dropped.
 **Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
 passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
-above its interval: a confirmed gain; means PSJP +0.034 held out, Tatham 0). So the price now does it:
+above its interval: a confirmed gain; means PSJP +0.034 held out, Tatham 0). Proposed in the price
+(245a137, pending Josh's yes):
 a solve stops at 0.9 and an unsolved one is 0.91 and up by its path so far (estimateOf; the
 scoreboard's capped runs 0.91).
 
