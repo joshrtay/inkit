@@ -272,7 +272,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
         for (const s of [-1, 1]) line(G(tip.r, tip.c), G(tip.r + out[0] * back * 0.25 + out[1] * s * 0.2, tip.c + out[1] * back * 0.25 + out[0] * s * 0.2), "medium");
         break;
       }
-      case "first": case "skyscraper": {
+      case "first": case "skyscraper": case "inlet": {
         const { cell: [r, c], side } = gv, o = { top: [-1, 0], bottom: [1, 0], left: [0, -1], right: [0, 1] }[side];
         text({ at: "cell", r: r + o[0], c: c + o[1] }, gv.kind === "first" ? (letters ?? "ABCDEFGHIJ")[gv.value - 1] : String(gv.value));
         break;
@@ -310,6 +310,7 @@ export function toDrawing(p: Puzzle, genre: string): Converted {
       }
       // a panel's squares are stones (docs/style.md): the stone stamp, in the square's colour
       case "square": stamp({ kind: "stamp", stamp: "stone", color: colour(gv.color, "", "a panel square", true), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "square"); break;
+      case "crossing": stamp({ kind: "stamp", stamp: "crossing", at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "crossing"); break;
       case "star": stamp({ kind: "stamp", stamp: "crest", color: colour(gv.color, "orange", "a star", true), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "star"); break;
       case "triangle": stamp({ kind: "stamp", stamp: "triangle", count: gv.value, color: colour(gv.color, "orange", "triangles", true), at: { at: "cell", r: gv.cell[0], c: gv.cell[1] } }, "triangle"); break;
       case "shape": {

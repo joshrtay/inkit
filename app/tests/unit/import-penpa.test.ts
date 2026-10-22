@@ -109,6 +109,18 @@ describe("grids Thinky's setters draw", () => {
     const doorless = (s: GridSpec) => normalSpec({ ...s, givens: s.givens?.map((x) => (x.kind === "door" ? { ...x, role: "in" as const } : x)) });
     expect(doorless((got as { spec: GridSpec }).spec)).toEqual(doorless(spec));
   });
+  it("shapes outside the grid with pipes in, and crossings: a Hamiltonian Plumbers", async () => {
+    const spec = example("hamiltonian-plumbers");
+    const got = penpaPuzzle(await grid(await penpaLink(drawn(spec))));
+    expect(got?.kind).toBe("puzzle");
+    expect(normalSpec((got as { spec: GridSpec }).spec)).toEqual(normalSpec(spec));
+  });
+  it("numbers and two lines out of the grid at corners: a Slitherlink Path", async () => {
+    const spec = example("slitherlink-path");
+    const got = penpaPuzzle(await grid(await penpaLink(drawn(spec))));
+    expect(got?.kind).toBe("puzzle");
+    expect(normalSpec((got as { spec: GridSpec }).spec)).toEqual(normalSpec(spec));
+  });
   it("cells taken out of the frame (Board mode): a smaller grid, the gaps inside it rocks", async () => {
     const d = drawn(example("nurikabe")), nx0 = d.nx + 4, center = (r: number, c: number) => (r + 2) * nx0 + c + 2;
     // keep rows 0-3 (the clue at row 4 goes), leaving out (1, 1)
@@ -165,7 +177,7 @@ describe("other Penpa+ links", () => {
   });
   it("a drawing none of our types fits, untagged: unsupported, unnamed", async () => {
     const d = drawn(example("nurikabe"));
-    (d.q.symbol as Record<string, unknown>)[String((2 + 0) * (d.nx + 4) + 3)] = [2, "circle_L", 1];   // a black circle: no number type has one
+    (d.q.symbol as Record<string, unknown>)[String((2 + 0) * (d.nx + 4) + 3)] = [1, "circle_SS", 2];   // a dot in a cell: no number type has one
     expect(penpaPuzzle(await grid(await penpaLink(d)))).toEqual({ kind: "unsupported", genreId: "unknown", genreName: "" });
   });
   it("garbage: no grid", async () => {

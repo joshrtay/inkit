@@ -23,7 +23,7 @@ export interface Kit {
 const MAKES: Record<Part, { tools?: Tool[]; stamps?: StampKind[] }> = {
   number: { tools: ["text"] }, symbol: { tools: ["text"], stamps: ["star", "stone"] }, compass: { tools: ["text"] },
   difference: { tools: ["text"] }, count: { tools: ["text"] }, watchtower: { tools: ["text"] }, first: { tools: ["text"] },
-  skyscraper: { tools: ["text"] }, total: { tools: ["text"] }, runs: { tools: ["text"] }, lengths: { tools: ["text"] }, entries: { tools: ["text"] },
+  skyscraper: { tools: ["text"] }, inlet: { tools: ["text"] }, crossing: { stamps: ["crossing"] }, total: { tools: ["text"] }, runs: { tools: ["text"] }, lengths: { tools: ["text"] }, entries: { tools: ["text"] },
   block: { stamps: ["rock"] }, pearl: { stamps: ["stone"] }, peg: { stamps: ["stone"] }, square: { stamps: ["stone"] },
   star: { stamps: ["crest"] }, triangle: { stamps: ["triangle"] }, shape: { stamps: ["shape"] }, eraser: { stamps: ["eraser"] },
   start: { stamps: ["start"] }, end: { stamps: ["end"] }, hexagon: { stamps: ["hoshi"] }, galaxy: { stamps: ["galaxy"] },

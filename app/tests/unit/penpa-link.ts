@@ -53,7 +53,17 @@ export function drawn(spec: GridSpec, tags: string[] = []): Drawn {
       // a way in or out: a line from the cell through the frame
       const [r, c] = g.cell, o = g.side === "top" ? center(r - 1, c) : g.side === "bottom" ? center(r + 1, c) : g.side === "left" ? center(r, c - 1) : center(r, c + 1);
       put("line", [center(r, c), o].sort((x, y) => x - y).join(","), 3);
-    } else if (g.at === "edge") {
+    } else if (g.at === "edge" && g.kind === "inlet") {
+      // a pipe end: a shape beside the grid (one per number), its pipe into the cell
+      const [r, c] = g.cell, o = g.side === "top" ? center(r - 1, c) : g.side === "bottom" ? center(r + 1, c) : g.side === "left" ? center(r, c - 1) : center(r, c + 1);
+      put("symbol", o, [2, ["circle_M", "square_M", "triup_M", "diamond_M"][g.value - 1], 1]);
+      put("line", [center(r, c), o].sort((x, y) => x - y).join(","), 2);
+    } else if (g.at === "corner" && g.kind === "end") {
+      // an end of a path along the grid lines: a short line out of the grid from that corner
+      const [r, c] = g.corner, [or, oc] = r === 0 ? [r - 1, c] : r === rows ? [r + 1, c] : c === 0 ? [r, c - 1] : [r, c + 1];
+      put("lineE", [corner(r, c), corner(or, oc)].sort((x, y) => x - y).join(","), 2);
+    } else if (g.at === "cell" && g.kind === "crossing") put("symbol", center(...g.cell), [[1, 1, 1, 1], "cross", 2]);
+    else if (g.at === "edge") {
       const k = g.side === "top" ? center(-1, g.cell[1]) : g.side === "bottom" ? center(rows, g.cell[1]) : g.side === "left" ? center(g.cell[0], -1) : center(g.cell[0], cols);
       put("number", k, [g.kind === "first" ? "ABCDEFG"[g.value - 1] : String(g.value), 1, "1"]);
     } else if (g.at === "border" && g.kind === "wall") {

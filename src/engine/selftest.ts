@@ -146,7 +146,7 @@ function randomSpec(): GridSpec {
   const own = process.argv[4] ? (PIECE_KINDS.includes(process.argv[4]) ? process.argv[4] : null) : rand() < 0.15 ? pick(PIECE_KINDS) : null;
   if (own) return pieceSpec(own);
   const kind = process.argv[4] ?? pick(["square-jam", "square-jam", "wittgenstein-briquet", "wittgenstein-briquet", "hitori", "hitori", "minesweeper", "minesweeper",
-    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "german-whispers", "german-whispers", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binary-puzzle", "binary-puzzle", "abstract-art", "abstract-art", "abstract-art", "fill-in", "fill-in", "fill-in",
+    "spiral-galaxies", "spiral-galaxies", "thermo-sudoku", "german-whispers", "german-whispers", "slitherlink-path", "slitherlink-path", "hamiltonian-plumbers", "hamiltonian-plumbers", "skyscrapers", "skyscrapers", "easy-as-abc", "easy-as-abc", "aquarium", "aquarium", "cave", "cave", "numberlink", "numberlink", "masyu", "masyu", "akari", "akari", "shikaku", "shikaku", "star-battle", "star-battle", "irregular-sudoku", "simple-path", "simple-path", "coats", "coats", "maze", "maze", "panes", "panes", "panes", "nurikabe", "slitherlink", "simple-loop", "simple-loop", "nonogram", "nonogram", "sudoku", "sudoku", "panel", "panel", "panel", "panel", "panel", "panel", "binary-puzzle", "binary-puzzle", "abstract-art", "abstract-art", "abstract-art", "fill-in", "fill-in", "fill-in",
     "hidoku", "hidoku", "honeycomb-paths", "honeycomb-paths", "hive", "hive", "pythagorean-paths", "pythagorean-paths", "pythagorean-paths"]);
   const cellOf = (i: number, cols: number): [number, number] => [Math.floor(i / cols), i % cols];
   if (kind === "panel") return randomPanel();
@@ -406,6 +406,30 @@ function randomSpec(): GridSpec {
     const givens = Array.from({ length: rows * cols }, (_, i) => i).filter(() => rand() < 0.5)
       .map((i) => ({ at: "cell" as const, cell: [Math.floor(i / cols), i % cols] as [number, number], kind: "number" as const, value: Math.floor(rand() * 4) }));
     return { genre: "slitherlink", size: [rows, cols], givens };
+  }
+  if (kind === "hamiltonian-plumbers") {
+    // two or three pairs of pipe ends round a small grid, sometimes a crossing or a rock
+    const [rows, cols] = pick([[2, 3], [3, 3], [3, 4]]);
+    const sides: { cell: [number, number]; side: "top" | "bottom" | "left" | "right" }[] = [];
+    for (let c = 0; c < cols; c++) sides.push({ cell: [0, c], side: "top" }, { cell: [rows - 1, c], side: "bottom" });
+    for (let r = 0; r < rows; r++) sides.push({ cell: [r, 0], side: "left" }, { cell: [r, cols - 1], side: "right" });
+    const pairs = pick([2, 3]), ends = shuffle(sides).slice(0, 2 * pairs);
+    const givens: NonNullable<GridSpec["givens"]> = ends.map((e, k) => ({ at: "edge" as const, ...e, kind: "inlet" as const, value: (k >> 1) + 1 }));
+    const used = new Set(ends.map((e) => `${e.cell}`));
+    const free = shuffle(Array.from({ length: rows * cols }, (_, i) => cellOf(i, cols)).filter((x) => !used.has(`${x}`)));
+    // a crossing anywhere, even where a pipe end comes in
+    if (rand() < 0.5) givens.push({ at: "cell", cell: cellOf(Math.floor(rand() * rows * cols), cols), kind: "crossing" });
+    if (free.length && rand() < 0.3) givens.push({ at: "cell", cell: free.pop()!, kind: "block" });
+    return { genre: "hamiltonian-plumbers", size: [rows, cols], givens };
+  }
+  if (kind === "slitherlink-path") {
+    const [rows, cols] = pick([[2, 2], [2, 3]]);
+    const givens: NonNullable<GridSpec["givens"]> = Array.from({ length: rows * cols }, (_, i) => i).filter(() => rand() < 0.4)
+      .map((i) => ({ at: "cell" as const, cell: [Math.floor(i / cols), i % cols] as [number, number], kind: "number" as const, value: Math.floor(rand() * 4) }));
+    const edge: [number, number][] = [];
+    for (let r = 0; r <= rows; r++) for (let c = 0; c <= cols; c++) if (r === 0 || c === 0 || r === rows || c === cols) edge.push([r, c]);
+    for (const corner of shuffle(edge).slice(0, 2)) givens.push({ at: "corner", corner, kind: "end" });
+    return { genre: "slitherlink-path", size: [rows, cols], givens };
   }
   if (kind === "nurikabe") {
     const [rows, cols] = pick([[3, 3], [3, 4], [2, 4]]);

@@ -24,6 +24,8 @@ export const KIND_NAMES: Record<GenreName, string> = {
   "irregular-sudoku": "Irregular Sudoku",
   nonogram: "Nonogram",
   slitherlink: "Slitherlink",
+  "hamiltonian-plumbers": "Hamiltonian Plumbers",
+  "slitherlink-path": "Slitherlink Path",
   nurikabe: "Nurikabe",
   panes: "Panes",
   sudoku: "Sudoku",

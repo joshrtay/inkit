@@ -36,25 +36,27 @@ Now in the bucket (`gs://inkit-research-ml/private/refs/thinky-dailies/`): the s
 `converted.jsonl` and `summary.json` from `puzzles/difficulty/sources/thinky.ts`. Private: never in
 the repo or anything public.
 
-**What converts.** 220 puzzles: 199 penpa grids and 21 riddles. 95 grids are in a genre we have
-(Thinky's name matched to ours; its many path genres, sudoku variants and one-off rule twists are
-not). 74 read through the site's Penpa importer and 66 solve to exactly one answer with clingo (60 s
-cap). The rest: 21 unreadable links (Star Battle 4, Nonogram 3, Shikaku 3, Irregular Sudoku 2,
-Hitori 2, Easy as ABC 2, others), 3 Shikaku and 1 Nurikabe with no solution and 1 Nurikabe with
-two (reader errors more likely than broken puzzles, worth a look), and 3 Square Jam timeouts.
+**What converts.** 220 puzzles: 199 penpa grids and 21 riddles. Every grid carries Thinky's own
+answer (`puzzleData.solution`), so moves can be checked in any genre, ours or not. After the
+importer fixes (PR #15: Board-mode grids, letters for numbers, nonogram `*`, Shikaku empty circles,
+shapes as Numberlink pairs) and four added types (Simple Path, Connectlink as Numberlink that fills
+the grid, Slitherlink Path, Hamiltonian Plumbers), 122 grids read as our puzzles and 120 solve to
+exactly one answer with clingo (120 s cap), Thinky's answer in every case. The rest: 2 Square Jam
+timeouts. The first pass
+(74 read, 66 unique) lost most of its puzzles to importer gaps and one engine bug (rocks counted as
+Nurikabe islands), not to broken puzzles.
 
 | difficulty | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|
-| usable puzzles | 12 | 25 | 24 | 5 | 0 |
-| mean hints in the ladder | 4.1 | 5.6 | 9.3 | 13.6 | |
+| usable puzzles | 19 | 51 | 40 | 10 | 0 |
+| mean hints in the ladder | 4.0 | 5.2 | 8.8 | 11.6 | |
 
-Genres with 5 or more: Nurikabe 8, Akari 9, Cave 6, Wittgenstein Briquet 6, Irregular Sudoku 6,
-Nonogram 5, Thermo Sudoku 5. Grids are small (up to 100 cells).
+Grids are small (up to 100 cells).
 
 **What it measures, honestly.** The ratings are each of 8 authors' own 1-5 label, set before
 anyone solved, not solve rates. The ladders are written for the whole puzzle from the empty grid,
-in the order the author expects, not for a given position. And the set is small: 66 puzzles give a
-Spearman ρ with a standard error of about 0.12, and only 5 puzzles above level 3.
+in the order the author expects, not for a given position. And the set is small: 120 puzzles give a
+Spearman ρ with a standard error of about 0.09, and only 10 puzzles above level 3.
 
 **A trap in "number of hints".** Ladder length already tracks the rating: ρ = 0.69 between the
 author's difficulty and how many hints they wrote. So "hints a model needed" partly re-measures the
@@ -71,7 +73,7 @@ ladder length as a covariate). Raw counts agreeing with the rating is not eviden
 - Measures per (model × effort, puzzle): solved or not; rungs used (and the share); wrong moves;
   the rung after which the next correct move came (the "unlocking" rung); tokens.
 - No-hint run first: the unaided solve rate is the cleanest single number and decides whether the
-  ladder has room. If Opus solves all 66 unaided, Thinky only informs the weaker rungs.
+  ladder has room. If Opus solves all of them unaided, Thinky only informs the weaker rungs.
 - Contamination check: the dailies are on the public web (Nov 2025 on), inside the newer models'
   training window. Before scoring, ask each model to recall a puzzle's hints from its title alone;
   if any can, drop or flag that season.
@@ -132,13 +134,57 @@ Ranked by how close the human signal is to what inkit will log.
 Machine-rated Sudoku sets (Kaggle 3M, sudoku-extreme, SE ratings) have no human signal and are not
 benchmarks for this purpose.
 
+## Input format as a factor
+
+Weak models often fail at reading the grid (wrong row, miscounted neighbours, a clue placed in the
+wrong cell) before they fail at deducing. On raw grid text that floors the low rungs: Haiku at low
+effort scores near 0 on most items, every item at 0 carries no information, and the IRT fit can't
+tell Haiku low from Haiku high. The open-model test already showed format matters: the listed /
+relations format beat the plain grid by about 5 points, and for the move network a better encoding
+took Hidoku from 10% to 56%.
+
+So every set runs in more than one format, crossed with model and effort:
+
+| format | what it holds | what it removes |
+|---|---|---|
+| grid text | the board as rows of characters, as now | nothing |
+| listing (perception only) | every cell with its row, column and content; each cell's neighbours; outlined area membership; each clue and where it sits (inside, beside a row, on a corner) | the work of locating things |
+| image (optional) | the board as the site draws it | the text rendering; tests vision |
+
+The listing holds only what is printed on the puzzle. No candidates, no "this cell can't be X",
+no derived regions, no counts of what's left: those are deduction, and pre-digesting them would
+measure the encoder, not the model. A trap to check per genre: some printed facts nearly give the
+answer away in some genres (in Shikaku or Nurikabe, a "region" field must mean outlined areas
+only, never the regions being solved).
+
+How it's read:
+
+- Fit format as part of the test-taker (model × effort × format) on the same items, or as a second
+  ability factor. The listing-minus-grid gap per model is its **perception cost**. If the gap
+  shrinks with tier and effort, perception and deduction are separate abilities (use 3 in the
+  first section), and the gap is the cleanest evidence for it.
+- Low-end sensitivity rises because the listing lifts weak models off the floor, so their
+  deduction differences show. The grid run stays the main score at the top, where the gap should
+  be small, and it is what a player-facing hint model would see.
+- Human anchors saw a picture. A format that makes items easier for models doesn't change the
+  items' human difficulty, so the anchors are compared with the grid (or image) run; the listing
+  run is for ranking models, not for placing them on the human scale.
+
+Other ways to keep the low end informative, which don't depend on format: easy items (Thinky
+levels 1-2, small grids, stuck states one step from a forced move), partial credit (correct moves
+before the first error; the share of the hint ladder used is graded already), and the grid-reading
+probe items in A, which measure perception directly.
+
+Cost: the listing doubles the calls. To keep it down, run both formats on the lower half of the
+ladder and on a 50-item subset for the top rungs (enough to estimate their gap).
+
 ## Proposed benchmark
 
 | part | items | per test-taker | role |
 |---|---|---|---|
 | A. stuck states, rated | 200 (PSJP + puzz.link, banded by rating, ~10 genres) | 1 call each | IRT item bank; ability per model × effort |
 | B. stuck states, timed | 50 from LMI Expo (and GP, if crawled) | 1 call each | the only measured-time anchors |
-| C. Thinky hint-to-solve | 66 | a solve with up to N rungs | hints-to-solve; human hint arm |
+| C. Thinky hint-to-solve | 120 | a solve with up to N rungs | hints-to-solve; human hint arm |
 | D. next-move agreement | the 400 Janko states already run on Opus 5.5 | 1 call each | human-likeness, separate from skill |
 | E. whole solves | 30 of A | a solve | does A predict finishing? |
 
@@ -146,7 +192,7 @@ Outputs: θ per model × effort with intervals, a one- versus two-factor compari
 deduction, using grid-reading probe items in A), where the rating bands and Expo times fall on θ, and
 the Thinky share-of-ladder against difficulty beyond ladder length.
 
-**Order and gates.** First the free steps: fix the 21 unreadable Thinky links if cheap, build A and
+**Order and gates.** First the free steps: build A and
 B from what is in the bucket, and dry-run the harness. Then a pilot of A on Haiku low and Opus high
 only: if both pass nearly everything (or nothing) the bands are wrong and get redrawn before the
 full ladder runs. Costs to be estimated from the pilot's tokens; every paid step needs Josh's OK

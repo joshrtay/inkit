@@ -160,6 +160,7 @@ export function stampSvg(s: Pick<Extract<Item, { kind: "stamp" }>, "stamp" | "co
     case "hoshi": return tag("circle", { class: "panel-dot", cx: x, cy: y, r: Math.max(2.6, S * 0.1), ...lineColor(s.color) });
     case "start": return tag("circle", { class: "panel-start", cx: x, cy: y, r: S * 0.26 }) + tag("path", { class: "panel-enso", d: ensoPath(x, y, S * 0.21), ...lineColor(s.color) });
     case "end": return tag("line", { class: "mark pen panel-end", x1: x, y1: y, x2: x + out.x * S * 0.3, y2: y + out.y * S * 0.3 });
+    case "crossing": return tag("path", { class: "crossing", d: `M${f1(x - S * 0.42)} ${f1(y)}H${f1(x + S * 0.42)}M${f1(x)} ${f1(y - S * 0.42)}V${f1(y + S * 0.42)}`, style: `stroke-width:${f1(S * 0.14)}` });
     case "crest": return symbolSvg({ kind: "star", color: s.color ?? "orange" }, x, y, S);
     case "triangle": return symbolSvg({ kind: "triangle", value: s.count ?? 1, color: s.color ?? "orange" }, x, y, S);
     case "shape": return symbolSvg({ kind: "shape", value: s.cells ?? [[0, 0]], color: s.color ?? (s.hollow ? "blue" : "yellow"), negative: !!s.hollow, rotate: !!s.rotate }, x, y, S);

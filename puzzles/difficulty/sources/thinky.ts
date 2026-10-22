@@ -1,14 +1,15 @@
 // Thinky Dailies (a private scrape Josh made; gs://inkit-research-ml/private/refs/thinky-dailies/,
 // never in the repo) as our engine's specs: each grid's Penpa+ link (its `source`), read by the
 // site's own importer (app/app/lib/import-link.ts) as the genre Thinky names, then solved (clingo,
-// capped) to check it has exactly one solution. Thinky ships no grid solutions, so the solve is
-// what lets a model's moves be checked. Kept with each: the author's difficulty (1-5) and the
-// number of hints in its ladder. Visual riddles and other non-grid puzzles are counted, not read.
+// capped) to check it has exactly one solution, and Thinky's own stored answer checked against our
+// rules (--check), so a model's moves can be checked against either. Kept with each: the author's
+// difficulty (1-5), the number of hints in its ladder, and Thinky's answer. Visual riddles and
+// other non-grid puzzles are counted, not read.
 //
 //   node --no-warnings --experimental-transform-types --import ./puzzles/difficulty/sources/app-alias.ts \
 //     puzzles/difficulty/sources/thinky.ts [--in <thinky-dailies.json>] [--out <dir>] [--check] [--cap-s 60]
 //
-// Writes <out>/converted.jsonl (slug, Thinky genre, difficulty, hints, spec, unique) and summary.json.
+// Writes <out>/converted.jsonl (slug, Thinky genre, difficulty, hints, spec, Thinky's answer, unique, whether that answer solves it) and summary.json.
 // Default --in and --out: references/thinky-dailies/.
 import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -78,7 +79,7 @@ const GENRES: Record<string, string> = {
   Nonogram: "nonogram", "Square Jam": "square-jam", Cave: "cave", "Wittgenstein Briquet": "wittgenstein-briquet",
   "Thermo Sudoku": "thermo-sudoku", Aquarium: "aquarium", Masyu: "masyu", "Spiral Galaxies": "spiral-galaxies",
   "Easy as ABC": "easy-as-abc", Hitori: "hitori", Minesweeper: "minesweeper", Slitherlink: "slitherlink", Skyscrapers: "skyscrapers",
-  "Simple Path": "simple-path", Connectlink: "numberlink",
+  "Simple Path": "simple-path", Connectlink: "numberlink", "Slitherlink Path": "slitherlink-path", "Hamiltonian Plumbers": "hamiltonian-plumbers",
 };
 /** Thinky's genres that are one of ours with a rule of its own: Connectlink is Numberlink whose lines fill the grid */
 const OWN_RULES: Record<string, object[]> = { Connectlink: [{ rule: "links", cover: true }] };

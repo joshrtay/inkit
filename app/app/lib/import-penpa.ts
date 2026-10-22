@@ -26,7 +26,7 @@ export type PenpaResult =
 export const PENPA_GENRES = [
   "slitherlink", "nurikabe", "simple-loop", "star-battle", "akari", "shikaku", "numberlink", "masyu", "cave", "aquarium",
   "square-jam", "wittgenstein-briquet", "hitori", "minesweeper", "spiral-galaxies", "skyscrapers", "easy-as-abc", "nonogram",
-  "sudoku", "irregular-sudoku", "thermo-sudoku", "fillomino", "simple-path",
+  "sudoku", "irregular-sudoku", "thermo-sudoku", "fillomino", "simple-path", "slitherlink-path", "hamiltonian-plumbers",
 ] as const satisfies readonly GenreName[];
 type PenpaGenre = (typeof PENPA_GENRES)[number];
 
@@ -101,6 +101,8 @@ export interface PenpaGrid {
   blanks: Set<number>;
   /** every symbol in a cell, as its name and style ("circle_M 1"): shapes that pair up, as in a Numberlink of shapes */
   symbols: Map<number, string>;
+  /** symbols outside the frame, by "row,col" (a Hamiltonian Plumbers pipe end's shape) */
+  outsideSymbols: Map<string, string>;
   /** circles in cells: 1 white, 2 black */
   circles: Map<number, number>;
   /** small dots anywhere, in half-cell units ([2r+1, 2c+1] a cell's centre) */
@@ -110,6 +112,8 @@ export interface PenpaGrid {
   thermos: RC[][];
   /** lines from a cell out through the frame: a path's way in and way out */
   doors: { cell: RC; side: Side }[];
+  /** corners on the frame with a line (or an arrow) out of the grid: the ends of a path along the grid lines */
+  ends: RC[];
   /** a star drawn outside the frame (a Star Battle's "2 ★") */
   starOutside: boolean;
   solution: Solution | null;
@@ -161,7 +165,7 @@ export async function readPenpaGrid(link: string): Promise<PenpaGrid | null> {
   } catch { /* every cell */ }
   const pt = new Points(nx, ny, top, left, rows, cols);
 
-  const g: PenpaGrid = { rows, cols, gridtype, tags, cells: new Map(), outside: [], shaded: new Set(), holes: new Set(), blanks: new Set(), symbols: new Map(), circles: new Map(), dots: [], walls: [], thermos: [], doors: [], starOutside: false, solution: null };
+  const g: PenpaGrid = { rows, cols, gridtype, tags, cells: new Map(), outside: [], shaded: new Set(), holes: new Set(), blanks: new Set(), symbols: new Map(), outsideSymbols: new Map(), circles: new Map(), dots: [], walls: [], thermos: [], doors: [], ends: [], starOutside: false, solution: null };
   if (kept.length && kept.length < rows * cols) {
     const on = new Set(kept.map(([r, c]) => r * cols + c));
     for (let i = 0; i < rows * cols; i++) if (!on.has(i)) g.holes.add(i);
@@ -179,28 +183,48 @@ export async function readPenpaGrid(link: string): Promise<PenpaGrid | null> {
     const at = pt.center(Number(k));
     if (at && pt.inside(at) && GIVEN_SHADES.has(Number(v))) g.shaded.add(pt.id(at));
   }
+  const onFrame = ([r, c]: RC) => r >= 0 && c >= 0 && r <= rows && c <= cols && (r === 0 || c === 0 || r === rows || c === cols);
+  const offGrid = ([r, c]: RC) => r < 0 || c < 0 || r > rows || c > cols;
   for (const [k, v] of Object.entries(obj("symbol"))) {
     if (!Array.isArray(v)) continue;
     const [n, name] = v as [number, string];
     const at = pt.center(Number(k));
     if (at && pt.inside(at) && typeof name === "string") g.symbols.set(pt.id(at), `${name} ${n}`);
+    else if (at && typeof name === "string" && Math.floor(Number(k) / pt.N) === 0) g.outsideSymbols.set(`${at}`, `${name} ${n}`);
     if ((name === "circle_SS" || name === "circle_S") && n >= 1) { const h = pt.half(Number(k)); if (h) g.dots.push(h); }
     else if (at && pt.inside(at) && /^circle_(L|M)$/.test(name) && PEARLS[n]) g.circles.set(pt.id(at), PEARLS[n]);
     else if (at && !pt.inside(at) && name === "star") g.starOutside = true;
-    else if (name.startsWith("arrow")) { const d = pt.frameEdge(Number(k)); if (d) g.doors.push(d); }
+    else if (name.startsWith("arrow")) {
+      const d = pt.frameEdge(Number(k)), v = pt.corner(Number(k)) ?? pt.cornerOut(Number(k));
+      if (d) g.doors.push(d); else if (v && onFrame(v)) g.ends.push(v);
+    }
   }
+  // how many lines meet at each point: a stub out of the grid stops where it ends (a nonogram's
+  // lines through its clues run on)
+  const meets = new Map<string, number>();
+  for (const k of Object.keys(obj("lineE"))) for (const x of k.split(",")) meets.set(x, (meets.get(x) ?? 0) + 1);
   for (const [k, v] of Object.entries(obj("lineE"))) {
+    // a stub from the frame out of the grid: an end
+    const [ka, kb] = k.split(","), [a, b] = [ka, kb].map((x) => pt.corner(Number(x)));
+    if (a && b) {
+      const end = onFrame(a) && offGrid(b) && meets.get(kb) === 1 ? a : onFrame(b) && offGrid(a) && meets.get(ka) === 1 ? b : null;
+      if (end) { g.ends.push(end); continue; }
+    }
     if (!THICK.has(Number(v))) continue;
     const wall = pt.edge(k);
     if (wall) g.walls.push(wall);
   }
   for (const k of Object.keys(obj("line"))) {
-    const [a, b] = k.split(",").map((x) => pt.center(Number(x)));
+    // a line from a cell's centre (inside or out) to the middle of the frame beside it: a door there
+    const ks = k.split(",").map(Number), mid = ks.map((x) => pt.frameEdge(x)).find((d) => d);
+    if (mid && ks.some((x) => pt.center(x))) { g.doors.push(mid); continue; }
+    const [a, b] = ks.map((x) => pt.center(x));
     if (!a || !b || pt.inside(a) === pt.inside(b) || Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) !== 1) continue;
     const [cell, out] = pt.inside(a) ? [a, b] : [b, a];
     const side: Side = out[0] < cell[0] ? "top" : out[0] > cell[0] ? "bottom" : out[1] < cell[1] ? "left" : "right";
     g.doors.push({ cell, side });
   }
+  g.ends = [...new Map(g.ends.map((v) => [`${v}`, v])).values()];
   // an arrow and a line through the same opening: one door
   g.doors = [...new Map(g.doors.map((d) => [`${d.cell}${d.side}`, d])).values()];
   if (Array.isArray(q.thermo)) for (const t of q.thermo as unknown[]) {
@@ -259,6 +283,15 @@ class Points {
     const r = Math.floor(base / this.nx0) - 2 - this.top, c = (base % this.nx0) - 2 - this.left;
     if (type === 2 && c >= 0 && c < this.cols && (r === -1 || r === this.rows - 1)) return r < 0 ? { cell: [0, c], side: "top" } : { cell: [r, c], side: "bottom" };
     if (type === 3 && r >= 0 && r < this.rows && (c === -1 || c === this.cols - 1)) return c < 0 ? { cell: [r, 0], side: "left" } : { cell: [r, c], side: "right" };
+    return null;
+  }
+  /** the middle of a stretch of line just outside the frame, running out from a frame corner (an
+   *  arrow there marks an end of a path along the grid lines): that corner */
+  cornerOut(k: number): RC | null {
+    const type = Math.floor(k / this.N), base = k - type * this.N;
+    const r = Math.floor(base / this.nx0) - 2 - this.top, c = (base % this.nx0) - 2 - this.left;
+    if (type === 3 && (r === -1 || r === this.rows) && c >= -1 && c < this.cols) return [r < 0 ? 0 : this.rows, c + 1];
+    if (type === 2 && (c === -1 || c === this.cols) && r >= -1 && r < this.rows) return [r + 1, c < 0 ? 0 : this.cols];
     return null;
   }
   /** a segment between two corners ("k1,k2"), as the two cells it parts (null on the frame or off the grid) */
@@ -360,8 +393,8 @@ function edgeClues(g: PenpaGrid, kind: "first" | "skyscraper", value: (v: string
     return { at: "edge", cell, side: o.side, kind, value: value(o.value) };
   });
 }
-const nothingBut = (g: PenpaGrid, ...uses: ("cells" | "outside" | "shaded" | "circles" | "dots" | "walls" | "thermos" | "doors")[]) => {
-  const has = { cells: g.cells.size > 0, outside: g.outside.length > 0, shaded: g.shaded.size > 0, circles: g.circles.size > 0, dots: g.dots.length > 0, walls: g.walls.length > 0, thermos: g.thermos.length > 0, doors: g.doors.length > 0 };
+const nothingBut = (g: PenpaGrid, ...uses: ("cells" | "outside" | "shaded" | "circles" | "dots" | "walls" | "thermos" | "doors" | "ends")[]) => {
+  const has = { cells: g.cells.size > 0, outside: g.outside.length > 0, shaded: g.shaded.size > 0, circles: g.circles.size > 0, dots: g.dots.length > 0, walls: g.walls.length > 0, thermos: g.thermos.length > 0, doors: g.doors.length > 0, ends: g.ends.length > 0 };
   for (const [k, v] of Object.entries(has)) if (v && !uses.includes(k as keyof typeof has)) throw new NoFit();
 };
 const need = (ok: boolean) => { if (!ok) throw new NoFit(); };
@@ -386,11 +419,16 @@ const SUDOKUS: PenpaGenre[] = ["sudoku", "irregular-sudoku", "thermo-sudoku"];
 
 const BUILD: Record<PenpaGenre, Build> = {
   slitherlink: numbersOnly(0, 4),
+  "slitherlink-path"(g) {
+    nothingBut(g, "cells", "ends");
+    need(g.ends.length === 2);
+    return { givens: [...numbersIn(g, 0, 3), ...g.ends.map((corner): Given => ({ at: "corner", corner, kind: "end" }))] };
+  },
   nurikabe: numbersOnly(1),
   shikaku(g) {
     // empty circles (beside circled numbers): rectangles of any size
-    const blanks = [...g.blanks, ...(g.cells.size ? [...g.circles].filter(([, n]) => n === 1).map(([i]) => i) : [])];
-    nothingBut({ ...g, circles: new Map([...g.circles].filter(([, n]) => n !== 1)) }, "cells");
+    const blanks = [...g.blanks, ...(g.cells.size ? [...g.circles.keys()] : [])];
+    nothingBut({ ...g, circles: new Map() }, "cells");
     need(g.cells.size > 0 && g.cells.size + blanks.length < g.rows * g.cols);
     const givens = numbersIn(g, 1);
     if (!blanks.length) return { givens };
@@ -423,6 +461,26 @@ const BUILD: Record<PenpaGenre, Build> = {
     if ([...g.cells.values()].every(isInt)) return { givens: numbersIn(g, 1) };
     // letters or signs: each a number, since only which cells match matters (shown as numbers)
     return { givens: symbolsIn(g).givens };
+  },
+  "hamiltonian-plumbers"(g) {
+    // pipe ends: a shape outside the frame with a line into the grid, each kind of shape a number;
+    // crossings: a cross with all four arms (one with none is decoration); shading, rocks
+    const out = (d: { cell: RC; side: Side }): RC => [d.cell[0] + (d.side === "top" ? -1 : d.side === "bottom" ? 1 : 0), d.cell[1] + (d.side === "left" ? -1 : d.side === "right" ? 1 : 0)];
+    // (or a letter there)
+    const label = (d: { cell: RC; side: Side }) => g.outside.find((o) => o.side === d.side && o.depth === 1 && o.index === (d.side === "top" || d.side === "bottom" ? d.cell[1] : d.cell[0]))?.value;
+    const ends = g.doors.map((d) => ({ ...d, shape: g.outsideSymbols.get(`${out(d)}`) ?? label(d) }));
+    need(ends.length >= 2 && ends.every((e) => e.shape));
+    const kinds = [...new Set(ends.map((e) => e.shape!))];
+    need(kinds.every((k) => ends.filter((e) => e.shape === k).length === 2));
+    // (with fewer arms, it's another type: three-way joins)
+    const crosses = [...g.symbols].filter(([, v]) => v === "cross 1,1,1,1").map(([i]) => i);
+    need(![...g.symbols.values()].some((v) => /^cross /.test(v) && v !== "cross 1,1,1,1" && v !== "cross 0,0,0,0"));
+    nothingBut({ ...g, circles: new Map(), doors: [], outside: [] }, "shaded");
+    return { givens: [
+      ...ends.map((e): Given => ({ at: "edge", cell: e.cell, side: e.side, kind: "inlet", value: kinds.indexOf(e.shape!) + 1 })),
+      ...crosses.map((i): Given => ({ at: "cell", cell: rcOf(g, i), kind: "crossing" })),
+      ...[...g.shaded].map((i): Given => ({ at: "cell", cell: rcOf(g, i), kind: "block" })),
+    ] };
   },
   "simple-path"(g) {
     // a way in and a way out (which is which doesn't matter: the path runs either way), rocks, walls

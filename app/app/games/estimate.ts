@@ -29,7 +29,7 @@ export interface Estimate {
 
 /** Clues per cell that's usual for a type (most givens are clues); anything not listed is 0.3. */
 const USUAL_DENSITY: Record<string, number> = {
-  sudoku: 0.38, "thermo-sudoku": 0.2, "german-whispers": 0.15, "irregular-sudoku": 0.35, akari: 0.25, masyu: 0.22, slitherlink: 0.45, nurikabe: 0.18,
+  sudoku: 0.38, "thermo-sudoku": 0.2, "german-whispers": 0.15, "irregular-sudoku": 0.35, akari: 0.25, masyu: 0.22, slitherlink: 0.45, "slitherlink-path": 0.4, "hamiltonian-plumbers": 0.15, nurikabe: 0.18,
   "star-battle": 0.02, hitori: 1, skyscrapers: 0.3, kakuro: 0.3, "spiral-galaxies": 0.15, numberlink: 0.2, shikaku: 0.15,
   hidoku: 0.3, fillomino: 0.4, minesweeper: 0.3, cave: 0.2, aquarium: 0.25, panel: 0.25,
 };
@@ -37,7 +37,7 @@ const USUAL_DENSITY: Record<string, number> = {
 const NO_GIVENS = new Set(["nonogram", "star-battle", "aquarium", "abstract-art", "binary-puzzle", "coats"]);
 /** A small nudge for types harder or easier than their size says. */
 const LEAN: Record<string, number> = {
-  "star-battle": 0.1, "spiral-galaxies": 0.06, slitherlink: 0.05, nurikabe: 0.05, "wittgenstein-briquet": 0.06, "irregular-sudoku": 0.04,
+  "star-battle": 0.1, "spiral-galaxies": 0.06, slitherlink: 0.05, "slitherlink-path": 0.05, nurikabe: 0.05, "wittgenstein-briquet": 0.06, "irregular-sudoku": 0.04,
   "simple-loop": -0.1, "simple-path": -0.1, maze: -0.15, panel: -0.05, panes: -0.05, "pythagorean-paths": -0.05, "connect-the-critters": -0.05,
 };
 /** Givens that are structure rather than clues. */

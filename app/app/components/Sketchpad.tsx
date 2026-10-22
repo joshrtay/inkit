@@ -70,6 +70,7 @@ const STAMPS: { id: StampKind; label: string; tip?: string }[] = [
   { id: "whisper", label: "Whisper line", tip: "Whisper line (German Whispers): drag through the squares" },
   { id: "inequality", label: "Inequality", tip: "A < sign on a line, pointing at the smaller side" },
   { id: "palisade", label: "Palisade mark", tip: "Palisade: how many of the square's sides are borders" },
+  { id: "crossing", label: "Crossing", tip: "Crossing (Hamiltonian Plumbers): pipes cross here, straight through" },
 ];
 const STAMP_LABEL = Object.fromEntries(STAMPS.map((s) => [s.id, s.label])) as Record<StampKind, string>;
 const COLORED = new Set<StampKind>(["stone", "crest", "triangle", "shape", "eraser", "start", "hoshi"]);
@@ -92,7 +93,7 @@ const StampIcon = ({ s }: { s: m.Stamp | Omit<m.Stamp, "kind" | "at"> }) => (
   <span className="grid-game be-icon" aria-hidden="true"><svg viewBox="0 0 32 32" dangerouslySetInnerHTML={{ __html: stampSvg(s, 16, 16, ICON_SIZE[s.stamp] ?? 40) }} /></span>
 );
 /** The square a stamp's button draws it in (a shaded square fills it; the rest sit in it). */
-const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44, inequality: 60, palisade: 60, thermo: 44, whisper: 44 };
+const ICON_SIZE: Partial<Record<StampKind, number>> = { rock: 20, stone: 36, star: 34, galaxy: 40, x: 40, dot: 48, end: 48, diamond: 44, "open-diamond": 44, inequality: 60, palisade: 60, thermo: 44, whisper: 44, crossing: 44 };
 /** The shape pad's size, in squares. */
 const PAD = 5;
 const cellsKey = (cells: RC[]) => JSON.stringify(m.normalCells(cells));

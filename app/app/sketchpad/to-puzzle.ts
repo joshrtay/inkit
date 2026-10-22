@@ -74,6 +74,8 @@ const SUDOKU: Part[] = ["number", "box-lines", "areas"];
 /** Every genre's profile; null: paint can't make this type yet. */
 export const PROFILES: Record<GenreName, Profile | null> = {
   slitherlink: { reads: ["number"] },
+  "hamiltonian-plumbers": { reads: ["inlet", "crossing", "block", "wall"] },
+  "slitherlink-path": { reads: ["number", "end"] },
   nurikabe: { reads: ["number"] },
   "simple-loop": { reads: ["block", "wall"] },
   "simple-path": { reads: ["door", "block", "wall"] },
@@ -525,6 +527,9 @@ export const READERS: Record<Part, Reader | null> = {
     for (const { t, side, cell } of ringTexts(cx)) { const k = symbols.indexOf(t.text.trim()); if (k >= 0 && t.text.trim().length === 1) cx.give({ at: "edge", cell, side, kind: "first", value: k + 1 }, t.id); }
   },
   skyscraper: (cx) => { for (const { t, side, cell } of ringTexts(cx)) if (INT.test(t.text.trim())) cx.give({ at: "edge", cell, side, kind: "skyscraper", value: Number(t.text.trim()) }, t.id); },
+  // Hamiltonian Plumbers: a number outside the grid is a pipe end; the crossing stamp, where pipes cross
+  inlet: (cx) => { for (const { t, side, cell } of ringTexts(cx)) if (INT.test(t.text.trim()) && Number(t.text.trim()) >= 1) cx.give({ at: "edge", cell, side, kind: "inlet", value: Number(t.text.trim()) }, t.id); },
+  crossing: (cx) => { for (const { s, cell } of cellStamps(cx, "crossing")) cx.give({ at: "cell", cell, kind: "crossing" }, s.id); },
   // the thermometer tool's; or a line through square centres, from the bulb (a stone at one end)
   thermo: (cx) => {
     for (const t of cx.each("thermo")) {
@@ -688,7 +693,7 @@ const READ_ORDER: Part[] = [
   "door", "compass", "thermo", "whisper", "box-lines", "major-lines",
   "block", "number", "symbol", "palisade", "pearl", "dots", "peg", "square", "star", "triangle", "shape", "eraser",
   "wall", "areas", "twins", "opposites", "inequality", "difference", "count", "watchtower", "bank",
-  "first", "skyscraper", "total", "runs", "galaxy", "start", "end", "hexagon", "gap", "color", "picture", "lengths", "entries",
+  "first", "skyscraper", "inlet", "crossing", "total", "runs", "galaxy", "start", "end", "hexagon", "gap", "color", "picture", "lengths", "entries",
 ];
 
 const lineColor = (c: m.SymbolColor | undefined) => (c === "blue" || c === "yellow" ? { color: c } : {});
@@ -698,7 +703,7 @@ const lineColor = (c: m.SymbolColor | undefined) => (c === "blue" || c === "yell
 const STAMP_WORDS: Record<m.StampKind, string> = {
   stone: "A stone", star: "A star", rock: "A shaded square", x: "An X", dot: "A dot", galaxy: "A circle", diamond: "A ◆", "open-diamond": "A ◇",
   hoshi: "A dot on the line", start: "A start", end: "An end", crest: "A crest", triangle: "A triangle", shape: "A shape", eraser: "An eraser",
-  inequality: "A < sign", palisade: "A palisade mark", thermo: "A thermometer", whisper: "A whisper line",
+  inequality: "A < sign", palisade: "A palisade mark", thermo: "A thermometer", whisper: "A whisper line", crossing: "A crossing",
 };
 function words(it: m.Item): string {
   switch (it.kind) {

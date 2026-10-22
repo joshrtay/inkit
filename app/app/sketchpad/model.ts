@@ -73,6 +73,8 @@ export const STAMP_SNAP = {
   crest: ["cell"], triangle: ["cell"], shape: ["cell"], eraser: ["cell"],
   // Panes: a < sign on a line (pointing at the smaller side), a palisade mark in a square
   inequality: ["edge"], palisade: ["cell"],
+  // Hamiltonian Plumbers: where pipes cross
+  crossing: ["cell"],
   // a thermometer: dragged from its bulb through the squares (a "thermo" item, not a stamp); a
   // whisper line (German Whispers) the same way, a "thermo" item with `line: "whisper"`
   thermo: ["cell"], whisper: ["cell"],

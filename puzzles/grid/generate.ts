@@ -11,7 +11,7 @@ import { makePuzzle, check, BALANCE_COLORS } from "../../src/engine/puzzle.ts";
 import { program, boardOf, solve } from "../../src/engine/solve.ts";
 import { regionsOf, shapeKey } from "../../src/engine/derive.ts";
 import { fillSlots } from "../../src/engine/rules.ts";
-import { emptyBoard, type Board, type Given, type GridSpec, type Puzzle, type RuleSpec } from "../../src/engine/types.ts";
+import { emptyBoard, type Board, type Given, type GridSpec, type Puzzle, type RuleSpec, type Side } from "../../src/engine/types.ts";
 import { clingoJson, loadClingo } from "../difficulty/clingo.ts";
 import { makePanel, PANEL_MIXES } from "./panels.ts";
 import { makePieceGenre, PIECE_GENRES } from "./pieces.ts";
@@ -235,7 +235,7 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     return Array.from({ length: rows }, (_, r) => of.slice(r * cols, r * cols + cols).map((a) => "abcdefghijklmnopqrstuvwxyz"[a]).join(""));
   }
 
-  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "simple-loop" || genre === "numberlink" || genre === "masyu" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "german-whispers", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
+  const boardKey = (spec: GridSpec, b: Board) => (genre === "binary-puzzle" || genre === "abstract-art" ? [...b.color].join(",") : genre === "fill-in" ? [...b.digit].join(",") : genre === "panes" ? regionKey(spec, b) : genre === "simple-path" || genre === "simple-loop" || genre === "numberlink" || genre === "masyu" || genre === "hamiltonian-plumbers" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : ["star-battle", "akari", "cave", "aquarium", "wittgenstein-briquet", "hitori", "minesweeper"].includes(genre) ? [...b.shade].map((x) => (x === 1 ? 1 : 0)).join("") : ["shikaku", "square-jam", "spiral-galaxies"].includes(genre) ? regionKey(spec, b) : ["thermo-sudoku", "german-whispers", "skyscrapers", "easy-as-abc", "hidoku", "honeycomb-paths", "hive"].includes(genre) ? [...b.digit].join("") : genre === "pythagorean-paths" ? [...b.loop].map((x) => (x === 1 ? 1 : 0)).join("") : genre === "irregular-sudoku" ? [...b.digit].join("") : genre === "nurikabe" ? [...b.shade].join("") : genre === "sudoku" ? [...b.digit].join("") : [...b.fence].join(""));
 
   /** Add pool clues until the target is the only solution, then drop clues that aren't needed. */
   async function narrow(base: GridSpec, target: Board, pool: Given[], poolOf?: (b: Board) => Given[]): Promise<GridSpec | null> {
@@ -766,6 +766,31 @@ export async function generate(o: GenerateOptions): Promise<GridSpec | null> {
     } else if (genre === "slitherlink") {
       const base: GridSpec = { genre, size: [rows, cols], givens: [] };
       const target = await randomBoard(base, `:- #count{B: fence(B)} < ${Math.round(rows * cols * 0.9)}.`);
+      if (!target) continue;
+      const g = makePuzzle(base).grid;
+      const pool: Given[] = Array.from({ length: g.cellCount }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: g.cellBorders[i].filter((e) => target.fence[e] === 1).length }));
+      result = await narrow(base, target, pool);
+    } else if (genre === "hamiltonian-plumbers") {
+      // pipe ends in pairs round the edge and a crossing or two, until exactly one way fills the grid
+      const sides: { cell: [number, number]; side: Side }[] = [];
+      for (let c = 0; c < cols; c++) sides.push({ cell: [0, c], side: "top" }, { cell: [rows - 1, c], side: "bottom" });
+      for (let r = 0; r < rows; r++) sides.push({ cell: [r, 0], side: "left" }, { cell: [r, cols - 1], side: "right" });
+      for (let t = 0; t < 200 && !result; t++) {
+        const pairs = 2 + Math.floor(rand() * Math.max(1, Math.min(rows, cols) - 1)), ends = shuffle([...sides]).slice(0, 2 * pairs);
+        const givens: Given[] = ends.map((e, k) => ({ at: "edge", ...e, kind: "inlet", value: (k >> 1) + 1 }));
+        const used = new Set(ends.map((e) => `${e.cell}`));
+        const inner = shuffle(Array.from({ length: rows * cols }, (_, i) => at(i)).filter((x) => !used.has(`${x}`) && x[0] > 0 && x[1] > 0 && x[0] < rows - 1 && x[1] < cols - 1));
+        for (let k = Math.floor(rand() * 3); k > 0 && inner.length; k--) givens.push({ at: "cell", cell: inner.pop()!, kind: "crossing" });
+        const spec: GridSpec = { genre, size: [rows, cols], givens };
+        if ((await solveN(makePuzzle(spec), 2)).length === 1 && await accepts(spec)) result = spec;
+      }
+    } else if (genre === "slitherlink-path") {
+      // two ends on the outside edge, a long random path between them; then numbers until it's the only one
+      const edge: [number, number][] = [];
+      for (let r = 0; r <= rows; r++) for (let c = 0; c <= cols; c++) if (r === 0 || c === 0 || r === rows || c === cols) edge.push([r, c]);
+      const [e1, e2] = shuffle(edge);
+      const base: GridSpec = { genre, size: [rows, cols], givens: [{ at: "corner", corner: e1, kind: "end" }, { at: "corner", corner: e2, kind: "end" }] };
+      const target = await randomBoard(base, `:- #count{B: fence(B)} < ${Math.round(rows * cols * 0.8)}.`);
       if (!target) continue;
       const g = makePuzzle(base).grid;
       const pool: Given[] = Array.from({ length: g.cellCount }, (_, i) => ({ at: "cell", cell: at(i), kind: "number", value: g.cellBorders[i].filter((e) => target.fence[e] === 1).length }));

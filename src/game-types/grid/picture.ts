@@ -9,7 +9,7 @@ import type { Board, Puzzle } from "../../engine/types.ts";
 import { piecesOf, roomiest } from "./pieces";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { washDefs } from "../../lib/ink.ts";
-import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
+import { endArrows, endSides, lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
 import { entriesDone, entryList } from "./entry-list.ts";
 import { isShaped, shapedLayout, shapedSvg } from "./shaped.ts";
 
@@ -38,7 +38,7 @@ export function pictureLayout(p: Puzzle, room0: Room = {}) {
     const bd = g.borders[e];
     return bd.horizontal ? (bd.cells[0] < 0 ? "top" : "bottom") : (bd.cells[0] < 0 ? "left" : "right");
   };
-  const room = (side: "top" | "left" | "right" | "bottom") => Math.max(M, room0[side] ?? 0, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0,
+  const room = (side: "top" | "left" | "right" | "bottom") => Math.max(M, room0[side] ?? 0, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, endSides(p).includes(side) ? 44 : 0,
     (side === "left" && p.rowTotals.size) || (side === "top" && p.colTotals.size) ? 40 : 0, p.edgeClues.some((c) => c.side === side) ? 38 : 0,
     side === "bottom" ? bankLayout(p, S).height + entryList(p, g.cols * S).height : 0);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top");
@@ -109,6 +109,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
     out.givens += tag("path", { class: "arrow", d: `M${ax} ${ay}L${hx} ${hy}M${bx - 6 * uy} ${by + 6 * ux}L${hx} ${hy}L${bx + 6 * uy} ${by - 6 * ux}` });
     if (marks.includes("loop")) { const [cx, cy] = center(bd.cells[0] < 0 ? bd.cells[1] : bd.cells[0]); out.tint += tag("line", { class: "stub", x1: cx, y1: cy, x2: mx, y2: my }); }
   }
+  if (!panel) out.givens += endArrows(p, frame);
   for (const [v, gs] of p.cornerGivens) for (const giv of gs) {
     if (giv.kind !== "count") continue;
     const [x, y] = cornerXY(v), have = b ? g.cornerBorders[v].filter((e) => b.fence[e] === 1).length : -1;
@@ -124,6 +125,11 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
   for (const c of p.edgeClues) {
     const [cx, cy] = center(c.cell), d = S / 2 + 18;
     const [x, y] = c.side === "top" ? [cx, cy - d] : c.side === "bottom" ? [cx, cy + d] : c.side === "left" ? [cx - d, cy] : [cx + d, cy];
+    if (c.kind === "inlet") {
+      const [ex, ey] = c.side === "top" ? [cx, cy - S / 2] : c.side === "bottom" ? [cx, cy + S / 2] : c.side === "left" ? [cx - S / 2, cy] : [cx + S / 2, cy];
+      out.tint += tag("line", { class: "stub", x1: cx, y1: cy, x2: ex, y2: ey });
+      out.givens += tag("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 });
+    }
     out.givens += text({ class: "clue outside", x, y: y + 1 }, c.kind === "first" ? symbolOf(p, c.value) : String(c.value));
   }
   const givenDigit = new Set<number>();
@@ -139,6 +145,7 @@ export function pictureSvg(p: Puzzle, b?: Board | null, label = "Puzzle", opts: 
       out.wash += rect(i, "paint", -0.5, { style: `fill:${palette[giv.value - 1] ?? "#ccc"}` });
       out.givens += rect(i, "paint-given", 6);
     } else if (giv.kind === "pearl") out.givens += stoneSvg(giv.value, x, y, S * 0.28, "pearl");   // pearls are stones
+    else if (giv.kind === "crossing") out.tint += tag("path", { class: "crossing", d: `M${x - S * 0.42} ${y}H${x + S * 0.42}M${x} ${y - S * 0.42}V${y + S * 0.42}` });
     else if (giv.kind === "symbol") out.givens += symbolClueSvg(giv.value, x, y);
     else if (giv.kind === "palisade") out.givens += palisadeSvg(giv.value, !!giv.opposite, x, y, S);
     else if (giv.kind === "compass") {

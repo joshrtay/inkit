@@ -26,7 +26,7 @@ import { createWalk } from "./walk";
 import { bankLayout, paneCluesSvg, palisadeSvg, symbolClueSvg } from "./region-clues.ts";
 import { endsOf, mirrorBorder, mirrorCorner, startsOf, type Symmetry } from "../../engine/panel.ts";
 import * as Line from "./line-input";
-import { lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
+import { endArrows, endSides, lineColors, LINE_COLORS, panelInk, panelSymbols, panelTracks, stoneSvg, tileSvg } from "./panel-draw";
 import { createFigure } from "./figure";
 import { createShaped, isShaped } from "./shaped.ts";
 import { boardKey, familyOf, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
@@ -100,7 +100,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   const edgeRoom = (side: string) => (p.edgeClues.some((c) => c.side === side) ? 38 : 0);
   // a shape bank (Panes) sits under the grid
   const bankRoom = (side: string) => (side === "bottom" ? bankLayout(p, S).height + entryList(p, g.cols * S).height : 0);
-  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, totalsRoom(side), edgeRoom(side), bankRoom(side));
+  const room = (side: string) => Math.max(M, doorSide("in") === side ? 50 : 0, doorSide("out") === side ? 54 : 0, endSides(p).includes(side) ? 44 : 0, totalsRoom(side), edgeRoom(side), bankRoom(side));
   const shadeClues = p.rules.some((s) => blockFor(s).shadeClues);   // Hitori shades the numbers
   const label = (d: number) => symbolOf(p, d);
   const ML = nonogram ? maxRow * 22 + 16 : room("left"), MT = nonogram ? maxCol * 22 + 12 : room("top"), MR = nonogram ? 6 : room("right"), MB = nonogram ? 6 : room("bottom");
@@ -174,6 +174,8 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       el("line", { class: "stub", x1: cx, y1: cy, x2: mx, y2: my }, gTint);
     }
   }
+  // the ends of a path along the grid lines (Slitherlink Path)
+  if (!panel) gGivens.insertAdjacentHTML("beforeend", endArrows(p, { S, X, Y }));
   // numbers on corners (mazes): a circle each, green when it has its walls, red when over
   const cornerEls = new Map<number, [Element, number]>();
   for (const [v, gs] of p.cornerGivens) for (const giv of gs) {
@@ -200,6 +202,12 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const [cx, cy] = center(c.cell), d = S / 2 + 18;
     const [x, y] = c.side === "top" ? [cx, cy - d] : c.side === "bottom" ? [cx, cy + d] : c.side === "left" ? [cx - d, cy] : [cx + d, cy];
     edgeXY.push([x, y]);
+    // a pipe end (Hamiltonian Plumbers): a ringed number, its pipe already into the cell
+    if (c.kind === "inlet") {
+      const [ex, ey] = c.side === "top" ? [cx, cy - S / 2] : c.side === "bottom" ? [cx, cy + S / 2] : c.side === "left" ? [cx - S / 2, cy] : [cx + S / 2, cy];
+      el("line", { class: "stub", x1: cx, y1: cy, x2: ex, y2: ey }, gTint);
+      el("circle", { class: "link-end", cx: x, cy: y, r: S * 0.3 }, gGivens);
+    }
     el("text", { class: "clue outside", x, y: y + 1, "data-flash": `edge:${k}` }, gGivens).textContent = c.kind === "first" ? label(c.value) : String(c.value);
   });
   for (const [i, gs] of p.cellGivens) for (const giv of gs) {
@@ -212,6 +220,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     }
     else if (giv.kind === "color") cellRect(i, "paint-given", gGivens, 6).setAttribute("data-flash", key);   // a printed color: its wash (below) with a pen outline
     else if (giv.kind === "pearl") gGivens.insertAdjacentHTML("beforeend", wrap(stoneSvg(giv.value, x, y, S * 0.28, "pearl")));   // pearls are stones
+    else if (giv.kind === "crossing") el("path", { class: "crossing", d: `M${x - S * 0.42} ${y}H${x + S * 0.42}M${x} ${y - S * 0.42}V${y + S * 0.42}`, "data-flash": key }, gTint);
     else if (giv.kind === "symbol") gGivens.insertAdjacentHTML("beforeend", wrap(symbolClueSvg(giv.value, x, y)));
     else if (giv.kind === "palisade") gGivens.insertAdjacentHTML("beforeend", wrap(palisadeSvg(giv.value, !!giv.opposite, x, y, S)));
     else if (giv.kind === "compass") {
