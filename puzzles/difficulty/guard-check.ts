@@ -34,6 +34,7 @@ const SETTINGS = ([
   ["c200-core", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_CORE: "1" }],
   ["c200-islands", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "islands" }],
   ["c200-corewide", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_CORE: "wide" }],
+  ["c200-nurikabe", { DEDUCE_BUDGET_CALLS: "200" }, ["--games", "nurikabe"]],
   ["c200-joins", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_TECHNIQUES: "joins" }, ["--games", "cave,nurikabe"]],
   // Nurikabe stalls at 200 calls (nothing solves), so it's judged at 1,000
   ["n1000-baseline", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "nurikabe"]],
