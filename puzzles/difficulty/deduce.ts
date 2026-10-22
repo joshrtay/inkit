@@ -530,7 +530,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const techEnv = process.env.DEDUCE_TECHNIQUES === "all" ? Object.keys(TECHNIQUES) : process.env.DEDUCE_TECHNIQUES?.split(",").filter(Boolean);
   const finish = (opts.finish ?? process.env.DEDUCE_FINISH === "1") ? FINISH[spec.genre ?? ""] ?? {} : {};
   const techOn = new Set([...(opts.techniques ?? techEnv ?? []), ...(finish.techniques ?? [])].filter((t) => techniqueApplies(t, p, spec.genre)));
-  const local = localProgram(p, spec.genre, techOn.has("rects") || techOn.has("rectpairs"));
+  const local = localProgram(p, spec.genre, techOn.has("rects") || techOn.has("rectpairs"), !!(opts.finish ?? process.env.DEDUCE_FINISH === "1"));
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];

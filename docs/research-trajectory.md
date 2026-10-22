@@ -369,6 +369,14 @@ off by default (DEDUCE_LOCAL=fillomino turns it on) until its steps are priced. 
 atoms' footprint (own(I,C) on cells I and C) made windows faster on some puzzles but the 16 slower
 in all (232 s → 268 s) and stalled one, so it was dropped.
 
+Pricing fixed (8b4734b): the region rules are now free in explanations, as the engine's region
+definitions are, instead of each counting as a size-clue group. The guard then passes it with the
+finish set at 200 calls: guard sample 0.37 against the engine's 0.37, held out 0.47 against 0.39, a
+fresh draw 0.45 against 0.42; the ceiling is mostly gone (1 of 31 held-out finishes at 0.88 or more,
+was 16). So it is on with the finish set (and DEDUCE_LOCAL=fillomino); the default solve keeps the
+engine's encoding, which the guard didn't judge against it. Puzzles with more than 3,500 owner and
+size choices fall back to the engine's: on the guard a few ran out of clingo-wasm's memory or size.
+
 **Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
 passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
@@ -378,7 +386,10 @@ up by its path so far. That failed the guard (PSJP mean −0.073, Numberlink 0.2
 priced 0.91, the bottom of the unsolved, though they're the hardest, and the path term runs against
 the ratings among unsolved runs (Numberlink −0.66, Spiral Galaxies −0.43). So unsolved is now one
 price, whatever its path: 0.95 out of clingo calls, 1 out of time (stopped by the clock, as a capped
-run is). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409).
+run is). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
+fresh draw of 967 rated PSJP puzzles never used before, it passes the means (guard +0.016, held out
++0.105, fresh −0.013) but fails Numberlink on the fresh draw (0.67 → 0.41): Numberlink finishes 2 of
+60 at 200 calls, so its agreement only ranks how runs stop. Nurikabe's gain replicates (+0.13 fresh).
 
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
