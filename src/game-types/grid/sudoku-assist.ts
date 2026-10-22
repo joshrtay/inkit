@@ -4,8 +4,8 @@
 //
 // Each rule with local logic says when a digit can't go in a square, given the digits placed
 // around it: the houses (rows and columns, boxes or outlined areas) by repeats, a thermometer by
-// its order. A variant's rule joins with one entry in LOCAL. Rules without one (Skyscrapers'
-// edge clues) are only checked when the grid is full, as before.
+// its order, a whisper by its gap. A variant's rule joins with one entry in LOCAL. Rules without
+// one (Skyscrapers' edge clues) are only checked when the grid is full, as before.
 import { boxesOf } from "../../engine/rules.ts";
 import type { Board, Puzzle, RuleSpec } from "../../engine/types.ts";
 
@@ -44,10 +44,29 @@ function thermoBlocked(p: Puzzle) {
   });
 }
 
+/** German Whispers: neighbours along a whisper differ by at least the gap (ceil(digits / 2) by
+ *  default), so a digit too near the middle can't sit on one at all, and a placed digit rules out
+ *  its near neighbours next to it. */
+function whispersBlocked(s: RuleSpec, p: Puzzle) {
+  const gap = typeof s.gap === "number" ? s.gap : Math.ceil(p.digits / 2);
+  const next = new Map<number, number[]>();
+  // p.whispers comes with the German Whispers genre (read loosely until the engine has it everywhere)
+  for (const w of (p as { whispers?: number[][] }).whispers ?? []) w.forEach((i, k) => {
+    next.set(i, [...(next.get(i) ?? []), ...[w[k - 1], w[k + 1]].filter((j) => j !== undefined)]);
+  });
+  // a digit with no other digit far enough from it can't sit on a whisper
+  const lonely = (d: number) => d - gap < 1 && d + gap > p.digits;
+  return (b: Board, i: number, d: number) => {
+    const ns = next.get(i);
+    return !!ns && (lonely(d) || ns.some((j) => b.digit[j] > 0 && Math.abs(b.digit[j] - d) < gap));
+  };
+}
+
 export const LOCAL: Record<string, Local> = {
   latin: (_s, p) => ({ houses: rowsAndColumns(p) }),
   boxes: (s, p) => ({ houses: boxesOf(s, p) }),
   thermo: (_s, p) => ({ blocked: thermoBlocked(p) }),
+  whispers: (s, p) => ({ blocked: whispersBlocked(s, p) }),
 };
 
 /** The helpers for a puzzle, or null when none of its rules has local logic (not a Sudoku). */

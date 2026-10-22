@@ -97,3 +97,27 @@ describe("thermometers", () => {
     expect(clashes(a, b).has(t[1])).toBe(true);
   });
 });
+
+describe("German Whispers", () => {
+  // a 9 × 9 Sudoku with one whisper along the top row's first three squares (gap 5 by default)
+  const base = example("sudoku", 3);
+  const p = { ...base, rules: [...base.rules, { rule: "whispers" }], whispers: [[0, 1, 2]] } as Puzzle;
+  const a = assistFor(p)!;
+
+  it("a whisper square can't hold 5, and a placed digit rules out its near neighbours", () => {
+    const b = emptyBoard(p.grid);
+    expect(candidates(a, p, b, 1) & (1 << 5)).toBe(0);
+    expect(candidates(a, p, b, 40) & (1 << 5)).toBeTruthy();   // off the whisper, 5 is fine
+    b.digit[1] = 3;
+    expect(digitsOf(candidates(a, p, b, 0), 9)).toEqual([8, 9]);
+    expect(digitsOf(candidates(a, p, b, 2), 9)).toEqual([8, 9]);
+  });
+
+  it("neighbours too close clash, and a smaller gap is read from the rule", () => {
+    const b = emptyBoard(p.grid);
+    b.digit[0] = 2; b.digit[1] = 6;
+    expect([...clashes(a, b)].sort()).toEqual([0, 1]);
+    const p3 = { ...p, rules: [...base.rules, { rule: "whispers", gap: 3 }] } as Puzzle;
+    expect(clashes(assistFor(p3)!, b).size).toBe(0);
+  });
+});
