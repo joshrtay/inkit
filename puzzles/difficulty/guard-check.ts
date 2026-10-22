@@ -36,6 +36,12 @@ const SETTINGS = ([
   // Nurikabe stalls at 200 calls (nothing solves), so it's judged at 1,000
   ["n1000-baseline", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "nurikabe"]],
   ["n1000-islands", { DEDUCE_BUDGET_CALLS: "1000", DEDUCE_TECHNIQUES: "islands" }, ["--games", "nurikabe"]],
+  // Nurikabe's compact encoding (local.ts) against the engine's, with the finish set, at the
+  // guard's budget and at 1,000 calls
+  ...["200", "1000"].flatMap((n) => [
+    [`nk${n}-finish`, { DEDUCE_BUDGET_CALLS: n, DEDUCE_FINISH: "1" }, ["--games", "nurikabe"]],
+    [`nk${n}-finish-nolocal`, { DEDUCE_BUDGET_CALLS: n, DEDUCE_FINISH: "1", DEDUCE_LOCAL: "0" }, ["--games", "nurikabe"]],
+  ]),
 ] as [string, Record<string, string>, string[]?][]).filter(([name]) => !process.env.GUARD_SETTINGS || process.env.GUARD_SETTINGS.split(",").includes(name));
 const repo = new URL("../../", import.meta.url).pathname;
 const args = process.argv.slice(2);
