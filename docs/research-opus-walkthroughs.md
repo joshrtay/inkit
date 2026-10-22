@@ -94,9 +94,11 @@ Short excerpts; the full ones (with grids) are in `walk-samples.md` in the bucke
 $6.14 in all: $3.57 for the 20 Janko states (14 seconds to 3.5 minutes each, $0.03–0.51), $1.25
 for 6 Akari, and $1.29 lost on two empty-grid 10×10 Slitherlinks that spent all 32,000 tokens
 thinking and wrote nothing. The OpenRouter account then ran out of credit ($1.19 left), so the
-other 6 Akari and all 12 Slitherlinks are not asked. Finishing them needs about $10 more of credit
-and a 64,000-token allowance for Slitherlink (`WALK_TOKENS=64000`; up to $1.28 each); `ask`
-resumes and re-asks unparsed replies.
+other 6 Akari and all 12 Slitherlinks are not asked. Cloud threads have no Anthropic key (the
+earlier Opus runs used the site's key in the Mac's `app/.dev.vars`); `ask` now uses
+`ANTHROPIC_API_KEY` when the environment has one. Finishing needs about $10 and a 64,000-token
+allowance for Slitherlink (`WALK_TOKENS=64000`; up to $1.28 each); `ask` resumes and re-asks
+unparsed replies.
 
 ## What it suggests
 

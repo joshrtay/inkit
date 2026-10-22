@@ -25,10 +25,11 @@
 //   node --no-warnings puzzles/difficulty/opus-walkthrough.ts report                → walk-report.md, walk-samples.md
 //   node --no-warnings puzzles/difficulty/opus-walkthrough.ts show <id>             (the prompt)
 //
-// Opus is asked through OpenRouter (anthropic/claude-opus-5.5, key in OPENROUTER_API_KEY), as
-// opus-human.ts's `open` asks open models. WALK_CAP (dollars, default 20) stops the asking before
-// the ledger would pass it. Everything goes to references/ml/opus-human/ (local only: the puzzles
+// Opus is asked from Anthropic when ANTHROPIC_API_KEY is set, else through OpenRouter
+// (anthropic/claude-opus-5.5, key in OPENROUTER_API_KEY), as opus-human.ts's `open` asks open
+// models. WALK_CAP (dollars, default 20) stops the asking before the ledger would pass it. Everything goes to references/ml/opus-human/ (local only: the puzzles
 // are Janko's and Puzzle Square JP's).
+import Anthropic from "@anthropic-ai/sdk";
 import { appendFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
@@ -169,9 +170,43 @@ function walkJson(text: string): any {
 }
 
 // ======== ask ========
-async function ask() {
+// Opus straight from Anthropic when ANTHROPIC_API_KEY is set (as opus-human.ts asks it on the Mac), else through OpenRouter
+interface Reply { model: string; text: string; usage: unknown; cost: number; out: number; finish: string }
+function opus(): (prompt: string) => Promise<Reply> {
+  if (process.env.ANTHROPIC_API_KEY) {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 20 * 60 * 1000, maxRetries: 4 });
+    return async (prompt) => {
+      const res = await client.messages.stream({
+        model: "claude-opus-5-5", max_tokens: MAX_TOKENS, thinking: { type: "adaptive" }, output_config: { effort: EFFORT as "medium" },
+        messages: [{ role: "user", content: prompt }],
+      }).finalMessage();
+      const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
+      const cost = res.usage.input_tokens * PRICE.input + res.usage.output_tokens * PRICE.output;
+      return { model: "claude-opus-5-5", text, usage: res.usage, cost, out: res.usage.output_tokens, finish: String(res.stop_reason) };
+    };
+  }
   const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("no OPENROUTER_API_KEY");
+  if (!apiKey) throw new Error("no ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
+  return async (prompt) => {
+    let res: Response | null = null;
+    for (let a = 0; a < 5; a++) {
+      res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, reasoning: { effort: EFFORT }, messages: [{ role: "user", content: prompt }] }),
+        signal: AbortSignal.timeout(20 * 60 * 1000),
+      });
+      if (res.status !== 429 && res.status < 500) break;
+      await new Promise((r) => setTimeout(r, 4000 * 2 ** a));
+    }
+    const body = await res!.json() as any;
+    if (!res!.ok) throw new Error(`${res!.status} ${JSON.stringify(body).slice(0, 200)}`);
+    const cost = body.usage?.cost ?? ((body.usage?.prompt_tokens ?? 0) * PRICE.input + (body.usage?.completion_tokens ?? 0) * PRICE.output);
+    return { model: MODEL, text: String(body.choices?.[0]?.message?.content ?? ""), usage: body.usage, cost, out: body.usage?.completion_tokens, finish: body.choices?.[0]?.finish_reason };
+  };
+}
+
+async function ask() {
+  const call = opus();
   // a reply with no walkthrough in it (out of tokens) is asked again, but its cost still counts
   const file = `${OUT}walk.jsonl`, rows = readJsonl(file), done = new Map(rows.filter((x) => x.parsed).map((x) => [x.id, x]));
   let spent = rows.reduce((a, x) => a + (x.cost ?? 0), 0), reserved = 0;
@@ -185,23 +220,10 @@ async function ask() {
     reserved += worst;
     const t0 = Date.now();
     try {
-      let res: Response | null = null;
-      for (let a = 0; a < 5; a++) {
-        res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-          body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, reasoning: { effort: EFFORT }, messages: [{ role: "user", content: prompt }] }),
-          signal: AbortSignal.timeout(20 * 60 * 1000),
-        });
-        if (res.status !== 429 && res.status < 500) break;
-        await new Promise((r) => setTimeout(r, 4000 * 2 ** a));
-      }
-      const body = await res!.json() as any;
-      if (!res!.ok) throw new Error(`${res!.status} ${JSON.stringify(body).slice(0, 200)}`);
-      const cost = body.usage?.cost ?? ((body.usage?.prompt_tokens ?? 0) * PRICE.input + (body.usage?.completion_tokens ?? 0) * PRICE.output);
-      spent += cost;
-      const text = String(body.choices?.[0]?.message?.content ?? ""), parsed = walkJson(text);
-      appendFileSync(file, JSON.stringify({ id: w.id, model: MODEL, effort: EFFORT, maxTokens: MAX_TOKENS, usage: body.usage, cost, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, text, at: new Date().toISOString() }) + "\n");
-      console.error(`${w.id}: ${parsed ? `${parsed.steps.length} steps` : "unparsed"}, ${body.usage?.completion_tokens} out, $${cost.toFixed(3)} (total $${spent.toFixed(2)}), ${Math.round((Date.now() - t0) / 1000)} s`);
+      const r = await call(prompt), parsed = walkJson(r.text);
+      spent += r.cost;
+      appendFileSync(file, JSON.stringify({ id: w.id, model: r.model, effort: EFFORT, maxTokens: MAX_TOKENS, usage: r.usage, cost: r.cost, ms: Date.now() - t0, finish: r.finish, parsed, text: r.text, at: new Date().toISOString() }) + "\n");
+      console.error(`${w.id}: ${parsed ? `${parsed.steps.length} steps` : "unparsed"}, ${r.out} out, $${r.cost.toFixed(3)} (total $${spent.toFixed(2)}), ${Math.round((Date.now() - t0) / 1000)} s`);
     } catch (e) {
       console.error(`${w.id}: failed (${(e as Error).message.slice(0, 200)})`);
     } finally { reserved -= worst; }
