@@ -121,8 +121,8 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
     shows up here. The rule (Josh, 2026-10-21): scored with a budget of 200 clingo calls (not wall
     clock, so it repeats exactly), neither mean more than 0.02 lower (one-sided since 2026-10-22, Josh: a
-    gain passes, but a gain past the noise range counts only once a fresh sample of puzzles
-    outside the guard's confirms it), and no type worse than the low end of its
+    gain passes, but a type above its interval's high end counts as a gain only once held-out PSJP
+    puzzles confirm it: guard-report.ts lists those, scoreboard `--psjp-shift`), and no type worse than the low end of its
     own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
     type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
     bigger call budget, since at 200 none of its 20 finish and every one rates 0.9: 1,000 calls (with
@@ -339,6 +339,16 @@ step explained. The two examples solve in 0.25–0.37 s (engine encoding 1–2.5
 steps (engine: 1 and 3): owner atoms let propagation see what the engine's reach encoding needed
 search for, so ratings move (example 1: 0.76 → 0.49 with finish). Whether they move the right
 way is the guard's call (Nurikabe on PSJP at 200 calls). DEDUCE_LOCAL=0 turns it off.
+
+The guard sample showed a gain (Nurikabe rho −0.24 → +0.22 at 200 calls), but it did not hold on
+180 held-out PSJP Nurikabes: engine +0.09 against local −0.02 at 200 calls, +0.07 against +0.02 at
+1,000. The guard sample's −0.24 was an artifact of the sample. So the encoding is a speed and
+finishing win (157 against 59 of the 180 finish, none too big to explain, a quarter of the time),
+not a difficulty gain. Nurikabe's agreement is held back by stall pricing instead: an unfinished
+solve rates 0.9, below finished Nurikabes (0.95–1.0 whatever their rating), though the unfinished
+are the hardest. Finished-only rho is 0.36–0.46, and ranking stalls above every finish gives 0.45
+(local) and 0.35 (engine) held out. That is post hoc on one type, so changing stall pricing needs
+its own guard run on every type and a held-out check.
 
 The same run found a listing bug in every genre: a fact another window claimed was also listed by
 any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
