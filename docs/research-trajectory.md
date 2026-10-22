@@ -405,7 +405,8 @@ price, whatever its path: 0.95 out of clingo calls, 0.97 out of time or stuck, 1
 (8b4734b priced out of time at 1 with the capped; on Numberlink, which finishes about 1 in 8 even at
 1,000 calls, that failed every sample, since capped runs are rated 2.8–3.0 and out of time 1.8–1.9;
 the three prices give it 0.71/0.57/0.64 at 1,000 calls and move nothing else down, a fit to how
-runs stop that held in six samples). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
+runs stop that held in six samples, but found post hoc, after looking at Numberlink on all three;
+it counts once a second fresh draw, unused in choosing it, confirms it). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
 fresh draw of 967 rated PSJP puzzles never used before, it passes the means (guard +0.016, held out
 +0.105, fresh −0.013) but fails Numberlink on the fresh draw (0.67 → 0.41): Numberlink finishes 2 of
 60 at 200 calls, so its agreement only ranks how runs stop. Nurikabe's gain replicates (+0.13 fresh).
