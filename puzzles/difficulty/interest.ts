@@ -63,6 +63,30 @@ export function interestOf(path: Step[], profile: Profile): Interest {
   };
 }
 
+/** Aha as an unlock (2026-10-23, written before the results): a hard step (cost ≥ 5) taken in a
+ *  stalled round (no easy step open), scored by what it opens: the easy (tier-0) steps in the next
+ *  three rounds against the average round's.
+ *  - aha: the best such unlock (0 when no hard step follows a stall);
+ *  - ahaCount: how many such steps unlock at least twice the average (sparse ahas, few per puzzle);
+ *  - ahaAt: where the best one falls, 0 (the start) to 1 (the end). */
+export function ahaOf(path: Step[]): { aha: number; ahaCount: number; ahaAt: number } {
+  const real = path.filter((s) => !s.choice);
+  const byRound = new Map<number, Step[]>();
+  for (const s of real) { const r = s.round ?? 0; if (!byRound.has(r)) byRound.set(r, []); byRound.get(r)!.push(s); }
+  const rounds = [...byRound.keys()].sort((a, b) => a - b);
+  const easy = (r: number) => byRound.get(r)!.filter((s) => s.tier === 0).length;
+  const easyPerRound = mean(rounds.map(easy)) || 1;
+  let aha = 0, ahaCount = 0, at = -1;
+  real.forEach((s, i) => {
+    const r = s.round ?? 0;
+    if (s.cost < 5 || (byRound.get(r)![0].open ?? 0) !== 0) return;
+    const unlock = mean(rounds.filter((q) => q > r).slice(0, 3).map(easy)) / easyPerRound;
+    if (unlock >= 2) ahaCount++;
+    if (unlock > aha) { aha = unlock; at = i; }
+  });
+  return { aha: +aha.toFixed(2), ahaCount, ahaAt: at < 0 ? -1 : +(at / Math.max(1, real.length - 1)).toFixed(2) };
+}
+
 /** A break-in, scored 0 to 1 (for the generator's preference at hard and expert, gen-set.ts): one
  *  costly step early or mid-solve, then a run of cheap ones, as hand-made puzzles have. Costs are
  *  read against the path's own median (each genre's steps cost differently). The key step is the
