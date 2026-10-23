@@ -28,19 +28,26 @@ jobs:
         with:
           fetch-depth: 0
       # site=false only when every changed file is research; a run by hand, a new branch or a diff
-      # that can't be read counts as a site change
+      # that can't be read counts as a site change. On main the diff starts at the last successful
+      # run, not the previous push: a run that was cancelled or failed deployed nothing, so its
+      # changes are counted again here (a successful run either deployed or changed no site file).
       - name: Does this change touch the site?
         id: changes
         env:
+          GH_TOKEN: ${{ github.token }}
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
         run: |
+          if [ "${{ github.event_name }}" = push ] && [ "${{ github.ref }}" = refs/heads/main ]; then
+            BASE=$(gh run list --repo "${{ github.repository }}" --workflow deploy-inkit.yml --branch main \
+              --event push --status success --limit 1 --json headSha --jq '.[0].headSha' || true)
+          fi
           site=true
           if [ "${{ github.event_name }}" != workflow_dispatch ] && [ -n "$BASE" ] && [ "$BASE" != 0000000000000000000000000000000000000000 ] \
              && files=$(git diff --name-only "$BASE" HEAD) && [ -n "$files" ]; then
             if ! echo "$files" | grep -vE '^(docs/|puzzles/)|^[^/]+\.md$' >/dev/null; then site=false; fi
           fi
           echo "site=$site" >> "$GITHUB_OUTPUT"
-          echo "Touches the site: $site"
+          echo "Since $BASE, touches the site: $site"
       - uses: actions/setup-node@v5
         with:
           node-version: 22
