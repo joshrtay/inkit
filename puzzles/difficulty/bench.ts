@@ -13,7 +13,7 @@
 // link or side spelled out with its clue and state: what is printed, nothing deduced). The
 // listing-minus-grid gap is the perception cost.
 //
-//   node --no-warnings puzzles/difficulty/bench.ts items <set> [--per 3] [--limit N]   → <set>/items.json (free)
+//   node --no-warnings puzzles/difficulty/bench.ts items <set> [--per 3] [--limit N] [--ceiling 5 --tag hard]   → <set>[-<tag>]/items.json (free)
 //   node --no-warnings puzzles/difficulty/bench.ts ask <set> <model>:<effort>:<format>[,…] [--limit N | --sample N] [--jobs 8]
 //                                                                                      → <set>/runs/<taker>.jsonl (paid; resumable)
 //   node --no-warnings puzzles/difficulty/bench.ts dry <set>                          (free: stand-in takers, then report)
@@ -31,7 +31,7 @@ import { draw, lastJson, listed, markOf, moveForm, NAME, readJsonl, rules, VALUE
 import { mapPool } from "./pool.ts";
 import { type MoveResult, type MV, scoreMove } from "./walkthrough-core.ts";
 import { deduce } from "./deduce.ts";
-import { askOpus, ctxOf, DEFAULT_CEILING, FINISH, ledger, type LoopItem, menu, type Model, splits } from "./walkthrough-loop.ts";
+import { askOpus, ctxOf, DEFAULT_CEILING, FINISH, ledger, type LoopItem, menu, type Model, reader, splits } from "./walkthrough-loop.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
 const OUT = `${repo}references/ml/bench/`;
@@ -112,6 +112,11 @@ async function stuckPoints(pz: Puzzle, ceiling: number, per: number): Promise<{ 
   for (const j of pick) {
     const known = new Map<string, boolean>(base);
     for (const s of r.path.slice(0, points[j])) for (const f of s.facts) known.set(f.mark, f.value);
+    // a step's cost on the path depends on what it was found with; the reader from here takes
+    // whatever is now under the ceiling, so the state really is stuck for it
+    const closed = await reader(ctx, known, ceiling);
+    if (closed.solved) continue;
+    for (const [m, v] of closed.added) known.set(m, v);
     const steps = (await menu(ctx, known)).sort((x, y) => x.cost - y.cost);
     const split = steps.length ? [] : await splits(ctx, known, SPLIT_TRIES);
     const take = steps[0] ?? split[0];
@@ -126,9 +131,11 @@ async function stuckPoints(pz: Puzzle, ceiling: number, per: number): Promise<{ 
 /** case splits tried per stuck point (each a clingo call): bounds a Fillomino with hundreds of cuts */
 const SPLIT_TRIES = Number(process.env.BENCH_SPLITS) || 80;
 
-async function itemsCmd(set: string) {
+async function itemsCmd(base: string) {
+  // --ceiling c --tag t: a stronger reader (the hard tier: only dear steps are left), written to <set>-<t>
   const per = num("--per", 3), limit = num("--limit", Infinity), items: BenchItem[] = [];
-  const puzzles = puzzlesOf(set).slice(0, limit);
+  const ceiling = num("--ceiling", DEFAULT_CEILING), tag = opt("--tag", ""), set = tag ? `${base}-${tag}` : base;
+  const puzzles = puzzlesOf(base).slice(0, limit);
   // each puzzle's items are kept as they're made (<set>/points.jsonl), so a stopped run resumes
   const cacheFile = `${dir(set)}points.jsonl`, cache = new Map<string, BenchItem[]>(readJsonl(cacheFile).map((d) => [d.puzzle, d.items]));
   const done = await mapPool(puzzles, async (pz) => {
@@ -138,12 +145,12 @@ async function itemsCmd(set: string) {
     return made;
   }, num("--jobs", 4));
   async function made1(pz: Puzzle): Promise<BenchItem[]> {
-    const pts = await stuckPoints(pz, DEFAULT_CEILING, per).catch((e) => { console.error(`${pz.id}: ${(e as Error).message}`); return { items: [], at: [] }; });
+    const pts = await stuckPoints(pz, ceiling, per).catch((e) => { console.error(`${pz.id}: ${(e as Error).message}`); return { items: [], at: [] }; });
     console.error(`${pz.id}: kept ${pts.items.length} of ${pts.at[0]?.[1] ?? 0} stuck points`);
     return pts.items.map((x, k) => ({ ...x, id: `${pz.id}#${pts.at[k][0]}`, set, at: pts.at[k] }));
   }
   for (const d of done) items.push(...d);
-  writeFileSync(`${dir(set)}items.json`, JSON.stringify({ set, ceiling: DEFAULT_CEILING, items }, null, 1));
+  writeFileSync(`${dir(set)}items.json`, JSON.stringify({ set, ceiling, items }, null, 1));
   const byGenre = new Map<string, number>();
   for (const it of items) byGenre.set(it.genre, (byGenre.get(it.genre) ?? 0) + 1);
   console.log(`${items.length} items from ${puzzles.length} puzzles (${[...byGenre].map(([g, n]) => `${g} ${n}`).join(", ")}) → ${set}/items.json`);
