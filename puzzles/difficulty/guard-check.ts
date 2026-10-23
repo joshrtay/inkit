@@ -39,6 +39,7 @@ const SETTINGS = ([
   ["c1000-low", { DEDUCE_BUDGET_CALLS: "1000" }, ["--games", "numberlink,nurikabe,square-jam"]],
   // the finish set, with and without explanations reading a cell's known digits as one element
   ["c200-finish", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1" }],
+  ["c1000-finish", { DEDUCE_BUDGET_CALLS: "1000", DEDUCE_FINISH: "1" }],
   ["c200-finish-kbc", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_KNOWN_BY_CELL: "1" }],
   ["c200-finish-digits", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1" }, ["--games", "sudoku,skyscrapers"]],
   ["c200-finish-kbc-digits", { DEDUCE_BUDGET_CALLS: "200", DEDUCE_FINISH: "1", DEDUCE_KNOWN_BY_CELL: "1" }, ["--games", "sudoku,skyscrapers"]],
