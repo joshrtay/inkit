@@ -100,6 +100,59 @@ describe("our examples as Penpa+ links", () => {
   }, 60_000);
 });
 
+describe("grids Thinky's setters draw", () => {
+  it("a way in and a way out, rocks and walls: a Simple Path", async () => {
+    const spec = example("simple-path");
+    const got = penpaPuzzle(await grid(await penpaLink(drawn(spec))));
+    expect(got?.kind).toBe("puzzle");
+    // which door is the way in doesn't matter: the path runs either way
+    const doorless = (s: GridSpec) => normalSpec({ ...s, givens: s.givens?.map((x) => (x.kind === "door" ? { ...x, role: "in" as const } : x)) });
+    expect(doorless((got as { spec: GridSpec }).spec)).toEqual(doorless(spec));
+  });
+  it("shapes outside the grid with pipes in, and crossings: a Hamiltonian Plumbers", async () => {
+    const spec = example("hamiltonian-plumbers");
+    const got = penpaPuzzle(await grid(await penpaLink(drawn(spec))));
+    expect(got?.kind).toBe("puzzle");
+    expect(normalSpec((got as { spec: GridSpec }).spec)).toEqual(normalSpec(spec));
+  });
+  it("numbers and two lines out of the grid at corners: a Slitherlink Path", async () => {
+    const spec = example("slitherlink-path");
+    const got = penpaPuzzle(await grid(await penpaLink(drawn(spec))));
+    expect(got?.kind).toBe("puzzle");
+    expect(normalSpec((got as { spec: GridSpec }).spec)).toEqual(normalSpec(spec));
+  });
+  it("cells taken out of the frame (Board mode): a smaller grid, the gaps inside it rocks", async () => {
+    const d = drawn(example("nurikabe")), nx0 = d.nx + 4, center = (r: number, c: number) => (r + 2) * nx0 + c + 2;
+    // keep rows 0-3 (the clue at row 4 goes), leaving out (1, 1)
+    const kept = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 5; c++) if (!(r === 1 && c === 1)) kept.push(center(r, c));
+    delete (d.q.number as Record<string, unknown>)[String(center(4, 2))];
+    const g = await grid(await penpaLink({ ...d, centerlist: kept }));
+    expect([g.rows, g.cols, [...g.holes]]).toEqual([4, 5, [6]]);
+  });
+  it("letters for numbers: a Hitori of letters reads as numbers", async () => {
+    const spec = example("hitori"), d = drawn(spec);
+    for (const v of Object.values(d.q.number as Record<string, string[]>)) v[0] = "ABCDE"[Number(v[0]) - 1];
+    const got = penpaPuzzle(await grid(await penpaLink(d)), "hitori");
+    expect(got?.kind === "puzzle" && normalSpec(got.spec)).toEqual(normalSpec(spec));
+  });
+  it("a nonogram's * is a line with no clue", async () => {
+    const d = { nx: 3, ny: 3, space: [1, 0, 1, 0], q: { number: {} as Record<string, unknown> } }, nx0 = 7;
+    const at = (r: number, c: number) => (r + 2) * nx0 + c + 2;
+    Object.assign(d.q.number, { [at(0, 1)]: ["1", 1, "1"], [at(0, 2)]: ["*", 1, "1"], [at(1, 0)]: ["1", 1, "1"], [at(2, 0)]: ["0", 1, "1"] });
+    const got = penpaPuzzle(await grid(await penpaLink(d)), "nonogram");
+    expect(got?.kind === "puzzle" && got.spec.givens).toEqual([
+      { at: "col", index: 0, kind: "runs", value: [1] }, { at: "row", index: 0, kind: "runs", value: [1] }, { at: "row", index: 1, kind: "runs", value: [0] },
+    ]);
+  });
+  it("an empty circle in a Shikaku: a rectangle of any size", async () => {
+    const d = drawn(example("shikaku")), nx0 = d.nx + 4;
+    (d.q.number as Record<string, unknown>)[String(2 * nx0 + 2)] ??= ["", 7, "1"];
+    const got = penpaPuzzle(await grid(await penpaLink(d)), "shikaku");
+    expect(got?.kind === "puzzle" && got.spec.rules).toEqual([{ rule: "one-each", of: "any" }]);
+  });
+});
+
 describe("readLink with a Penpa+ link", () => {
   it("a clear type opens; numbers alone ask; the type chosen opens", async () => {
     const masyu = example("masyu");
@@ -124,7 +177,7 @@ describe("other Penpa+ links", () => {
   });
   it("a drawing none of our types fits, untagged: unsupported, unnamed", async () => {
     const d = drawn(example("nurikabe"));
-    (d.q.symbol as Record<string, unknown>)[String((2 + 0) * (d.nx + 4) + 3)] = [1, "circle_L", 1];
+    (d.q.symbol as Record<string, unknown>)[String((2 + 0) * (d.nx + 4) + 3)] = [1, "circle_SS", 2];   // a dot in a cell: no number type has one
     expect(penpaPuzzle(await grid(await penpaLink(d)))).toEqual({ kind: "unsupported", genreId: "unknown", genreName: "" });
   });
   it("garbage: no grid", async () => {

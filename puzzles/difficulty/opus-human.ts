@@ -57,15 +57,15 @@ const SEED = "opus-human 2026-10-19";
 const MODEL = "claude-opus-5-5", PRICE = { input: 4 / 1e6, output: 20 / 1e6 }, MAX_TOKENS = 16000;
 const CAP = Number(process.env.OPUS_CAP) || 60;
 
-type MV = [string, boolean];
-interface Item {
+export type MV = [string, boolean];
+export interface Item {
   id: string; genre: string; type: string; name: string; file: string; person: string; kind: "ordinary" | "stuck";
   k: number; rounds: number; known: MV[]; next: MV[]; solverStep: MV[]; solverFirst: MV | null; solverPlace: MV | null; solverFinished: boolean | null;
 }
 
 // ---- reading a held-out puzzle ----
 const typeOf = new Map(Object.entries(JANKO_TYPES).map(([t, v]) => [v.folder, t]));
-function jankoOf(name: string): { type: string; file: string; j: Janko } {
+export function jankoOf(name: string): { type: string; file: string; j: Janko } {
   const m = /^janko ([^/]+)\/(.+)$/.exec(name)!;
   const type = typeOf.get(m[1])!, file = `${JANKO_DIR}${m[1]}/${m[2]}`;
   return { type, file, j: READERS[type](file)! };
@@ -143,14 +143,14 @@ async function sample() {
 }
 
 // ======== the puzzle in words ========
-const NAME: Record<string, string> = { "easy-as-abc": "Easy as ABC", "spiral-galaxies": "Spiral Galaxies", "star-battle": "Star Battle" };
-const VALUES: Record<string, [string, string]> = {
+export const NAME: Record<string, string> = { "easy-as-abc": "Easy as ABC", "spiral-galaxies": "Spiral Galaxies", "star-battle": "Star Battle" };
+export const VALUES: Record<string, [string, string]> = {
   "star-battle": ["star", "no star"], akari: ["bulb", "no bulb"], hitori: ["shaded", "unshaded"], nurikabe: ["wall", "island"],
   minesweeper: ["mine", "no mine"], nonogram: ["filled", "empty"],
   masyu: ["line", "no line"], numberlink: ["line", "no line"], slitherlink: ["line", "no line"],
   fillomino: ["wall", "same region"], "spiral-galaxies": ["wall", "same region"],
 };
-function rules(spec: GridSpec): string {
+export function rules(spec: GridSpec): string {
   const p = makePuzzle(spec), R = spec.size[0], C = spec.size[1];
   switch (spec.genre) {
     case "fillomino": return "Fillomino: divide the grid into regions; each region's size equals every number in it, a given number belongs to a region of that size, and two regions of the same size never touch side by side.";
@@ -164,7 +164,7 @@ function rules(spec: GridSpec): string {
   }
 }
 
-function draw(spec: GridSpec, known: Map<string, boolean>): string {
+export function draw(spec: GridSpec, known: Map<string, boolean>): string {
   const p = makePuzzle(spec), g = p.grid, R = g.rows, C = g.cols, genre = spec.genre!;
   const num = (i: number) => (p.cellGivens.get(i) ?? []).find((x) => x.kind === "number") as { value?: number } | undefined;
   const sh = (i: number) => known.get(`shaded(${i})`);
@@ -233,7 +233,7 @@ function draw(spec: GridSpec, known: Map<string, boolean>): string {
   return drawGrid(spec, known);
 }
 
-function moveForm(genre: string): string {
+export function moveForm(genre: string): string {
   if (genre === "slitherlink") return `{"at": "r3c4 top" (a cell and one of its sides: top, bottom, left, right), "value": "line" | "no line", "reason": "one line"}`;
   if (["masyu", "numberlink", "fillomino", "spiral-galaxies"].includes(genre)) { const [a, b] = VALUES[genre]; return `{"at": "r3c4-r3c5" (two cells side by side), "value": "${a}" | "${b}", "reason": "one line"}`; }
   if (genre === "skyscrapers" || genre === "hidoku") return `{"at": "r3c4", "value": "<number>", "reason": "one line"}: a number to write in an empty cell`;
@@ -243,7 +243,7 @@ function moveForm(genre: string): string {
 }
 
 /** A move named by the model, as one of our marks. */
-function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }): MV | null {
+export function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }): MV | null {
   const p = makePuzzle(spec), g = p.grid, genre = spec.genre!, at = String(move.at ?? "").toLowerCase().trim(), value = String(move.value ?? "").toLowerCase().trim();
   const cell = (s: string) => { const q = /r(\d+)\s*c(\d+)/.exec(s); if (!q) return null; const [r, c] = [+q[1] - 1, +q[2] - 1]; return r >= 0 && c >= 0 && r < g.rows && c < g.cols ? g.cell(r, c) : null; };
   if (genre === "skyscrapers" || genre === "hidoku" || genre === "easy-as-abc") {
@@ -332,8 +332,8 @@ What single move will this person most likely make next? It must be a move you a
 }
 
 // ======== ask ========
-const loadItems = (): Item[] => JSON.parse(readFileSync(`${OUT}items.json`, "utf8")).items;
-const readJsonl = (f: string) => (existsSync(f) ? readFileSync(f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : []);
+export const loadItems = (): Item[] => JSON.parse(readFileSync(`${OUT}items.json`, "utf8")).items;
+export const readJsonl = (f: string) => (existsSync(f) ? readFileSync(f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : []);
 function lastJson(text: string): any {
   for (let end = text.lastIndexOf("}"); end >= 0; end = text.lastIndexOf("}", end - 1))
     for (let start = text.lastIndexOf("{", end); start >= 0; start = text.lastIndexOf("{", start - 1)) {
@@ -410,7 +410,7 @@ async function check() {
 }
 
 // ======== report ========
-const wilson = (k: number, n: number) => {
+export const wilson = (k: number, n: number) => {
   if (!n) return [NaN, NaN];
   const z = 1.96, p = k / n, d = 1 + z * z / n, c = (p + z * z / (2 * n)) / d, h = (z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))) / d;
   return [c - h, c + h];
@@ -566,6 +566,11 @@ async function askOpen() {
   const key = process.env.OPEN_API_KEY ?? process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("no OPEN_API_KEY or OPENROUTER_API_KEY");
   const base = process.env.OPEN_API_BASE ?? "https://openrouter.ai/api/v1", cap = Number(process.env.OPEN_CAP_CALLS) || 3000;
+  // thinking models spend the whole budget reasoning at their default effort; OPEN_EFFORT (OpenRouter's
+  // reasoning.effort, e.g. low or medium) and OPEN_MAX_TOKENS keep the answer inside it. OPEN_CAP_DOLLARS
+  // stops the run once the spend logged across all open-*.jsonl passes it.
+  const effort = process.env.OPEN_EFFORT, maxTokens = Number(process.env.OPEN_MAX_TOKENS) || 12000, capDollars = Number(process.env.OPEN_CAP_DOLLARS) || Infinity;
+  let spent = readdirSync(OUT).filter((f) => f.startsWith("open-") && f.endsWith(".jsonl")).flatMap((f) => readJsonl(OUT + f)).reduce((a, r) => a + (r.cost ?? 0), 0);
   const models = (argv[1] ?? "").split(",").filter(Boolean);
   const formats = (argv.slice(2).filter((a) => a === "grid" || a === "listed") as ("grid" | "listed")[]);
   if (!models.length) throw new Error("name the models: open <model,…> [grid|listed …]");
@@ -576,21 +581,22 @@ async function askOpen() {
     if (argv.includes("--limit")) todo = todo.slice(0, Math.max(0, opt("--limit", 20) - done.size));
     console.error(`${model} ${format}: ${done.size} done, ${todo.length} to ask`);
     await mapPool(todo, async (it) => {
-      if (++calls > cap) return;
+      if (++calls > cap || spent > capDollars) return;
       const t0 = Date.now();
       try {
         let res: Response | null = null;
         for (let a = 0; a < 5; a++) {
           res = await fetch(`${base}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-            body: JSON.stringify({ model, max_tokens: 12000, messages: [{ role: "user", content: promptOf(it, format) }] }), signal: AbortSignal.timeout(10 * 60 * 1000) });
+            body: JSON.stringify({ model, max_tokens: maxTokens, ...(effort ? { reasoning: { effort } } : {}), messages: [{ role: "user", content: promptOf(it, format) }] }), signal: AbortSignal.timeout(10 * 60 * 1000) });
           if (res.status !== 429 && res.status < 500) break;
           await new Promise((r) => setTimeout(r, 2000 * 2 ** a));
         }
         const body = await res!.json() as any;
         if (!res!.ok) throw new Error(`${res!.status} ${JSON.stringify(body).slice(0, 160)}`);
+        spent += body.usage?.cost ?? 0;
         const text = String(body.choices?.[0]?.message?.content ?? ""), parsed = lastJson(text);
         const mark = parsed ? markOf(jankoOf(it.name).j.spec, parsed) : null;
-        appendFileSync(file, JSON.stringify({ id: it.id, model, format, usage: body.usage, cost: body.usage?.cost, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, mark, text, at: new Date().toISOString() }) + "\n");
+        appendFileSync(file, JSON.stringify({ id: it.id, model, format, usage: body.usage, cost: body.usage?.cost, effort, ms: Date.now() - t0, finish: body.choices?.[0]?.finish_reason, parsed, mark, text, at: new Date().toISOString() }) + "\n");
         console.error(`${model} ${format} ${it.id}: ${mark ? mark.join("=") : "unparsed"}, ${Math.round((Date.now() - t0) / 1000)} s`);
       } catch (e) { console.error(`${model} ${format} ${it.id}: failed (${(e as Error).message.slice(0, 160)})`); }
     }, 8);
@@ -616,11 +622,14 @@ function openReport() {
   console.log(text);
 }
 
-if (cmd === "sample") await sample();
-else if (cmd === "open") await askOpen();
-else if (cmd === "openreport") openReport();
-else if (cmd === "checks") await checks();
-else if (cmd === "ask") await ask();
-else if (cmd === "check") await check();
-else if (cmd === "show") console.log(promptOf(loadItems().find((it) => it.id === argv[1]) ?? loadItems()[0], argv[2] === "listed" ? "listed" : "grid"));
-else report();
+// run as a script (opus-walkthrough.ts imports the helpers)
+if (import.meta.url === `file://${process.argv[1]}`) {
+  if (cmd === "sample") await sample();
+  else if (cmd === "open") await askOpen();
+  else if (cmd === "openreport") openReport();
+  else if (cmd === "checks") await checks();
+  else if (cmd === "ask") await ask();
+  else if (cmd === "check") await check();
+  else if (cmd === "show") console.log(promptOf(loadItems().find((it) => it.id === argv[1]) ?? loadItems()[0], argv[2] === "listed" ? "listed" : "grid"));
+  else report();
+}

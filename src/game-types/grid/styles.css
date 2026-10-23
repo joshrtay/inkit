@@ -35,6 +35,9 @@
 .grid-game .galaxy { fill: var(--paper); stroke: var(--paper-ink); stroke-width: var(--pen-medium); }
 .grid-game .thermo { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); stroke-width: calc(var(--wash-stroke) * 1.33); stroke-linecap: round; stroke-linejoin: round; }   /* a thermometer's tube: wider than a river */
 .grid-game .thermo-bulb { fill: color-mix(in srgb, var(--paper-ink) 18%, var(--paper)); }
+/* Hamiltonian Plumbers: where pipes may cross, a faint plus under the line */
+.grid-game .crossing { fill: none; stroke: color-mix(in srgb, var(--paper-ink) 22%, transparent); stroke-width: var(--wash-stroke); stroke-linecap: round; }
+.grid-game .whisper { fill: none; stroke: var(--wash-green); stroke-width: calc(var(--wash-stroke) * 0.6); stroke-linecap: round; stroke-linejoin: round; }   /* a German Whispers line: thinner than a thermometer, green */
 .grid-game .star { fill: var(--wash-yellow); stroke: var(--paper-ink); stroke-width: var(--pen-fine); stroke-linejoin: round; filter: var(--wash); }
 
 /* clues are handwritten in the board's ink */
@@ -93,6 +96,7 @@
 /* a fill-in's list under the board (entry-list.ts): numbers in the grid are crossed off */
 .grid-game .clue.entry { font-size: 20px; }
 .grid-game .clue.entry.done { fill: color-mix(in srgb, var(--paper-ink) 35%, transparent); text-decoration: line-through; }
+.grid-game .clue.caption { font-size: 20px; }
 .grid-game .clue.entry-label { font-size: 13px; text-anchor: start; fill: color-mix(in srgb, var(--paper-ink) 60%, transparent); }
 /* paint on the grid (Binary Puzzle, Abstract Art): a printed color is its wash with a pen outline */
 .grid-game .paint-given { fill: none; stroke: var(--paper-ink); stroke-width: var(--pen-medium); pointer-events: none; }
@@ -255,3 +259,12 @@
 .grid-game .border-clue, .grid-game .bank { pointer-events: none; }
 /* still pictures (picture.ts: guides, the editor, lists) get the board's pen wobble too */
 .grid-game svg.picture { filter: url(#pen); }
+
+/* Sudoku helpers (sudoku-assist.ts): a number picked first shades where it can't go; a repeat
+   is red at once; the pad fades what the picked square can't take and ticks off a number all placed */
+.grid-game .ruled { fill: color-mix(in srgb, var(--paper-ink) 7%, transparent); }
+.grid-game .digit.clash, .grid-game .digit.given.clash { fill: var(--paper-red); }
+.grid-game .pencil.focus { fill: var(--paper-ink); }
+.grid-game .pad .num.faded { opacity: 0.32; }
+.grid-game .pad .num.used { opacity: 0.32; text-decoration: line-through; text-decoration-thickness: 2px; }
+.grid-game .pad .num[aria-pressed="true"] { background: color-mix(in srgb, var(--wash-yellow) 45%, transparent); text-decoration: none; opacity: 1; }

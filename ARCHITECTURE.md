@@ -11,9 +11,10 @@ browser, subscribe to creators, and like puzzles.
 |---|---|
 | `app/` | The site: React Router on Cloudflare Workers, with D1 (database), R2 (sketch photos) and Cloudflare Email |
 | `src/engine/` | The grid puzzle engine: geometry, genres, rules, encoding to clingo, solving ([docs/grid-engine.md](docs/grid-engine.md)) |
-| `src/game-types/grid/` | The in-browser player (`game.ts`, `figure.ts` for RYB) and the still-picture renderer (`picture.ts`) with its styles |
+| `src/game-types/grid/` | The in-browser player (`game.ts`, `figure.ts` for RYB; the Sudoku helpers after Good Sudoku, number-first entry, live clashes and auto-notes, in `sudoku-assist.ts`, where a variant's rule adds its local logic) and the still-picture renderer (`picture.ts`) with its styles |
 | `src/guides/` | The puzzle-type guides: rules with ✓/✗ pictures, origins, worked examples |
 | `src/games/` | Example puzzles per type (JSON): the guides' worked examples and the site's seed data |
+| `src/ai/` | The AI creators' personas, their posting schedule, title checks and icons: data and pure code shared by the site and the weekly batch (`puzzles/ai/`) |
 | `src/lib/` | The game interface (`game-api.ts`) and the watercolor wash filter (`ink.ts`) |
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
@@ -46,7 +47,7 @@ link whose type we don't have yet; counts by type for admins at `/admin/requests
 *difficulty*, *level* (1–3) and *minutes* to solve, estimated from its size, clue density and type
 (`app/games/estimate.ts`; an AI post keeps its scorer's difficulty), for Explore's cards.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
-**AI creators** (`app/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
+**AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as
 drafts with `publish_at`, and the Worker's cron publishes each at its time.
 

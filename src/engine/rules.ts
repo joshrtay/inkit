@@ -2,9 +2,9 @@
 // encode itself for the solver (answer set programming, see solve.ts for the shared
 // predicates it can use), describe itself in plain words, and say which derived
 // structures it needs. A puzzle's rules are blocks with settings, e.g. { rule: "size", is: 4 }.
-import type { Board, Problem, Puzzle, RuleSpec } from "./types.ts";
+import type { Board, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 import { HALF_TURN, lineGraph, MIRRORS, orientations, regionsOf, rotations, shadedGroups, shapeKey, shapeKeyOf, symmetricUnder, type Regions } from "./derive.ts";
-import { panelLine, panelSymbols } from "./panel.ts";
+import { endsOf, panelLine, panelSymbols } from "./panel.ts";
 
 /** A nudge for the player: what to look at, and what it gives away. */
 export interface Hint { message: string; area: number[]; cells: { cell: number; shade: 0 | 1 }[] }
@@ -128,6 +128,9 @@ const linesOf = (p: Puzzle) => {
     ...Array.from({ length: g.cols }, (_, c) => Array.from({ length: g.rows }, (_, r) => g.cell(r, c)))];
 };
 /** The cells of a row or column, from the side a clue outside the grid looks in from. */
+/** How far apart digits next to each other on a German Whispers line must be: the rule's own gap,
+ *  else half the largest digit, rounded up (5 on a 9×9, 3 on a 6×6). */
+export const whisperGap = (s: RuleSpec, p: Puzzle) => (typeof s.gap === "number" ? s.gap : Math.ceil(p.digits / 2));
 export const rayIn = (p: Puzzle, cell: number, side: string) => {
   const g = p.grid, [r, c] = g.rc(cell);
   return side === "left" ? Array.from({ length: g.cols }, (_, x) => g.cell(r, x)) : side === "right" ? Array.from({ length: g.cols }, (_, x) => g.cell(r, g.cols - 1 - x))
@@ -180,6 +183,8 @@ const rays = (p: Puzzle, i: number) => {
   });
 };
 const lineKind = (s: RuleSpec): "fence" | "loop" => (s.of === "loop" ? "loop" : "fence");
+/** What the line is called: a path (Slitherlink Path) or a loop. */
+const lineWord = (p: Puzzle) => (p.rules.some((s) => s.rule === "path") ? "path" : "loop");
 
 export const blocks = {
   // ---- lines ----
@@ -204,9 +209,23 @@ ${s.cover ? ":- cell(I), not blocked(I), ldeg(I,N), N != 2." : ""}`;
     },
   },
   path: {
-    describe: (s, p) => `Draw one path from the way in to the way out${s.cover ? ` through every ${p.blocked.size ? "white " : ""}cell` : ""}. It goes straight or turns, never branches or crosses itself${p.blocked.size || p.walls.size ? ", and can't enter the dark cells or cross the thick walls" : ""}.`,
-    check: (s, p, b) => checkPath(p, b, !!s.cover),
+    describe: (s, p) => s.of === "fence"
+      ? "Draw one path along the grid lines from one end to the other. It never branches or crosses itself."
+      : `Draw one path from the way in to the way out${s.cover ? ` through every ${p.blocked.size ? "white " : ""}cell` : ""}. It goes straight or turns, never branches or crosses itself${p.blocked.size || p.walls.size ? ", and can't enter the dark cells or cross the thick walls" : ""}.`,
+    check: (s, p, b) => (s.of === "fence" ? checkFencePath(p, b) : checkPath(p, b, !!s.cover)),
     asp(s, p) {
+      // of: "fence" (Slitherlink Path); else through the cells (Simple Path)
+      if (s.of === "fence") {
+        // along the grid lines, between the two ends (corners on the outside edge)
+        const ends = endsOf(p);
+        return `${ends.map((v) => `pend(${v}).`).join(" ")}
+pdeg(V,N) :- corner(V), N = #count{B: fence(B), vb(V,B)}.
+:- pend(V), pdeg(V,N), N != 1.
+:- corner(V), not pend(V), pdeg(V,N), N != 0, N != 2.
+preach(${ends[0]}).
+preach(W) :- preach(V), fence(B), vb(V,B), vb(W,B).
+:- pdeg(V,N), N > 0, not preach(V).`;
+      }
       const ends = pathEnds(p);
       return `${ends.map((i) => `pend(${i}).`).join(" ")}
 pdeg(I,N) :- cell(I), N = #count{L: line(L), lc(I,L)}.
@@ -232,6 +251,42 @@ lab(J,V) :- lab(I,V), line(L), lc(I,L), lc(J,L).
 :- lab(I,V), lab(I,W), V < W.
 :- kdeg(I,N), N > 0, not lab(I,_).
 ${s.cover ? ":- cell(I), not blocked(I), kdeg(I,0)." : ""}`;
+    },
+  },
+  plumbing: {
+    describe: () => "Join each pair of matching pipe ends outside the grid with a pipe through the cells. Every open cell has a pipe through it; pipes never branch, and cross only at the crossings, going straight through both ways.",
+    check: (_s, p, b) => checkPlumbing(p, b),
+    asp(_s, p) {
+      // each pipe end is a link of its own into its cell, v(K); at a crossing, each link (or end)
+      // goes on to the one opposite it
+      const g = p.grid, out: string[] = [], ends = p.edgeClues.filter((x) => x.kind === "inlet");
+      ends.forEach((x, k) => out.push(`vin(${k},${x.cell},${x.value}).`));
+      for (const i of pipeCrossings(p)) {
+        out.push(`cross(${i}).`);
+        const arm = (side: Side) => {
+          const [r, c] = g.rc(i), [dr, dc] = STEP[side], k = ends.findIndex((x) => x.cell === i && x.side === side);
+          if (k >= 0) return `v(${k})`;
+          const [y, x] = [r + dr, c + dc];
+          return y >= 0 && x >= 0 && y < g.rows && x < g.cols ? String(g.borders[g.borderBetween(i, g.cell(y, x))].link) : null;
+        };
+        for (const [a, d] of [["left", "right"], ["top", "bottom"]] as [Side, Side][]) {
+          const la = arm(a), ld = arm(d);
+          if (la && ld) out.push(`opp(${i},${la},${ld}). opp(${i},${ld},${la}).`);
+        }
+      }
+      out.push(`pl(L) :- line(L).
+pl(v(K)) :- vin(K,_,_).
+pc(I,L) :- lc(I,L).
+pc(I,v(K)) :- vin(K,I,_).
+ndeg(I,N) :- cell(I), N = #count{L: pl(L), pc(I,L)}.
+:- cross(I), ndeg(I,N), N != 4.
+:- cell(I), not cross(I), not blocked(I), ndeg(I,N), N != 2.
+plab(v(K),V) :- vin(K,_,V).
+plab(M,V) :- plab(L,V), pc(I,L), pc(I,M), L != M, pl(M), not cross(I).
+plab(M,V) :- plab(L,V), opp(I,L,M), pl(M).
+:- plab(L,V), plab(L,W), V < W.
+:- line(L), not plab(L,_).`);
+      return out.join("\n");
     },
   },
   pearls: {
@@ -261,10 +316,10 @@ onl(I) :- go(I,_).
     },
   },
   sides: {
-    describe: () => "A number in a cell says how many of its four sides the loop runs along.",
+    describe: (_s, p) => `A number in a cell says how many of its four sides the ${lineWord(p)} runs along.`,
     check(_s, p, b) {
       return numberClues(p).filter(([i, n]) => p.grid.cellBorders[i].filter((e) => b.fence[e] === 1).length !== n)
-        .map(([i, n]) => ({ message: `This ${n} needs exactly ${n} side${n === 1 ? "" : "s"} of the loop.`, cells: [i] }));
+        .map(([i, n]) => ({ message: `This ${n} needs exactly ${n} side${n === 1 ? "" : "s"} of the ${lineWord(p)}.`, cells: [i] }));
     },
     asp: (_s, p) => numberClues(p).map(([i, n]) => `:- ${n} != #count{B: fence(B), cb(${i},B)}.`).join("\n"),
   },
@@ -454,6 +509,15 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
         .map((t) => ({ message: "Digits must rise along a thermometer, from the bulb up.", cells: t }));
     },
     asp: (_s, p) => p.thermos.flatMap((t) => t.slice(1).map((i, k) => `:- digit(${t[k]},X), digit(${i},Y), Y <= X.`)).join("\n"),
+  },
+  whispers: {
+    describe: (s, p) => `Along a green line, digits next to each other differ by at least ${whisperGap(s, p)}.`,
+    check(s, p, b) {
+      const gap = whisperGap(s, p);
+      return p.whispers.filter((w) => w.some((i, k) => k > 0 && b.digit[i] && b.digit[w[k - 1]] && Math.abs(b.digit[i] - b.digit[w[k - 1]]) < gap))
+        .map((w) => ({ message: `Digits next to each other on a green line must differ by at least ${gap}.`, cells: w }));
+    },
+    asp: (s, p) => { const gap = whisperGap(s, p); return p.whispers.flatMap((w) => w.slice(1).map((i, k) => `:- digit(${w[k]},X), digit(${i},Y), |X-Y| < ${gap}.`)).join("\n"); },
   },
   latin: {
     describe: (_s, p) => `Fill every cell with a digit from 1 to ${p.digits}. Each row and each column has every digit once.`,
@@ -1537,7 +1601,7 @@ export function tileOf(s: RuleSpec, d: number) {
 export const sizesOf = (s: RuleSpec) => [...new Set(Array.isArray(s.sizes) ? (s.sizes as unknown[]).filter((x): x is number => Number.isInteger(x) && (x as number) > 0) : [])].sort((a, b) => a - b);
 const sizeList = (s: RuleSpec) => { const z = sizesOf(s); return z.length > 1 ? `${z.slice(0, -1).join(", ")} or ${z.at(-1)}` : String(z[0] ?? "no"); };
 /** region-sum's target (10 if it doesn't say), and region-count's number of pieces (2). */
-const sumTarget = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 10);
+export const sumTarget = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 10);
 const regionCount = (s: RuleSpec) => (typeof s.is === "number" ? s.is : 2);
 /** The symmetries a piece may have: a mirror (any of four), a half turn, or either. */
 const symmetriesOf = (s: RuleSpec) => (s.symmetry === "mirror" ? MIRRORS : s.symmetry === "turn" ? [HALF_TURN] : [...MIRRORS, HALF_TURN]);
@@ -1706,6 +1770,28 @@ export const pathEnds = (p: Puzzle) => ["in", "out"].map((role) => {
   return a < 0 ? c : a;
 });
 
+/** A path along the grid lines between the two ends (Slitherlink Path). */
+function checkFencePath(p: Puzzle, b: Board): Problem[] {
+  const { edges, deg } = lineGraph(p, b, "fence"), ends = endsOf(p);
+  if (!edges.length) return [{ message: "Draw the path from one end to the other." }];
+  const branch = deg.map((d, v) => [d, v]).filter(([d, v]) => d > (ends.includes(v) ? 1 : 2)).map(([, v]) => v);
+  if (branch.length) return [{ message: "The path can't branch or cross itself.", borders: edges.filter(([a, c]) => branch.includes(a) || branch.includes(c)).map(([, , id]) => id) }];
+  // follow it from one end
+  const seen = new Set([ends[0]]);
+  let at = ends[0], from = -1;
+  for (;;) {
+    const next = edges.find(([a, c]) => (a === at && c !== from) || (c === at && a !== from));
+    if (!next) break;
+    const to = next[0] === at ? next[1] : next[0];
+    if (seen.has(to)) break;
+    seen.add(to); from = at; at = to;
+  }
+  if (at !== ends[1]) return [{ message: "Draw one path from one end to the other." }];
+  const stray = edges.filter(([a]) => !seen.has(a)).map(([, , id]) => id);
+  if (stray.length) return [{ message: "Make one path, with no extra pieces of line.", borders: stray }];
+  return [];
+}
+
 function checkPath(p: Puzzle, b: Board, cover: boolean): Problem[] {
   const { edges, deg } = lineGraph(p, b, "loop");
   const ends = pathEnds(p);
@@ -1732,6 +1818,53 @@ function checkPath(p: Puzzle, b: Board, cover: boolean): Problem[] {
   }
   return [];
 }
+
+/** Where pipes cross (Hamiltonian Plumbers). */
+export const pipeCrossings = (p: Puzzle) => [...p.cellGivens].filter(([, gs]) => gs.some((x) => x.kind === "crossing")).map(([i]) => i);
+
+/** Hamiltonian Plumbers: each pipe end's pipe, followed through the cells (straight on at a
+ *  crossing), reaches its match; every link is on one, and every open cell is used. */
+function checkPlumbing(p: Puzzle, b: Board): Problem[] {
+  const g = p.grid, { edges } = lineGraph(p, b, "loop"), cross = new Set(pipeCrossings(p));
+  const ends = p.edgeClues.filter((x) => x.kind === "inlet");
+  const bad = edges.filter(([a, c, id]) => p.walls.has(id) || p.blocked.has(a) || p.blocked.has(c)).map(([, , id]) => id);
+  if (bad.length) return [{ message: "Pipes can't cross a wall or enter a dark cell.", links: bad }];
+  // a cell's arms: the sides with pipe (a line to the next cell, or a pipe end)
+  const link = (i: number, side: Side) => {
+    const [r, c] = g.rc(i), [dr, dc] = STEP[side], [y, x] = [r + dr, c + dc];
+    return y >= 0 && x >= 0 && y < g.rows && x < g.cols ? g.borders[g.borderBetween(i, g.cell(y, x))].link : -1;
+  };
+  const endAt = (i: number, side: Side) => ends.findIndex((x) => x.cell === i && x.side === side);
+  const arms = (i: number) => SIDES.filter((sd) => endAt(i, sd) >= 0 || (link(i, sd) >= 0 && b.loop[link(i, sd)] === 1));
+  const branch = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => arms(i).length > (cross.has(i) ? 4 : 2));
+  if (branch.length) return [{ message: "Pipes can't branch, and cross only at the crossings.", cells: branch }];
+  // follow each end's pipe in, straight on through crossings, to where it comes out
+  const used = new Set<number>(), done = new Set<number>();
+  for (const [k, x] of ends.entries()) {
+    if (done.has(k)) continue;
+    let at = x.cell, from: Side = x.side, met = -1;
+    for (let steps = 0; steps <= g.links.length + 1; steps++) {
+      const to = cross.has(at) ? OPPOSITE[from] : arms(at).find((sd) => sd !== from);
+      if (!to || !arms(at).includes(to)) break;
+      const e = endAt(at, to);
+      if (e >= 0) { met = e; break; }
+      const l = link(at, to);
+      used.add(l);
+      at = g.links[l].cells[0] === at ? g.links[l].cells[1] : g.links[l].cells[0];
+      from = OPPOSITE[to];
+    }
+    if (met < 0 || met === k || ends[met].value !== x.value) return [{ message: `Join the two ${x.value}s with one pipe.`, cells: [x.cell] }];
+    done.add(k); done.add(met);
+  }
+  const stray = edges.filter(([, , id]) => !used.has(id)).map(([, , id]) => id);
+  if (stray.length) return [{ message: "Every piece of pipe joins two matching ends.", links: stray }];
+  const missing = Array.from({ length: g.cellCount }, (_, i) => i).filter((i) => !p.blocked.has(i) && arms(i).length !== (cross.has(i) ? 4 : 2));
+  if (missing.length) return [{ message: "Every cell needs a pipe through it (crossings, both ways).", cells: missing }];
+  return [];
+}
+const SIDES: Side[] = ["top", "right", "bottom", "left"];
+const STEP: Record<Side, [number, number]> = { top: [-1, 0], bottom: [1, 0], left: [0, -1], right: [0, 1] };
+const OPPOSITE: Record<Side, Side> = { top: "bottom", bottom: "top", left: "right", right: "left" };
 
 const pearlClues = (p: Puzzle) => [...p.cellGivens].flatMap(([i, gs]) => gs.filter((g) => g.kind === "pearl").map((g) => [i, g.value as "white" | "black"] as [number, "white" | "black"]));
 

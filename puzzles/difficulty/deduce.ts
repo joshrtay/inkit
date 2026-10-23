@@ -186,6 +186,11 @@ export interface Options {
    *  no case split: unsolved then means no split-free path within the windows (a missing
    *  technique). A step's `open` is the tier-0 steps open that round, as usual */
   minPeak?: boolean;
+  /** cheapest first (as minPeak), stopping where the cheapest step left costs more than this (the profile says
+   *  unsolved, with a note "ceiling"): what a reader who only takes steps up to this cost can reach
+   *  (walkthrough-loop.ts's reader; deductions only grow, so the cheapest-first path takes every
+   *  step at or under it before stopping). No case splits */
+  ceiling?: number;
   /** called at the start of each round and once at the end: time so far, marks still open of all
    *  of them, the path so far (solver-speed.ts: progress over time on long solves) */
   onRound?: (ms: number, open: number, marks: number, path: Step[]) => void;
@@ -210,7 +215,8 @@ export interface Options {
   /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
    *  mark from everything every stage's windows find, under the move model, and takes the cheapest
    *  step deciding it; an empty menu takes the usual case split (or, with none, the fact the least search proves). `samples` solves from the
-   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`).
+   *  same start, by a seeded generator; returned as `sims` (each a path with each step's `sim`, and
+   *  `open`, the marks undecided at the start: a stopped solve settled its facts' share of them).
    *  For other policies (reward-compare.ts): `pick: "max"` takes the model's likeliest mark instead
    *  of sampling (a policy as a reward to maximise), `score` also gives each move's probability
    *  under a second model (`sim.ps`: how human the policy's move was), and `noSplits` stops at an
@@ -337,9 +343,11 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
 // (cellAtoms: Options.cellAtoms. Spiral Galaxies' helper atoms have no footprint without it, so every
 // window held the whole puzzle; past 8 × 8 or so each was too big to check, and only case splits went
 // on: none of 16 dev-set 10 × 10s finished in 60 s; with it, 3 of 3 tried in 13-29 s, 2026-10-21)
-export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean }> = {
+export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean; knownByCell?: boolean }> = {
   numberlink: { techniques: ["routes", "unique", "ends", "owners", "cuts"] },
   fillomino: { techniques: ["sizes", "shapes"] },
+  // (knownByCell, see explainByClingo, is off: much faster on Hidoku, but no rated Hidokus exist to
+  // judge it by, and on fresh Sudokus it took agreement 0.75 → 0.48, 2026-10-22)
   hidoku: { techniques: ["distance", "deadends"] },
   "honeycomb-paths": { techniques: ["distance", "deadends"] },
   // (not joins: with it Tatham's Singles agreement falls from 0.75 to 0.22, as the component
@@ -376,8 +384,9 @@ const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
 /** Step cost = 1 per distinct rule or clue kind held in mind + GROUP_COST per rule instance (a
  *  row, a box, a clue) + FACT_COST per earlier fact used + a case split's surcharge. */
 export const GROUP_COST = 0.5, FACT_COST = 0.2, TIER_COST = [0, 0, 2, 4] as const;
-/** explanations take a cell's known digits as one fact (DEDUCE_KNOWN_BY_CELL=1): see explainByClingo */
-const KNOWN_BY_CELL = process.env.DEDUCE_KNOWN_BY_CELL === "1";
+/** explanations take a cell's known digits as one fact (DEDUCE_KNOWN_BY_CELL=1, or a finish set's
+ *  knownByCell; =0 off): see explainByClingo */
+const KNOWN_BY_CELL_ENV = process.env.DEDUCE_KNOWN_BY_CELL;
 /** Each round takes every step within SLACK of the cheapest (Options.minPeak: within PEAK_TIE). */
 const SLACK = 1, PEAK_TIE = 0.05;
 /** the component lemma's constraints cite the group's cells (DEDUCE_COMPONENT_CITE=1): see
@@ -518,7 +527,7 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean }[] }> {
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean; open: number }[] }> {
   const budgetCalls = opts.budgetCalls ?? (process.env.DEDUCE_BUDGET_CALLS ? Number(process.env.DEDUCE_BUDGET_CALLS) : undefined);
   const t0 = Date.now(), budget = opts.budgetMs ?? (budgetCalls !== undefined ? 90000 : 20000);
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
@@ -1053,6 +1062,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // (the finish set ranks windows: the guard check of 2026-10-21 found agreement with Puzzle Square
   // JP's and Tatham's ratings unchanged at 0.3)
   const finishing = opts.finish ?? process.env.DEDUCE_FINISH === "1";
+  const knownByCell = KNOWN_BY_CELL_ENV === "1" || (KNOWN_BY_CELL_ENV !== "0" && !!finish.knownByCell);
   const rankShare = opts.rankWindows ?? (process.env.DEDUCE_RANK !== undefined ? Number(process.env.DEDUCE_RANK) || 0 : finishing ? 0.3 : 0);
   const windowOdds = (w: Window): number => {
     const pr = progOf(w), marks = pr.marks.length, open = pr.marks.filter((m) => known[m] < 0).length, last = evaluatedAt.get(w);
@@ -1305,7 +1315,7 @@ end
         // left in it, as a person reads a cell's candidates (an explanation then counts the cells)
         const reps: number[] = [], lits: number[][] = [], at = new Map<string, number>();
         for (const m of kn) {
-          const key = KNOWN_BY_CELL && markName[m].startsWith("digit(") ? `c${markCells[m][0]}` : `m${m}`;
+          const key = knownByCell && markName[m].startsWith("digit(") ? `c${markCells[m][0]}` : `m${m}`;
           let j = at.get(key);
           if (j === undefined) { j = reps.length; at.set(key, j); reps.push(m); lits.push([]); }
           lits[j].push(known[m] ? -id(markAtom[m]) : id(markAtom[m]));
@@ -2597,7 +2607,7 @@ end
   // can't raise it) or WIDE_FLOOR (what only a later stage's windows see needs two rule instances
   // or more: one would be inside a tier-0 window)
   const WIDE_FLOOR = Number(process.env.DEDUCE_WIDE_FLOOR ?? BANDS[1][0]);
-  let peak = 0;
+  let peak = 0, overCeiling = false;
   const minPeakRound = (): boolean => {
     const byStage = stages.map(() => new Map<Window, [number, boolean][]>());
     for (const [w, { k, facts }] of pending) {
@@ -2621,9 +2631,10 @@ end
     if (entryPoints < 0) entryPoints = open;
     if (!c.length) return false;
     const min = Math.min(...c.map((s) => s.cost));
+    if (opts.ceiling !== undefined && min > opts.ceiling) { overCeiling = true; return false; }
     peak = Math.max(peak, min);
     // everything at or below the peak so far goes now: it can't raise the peak
-    const upTo = Math.max(peak, min + PEAK_TIE);
+    const upTo = opts.ceiling !== undefined ? Math.min(opts.ceiling, Math.max(peak, min + PEAK_TIE)) : Math.max(peak, min + PEAK_TIE);
     c.sort((a, b) => a.cost - b.cost);
     for (const s of c) {
       const facts = s.facts.filter((x) => known[markOf.get(x.mark)!] < 0);
@@ -2802,7 +2813,7 @@ end
     };
     const kindOf = (st: Step) => [...new Set((st.because?.clues ?? []).map((x) => x.split(" (")[0]))].sort().join("+");
     const start: SNode = { known: Int8Array.from(known), g: 0, peak: 0, steps: [], open: undecided, depth: 0 };
-    const sims: { path: Step[]; solved: boolean }[] = [];
+    const sims: { path: Step[]; solved: boolean; open: number }[] = [];
     for (let k = 0; k < samples && !outOfTime; k++) {
       restore(start);
       const steps: Step[] = [];
@@ -2860,7 +2871,7 @@ end
         prev = centre(st.cells);
       }
       if (stuck) notes.push("simulate: stuck, no case split or search proves a fact");
-      sims.push({ path: steps, solved: undecided === 0 });
+      sims.push({ path: steps, solved: undecided === 0, open: start.open });
     }
     if (outOfTime) notes.push(`out of time after ${budget} ms`);
     return { path: [], sims, profile: profileOf([], false, 0, round, Date.now() - t0, calls, [...new Set(notes)]), initial };
@@ -2891,7 +2902,7 @@ end
       }
       progressed = all.length > 0;
     }
-    else if (opts.minPeak && !opts.quick) progressed = minPeakRound();
+    else if ((opts.minPeak || opts.ceiling !== undefined) && !opts.quick) progressed = minPeakRound();
     else for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
       let f: Map<Window, [number, boolean][]>;
@@ -2927,6 +2938,7 @@ end
       break;
     }
     if (progressed) continue;
+    if (opts.ceiling !== undefined) { notes.push(overCeiling ? `ceiling: every step left costs more than ${opts.ceiling}` : "ceiling: nothing more by windows"); break; }
     const maxTier = opts.maxTier ?? 3;
     if (maxTier < 2) { notes.push("stuck: only a case split or search would go on"); break; }
     if (opts.maxSplitSteps !== undefined && splitSteps >= opts.maxSplitSteps) { notes.push(`stuck: more than ${opts.maxSplitSteps} case splits`); break; }

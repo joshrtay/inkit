@@ -27,7 +27,7 @@ export const TERMS = "PSJP guideline: rights stay with the poster; public puzzle
 const KINDS: Record<number, GenreName> = {
   1: "slitherlink", 2: "masyu", 5: "numberlink", 21: "fillomino", 6: "nurikabe", 8: "hitori", 16: "shikaku", 17: "spiral-galaxies",
   18: "akari", 19: "sudoku", 48: "cave", 59: "skyscrapers", 68: "star-battle", 91: "easy-as-abc", 113: "minesweeper",
-  141: "aquarium", 165: "nonogram", 185: "simple-loop", 235: "wittgenstein-briquet", 500: "square-jam",
+  141: "aquarium", 165: "nonogram", 185: "simple-loop", 235: "wittgenstein-briquet", 500: "square-jam", 613: "hidoku",
 };
 
 const seen = new Map<string, any>();

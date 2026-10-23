@@ -270,7 +270,7 @@ export function Paint({ game, saved, fresh = false, backTo, admin = false, photo
 
   // ---- on the paper: the marks, the selected one's tip, the solution ----
   const g = drawing.grid;
-  const box = genre && (genre === "sudoku" || genre === "thermo-sudoku") && g && g.rows === g.cols && !g.shape
+  const box = genre && (genre === "sudoku" || genre === "thermo-sudoku" || genre === "german-whispers") && g && g.rows === g.cols && !g.shape
     ? ((settings.rules ?? []).find((r) => r.rule === "boxes")?.box as [number, number] | undefined) ?? standardBox(g.cols) : null;
   const underlay = g && box && box[0] > 1 && box[1] > 1 && g.cols % box[1] === 0 && g.rows % box[0] === 0 ? boxLines(g, box) : "";
   const lights = useMemo(() => list.map((x) => ({ x, h: highlight(drawing, x) })), [list, drawing]);

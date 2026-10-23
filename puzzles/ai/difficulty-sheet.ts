@@ -9,7 +9,7 @@ import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { pictureSvg } from "../../src/game-types/grid/picture.ts";
 import { guides } from "../../src/guides/guides.ts";
-import { PERSONAS, type Persona } from "../../app/app/ai/personas.ts";
+import { PERSONAS, type Persona } from "../../src/ai/personas.ts";
 import type { BackfillFile, BackfillRecord } from "./backfill.ts";
 
 const argv = process.argv.slice(2);

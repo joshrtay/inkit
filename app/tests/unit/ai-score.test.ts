@@ -3,8 +3,8 @@
 // on rule load and crowding throw a candidate out.
 import { describe, expect, it } from "vitest";
 import type { Given, GridSpec } from "~site/engine/types.ts";
-import { PERSONAS, personaByHandle, type GenrePlan } from "~/ai/personas";
-import type { Slot } from "~/ai/schedule";
+import { PERSONAS, personaByHandle, type GenrePlan } from "~site/ai/personas.ts";
+import type { Slot } from "~site/ai/schedule.ts";
 import { proxyScorer, ruleLoad, ruleNorm, RULE_WEIGHT, withRuleLoad } from "../../../puzzles/ai/score.ts";
 
 type RC = [number, number];

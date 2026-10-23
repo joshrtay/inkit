@@ -36,7 +36,7 @@ export const creators = sqliteTable("creators", {
   /** Unique username; also the web address of their personal collection. */
   handle: text("handle").notNull().unique(),
   isAdmin: integer("is_admin", { mode: "boolean" }).notNull().default(false),
-  /** An AI creator (app/ai/personas.ts): no password, can't sign in, labelled AI wherever it's named. */
+  /** An AI creator (src/ai/personas.ts): no password, can't sign in, labelled AI wherever it's named. */
   isAi: integer("is_ai", { mode: "boolean" }).notNull().default(false),
   /** Deleted accounts are hidden but keep their name, so their games stay credited. */
   deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),

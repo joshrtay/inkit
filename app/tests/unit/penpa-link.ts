@@ -17,11 +17,14 @@ async function deflate(text: string) {
   const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
   return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(""));
 }
-export interface Drawn { gridtype?: string; nx: number; ny: number; space?: number[]; q: Record<string, unknown>; tags?: string[]; solution?: unknown[] }
-export async function penpaLink({ gridtype = "square", nx, ny, space = [0, 0, 0, 0], q, tags = [], solution }: Drawn) {
+/** centerlist: the cells kept (Penpa+'s Board mode), as their keys; none, every cell */
+export interface Drawn { gridtype?: string; nx: number; ny: number; space?: number[]; q: Record<string, unknown>; tags?: string[]; solution?: unknown[]; centerlist?: number[] }
+export async function penpaLink({ gridtype = "square", nx, ny, space = [0, 0, 0, 0], q, tags = [], solution, centerlist = [] }: Drawn) {
+  // stored as steps: each key less the one before
+  const steps = [...centerlist].sort((a, b) => a - b).map((k, i, all) => k - (i ? all[i - 1] : 0));
   const lines = [
     `${gridtype},${nx},${ny},38,0,1,1,${(nx + 1) * 38},${(ny + 1) * 38},0,0,0,0,0,0,Title: ,Author: ,,,ON,false,`,
-    JSON.stringify(space), "{}", JSON.stringify(q), "{}", "[]", "[]", "{}", '"x"', '"x"', "[3,1,0]", "{}", '"x"', "0", "{}", "{}", "{}",
+    JSON.stringify(space), "{}", JSON.stringify(q), "{}", JSON.stringify(steps), "[]", "{}", '"x"', '"x"', "[3,1,0]", "{}", '"x"', "0", "{}", "{}", "{}",
     JSON.stringify(tags), "",
   ];
   let text = lines.join("\n");
@@ -35,7 +38,7 @@ export function drawn(spec: GridSpec, tags: string[] = []): Drawn {
   const space = [out, out, out, out], nx = cols + 2 * out, ny = rows + 2 * out, nx0 = nx + 4, N = nx0 * (ny + 4);
   const center = (r: number, c: number) => (r + 2 + out) * nx0 + (c + 2 + out);
   const corner = (r: number, c: number) => N + (r + 1 + out) * nx0 + (c + 1 + out);
-  const q: Record<string, Record<string, unknown> | unknown[]> = { surface: {}, number: {}, symbol: {}, lineE: {}, thermo: [] };
+  const q: Record<string, Record<string, unknown> | unknown[]> = { surface: {}, number: {}, symbol: {}, line: {}, lineE: {}, thermo: [] };
   const put = (k: string, key: number | string, v: unknown) => { (q[k] as Record<string, unknown>)[key] = v; };
   for (const g of spec.givens ?? []) {
     if (g.at === "cell" && g.kind === "number") put("number", center(...g.cell), [String(g.value), 1, "1"]);
@@ -46,9 +49,27 @@ export function drawn(spec: GridSpec, tags: string[] = []): Drawn {
       const [y, x] = g.point, type = y % 2 && x % 2 ? 0 : !(y % 2) && !(x % 2) ? 1 : !(y % 2) ? 2 : 3;
       const r = Math.floor((y - 1) / 2), c = Math.floor((x - 1) / 2);
       put("symbol", type * N + center(r, c), [1, "circle_SS", 2]);
-    } else if (g.at === "edge") {
+    } else if (g.at === "edge" && g.kind === "door") {
+      // a way in or out: a line from the cell through the frame
+      const [r, c] = g.cell, o = g.side === "top" ? center(r - 1, c) : g.side === "bottom" ? center(r + 1, c) : g.side === "left" ? center(r, c - 1) : center(r, c + 1);
+      put("line", [center(r, c), o].sort((x, y) => x - y).join(","), 3);
+    } else if (g.at === "edge" && g.kind === "inlet") {
+      // a pipe end: a shape beside the grid (one per number), its pipe into the cell
+      const [r, c] = g.cell, o = g.side === "top" ? center(r - 1, c) : g.side === "bottom" ? center(r + 1, c) : g.side === "left" ? center(r, c - 1) : center(r, c + 1);
+      put("symbol", o, [2, ["circle_M", "square_M", "triup_M", "diamond_M"][g.value - 1], 1]);
+      put("line", [center(r, c), o].sort((x, y) => x - y).join(","), 2);
+    } else if (g.at === "corner" && g.kind === "end") {
+      // an end of a path along the grid lines: a short line out of the grid from that corner
+      const [r, c] = g.corner, [or, oc] = r === 0 ? [r - 1, c] : r === rows ? [r + 1, c] : c === 0 ? [r, c - 1] : [r, c + 1];
+      put("lineE", [corner(r, c), corner(or, oc)].sort((x, y) => x - y).join(","), 2);
+    } else if (g.at === "cell" && g.kind === "crossing") put("symbol", center(...g.cell), [[1, 1, 1, 1], "cross", 2]);
+    else if (g.at === "edge") {
       const k = g.side === "top" ? center(-1, g.cell[1]) : g.side === "bottom" ? center(rows, g.cell[1]) : g.side === "left" ? center(g.cell[0], -1) : center(g.cell[0], cols);
       put("number", k, [g.kind === "first" ? "ABCDEFG"[g.value - 1] : String(g.value), 1, "1"]);
+    } else if (g.at === "border" && g.kind === "wall") {
+      // a thick line between the two cells
+      const [[r1, c1], [r2, c2]] = g.cells, r = Math.max(r1, r2), c = Math.max(c1, c2);
+      put("lineE", r1 === r2 ? `${corner(r, c)},${corner(r + 1, c)}` : `${corner(r, c)},${corner(r, c + 1)}`, 2);
     } else if (g.kind === "total") put("number", g.at === "col" ? center(-1, g.index) : center(g.index, -1), [String(g.value), 1, "1"]);
   }
   // blocks with numbers on them (Akari): white on black

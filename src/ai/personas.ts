@@ -8,13 +8,13 @@
 // name), and none of them should sound like a chatbot: see "Writing" in docs/ai-creators.md.
 //
 // Plain data, no site imports: Node runs it directly for the batch and the seed.
-import type { GenreName } from "../../../src/engine/puzzle.ts";
+import type { GenreName } from "../engine/puzzle.ts";
 
 export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
 export const WEEKDAYS: Weekday[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /** How hard a day's puzzle should be, from 0 (a warm-up) to 1 (the hardest this creator makes).
- *  Each scheme is a pure function of the slot's local date (app/app/ai/schedule.ts). */
+ *  Each scheme is a pure function of the slot's local date (src/ai/schedule.ts). */
 export type DifficultyScheme =
   /** a fixed target for each weekday */
   | { kind: "weekday"; by: Record<Weekday, number> }

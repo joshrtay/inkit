@@ -5,8 +5,8 @@
 // hash). Pure, so it's unit-tested (tests/unit/ai-schedule.test.ts, ai-backfill.test.ts).
 import { z } from "zod";
 import { parseSketch } from "../games/sketch";
-import { personaByHandle, type Persona } from "./personas.ts";
-import { historySlots, slotKey, slotsBetween } from "./schedule.ts";
+import { personaByHandle, type Persona } from "~site/ai/personas.ts";
+import { historySlots, slotKey, slotsBetween } from "~site/ai/schedule.ts";
 
 export const ScheduleRequest = z.object({
   persona: z.string(),
@@ -50,7 +50,7 @@ export async function checkScheduleRequest(body: unknown, now: Date): Promise<Ch
 }
 
 const issues = (e: z.ZodError) => e.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
-const notAi = (handle: string) => ({ ok: false as const, status: 404, error: `"${handle}" isn't an AI creator (app/app/ai/personas.ts).` });
+const notAi = (handle: string) => ({ ok: false as const, status: 404, error: `"${handle}" isn't an AI creator (src/ai/personas.ts).` });
 
 /** The puzzle itself, the same for a scheduled post and a backfilled one: it parses, the persona
  *  makes its genre, and the batch's proof of one solution (a panel: at least one) is for it. */

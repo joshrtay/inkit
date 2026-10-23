@@ -388,6 +388,17 @@ and an explanation counts the cells it reads. Explaining is 40–50% faster and 
 60 s; it lowers prices (fewer facts counted; dev estimates 0.62–0.85 against 0.72–0.85), so it is
 off until the guard judges it. Off, every estimate is unchanged.
 
+It passed the guard's rule (finish, 200 calls: PSJP −0.006, Tatham −0.014, held out −0.001/−0.001,
+no type below its interval; only digit types move, Sudoku −0.14 and Solo −0.10 on the guard sample),
+but on a fresh draw Sudoku falls 0.75 → 0.48 (below its interval) and Skyscrapers 0.79 → 0.73, so the
+guard sample's Sudoku drop was real. No rated Hidokus exist (PSJP and Tatham have none), so it can't
+be judged where it helps most; it stays off (DEDUCE_KNOWN_BY_CELL=1 turns it on). Reading a cell's
+candidates as one fact prices a Sudoku step too cheaply: which digits are gone, and why, is the step.
+
+**Stop prices confirmed.** On a second fresh draw (801 rated PSJP puzzles in 14 types no run had
+touched), 9afa78c passes against the pre-change baseline: PSJP +0.048, Tatham 0, no type below its
+interval; Nurikabe 0.13 → 0.52, Numberlink +0.16, Spiral Galaxies +0.11, the rest within 0.01.
+
 **Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
 0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
 passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
@@ -400,7 +411,8 @@ price, whatever its path: 0.95 out of clingo calls, 0.97 out of time or stuck, 1
 (8b4734b priced out of time at 1 with the capped; on Numberlink, which finishes about 1 in 8 even at
 1,000 calls, that failed every sample, since capped runs are rated 2.8–3.0 and out of time 1.8–1.9;
 the three prices give it 0.71/0.57/0.64 at 1,000 calls and move nothing else down, a fit to how
-runs stop that held in six samples). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
+runs stop that held in six samples, but found post hoc, after looking at Numberlink on all three;
+it counts once a second fresh draw, unused in choosing it, confirms it). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
 fresh draw of 967 rated PSJP puzzles never used before, it passes the means (guard +0.016, held out
 +0.105, fresh −0.013) but fails Numberlink on the fresh draw (0.67 → 0.41): Numberlink finishes 2 of
 60 at 200 calls, so its agreement only ranks how runs stop. Nurikabe's gain replicates (+0.13 fresh).

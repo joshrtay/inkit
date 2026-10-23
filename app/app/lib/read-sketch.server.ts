@@ -51,6 +51,8 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   row 2r+1, col 2c+1; the line below cell (r, c) is row 2r+2; a corner is an even row and an even column.`,
   "thermo-sudoku": `thermo-sudoku (Thermo Sudoku): a sudoku (usually 6x6 or 9x9) with printed digits {kind: "number", value} and
   thermometers drawn through cells: {kind: "thermo", path: [cells from the bulb to the tip]}.`,
+  "german-whispers": `german-whispers (German Whispers): a sudoku (usually 6x6 or 9x9) with printed digits {kind: "number", value} and
+  green lines drawn through cells: {kind: "whisper", path: [cells from one end to the other]}.`,
   skyscrapers: `skyscrapers: an n x n grid with numbers outside it, beside rows and above / below columns: {kind: "skyscraper",
   value, cell: the cell next to the number, side: which side of that cell the number is on}. Printed digits inside are {kind: "number"}.`,
   "easy-as-abc": `easy-as-abc (Easy as ABC): letters outside the grid: {kind: "first", value: 1 for A, 2 for B..., cell: the cell next
@@ -66,6 +68,12 @@ const GENRE_GUIDE: Record<GenreName, string> = {
   "irregular-sudoku": `irregular-sudoku (Irregular / Jigsaw Sudoku): a sudoku whose boxes are irregular outlined areas.
   Give the printed digits {kind: "number", value} and the areas as "areas" (one string per row, one letter per cell).`,
   slitherlink: `slitherlink: numbers in cells count how many of the cell's four sides the loop uses: {kind: "number", value}.`,
+  "hamiltonian-plumbers": `hamiltonian-plumbers (Hamiltonian Plumbers): pipe ends outside the grid, in matching pairs (often shapes:
+  circle, square, triangle; number each kind): {kind: "inlet", value, cell: the cell next to it, side}; crossings drawn in cells, where
+  pipes cross straight through: {kind: "crossing"}; rocks {kind: "block"}.`,
+  "slitherlink-path": `slitherlink-path (Slitherlink Path): a slitherlink whose line is a path between two ends, not a loop. Numbers in cells count
+  the cell's sides the path uses: {kind: "number", value}; the two ends are corners on the outside edge, often drawn as arrows or
+  short lines out of the grid: {kind: "end"} at that corner.`,
   nurikabe: `nurikabe: numbered cells are islands of that size: {kind: "number", value}.`,
   nonogram: `nonogram (also "Picture Squares"): numbers beside each row and above each column. If the drawing shows the
   shaded picture, give it as "picture" (one letter per cell, "." for empty, a color per letter: the colors
@@ -172,6 +180,8 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   number: "a number (or a printed digit) in a cell: row, col; value the number, e.g. \"3\"; an Akari cipher's letter: the letter, e.g. \"A\"",
   color: "a cell colored in at the start (binary-puzzle, abstract-art): row, col; value its color's number as the type says, e.g. \"2\"",
   block: "a rock: a shaded or crossed-out cell: row, col; value \"\"",
+  crossing: "where pipes may cross (hamiltonian-plumbers: a cross or plus drawn in the cell): row, col; value \"\"",
+  inlet: "a pipe end outside the grid (hamiltonian-plumbers: a shape or number with a short pipe into the grid): row, col of the cell next to it; value its side of that cell and a number, the same for the two ends of one pipe (number the shapes 1, 2, 3... in the order you meet them), e.g. \"top 2\"",
   symbol: "a symbol (★, ●, a letter...) in a cell: row, col; value the symbol; for a colored one (a Glimmith rose) its color, one of red, orange, yellow, green, blue, purple, white, black; a critter (connect-the-critters) is \"★\"; a twins-and-triplets tile is its colour and shape, e.g. \"red stone\"",
   palisade: "a palisade mark in a cell (panes: a small diamond with some of its four sides drawn thick; each thick side is one of the cell's sides that is a region border): row, col; " +
     "value how many sides are drawn, and with two whether they meet at a corner or are opposite: \"0\", \"1\", \"2 corner\", \"2 opposite\", \"3\" or \"4\" (three sides make a U; look closely, it's easy to misread as two)",
@@ -190,11 +200,12 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
   first: "a letter outside the grid (easy-as-abc): row, col of the cell next to it; value its side of that cell and the letter's number (A = 1), e.g. \"left 2\"",
   skyscraper: "a number outside the grid (skyscrapers): row, col of the cell next to it; value its side of that cell and the number, e.g. \"top 3\"",
   thermo: "a thermometer (thermo-sudoku): row, col of its bulb; value every cell from the bulb to the tip as row,col pairs, e.g. \"2,0 2,1 1,1\"",
+  whisper: "a green line through cells (german-whispers): row, col of one end; value every cell along it as row,col pairs, e.g. \"2,0 2,1 1,1\"",
   galaxy: "a galaxy circle (spiral-galaxies): row, col = its centre in half-cell steps (a cell's centre is 2r+1, 2c+1; even numbers are on lines); value \"\"",
   door: "an arrow at the outside edge (mazes, simple-path): row, col of the cell beside it; value that cell's side and in or out, e.g. \"top in\"",
   // panels: corners are 0..rows, 0..cols; a stretch of grid line is a corner and "right" / "below"
   start: "a start circle (panels: a big fat dot on a corner): row, col = the corner (0..rows, 0..cols); value its color, \"blue\" or \"yellow\", with two mirrored lines when the starts are colored; else \"\"",
-  end: "an end (panels: a short stub sticking out of the outside edge at a corner): row, col = the corner it sticks out of (on the outside edge); value \"\"",
+  end: "an end (panels, slitherlink-path: a short stub or an arrow sticking out of the outside edge at a corner): row, col = the corner it sticks out of (on the outside edge); value \"\"",
   hexagon: "a dot the line must pass (panels: a small dot or hexagon on the grid lines): on a corner, row, col = the corner and value \"\"; " +
     "halfway along a grid line, row, col = the corner at its top / left end and value \"right\" or \"below\"; add \"blue\" or \"yellow\" if it's colored (two mirrored lines), e.g. \"right blue\" or \"blue\"",
   gap: "a gap (panels: a break in a grid line the line can't cross): row, col = the corner at the top / left end of that stretch of line; value \"right\" or \"below\"",
@@ -212,8 +223,9 @@ const CLUE_GUIDE: Record<Exclude<ClueKind, "runs" | "total">, string> = {
 
 const RULE_GUIDE: Record<RuleName, string> = {
   loop: "the lines form one loop (comes with simple-loop and slitherlink)",
-  path: "one path from the way in to the way out (comes with simple-path); cover: through every open cell",
+  path: "one path from the way in to the way out (comes with simple-path); cover: through every open cell; of \"fence\": along the grid lines between two ends (comes with slitherlink-path)",
   links: "join each pair of matching numbers with a line (comes with numberlink); cover: every cell used",
+  plumbing: "pipes join each pair of matching pipe ends through every open cell, crossing only at the crossings, straight through (comes with hamiltonian-plumbers)",
   pearls: "the loop goes straight through white pearls and turns on black ones (comes with masyu)",
   sides: "a number counts the loop's sides around it (comes with slitherlink)",
   runs: "row and column numbers are runs of shaded cells (comes with nonogram)",
@@ -237,6 +249,7 @@ const RULE_GUIDE: Record<RuleName, string> = {
   "first-seen": "a letter outside is the first one seen from that side (comes with easy-as-abc)",
   skyscrapers: "a number outside counts the buildings seen from there (comes with skyscrapers)",
   thermo: "digits rise from a thermometer's bulb to its tip (comes with thermo-sudoku)",
+  whispers: "neighbours on a green line differ by at least gap (half the largest digit, rounded up, if unset; comes with german-whispers)",
   "unshaded-connected": "the white cells form one connected group (comes with cave)",
   "shaded-to-edge": "every group of shaded cells touches the edge (comes with cave)",
   sight: "a number counts the white cells it sees in its row and column, itself included (comes with cave)",
@@ -608,7 +621,7 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
     }
     case "color": { const n = num(v); return n === null || n < 1 || n > 3 ? null : { at: "cell", cell, kind, value: n }; }
     case "count": { const n = num(v); return n === null ? null : { at: "corner", corner: cell, kind, value: n }; }
-    case "block": return { at: "cell", cell, kind };
+    case "block": case "crossing": return { at: "cell", cell, kind };
     case "symbol": {
       // a colored symbol (a rose) is its color's name
       const color = SYMBOL_COLORS.find((c) => v === c || v === `${c} rose` || v === `${c} symbol`);
@@ -649,8 +662,9 @@ export function givenOf({ kind, row, col, value }: Reading["givens"][number]): G
     }
     case "pearl": return { at: "cell", cell, kind, value: v.includes("black") ? "black" : "white" };
     case "first": case "skyscraper": { const n = num(v); return side && n !== null ? { at: "edge", cell, side, kind, value: n } : null; }
+    case "inlet": { const n = num(v); return side && n !== null && n >= 1 ? { at: "edge", cell, side, kind, value: n } : null; }
     case "door": return side ? { at: "edge", cell, side, kind, role: v.includes("out") ? "out" : "in" } : null;
-    case "thermo": {
+    case "thermo": case "whisper": {
       const cells = [...v.matchAll(/(\d+)\s*,\s*(\d+)/g)].map((m) => [Number(m[1]), Number(m[2])] as [number, number]);
       return cells.length > 1 ? { at: "cells", cells, kind } : null;
     }

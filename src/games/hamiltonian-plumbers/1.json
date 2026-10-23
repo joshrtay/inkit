@@ -1,0 +1,109 @@
+{
+  "type": "grid",
+  "name": "First Pipes",
+  "meta": "5 × 5",
+  "grid": {
+    "size": [
+      5,
+      5
+    ],
+    "givens": [
+      {
+        "at": "edge",
+        "cell": [
+          0,
+          1
+        ],
+        "side": "top",
+        "kind": "inlet",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "cell": [
+          0,
+          2
+        ],
+        "side": "top",
+        "kind": "inlet",
+        "value": 1
+      },
+      {
+        "at": "edge",
+        "cell": [
+          4,
+          1
+        ],
+        "side": "bottom",
+        "kind": "inlet",
+        "value": 2
+      },
+      {
+        "at": "edge",
+        "cell": [
+          0,
+          0
+        ],
+        "side": "left",
+        "kind": "inlet",
+        "value": 2
+      },
+      {
+        "at": "edge",
+        "cell": [
+          2,
+          4
+        ],
+        "side": "right",
+        "kind": "inlet",
+        "value": 3
+      },
+      {
+        "at": "edge",
+        "cell": [
+          0,
+          3
+        ],
+        "side": "top",
+        "kind": "inlet",
+        "value": 3
+      },
+      {
+        "at": "edge",
+        "cell": [
+          4,
+          4
+        ],
+        "side": "bottom",
+        "kind": "inlet",
+        "value": 4
+      },
+      {
+        "at": "edge",
+        "cell": [
+          4,
+          0
+        ],
+        "side": "left",
+        "kind": "inlet",
+        "value": 4
+      },
+      {
+        "at": "cell",
+        "cell": [
+          1,
+          2
+        ],
+        "kind": "crossing"
+      },
+      {
+        "at": "cell",
+        "cell": [
+          3,
+          1
+        ],
+        "kind": "crossing"
+      }
+    ]
+  }
+}

@@ -10,8 +10,8 @@ import { solve } from "../../src/engine/solve.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { pictureSvg } from "../../src/game-types/grid/picture.ts";
 import { guides } from "../../src/guides/guides.ts";
-import { PERSONAS } from "../../app/app/ai/personas.ts";
-import { lessonFor } from "../../app/app/ai/schedule.ts";
+import { PERSONAS } from "../../src/ai/personas.ts";
+import { lessonFor } from "../../src/ai/schedule.ts";
 import type { BackfillFile, BackfillRecord } from "./backfill.ts";
 
 const argv = process.argv.slice(2);

@@ -1,4 +1,4 @@
-// The AI creators' recommendations (app/ai/personas.ts `recommends`), as JSON (admins and the admin
+// The AI creators' recommendations (src/ai/personas.ts `recommends`), as JSON (admins and the admin
 // API token): inkit.games/admin/ai/recommendations. They're also synced with each post.
 //   POST   write every persona's picks into the recommendations table now
 import { data } from "react-router";
@@ -8,7 +8,7 @@ import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { requireAdmin } from "~/lib/admin.server";
 import { aiCreatorId, syncRecommendations } from "~/lib/ai.server";
-import { PERSONAS } from "~/ai/personas";
+import { PERSONAS } from "~site/ai/personas.ts";
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
