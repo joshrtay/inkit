@@ -39,7 +39,7 @@ const argv = process.argv.slice(2), cmd = argv[0] ?? "report";
 const opt = (name: string, d: string) => { const k = argv.indexOf(name); return k >= 0 ? argv[k + 1] : d; };
 const num = (name: string, d: number) => Number(opt(name, String(d)));
 const CAP = Number(process.env.BENCH_CAP) || 10;
-const dir = (set: string, sub = "") => { const d = `${OUT}${set}/${sub}`; mkdirSync(d, { recursive: true }); return d; };
+export const dir = (set: string, sub = "") => { const d = `${OUT}${set}/${sub}`; mkdirSync(d, { recursive: true }); return d; };
 
 /** genres whose rules, drawing and move form the prompts already cover */
 export const GENRES = new Set([...Object.keys(VALUES), "skyscrapers", "hidoku", "easy-as-abc", "sudoku"]);
@@ -59,9 +59,9 @@ export interface BenchItem {
   anchor: { level?: number; hints?: number; rating?: number; solves?: number; seconds?: number };
   source: string;
 }
-interface Puzzle { id: string; genre: string; spec: GridSpec; anchor: BenchItem["anchor"]; source: string }
+export interface Puzzle { id: string; genre: string; spec: GridSpec; anchor: BenchItem["anchor"]; source: string }
 
-function puzzlesOf(set: string): Puzzle[] {
+export function puzzlesOf(set: string): Puzzle[] {
   if (set === "thinky") {
     const f = `${repo}references/thinky-dailies/converted.jsonl`;
     return readJsonl(f).filter((d) => d.unique === "unique" && GENRES.has(d.spec.genre))
@@ -81,7 +81,9 @@ function puzzlesOf(set: string): Puzzle[] {
     // banded by the human rating: per genre, up to --per-band puzzles at each level, ≤ 100 cells
     // (as the Thinky grids and the hint test), seeded; puzz.link only where 5+ people solved it
     const folder = set === "puzzlink" ? "puzzlink-db" : "psjp-full", perBand = num("--per-band", 2), out: Puzzle[] = [];
-    for (const genre of [...GENRES].sort()) {
+    // --skip: genres whose stuck points take too long to work out (Fillomino's and Hidoku's menus can run for many minutes)
+    const skip = new Set(opt("--skip", "fillomino,hidoku").split(","));
+    for (const genre of [...GENRES].sort().filter((g) => !skip.has(g))) {
       const f = `${repo}references/${folder}/converted/${genre}.jsonl`;
       if (!existsSync(f)) continue;
       const rated = readJsonl(f).map((d) => ({ d, level: set === "puzzlink" ? d.meta?.difficulty5 : d.meta?.difficulty }))
@@ -165,9 +167,9 @@ const MODELS: Record<string, Omit<Model, "effort" | "maxTokens">> = {
   opus48: { id: "claude-opus-4-8", openrouter: "anthropic/claude-opus-4.8", price: { input: 5 / 1e6, output: 25 / 1e6 } },
 };
 const TOKENS: Record<string, number> = { low: 8000, medium: 16000, high: 32000, xhigh: 64000, max: 64000 };
-type Format = "grid" | "listed";
-interface Taker { name: string; model: Model; format: Format }
-function takerOf(s: string): Taker {
+export type Format = "grid" | "listed";
+export interface Taker { name: string; model: Model; format: Format }
+export function takerOf(s: string): Taker {
   const [m, effort = "medium", format = "grid"] = s.split(":");
   if (!MODELS[m] || !TOKENS[effort] || !["grid", "listed"].includes(format)) throw new Error(`bad taker ${s} (model:effort:format, e.g. haiku:low:grid)`);
   return { name: `${m}-${effort}-${format}`, model: { ...MODELS[m], effort, maxTokens: TOKENS[effort] }, format: format as Format };
@@ -279,14 +281,14 @@ export function rasch(pass: (0 | 1 | null)[][], iters = 500): { theta: number[];
   }
   return { theta, b, kept };
 }
-const spearmanXY = (x: number[], y: number[]) => {
+export const spearmanXY = (x: number[], y: number[]) => {
   const rank = (v: number[]) => { const o = v.map((x2, i) => [x2, i]).sort((a, b2) => a[0] - b2[0]), r = new Array(v.length); for (let k = 0; k < o.length;) { let e = k; while (e + 1 < o.length && o[e + 1][0] === o[k][0]) e++; for (let q = k; q <= e; q++) r[o[q][1]] = (k + e) / 2; k = e + 1; } return r; };
   const rx = rank(x), ry = rank(y), n = x.length, mx = rx.reduce((a, b2) => a + b2, 0) / n, my = ry.reduce((a, b2) => a + b2, 0) / n;
   let sxy = 0, sxx = 0, syy = 0;
   for (let i = 0; i < n; i++) { sxy += (rx[i] - mx) * (ry[i] - my); sxx += (rx[i] - mx) ** 2; syy += (ry[i] - my) ** 2; }
   return sxy / Math.sqrt(sxx * syy);
 };
-const pct = (k: number, n: number) => { if (!n) return "–"; const [a, b] = wilson(k, n); return `${Math.round((100 * k) / n)}% (${Math.round(100 * a)}–${Math.round(100 * b)})`; };
+export const pct = (k: number, n: number) => { if (!n) return "–"; const [a, b] = wilson(k, n); return `${Math.round((100 * k) / n)}% (${Math.round(100 * a)}–${Math.round(100 * b)})`; };
 
 /** what counts as a pass: on the frontier (default), or any true move (--score true: a leap past the
  *  frontier counts too, since wrong moves are rare and a leap is usually a longer chain the frontier misses) */
