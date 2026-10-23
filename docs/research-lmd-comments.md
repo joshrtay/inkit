@@ -1,7 +1,8 @@
-# What solvers say makes a puzzle good: Logic Masters comments
+# What solvers say makes a puzzle good or bad: Logic Masters comments
 
-2026-10-23. Code: `puzzles/difficulty/lmd-themes.ts` (`tag`, `report`). The comments, tags and full
-report are local-only (`references/lmd/themes.jsonl`, `themes-report.md`; bucket
+2026-10-23. Code: `puzzles/difficulty/lmd-themes.ts` and `lmd-faults.ts` (each `tag`, `report`). The
+comments, tags and full reports are local-only (`references/lmd/themes.jsonl`, `faults.jsonl` and
+their `-report.md`; bucket
 `gs://inkit-research-ml/private/refs/lmd/`), because they are Logic Masters users' words.
 
 ## The question
@@ -81,6 +82,48 @@ interesting throughout"), so the break-in alone carries no weight once the flow 
 - **Interesting rule interactions matter**, but that is about variant design and mostly outside our
   standard genres.
 
+## What makes a puzzle bad
+
+Josh asked to document what makes a puzzle bad rather than chase individual taste. The 1,373
+critical comments (negative in tone, or tagged tedious, stuck or broken) were sorted again into
+12 finer complaints, a codebook drawn from reading 90 of them (Haiku 5.5, $0.13). For each
+complaint: how much lower the beauty percentile is on puzzles where at least one comment names it,
+holding comment count and solver count fixed. Without that hold every complaint looks harmless or
+even good, because well-liked puzzles get more comments of every kind.
+
+| complaint | puzzles | beauty pct, held (95%) | what the solver or the site could do |
+|---|---|---|---|
+| **dull**: a rule or clue that does nothing, an underwhelming or derivative idea | 42 | **−23** (−31 to −15) | check that every clue and rule is used in the proof and needed for uniqueness; variety of step kinds |
+| **not unique**: several solutions, none, or a uniqueness argument needed | 37 | **−16** (−26 to −7) | already enforced: clingo proves every inkit puzzle unique |
+| **guessing**: trial and error, bifurcation | 92 | **−12** (−18 to −7) | case splits in the solver's path; the stall measures from Aim 4 |
+| **rating off**: the stated difficulty is wrong | 63 | **−11** (−17 to −4) | our difficulty estimate; calibration matters |
+| **hard to read**: clutter, colours, layout | 59 | **−10** (−17 to −4) | rendering and style, not the solver |
+| *platform*: link, answer check, solution code | 105 | **−10** (−16 to −5) | inkit checks in the player; no codes to type |
+| **grind**: bookkeeping, arithmetic, too long for what it gives | 105 | **−8** (−13 to −3) | long runs of cheap steps per idea; heavy pencil-marking |
+| **rules unclear** | 198 | **−8** (−12 to −4) | the guides (rules with ✓/✗ pictures) |
+| **no start**: break-in too hidden | 104 | **−6** (−11 to 0) | the cost of the first step against the rest |
+| *own mistake* | 189 | −4 (−7 to 1) | – |
+| **wall**: one step mid-solve far harder than the rest | 109 | −3 (−8 to 2) | – |
+| theme off | 10 | −10 (−26 to 6) | – |
+
+Reading it:
+
+- **A platform complaint, which isn't the puzzle's fault at all, costs about 10 points.** Some of
+  any complaint's penalty is just raters who had a bad time, so read the rest against that line.
+- **Dull is the worst by far, and the clearest fault in the design itself.** Comments say "a rule
+  that does nothing", "two separate puzzles with no interaction", "the diagonal rule ends up
+  underwhelming". It is also the most checkable: a clue or rule the proof never uses is a defect.
+- **Guessing hurts; a wall doesn't.** A solve that forces trial and error loses 12 points. A
+  single hard step mid-solve loses nothing measurable, and puzzles with one are well liked before
+  the hold. People forgive being stuck if logic gets them out. This matches the good side: flow
+  is praised and aha adds nothing beyond it, because the aha is usually the wall someone got
+  through.
+- **Grind and a hidden break-in cost a little.** Not being able to start is milder than not being
+  able to continue without guessing.
+- **For inkit**, uniqueness and the answer check are already handled. The checkable faults left
+  are dull (unused clues and rules), guessing (case splits) and grind (long runs of trivial steps).
+  These three could be a "bad puzzle" check run on every generated or submitted puzzle.
+
 ## Caveats
 
 - Correlation only, and the commenters are partly the raters. Comment volume is itself the
@@ -88,5 +131,6 @@ interesting throughout"), so the break-in alone carries no weight once the flow 
 - 85% of the puzzles are Sudoku variants. The non-Sudoku subset (180) points the same way, more
   strongly, but is small.
 - Beauty sits near its ceiling (median 92%), so the percentile mostly separates good from great.
+- Complaints are rarer than praise (42 puzzles name "dull"), so the intervals are wide.
 - Tags come from one cheap model with one pass. The codebook is ours, and themes overlap (praise
   vs flow; hard vs stuck).
