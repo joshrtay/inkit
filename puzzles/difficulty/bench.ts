@@ -14,7 +14,7 @@
 // listing-minus-grid gap is the perception cost.
 //
 //   node --no-warnings puzzles/difficulty/bench.ts items <set> [--per 3] [--limit N]   → <set>/items.json (free)
-//   node --no-warnings puzzles/difficulty/bench.ts ask <set> <model>:<effort>:<format>[,…] [--limit N] [--jobs 8]
+//   node --no-warnings puzzles/difficulty/bench.ts ask <set> <model>:<effort>:<format>[,…] [--limit N | --sample N] [--jobs 8]
 //                                                                                      → <set>/runs/<taker>.jsonl (paid; resumable)
 //   node --no-warnings puzzles/difficulty/bench.ts dry <set>                          (free: stand-in takers, then report)
 //   node --no-warnings puzzles/difficulty/bench.ts report <set>                       → <set>/report.md (free)
@@ -30,7 +30,8 @@ import { shuffled } from "./llm-label.ts";
 import { draw, lastJson, listed, markOf, moveForm, NAME, readJsonl, rules, VALUES, wilson } from "./opus-human.ts";
 import { mapPool } from "./pool.ts";
 import { type MoveResult, type MV, scoreMove } from "./walkthrough-core.ts";
-import { askOpus, ctxOf, DEFAULT_CEILING, ledger, type LoopItem, menu, type Model, reader, splits } from "./walkthrough-loop.ts";
+import { deduce } from "./deduce.ts";
+import { askOpus, ctxOf, DEFAULT_CEILING, FINISH, ledger, type LoopItem, menu, type Model, splits } from "./walkthrough-loop.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
 const OUT = `${repo}references/ml/bench/`;
@@ -95,39 +96,52 @@ function puzzlesOf(set: string): Puzzle[] {
   throw new Error(`no set ${set} yet (thinky, examples, puzzlink, psjp)`);
 }
 
-/** Every stuck point on one solve: the reader's closure, the frontier there; then the cheapest step
- *  (or a case split) is taken and the reader runs again. */
-async function stuckPoints(pz: Puzzle, ceiling: number, most = 40): Promise<Omit<BenchItem, "id" | "at">[]> {
+/** The stuck points on one solve, from the solver's cheapest-first path (one call): wherever its next
+ *  step costs more than the ceiling, or is a case split or search, every easy step is already taken,
+ *  so what's known there is the reader's closure. The frontier is worked out only at the points kept. */
+async function stuckPoints(pz: Puzzle, ceiling: number, per: number): Promise<{ items: Omit<BenchItem, "id" | "at">[]; at: [number, number][] }> {
   const it: LoopItem = { id: pz.id, set: "bench", genre: pz.genre, known: [], spec: pz.spec };
-  const ctx = await ctxOf(it), known = new Map<string, boolean>(), out: Omit<BenchItem, "id" | "at">[] = [];
-  // what the setup settles before any step (a 0's neighbours, givens) is drawn as known too
-  for (const m of ctx.initial) known.set(m, ctx.truth.get(m) ?? false);
-  for (let k = 0; k < most; k++) {
-    const r = await reader(ctx, known, ceiling);
-    for (const [m, v] of r.added) known.set(m, v);
-    if (r.solved || r.open === 0) break;
-    const steps = (await menu(ctx, known)).sort((a, b) => a.cost - b.cost);
-    const split = steps.length ? [] : await splits(ctx, known, ctx.markNames.length);
+  const ctx = await ctxOf(it);
+  const r = await deduce(pz.spec, { finish: FINISH, budgetMs: 120000 });
+  // the setup's facts (a 0's neighbours, givens) are drawn as known too
+  const base: MV[] = [...ctx.initial].map((m) => [m, ctx.truth.get(m) ?? false]);
+  const points: number[] = [];
+  r.path.forEach((s, i) => { if (s.tier >= 2 || s.cost > ceiling) points.push(i); });
+  const pick = points.length <= per ? points.map((_, j) => j) : [...new Set(Array.from({ length: per }, (_, j) => Math.round((j * (points.length - 1)) / (per - 1 || 1))))];
+  const items: Omit<BenchItem, "id" | "at">[] = [], at: [number, number][] = [];
+  for (const j of pick) {
+    const known = new Map<string, boolean>(base);
+    for (const s of r.path.slice(0, points[j])) for (const f of s.facts) known.set(f.mark, f.value);
+    const steps = (await menu(ctx, known)).sort((x, y) => x.cost - y.cost);
+    const split = steps.length ? [] : await splits(ctx, known, SPLIT_TRIES);
     const take = steps[0] ?? split[0];
-    if (!take) break;
-    const frontier = [...new Set([...steps, ...split].flatMap((s) => s.facts.map((f) => f.mark)))];
-    out.push({ set: "", genre: pz.genre, spec: pz.spec, known: [...known], frontier, cost: steps[0]?.cost ?? null, kind: take.kind, steps: steps.length, anchor: pz.anchor, source: pz.source });
-    for (const f of take.facts) known.set(f.mark, f.value);
+    if (!take) continue;
+    const frontier = [...new Set([...steps, ...split].flatMap((x) => x.facts.map((f) => f.mark)))];
+    items.push({ set: "", genre: pz.genre, spec: pz.spec, known: [...known], frontier, cost: steps[0]?.cost ?? null, kind: take.kind, steps: steps.length, anchor: pz.anchor, source: pz.source });
+    at.push([j + 1, points.length]);
   }
-  return out;
+  return { items, at };
 }
+
+/** case splits tried per stuck point (each a clingo call): bounds a Fillomino with hundreds of cuts */
+const SPLIT_TRIES = Number(process.env.BENCH_SPLITS) || 80;
 
 async function itemsCmd(set: string) {
   const per = num("--per", 3), limit = num("--limit", Infinity), items: BenchItem[] = [];
   const puzzles = puzzlesOf(set).slice(0, limit);
+  // each puzzle's items are kept as they're made (<set>/points.jsonl), so a stopped run resumes
+  const cacheFile = `${dir(set)}points.jsonl`, cache = new Map<string, BenchItem[]>(readJsonl(cacheFile).map((d) => [d.puzzle, d.items]));
   const done = await mapPool(puzzles, async (pz) => {
-    const pts = await stuckPoints(pz, DEFAULT_CEILING).catch((e) => { console.error(`${pz.id}: ${(e as Error).message}`); return []; });
-    // the first, the last and evenly between: early stuck points are easier to read, late ones need
-    // the whole board held in mind
-    const pick = pts.length <= per ? pts.map((_, i) => i) : [...new Set(Array.from({ length: per }, (_, j) => Math.round((j * (pts.length - 1)) / (per - 1 || 1))))];
-    console.error(`${pz.id}: ${pts.length} stuck points, kept ${pick.length}`);
-    return pick.map((i) => ({ ...pts[i], id: `${pz.id}#${i + 1}`, set, at: [i + 1, pts.length] as [number, number] }));
+    if (cache.has(pz.id)) return cache.get(pz.id)!;
+    const made = await made1(pz);
+    appendFileSync(cacheFile, JSON.stringify({ puzzle: pz.id, items: made }) + "\n");
+    return made;
   }, num("--jobs", 4));
+  async function made1(pz: Puzzle): Promise<BenchItem[]> {
+    const pts = await stuckPoints(pz, DEFAULT_CEILING, per).catch((e) => { console.error(`${pz.id}: ${(e as Error).message}`); return { items: [], at: [] }; });
+    console.error(`${pz.id}: kept ${pts.items.length} of ${pts.at[0]?.[1] ?? 0} stuck points`);
+    return pts.items.map((x, k) => ({ ...x, id: `${pz.id}#${pts.at[k][0]}`, set, at: pts.at[k] }));
+  }
   for (const d of done) items.push(...d);
   writeFileSync(`${dir(set)}items.json`, JSON.stringify({ set, ceiling: DEFAULT_CEILING, items }, null, 1));
   const byGenre = new Map<string, number>();
@@ -191,7 +205,9 @@ async function loadTruths(items: BenchItem[]) {
 }
 
 async function askCmd(set: string, takers: string) {
-  const items = loadItems(set).slice(0, num("--limit", Infinity));
+  // --sample n: a seeded spread over the set (a dear taker's first look), else the first --limit
+  const all = loadItems(set), n = num("--sample", 0);
+  const items = n ? shuffled(all, `bench sample ${set}`).slice(0, n) : all.slice(0, num("--limit", Infinity));
   await loadTruths(items);
   for (const t of takers.split(",").map(takerOf)) {
     const f = `${dir(set, "runs/")}${t.name}.jsonl`, done = new Set(readJsonl(f).filter((r: Row) => r.result !== "error").map((r: Row) => r.id));

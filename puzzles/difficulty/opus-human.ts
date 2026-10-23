@@ -171,17 +171,18 @@ export function draw(spec: GridSpec, known: Map<string, boolean>): string {
   const table = (cell: (i: number) => string, legend: string, left?: string[], top?: string[]) => {
     const cells = Array.from({ length: R }, (_, r) => Array.from({ length: C }, (_, c) => cell(g.cell(r, c))));
     const w = Math.max(3, ...cells.flat().map((x) => x.length + 1));
-    const lw = left ? Math.max(...left.map((x) => x.length)) + 2 : 0;
+    const lw = left ? Math.max(0, ...left.map((x) => x.length)) + 2 : 0;
     const head = [...(top ?? []), "     " + " ".repeat(lw) + Array.from({ length: C }, (_, c) => `c${c + 1}`.padEnd(w)).join("")];
-    return [legend, ...head, ...cells.map((row, r) => `r${String(r + 1).padEnd(4)}${left ? left[r].padStart(lw - 2) + "  " : ""}${row.map((x) => x.padEnd(w)).join("")}`)].join("\n");
+    return [legend, ...head, ...cells.map((row, r) => `r${String(r + 1).padEnd(4)}${left ? (left[r] ?? "").padStart(lw - 2) + "  " : ""}${row.map((x) => x.padEnd(w)).join("")}`)].join("\n");
   };
   const digitAt = (i: number, D: number) => [...Array(D)].map((_, k) => k + 1).find((d) => known.get(`digit(${i},${d})`) === true);
   if (genre === "minesweeper") return table((i) => (num(i) ? String(num(i)!.value) : sh(i) === true ? "*" : sh(i) === false ? "o" : "."), "(a number is a clue (no mine there), * a known mine, o a cell known to have no mine, . undecided)");
   if (genre === "nonogram") {
-    const rowsG = (spec.givens ?? []).filter((x: any) => x.at === "row").sort((a: any, b: any) => a.index - b.index).map((x: any) => (x.value as number[]).join(" "));
-    const colsG = (spec.givens ?? []).filter((x: any) => x.at === "col").sort((a: any, b: any) => a.index - b.index).map((x: any) => x.value as number[]);
-    const tops = colsG.map((v, c) => `c${c + 1}: ${v.join(" ")}`).join("; ");
-    return table((i) => (sh(i) === true ? "#" : sh(i) === false ? "x" : "."), `Column clues, top to bottom: ${tops}\n(row clues to the left of each row; # a filled cell, x a cell known empty, . undecided)`, rowsG);
+    // by index: a row or column may have no clue (any runs allowed there), shown as -
+    const clueOf = (at: string, n: number) => { const out = Array<string>(n).fill("-"); for (const x of (spec.givens ?? []) as any[]) if (x.at === at && x.index < n) out[x.index] = (x.value as number[]).join(" "); return out; };
+    const rowsG = clueOf("row", R), colsG = clueOf("col", C);
+    const tops = colsG.map((v, c) => `c${c + 1}: ${v}`).join("; ");
+    return table((i) => (sh(i) === true ? "#" : sh(i) === false ? "x" : "."), `Column clues, top to bottom: ${tops}\n(row clues to the left of each row; - is no clue, any runs allowed; # a filled cell, x a cell known empty, . undecided)`, rowsG);
   }
   if (genre === "hidoku") return table((i) => String(num(i)?.value ?? digitAt(i, R * C) ?? "."), "(a number is given or placed; . is empty)");
   if (genre === "easy-as-abc") {
