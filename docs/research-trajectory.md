@@ -130,9 +130,12 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     finish at 200 calls (Josh, 2026-10-22: Numberlink, 2 of 60), whose agreement there only ranks how
     runs stop.
     Proposed (pending Josh): Janko's levels (PR #19, 14,229 puzzles, ranks within a genre) as a third
-    source, for types PSJP and Tatham don't rate (Hidoku first) and as a target for the next price
-    refit, holding out network-training and dev puzzles. Levels are coarse and confounded by grid
-    size, so a Janko verdict is per type, never pooled with PSJP or Tatham.
+    source, for types PSJP and Tatham don't rate (Hidoku first), holding out network-training and dev
+    puzzles. A Janko verdict is per type and within grid size, never pooled with PSJP or Tatham: the
+    levels rank solving time, which is mostly size (on 466 Hidokus cell count alone gets 0.72), while
+    PSJP gains nothing from size at any weight (size-term-2026-10-23.md). So Janko is a target for a
+    time-to-solve score, not for the difficulty price, except where PSJP agrees (Hitori: a size term,
+    w ≈ 0.8, under the finish set gains on guard and both fresh draws).
 
 **Targets** (on the test set, the clock above).
 
