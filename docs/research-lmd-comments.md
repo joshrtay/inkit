@@ -124,6 +124,41 @@ Reading it:
   are dull (unused clues and rules), guessing (case splits) and grind (long runs of trivial steps).
   These three could be a "bad puzzle" check run on every generated or submitted puzzle.
 
+## Aha from the solver, not the comments
+
+Josh's point: real ahas may be sparse and the comment tag ("nice break-in") too blunt to find
+them. So the aha was measured on the solver's path instead, and set against Puzzle Square JP likes
+per solver with the site's difficulty held fixed (`interest-analyze.ts`'s partial Spearman).
+
+An earlier measure already existed (`interest.ts` breakIn: the costliest step, and the easy steps
+in the three rounds after it against the average round's), and so did the generator's
+`breakInScore`. A stricter one was added and fixed before the run (`ahaOf`): a hard step (cost ≥ 5)
+taken in a stalled round (no easy step open), scored by the easy steps it opens in the next three
+rounds against the average round's. *aha* is the best such unlock in the puzzle; *ahaCount* is how
+many unlock at least twice the average, for the sparse case. The solver was rerun on every PSJP
+puzzle of five types (no API spend; rows in the bucket as `psjp/interest-<type>-2026-10-23.csv`).
+
+| type (solved) | aha, raw | aha, beyond difficulty | ahaCount | breakIn | breakInScore | chance ± |
+|---|---|---|---|---|---|---|
+| Akari (495) | 0.30 | 0.07 | 0.06 | −0.01 | −0.02 | 0.09 |
+| Masyu (553) | −0.14 | −0.06 | 0.05 | −0.01 | −0.08 | 0.08 |
+| Slitherlink (241) | 0.16 | 0.07 | −0.13 | 0.02 | 0.04 | 0.13 |
+| Sudoku (52) | 0.32 | 0.02 | 0.00 | −0.22 | −0.19 | 0.27 |
+| Star Battle (41) | 0.24 | 0.01 | 0.02 | 0.28 | −0.02 | 0.31 |
+
+**No aha measure predicts likes beyond difficulty**, on 1,382 puzzles and five types. Raw, the
+stricter aha goes with likes (0.16–0.32 outside Masyu), but all of that is difficulty: harder
+puzzles have more stalls and bigger unlocks, and harder puzzles get more likes per solver. This
+matches the comments (aha adds nothing once flow is known), Opus's elegance score (it tracked
+difficulty) and Phase 1's concentration statistic (−0.04). Four measures, three data sources, the
+same answer: an aha, as far as we can measure one, is part of difficulty, not a separate pleasure.
+
+What does show beyond difficulty in this run: Masyu likes fall with the share of hard steps
+(−0.31) and rise with length (0.21) and uneven flow (0.18); Slitherlink likes rise with the solver's
+estimate (0.29) and getting stuck (0.21). Both fit "no grind, a long satisfying line" more than
+"one big moment". Masyu solved far more puzzles than in the first run (553 against 275), so its
+numbers are new.
+
 ## Caveats
 
 - Correlation only, and the commenters are partly the raters. Comment volume is itself the
@@ -131,6 +166,8 @@ Reading it:
 - 85% of the puzzles are Sudoku variants. The non-Sudoku subset (180) points the same way, more
   strongly, but is small.
 - Beauty sits near its ceiling (median 92%), so the percentile mostly separates good from great.
+- Likes per solver (PSJP) and beauty (LMD) are different yardsticks from different sites; the aha
+  test uses only PSJP.
 - Complaints are rarer than praise (42 puzzles name "dull"), so the intervals are wide.
 - Tags come from one cheap model with one pass. The codebook is ours, and themes overlap (praise
   vs flow; hard vs stuck).

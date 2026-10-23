@@ -41,7 +41,7 @@ const rawCorr = (a: number[], b: number[]) => { const keep = a.map((x) => Number
 const data = JSON.parse(readFileSync(`${root}data.json`, "utf8")) as Record<string, { user: number }>;
 
 const LOOKS = ["cells", "density", "rot", "sym", "exact"] as const;
-const MEASURES = [...LOOKS, "author", "estimate", "steps", "busywork", "hardShare", "stuck", "breakIn", "keyAt", "keyCost", "flowMean", "flowSpread", "oneWay", "aimless", "theme", "variety"];
+const MEASURES = [...LOOKS, "author", "estimate", "steps", "busywork", "hardShare", "stuck", "breakIn", "keyAt", "keyCost", "flowMean", "flowSpread", "oneWay", "aimless", "theme", "variety", "breakInScore", "aha", "ahaCount", "ahaAt"];
 for (const type of process.argv.slice(2)) {
   let text: string;
   try { text = readFileSync(`${root}interest-${type}.csv`, "utf8"); } catch { console.log(`${type}: no results`); continue; }

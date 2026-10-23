@@ -10,7 +10,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { deduceGuarded } from "./deduce-guarded.ts";
 import { mapPool } from "./pool.ts";
-import { interestOf, type Interest } from "./interest.ts";
+import { ahaOf, breakInScore, interestOf, type Interest } from "./interest.ts";
 import { spearman } from "./calibrate.ts";
 
 const root = new URL("../../references/psjp/", import.meta.url).pathname;
@@ -19,7 +19,7 @@ const max = Number(maxArg) || Infinity, budgetMs = Number(budgetArg) || 15000, c
 const data = JSON.parse(readFileSync(`${root}data.json`, "utf8")) as Record<string, { favorite_n: number; answered_n: number; difficulty: number }>;
 const files = readdirSync(`${root}${type}`).filter((f) => f.endsWith(".json")).slice(0, max);
 
-type Row = Interest & { id: string; likes: number; solvers: number; perSolver: number; siteDifficulty: number; ms: number };
+type Row = Interest & ReturnType<typeof ahaOf> & { breakInScore: number; id: string; likes: number; solvers: number; perSolver: number; siteDifficulty: number; ms: number };
 const rows: Row[] = [];
 const save = () => {
   const cols = Object.keys(rows[0] ?? {}) as (keyof Row)[];
@@ -36,7 +36,7 @@ await mapPool(files, async (f) => {
   try {
     const r = await deduceGuarded({ ...d.grid, genre: d.grid.genre ?? type }, { budgetMs }, capMs);
     if (r) {
-      rows.push({ id: d.source.psjp, likes: meta.favorite_n, solvers: meta.answered_n, perSolver: meta.favorite_n / meta.answered_n, siteDifficulty: meta.difficulty, ms: Date.now() - t0, ...interestOf(r.path, r.profile) });
+      rows.push({ id: d.source.psjp, likes: meta.favorite_n, solvers: meta.answered_n, perSolver: meta.favorite_n / meta.answered_n, siteDifficulty: meta.difficulty, ms: Date.now() - t0, ...interestOf(r.path, r.profile), ...ahaOf(r.path), breakInScore: +breakInScore(r.path).toFixed(3) });
       save();
       what = r.profile.solved ? `estimate ${r.profile.estimate}` : `unsolved (${r.profile.notes.join("; ")})`;
     } else what = `stopped at the ${capMs / 1000} s cap`;
