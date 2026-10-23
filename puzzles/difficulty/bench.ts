@@ -288,6 +288,10 @@ const spearmanXY = (x: number[], y: number[]) => {
 };
 const pct = (k: number, n: number) => { if (!n) return "–"; const [a, b] = wilson(k, n); return `${Math.round((100 * k) / n)}% (${Math.round(100 * a)}–${Math.round(100 * b)})`; };
 
+/** what counts as a pass: on the frontier (default), or any true move (--score true: a leap past the
+ *  frontier counts too, since wrong moves are rare and a leap is usually a longer chain the frontier misses) */
+const passes = (r: Row) => r.result === "success" || (opt("--score", "frontier") === "true" && r.result === "correct");
+
 function report(set: string) {
   const items = loadItems(set), idx = new Map(items.map((it, i) => [it.id, i]));
   const runs = existsSync(dir(set, "runs/")) ? readdirSync(dir(set, "runs/")).filter((f) => f.endsWith(".jsonl")).sort() : [];
@@ -308,13 +312,13 @@ function report(set: string) {
     L.push(`| ${t} | ${n} | ${pct(c((r) => r.result === "success"), n)} | ${pct(c((r) => r.result === "correct"), n)} | ${pct(c((r) => r.result === "wrong"), n)} | ${pct(c((r) => r.result === "stuck" || r.result === "none" || r.result === "already"), n)} | ${c((r) => r.result === "error")} | ${rs.reduce((s, r) => s + r.cost, 0).toFixed(2)} | ${out.length ? Math.round(out.reduce((a, b) => a + b, 0) / out.length) : "–"} |`);
   });
   L.push("", "## Pass by solver tier", "", `Tiers by the cheapest step's cost (cuts ${cut.map((x) => x.toFixed(2)).join(", ")}); split = only a case split decides anything.`, "", `| taker | ${tiers.map((x) => `${x} (${items.filter((it) => tierOf(it) === x).length})`).join(" | ")} |`, `|---|${tiers.map(() => "---").join("|")}|`);
-  takers.forEach((t, k) => L.push(`| ${t} | ${tiers.map((x) => { const rs = items.filter((it) => tierOf(it) === x).map((it) => rows[k].get(it.id)).filter((r) => r && r.result !== "error"); return pct(rs.filter((r) => r!.result === "success").length, rs.length); }).join(" | ")} |`));
+  takers.forEach((t, k) => L.push(`| ${t} | ${tiers.map((x) => { const rs = items.filter((it) => tierOf(it) === x).map((it) => rows[k].get(it.id)).filter((r) => r && r.result !== "error"); return pct(rs.filter((r) => passes(r!)).length, rs.length); }).join(" | ")} |`));
   if (levels.length) {
     L.push("", "## Pass by the human rating (Thinky: the author's level; puzz.link and PSJP: the site's difficulty)", "", `| taker | ${levels.map((l) => `${l} (${items.filter((it) => anchorOf(it) === l).length})`).join(" | ")} |`, `|---|${levels.map(() => "---").join("|")}|`);
-    takers.forEach((t, k) => L.push(`| ${t} | ${levels.map((l) => { const rs = items.filter((it) => anchorOf(it) === l).map((it) => rows[k].get(it.id)).filter((r) => r && r.result !== "error"); return pct(rs.filter((r) => r!.result === "success").length, rs.length); }).join(" | ")} |`));
+    takers.forEach((t, k) => L.push(`| ${t} | ${levels.map((l) => { const rs = items.filter((it) => anchorOf(it) === l).map((it) => rows[k].get(it.id)).filter((r) => r && r.result !== "error"); return pct(rs.filter((r) => passes(r!)).length, rs.length); }).join(" | ")} |`));
   }
   // the fit
-  const pass = takers.map((_, k) => items.map((it) => { const r = rows[k].get(it.id); return !r || r.result === "error" ? null : r.result === "success" ? 1 : 0; })) as (0 | 1 | null)[][];
+  const pass = takers.map((_, k) => items.map((it) => { const r = rows[k].get(it.id); return !r || r.result === "error" ? null : passes(r) ? 1 : 0; })) as (0 | 1 | null)[][];
   if (takers.length >= 2) {
     const fit = rasch(pass);
     L.push("", "## Item response fit (Rasch)", "", `${fit.kept.length} of ${items.length} items carry information (the rest every taker passed or every taker failed: ${items.length - fit.kept.length}). θ is on the logit scale, items centred at 0.`, "", "| taker | θ |", "|---|---|");
@@ -331,7 +335,8 @@ function report(set: string) {
   // per item: who passes (the tier pilot's input)
   const both0 = items.filter((_, i) => pass.every((r) => r[i] === 1)).length, none0 = items.filter((_, i) => pass.every((r) => r[i] === 0)).length;
   L.push("", `Items every taker passed: ${both0}; every taker failed: ${none0}.`);
-  writeFileSync(`${dir(set)}report.md`, L.join("\n") + "\n");
+  if (opt("--score", "frontier") === "true") L.splice(2, 0, "Scored with --score true: any true move passes (leaps included).", "");
+  writeFileSync(`${dir(set)}report${opt("--score", "frontier") === "true" ? "-true" : ""}.md`, L.join("\n") + "\n");
   console.log(L.join("\n"));
 }
 
