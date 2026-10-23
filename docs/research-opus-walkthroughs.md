@@ -22,16 +22,18 @@ elegance (1–10).
   state is known. Scored against the person's recorded order, beside the relations-tuned network
   (`relations-tuned-2026-10-20`, greedy) and our solver's order.
 - Puzzle Square JP pairs (10×10, ≥ 100 solvers, same site difficulty, one much liked per solver
-  and one little liked), walked from the empty grid, for elegance against likes. Only 6 of the 24
-  were asked (Akari); see "Cost and what's missing".
-- Opus 5.5 through OpenRouter, reasoning effort medium. Every move is checked against the
+  and one little liked), walked from the empty grid, for elegance against likes. 15 of the 24 have
+  a walkthrough (8 Akari, 7 Slitherlink); see "Cost and what's missing".
+- Opus 5.5, reasoning effort medium: the Janko states and the first 6 Akari through OpenRouter, the
+  rest straight from Anthropic (same model and price). Every move is checked against the
   solution, which clingo proves unique.
 
 ## Results
 
 **The moves are right.** 99% of 722 moves on Janko states match the solution (1% wrong; 18 of 20
-walkthroughs have no wrong move; 15 of 20 finish the grid). Akari from the empty grid: 99% of 321
-moves right, 6 of 6 finished.
+walkthroughs have no wrong move; 15 of 20 finish the grid). Puzzle Square JP from the empty grid:
+98% of 1,959 moves right and none wrong (the rest restate cells already decided); all 15 that
+wrote a walkthrough finish the grid, Slitherlink included.
 
 **The order follows people better than the one-move prompt, the network and the solver.** On the
 same 20 states (95% Wilson intervals):
@@ -56,9 +58,17 @@ By type, the walkthrough is close to the person on Hidoku (13 of 13 along the wa
 misses on Nonogram (0 and 2 of 20; Spearman −0.22 and 0.09) and Numberlink (−0.21), and on
 Fillomino and Slitherlink the moves it writes first are walls and lines the person never marks.
 
-**Elegance and difficulty (6 Akari only).** Spearman of Opus's elegance with likes per solver 0.70,
-of its difficulty with the site's 0.91. The one complete pair went the wrong way (0 of 1). Six
-puzzles of one type say nothing yet.
+**Elegance: no sign that Opus sees what people like; difficulty, yes.** On the 15 Puzzle Square JP
+puzzles (8 Akari, 7 Slitherlink), Spearman of Opus's difficulty with the site's is 0.80 (Akari
+0.92, Slitherlink 0.63). Its elegance with likes per solver is only 0.31 (Akari 0.32, Slitherlink
+0.14), down from 0.70 on the first 6 Akari. Elegance tracks the site's difficulty more than likes
+(Akari 0.64, Slitherlink 0.78), and the scores barely spread: 4 to 7, 13 of 15 at 6 or 7. The
+pairs, which hold type and difficulty fixed, are the real test: of the 4 complete pairs Opus
+wins none outright, ties three (7–7, 6–6, 7–7) and gets one the wrong way (4 for the liked Akari
+1572, 5 for 1890), 1.5 of 4 counting ties as half. So asked cold, Opus's elegance is roughly
+"harder is nicer"; it doesn't
+separate a much-liked puzzle from a little-liked one of the same difficulty. Small n (4 pairs),
+but nothing here argues for using it as an elegance signal.
 
 **Techniques are not a vocabulary.** 151 distinct technique names over 205 steps; the top ones
 repeat 3–5 times ("only one way to light a cell", "seal a completed island", "forced
@@ -91,14 +101,15 @@ Short excerpts; the full ones (with grids) are in `walk-samples.md` in the bucke
 
 ## Cost and what's missing
 
-$6.14 in all: $3.57 for the 20 Janko states (14 seconds to 3.5 minutes each, $0.03–0.51), $1.25
-for 6 Akari, and $1.29 lost on two empty-grid 10×10 Slitherlinks that spent all 32,000 tokens
-thinking and wrote nothing. The OpenRouter account then ran out of credit ($1.19 left), so the
-other 6 Akari and all 12 Slitherlinks are not asked. Cloud threads have no Anthropic key (the
-earlier Opus runs used the site's key in the Mac's `app/.dev.vars`); `ask` now uses
-`ANTHROPIC_API_KEY` when the environment has one. Finishing needs about $10 and a 64,000-token
-allowance for Slitherlink (`WALK_TOKENS=64000`; up to $1.28 each); `ask` resumes and re-asks
-unparsed replies.
+$18.12 in all. The pilot: $3.57 for the 20 Janko states (14 seconds to 3.5 minutes each,
+$0.03–0.51), $1.25 for 6 Akari, and $1.29 lost on two empty-grid Slitherlinks that spent all
+32,000 tokens thinking. The elegance set's finish (`INKIT_ANTHROPIC_KEY`, `WALK_TOKENS=64000`,
+`WALK_CAP=20`): $11.98 for 2 more Akari ($0.28–0.47) and 11 Slitherlinks, of which 7 wrote a
+walkthrough ($0.60–1.18, 4–8 minutes each) and 4 again thought through the whole 64,000 tokens and
+wrote nothing ($5.14 lost). Not asked: 4 Akari and 1 Slitherlink, which the cap skipped (it
+reserves the full token allowance per call). The four Akari would cost about $1.50 at
+`WALK_TOKENS=32000`; the unparsed Slitherlinks would need a lower effort or a larger allowance and
+look poor value.
 
 ## What it suggests
 
@@ -107,5 +118,8 @@ unparsed replies.
   test (100–200 states, about $25–50) before it changes the plan: the intervals still overlap the
   network's.
 - It is the strongest source so far for hints and explanations, which the network doesn't give.
+- Don't use Opus's elegance score as a proxy for what people like: it follows difficulty.
+- Empty-grid 10×10 Slitherlink is expensive at effort medium (about $1 each, a third run out of
+  tokens); walkthroughs from mid-solve states are much cheaper.
 - The gap to people is mostly bookkeeping (what people bother to mark) and line-puzzle habits,
   not wrong reasoning.
