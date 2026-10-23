@@ -18,7 +18,8 @@ Push to `main`. GitHub (`.github/workflows/deploy-inkit.yml`) then:
 A change that only touches research (`docs/`, `puzzles/`, or Markdown files at the top level) runs
 the type checks, the self-test and the unit tests, and skips the browser tests and the deploy:
 the site runs nothing from those paths. To deploy anyway, run the workflow by hand (Actions, "Run
-workflow"), which always does the full run.
+workflow"), which always does the full run. On `main` the check looks at everything since the last
+successful run, so a site change whose run was cancelled or failed still deploys with the next push.
 
 Migrations run before the new code, so they must work with the code that's still live for the
 minute in between: add tables and columns freely; don't drop or rename one in the same change as
