@@ -32,7 +32,7 @@ let n = 0;
 await mapPool(todo, async (d) => {
   const spec: GridSpec = { ...d.spec, genre: d.spec.genre ?? d.genre }, t0 = Date.now();
   const clues: Record<string, number> = {};
-  for (const g of spec.givens ?? []) { const k = `${g.kind}${g.value != null && typeof g.value === "string" ? `:${g.value}` : ""}`; clues[k] = (clues[k] ?? 0) + 1; }
+  for (const g of (spec.givens ?? []) as { kind: string; value?: unknown }[]) { const k = `${g.kind}${typeof g.value === "string" ? `:${g.value}` : ""}`; clues[k] = (clues[k] ?? 0) + 1; }
   const row: Record<string, unknown> = { id: d.sourceId, rating: d.meta.difficulty, answered: d.meta.answered_n, favorite: d.meta.favorite_n, rows: spec.size[0], cols: spec.size[1], clues };
   try {
     const r = await deduceGuarded(spec, { budgetMs: 60000 }, 120000);
