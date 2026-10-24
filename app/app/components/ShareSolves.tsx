@@ -12,7 +12,7 @@ export function ShareSolvesSetting() {
       <label className="bug-setting">
         <input type="checkbox" checked={on} onChange={(e) => { set(e.target.checked); setShare(e.target.checked); }} />
         <span>Share how I solve
-          <small>Your moves and their timing on puzzles you play in this browser, with a random number in place of your name, for puzzle research. Never shown on the site.</small></span>
+          <small>Your moves and their timing on puzzles you play in this browser, tied to a random number, never your account, for puzzle research. Never shown on the site.</small></span>
       </label>
     </div>
   );
