@@ -129,6 +129,13 @@ The order of work follows the line: 1 and 2 first, 3 only for what they leave.
     the local encoding 56 of 60 finish there). So does any type where fewer than about 1 in 5 runs
     finish at 200 calls (Josh, 2026-10-22: Numberlink, 2 of 60), whose agreement there only ranks how
     runs stop.
+    Proposed (pending Josh): Janko's levels (PR #19, 14,229 puzzles, ranks within a genre) as a third
+    source, for types PSJP and Tatham don't rate (Hidoku first), holding out network-training and dev
+    puzzles. A Janko verdict is per type and within grid size, never pooled with PSJP or Tatham: the
+    levels rank solving time, which is mostly size (on 466 Hidokus cell count alone gets 0.72), while
+    PSJP gains nothing from size at any weight (size-term-2026-10-23.md). So Janko is a target for a
+    time-to-solve score, not for the difficulty price, except where PSJP agrees (Hitori: a size term,
+    w ≈ 0.8, under the finish set gains on guard and both fresh draws).
 
 **Targets** (on the test set, the clock above).
 
@@ -391,9 +398,15 @@ off until the guard judges it. Off, every estimate is unchanged.
 It passed the guard's rule (finish, 200 calls: PSJP −0.006, Tatham −0.014, held out −0.001/−0.001,
 no type below its interval; only digit types move, Sudoku −0.14 and Solo −0.10 on the guard sample),
 but on a fresh draw Sudoku falls 0.75 → 0.48 (below its interval) and Skyscrapers 0.79 → 0.73, so the
-guard sample's Sudoku drop was real. No rated Hidokus exist (PSJP and Tatham have none), so it can't
-be judged where it helps most; it stays off (DEDUCE_KNOWN_BY_CELL=1 turns it on). Reading a cell's
-candidates as one fact prices a Sudoku step too cheaply: which digits are gone, and why, is the step.
+guard sample's Sudoku drop was real. PSJP and Tatham rate no Hidokus, but Janko's levels do (PR #19:
+levels 1–7 on 530). On 466 of them (the 16 dev Hidokus and the 49 in the human-label set held out),
+few finish at 200 calls (46 with the finish set), so Hidoku is judged at 1,000. Spearman with level
+at 1,000 calls: default solver 0.50 (11 finish, all level 1, so it ranks how runs stop), finish set
+0.59 (357 finish; interval 0.52–0.66), finish set with DEDUCE_KNOWN_BY_CELL=1 0.55 (−0.039, fails
+the means rule; on the 353 both finish, 0.32 against 0.40). It stays off (DEDUCE_KNOWN_BY_CELL=1
+turns it on). Reading a cell's candidates as one fact prices a step too cheaply, on Hidoku as on
+Sudoku: which digits are gone, and why, is the step. Levels are coarse (70% at levels 3 and 4).
+Details: guard-check Follow-up 14 (run guard-hidoku-1022).
 
 **Stop prices confirmed.** On a second fresh draw (801 rated PSJP puzzles in 14 types no run had
 touched), 9afa78c passes against the pre-change baseline: PSJP +0.048, Tatham 0, no type below its
