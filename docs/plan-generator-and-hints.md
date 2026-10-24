@@ -99,16 +99,17 @@ with the general technique instead; H3 tests both orders.
    1 and 5 only.
 6. **Store.** Keep the ladder with the puzzle (keyed by stuck point and its frontier cells), with its
    check results and cost.
-7. **Serve.** In the rules tab (the question mark), below the rules, one section per stuck point in
-   solve order ("Stuck at the start?", "Stuck after the corners?"), each rung hidden until tapped so
-   reading the list doesn't spoil later rungs. Today's hint button stays as "show me". Log each rung
+7. **Serve.** In the rules tab (the question mark), below the rules: one list for the whole puzzle, in
+   solve order (stuck point 1's rungs, then stuck point 2's), revealed in order one at a time on click
+   (Josh, 20:48Z). A player stuck later clicks past hints they already know, as on Thinky. Today's hint button stays as "show me". Log each rung
    opened, then the next move and its time.
 
 ### Matching a player to a stuck point
 
 Josh's design removes most of this risk: the hints sit in a list the player browses, as Thinky does,
-so the game never has to guess where the player is. What's left is labelling each section so a player
-can tell which one they're at, by what's already filled in. A free check: replay Janko human solves
+so the game never has to guess where the player is. What's left: a later stuck point's first rung should
+say where in the solve it starts ("once the corners are done..."), so a player clicking ahead knows
+when they've reached their spot. A free check: replay Janko human solves
 and see whether each human stall falls on one of the reader's stuck points or between them (H4).
 
 ### Experiments, in order
@@ -126,7 +127,7 @@ and see whether each human stall falls on one of the reader's stuck points or be
 - A hints field on the puzzle, written at creation for every puzzle (AI posts in the weekly batch;
   creator puzzles by a job after publish, so publishing never waits on it). It's a new puzzle field, so
   per CLAUDE.md it must reach the paint editor, the sketch reader, from-puzzle and the round-trip tests.
-- A Hints section in the rules tab, rungs revealed one at a time; creators can edit, reorder or delete
+- A Hints section in the rules tab, revealed in order one at a time on click; creators can edit, reorder or delete
   hints in the editor. When a creator edits a hint, the solver silently re-checks it and logs the
   result, never shows it (Josh's rule: no judgment in the editor).
 - An A/B assignment per browser player id, logged with the play.
