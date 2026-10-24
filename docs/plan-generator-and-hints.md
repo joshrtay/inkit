@@ -57,7 +57,7 @@ No paid run starts without Josh's OK. H3 is the first ask, at under $10.
 | Generated puzzles are told from human ones at AUC 0.76-1.00: small boards, dense small clues, no symmetry, many easy moves open at once, nothing beyond expert | research-human-gap.md | The generator's biggest gap is looks and solve shape, not uniqueness. |
 | Critical comments cost beauty in order: dull (unused clue or rule) 23, not unique 16, guessing 12, rating off 11, grind 8 | LMD faults | quality.ts checks dull, guessing and grind; the weights are still unfitted. |
 | At fixed difficulty, "flow" goes with beauty most (0.28), then rule interactions; aha is part of difficulty | LMD themes, solver aha test | The generator should aim for flow and rules that interact, not a single elegance number. |
-| Fitted hand-written cost model: 0.66 on PSJP ratings vs 0.54 for today's estimate; on interest a no-go (likes follow size; clue usage 0.16) | PR #24 (awaiting merge) | The generator's difficulty target should come from this model. |
+| Fitted hand-written cost model: 0.66 on PSJP ratings vs 0.54 for today's estimate; on interest a no-go (likes follow size; clue usage 0.16) | PR #24 (merged 2026-10-24 21:38Z) | The generator's difficulty target should come from this model. |
 | Cells alone reach 0.31 within type; raters agree 0.69, so there's room to about 0.83; Masyu has most room (0.53 vs raters 0.76) | Review ideas 2 | Report size-only beside every difficulty figure. Masyu (Lumen's genre) needs work. |
 | Solver stalls on Nurikabe and Spiral Galaxies; splits are the solver's gap in Hitori, Hidoku, Numberlink, Fillomino | Step 3, quality.ts SPLIT_GAP | In those types the solver can't verify human-style rungs or price them. Ladders there need a fallback. |
 | The site's hint button shows the rule area and the answer cells on the first tap, and logs it ("h") | src/game-types/grid/game.ts | Today's hint is a bottom-out hint. It is the A/B control and the ladder's free last rung. |
@@ -238,7 +238,7 @@ What's wrong with it, measured:
 | --- | --- | --- |
 | PR cleanup, benchmarks, walkthrough plan | Landed: H2 (hint-test-h2-2026-10-24.md) | Folded in above |
 | Run review research ideas | Landed (PR #28): Masyu estimate saturates at its cap; split count and rounds carry the signal. Next there: the same check on Slitherlink, Simple Loop, Nurikabe | Masyu pricing for G1; cells-only column in G0 |
-| Trajectory phase 1: cost model | PR #24 waiting on merge | G1's difficulty scorer |
+| Trajectory phase 1: cost model | Landed: PR #24 merged 21:38Z; G0 and G1 can start (free CPU) | G1's difficulty scorer |
 
 ### Costs and asks
 
