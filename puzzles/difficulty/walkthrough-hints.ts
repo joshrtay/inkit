@@ -31,6 +31,7 @@
 import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { shuffled } from "./llm-label.ts";
 import { draw, moveForm, NAME, readJsonl, rules, VALUES } from "./opus-human.ts";
+import type { GridSpec } from "../../src/engine/types.ts";
 import { cellsInText, hintLeak, type MenuStep, type MoveResult, type MV, rungsNeeded, scoreMove, type SeedEntry } from "./walkthrough-core.ts";
 import {
   askOpus, bootstrap, ceilingOf, type Ctx, ctxOf, dir, f2, ledger, loadSeed, loadSet, type LoopItem, markOfMove, markText, meanOf, menu, type Model,
@@ -69,7 +70,7 @@ interface HintState {
   /** the person's next mark from here, when they made one on the frontier */
   human?: string;
 }
-const OUTDIR = () => dir("hints");
+const OUTDIR = () => dir(opt("--out", "hints"));
 const loadStates = (): HintState[] => JSON.parse(readFileSync(`${OUTDIR()}states.json`, "utf8")).states;
 const front = (s: MenuStep): FrontStep => ({ facts: s.facts, cells: s.cells, cost: s.cost, where: s.where, clues: s.clues, kind: s.kind });
 
@@ -90,7 +91,7 @@ async function stateOf(it: LoopItem, ceiling: number, humanOrder?: string[]): Pr
 async function statesCmd() {
   const set = opt("--set", "abc"), N = num("--n", 100), labels = humanOrders();
   const out: HintState[] = [];
-  for (const it of shuffled(loadSet(set), SEED)) {
+  for (const it of shuffled(set.startsWith("bench:") ? benchItems(set.slice(6), num("--min-rating", 1)) : loadSet(set), SEED)) {
     if (out.length >= N) break;
     const s = await stateOf(it, ceilingOf(set, it.genre), it.name ? labels.get(it.name) : undefined).catch((e) => { console.error(`${it.id}: ${(e as Error).message}`); return null; });
     if (s) out.push(s);
@@ -98,6 +99,12 @@ async function statesCmd() {
   }
   writeFileSync(`${OUTDIR()}states.json`, JSON.stringify({ seed: SEED, set, states: out }, null, 1));
   console.log(`${out.length} states → hints/states.json`);
+}
+/** a benchmark set's stuck states (bench.ts items, already the reader's closure) at or above a human rating */
+function benchItems(name: string, minRating: number): LoopItem[] {
+  const items: { id: string; genre: string; spec: GridSpec; known: MV[]; anchor: { level?: number; rating?: number } }[] =
+    JSON.parse(readFileSync(new URL(`../../references/ml/bench/${name}/items.json`, import.meta.url), "utf8")).items;
+  return items.filter((it) => (it.anchor.level ?? it.anchor.rating ?? 0) >= minRating).map((it) => ({ id: it.id, set: "bench", genre: it.genre, known: it.known, spec: it.spec }));
 }
 /** the person's order of marks by record name (graphs-human-labels.jsonl) */
 function humanOrders(): Map<string, string[]> {

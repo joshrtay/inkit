@@ -11,7 +11,7 @@
 // itself tracks the author's rating.
 //
 //   node --no-warnings puzzles/difficulty/bench-solve.ts puzzles <set> [--per-band 1] [--limit N]   → solve-<set>/puzzles.json (free)
-//   node --no-warnings puzzles/difficulty/bench-solve.ts run <set> <model>:<effort>:<format>[,…] [--hints] [--turns 12]
+//   node --no-warnings puzzles/difficulty/bench-solve.ts run <set> <model>:<effort>:<format>[,…] [--hints [--long]] [--turns 12]
 //     [--limit N | --sample N] [--jobs 6]                                         → solve-<set>/runs/<taker>[-hints].jsonl (paid; resumable)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts recall <model>:<effort> [--limit N]  (Thinky contamination check: hints from the title alone)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts report <set>              → solve-<set>/report.md (free)
@@ -130,14 +130,17 @@ async function runCmd(set: string, takers: string) {
   const all = loadPuzzles(set), n = num("--sample", 0), withHints = argv.includes("--hints");
   if (withHints && set !== "thinky") throw new Error("hints are Thinky's only");
   const ps = (n ? shuffled(all, `bench solve ${set}`).slice(0, n) : all.slice(0, num("--limit", Infinity))).filter((p) => !withHints || (p.hints?.length ?? 0) > 0);
+  // --long: redo the hint runs that ended unsolved, with room for every rung (turns + the ladder's length)
+  const long = withHints && argv.includes("--long");
   for (const t of takers.split(",").map(takerOf)) {
-    const f = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}.jsonl`;
-    const done = new Set(readJsonl(f).map((r: Run) => r.id)), todo = ps.filter((p) => !done.has(p.id));
+    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}`, f = `${base}${long ? "-long" : ""}.jsonl`;
+    const unsolved = long ? new Set(readJsonl(`${base}.jsonl`).filter((r: Run) => !r.solved).map((r: Run) => r.id)) : null;
+    const done = new Set(readJsonl(f).map((r: Run) => r.id)), todo = ps.filter((p) => !done.has(p.id) && (!unsolved || unsolved.has(p.id)));
     console.error(`${t.name}${withHints ? " with hints" : ""}: ${todo.length} to solve (${done.size} done)`);
     await mapPool(todo, async (p) => {
       if (ledger.spent > CAP) return;
       try {
-        const r = await solveOne(p, t, withHints, num("--turns", 12));
+        const r = await solveOne(p, t, withHints, num("--turns", 12) + (long ? p.hints?.length ?? 0 : 0));
         if (r.stop !== "cap") appendFileSync(f, JSON.stringify(r) + "\n");
         console.error(`${p.id} ${t.name}: ${r.solved ? "solved" : r.stop} in ${r.turns} turns, ${r.placed}/${r.positives}, ${r.wrong} wrong${withHints ? `, ${r.shown}/${r.ladder} hints` : ""}, $${r.cost.toFixed(3)}`);
       } catch (e) { console.error(`${p.id} ${t.name}: ${(e as Error).message}`); }
