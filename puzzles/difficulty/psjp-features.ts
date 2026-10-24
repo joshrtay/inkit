@@ -5,7 +5,7 @@
 // solver budget). The sample is spread over the ratings, optionally at one grid size, so size can't
 // carry the result. The analysis is psjp_features.py.
 //
-//   DEDUCE_JOBS=3 node --no-warnings puzzles/difficulty/psjp-features.ts <psjp-full/converted/<type>.jsonl> <out.jsonl> [--size 10x10] [--per 80 | --sample 250]
+//   DEDUCE_JOBS=3 node --no-warnings puzzles/difficulty/psjp-features.ts <psjp-full/converted/<type>.jsonl> <out.jsonl> [--size 10x10] [--per 80 | --sample 250 [--skip 250]]
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
@@ -22,9 +22,10 @@ const rated = jsonl(src).filter((d) => d.meta?.difficulty != null && !d.meta.var
 // per rating, a hashed (so repeatable) draw of up to `per`
 const byRating = new Map<number, any[]>();
 for (const d of rated) byRating.set(d.meta.difficulty, [...(byRating.get(d.meta.difficulty) ?? []), d]);
-// or --sample n: a hashed draw of n from all of them, at the ratings' own mix
-const sample = Number(opt("sample") ?? 0);
-const todo = (sample ? [...rated].sort((a, b) => hash(a.sourceId) - hash(b.sourceId)).slice(0, sample)
+// or --sample n: a hashed draw of n from all of them, at the ratings' own mix (--skip m: after the
+// first m of that draw, for a fresh test set)
+const sample = Number(opt("sample") ?? 0), skip = Number(opt("skip") ?? 0);
+const todo = (sample ? [...rated].sort((a, b) => hash(a.sourceId) - hash(b.sourceId)).slice(skip, skip + sample)
   : [...byRating.values()].flatMap((ds) => ds.sort((a, b) => hash(a.sourceId) - hash(b.sourceId)).slice(0, per))).filter((d) => !done.has(d.sourceId));
 console.error(`${todo.length} puzzles (${[...byRating].map(([r, ds]) => `${r}: ${Math.min(per, ds.length)}`).join(", ")})`);
 
