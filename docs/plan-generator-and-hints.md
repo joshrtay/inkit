@@ -187,8 +187,11 @@ What's wrong with it, measured:
   Shikaku few expert, Nonogram uses fixed pictures.
 - **Stalling types:** Nurikabe and Galaxies stall the solver, so difficulty and quality there stay weak
   until pricing improves.
-- **Masyu:** priced worst of the main types (0.53 vs raters 0.76). The Masyu study running now feeds G1
-  for Lumen.
+- **Masyu:** the Masyu study (PR #28) found the solver's estimate saturates: it's a soft-max of step
+  costs capped at 0.9, so one case split hits the cap, and it gets only 0.19 against PSJP on 10x10.
+  Case-split count alone gets 0.54-0.64, and a ridge on 26 solver readouts 0.63-0.76. G1 must not use
+  the capped estimate for Masyu; add split count (fit once, test on fresh puzzles). The site also uses
+  this estimate as a game's difficulty when its solve finishes, so the same fix matters there.
 
 ## Shared pieces, open gaps, research in flight
 
@@ -227,7 +230,7 @@ What's wrong with it, measured:
 | Thread | What's coming | Changes in this plan |
 | --- | --- | --- |
 | PR cleanup, benchmarks, walkthrough plan | H2: 70 more states, Sonnet low as a second student, explain fixed, leaks hand-checked | Confirms or replaces the ladder as the arm to ship; real per-rung leak rates |
-| Run review research ideas | Masyu: solver on 292 rated 10x10 PSJP Masyus to find what it misprices; size-aware report columns | Masyu pricing for G1; cells-only column in G0 |
+| Run review research ideas | Landed (PR #28): Masyu estimate saturates at its cap; split count and rounds carry the signal. Next there: the same check on Slitherlink, Simple Loop, Nurikabe | Masyu pricing for G1; cells-only column in G0 |
 | Trajectory phase 1: cost model | PR #24 waiting on merge | G1's difficulty scorer |
 
 ### Costs and asks
