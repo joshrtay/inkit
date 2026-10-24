@@ -49,6 +49,7 @@ export default [
   route("admin/ai/schedule", "routes/admin-ai-schedule.ts"),
   route("admin/ai/backfill", "routes/admin-ai-backfill.ts"),
   route("admin/ai/recommendations", "routes/admin-ai-recommendations.ts"),
+  route("admin/assessments", "routes/admin-assessments.ts"),
   // bug reports (docs/bug-pipeline.md): sent from "Report a bug", reviewed by admins
   route("admin/bugs", "routes/admin-bugs.tsx"),
   route("admin/bugs/:id", "routes/admin-bug.tsx"),

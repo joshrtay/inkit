@@ -77,7 +77,8 @@ a line in its voice) is written into the `recommendations` table by `syncRecomme
 every post, by the seed, and on demand by `POST /admin/ai/recommendations`; a handle with no
 account yet is skipped. They show on the profile's Recommends tab and in Explore's "… recommends"
 row. A post's scorer difficulty (`meta.difficulty`) is kept as the game's difficulty, for
-Explore's dots and minutes (`app/app/games/estimate.ts`).
+Explore's dots and minutes (`app/app/games/estimate.ts`), unless its assessment's solve finished
+(`app/app/games/assessment.ts`): then the solver's difficulty, the same scale for every persona.
 
 ### Slate's lessons
 
@@ -144,7 +145,17 @@ The site accepts backdated posts up to 400 days old.
 3. It makes several candidates with the generator (`puzzles/grid/generate.ts`, the same code
    as `npm run new`; each already minimal: no clue can be removed), scores each with the
    pluggable scorer ([`puzzles/ai/score.ts`](../puzzles/ai/score.ts)), drops those below the
-   persona's quality bar, and keeps the one closest to the target.
+   persona's quality bar, and keeps the one closest to the target, less 0.3 × its quality. The
+   weekly batch's scorer is `checkedScorer` (`puzzles/difficulty/scorer.ts`): the proxy scorer
+   with the bad-puzzle checks ([`puzzles/difficulty/quality.ts`](../puzzles/difficulty/quality.ts),
+   from the research review's idea 5). The deduction solver solves each candidate (15 s), and
+   case splits (guessing, except in the types where the solver lacks people's techniques) and a
+   long run of easy steps (grind) take their share off its quality, ranking it below a clean one
+   but never under the persona's bar on their own; a kind of clue or an added rule that could all
+   go with the puzzle still unique (dull) rejects it. The weights are provisional, not yet fitted
+   to likes. The assessment goes with the post (`meta.assessment`) and the site keeps it (the
+   `assessments` table): the solver's difficulty becomes the game's when its solve finished, and
+   the quality is logged, never shown.
 4. It proves the puzzle has one solution (clingo, `solve(p, 2)`; a panel needs a line), asks
    Claude Sonnet 5.5 for a title and a short description in the persona's voice (given the type,
    size, clue count, difficulty, day, moon or tide, and the titles it used lately), and POSTs it to

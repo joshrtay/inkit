@@ -19,6 +19,7 @@ import { program, solve } from "../../src/engine/solve.ts";
 import type { Given, GridSpec } from "../../src/engine/types.ts";
 import type { GenrePlan, Persona } from "../../src/ai/personas.ts";
 import type { Slot } from "../../src/ai/schedule.ts";
+import type { Assessment } from "../difficulty/assess.ts";
 
 export interface Candidate {
   spec: GridSpec;
@@ -34,6 +35,9 @@ export interface Score {
   notes: string[];
   /** raw measures, for the record */
   measures: Record<string, number>;
+  /** the deduction solver's assessment, when the scorer ran one (puzzles/difficulty/scorer.ts
+   *  withQualityChecks): sent with the post for the site to store */
+  assessment?: Assessment;
 }
 
 export type Scorer = (c: Candidate, persona: Persona, slot: Slot) => Promise<Score>;

@@ -13,6 +13,9 @@
 //                published like a puzzle: once published, its puzzles and their order stay put
 //   set_items    a set's puzzles, in order
 //   link_requests  a puzz.link or Penpa+ link pasted on /new whose type we don't have yet
+//   assessments  the deduction solver's difficulty and the bad-puzzle checks for a published puzzle
+//                (puzzles/difficulty/assess.ts): logged, not shown, but a finished solve's
+//                difficulty becomes the game's
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
@@ -251,6 +254,29 @@ export const solves = sqliteTable("solves", {
   ms: integer("ms"),
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("solves_game").on(t.gameId)]);
+
+// ---- assessments: the deduction solver's read of a puzzle (puzzles/difficulty/assess.ts) ----
+// One per game and assessment version: sent with an AI creator's post, or by the batch that assesses
+// every newly published puzzle (puzzles/difficulty/assess-site.ts, POST /admin/assessments). The
+// quality is logged and never shown (docs/research-review-2026-10-24.md, idea 5); a finished
+// solve's difficulty becomes the game's (app/games/assessment.ts).
+export const assessments = sqliteTable("assessments", {
+  gameId: text("game_id").notNull().references(() => games.id),
+  /** puzzles/difficulty/assess.ts ASSESS_VERSION */
+  version: integer("version").notNull(),
+  /** "generator" (sent with an AI creator's post) or "batch" */
+  source: text("source").notNull(),
+  /** the solve finished within its budget */
+  solved: integer("solved", { mode: "boolean" }).notNull(),
+  /** the solver's difficulty, 0..1 (null if it failed) */
+  estimate: real("estimate"),
+  /** 0 (bad) .. 1: dull, guessing and grind checks (puzzles/difficulty/quality.ts) */
+  quality: real("quality").notNull(),
+  flags: text("flags", { mode: "json" }).$type<string[]>().notNull(),
+  measures: text("measures", { mode: "json" }).$type<Record<string, number | null>>().notNull(),
+  ms: integer("ms"),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.gameId, t.version] })]);
 
 // ---- the Featured shelf ----
 export const featured = sqliteTable("featured", {
