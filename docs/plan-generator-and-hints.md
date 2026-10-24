@@ -27,12 +27,13 @@ PR #26.
    baseline of today's output.
 5. **Generator search for shape.** Clue-set search toward human-like layouts, flow and one planted key
    step, judged by the human-likeness classifier and play logs.
-6. **Ladders for creator puzzles,** in a nightly batch beside the hourly assessment.
+6. **Ladders for creator puzzles,** written at creation like every puzzle's (a job after publish,
+   beside the hourly assessment), editable by the creator.
 
 **Decisions for Josh**
 
-- Precompute ladders at the solver's stuck points (recommended), or write them on demand when a player
-  asks? On demand is cheaper but takes 7-15 s a call.
+- Decided (Josh, 2026-10-24 20:46Z): every puzzle gets its ladder at creation time; the creator can
+  edit it; players read the hints in the rules tab behind the question mark.
 - Can the private Thinky ladders go into production prompts as examples? Recommended: no. Use them
   only to measure style (rung count, when a cell is first named) and as the test bar.
 - The A/B's control: keep today's bottom-out hint as the control (recommended), or retire it.
@@ -98,19 +99,17 @@ with the general technique instead; H3 tests both orders.
    1 and 5 only.
 6. **Store.** Keep the ladder with the puzzle (keyed by stuck point and its frontier cells), with its
    check results and cost.
-7. **Serve.** When a player taps Hint, the player computes their current frontier (the engine hint
-   code already does this in the browser). If it overlaps a stored stuck point's frontier, show that
-   ladder's next rung; otherwise fall back to rung 5. Log each rung shown, then the next move and its
-   time.
+7. **Serve.** In the rules tab (the question mark), below the rules, one section per stuck point in
+   solve order ("Stuck at the start?", "Stuck after the corners?"), each rung hidden until tapped so
+   reading the list doesn't spoil later rungs. Today's hint button stays as "show me". Log each rung
+   opened, then the next move and its time.
 
 ### Matching a player to a stuck point
 
-This is the open design risk. The reader's stuck states are where a careful solver stops, but a player
-may be anywhere: earlier, with easy moves still open, or on a different route. Plan: measure coverage
-before building the UI. Replay Janko human solves (and, once there are some, inkit plays) and ask at
-each position what share of the next frontier steps fall inside a stored stuck point's frontier. If
-coverage is low, add stuck points from the reader run with easy moves left undone, or write on demand
-for the unmatched cases.
+Josh's design removes most of this risk: the hints sit in a list the player browses, as Thinky does,
+so the game never has to guess where the player is. What's left is labelling each section so a player
+can tell which one they're at, by what's already filled in. A free check: replay Janko human solves
+and see whether each human stall falls on one of the reader's stuck points or between them (H4).
 
 ### Experiments, in order
 
@@ -120,16 +119,19 @@ for the unmatched cases.
 | H3 ladder loop | Does revision cut early-rung leaks and stalls? Opus vs Sonnet high as writer; where-first vs technique-first order; Sonnet low on held-out states so we aren't tuning to Haiku | under $10 | Early-rung leaks under 10% with success held within 5 points |
 | H4 coverage | Share of human positions a stored ladder covers | free CPU | 60% or more of hint-worthy positions covered, or an on-demand fallback chosen |
 | H5 Thinky bar | Our ladders vs authors' on the Thinky puzzles the engine can read | about $5 | Our success at least the authors', with fewer leaks |
-| A/B on inkit | Control (today's bottom-out hint) vs location only vs ladder | under $10 a week for AI posts | Solve completion, time to next correct move, rungs used, quitting after a hint |
+| A/B on inkit | Hints tab off (today's bottom-out button only) vs hints tab on; later, rung order and wording variants | under $10 a week for AI posts | Solve completion, time to next correct move, rungs used, quitting after a hint |
 
 ### What's needed in the product
 
-- A ladder store (a table or the game's meta), written by the AI post pipeline and by a nightly job
-  for creator puzzles.
-- The hint button showing one rung at a time, with "another hint" and "show me".
+- A hints field on the puzzle, written at creation for every puzzle (AI posts in the weekly batch;
+  creator puzzles by a job after publish, so publishing never waits on it). It's a new puzzle field, so
+  per CLAUDE.md it must reach the paint editor, the sketch reader, from-puzzle and the round-trip tests.
+- A Hints section in the rules tab, rungs revealed one at a time; creators can edit, reorder or delete
+  hints in the editor. When a creator edits a hint, the solver silently re-checks it and logs the
+  result, never shows it (Josh's rule: no judgment in the editor).
 - An A/B assignment per browser player id, logged with the play.
-- Ladders for creator puzzles only after the A/B says they help, and never shown as judgment (Josh's
-  rule about the editor still holds).
+- Puzzles the solver can't finish (stall types, SPLIT_GAP) still get hints, flagged as unverified in
+  the log; the creator's edits are the fix there.
 
 ## The generator
 
