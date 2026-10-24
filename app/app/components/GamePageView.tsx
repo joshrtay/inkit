@@ -6,6 +6,7 @@ import { Form, useFetcher, useLocation, useNavigate, useSubmit } from "react-rou
 import { Link } from "~/components/Link";
 import type { Playable } from "~/games/layout";
 import { GameBoard } from "./GameBoard";
+import { ShareSolves } from "./ShareSolves";
 import { GuidePane } from "./GuidePane";
 import { isListed } from "~/games/kinds";
 import { LikeButton } from "./LikeButton";
@@ -151,8 +152,9 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       <div className="game-body">
         <div className="game-play">
           {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description}
-              onRules={() => openRules(true)} tip={tip} />
+              onRules={() => openRules(true)} tip={tip} logGame={!preview && game.state === "published" ? game.id : undefined} />
             : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
+          {!preview && game.state === "published" && play && <ShareSolves />}
           {list && !preview && (
             <Later value={list} fallback={<div className="list-bar skel-list-bar" aria-hidden="true"><span className="skel" /></div>}>
               {(bar) => bar && <ListBarView bar={bar} won={won} />}

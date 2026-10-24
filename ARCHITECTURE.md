@@ -51,6 +51,11 @@ solver's difficulty and the bad-puzzle checks of `quality.ts`, dull, guessing an
 brings its assessment with it, and an hourly GitHub Action (`assess-site.ts`, `.github/workflows/assess.yml`)
 does the rest through `/admin/assessments`. Each is kept in *assessments*; a finished solve's
 difficulty replaces the rough one, and the quality is logged and never shown.
+**Solve logging** (`lib/play-log.ts`, research only): a player who says yes to the one-time question
+under a puzzle (`components/ShareSolves.tsx`; also in Settings and on the privacy page) has each
+play logged move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solving,
+leaving the tab) under a random id kept in their browser, never their account, and sent in batches to
+`POST /api/plays` (*plays*, *play_events*). Nothing is kept or sent before a yes.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as

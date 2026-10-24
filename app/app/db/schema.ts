@@ -13,6 +13,8 @@
 //                published like a puzzle: once published, its puzzles and their order stay put
 //   set_items    a set's puzzles, in order
 //   link_requests  a puzz.link or Penpa+ link pasted on /new whose type we don't have yet
+//   plays, play_events  how a player solved (or left) a puzzle, move by move, for players who said
+//                yes to sharing it (app/lib/play-log.ts): research only, never shown
 //   assessments  the deduction solver's difficulty and the bad-puzzle checks for a published puzzle
 //                (puzzles/difficulty/assess.ts): logged, not shown, but a finished solve's
 //                difficulty becomes the game's
@@ -254,6 +256,37 @@ export const solves = sqliteTable("solves", {
   ms: integer("ms"),
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("solves_game").on(t.gameId)]);
+
+// ---- plays: how a puzzle was played, move by move (docs/research-review-2026-10-24.md, idea 10) ----
+// Only for players who said yes to sharing how they solve (app/lib/play-log.ts; nothing is sent
+// otherwise). A player is a random id kept in their browser, never tied to an account; a play is one
+// attempt at one puzzle, carried across reloads until it's solved or reset. Research only: the
+// inter-person ceiling (two players on one puzzle), novice difficulty from times, hints.
+export const plays = sqliteTable("plays", {
+  /** random, made in the browser */
+  id: text("id").primaryKey(),
+  gameId: text("game_id").notNull().references(() => games.id),
+  /** random, kept in the browser (inkit:player), the same for every puzzle on that browser */
+  playerId: text("player_id").notNull(),
+  /** when the play began (the browser's clock) */
+  startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
+  /** when it was solved, if it was */
+  solvedAt: integer("solved_at", { mode: "timestamp_ms" }),
+  /** events received so far */
+  events: integer("events").notNull().default(0),
+  createdAt: created(),
+  updatedAt: updated(),
+}, (t) => [index("plays_game").on(t.gameId), index("plays_player").on(t.playerId)]);
+
+/** A play's events as sent, in order: [t (ms since the play began), kind, data?] each
+ *  (app/lib/play-log.ts PlayEvent). */
+export const playEvents = sqliteTable("play_events", {
+  playId: text("play_id").notNull().references(() => plays.id),
+  /** 0, 1, 2, …: the batch's number within the play */
+  seq: integer("seq").notNull(),
+  events: text("events", { mode: "json" }).$type<unknown[]>().notNull(),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.playId, t.seq] })]);
 
 // ---- assessments: the deduction solver's read of a puzzle (puzzles/difficulty/assess.ts) ----
 // One per game and assessment version: sent with an AI creator's post, or by the batch that assesses

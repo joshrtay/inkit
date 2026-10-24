@@ -212,3 +212,8 @@
 .set-bar { position: relative; display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 14%, transparent); }
 .set-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--good, #46a758); }
 .set-bar b { position: absolute; top: -3px; width: 3px; height: 12px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+
+/* the one-time question about sharing how you solve (components/ShareSolves.tsx) */
+.share-solves { width: min(100%, var(--sheet-w, 100%)); display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; font-size: 0.9rem; color: var(--muted); }
+.share-solves p { margin: 0; flex: 1 1 20rem; }
+.share-solves .share-buttons { display: flex; gap: 8px; }

@@ -14,6 +14,10 @@ export interface GameHost {
   clear(): void;
   /** Report that the player finished. `result` carries anything a later step needs, e.g. a code. */
   solved(result?: Record<string, unknown>): void;
+  /** Note what the player did, for solve logging (a page may leave it out; it sends nothing unless
+   *  the player said yes: app/app/lib/play-log.ts). `kind`: "m" a move, "u" an undo (each with
+   *  [layer, index, value] changes), "h" a hint (its cells), "r" the board cleared, "s" solved. */
+  log?(kind: string, data?: unknown): void;
 }
 
 /** A game's entry point. It renders into `root` and may return a cleanup function. */
