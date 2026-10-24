@@ -56,6 +56,10 @@ move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solvin
 under a random id kept in the browser, never the account, and sent in batches to `POST /api/plays`
 (*plays*, *play_events*). It's on unless the player turns it off in Settings or on the privacy page
 (`components/ShareSolves.tsx`); off forgets the id and sends nothing more.
+Players include children, many signed out, so the logs are for inkit's own puzzles only (difficulty,
+quality, hints): never share or publish per-player logs, never tie them to an account or use them to
+reach a player; research published outside inkit uses aggregates. That keeps them within COPPA's
+internal-operations exception, which the privacy page's notice relies on.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as
