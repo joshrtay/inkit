@@ -153,15 +153,17 @@ test("a seeded library: the seed's entries under S ids, counted in the descripti
 test("hints: the cells a hint names, and whether it gives the answer away", () => {
   assert.deepEqual(cellsInText("Look at R3C4, then row 1, column 2 and (2,2); r9c9 is off the grid.", 3, 4), [1, 5, 11]);
   const t = [{ cells: [5], words: ["bulb", "no bulb"] }];
-  assert.deepEqual(hintLeak("Look at row 2.", t, 3, 4), { pinpoint: false, leak: false });
-  assert.deepEqual(hintLeak("What lights r2c2?", t, 3, 4), { pinpoint: true, leak: false });
-  assert.deepEqual(hintLeak("Which cells can see r2c2? A bulb at r1c1 would see it.", t, 3, 4), { pinpoint: true, leak: false });
-  assert.deepEqual(hintLeak("So r2c2 can't hold a bulb.", t, 3, 4), { pinpoint: true, leak: true });
+  assert.deepEqual(hintLeak("Look at row 2.", t, 3, 4), { pinpoint: false, leak: false, posit: false });
+  assert.deepEqual(hintLeak("What lights r2c2?", t, 3, 4), { pinpoint: true, leak: false, posit: false });
+  assert.deepEqual(hintLeak("Which cells can see r2c2? A bulb at r1c1 would see it.", t, 3, 4), { pinpoint: true, leak: false, posit: false });
+  assert.deepEqual(hintLeak("So r2c2 can't hold a bulb.", t, 3, 4), { pinpoint: true, leak: true, posit: false });
   // a word inside another word isn't the value
   assert.equal(hintLeak("r2c2 is in the bulbous corner", t, 3, 4).leak, false);
   // digits: the number said beside the cell
   assert.equal(hintLeak("r1c1 must be 4.", [{ cells: [0], words: ["4"] }], 3, 4).leak, true);
   assert.equal(hintLeak("r1c1 sees 3 towers.", [{ cells: [0], words: ["4"] }], 3, 4).leak, false);
+  // a value put as a question to test is a posit, not a leak
+  assert.deepEqual(hintLeak("What would happen if r2c2 held a bulb?", t, 3, 4), { pinpoint: true, leak: false, posit: true });
 });
 
 test("hints: a student's move, and the rungs a ladder needed", () => {

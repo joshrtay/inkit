@@ -30,6 +30,7 @@
 // references/ml/walkloop/hints/ (local only: the puzzles are Janko's).
 import { appendFileSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { shuffled } from "./llm-label.ts";
+import { mapPool } from "./pool.ts";
 import { draw, moveForm, NAME, readJsonl, rules, VALUES } from "./opus-human.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { cellsInText, hintLeak, type MenuStep, type MoveResult, type MV, rungsNeeded, scoreMove, type SeedEntry } from "./walkthrough-core.ts";
@@ -147,7 +148,7 @@ Decide what the next step is: the piece of reasoning that gets them moving. Then
 - what_if: a "what would happen if …?" for them to try;
 - library: pick the one entry below that fits best, and give its question filled in for this spot;
 - ladder: four hints, vaguest first, each saying a little more than the one before (the last can come close, but still leaves the final step to them);
-- explain: the full explanation, the answer included.
+- explain: the full explanation of that one step, answer included, ending with the one cell it decides and its value ("So r3c4 is …").
 
 Except in explain, never say what a cell is. Pointing at a cell or clue is fine.
 
@@ -187,9 +188,8 @@ async function writeCmd() {
   const grounding = opt("--grounding", "solver"), file = `${OUTDIR()}hints-${grounding}.jsonl`, rows = readJsonl(file), done = new Set(rows.filter((x) => x.hints).map((x) => x.id));
   ledger.spent = rows.reduce((t, x) => t + (x.cost ?? 0), 0);
   const seed = loadSeed();
-  for (const s of loadStates().slice(0, num("--limit", 1e9))) {
-    if (done.has(s.id)) continue;
-    if (ledger.spent >= CAP) { console.error(`cap $${CAP} reached`); break; }
+  await mapPool(loadStates().slice(0, num("--limit", 1e9)).filter((s) => !done.has(s.id)), async (s) => {
+    if (ledger.spent >= CAP) { console.error(`cap $${CAP} reached`); return; }
     const { ctx } = await stateCtx(s), prompt = writePrompt(ctx, s, grounding, seed);
     try {
       const r = MOCK ? { text: JSON.stringify(mockHints(ctx, s)), cost: 0, finish: "mock" } : await askOpus([{ role: "user", content: prompt }], undefined, WRITER);
@@ -197,7 +197,7 @@ async function writeCmd() {
       appendFileSync(file, JSON.stringify({ id: s.id, grounding, hints, cost: r.cost, finish: r.finish, text: r.text, at: new Date().toISOString() }) + "\n");
       console.error(`${s.id}: ${hints ? "ok" : "unparsed"}, $${r.cost.toFixed(3)} (total $${ledger.spent.toFixed(2)})`);
     } catch (e) { console.error(`${s.id}: ${(e as Error).message}`); }
-  }
+  }, num("--jobs", 6));
 }
 
 // ======== the hint each arm gives ========
@@ -283,8 +283,7 @@ async function studentCmd() {
   ledger.spent = rows.reduce((t, x) => t + (x.cost ?? 0), 0);
   const hintsBy = new Map(readJsonl(`${OUTDIR()}hints-${grounding}.jsonl`).map((x) => [x.id, x.hints as Hints | null]));
   const seed = loadSeed(), skip = new Set(opt("--skip", "").split(","));
-  for (const s of loadStates().slice(0, num("--limit", 1e9))) {
-    if (skip.has(s.id)) continue;
+  await mapPool(loadStates().slice(0, num("--limit", 1e9)).filter((s) => !skip.has(s.id)), async (s) => {
     const { ctx } = await stateCtx(s);
     for (const arm of arms) for (let rep = 0; rep < repeats; rep++) {
       if (done.has(`${s.id} ${arm} ${rep}`)) continue;
@@ -307,11 +306,11 @@ async function studentCmd() {
       } catch (e) { console.error(`${s.id} ${arm}: ${(e as Error).message}`); }
     }
     console.error(`${s.id}: done (total $${ledger.spent.toFixed(2)})`);
-  }
+  }, num("--jobs", 6));
 }
 
 // ======== report ========
-interface ArmRow { arm: Arm; n: number; states: number; success: number; correct: number; wrong: number; none: number; human: number; leak: number; pinpoint: number; hints: number; words: number; delta: number; ci: [number, number]; rungs?: number[] }
+interface ArmRow { arm: Arm; n: number; states: number; success: number; correct: number; wrong: number; none: number; human: number; leak: number; posit: number; pinpoint: number; hints: number; words: number; delta: number; ci: [number, number]; rungs?: number[] }
 /** One student and grounding: per arm, outcomes over state × repeat, the paired gain over no hint
  *  (per state, bootstrapped), and the hint's own leak, pinpointing and length. */
 function armTable(states: HintState[], ctxs: Map<string, Ctx>, tries: Try[], hintsBy: Map<string, Hints | null>, seed: SeedEntry[], only?: Set<string>): ArmRow[] {
@@ -326,27 +325,27 @@ function armTable(states: HintState[], ctxs: Map<string, Ctx>, tries: Try[], hin
   for (const arm of ARMS) {
     const by = per(arm), all = [...by.values()].flat();
     if (!all.length) continue;
-    let leak = 0, pinpoint = 0, hints = 0, words = 0;
+    let leak = 0, posit = 0, pinpoint = 0, hints = 0, words = 0;
     for (const s of states) {
       if (!by.has(s.id)) continue;
       const hs = hintOf(arm, s, hintsBy.get(s.id) ?? null, seed);
       if (!hs?.length) continue;
       const ctx = ctxs.get(s.id)!, l = hintLeak(hs.join("\n"), leakTargets(ctx, s), ctx.rows, ctx.cols);
-      hints++; leak += +l.leak; pinpoint += +l.pinpoint; words += hs.join(" ").split(/\s+/).length;
+      hints++; leak += +l.leak; posit += +l.posit; pinpoint += +l.pinpoint; words += hs.join(" ").split(/\s+/).length;
     }
     const diffs = [...by].filter(([id]) => floor.has(id)).map(([id, ts]) => rate(ts) - rate(floor.get(id)!));
     const k = (r: MoveResult) => all.filter((t) => t.result === r).length;
     out.push({
       arm, n: all.length, states: by.size, success: k("success"), correct: k("correct"), wrong: k("wrong"), none: k("none") + k("already"), human: all.filter((t) => t.human).length,
-      leak, pinpoint, hints, words: hints ? words / hints : NaN, delta: meanOf(diffs), ci: bootstrap(diffs),
+      leak, posit, pinpoint, hints, words: hints ? words / hints : NaN, delta: meanOf(diffs), ci: bootstrap(diffs),
       ...(arm === "ladder" ? { rungs: all.map((t) => t.rung ?? RUNGS + 1) } : {}),
     });
   }
   return out;
 }
 function renderTable(rows: ArmRow[]): string[] {
-  const lines = ["| arm | n | success | true leap | wrong | no answer | vs none (95%) | the person's next | hint leaks | names the cell | words |", "|---|---|---|---|---|---|---|---|---|---|---|"];
-  for (const r of rows) lines.push(`| ${r.arm}${FAIR.has(r.arm) ? "" : r.arm === "explain" ? " (gives the answer)" : ""} | ${r.n} | ${pct(r.success, r.n)} | ${pct(r.correct, r.n)} | ${pct(r.wrong, r.n)} | ${pct(r.none, r.n)} | ${r.arm === "none" ? "–" : `${f2(r.delta)} (${f2(r.ci[0])} to ${f2(r.ci[1])})`} | ${pct(r.human, r.success)} | ${r.arm === "none" ? "–" : pct(r.leak, r.hints)} | ${r.arm === "none" ? "–" : pct(r.pinpoint, r.hints)} | ${r.arm === "none" ? "–" : Math.round(r.words)} |`);
+  const lines = ["| arm | n | success | true leap | wrong | no answer | vs none (95%) | the person's next | hint leaks | posits a value | names the cell | words |", "|---|---|---|---|---|---|---|---|---|---|---|---|"];
+  for (const r of rows) lines.push(`| ${r.arm}${FAIR.has(r.arm) ? "" : r.arm === "explain" ? " (gives the answer)" : ""} | ${r.n} | ${pct(r.success, r.n)} | ${pct(r.correct, r.n)} | ${pct(r.wrong, r.n)} | ${pct(r.none, r.n)} | ${r.arm === "none" ? "–" : `${f2(r.delta)} (${f2(r.ci[0])} to ${f2(r.ci[1])})`} | ${pct(r.human, r.success)} | ${r.arm === "none" ? "–" : pct(r.leak, r.hints)} | ${r.arm === "none" ? "–" : pct(r.posit, r.hints)} | ${r.arm === "none" ? "–" : pct(r.pinpoint, r.hints)} | ${r.arm === "none" ? "–" : Math.round(r.words)} |`);
   const lad = rows.find((r) => r.rungs);
   if (lad?.rungs) {
     const at = (k: number) => lad.rungs!.filter((x) => x <= k).length;
@@ -357,7 +356,7 @@ function renderTable(rows: ArmRow[]): string[] {
 async function report() {
   const states = loadStates(), seed = loadSeed(), ctxs = new Map<string, Ctx>();
   for (const s of states) ctxs.set(s.id, (await stateCtx(s)).ctx);
-  const lines = [`# The hint test`, "", `${states.length} stuck states (the reader's closure of held-out Janko positions). Success: the student's move is true and on the frontier. True leap: true, but nothing decides it in one step from here (a lucky guess, or reasoning past the frontier). "vs none" is the paired gain in success per state over no hint. A hint leaks when one sentence names a frontier cell and a word for its value; it names the cell when it points at one.`, ""];
+  const lines = [`# The hint test`, "", `${states.length} stuck states (the reader's closure of held-out Janko positions). Success: the student's move is true and on the frontier. True leap: true, but nothing decides it in one step from here (a lucky guess, or reasoning past the frontier). "vs none" is the paired gain in success per state over no hint. A hint leaks when one sentence names a frontier cell and states a word for its value; it posits a value when that sentence is hypothetical (\"if r3c4 were …\"); it names the cell when it points at one.`, ""];
   for (const f of readdirHints()) {
     const [, name, grounding] = /^student-(\w+)-(\w+)\.jsonl$/.exec(f)!;
     const tries = readJsonl(`${OUTDIR()}${f}`) as Try[], hintsBy = new Map(readJsonl(`${OUTDIR()}hints-${grounding}.jsonl`).map((x) => [x.id, x.hints as Hints | null]));
