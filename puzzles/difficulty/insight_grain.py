@@ -57,12 +57,17 @@ def score(menus, rows_file):
             first = p["next"][0]
             cost = p["cost"].get(first)
             kind = "bookkeeping" if cost is not None and cost[1] == 0 and p["min"] is not None and cost[0] <= p["min"] + TIE else "insight"
+            # insights split: a dearer step on the menu, or a move no window makes from there
+            sub = "insight, dearer step" if cost is not None else "insight, off the menu"
+            if kind == "insight":
+                t = tally[sub]; t[0] += 1; t[1] += r[2]
+                if r[4] == r[4]: t[2] += r[4]; t[3] += 1
             share[m["genre"]][0] += 1; share[m["genre"]][1] += kind == "insight"
             t = tally[kind]; t[0] += 1; t[1] += r[2]
             if r[4] == r[4]: t[2] += r[4]; t[3] += 1
             per_type[m["genre"]][kind][0] += 1; per_type[m["genre"]][kind][1] += r[2]
     for kind, (n, net, near, nn) in tally.items():
-        print(f"{kind:<12} {n:>5} states  net {net / n:5.0%}  nearness {near / max(nn, 1):5.0%}")
+        print(f"{kind:<22} {n:>5} states  net {net / n:5.0%}  nearness {near / max(nn, 1):5.0%}")
     print("\nby type: insight share of states; net on bookkeeping / insight")
     for g in sorted(per_type):
         b, i = per_type[g]["bookkeeping"], per_type[g]["insight"]
