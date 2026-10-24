@@ -1,7 +1,7 @@
 // Solve logging (lib/play-log.ts, games/plays.ts): nothing before a yes, plays carried across a
 // reload and ended by a solve, batches as the server takes them.
 import { beforeEach, describe, expect, it } from "vitest";
-import { BATCH, createPlayLog, setShare, shareAllowed, shareChoice, type PlayBatch } from "~/lib/play-log";
+import { BATCH, createPlayLog, setShare, shareAllowed, type PlayBatch } from "~/lib/play-log";
 import { checkBatch, MAX_BATCH_BYTES, solvedIn } from "~/games/plays";
 
 // a localStorage and the window events the module uses, for node
@@ -17,15 +17,14 @@ Object.assign(globalThis, {
 describe("solve logging", () => {
   beforeEach(() => store.clear());
 
-  it("is unasked, then yes or no; no forgets the player and any play", () => {
-    expect(shareChoice()).toBeNull();
-    expect(shareAllowed()).toBe(false);
-    setShare(true);
+  it("is on until turned off, and off forgets the player and any play", () => {
     expect(shareAllowed()).toBe(true);
     createPlayLog("g1", () => {});
     expect([...store.keys()].some((k) => k.startsWith("inkit:play:"))).toBe(true);
     setShare(false);
-    expect(shareChoice()).toBe("no");
+    expect(shareAllowed()).toBe(false);
+    setShare(true);
+    expect(shareAllowed()).toBe(true);
     expect(store.has("inkit:player")).toBe(false);
     expect([...store.keys()].some((k) => k.startsWith("inkit:play:"))).toBe(false);
   });

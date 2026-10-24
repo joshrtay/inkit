@@ -1,5 +1,5 @@
-// POST /api/plays: a batch of a play's events (app/lib/play-log.ts), from a player who said yes to
-// sharing how they solve. Only for published puzzles, and not their author's own play. Stored as
+// POST /api/plays: a batch of a play's events (app/lib/play-log.ts), from a player who hasn't turned
+// solve logging off. Only for published puzzles, and not their author's own play. Stored as
 // sent (plays, play_events); a batch sent twice is kept once. Research only, never shown.
 import { eq, sql } from "drizzle-orm";
 import type { Route } from "./+types/api.plays";

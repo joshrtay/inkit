@@ -22,7 +22,7 @@ export default function Privacy() {
         <li><strong>Signing in:</strong> while you&rsquo;re signed in we keep a session, with the IP address and browser it came from, so we can keep you signed in and spot misuse.</li>
         <li><strong>In your browser:</strong> your progress on puzzles and settings like the light or dark theme are saved in your own browser (local storage). They stay on your device; we don&rsquo;t receive them.</li>
         <li><strong>Bug reports:</strong> while you&rsquo;re signed in, your browser keeps a recording of the last two minutes of the page you&rsquo;re on, in memory only: what was on screen, clicks and scrolling, with anything you type hidden and settings and sign-in pages left out. It never leaves your browser unless you choose &ldquo;Report a bug&rdquo; and leave &ldquo;Include a recording&rdquo; ticked. A report holds what you write, that recording, a screenshot if you add one, and details of the page (its address, the puzzle on it, your browser, screen size and recent errors). We keep reports on our own servers (Cloudflare) and use them only to fix the site; Claude (see Anthropic below) reads what you write to sort reports, and a public summary in our own words, never your words or the recording, may go on our code&rsquo;s GitHub page. You can turn the recording off in Settings.</li>
-        <li id="solves"><strong>How you solve, if you say yes:</strong> under a puzzle we ask, once, whether you&rsquo;ll share how you solve for puzzle research. Only if you say yes, we keep each move you make on published puzzles (which squares or lines, and when), undos, hints you ask for, clearing the board, solving, and leaving the tab, tied to a random number made in your browser and never to your account or name. We use it to study how people solve puzzles and to make difficulty ratings and hints better; it&rsquo;s never shown on the site. You can change your answer here or in Settings; saying no forgets the random number in your browser, and nothing more is sent.<ShareSolvesSetting /></li>
+        <li id="solves"><strong>How you solve:</strong> to study how people solve puzzles and make difficulty ratings and hints better, we keep each move you make on published puzzles (which squares or lines, and when), undos, hints you ask for, clearing the board, solving, and leaving the tab, tied to a random number made in your browser and never to your account or name. It&rsquo;s never shown on the site. You can turn it off here or in Settings; turning it off forgets the random number in your browser, and nothing more is sent.<ShareSolvesSetting /></li>
         <li><strong>Server logs:</strong> our host keeps short-lived technical logs of requests (such as IP address, page and time) to run and protect the site.</li>
       </ul>
 
@@ -51,7 +51,7 @@ export default function Privacy() {
         <li>You can change your name and profile, delete your puzzles, and unsubscribe from anyone at any time.</li>
         <li>To get a copy of your information or delete your account, email <a href={`mailto:${CONTACT}`}>{CONTACT}</a>. Deleting an account removes your sign-in details and drafts; puzzles you published are taken offline.</li>
         <li>Clearing your browser&rsquo;s site data removes the progress saved there.</li>
-        <li>Sharing how you solve is off unless you say yes, and you can turn it off in Settings at any time.</li>
+        <li>You can turn off sharing how you solve in Settings or above at any time.</li>
       </ul>
 
       <h2>Keeping it safe and how long we keep it</h2>

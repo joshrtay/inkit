@@ -1,8 +1,8 @@
 // Solve logging, in the browser (docs/research-review-2026-10-24.md, idea 10): how a puzzle is
 // played, move by move, for the research's second population (until now every human solve it had
-// came from seven experts on one site). Only for players who said yes (`shareAllowed`: the
-// one-time note on a puzzle's page, components/ShareSolves.tsx, or Settings); nothing is kept or
-// sent otherwise. A player is a random id kept in this browser (`playerId`), never tied to an
+// came from seven experts on one site). On unless the player turns it off (`shareAllowed`: the
+// switch in Settings and on the privacy page, components/ShareSolves.tsx); once off, nothing is
+// kept or sent. A player is a random id kept in this browser (`playerId`), never tied to an
 // account; a play is one attempt at one puzzle, carried across reloads (in localStorage) until it's
 // solved or the board is cleared. The events go to POST /api/plays in batches (routes/api.plays.ts):
 // every BATCH events, every FLUSH_MS, and when the page is hidden.
@@ -14,7 +14,7 @@
 //   "a" away (the tab hidden)                          "b" back
 export type PlayEvent = [number, string, unknown?];
 
-/** "yes" or "no", once asked; unset until then. */
+/** "no" once the player turns it off (anything else: on). */
 const CONSENT = "inkit:share-solves";
 const PLAYER = "inkit:player";
 const playKey = (gameId: string) => `inkit:play:${gameId}`;
@@ -24,12 +24,8 @@ export const BATCH = 40, FLUSH_MS = 20_000;
 const read = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
 const write = (k: string, v: string | null) => { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch { /* not kept */ } };
 
-/** Whether this browser said yes, no, or hasn't been asked. */
-export function shareChoice(): "yes" | "no" | null {
-  const v = read(CONSENT);
-  return v === "yes" || v === "no" ? v : null;
-}
-export const shareAllowed = () => shareChoice() === "yes";
+/** Whether this browser shares how its player solves: yes unless they turned it off. */
+export const shareAllowed = () => read(CONSENT) !== "no";
 export function setShare(yes: boolean) {
   write(CONSENT, yes ? "yes" : "no");
   // said no: forget the player and any play in progress (nothing more is sent)

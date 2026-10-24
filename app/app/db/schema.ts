@@ -13,8 +13,8 @@
 //                published like a puzzle: once published, its puzzles and their order stay put
 //   set_items    a set's puzzles, in order
 //   link_requests  a puzz.link or Penpa+ link pasted on /new whose type we don't have yet
-//   plays, play_events  how a player solved (or left) a puzzle, move by move, for players who said
-//                yes to sharing it (app/lib/play-log.ts): research only, never shown
+//   plays, play_events  how a player solved (or left) a puzzle, move by move, unless they turned it
+//                off in Settings (app/lib/play-log.ts): research only, never shown
 //   assessments  the deduction solver's difficulty and the bad-puzzle checks for a published puzzle
 //                (puzzles/difficulty/assess.ts): logged, not shown, but a finished solve's
 //                difficulty becomes the game's
@@ -258,8 +258,8 @@ export const solves = sqliteTable("solves", {
 }, (t) => [primaryKey({ columns: [t.creatorId, t.gameId] }), index("solves_game").on(t.gameId)]);
 
 // ---- plays: how a puzzle was played, move by move (docs/research-review-2026-10-24.md, idea 10) ----
-// Only for players who said yes to sharing how they solve (app/lib/play-log.ts; nothing is sent
-// otherwise). A player is a random id kept in their browser, never tied to an account; a play is one
+// Unless the player turned it off in Settings or on the privacy page (app/lib/play-log.ts; then
+// nothing is sent). A player is a random id kept in their browser, never tied to an account; a play is one
 // attempt at one puzzle, carried across reloads until it's solved or reset. Research only: the
 // inter-person ceiling (two players on one puzzle), novice difficulty from times, hints.
 export const plays = sqliteTable("plays", {

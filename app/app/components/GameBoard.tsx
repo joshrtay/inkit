@@ -64,7 +64,7 @@ function alignToBorder(root: HTMLElement) {
 export function GameBoard({ play, saveId, onSolved, description = "", onRules, tip, logGame }: {
   play: Playable; saveId?: string; onSolved?: (ms: number | null) => void; description?: string;
   onRules?: () => void; tip?: { text: string; onDismiss: () => void } | null;
-  /** a published puzzle's id: its play is logged if the player said yes (lib/play-log.ts) */
+  /** a published puzzle's id: its play is logged unless the player turned that off (lib/play-log.ts) */
   logGame?: string;
 }) {
   const spot = useRef<HTMLDivElement>(null);
@@ -90,8 +90,7 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     // playing time (components/solve-timer.ts): moves on the board, nothing while the tab is hidden
     let timer = saveId ? loadTimer(saveId) : startTimer();
     const move = () => { timer = tick(timer, Date.now()); if (saveId) saveTimer(saveId, timer); };
-    // solve logging, only once the player has said yes (lib/play-log.ts); started at the first
-    // event after that, so a yes mid-play logs from then on
+    // solve logging, unless the player turned it off (lib/play-log.ts); started at the first event
     let plays: ReturnType<typeof createPlayLog> | null = null;
     const log = logGame ? (kind: string, data?: unknown) => {
       if (!shareAllowed()) { plays = null; return; }

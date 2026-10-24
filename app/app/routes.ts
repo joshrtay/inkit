@@ -18,7 +18,7 @@ export default [
   route("api/sets", "routes/api.sets.ts"),   // your draft sets; make one
   route("api/sets/:id", "routes/api.set.ts"),   // a draft set, for the drawer
   route("api/bugs", "routes/api.bugs.ts"),   // Report a bug
-  route("api/plays", "routes/api.plays.ts"),   // solve logging, for players who said yes
+  route("api/plays", "routes/api.plays.ts"),   // solve logging (off in Settings)
   // moved under /api: the old addresses keep working (308 keeps a POST's method and body)
   route("feed", "routes/moved.ts", { id: "moved-feed" }),
   route("bugs", "routes/moved.ts", { id: "moved-bugs" }),
