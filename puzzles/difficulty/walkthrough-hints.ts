@@ -158,13 +158,21 @@ Reply with JSON only:
 {"target": "the next step, for us: which cells it decides and why", "location": "…", "question": "…", "technique": "…", "what_if": "…", "library": {"uses": "S<n>", "hint": "…"}, "ladder": ["…", "…", "…", "…"], "explain": "…"}
 Rows and columns count from 1; name cells as r3c4.`;
 }
-const lastJson = (text: string): any => {
-  const t = text.replace(/```(?:json)?/g, "");
-  for (let k = t.lastIndexOf("{"); k >= 0; k = t.lastIndexOf("{", k - 1)) {
-    for (let e = t.lastIndexOf("}"); e > k; e = t.lastIndexOf("}", e - 1)) { try { return JSON.parse(t.slice(k, e + 1)); } catch { /* shorter */ } }
+/** The top-level JSON objects in a reply, in order: one pass matching braces outside strings (the old
+ * try-every-span search was cubic, and its last "{" was a nested object, not the reply). */
+const topJson = (text: string): any[] => {
+  const t = text.replace(/```(?:json)?/g, ""), out: any[] = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"' && depth > 0) inStr = true;
+    else if (c === "{") { if (depth++ === 0) start = i; }
+    else if (c === "}" && depth > 0 && --depth === 0) { try { out.push(JSON.parse(t.slice(start, i + 1))); } catch { /* not JSON */ } }
   }
-  return null;
+  return out;
 };
+const lastJson = (text: string): any => topJson(text).at(-1) ?? null;
 /** The stand-in (dry runs): hints from the solver's cheapest step, the leaky ones leaky on purpose. */
 function mockHints(ctx: Ctx, s: HintState): Hints {
   const st = s.steps[0], ref = (c: number) => `r${Math.floor(c / ctx.cols) + 1}c${(c % ctx.cols) + 1}`;
@@ -186,7 +194,7 @@ async function writeCmd() {
     try {
       const r = MOCK ? { text: JSON.stringify(mockHints(ctx, s)), cost: 0, finish: "mock" } : await askOpus([{ role: "user", content: prompt }], undefined, WRITER);
       const hints = lastJson(r.text) as Hints | null;
-      appendFileSync(file, JSON.stringify({ id: s.id, grounding, hints, cost: r.cost, finish: r.finish, text: hints ? undefined : r.text, at: new Date().toISOString() }) + "\n");
+      appendFileSync(file, JSON.stringify({ id: s.id, grounding, hints, cost: r.cost, finish: r.finish, text: r.text, at: new Date().toISOString() }) + "\n");
       console.error(`${s.id}: ${hints ? "ok" : "unparsed"}, $${r.cost.toFixed(3)} (total $${ledger.spent.toFixed(2)})`);
     } catch (e) { console.error(`${s.id}: ${(e as Error).message}`); }
   }
@@ -274,8 +282,9 @@ async function studentCmd() {
   const done = new Set(rows.map((x) => `${x.id} ${x.arm} ${x.repeat}`));
   ledger.spent = rows.reduce((t, x) => t + (x.cost ?? 0), 0);
   const hintsBy = new Map(readJsonl(`${OUTDIR()}hints-${grounding}.jsonl`).map((x) => [x.id, x.hints as Hints | null]));
-  const seed = loadSeed();
+  const seed = loadSeed(), skip = new Set(opt("--skip", "").split(","));
   for (const s of loadStates().slice(0, num("--limit", 1e9))) {
+    if (skip.has(s.id)) continue;
     const { ctx } = await stateCtx(s);
     for (const arm of arms) for (let rep = 0; rep < repeats; rep++) {
       if (done.has(`${s.id} ${arm} ${rep}`)) continue;
