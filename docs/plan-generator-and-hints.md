@@ -104,8 +104,11 @@ with the general technique instead; H3 tests both orders.
    (Josh, 20:48Z). Hints for stuck points the player has passed are skipped automatically: if a stuck
    point's key-step cells are already filled in correctly on their board, its rungs fold away (still
    readable) and the next click starts at the first unpassed one. Wrong key cells aren't skipped; the
-   player is pointed at the mistake. Runs in the browser, no model call. Today's hint button stays as "show me". Log each rung
-   opened, then the next move and its time.
+   player is pointed at the mistake. Runs in the browser, no model call. Today's hint button stays as "show me". Each hint revealed is
+   an action in the play log (Josh, 20:55Z): a new event kind in play-log.ts beside moves, "l" with
+   {stuck point, rung, hint version, auto-skipped stuck points}, so the timeline shows which hints were
+   exposed and when, in order with the moves; opening the rules tab is logged too, and a solve with
+   hints counts as assisted in difficulty and solve stats.
 
 ### Matching a player to a stuck point
 
