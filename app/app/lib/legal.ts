@@ -4,4 +4,4 @@
 export const CONTACT = "hello@inkit.games";
 export const UPDATED = "October 7, 2026";
 /** The privacy policy changed on its own since (bug reports). */
-export const PRIVACY_UPDATED = "October 9, 2026";
+export const PRIVACY_UPDATED = "October 24, 2026";

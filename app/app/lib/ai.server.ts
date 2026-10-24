@@ -6,6 +6,7 @@ import { and, asc, eq, gt, inArray, isNotNull, isNull, lte, or } from "drizzle-o
 import { schema, type Db } from "../db";
 import { MAX_RECOMMENDATIONS } from "./rank";
 import { estimateColumns } from "./estimates.server";
+import { assessmentOf, assessmentRow } from "../games/assessment";
 import { parseSketch, SKETCH_VERSION } from "../games/sketch";
 import { PERSONAS, type Persona } from "~site/ai/personas.ts";
 import { dueToPublish } from "~site/ai/schedule.ts";
@@ -62,13 +63,14 @@ export async function scheduleGame(db: Db, p: Persona, kind: string, publishAt: 
     where: and(eq(schema.games.authorId, creatorId), or(eq(schema.games.publishAt, publishAt), eq(schema.games.publishedAt, publishAt))),
   });
   if (same) return { id: same.id, created: false };
-  const id = newId();
+  const id = newId(), assessed = assessmentOf(req.meta);
   await db.insert(schema.games).values({
     id, collectionId, authorId: creatorId, title: req.title, description: req.description,
     sketch: req.sketch, sketchVersion: SKETCH_VERSION, kind, state: "draft", publishAt,
-    // the scorer's difficulty, when the batch sent it (app/games/estimate.ts)
-    ...estimateColumns(req.sketch, SKETCH_VERSION, req.meta?.difficulty),
+    // the solver's difficulty when its solve finished, else the scorer's (app/games/assessment.ts)
+    ...estimateColumns(req.sketch, SKETCH_VERSION, req.meta?.difficulty, assessed),
   });
+  if (assessed) await db.insert(schema.assessments).values(assessmentRow(id, "generator", assessed)).onConflictDoNothing();
   return { id, created: true };
 }
 
@@ -100,13 +102,14 @@ export async function backfillGame(db: Db, p: Persona, kind: string, at: Date, r
   }
   if (action.do === "repeat") return { id: action.id, status: "repeat" };
   if (dryRun) return { id: null, status: "would-create" };
-  const id = newId();
+  const id = newId(), assessed = assessmentOf(req.meta);
   await db.insert(schema.games).values({
     id, collectionId, authorId: creatorId, title: req.title, description: req.description,
     sketch: req.sketch, sketchVersion: SKETCH_VERSION, kind, state: "published",
     publishedAt: at, publishAt: null, createdAt: at, updatedAt: at,
-    ...estimateColumns(req.sketch, SKETCH_VERSION, req.meta?.difficulty),
+    ...estimateColumns(req.sketch, SKETCH_VERSION, req.meta?.difficulty, assessed),
   });
+  if (assessed) await db.insert(schema.assessments).values(assessmentRow(id, "generator", assessed)).onConflictDoNothing();
   // "since" on the profile: no later than its first post
   await db.update(schema.creators).set({ createdAt: at }).where(and(eq(schema.creators.id, creatorId), gt(schema.creators.createdAt, at)));
   await db.update(schema.collections).set({ createdAt: at }).where(and(eq(schema.collections.id, collectionId), gt(schema.collections.createdAt, at)));

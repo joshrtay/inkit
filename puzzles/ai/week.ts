@@ -20,7 +20,8 @@ import type { GridSpec } from "../../src/engine/types.ts";
 import { solve } from "../../src/engine/solve.ts";
 import { PERSONAS, type Persona } from "../../src/ai/personas.ts";
 import { slotsBetween, type Slot } from "../../src/ai/schedule.ts";
-import { cluesOf, proxyScorer, type Scorer } from "./score.ts";
+import { cluesOf, type Scorer } from "./score.ts";
+import { checkedScorer } from "../difficulty/scorer.ts";
 import { costOf, makeFor, MODEL, newUsage, sha256, sketchOf, wordsFor, type Made } from "./make.ts";
 
 const argv = process.argv.slice(2);
@@ -36,7 +37,8 @@ const candidatesOverride = arg("candidates") ? Number(arg("candidates")) : undef
 const limit = Number(arg("limit", "100000"));
 /** stop making more candidates for a post after this long, and give up on any one after this long */
 const BUDGET_MS = Number(arg("budget-ms", "150000")), CANDIDATE_MS = Number(arg("candidate-ms", "90000"));
-const scorer: Scorer = proxyScorer;
+// proxyScorer with the bad-puzzle checks (puzzles/difficulty/quality.ts: dull, guessing, grind)
+const scorer: Scorer = checkedScorer;
 
 if (only && !PERSONAS.some((p) => p.handle === only)) { console.error(`no persona "${only}"; one of ${PERSONAS.map((p) => p.handle).join(", ")}`); process.exit(1); }
 if (!dryRun && !process.env.ADMIN_API_TOKEN) { console.error("ADMIN_API_TOKEN isn't set (or use --dry-run)"); process.exit(1); }
@@ -67,7 +69,11 @@ async function post(p: Persona, slot: Slot, made: Made, words: { title: string; 
     body: JSON.stringify({
       persona: p.handle, sketch, ...words, publishAt: slot.at.toISOString(),
       proof: { solutions, sketchHash: await sha256(sketch), solver: "clingo (src/engine/solve.ts)" },
-      meta: { target: +slot.difficulty.toFixed(2), difficulty: +made.score.difficulty.toFixed(2), quality: +made.score.quality.toFixed(2), measures: made.score.measures },
+      meta: {
+        target: +slot.difficulty.toFixed(2), difficulty: +made.score.difficulty.toFixed(2), quality: +made.score.quality.toFixed(2), measures: made.score.measures,
+        // stored by the site (the assessments table); its difficulty is the game's when the solve finished
+        ...(made.score.assessment ? { assessment: made.score.assessment } : {}),
+      },
     }),
   });
   const body = await res.json().catch(() => ({})) as { id?: string; created?: boolean; error?: string };

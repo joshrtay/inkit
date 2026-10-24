@@ -524,7 +524,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     clearProblems();
     celebrate(root, inksOf());
     if (p.spec.picture) root.classList.add("revealed");
-    if (!reported) { reported = true; host.solved(p.spec.picture?.title ? { title: p.spec.picture.title } : maze ? { squares: walk!.trail.length } : {}); }
+    if (!reported) { reported = true; host.log?.("s"); host.solved(p.spec.picture?.title ? { title: p.spec.picture.title } : maze ? { squares: walk!.trail.length } : {}); }
   }
 
   // ---- gestures ----
@@ -545,7 +545,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
       const erased = changes.flatMap(([l, i, was]): [number, number][] => (l === "digit" && was && !board.digit[i] ? [[i, was]] : []));
       for (const [i, v] of autoNotes(sudoku, p, board, erased)) put("pencil", i, v);
     }
-    if (changes.length) { history.push(changes); afterChange(); } else render(); changes = []; };
+    if (changes.length) { history.push(changes); host.log?.("m", changes.map(([l, i]) => [l, i, board[l][i]])); afterChange(); } else render(); changes = []; };
   const toBoard = (evt: PointerEvent) => {
     const pt = svg.createSVGPoint(); pt.x = evt.clientX; pt.y = evt.clientY;
     const r = pt.matrixTransform(svg.getScreenCTM()!.inverse());
@@ -856,6 +856,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     const last = history.pop();
     if (!last) return;
     for (const [layer, i, v] of last.reverse()) board[layer][i] = v;
+    host.log?.("u", last.map(([l, i, v]) => [l, i, v]));
     clearProblems(); afterChange();
   });
   root.querySelector<HTMLButtonElement>("[data-hint]")?.addEventListener("click", () => {
@@ -863,6 +864,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     clearProblems();
     let h: Hint | null = null;
     for (const s of p.rules) { h = blockFor(s).hint?.(s, p, board) ?? null; if (h) break; }
+    host.log?.("h", h ? { area: h.area, cells: h.cells.map((c) => c.cell) } : null);
     if (!h) { say("No hints left. Check for mistakes?", "warn"); return; }
     for (const i of h.area) cellRect(i, "hint-area", gHint);
     for (const { cell, shade } of h.cells) {
@@ -888,6 +890,7 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     for (const [i, c] of givenColor) board.color[i] = c;
     lockWalls(); walk?.stop(); if (saved) delete saved.trail;
     ticks.clear(); history = []; solved = false; reported = false; sel = -1; armed = 0;
+    host.log?.("r");
     root.classList.remove("revealed", "titled"); say(""); unstamp(root); clearProblems(); afterChange();
   });
   root.querySelectorAll<HTMLInputElement>("[data-pref]").forEach((box) => {
