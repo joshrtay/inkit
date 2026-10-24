@@ -17,8 +17,8 @@ PR #26.
 
 **Order of work**
 
-1. **Ladder iteration loop (H3).** The never-tried experiment: revise rungs that leak or stall the
-   student, on the 30 H1 states. A few dollars.
+1. **Ladder iteration loop (H3).** First a free per-rung leak count on H2's 100 ladders; then, only if
+   rungs 1-2 leak, the revise loop (a few dollars).
 2. **Ladders for AI posts.** Write and check a ladder for every new AI post at creation (about 50 a
    week, under $10 a week), stored with the puzzle.
 3. **Hint A/B on inkit.** Today's hint button (which shows the answer cells on the first tap) against
@@ -47,9 +47,9 @@ No paid run starts without Josh's OK. H3 is the first ask, at under $10.
 | Finding | Source | What it means here |
 | --- | --- | --- |
 | Opus 4-rung ladder: 92-94% success vs 46-59% no hint; rung 1 alone 61-67%; mean 1.7 rungs | Hint test H1, 30 hard puzz.link states, Haiku low student | The ladder is the format to ship. Rung 1 is already as good as a location hint. |
-| Ladder rungs leak (name a frontier cell and its value) 43-47% of the time | H1 leak check (crude; flags hypotheticals) | Leaks must be measured per rung. A late rung may leak; rungs 1-2 must not. |
-| Opus location hint +26 points, no leaks; solver's "look at row 3" +8 (within noise) | H1 | A language model is worth its cost over the free solver hint. |
-| Hints written with or without the solver's frontier come out about even | H1 | Opus can write alone, but the solver still has to check every rung. |
+| H2 (100 states, Haiku and Sonnet low): ladder 90-98%, mostly by rung 2; rung 1 alone 60-73%. After a hand check reclassified hypotheticals as posits, not leaks, the whole ladder leaks 36% (grounded); per-rung leaks not yet counted | Hint test H2 | Leaks must be measured per rung. A late rung may leak; rungs 1-2 must not. |
+| H2: best single fair hint is the library arm (seed nudge + Opus question): Haiku 74-75%, Sonnet 87%, +10 to +17 over the solver's "look at row 3"; grounded Opus location +12 over it, 6% leaks. The solver hint alone still adds +8 to +11 | H2 | A language model is worth its cost over the free solver hint. |
+| H2 reversed H1 (n=30 noise): grounding on the solver's frontier helps the location hint (+12 vs +3 free); question and library about even | H2 | Write ladders grounded: give the writer the solver's frontier. The solver also checks every rung. |
 | 3 cents per stuck point (grounded), 4-6 cents free, worst 22 cents; 5-25 cents a puzzle | H1 costs | 10,000 puzzles is $500-2,500 once; AI posts alone are under $10 a week. |
 | Thinky authors' ladders: Sonnet low 47% to 77%, Haiku low 41% to 60% (part is a second try) | Benchmark thread, Thinky rerun | The bar a ladder of ours must clear, with fewer leaks. |
 | Thinky rungs go general technique, then the region, then bookkeeping advice; written per puzzle, not per position | Thinky data (private) | Our rung order differs (where first). Test both orders; ours must work per position. |
@@ -73,14 +73,14 @@ stays as the ladder's last rung.
 
 | Rung | Says | Must not |
 | --- | --- | --- |
-| 1. Where | the region, row or clue group to look at | name a cell |
-| 2. What to notice | the rule interaction or technique, applied to that spot | name a cell with its value |
+| 1. Where | the region, row or clue group to look at (Opus location hint, grounded: H2's best non-leaking first hint) | name a cell |
+| 2. What to notice | a library nudge (general technique) plus the question for this spot: H2's best single hint | name a cell with its value |
 | 3. Question or what-if | one question that leads to the step ("what if this cell were lit?") | state the answer |
 | 4. The step | the cell, its value, and why, in one or two sentences | name more than the step's cells |
 | 5. Show me | today's engine hint: area and cells drawn on the board (free) | – |
 
-H1's ladder used a similar order and found the step by rung 2 in 77-83% of cases. Thinky authors start
-with the general technique instead; H3 tests both orders.
+H2's ladder found the step by rung 2 in 78-83% of cases. Thinky authors start with the general
+technique instead; H3 can test both orders.
 
 ### The pipeline
 
@@ -122,8 +122,8 @@ and see whether each human stall falls on one of the reader's stuck points or be
 
 | Step | What it answers | Cost | Gate to move on |
 | --- | --- | --- | --- |
-| H2 (running) | Best single hint on 100 states; Sonnet low as second student; explain fixed; leaks hand-checked | about $60, approved | Ladder still the best arm with leaks re-measured per rung |
-| H3 ladder loop | Does revision cut early-rung leaks and stalls? Opus vs Sonnet high as writer; where-first vs technique-first order; Sonnet low on held-out states so we aren't tuning to Haiku | under $10 | Early-rung leaks under 10% with success held within 5 points |
+| H2 (done) | Library best single hint, grounded location best first rung, ladder 90-98% | $34 | Passed: ladder still the best arm |
+| H3 ladder loop | Step 0 (free): count leaks per rung on H2's ladders. If rungs 1-2 leak: revise loop, Opus vs Sonnet high as writer, where-first vs technique-first, Sonnet low on held-out states | under $10 | Early-rung leaks under 10% with success held within 5 points |
 | H4 coverage | Share of human positions a stored ladder covers | free CPU | 60% or more of hint-worthy positions covered, or an on-demand fallback chosen |
 | H5 Thinky bar | Our ladders vs authors' on the Thinky puzzles the engine can read | about $5 | Our success at least the authors', with fewer leaks |
 | A/B on inkit | Hints tab off (today's bottom-out button only) vs hints tab on; later, rung order and wording variants | under $10 a week for AI posts | Solve completion, time to next correct move, rungs used, quitting after a hint |
@@ -236,7 +236,7 @@ What's wrong with it, measured:
 
 | Thread | What's coming | Changes in this plan |
 | --- | --- | --- |
-| PR cleanup, benchmarks, walkthrough plan | H2: 70 more states, Sonnet low as a second student, explain fixed, leaks hand-checked | Confirms or replaces the ladder as the arm to ship; real per-rung leak rates |
+| PR cleanup, benchmarks, walkthrough plan | Landed: H2 (hint-test-h2-2026-10-24.md) | Folded in above |
 | Run review research ideas | Landed (PR #28): Masyu estimate saturates at its cap; split count and rounds carry the signal. Next there: the same check on Slitherlink, Simple Loop, Nurikabe | Masyu pricing for G1; cells-only column in G0 |
 | Trajectory phase 1: cost model | PR #24 waiting on merge | G1's difficulty scorer |
 
