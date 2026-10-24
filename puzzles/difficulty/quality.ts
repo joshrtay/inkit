@@ -9,7 +9,8 @@
 //             record of which kinds a step used misses clues it reads at grounding
 //   guessing  case splits on the path (tier 2 and 3 steps). In the types where the solver lacks
 //             the techniques people use (SPLIT_GAP: most of people's moves there need a split
-//             from the solver), a split is the solver's gap, not the puzzle's: logged, not counted
+//             from the solver), or a solve that's mostly splits (SOLVER_GAP_SHARE), a split is
+//             the solver's gap, not the puzzle's: logged, not counted
 //   grind     a long run of easy steps that make up most of the solve
 //
 // Each sets a flag and takes something off a 0..1 score. The weights follow the order above but are
@@ -23,6 +24,10 @@ import type { Profile, Step } from "./deduce.ts";
  *  93%, Hidoku 85%, Numberlink 91%), or where its solves stall (Nurikabe, Spiral Galaxies,
  *  Fillomino): a split there says nothing about guessing. */
 export const SPLIT_GAP = new Set(["hitori", "hidoku", "numberlink", "nurikabe", "spiral-galaxies", "fillomino"]);
+
+/** A solve that's mostly splits says the solver can't read the type (on the examples: Sum Blobs,
+ *  Panes and Polyomino Packing split on 80–100% of steps), not that the puzzle needs guessing. */
+export const SOLVER_GAP_SHARE = 0.75;
 
 /** What each fault takes off the score (provisional). */
 export const PENALTY = {
@@ -87,7 +92,7 @@ export function qualityOf({ spec, path, profile, usage, redundant, idle }: Quali
   // ---- guessing ----
   const splits = real.filter((s) => s.tier >= 2).length, splitShare = real.length ? splits / real.length : 0;
   if (splits) {
-    if (SPLIT_GAP.has(spec.genre ?? "")) flags.push(`splits: ${splits} of ${real.length} steps (the solver lacks this type's techniques; not counted)`);
+    if (SPLIT_GAP.has(spec.genre ?? "") || splitShare >= SOLVER_GAP_SHARE) flags.push(`splits: ${splits} of ${real.length} steps (the solver lacks this type's techniques; not counted)`);
     else {
       off += PENALTY.split + PENALTY.splitShare * splitShare;
       flags.push(`guessing: ${splits} of ${real.length} steps are case splits`);

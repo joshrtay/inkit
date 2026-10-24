@@ -61,6 +61,8 @@ export async function redundantClues(spec: GridSpec, max = 120, maxMs = 60000): 
   const clues = givens.map((g, i) => [g, i] as const).filter(([g]) => !STRUCTURE.has(g.kind));
   if (!clues.length) return [];
   if (clues.length > max) return undefined;
+  // a grid that's all clues (Hitori's numbers in every square) is the board, not clues to spare
+  if (!spec.figure && clues.length >= 0.9 * spec.size[0] * spec.size[1]) return undefined;
   await loadClingo();
   const out: string[] = [];
   for (const [g, i] of clues) {

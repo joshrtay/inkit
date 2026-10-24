@@ -81,3 +81,12 @@ describe("kinds and clues that do nothing, by uniqueness", () => {
     expect(await idleKinds(spec)).toEqual([]);
   }, 60000);
 });
+
+describe("a solve that's mostly splits", () => {
+  it("is the solver's gap, not guessing", async () => {
+    const { qualityOf: q } = await import("../../../puzzles/difficulty/quality.ts");
+    const r = q({ spec: { genre: "sum-blobs", size: [4, 4], givens: [] }, path: [step(5, 2), step(5, 2), step(5, 2), step(2)], profile: { solved: true, entryPoints: 1, notes: [] } });
+    expect(r.score).toBe(1);
+    expect(r.flags[0]).toMatch(/^splits/);
+  });
+});
