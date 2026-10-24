@@ -151,7 +151,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       <div className="game-body">
         <div className="game-play">
           {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description}
-              onRules={() => openRules(true)} tip={tip} />
+              onRules={() => openRules(true)} tip={tip} logGame={!preview && game.state === "published" ? game.id : undefined} />
             : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
           {list && !preview && (
             <Later value={list} fallback={<div className="list-bar skel-list-bar" aria-hidden="true"><span className="skel" /></div>}>

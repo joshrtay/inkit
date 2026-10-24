@@ -18,6 +18,7 @@ import { attempt, signInFirst } from "~/lib/http.server";
 import { Invalid } from "~/lib/errors.server";
 import { savedTheme, setTheme, type Theme } from "~/lib/theme";
 import { recordingAllowed, setRecordingAllowed } from "~/lib/bugs/capture";
+import { ShareSolvesSetting } from "~/components/ShareSolves";
 import { openBugReport } from "~/components/BugReport";
 import { Avatar } from "~/components/Avatar";
 
@@ -125,6 +126,8 @@ export default function Settings({ loaderData: d, actionData }: Route.ComponentP
       <section aria-labelledby="bug-reports">
         <h2 id="bug-reports">Bug reports</h2>
         <Recording />
+        <h2 id="research">Puzzle research</h2>
+        <ShareSolvesSetting />
       </section>
 
       {/* phones have no More menu, so its other places are here too */}
