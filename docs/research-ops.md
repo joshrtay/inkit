@@ -139,6 +139,11 @@ solutions) are in gs://inkit-research-ml/private/refs/janko-full/ (uploaded 2026
   changes the e2e suite.
 - **Editing a bash script while it runs breaks it** (bash reads scripts as it goes): stop it first.
 - **macOS has bash 3.2:** no associative arrays.
+- **Report difficulty beside its baselines** (2026-10-24): every within-type Spearman with a
+  rating goes beside what cell count alone scores and the ceiling, √(inter-rater agreement), from
+  `puzzles/difficulty/difficulty-baselines.json` (`size_audit.py` writes it; sim-difficulty.ts's
+  report prints both columns). A figure near cells alone reads only size (PSJP Numberlink: cells
+  alone 0.79, Easy as ABC 0.67, Hitori 0.63); one near the ceiling has no room left.
 
 ## Decisions to remember
 
