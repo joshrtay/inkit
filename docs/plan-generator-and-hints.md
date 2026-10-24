@@ -101,7 +101,10 @@ with the general technique instead; H3 tests both orders.
    check results and cost.
 7. **Serve.** In the rules tab (the question mark), below the rules: one list for the whole puzzle, in
    solve order (stuck point 1's rungs, then stuck point 2's), revealed in order one at a time on click
-   (Josh, 20:48Z). A player stuck later clicks past hints they already know, as on Thinky. Today's hint button stays as "show me". Log each rung
+   (Josh, 20:48Z). Hints for stuck points the player has passed are skipped automatically: if a stuck
+   point's key-step cells are already filled in correctly on their board, its rungs fold away (still
+   readable) and the next click starts at the first unpassed one. Wrong key cells aren't skipped; the
+   player is pointed at the mistake. Runs in the browser, no model call. Today's hint button stays as "show me". Log each rung
    opened, then the next move and its time.
 
 ### Matching a player to a stuck point
