@@ -13,6 +13,8 @@
 //   node --no-warnings puzzles/difficulty/bench-solve.ts puzzles <set> [--per-band 1] [--limit N]   → solve-<set>/puzzles.json (free)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts run <set> <model>:<effort>:<format>[,…] [--hints [--long]] [--turns 12]
 //     [--limit N | --sample N] [--jobs 6]                                         → solve-<set>/runs/<taker>[-hints].jsonl (paid; resumable)
+//   node --no-warnings puzzles/difficulty/bench-solve.ts ladders <set> [--limit N]  → solve-<set>/ladders-ours.jsonl (paid: our chapter ladders)
+//     run … --hints --ladder ours [--full]: solve with our ladders instead of the author's; --full gives every run turns + ladder length
 //   node --no-warnings puzzles/difficulty/bench-solve.ts recall <model>:<effort> [--limit N]  (Thinky contamination check: hints from the title alone)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts report <set>              → solve-<set>/report.md (free)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts show <set> [puzzle id]     (the first turn's prompt)
@@ -26,7 +28,8 @@ import { shuffled } from "./llm-label.ts";
 import { draw, listed, markOf, moveForm, NAME, readJsonl, rules } from "./opus-human.ts";
 import { mapPool } from "./pool.ts";
 import { type MV } from "./walkthrough-core.ts";
-import { askOpus, ctxOf, ledger } from "./walkthrough-loop.ts";
+import { deduce } from "./deduce.ts";
+import { askOpus, ctxOf, DEFAULT_CEILING, FINISH, ledger, loadSeed, OPUS } from "./walkthrough-loop.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
 const argv = process.argv.slice(2), cmd = argv[0] ?? "report";
@@ -130,23 +133,106 @@ async function runCmd(set: string, takers: string) {
   const all = loadPuzzles(set), n = num("--sample", 0), withHints = argv.includes("--hints");
   if (withHints && set !== "thinky") throw new Error("hints are Thinky's only");
   const ps = (n ? shuffled(all, `bench solve ${set}`).slice(0, n) : all.slice(0, num("--limit", Infinity))).filter((p) => !withHints || (p.hints?.length ?? 0) > 0);
-  // --long: redo the hint runs that ended unsolved, with room for every rung (turns + the ladder's length)
-  const long = withHints && argv.includes("--long");
+  // --long: redo the hint runs that ended unsolved, with room for every rung (turns + the ladder's length);
+  // --full: every run gets that room; --ladder ours: our chapter ladders in place of the author's
+  const long = withHints && argv.includes("--long"), full = withHints && argv.includes("--full"), ours = withHints && opt("--ladder", "") === "ours";
+  if (ours) {
+    const L = new Map(readJsonl(`${dir(`solve-${set}`)}ladders-ours.jsonl`).filter((x) => x.ladder?.length).map((x) => [x.id, x.ladder as string[]]));
+    for (let i = ps.length - 1; i >= 0; i--) { const l = L.get(ps[i].id); if (l) ps[i] = { ...ps[i], hints: l }; else ps.splice(i, 1); }
+  }
   for (const t of takers.split(",").map(takerOf)) {
-    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}`, f = `${base}${long ? "-long" : ""}.jsonl`;
+    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}${ours ? "-ours" : ""}`, f = `${base}${long ? "-long" : full ? "-full" : ""}.jsonl`;
     const unsolved = long ? new Set(readJsonl(`${base}.jsonl`).filter((r: Run) => !r.solved).map((r: Run) => r.id)) : null;
     const done = new Set(readJsonl(f).map((r: Run) => r.id)), todo = ps.filter((p) => !done.has(p.id) && (!unsolved || unsolved.has(p.id)));
     console.error(`${t.name}${withHints ? " with hints" : ""}: ${todo.length} to solve (${done.size} done)`);
     await mapPool(todo, async (p) => {
       if (ledger.spent > CAP) return;
       try {
-        const r = await solveOne(p, t, withHints, num("--turns", 12) + (long ? p.hints?.length ?? 0 : 0));
+        const r = await solveOne(p, t, withHints, num("--turns", 12) + (long || full ? p.hints?.length ?? 0 : 0));
         if (r.stop !== "cap") appendFileSync(f, JSON.stringify(r) + "\n");
         console.error(`${p.id} ${t.name}: ${r.solved ? "solved" : r.stop} in ${r.turns} turns, ${r.placed}/${r.positives}, ${r.wrong} wrong${withHints ? `, ${r.shown}/${r.ladder} hints` : ""}, $${r.cost.toFixed(3)}`);
       } catch (e) { console.error(`${p.id} ${t.name}: ${(e as Error).message}`); }
     }, num("--jobs", 6));
     console.error(`${t.name}: done; $${ledger.spent.toFixed(2)} spent so far`);
   }
+}
+
+// ======== our ladders ========
+/** The solve's key steps, for the writer only: the path's steps a reader at the ceiling can't take
+ *  (tier 2 or dearer), in order, with how many easy steps fall between. */
+async function outlineOf(p: SolvePuzzle): Promise<{ where: string; facts: string[]; easyBefore: number }[]> {
+  const r = await deduce(p.spec, { finish: FINISH, budgetMs: 120000 });
+  const out: { where: string; facts: string[]; easyBefore: number }[] = [];
+  let easy = 0;
+  for (const st of r.path) {
+    if (st.tier >= 2 || st.cost > DEFAULT_CEILING) { out.push({ where: st.where, facts: st.facts.slice(0, 5).map((f) => f.text), easyBefore: easy }); easy = 0; }
+    else easy++;
+  }
+  // at most 12, evenly spaced and in order
+  if (out.length <= 12) return out;
+  const keep = new Set<number>();
+  for (let k = 0; k < 12; k++) keep.add(Math.round((k * (out.length - 1)) / 11));
+  return out.filter((_, i) => keep.has(i));
+}
+function ladderPrompt(p: SolvePuzzle, initial: Map<string, boolean>, outline: { where: string; facts: string[]; easyBefore: number }[]): string {
+  const seed = loadSeed();
+  return `You are writing the hints for a ${nameOf(p.genre)} puzzle, shown to a player who asks for help.
+
+Rules: ${rules(p.spec)} The puzzle has exactly one solution.
+
+The puzzle:
+
+${draw(p.spec, initial)}
+
+A solver's walk through it, for you (not the player): its key steps in order, the ones that need a real idea, with the number of easy steps (simple rule applications) before each.
+${outline.map((o, i) => `${i + 1}. (${o.easyBefore} easy steps first) at ${o.where}: ${o.facts.join(", ")}`).join("\n")}
+
+Write the hints as chapters of the solve, in order. A chapter is one key idea (merge key steps that are the same idea in the same place; leave the easy steps to the player, mentioning them only as "fill in what follows"). Each chapter has three depths, shown one at a time:
+- look: where to look (a row, column, region, clue or cells), not why;
+- idea: the kind of reasoning that works there and a question that leads to it, without the answer (you may use one of the patterns below);
+- step: what follows and why, plainly, so a player who reads it can make the move.
+Before the chapters, one theme line: what this puzzle's solve is about, without giving any step away.
+Use as many chapters as the puzzle needs (more for a harder one), at most 10. Name cells as r3c4 (rows and columns count from 1). For each chapter also give one mark its step decides, as {"at": "r3c4", "value": …} in the form ${one(p.genre)}, so we can check it.
+
+Patterns (name: when it applies / its general nudge):
+${seed.map((e) => `- ${e.name}: ${e.when} / ${(e.ladder ?? [])[0] ?? ""}`).join("\n")}
+
+Reply with JSON only: {"theme": "…", "chapters": [{"look": "…", "idea": "…", "step": "…", "decides": {…}}, …]}`;
+}
+async function laddersCmd(set: string) {
+  const file = `${dir(`solve-${set}`)}ladders-ours.jsonl`, rows = readJsonl(file), done = new Set(rows.filter((x) => x.ladder?.length).map((x) => x.id));
+  ledger.spent = rows.reduce((t, x) => t + (x.cost ?? 0), 0);
+  const ps = loadPuzzles(set).filter((p) => (p.hints?.length ?? 0) > 0 && !done.has(p.id)).slice(0, num("--limit", Infinity));
+  const writer = { ...OPUS, maxTokens: 24000 };
+  await mapPool(ps, async (p) => {
+    if (ledger.spent > CAP) return;
+    try {
+      const ctx = await ctxOf({ id: p.id, set: "bench", genre: p.genre, known: [], spec: p.spec });
+      const initial = new Map<string, boolean>([...ctx.initial].map((m) => [m, ctx.truth.get(m) ?? false]));
+      const outline = await outlineOf(p);
+      const r = await askOpus([{ role: "user", content: ladderPrompt(p, initial, outline) }], undefined, writer);
+      const j = topLevelJson(r.text).find((x) => Array.isArray(x?.chapters));
+      const chapters: { look?: string; idea?: string; step?: string; decides?: any }[] = j?.chapters ?? [];
+      // the check: each chapter's claimed mark against the answer
+      const check = chapters.map((c) => { const m = c.decides ? markOf(p.spec, c.decides) : null; return m ? ((ctx.truth.get(m[0]) ?? false) === m[1] ? "true" : "false") : "unread"; });
+      const ladder = [...(j?.theme ? [String(j.theme)] : []), ...chapters.flatMap((c) => [c.look, c.idea, c.step].filter(Boolean).map(String))];
+      appendFileSync(file, JSON.stringify({ id: p.id, theme: j?.theme, chapters, check, ladder, keySteps: outline.length, cost: r.cost, finish: r.finish, ...(j ? {} : { text: r.text }) }) + "\n");
+      console.error(`${p.id}: ${chapters.length} chapters (${outline.length} key steps), checks ${check.filter((c) => c === "true").length}/${check.length} true, $${r.cost.toFixed(3)} (total $${ledger.spent.toFixed(2)})`);
+    } catch (e) { console.error(`${p.id}: ${(e as Error).message}`); }
+  }, num("--jobs", 4));
+}
+/** the top-level JSON objects in a reply, in order (one pass over braces outside strings) */
+function topLevelJson(text: string): any[] {
+  const t = text.replace(/```(?:json)?/g, ""), out: any[] = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"' && depth > 0) inStr = true;
+    else if (c === "{") { if (depth++ === 0) start = i; }
+    else if (c === "}" && depth > 0 && --depth === 0) { try { out.push(JSON.parse(t.slice(start, i + 1))); } catch { /* not JSON */ } }
+  }
+  return out;
 }
 
 // ======== contamination ========
@@ -205,6 +291,7 @@ async function show(set: string, id?: string) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   if (cmd === "puzzles") puzzlesCmd(argv[1] ?? "thinky");
   else if (cmd === "run") await runCmd(argv[1], argv[2]);
+  else if (cmd === "ladders") await laddersCmd(argv[1] ?? "thinky");
   else if (cmd === "recall") await recallCmd(argv[1] ?? "opus:high");
   else if (cmd === "show") await show(argv[1] ?? "thinky", argv[2]);
   else report(argv[1] ?? "thinky");
