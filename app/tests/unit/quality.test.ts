@@ -64,6 +64,10 @@ describe("the site's use of an assessment", () => {
   it("takes a finished solve's difficulty, else the rough estimate", () => {
     expect(estimateWith("akari", akari, a).difficulty).toBe(0.7);
     expect(estimateWith("akari", akari, a).level).toBe(3);
+    // the solver's estimate takes its type's level cuts (Masyu's sit higher than the shared ones)
+    expect(estimateWith("masyu", { size: [10, 10], givens: [] }, a).level).toBe(2);
+    expect(estimateWith("akari", akari, { ...a, estimate: 0.35 }).level).toBe(2);
+    expect(estimateWith("akari", akari, { ...a, estimate: 0.25 }).level).toBe(1);
     expect(estimateWith("akari", akari, { ...a, solved: false })).toEqual(estimate("akari", akari));
     expect(estimateWith("akari", akari, { ...a, solved: false }, 0.3).difficulty).toBe(0.3);
   });

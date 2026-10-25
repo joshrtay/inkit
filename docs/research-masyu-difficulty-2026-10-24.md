@@ -79,6 +79,29 @@ Nothing else was tuned, and every other row below was scored once at that S.
   separate step.
 - Not yet: Numberlink (still running when this was written), and Tatham and Janko as guard sources.
 
+## Site levels: per-type cuts
+
+Since PR #26 the site's easy / medium / hard come from this estimate, cut at 0.4 and 0.62 for every
+type. Those shared cuts were off before the split term too: against PSJP's bands (1–2 easy, 3
+medium, 4–5 hard), 99% of Masyus and 96% of Slitherlinks were "hard"; with the split term Akari
+and Star Battle swing to 72–77% "easy". `level_cuts.py` fits two cuts per type by quantile matching
+(the same share at each level as the raters give), so only the order within a type matters.
+`SOLVER_CUTS` in app/app/games/estimate.ts holds them; assessment.ts uses them for finished solves.
+
+| Type (finished solves) | Cuts | Level = rating band, shared cuts | Fitted | Held-out halves |
+|---|---|---|---|---|
+| Masyu (571) | 0.68, 0.75 | 23% | 61% | 64%, 57% |
+| Akari (144) | 0.29, 0.63 | 68% | 72% | 81%, 73% |
+| Slitherlink (147) | 0.61, 0.73 | 34% | 64% | 57%, 64% |
+| Simple Loop (143) | 0.65, 0.74 | 36% | 73% | 71%, 70% |
+| Star Battle (146) | 0.29, 0.61 | 60% | 69% | 63%, 77% |
+| Hitori (111) | 0.79, 0.85 | 13% | 74% | 78%, 70% |
+| Shikaku (148) | 0.58, 0.61 | 31% | 65% | 64%, 72% |
+
+Nurikabe (cuts collapse to 0.90, 0.90: the estimate sits at its cap) and Spiral Galaxies (0.16,
+0.17: nearly flat) keep the shared cuts, as do types without PSJP ratings. The minutes formula still
+reads the estimate itself. ASSESS_VERSION is 2, so the hourly job reassesses every puzzle.
+
 Rows: scratch only (PSJP data stays private). Scripts: `puzzles/difficulty/psjp-features.ts`
 (now with `--skip` for a fresh draw), `puzzles/difficulty/psjp_features.py`,
-`puzzles/difficulty/estimate_splits.py`. The change: `estimateOf` in `puzzles/difficulty/deduce.ts`.
+`puzzles/difficulty/estimate_splits.py`, `puzzles/difficulty/level_cuts.py`. The change: `estimateOf` in `puzzles/difficulty/deduce.ts`.
