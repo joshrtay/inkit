@@ -40,7 +40,12 @@ const opt = (name: string, d: string) => { const k = argv.indexOf(name); return 
 const num = (name: string, d: number) => Number(opt(name, String(d)));
 const CAP = Number(process.env.BENCH_CAP) || 10;
 
-interface SolvePuzzle extends Puzzle { hints?: string[]; title?: string }
+interface SolvePuzzle extends Puzzle {
+  hints?: string[]; title?: string;
+  /** chapter mode: a theme, then chapters each with depths shown one at a time, the current chapter
+   *  being the first whose mark isn't placed yet (passed chapters are skipped) */
+  theme?: string; chapters?: { texts: string[]; names: string[]; mark: string | null }[];
+}
 
 // ======== puzzles ========
 /** Thinky's hint ladders by slug, as plain text (the scrape keeps them in order). */
@@ -90,8 +95,8 @@ function movesOf(text: string): any[] | null {
 
 interface Run {
   id: string; taker: string; hints: boolean; solved: boolean; placed: number; positives: number;
-  turns: number; wrong: number; shown: number; ladder: number; cost: number; stop: string; ms: number;
-  log: { turn: number; got: number; listed: number; unread?: number; wrong?: string; hint?: number; finish?: string }[];
+  turns: number; wrong: number; shown: number; ladder: number; depth?: number[]; cost: number; stop: string; ms: number;
+  log: { turn: number; got: number; listed: number; unread?: number; wrong?: string; hint?: number; label?: string; finish?: string }[];
 }
 async function solveOne(p: SolvePuzzle, taker: ReturnType<typeof takerOf>, withHints: boolean, maxTurns: number): Promise<Run> {
   const t0 = Date.now(), ctx = await ctxOf({ id: p.id, set: "bench", genre: p.genre, known: [], spec: p.spec });
@@ -100,6 +105,17 @@ async function solveOne(p: SolvePuzzle, taker: ReturnType<typeof takerOf>, withH
   for (const m of ctx.initial) known.set(m, truth(m));
   const positives = ctx.markNames.filter((m) => truth(m));
   const ladder = withHints ? (p.hints ?? []) : [];
+  // chapter mode: what's revealed so far, in order, and how deep each chapter went
+  const chapters = withHints ? p.chapters : undefined, revealed: string[] = [], depth = (chapters ?? []).map(() => 0);
+  let themeShown = false;
+  const nextHint = (): string | null => {
+    if (!chapters) return shown < ladder.length ? ladder[shown] : null;
+    if (p.theme && !themeShown) { themeShown = true; return "theme"; }
+    const k = chapters.findIndex((c, i) => depth[i] < c.texts.length && !(c.mark && known.get(c.mark) === truth(c.mark)));
+    if (k < 0) return null;
+    return `${k}.${chapters[k].names[depth[k]++]}`;
+  };
+  const hintText = (label: string) => (label === "theme" ? p.theme! : (() => { const [k, name] = label.split("."), c = chapters![Number(k)]; return c.texts[c.names.indexOf(name)]; })());
   let shown = 0, wrong = 0, cost = 0, idle = 0, note = "", stop = "turns";
   const log: Run["log"] = [];
   const placed = () => positives.filter((m) => known.get(m) === true).length;
@@ -107,7 +123,7 @@ async function solveOne(p: SolvePuzzle, taker: ReturnType<typeof takerOf>, withH
   for (; turn < maxTurns; turn++) {
     if (placed() === positives.length) { stop = "solved"; break; }
     if (ledger.spent > CAP) { stop = "cap"; break; }
-    const r = await askOpus([{ role: "user", content: turnPrompt(p, known, taker.format, ladder.slice(0, shown), note) }], undefined, taker.model);
+    const r = await askOpus([{ role: "user", content: turnPrompt(p, known, taker.format, chapters ? revealed : ladder.slice(0, shown), note) }], undefined, taker.model);
     cost += r.cost;
     const moves = movesOf(r.text) ?? [];
     let got = 0, unread = 0, bad: string | undefined;
@@ -122,20 +138,23 @@ async function solveOne(p: SolvePuzzle, taker: ReturnType<typeof takerOf>, withH
     note = bad ? `Your move ${bad} was wrong; it and the moves after it were not applied. The grid shows the moves that were right.` : "";
     if (bad) wrong++;
     const stuck = got === 0;
-    let hint: number | undefined;
-    if ((bad || stuck) && shown < ladder.length) hint = ++shown;
-    log.push({ turn: turn + 1, got, listed: moves.length, ...(unread ? { unread } : {}), ...(bad ? { wrong: bad } : {}), ...(hint ? { hint } : {}), finish: r.finish });
+    let hint: number | undefined, label: string | undefined;
+    if (bad || stuck) {
+      const h = nextHint();
+      if (h !== null) { hint = ++shown; if (chapters) { label = h; revealed.push(hintText(h)); } }
+    }
+    log.push({ turn: turn + 1, got, listed: moves.length, ...(unread ? { unread } : {}), ...(bad ? { wrong: bad } : {}), ...(hint ? { hint } : {}), ...(label ? { label } : {}), finish: r.finish });
     idle = stuck && !hint ? idle + 1 : 0;
     if (idle >= 2) { stop = "stuck"; turn++; break; }
   }
   if (placed() === positives.length) stop = "solved";
-  return { id: p.id, taker: taker.name, hints: withHints, solved: stop === "solved", placed: placed(), positives: positives.length, turns: turn, wrong, shown, ladder: ladder.length, cost, stop, ms: Date.now() - t0, log };
+  return { id: p.id, taker: taker.name, hints: withHints, solved: stop === "solved", placed: placed(), positives: positives.length, turns: turn, wrong, shown, ladder: chapters ? (p.theme ? 1 : 0) + chapters.reduce((a, c) => a + c.texts.length, 0) : ladder.length, ...(chapters ? { depth } : {}), cost, stop, ms: Date.now() - t0, log };
 }
 
 async function runCmd(set: string, takers: string) {
   const all = loadPuzzles(set), n = num("--sample", 0), withHints = argv.includes("--hints");
   if (withHints && set !== "thinky") throw new Error("hints are Thinky's only");
-  const ps = (n ? shuffled(all, `bench solve ${set}`).slice(0, n) : all.slice(0, num("--limit", Infinity))).filter((p) => !withHints || (p.hints?.length ?? 0) > 0);
+  const ps = (n ? shuffled(all, `bench solve ${set}`).slice(0, n) : all.slice(0, num("--limit", Infinity))).filter((p) => !withHints || (p.hints?.length ?? 0) > 0 || argv.includes("--chapters"));
   // --long: redo the hint runs that ended unsolved, with room for every rung (turns + the ladder's length);
   // --full: every run gets that room; --ladder ours: our chapter ladders in place of the author's
   const long = withHints && argv.includes("--long"), full = withHints && argv.includes("--full"), lad = withHints ? opt("--ladder", "") : "", ours = !!lad;
@@ -143,15 +162,28 @@ async function runCmd(set: string, takers: string) {
     const L = new Map(readJsonl(`${dir(`solve-${set}`)}ladders-${lad}.jsonl`).filter((x) => x.ladder?.length).map((x) => [x.id, x.ladder as string[]]));
     for (let i = ps.length - 1; i >= 0; i--) { const l = L.get(ps[i].id); if (l) ps[i] = { ...ps[i], hints: l }; else ps.splice(i, 1); }
   }
+  // --chapters <depths>: chapter mode from ladders-ours.jsonl, keeping these depths (e.g. look,idea,step or idea,step); --no-theme drops the theme
+  const depths = withHints ? opt("--chapters", "") : "", noTheme = argv.includes("--no-theme");
+  if (depths) {
+    const keep = depths.split(","), L = new Map(readJsonl(`${dir(`solve-${set}`)}ladders-ours.jsonl`).filter((x) => x.chapters?.length).map((x) => [x.id, x]));
+    for (let i = ps.length - 1; i >= 0; i--) {
+      const l = L.get(ps[i].id);
+      if (!l) { ps.splice(i, 1); continue; }
+      const chapters = l.chapters.map((c: any) => ({ names: keep.filter((k) => c[k]), texts: keep.filter((k) => c[k]).map((k) => String(c[k])), mark: c.decides ? markOf(ps[i].spec, c.decides)?.[0] ?? null : null }));
+      ps[i] = { ...ps[i], hints: [], theme: noTheme ? undefined : l.theme, chapters };
+    }
+  }
+  const tag = depths ? `-ch-${depths.replace(/,/g, "-")}${noTheme ? "-notheme" : ""}` : ours ? `-${lad}` : "";
   for (const t of takers.split(",").map(takerOf)) {
-    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}${ours ? `-${lad}` : ""}`, f = `${base}${long ? "-long" : full ? "-full" : ""}.jsonl`;
+    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}${tag}`, f = `${base}${long ? "-long" : full ? "-full" : ""}.jsonl`;
     const unsolved = long ? new Set(readJsonl(`${base}.jsonl`).filter((r: Run) => !r.solved).map((r: Run) => r.id)) : null;
     const done = new Set(readJsonl(f).map((r: Run) => r.id)), todo = ps.filter((p) => !done.has(p.id) && (!unsolved || unsolved.has(p.id)));
     console.error(`${t.name}${withHints ? " with hints" : ""}: ${todo.length} to solve (${done.size} done)`);
     await mapPool(todo, async (p) => {
       if (ledger.spent > CAP) return;
       try {
-        const r = await solveOne(p, t, withHints, num("--turns", 12) + (long || full ? p.hints?.length ?? 0 : 0));
+        const room = p.chapters ? (p.theme ? 1 : 0) + p.chapters.reduce((a, c) => a + c.texts.length, 0) : p.hints?.length ?? 0;
+        const r = await solveOne(p, t, withHints, num("--turns", 12) + (long || full ? room : 0));
         if (r.stop !== "cap") appendFileSync(f, JSON.stringify(r) + "\n");
         console.error(`${p.id} ${t.name}: ${r.solved ? "solved" : r.stop} in ${r.turns} turns, ${r.placed}/${r.positives}, ${r.wrong} wrong${withHints ? `, ${r.shown}/${r.ladder} hints` : ""}, $${r.cost.toFixed(3)}`);
       } catch (e) { console.error(`${p.id} ${t.name}: ${(e as Error).message}`); }
