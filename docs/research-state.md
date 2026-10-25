@@ -3,6 +3,9 @@
 > **Start here:** this file holds the results, open questions, sequence and queue;
 > [research-ops.md](research-ops.md) holds what's running and how to check it, the cloud runbook,
 > spending, what needs the user's approval, and the working rules. Read both before continuing.
+> [research-review-2026-10-24.md](research-review-2026-10-24.md) is the latest critical review of
+> all of it: which results are solid, which are artifacts or underpowered, and the next experiments
+> ranked by value against cost.
 
 
 A snapshot of the research agenda (2026-10-13): the aim, what's built, what we've learned, what's
