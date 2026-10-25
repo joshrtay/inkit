@@ -1,0 +1,173 @@
+{
+ "source": "psjp",
+ "note": "cells: Spearman of cell count with the PSJP rating within type, all rated puzzles (variation 0). raters: puzz.link vs PSJP on shared puzzles (50+ only). ceiling: sqrt(raters). size_audit.py, 2026-10-24.",
+ "types": {
+  "akari": {
+   "n": 2869,
+   "cells": 0.29,
+   "cellsInterval": [
+    0.26,
+    0.33
+   ],
+   "raters": 0.68,
+   "ratersN": 153,
+   "ceiling": 0.82
+  },
+  "aquarium": {
+   "n": 37,
+   "cells": 0.16,
+   "cellsInterval": [
+    -0.16,
+    0.45
+   ]
+  },
+  "cave": {
+   "n": 131,
+   "cells": 0.38,
+   "cellsInterval": [
+    0.21,
+    0.52
+   ]
+  },
+  "easy-as-abc": {
+   "n": 51,
+   "cells": 0.67,
+   "cellsInterval": [
+    0.51,
+    0.8
+   ]
+  },
+  "fillomino": {
+   "n": 696,
+   "cells": 0.47,
+   "cellsInterval": [
+    0.42,
+    0.53
+   ]
+  },
+  "hitori": {
+   "n": 119,
+   "cells": 0.63,
+   "cellsInterval": [
+    0.52,
+    0.74
+   ]
+  },
+  "masyu": {
+   "n": 2793,
+   "cells": 0.33,
+   "cellsInterval": [
+    0.29,
+    0.36
+   ],
+   "raters": 0.76,
+   "ratersN": 174,
+   "ceiling": 0.87
+  },
+  "minesweeper": {
+   "n": 33,
+   "cells": 0.49,
+   "cellsInterval": [
+    0.1,
+    0.76
+   ]
+  },
+  "nonogram": {
+   "n": 146,
+   "cells": 0.53,
+   "cellsInterval": [
+    0.41,
+    0.65
+   ]
+  },
+  "numberlink": {
+   "n": 757,
+   "cells": 0.79,
+   "cellsInterval": [
+    0.76,
+    0.81
+   ],
+   "raters": 0.59,
+   "ratersN": 102,
+   "ceiling": 0.77
+  },
+  "nurikabe": {
+   "n": 1129,
+   "cells": 0.33,
+   "cellsInterval": [
+    0.28,
+    0.38
+   ],
+   "raters": 0.7,
+   "ratersN": 94,
+   "ceiling": 0.84
+  },
+  "shikaku": {
+   "n": 314,
+   "cells": 0.41,
+   "cellsInterval": [
+    0.31,
+    0.5
+   ]
+  },
+  "simple-loop": {
+   "n": 842,
+   "cells": 0.31,
+   "cellsInterval": [
+    0.25,
+    0.38
+   ]
+  },
+  "skyscrapers": {
+   "n": 159,
+   "cells": 0.58,
+   "cellsInterval": [
+    0.47,
+    0.68
+   ]
+  },
+  "slitherlink": {
+   "n": 1585,
+   "cells": 0.28,
+   "cellsInterval": [
+    0.24,
+    0.33
+   ],
+   "raters": 0.6,
+   "ratersN": 72,
+   "ceiling": 0.78
+  },
+  "spiral-galaxies": {
+   "n": 325,
+   "cells": 0.5,
+   "cellsInterval": [
+    0.41,
+    0.58
+   ]
+  },
+  "square-jam": {
+   "n": 175,
+   "cells": 0.39,
+   "cellsInterval": [
+    0.26,
+    0.51
+   ]
+  },
+  "star-battle": {
+   "n": 217,
+   "cells": 0.52,
+   "cellsInterval": [
+    0.42,
+    0.61
+   ]
+  },
+  "sudoku": {
+   "n": 222,
+   "cells": 0.44,
+   "cellsInterval": [
+    0.32,
+    0.55
+   ]
+  }
+ }
+}

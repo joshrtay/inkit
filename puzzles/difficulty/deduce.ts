@@ -21,7 +21,7 @@
 // instances and earlier facts that entails it, found by deletion in a Lua script inside clingo.
 // A step's cost counts the distinct rule and clue kinds, the instances and the earlier facts
 // (costOf). Each round takes the cheapest steps; the profile combines step costs by soft-max
-// (softmax) and adds rule load (estimateOf).
+// (softmax) and adds rule load and case splits (estimateOf).
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
@@ -3056,17 +3056,24 @@ export function profileOf(path: Step[], solved: boolean, entryPoints: number, ro
   return p;
 }
 
-/** One 0..1 number: f(D_steps) + w·rule load. D_steps of 3 (only easy and medium steps) maps to
+/** One 0..1 number: f(D_steps) + w·rule load + w'·case splits. D_steps of 3 (only easy and medium steps) maps to
  *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. A solve stops at
  *  0.9; unsolved counts as harder than any solve, whatever its path so far: 0.95 out of clingo
  *  calls (Options.budgetCalls), 0.97 out of time or stuck, and a run capped from outside (no
  *  result: the scoreboard's) 1. On the guard (2026-10-22) unsolved below some solves held Nurikabe
  *  down; pricing unsolved by its path instead ran against the ratings (Numberlink −0.66); and capped
- *  runs are the hardest (Numberlink rated 2.8–3.0 against 1.8–1.9 for out of time). */
-export const LOAD_WEIGHT = 0.25;
-export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved"> & { notes?: string[] }): number {
+ *  runs are the hardest (Numberlink rated 2.8–3.0 against 1.8–1.9 for out of time).
+ *  A third term counts case splits and search (steps of tier 2 or more): log2(1 + splits) / 5, so
+ *  32 splits or more count as 1. Without it one split reached the soft-max's top and Masyu sat at
+ *  the cap (2026-10-24: 80% at 0.85 or more, 0.19 against PSJP ratings; with it 0.54 on fresh PSJP
+ *  Masyus, Slitherlink 0.40 to 0.64, Simple Loop 0.36 to 0.55, Nurikabe 0.37 to 0.47, other types
+ *  unchanged; docs/research-masyu-difficulty-2026-10-24.md). Its weight comes out of the soft-max's. */
+export const LOAD_WEIGHT = 0.25, SPLIT_WEIGHT = 0.35;
+export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved"> & { perTier?: Profile["perTier"]; notes?: string[] }): number {
   const clamp = (x: number) => Math.min(1, Math.max(0, x));
-  const x = (1 - LOAD_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5);
+  const splits = p.perTier ? p.perTier[2] + p.perTier[3] : 0;
+  const x = (1 - LOAD_WEIGHT - SPLIT_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5)
+    + SPLIT_WEIGHT * clamp(Math.log2(1 + splits) / 5);
   if (!p.solved) return p.notes?.some((n) => n.startsWith("out of budget after")) ? 0.95 : 0.97;
   return +Math.min(x, 0.9).toFixed(3);
 }
