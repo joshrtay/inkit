@@ -15,6 +15,8 @@
 //     [--limit N | --sample N] [--jobs 6]                                         → solve-<set>/runs/<taker>[-hints].jsonl (paid; resumable)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts ladders <set> [--limit N]  → solve-<set>/ladders-ours.jsonl (paid: our chapter ladders)
 //     run … --hints --ladder ours [--full]: solve with our ladders instead of the author's; --full gives every run turns + ladder length
+//   node --no-warnings puzzles/difficulty/bench-solve.ts graphs <set>  → solve-<set>/graphs.jsonl (free: each puzzle as the network's record, with our chapters' marks, for ladder_order.py)
+//     run … --ladder <name>: solve with solve-<set>/ladders-<name>.jsonl (ours, net, reversed, …)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts recall <model>:<effort> [--limit N]  (Thinky contamination check: hints from the title alone)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts report <set>              → solve-<set>/report.md (free)
 //   node --no-warnings puzzles/difficulty/bench-solve.ts show <set> [puzzle id]     (the first turn's prompt)
@@ -29,6 +31,7 @@ import { draw, listed, markOf, moveForm, NAME, readJsonl, rules } from "./opus-h
 import { mapPool } from "./pool.ts";
 import { type MV } from "./walkthrough-core.ts";
 import { deduce } from "./deduce.ts";
+import { graphRecord } from "./graph-data.ts";
 import { askOpus, ctxOf, DEFAULT_CEILING, FINISH, ledger, loadSeed, OPUS } from "./walkthrough-loop.ts";
 
 const repo = new URL("../../", import.meta.url).pathname;
@@ -135,13 +138,13 @@ async function runCmd(set: string, takers: string) {
   const ps = (n ? shuffled(all, `bench solve ${set}`).slice(0, n) : all.slice(0, num("--limit", Infinity))).filter((p) => !withHints || (p.hints?.length ?? 0) > 0);
   // --long: redo the hint runs that ended unsolved, with room for every rung (turns + the ladder's length);
   // --full: every run gets that room; --ladder ours: our chapter ladders in place of the author's
-  const long = withHints && argv.includes("--long"), full = withHints && argv.includes("--full"), ours = withHints && opt("--ladder", "") === "ours";
+  const long = withHints && argv.includes("--long"), full = withHints && argv.includes("--full"), lad = withHints ? opt("--ladder", "") : "", ours = !!lad;
   if (ours) {
-    const L = new Map(readJsonl(`${dir(`solve-${set}`)}ladders-ours.jsonl`).filter((x) => x.ladder?.length).map((x) => [x.id, x.ladder as string[]]));
+    const L = new Map(readJsonl(`${dir(`solve-${set}`)}ladders-${lad}.jsonl`).filter((x) => x.ladder?.length).map((x) => [x.id, x.ladder as string[]]));
     for (let i = ps.length - 1; i >= 0; i--) { const l = L.get(ps[i].id); if (l) ps[i] = { ...ps[i], hints: l }; else ps.splice(i, 1); }
   }
   for (const t of takers.split(",").map(takerOf)) {
-    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}${ours ? "-ours" : ""}`, f = `${base}${long ? "-long" : full ? "-full" : ""}.jsonl`;
+    const base = `${dir(`solve-${set}`, "runs/")}${t.name}${withHints ? "-hints" : ""}${ours ? `-${lad}` : ""}`, f = `${base}${long ? "-long" : full ? "-full" : ""}.jsonl`;
     const unsolved = long ? new Set(readJsonl(`${base}.jsonl`).filter((r: Run) => !r.solved).map((r: Run) => r.id)) : null;
     const done = new Set(readJsonl(f).map((r: Run) => r.id)), todo = ps.filter((p) => !done.has(p.id) && (!unsolved || unsolved.has(p.id)));
     console.error(`${t.name}${withHints ? " with hints" : ""}: ${todo.length} to solve (${done.size} done)`);
@@ -221,6 +224,22 @@ async function laddersCmd(set: string) {
     } catch (e) { console.error(`${p.id}: ${(e as Error).message}`); }
   }, num("--jobs", 4));
 }
+/** Each puzzle as the network's record (graph_policy.py's Puzzle), with the mark each of our chapters
+ *  decides, so ladder_order.py can order the chapters by the network's walk. */
+async function graphsCmd(set: string) {
+  const lads = new Map(readJsonl(`${dir(`solve-${set}`)}ladders-ours.jsonl`).map((x) => [x.id, x]));
+  const out = `${dir(`solve-${set}`)}graphs.jsonl`;
+  writeFileSync(out, "");
+  await mapPool(loadPuzzles(set).filter((p) => lads.has(p.id)), async (p) => {
+    try {
+      const rec = graphRecord({ source: "thinky", genre: p.genre, name: p.id }, p.spec, await deduce(p.spec, { finish: FINISH, budgetMs: 120000, structure: true }));
+      if (!rec) { console.error(`${p.id}: not solved, no record`); return; }
+      const marks = (lads.get(p.id).chapters ?? []).map((c: any) => (c.decides ? markOf(p.spec, c.decides)?.[0] ?? null : null));
+      appendFileSync(out, JSON.stringify({ ...rec, chapterMarks: marks }) + "\n");
+      console.error(`${p.id}: record, ${marks.filter(Boolean).length}/${marks.length} chapter marks`);
+    } catch (e) { console.error(`${p.id}: ${(e as Error).message}`); }
+  }, num("--jobs", 4));
+}
 /** the top-level JSON objects in a reply, in order (one pass over braces outside strings) */
 function topLevelJson(text: string): any[] {
   const t = text.replace(/```(?:json)?/g, ""), out: any[] = [];
@@ -291,6 +310,7 @@ async function show(set: string, id?: string) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   if (cmd === "puzzles") puzzlesCmd(argv[1] ?? "thinky");
   else if (cmd === "run") await runCmd(argv[1], argv[2]);
+  else if (cmd === "graphs") await graphsCmd(argv[1] ?? "thinky");
   else if (cmd === "ladders") await laddersCmd(argv[1] ?? "thinky");
   else if (cmd === "recall") await recallCmd(argv[1] ?? "opus:high");
   else if (cmd === "show") await show(argv[1] ?? "thinky", argv[2]);
