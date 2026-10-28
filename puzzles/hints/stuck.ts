@@ -8,9 +8,13 @@ import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import type { KeyMark } from "../../src/lib/hint-ladder.ts";
 import { BANDS, deduce, type Fact, type Step } from "../difficulty/deduce.ts";
+import CEILINGS from "./ceilings.json" with { type: "json" };
 
 /** the reader's ceiling when a genre has none of its own: the solver's "medium" band */
 export const DEFAULT_CEILING = BANDS[1][0];
+/** Per type, the reader's ceiling (ceilings.ts): the 0.6 quantile of step costs on the solver's
+ *  path, as walkthrough-loop.ts calibrates it, so a hard type's routine steps don't count as stuck. */
+export const ceilingFor = (genre: string | undefined): number => (CEILINGS.ceilings as Record<string, number>)[genre ?? ""] ?? DEFAULT_CEILING;
 /** at most this many stuck points (the costliest kept, in solve order), and at least this many (the
  *  costliest steps, when the reader stalls less often) */
 export const MAX_POINTS = 6, MIN_POINTS = 2;
@@ -54,7 +58,7 @@ export function marksOf(spec: GridSpec, steps: Step[]): KeyMark[] {
 }
 
 /** The stuck points of a puzzle, in solve order. */
-export async function stuckPoints(spec: GridSpec, { ceiling = DEFAULT_CEILING as number, budgetMs = 120_000 } = {}): Promise<Stuck> {
+export async function stuckPoints(spec: GridSpec, { ceiling = ceilingFor(spec.genre), budgetMs = 120_000 } = {}): Promise<Stuck> {
   const setup = await deduce(spec, { setupOnly: true, structure: true });
   const st = setup.structure!;
   const groups = new Map(st.groups.map((g) => [`${g.kind} (${g.label})`, g.cells]));
@@ -62,7 +66,10 @@ export async function stuckPoints(spec: GridSpec, { ceiling = DEFAULT_CEILING as
   const path = r.path.filter((s) => !s.choice);
   // the reader stalls before every step over the ceiling; a run of them is one stall (what
   // follows the first is still hard, but it's the same place in the solve)
-  let starts = path.map((s, i) => (s.cost > ceiling && !(i > 0 && path[i - 1].cost > ceiling) ? i : -1)).filter((i) => i >= 0);
+  // a case split or search is always past the reader (Masyu's difficulty is in them: research-masyu-
+  // difficulty-2026-10-24.md), whatever it costs
+  const hard = (s: Step) => s.cost > ceiling || s.tier >= 2;
+  let starts = path.map((s, i) => (hard(s) && !(i > 0 && hard(path[i - 1])) ? i : -1)).filter((i) => i >= 0);
   if (starts.length < MIN_POINTS) {
     const extra = path.map((s, i) => [s.cost, i] as const).filter(([, i]) => !starts.includes(i)).sort((a, b) => b[0] - a[0]).slice(0, MIN_POINTS - starts.length).map(([, i]) => i);
     starts = [...starts, ...extra].sort((a, b) => a - b);
