@@ -7,7 +7,8 @@
 import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import type { KeyMark } from "../../src/lib/hint-ladder.ts";
-import { BANDS, deduce, type Fact, type Step } from "../difficulty/deduce.ts";
+import { cellsOfMark, type KeyStep, type Stuck, type StuckPoint } from "../../src/lib/hint-words.ts";
+import { BANDS, deduce, type Fact } from "../difficulty/deduce.ts";
 import CEILINGS from "./ceilings.json" with { type: "json" };
 
 /** the reader's ceiling when a genre has none of its own: the solver's "medium" band */
@@ -20,19 +21,7 @@ export const ceilingFor = (genre: string | undefined): number => (CEILINGS.ceili
 export const MAX_POINTS = 6, MIN_POINTS = 2;
 const MAX_MARKS = 16;
 
-export interface Found {
-  /** the key step, and the steps that follow it before the next stuck point */
-  key: Step;
-  after: Step[];
-  /** how far through the solve it comes: the share of the answer's marks settled before it */
-  progress: number;
-  /** the board marks a player past it has made */
-  marks: KeyMark[];
-  /** the cells of the rule instances its explanation uses (deduce.ts groups) */
-  clueCells: number[];
-}
-
-export interface Stuck { solved: boolean; points: Found[]; rows: number; cols: number; marks: number; ceiling: number }
+export type { Stuck, StuckPoint } from "../../src/lib/hint-words.ts";
 
 /** A fact as a mark on the player's board, at its value; null for what the board can't show. Dots
  *  and crosses (a "no") count only where nothing positive is settled. */
@@ -51,39 +40,76 @@ export function boardMark(spec: GridSpec, f: Fact): KeyMark | null {
 
 /** The marks that tell a player is past a stuck point: what it and the steps after settle, the
  *  "yes" marks first (players often leave the "no"s blank), at most MAX_MARKS. */
-export function marksOf(spec: GridSpec, steps: Step[]): KeyMark[] {
+export function marksOf(spec: GridSpec, steps: { facts: Fact[] }[]): KeyMark[] {
   const all = steps.flatMap((s) => s.facts).map((f) => boardMark(spec, f)).filter((m): m is KeyMark => !!m);
   const yes = all.filter(([layer, , v]) => layer === "digit" || layer === "color" || layer === "cut" || v === 1);
   return (yes.length ? yes : all).slice(0, MAX_MARKS);
 }
 
-/** The stuck points of a puzzle, in solve order. */
-export async function stuckPoints(spec: GridSpec, { ceiling = ceilingFor(spec.genre), budgetMs = 120_000 } = {}): Promise<Stuck> {
+/** A board's settled marks as the solver names them (shaded(3), line(12), digit(4,2), …): the
+ *  creator's moves, for the solver to take where it can't go on by itself. */
+export function markOfBoard(spec: GridSpec, layer: string, i: number, v: number): string | null {
+  if (!v) return null;
+  if (layer === "shade") return `shaded(${i})`;
+  if (layer === "fence") return `fence(${i})`;
+  if (layer === "loop") return `line(${i})`;
+  if (layer === "digit") return `digit(${i},${v})`;
+  if (layer === "color") return `paint(${i},${v})`;
+  if (layer === "cut") { const l = makePuzzle(spec).grid.links.findIndex((x) => x.border === i); return l >= 0 ? `cut(${l})` : null; }
+  return null;
+}
+
+interface PathStep { step: KeyStep; facts: Fact[]; clueCells: number[] }
+
+/** The stuck points of a puzzle, in solve order. `creator`: the creator's moves, in the order they
+ *  made them (solver mark names), taken one at a time wherever the solver can't go on by itself. */
+export async function stuckPoints(spec: GridSpec, { ceiling = ceilingFor(spec.genre), budgetMs = 120_000, creator = [] as string[], onProgress = (_: number) => {} } = {}): Promise<Stuck> {
   const setup = await deduce(spec, { setupOnly: true, structure: true });
   const st = setup.structure!;
   const groups = new Map(st.groups.map((g) => [`${g.kind} (${g.label})`, g.cells]));
-  const r = await deduce(spec, { finish: true, budgetMs });
-  const path = r.path.filter((s) => !s.choice);
+  const names = new Set(st.marks.map((m) => m.name));
+  const known = new Set<string>((setup.initial ?? []).map((f) => f.slice(0, f.lastIndexOf("="))));
+  const path: PathStep[] = [];
+  let solved = false, creatorMoves = 0;
+  const stopAt = Date.now() + budgetMs;
+  for (;;) {
+    const r = await deduce(spec, { finish: true, budgetMs: Math.max(5_000, stopAt - Date.now()), from: [...known] });
+    for (const s of r.path) {
+      if (s.choice) continue;
+      for (const f of s.facts) known.add(f.mark);
+      path.push({ step: { where: s.where, cells: s.cells, facts: s.facts, uses: s.uses, clues: s.because?.clues ?? [], tier: s.tier, cost: s.cost },
+        facts: s.facts, clueCells: [...new Set((s.because?.clues ?? []).flatMap((c) => groups.get(c) ?? []))] });
+    }
+    onProgress(known.size / Math.max(1, st.marks.length));
+    if (r.profile.solved) { solved = true; break; }
+    // stalled, or out of time: the creator's next move the solver doesn't have yet
+    const next = creator.find((m) => names.has(m) && !known.has(m));
+    if (!next || Date.now() >= stopAt) break;
+    creatorMoves++;
+    known.add(next);
+    const fact = { mark: next, value: true, text: next };
+    path.push({ step: { where: "the creator's move", cells: cellsOfMark(spec, next), facts: [fact], uses: [], clues: [], tier: 3, cost: Infinity, by: "creator" }, facts: [fact], clueCells: [] });
+  }
   // the reader stalls before every step over the ceiling; a run of them is one stall (what
-  // follows the first is still hard, but it's the same place in the solve)
-  // a case split or search is always past the reader (Masyu's difficulty is in them: research-masyu-
-  // difficulty-2026-10-24.md), whatever it costs
-  const hard = (s: Step) => s.cost > ceiling || s.tier >= 2;
-  let starts = path.map((s, i) => (hard(s) && !(i > 0 && hard(path[i - 1])) ? i : -1)).filter((i) => i >= 0);
+  // follows the first is still hard, but it's the same place in the solve). A case split, search or
+  // the creator's own move is always past the reader (Masyu's difficulty is in case splits:
+  // research-masyu-difficulty-2026-10-24.md), whatever it costs
+  const hard = (s: KeyStep) => s.cost > ceiling || s.tier >= 2;
+  const steps = path.map((p) => p.step);
+  let starts = steps.map((s, i) => (hard(s) && !(i > 0 && hard(steps[i - 1])) ? i : -1)).filter((i) => i >= 0);
   if (starts.length < MIN_POINTS) {
-    const extra = path.map((s, i) => [s.cost, i] as const).filter(([, i]) => !starts.includes(i)).sort((a, b) => b[0] - a[0]).slice(0, MIN_POINTS - starts.length).map(([, i]) => i);
+    const extra = steps.map((s, i) => [s.cost, i] as const).filter(([, i]) => !starts.includes(i)).sort((a, b) => b[0] - a[0]).slice(0, MIN_POINTS - starts.length).map(([, i]) => i);
     starts = [...starts, ...extra].sort((a, b) => a - b);
   }
-  if (starts.length > MAX_POINTS) starts = [...starts].sort((a, b) => path[b].cost - path[a].cost).slice(0, MAX_POINTS).sort((a, b) => a - b);
+  // too many: the creator's moves first (the solver can't word those), then the dearest
+  const weight = (i: number) => (steps[i].by === "creator" ? 1e9 : steps[i].cost);
+  if (starts.length > MAX_POINTS) starts = [...starts].sort((a, b) => weight(b) - weight(a)).slice(0, MAX_POINTS).sort((a, b) => a - b);
   let settled = 0;
-  const before = path.map((s) => { const n = settled; settled += s.facts.length; return n; });
-  const points = starts.map((i, k): Found => {
+  const before = path.map((p) => { const n = settled; settled += p.facts.length; return n; });
+  const points = starts.map((i, k): StuckPoint => {
     const end = k + 1 < starts.length ? starts[k + 1] : path.length;
-    const key = path[i], after = path.slice(i + 1, end);
-    return {
-      key, after, progress: settled ? before[i] / settled : 0, marks: marksOf(spec, [key, ...after]),
-      clueCells: [...new Set((key.because?.clues ?? []).flatMap((c) => groups.get(c) ?? []))],
-    };
+    const finite = { ...steps[i], cost: Number.isFinite(steps[i].cost) ? steps[i].cost : 99 };
+    return { key: finite, progress: settled ? before[i] / settled : 0, marks: marksOf(spec, path.slice(i, end)), clueCells: path[i].clueCells };
   });
-  return { solved: r.profile.solved, points, rows: st.rows, cols: st.cols, marks: st.marks.length, ceiling };
+  return { solved, points, rows: st.rows, cols: st.cols, ...(creatorMoves ? { creatorMoves } : {}) };
 }

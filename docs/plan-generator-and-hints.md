@@ -192,6 +192,15 @@ $0.05-0.15 a puzzle). `write-site.ts` writes ladders for published puzzles throu
 nothing runs it on a schedule yet. Fading counts exposures in the browser for now; counting them
 from the account's play logs is a follow-up.
 
+Later the same day (Josh): no puzzle publishes without a verified solve and hints, and the ladder is
+written at creation by Sonnet, reviewed on the publish page. The deduction solver runs in the
+creator's browser (a Web Worker with clingo-wasm; most examples take under 3 s, a few 10-65 s); where
+it stalls, the creator solves the puzzle on the board and their moves become the key steps of those
+stuck points (a creator's move is always a stuck point). The stuck points now use per-type reader
+ceilings (`puzzles/hints/ceilings.json`, the 0.6 quantile of each type's non-split step costs) and
+count every case split as one (the Masyu finding). Sonnet costs about $0.03 a puzzle; a
+Sonnet-vs-Opus comparison on 20 puzzles (about $3) hasn't been run.
+
 ## The generator
 
 Keep today's generate-and-select pipeline, but change what it selects for and how it shapes the clue

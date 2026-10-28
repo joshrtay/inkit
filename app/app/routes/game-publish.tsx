@@ -6,7 +6,9 @@
 // showed it, and the solver here (clingo in this browser) wakes Publish when it passes. No
 // collection picker: it goes where the draft is (the creator's profile, or a ?in= studio).
 // The server converts the saved drawing again and publishes only the sketch the browser's solver
-// passed (games.server.ts's publishDrawing).
+// passed (games.server.ts's publishDrawing), and only with a verified solve and hints for it: found
+// here once the check passes, with the creator solving it on the board where the solver can't
+// (components/PublishHints.tsx).
 // Only a draft: a published puzzle can't be changed (docs/creation-flow.md, decision 8), so it goes
 // to its page.
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +27,9 @@ import { doubtsOf } from "~/games/doubts";
 import { draftName, kindName } from "~/games/kinds";
 import { GameBoard } from "~/components/GameBoard";
 import { passed, useLiveCheck } from "~/components/useOneSolutionCheck";
+import { PublishHints, usePublishHints } from "~/components/PublishHints";
+import { draftLadder } from "~/lib/hints.server";
+import { sha256 } from "~/ai/request";
 
 export const handle = { bare: true };
 
@@ -45,6 +50,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     game: { id: game.id, title: game.title === "Untitled" ? "" : game.title, description: game.description, kind: made.kind },
     author: { handle: author?.handle ?? "" },
     sketch: made.sketch,
+    sketchHash: await sha256(made.sketch),
+    // the hints written for this very sketch already, and how its solve was verified
+    hints: await draftLadder(db, game.id, made.sketch),
     play: parsed.ok ? { spec: parsed.spec, layout: layoutOf(parsed.spec) } : null,
     summary: parsed.ok ? parsed.summary : kindName(made.kind),
     errors: parsed.ok ? [] : parsed.errors,
@@ -95,6 +103,7 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
   // the solver, on the very sketch the server will publish: Publish wakes when it passes
   const check = useLiveCheck(d.sketch, play?.spec ?? null, d.errors.join(" "));
   const ok = passed(check.state);
+  const hints = usePublishHints({ gameId: game.id, spec: play?.spec ?? null, sketchHash: d.sketchHash, ready: ok, had: d.hints });
   const busy = publisher.state !== "idle";
   const publish = () => {
     if (!title.trim()) { setTried(true); titleBox.current?.focus(); return; }
@@ -122,8 +131,8 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
           <Link className="btn publish-back" to={paintTo}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5l1-4.2L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.7 18.5z" /><path d="M13.8 7l3.2 3.2" /></svg>
             <span>Back to paint</span></Link>
-          <button type="button" className="btn primary paint-publish" disabled={!ok || busy} onClick={publish}
-            title={ok ? "Publish it. It can't be changed after." : check.state === "checking" ? "Checking…" : "Fix it in paint first"}>
+          <button type="button" className="btn primary paint-publish" disabled={!ok || !hints.done || busy} onClick={publish}
+            title={!ok ? (check.state === "checking" ? "Checking…" : "Fix it in paint first") : !hints.done ? "Its hints come first" : "Publish it. It can't be changed after."}>
             {busy ? "Publishing…" : "Publish"}</button>
         </div>
       </header>
@@ -137,12 +146,13 @@ export default function PublishGame({ loaderData: d }: Route.ComponentProps) {
             onChange={(e) => setDescription(e.target.value)} />
           <p className="publish-meta">{d.summary} · by @{d.author.handle} · not published yet</p>
           {failed && <p className="error publish-error" role="alert">Needs {play?.spec.genre === "panel" ? "a solution" : "exactly one solution"}. Back to paint to fix it.</p>}
+          {ok && <PublishHints gameId={game.id} hints={hints} />}
           {warn.length > 0 && <p className="publish-warn">{warn.join(" · ")}</p>}
           {(publisher.data?.error || details.data?.error) && <p className="error" role="alert">{publisher.data?.error ?? details.data?.error}</p>}
         </div>
         <div className="publish-paper">
           {/* the real player: saves nothing, records no solve */}
-          {play ? <GameBoard play={play} description={description} />
+          {play ? <GameBoard play={play} description={description} onBoard={hints.onBoard} onSolved={hints.onSolved} />
             : <div className="problems"><p>This puzzle has problems:</p><ul>{d.errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
         </div>
         <p className="publish-note">Try the puzzle. It&rsquo;s playable.</p>

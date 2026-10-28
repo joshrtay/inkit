@@ -16,6 +16,7 @@ import { cropTo, prepare } from "./photos.server";
 import { givenReading, IMAGE_TYPES, readSketch, sketchProblems, toBase64, type Attempt, type Reading } from "./read-sketch.server";
 import { notePublished, recordRead } from "./reads.server";
 import { estimateColumns } from "./estimates.server";
+import { draftLadder } from "./hints.server";
 
 /** The game types a reading could be, its own first (at most 4). */
 const choicesOf = (r: Reading) => [...new Set([r.genre, ...(r.candidates ?? [])])].slice(0, 4);
@@ -322,5 +323,9 @@ export async function publishDrawing(db: Db, me: Creator, game: Game, form: Form
   if (!save?.genre) throw new Invalid("Choose its puzzle type in paint first.");
   const { sketch, conversion } = sketchOf(save);
   if (!sketch || !conversion?.spec) throw new Invalid("Draw its grid in paint first.");
+  // a solve verified for this very sketch, by the solver or the creator, and hints for players
+  // (the publish page finds both: hints.server.ts)
+  const hints = await draftLadder(db, game.id, sketch);
+  if (!hints?.verified || !hints.ladder) throw new Invalid("Work out its solve and hints first.");
   await putSketch(db, game, { ...fieldsFrom(form), sketch }, true);
 }

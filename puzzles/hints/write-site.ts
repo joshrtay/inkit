@@ -4,34 +4,35 @@
 // the Worker can't run the solver.
 //
 //   ADMIN_API_TOKEN=... node --no-warnings puzzles/hints/write-site.ts [--site https://inkit.games] [--max 50] [--minutes 40]
-//       [--writer solver|opus] [--dry-run]
-//   node --no-warnings puzzles/hints/write-site.ts --example akari/1[,sudoku/1,…] [--writer solver|opus]
+//       [--writer solver|sonnet|opus] [--dry-run]
+//   node --no-warnings puzzles/hints/write-site.ts --example akari/1[,sudoku/1,…] [--writer solver|sonnet|opus]
 //       (the repo's examples: prints each ladder, sends nothing)
 //
-// --writer solver (the default) is free. --writer opus asks Opus once per puzzle (about $0.05-0.15
-// each): it needs INKIT_ANTHROPIC_KEY and stops once HINTS_CAP dollars (default 5) are spent.
-// --ceiling: the reader's (default: the solver's "medium" band).
+// --writer solver (the default) is free. --writer sonnet|opus asks the model once per puzzle (Sonnet
+// about $0.03, Opus $0.05-0.15 each): it needs INKIT_ANTHROPIC_KEY and stops once HINTS_CAP dollars
+// (default 5) are spent.
+// --ceiling: the reader's (default: the type's, ceilings.json).
 import { readFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { type Ladder, styleProblems } from "../../src/lib/hint-ladder.ts";
-import { DEFAULT_CEILING, stuckPoints } from "./stuck.ts";
-import { askOpus, ladderFromReply, opusPrompt, parseReply, solverLadder } from "./words.ts";
+import { stuckPoints } from "./stuck.ts";
+import { askModel, ladderFromReply, parseReply, solverLadder, WRITERS, type Writer, writerPrompt } from "./words.ts";
 
 const argv = process.argv.slice(2);
 const arg = (k: string, d?: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
-const writer = arg("writer", "solver"), ceiling = Number(arg("ceiling", String(DEFAULT_CEILING)));
+const writer = arg("writer", "solver")!, ceiling = arg("ceiling") ? Number(arg("ceiling")) : undefined;
 const CAP = Number(process.env.HINTS_CAP) || 5;
-if (writer !== "solver" && writer !== "opus") { console.error("--writer is solver or opus"); process.exit(1); }
+if (writer !== "solver" && !(writer in WRITERS)) { console.error("--writer is solver, sonnet or opus"); process.exit(1); }
 let spent = 0;
 
 /** One puzzle's ladder, and what fell short (rungs that fell back to the solver's words, style). */
 async function ladderFor(spec: GridSpec): Promise<{ ladder: Ladder; notes: string[] }> {
-  const stuck = await stuckPoints(spec, { ceiling });
+  const stuck = await stuckPoints(spec, ceiling ? { ceiling } : {});
   if (writer === "solver") { const ladder = solverLadder(spec, stuck); return { ladder, notes: styleProblems(ladder) }; }
   if (spent >= CAP) throw new Error(`spent $${spent.toFixed(2)} of HINTS_CAP $${CAP}`);
-  const { text, cost } = await askOpus(opusPrompt(spec, stuck));
+  const { text, cost } = await askModel(writerPrompt(spec, stuck), writer as Writer);
   spent += cost;
-  const { ladder, problems } = ladderFromReply(spec, stuck, parseReply(text));
+  const { ladder, problems } = ladderFromReply(spec, stuck, parseReply(text), WRITERS[writer as Writer].version);
   return { ladder, notes: [...problems.map((p) => `fell back: ${p}`), ...styleProblems(ladder)] };
 }
 
@@ -54,7 +55,7 @@ if (examples) {
     const { ladder, notes } = await ladderFor(spec);
     print(name, ladder, notes);
   }
-  if (writer === "opus") console.log(`\nspent $${spent.toFixed(3)}`);
+  if (writer !== "solver") console.log(`\nspent $${spent.toFixed(3)}`);
   process.exit(0);
 }
 
@@ -106,6 +107,6 @@ while (done + failed < max && Date.now() < stopAt) {
     } catch (e) { failed++; console.log(`${g.id} ${g.kind}: ${(e as Error).message}`); if (/HINTS_CAP/.test((e as Error).message)) break; }
   }
   await send(batch);
-  if (writer === "opus" && spent >= CAP) break;
+  if (writer !== "solver" && spent >= CAP) break;
 }
-console.log(`${done} written, ${failed} skipped${writer === "opus" ? `, $${spent.toFixed(2)} spent` : ""}${dryRun ? " (dry run: nothing sent)" : ""}`);
+console.log(`${done} written, ${failed} skipped${writer !== "solver" ? `, $${spent.toFixed(2)} spent` : ""}${dryRun ? " (dry run: nothing sent)" : ""}`);

@@ -43,6 +43,7 @@ export default [
   route("g/:id/solve", "routes/game-solve.ts"),
   route("g/:id/sketch", "routes/game-sketch.ts"),
   route("g/:id/hints", "routes/game-hints.ts"),   // its author rewrites the puzzle's hints
+  route("g/:id/hints/write", "routes/game-hints-write.ts"),   // the publish page: a draft's hints, once its solve is verified
   // admin endpoints (JSON): app/lib/admin.server.ts
   route("admin/reads/stats", "routes/admin-reads-stats.ts"),
   route("admin/reads.jsonl", "routes/admin-reads-export.ts"),

@@ -10,7 +10,7 @@ import {
 import type { HintLog } from "~site/lib/game-api";
 import type { BoardLink } from "./GameBoard";
 
-const KIND: Record<Rung["kind"], string> = { start: "How to start", habit: "A habit", where: "Where", rule: "A rule", step: "The step" };
+export const KIND: Record<Rung["kind"], string> = { start: "How to start", habit: "A habit", where: "Where", rule: "A rule", step: "The step" };
 const SEEN = "inkit:hint-exposures";
 const shownKey = (id: string) => `inkit:hints:${id}`;
 const loadJson = <T,>(key: string, d: T): T => { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : d; } catch { return d; } };
@@ -100,8 +100,9 @@ export function HintsPanel({ gameId, kind, ladder: given, board, link, canEdit, 
 }
 
 /** The author's view: each hint's text, to rewrite or empty (an empty one goes). The stuck points
- *  and what they check on the board stay as the writer found them. */
-function HintsEditor({ gameId, ladder, onDone }: { gameId: string; ladder: Ladder | null; onDone: (l?: Ladder | null) => void }) {
+ *  and what they check on the board stay as the writer found them. (The publish page uses it too,
+ *  without clearing: a puzzle publishes with hints.) */
+export function HintsEditor({ gameId, ladder, onDone, clearable = true }: { gameId: string; ladder: Ladder | null; onDone: (l?: Ladder | null) => void; clearable?: boolean }) {
   const start: Ladder = ladder ?? { version: "author", opening: [{ kind: "start", text: "" }], points: [] };
   const [draft, setDraft] = useState<Ladder>(start);
   const [error, setError] = useState("");
@@ -145,7 +146,7 @@ function HintsEditor({ gameId, ladder, onDone }: { gameId: string; ladder: Ladde
       <div className="hints-actions">
         <button type="button" className="btn primary" disabled={busy} onClick={save}>Save</button>
         <button type="button" className="btn" disabled={busy} onClick={() => onDone()}>Cancel</button>
-        {ladder && <button type="button" className="link danger" disabled={busy} onClick={() => void send({ ladder: null })}>Clear all hints</button>}
+        {ladder && clearable && <button type="button" className="link danger" disabled={busy} onClick={() => void send({ ladder: null })}>Clear all hints</button>}
       </div>
     </section>
   );

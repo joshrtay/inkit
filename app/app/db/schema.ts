@@ -330,6 +330,10 @@ export const hintLadders = sqliteTable("hint_ladders", {
   source: text("source").notNull(),
   /** the sketch it was written for (its sha256): a ladder for an older sketch isn't shown */
   sketchHash: text("sketch_hash").notNull(),
+  /** how the puzzle was shown to be solvable by logic before publishing: "solver" (the deduction
+   *  solver finished it in the creator's browser) or "creator" (it couldn't, and the creator solved
+   *  it there, their moves taken where it stalled); null for a ladder written after publishing */
+  verified: text("verified"),
   createdAt: created(),
   updatedAt: updated(),
 });

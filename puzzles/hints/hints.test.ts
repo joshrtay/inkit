@@ -10,7 +10,7 @@ import { makePuzzle } from "../../src/engine/puzzle.ts";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { firstOpen, nextHint, nothingShown, readLadder, styleProblems } from "../../src/lib/hint-ladder.ts";
 import { clingoJson, loadClingo } from "../difficulty/clingo.ts";
-import { stuckPoints } from "./stuck.ts";
+import { markOfBoard, stuckPoints } from "./stuck.ts";
 import { ladderFromReply, parseReply, solverLadder } from "./words.ts";
 
 const example = (name: string): GridSpec => {
@@ -48,11 +48,22 @@ test("Opus's rungs fall back to the solver's where they break the rules", async 
     start: "Begin at the numbered black squares.", habit: "Mark r1c1 with a dot.",
     points: stuck.points.map((_, k) => ({ where: "Once the corners are done, look along this row.", rule: k ? "word ".repeat(50) : "Whenever a number is full, its other neighbours are empty. Which neighbours are left?", technique: "Full number", short: "Full again.", step: "These squares are empty: the number already has its bulbs." })),
   })}`);
-  const { ladder, problems } = ladderFromReply(spec, stuck, reply);
+  const { ladder, problems } = ladderFromReply(spec, stuck, reply, "test-1");
   assert.equal(ladder.opening[0].text, "Begin at the numbered black squares.");
   assert.notEqual(ladder.opening[1].text, "Mark r1c1 with a dot.");
   assert.deepEqual(problems.slice(0, 2), ["habit", "point 2 rule"]);
   assert.equal(ladder.points[0].rungs[1].technique, "full number");
   assert.equal(ladder.points[1].rungs[1].text, solverLadder(spec, stuck).points[1].rungs[1].text);
-  assert.deepEqual(ladderFromReply(spec, stuck, null).ladder.points, solverLadder(spec, stuck).points);
+  assert.deepEqual(ladderFromReply(spec, stuck, null, "test-1").ladder.points, solverLadder(spec, stuck).points);
+});
+
+test("a solved board's marks are the solver's own names (the creator's moves)", async () => {
+  for (const name of ["akari/1", "sudoku/1", "slitherlink/1", "masyu/1"]) {
+    const spec = example(name), b = await solvedBoard(spec);
+    const named = (["shade", "fence", "loop", "digit"] as const).flatMap((l) => [...b[l]].map((v, i) => (v === 1 || l === "digit" ? markOfBoard(spec, l, i, v) : null)));
+    const atoms = new Set(clingoJson(program(makePuzzle(spec)), 1).Call![0].Witnesses![0].Value as string[]);
+    const got = named.filter((m): m is string => !!m);
+    assert.ok(got.length > 0, name);
+    for (const m of got) assert.ok(atoms.has(m), `${name}: ${m}`);
+  }
 });

@@ -348,6 +348,17 @@
 .publish-warn { margin: 0; font-size: 13px; color: #d6a12a; }
 .publish-paper .grid-game { margin: 0; }
 .publish-note { margin: 0; font-size: 13px; color: var(--muted); text-align: center; }
+/* the hints: found once the check passes, then reviewed here (components/PublishHints.tsx) */
+.publish-hints-state { margin: 0; font-size: 14px; color: var(--muted); }
+.publish-hints-state.yours { color: var(--ink); }
+.publish-hints { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 10px; font-size: 14px; }
+.publish-hints summary { cursor: pointer; }
+.publish-hints-ok { font-weight: 650; }
+.publish-hints .hint-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.publish-hints .hint-point .hint-list { padding-left: 12px; margin-top: 4px; }
+.publish-hints .hint { display: grid; gap: 1px; }
+.publish-hints .hint-kind { font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.publish-hints > .link { justify-self: start; }
 @media (max-width: 720px) {
   .publish-back span { display: none; }
   .publish-back { padding: 0 9px; }
