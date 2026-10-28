@@ -6,8 +6,9 @@ import type { Board, Problem, Puzzle, RuleSpec, Side } from "./types.ts";
 import { HALF_TURN, lineGraph, MIRRORS, orientations, regionsOf, rotations, shadedGroups, shapeKey, shapeKeyOf, symmetricUnder, type Regions } from "./derive.ts";
 import { endsOf, panelLine, panelSymbols } from "./panel.ts";
 
-/** A nudge for the player: what to look at, and what it gives away. */
-export interface Hint { message: string; area: number[]; cells: { cell: number; shade: 0 | 1 }[] }
+/** A nudge for the player: what to look at, and what it gives away. `technique`: what it teaches,
+ *  a stable name logged with the hint (solve logging) so learning can be followed per technique. */
+export interface Hint { message: string; area: number[]; cells: { cell: number; shade: 0 | 1 }[]; technique?: string }
 
 export interface Block {
   /** plain words for the "How to play" card */
@@ -453,7 +454,7 @@ mreach(J) :- mreach(I), adj(I,J,L), mopen(L).
         const res = solveLine(clue, known);
         if (!res) continue;
         const fresh = res.flatMap((v, j) => (v !== -1 && known[j] === -1 ? [{ cell: cells[j], shade: v as 0 | 1 }] : []));
-        if (fresh.length) return { message: `${kind === "row" ? "Row" : "Column"} ${i + 1}: its numbers give these cells away.`, area: cells, cells: fresh };
+        if (fresh.length) return { message: `${kind === "row" ? "Row" : "Column"} ${i + 1}: its numbers give these cells away.`, area: cells, cells: fresh, technique: "runs.line" };
       }
       return null;
     },

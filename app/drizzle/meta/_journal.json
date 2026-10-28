@@ -113,6 +113,20 @@
       "when": 1792855038055,
       "tag": "0015_plays",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1793164092158,
+      "tag": "0016_play_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1793197642869,
+      "tag": "0017_hint_ladders",
+      "breakpoints": true
     }
   ]
 }

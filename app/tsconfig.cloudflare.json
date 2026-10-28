@@ -19,6 +19,7 @@
     "../src/ai/*.ts",
     "../src/lib/ink.ts",
     "../src/lib/game-api.ts",
+    "../src/lib/hint-ladder.ts",
     "../src/guides/*.ts",
     "../src/guides/examples.json"
   ],

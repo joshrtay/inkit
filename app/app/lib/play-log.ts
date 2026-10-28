@@ -2,14 +2,15 @@
 // played, move by move, for the research's second population (until now every human solve it had
 // came from seven experts on one site). On unless the player turns it off (`shareAllowed`: the
 // switch in Settings and on the privacy page, components/ShareSolves.tsx); once off, nothing is
-// kept or sent. A player is a random id kept in this browser (`playerId`), never tied to an
-// account; a play is one attempt at one puzzle, carried across reloads (in localStorage) until it's
+// kept or sent. A player is a random id kept in this browser (`playerId`), and the server adds the
+// account when they're signed in (routes/api.plays.ts); a play is one attempt at one puzzle, carried across reloads (in localStorage) until it's
 // solved or the board is cleared. The events go to POST /api/plays in batches (routes/api.plays.ts):
 // every BATCH events, every FLUSH_MS, and when the page is hidden.
 //
 // An event is [t, kind, data?], t in ms since the play began:
 //   "o" opened (the page, or a reload carrying on)    "m" a move: [layer, cell or line, value][]
-//   "u" an undo: the same, the values it went back to  "h" a hint asked for: its cells
+//   "u" an undo: the same, the values it went back to  "h" a hint shown: a HintLog (its ladder and
+//                                                        rung, the technique it teaches, its cells)
 //   "r" the board cleared (the play ends)             "s" solved (the play ends)
 //   "a" away (the tab hidden)                          "b" back
 export type PlayEvent = [number, string, unknown?];
