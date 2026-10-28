@@ -181,6 +181,17 @@ and see whether each human stall falls on one of the reader's stuck points or be
 - Puzzles the solver can't finish (stall types, SPLIT_GAP) still get hints, flagged as unverified in
   the log; the creator's edits are the fix there.
 
+### Built (2026-10-28)
+
+The site side is in: `src/lib/hint-ladder.ts` (the format, next hint, auto-skip, fading), the
+*hint_ladders* table with author edits after publishing, the Hints section at the top of How to play
+(`app/components/HintsPanel.tsx`), and each hint opened logged as a `HintLog`. The writer is
+`puzzles/hints/`: stuck points from the deduction solver at the reader's ceiling (`stuck.ts`), free
+solver-worded rungs, and the Opus writer behind `--writer opus` (`words.ts`; not run yet, about
+$0.05-0.15 a puzzle). `write-site.ts` writes ladders for published puzzles through `/admin/hints`;
+nothing runs it on a schedule yet. Fading counts exposures in the browser for now; counting them
+from the account's play logs is a follow-up.
+
 ## The generator
 
 Keep today's generate-and-select pipeline, but change what it selects for and how it shapes the clue
