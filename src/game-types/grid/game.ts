@@ -40,6 +40,8 @@ import { boardKey, familyOf, FLASH_MS, flashes, flashStart, flashStep, flashTarg
  *  hints, one rung each. Bump it when what a hint shows changes, so logs before and after can be
  *  told apart. */
 export const HINT_LADDER = "rule-1";
+/** Sent to the board's root, with { cells }, to outline them a moment (a ladder hint's place). */
+export const OUTLINE_EVENT = "inkit:outline";
 
 type Layer = keyof Board;
 interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
@@ -884,6 +886,15 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     status.className = "status good";
     errTimer = window.setTimeout(() => { gHint.replaceChildren(); if (status.textContent === h!.message) say(""); }, 4000);
   });
+  // a hint from the puzzle's ladder (the page's How to play, src/lib/hint-ladder.ts) outlines where it
+  // points, for a few seconds, as the board's own hint does
+  const outline = (e: Event) => {
+    const cells = ((e as CustomEvent<{ cells?: number[] }>).detail?.cells ?? []).filter((i) => Number.isInteger(i) && i >= 0 && i < g.cellCount);
+    clearProblems();
+    for (const i of cells) cellRect(i, "hint-area", gHint);
+    errTimer = window.setTimeout(() => gHint.replaceChildren(), 4000);
+  };
+  root.addEventListener(OUTLINE_EVENT, outline);
   const reset = q<HTMLButtonElement>("[data-reset]");
   let confirming = false;
   reset.addEventListener("click", () => {

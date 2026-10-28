@@ -7,7 +7,7 @@ export default async function teardown() {
   if (!existsSync(RUN_FILE)) return;
   const { userId, collectionId } = JSON.parse(readFileSync(RUN_FILE, "utf8")) as Run;
   sql(`delete from recommendations where recommender_id = ${q(userId)} or recommended_id = ${q(userId)}; delete from bug_reports where creator_id = ${q(userId)}; delete from link_requests where creator_id = ${q(userId)}; delete from reads where creator_id = ${q(userId)}; delete from likes where creator_id = ${q(userId)}; delete from solves where creator_id = ${q(userId)}; update plays set creator_id = null where creator_id = ${q(userId)};
-    delete from games where author_id = ${q(userId)}; delete from memberships where creator_id = ${q(userId)};
+    delete from hint_ladders where game_id in (select id from games where author_id = ${q(userId)}); delete from games where author_id = ${q(userId)}; delete from memberships where creator_id = ${q(userId)};
     delete from collections where id = ${q(collectionId)}; delete from sessions where user_id = ${q(userId)};
     delete from accounts where user_id = ${q(userId)}; delete from creators where id = ${q(userId)}`);
   rmSync(RUN_FILE); rmSync(AUTH_FILE, { force: true });

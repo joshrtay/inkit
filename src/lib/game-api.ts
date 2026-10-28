@@ -33,6 +33,13 @@ export interface HintLog {
   /** the cells it pointed at, and the ones it gave away */
   area: number[];
   cells: number[];
+  /** a hint from the puzzle's ladder (src/lib/hint-ladder.ts, the How to play pane): the section
+   *  ("opening" or the stuck point's number from 0), the rung's kind, whether it showed the faded
+   *  (short) form, and the stuck points the player had got past without it since the last hint */
+  point?: number | "opening";
+  kind?: string;
+  faded?: boolean;
+  skipped?: number[];
 }
 
 /** A game's entry point. It renders into `root` and may return a cleanup function. */

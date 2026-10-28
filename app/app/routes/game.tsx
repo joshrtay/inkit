@@ -5,7 +5,8 @@ import type { Route } from "./+types/game";
 import { cloudflareContext } from "~/lib/context";
 import { getDb, schema } from "~/db";
 import { currentCreator } from "~/lib/auth.server";
-import { canChange, canDelete, canHide, canView } from "~/lib/permissions.server";
+import { canChange, canDelete, canEditHints, canHide, canView } from "~/lib/permissions.server";
+import { ladderOf } from "~/lib/hints.server";
 import { parseSketch } from "~/games/sketch";
 import { editPath, kindName } from "~/games/kinds";
 import { layoutOf } from "~/games/layout-of";
@@ -89,6 +90,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       takeDown: canHide(viewer, role ?? null) && game.authorId !== viewer?.id && game.state === "published",
       restore: canHide(viewer, role ?? null) && game.state === "hidden",
     },
+    // its hints, at the top of How to play (lib/hints.server.ts); its author may rewrite them, published or not
+    hints: game.state === "draft" ? null : later(ladderOf(db, game)),
+    canEditHints: game.state !== "draft" && canEditHints(game, viewer, role ?? null),
     likes: later(social.then((x) => x.likes)),
     solves: later(social.then((x) => x.solves)),
     signedIn: !!viewer,

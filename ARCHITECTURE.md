@@ -15,11 +15,12 @@ browser, subscribe to creators, and like puzzles.
 | `src/guides/` | The puzzle-type guides: rules with ✓/✗ pictures, origins, worked examples |
 | `src/games/` | Example puzzles per type (JSON): the guides' worked examples and the site's seed data |
 | `src/ai/` | The AI creators' personas, their posting schedule, title checks and icons: data and pure code shared by the site and the weekly batch (`puzzles/ai/`) |
-| `src/lib/` | The game interface (`game-api.ts`) and the watercolor wash filter (`ink.ts`) |
+| `src/lib/` | The game interface (`game-api.ts`), the watercolor wash filter (`ink.ts`) and the hint ladder's format and logic (`hint-ladder.ts`) |
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
 | `puzzles/ai/` | The AI creators' weekly batch: `week.ts` makes, scores (`score.ts`), titles and queues each persona's posts; Slate's lessons are checked by `lesson.ts` against wrong readings of each rule (`rivals.ts`) ([docs/ai-creators.md](docs/ai-creators.md)) |
 | `puzzles/difficulty/` | The deduction solver: solves a puzzle step by step on the engine's own encoding, costs each step by its smallest explanation, and estimates difficulty (`deduce.ts`); `deductionScorer` for the AI creators (`scorer.ts`), a CLI (`cli.ts`) and calibration runs (`calibrate.ts`); difficulty bands as technique sets (`bands.ts`), a generated set of puzzles that afford them, solvable without search (`gen-set.ts`, the generator with the solver in the loop; run on a cloud spot VM by `puzzles/cloud/run-gen-job.sh`) and a shortlist of it for the site (`gen-best.ts`, which publishes nothing) |
+| `puzzles/hints/` | Hint ladders: where a player gets stuck (`stuck.ts`, the deduction solver against the reader's ceiling), the hints' words (`words.ts`: the solver's, free, or Opus's, paid and only when asked) and the batch that writes them for the site (`write-site.ts`) |
 | `puzzles/difficulty/sudoku/` | The Sudoku technique solver: named techniques with Sudoku Explainer-style ratings, a solve path and a profile (hardest step, effort, dependency, refutation) for Sudoku, Irregular and Thermo Sudoku and plain puzzle strings, and a CLI for single puzzles or files of them (docs/sudoku-techniques.md) |
 | `.github/bug-fix/` | The AI bug fixer's gate, guard and prompt, run by `.github/workflows/bug-fix.yml` ([docs/bug-pipeline.md](docs/bug-pipeline.md)) |
 | `docs/` | The grid engine in depth, including how the editors (paint, RYB's) must keep up with it; the creation flow |
@@ -51,6 +52,15 @@ solver's difficulty and the bad-puzzle checks of `quality.ts`, dull, guessing an
 brings its assessment with it, and an hourly GitHub Action (`assess-site.ts`, `.github/workflows/assess.yml`)
 does the rest through `/admin/assessments`. Each is kept in *assessments*; a finished solve's
 difficulty replaces the rough one, and the quality is logged and never shown.
+**Hints** (`src/lib/hint-ladder.ts`, [docs/plan-generator-and-hints.md](docs/plan-generator-and-hints.md)):
+each published puzzle can have a *hint ladder* (*hint_ladders*, kept beside the game, not in its
+sketch: the hints aren't the puzzle, so its author, a collection owner or an admin can rewrite them
+after publishing, `POST /g/<id>/hints`). A batch writes them off the Worker like the assessments
+(`puzzles/hints/write-site.ts` through `/admin/hints`) and never over an author's. Players open them
+one at a time at the top of How to play (`components/HintsPanel.tsx`): a short opening, then each
+stuck point's rungs (where, a rule, the step), then the board's own hint (show me). A stuck point
+whose marks are on the board is skipped and folded, and a rule shown often enough shrinks to its short
+form (counted in the browser). Each hint opened is logged as a `HintLog` with the ladder's version.
 **Solve logging** (`lib/play-log.ts`, research only): each play on a published puzzle is logged
 move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solving, leaving the tab)
 with each event's time, under a random id kept in the browser and, while signed in, the account (set

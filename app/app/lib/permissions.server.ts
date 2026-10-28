@@ -57,6 +57,13 @@ export function canDelete(game: Pick<Game, "authorId" | "state">, viewer: Pick<C
   return viewer.isAdmin || (game.authorId === viewer.id && !!role);
 }
 
+/** Can this person rewrite the puzzle's hints (lib/hints.server.ts)? Those who can edit it, and
+ *  admins, even once it's published: the hints aren't the puzzle. */
+export function canEditHints(game: Pick<Game, "authorId" | "state">, viewer: Pick<Creator, "id" | "isAdmin"> | null, role: Role | null) {
+  if (!viewer || game.state === "deleted") return false;
+  return viewer.isAdmin || canEdit(game, viewer, role);
+}
+
 /** Can this person take the game down (hide it)? The collection's owners, and admins. */
 export const canHide = (viewer: Pick<Creator, "isAdmin"> | null, role: Role | null) => !!viewer && (viewer.isAdmin || role === "owner");
 

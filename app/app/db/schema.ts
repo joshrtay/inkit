@@ -19,6 +19,8 @@
 //   assessments  the deduction solver's difficulty and the bad-puzzle checks for a published puzzle
 //                (puzzles/difficulty/assess.ts): logged, not shown, but a finished solve's
 //                difficulty becomes the game's
+//   hint_ladders the hints a puzzle's How to play offers, one at a time (src/lib/hint-ladder.ts):
+//                written by a batch (puzzles/hints/), editable by the puzzle's author
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
@@ -315,6 +317,22 @@ export const assessments = sqliteTable("assessments", {
   ms: integer("ms"),
   createdAt: created(),
 }, (t) => [primaryKey({ columns: [t.gameId, t.version] })]);
+
+// ---- hint_ladders: a puzzle's hints (src/lib/hint-ladder.ts, docs/plan-generator-and-hints.md) ----
+// One per game. The solver can't run on the Worker, so a batch writes them (puzzles/hints/write-site.ts,
+// POST /admin/hints) for the sketch it read; the puzzle's author can rewrite them after (they aren't
+// the puzzle: a published puzzle's hints can change), and the batch never writes over an author's.
+export const hintLadders = sqliteTable("hint_ladders", {
+  gameId: text("game_id").primaryKey().references(() => games.id),
+  /** the Ladder, as JSON */
+  ladder: text("ladder", { mode: "json" }).$type<unknown>().notNull(),
+  /** the writer and its version ("solver-1", "opus-1"), or "author" once its author has edited it */
+  source: text("source").notNull(),
+  /** the sketch it was written for (its sha256): a ladder for an older sketch isn't shown */
+  sketchHash: text("sketch_hash").notNull(),
+  createdAt: created(),
+  updatedAt: updated(),
+});
 
 // ---- the Featured shelf ----
 export const featured = sqliteTable("featured", {
