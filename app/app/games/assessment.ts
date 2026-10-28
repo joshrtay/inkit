@@ -2,11 +2,12 @@
 // it: sent with an AI creator's post (`meta.assessment`, POST /admin/ai/schedule and backfill) or
 // by the batch that assesses newly published puzzles (POST /admin/assessments). Each is kept in the
 // `assessments` table; the quality is logged and never shown. A finished solve's difficulty
-// replaces the rough estimate from size and clue density (./estimate.ts), keeping its level and
-// minutes formulas; an unfinished one leaves the rough estimate. Pure, so it's unit-tested
+// replaces the rough estimate from size and clue density (./estimate.ts), keeping its minutes
+// formula and taking its level from the type's SOLVER_CUTS; an unfinished one leaves the rough
+// estimate. Pure, so it's unit-tested
 // (tests/unit/assessment.test.ts).
 import { z } from "zod";
-import { estimate, levelOf, minutesOf, type Estimate } from "./estimate";
+import { estimate, levelOf, minutesOf, SOLVER_CUTS, type Estimate } from "./estimate";
 import type { GridSpec } from "~site/engine/types.ts";
 
 export const Assessment = z.object({
@@ -32,7 +33,7 @@ export function estimateWith(kind: string, spec: Pick<GridSpec, "size" | "givens
   if (a?.solved && a.estimate != null) {
     const cells = spec.figure ? spec.figure.pieces.length : spec.size[0] * spec.size[1];
     const d = Math.round(a.estimate * 100) / 100;
-    return { difficulty: d, level: levelOf(d), minutes: minutesOf(cells, d) };
+    return { difficulty: d, level: levelOf(d, SOLVER_CUTS[kind]), minutes: minutesOf(cells, d) };
   }
   return estimate(kind, spec, fallback);
 }

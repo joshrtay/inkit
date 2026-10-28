@@ -17,8 +17,8 @@ import { deduceGuarded } from "./deduce-guarded.ts";
 import { qualityOf } from "./quality.ts";
 
 /** Bumped when what an assessment means changes (the solver's settings, the checks), so the site's
- *  batch assesses every puzzle again. */
-export const ASSESS_VERSION = 1;
+ *  batch assesses every puzzle again. 2 (2026-10-24): the estimate's case-split term (deduce.ts estimateOf). */
+export const ASSESS_VERSION = 2;
 
 export interface Assessment {
   version: number;
