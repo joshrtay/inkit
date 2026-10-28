@@ -17,8 +17,8 @@ PR #26.
 
 **Order of work**
 
-1. **Ladder iteration loop (H3).** First a free per-rung leak count on H2's 100 ladders; then, only if
-   rungs 1-2 leak, the revise loop (a few dollars).
+1. **Ladder iteration loop (H3).** Not run (Josh, 2026-10-28). Replaced by the hybrid ladder:
+   Thinky's whole-solve, general-to-specific shape, with H2's three hints at each stuck point.
 2. **Ladders for AI posts.** Write and check a ladder for every new AI post at creation (about 50 a
    week, under $10 a week), stored with the puzzle.
 3. **Hint A/B on inkit.** Today's hint button (which shows the answer cells on the first tap) against
@@ -34,13 +34,13 @@ PR #26.
 
 - Decided (Josh, 2026-10-24 20:46Z): every puzzle gets its ladder at creation time; the creator can
   edit it; players read the hints in the rules tab behind the question mark.
-- Can the private Thinky ladders go into production prompts as examples? Recommended: no. Use them
-  only to measure style (rung count, when a cell is first named) and as the test bar.
+- Decided: the Thinky ladders shape the schema only; none of their text goes into prompts or onto
+  the site.
 - The A/B's control: keep today's bottom-out hint as the control (recommended), or retire it.
 - Writer model: Opus (tested) or Sonnet high (cheaper, near Opus on whole solves, untested as a hint
   writer). Recommended: test Sonnet high inside H3.
 
-No paid run starts without Josh's OK. H3 is the first ask, at under $10.
+No paid run starts without Josh's OK.
 
 ## What we know that shapes both systems
 
@@ -69,18 +69,46 @@ A ladder is written once per stuck point, checked by the solver, revised until a
 step without an early rung giving it away, and served in the player rung by rung. Today's hint button
 stays as the ladder's last rung.
 
-### The rungs
+### The rungs: a hybrid of H2 and Thinky
 
-| Rung | Says | Must not |
-| --- | --- | --- |
-| 1. Where | the region, row or clue group to look at (Opus location hint, grounded: H2's best non-leaking first hint) | name a cell |
-| 2. What to notice | a library nudge (general technique) plus the question for this spot: H2's best single hint | name a cell with its value |
-| 3. Question or what-if | one question that leads to the step ("what if this cell were lit?") | state the answer |
-| 4. The step | the cell, its value, and why, in one or two sentences | name more than the step's cells |
-| 5. Show me | today's engine hint: area and cells drawn on the board (free) | – |
+The hybrid ladder (Josh, 2026-10-28). It takes Thinky's overall shape: one ladder that walks the
+whole solve, from general strategy to specific steps, in plain text. Inside that shape, each hard spot
+uses the three hints H2 found work best. H3 is not being run (Josh).
 
-H2's ladder found the step by rung 2 in 78-83% of cases. Thinky authors start with the general
-technique instead; H3 can test both orders.
+| Part | Rung | Says | From | Must not |
+| --- | --- | --- | --- | --- |
+| Opening, once per puzzle | 0a. How to start | where people usually break in on this genre, written for this puzzle's clue kinds | Thinky (they open general) | name a cell |
+| | 0b. A habit | one bookkeeping habit that keeps the solve easy ("cross off every cell a star rules out") | Thinky (bookkeeping tips come early, then fade) | name a cell |
+| Each stuck point, in solve order | 1. Where | the region, row or clue group, opening with where in the solve it starts ("once the corners are done...") | H2: grounded location, +12 over the solver's hint | name a cell |
+| | 2. The rule and a question | a reusable rule phrased as "whenever X, Y" (a library entry, tagged), then one question for this spot | H2: library nudge + question, the best single hint; Thinky: rules phrased to reuse | name a cell with its value |
+| | 3. The step | the cell, its value, and why, in one or two sentences | H2 ladder's last rung | name more than the step's cells |
+| End | Show me | today's engine hint button, drawn on the board | site | – |
+
+What the Thinky ladders look like (rough keyword counts over 199 grid puzzles, structure only):
+
+- **Length scales with difficulty.** Median 7 hints; 4 at author rating 1, 5 at 2, 8 at 3, 10 at 4,
+  26 at 5. In ours this falls out naturally: easy puzzles have zero or one stuck point (2-5 hints),
+  hard ones several (8-15).
+- **General first, specific later.** Rule-like wording ("if", "whenever", "must") drops from about 60%
+  of hints in the first fifth to 46% in the last.
+- **Bookkeeping advice comes early.** It's in 16% of the first fifth and 7% of the last.
+- **Short and plain.** About 35 words a hint; only 15% are questions.
+
+Thinky traits kept: one ladder for the whole solve, general-to-specific order, an opening strategy
+hint, early bookkeeping habits, rules phrased so a player can reuse them, plain text of about 35 words
+or fewer, length that grows with difficulty.
+
+Thinky traits dropped: hints that don't point anywhere for long stretches (H2: the grounded location
+hint beats generic advice), and ladders that run to 20-39 hints (ours cap at three per stuck point,
+since H2's students found the step by hint 2 most of the time).
+
+Two things it adds for measuring learning later. Each rung 2 carries a technique tag (its library
+entry), so the play log records which technique a player was shown and whether they later use it
+unaided. The opening and habit hints name the genre's basics, so a player's first reveals show what
+they didn't know yet.
+
+Privacy: the Thinky data shapes only this schema and the counts above. None of its text goes into
+prompts or onto the site; the writer's prompt describes the structure in our own words.
 
 ### The pipeline
 
@@ -123,7 +151,7 @@ and see whether each human stall falls on one of the reader's stuck points or be
 | Step | What it answers | Cost | Gate to move on |
 | --- | --- | --- | --- |
 | H2 (done) | Library best single hint, grounded location best first rung, ladder 90-98% | $34 | Passed: ladder still the best arm |
-| H3 ladder loop | Step 0 (free): count leaks per rung on H2's ladders. If rungs 1-2 leak: revise loop, Opus vs Sonnet high as writer, where-first vs technique-first, Sonnet low on held-out states | under $10 | Early-rung leaks under 10% with success held within 5 points |
+| H3 ladder loop | Dropped (Josh, 2026-10-28): not run. The per-rung leak check stays as a free check in the pipeline | – | – |
 | H4 coverage | Share of human positions a stored ladder covers | free CPU | 60% or more of hint-worthy positions covered, or an on-demand fallback chosen |
 | H5 Thinky bar | Our ladders vs authors' on the Thinky puzzles the engine can read | about $5 | Our success at least the authors', with fewer leaks |
 | A/B on inkit | Hints tab off (today's bottom-out button only) vs hints tab on; later, rung order and wording variants | under $10 a week for AI posts | Solve completion, time to next correct move, rungs used, quitting after a hint |
@@ -215,7 +243,7 @@ What's wrong with it, measured:
 
 ### Open gaps
 
-- **The ladder loop has never run.** Every ladder result so far is one shot. H3 is the first test.
+- **The ladder loop will not run** (Josh, 2026-10-28). Every ladder result is one shot; the play logs judge the hybrid.
 - **Model students aren't people.** Haiku fails by misreading grids as often as by missing the idea,
   and succeeds when a rung leaks. Only the inkit A/B measures people.
 - **No A/B machinery yet.** Logging is on, but there is no assignment per player, no rung-by-rung hint
@@ -227,7 +255,9 @@ What's wrong with it, measured:
 - **Fillomino and Hidoku** stuck-state building hangs, so they're outside every hint test so far.
 - **Thinky data is private.** Their ladders can't be published or, as recommended, used as prompt
   examples for site content.
-- **Logging consent is settled:** on by default, opt-out in Settings, logs internal only. Anything
+- **Play logs connected to users** (Josh, 2026-10-28), to measure learning later. This reverses the
+  ARCHITECTURE.md rule (random browser id, never tied to accounts, for children's accounts under
+  COPPA's internal-operations exception), so that rule needs revisiting first. Earlier: on by default, opt-out in Settings, logs internal only. Anything
   built on per-player logs needs a check before publishing.
 - **Likes are a weak target.** Interest from likes was a no-go (they follow size), so G5 should lean
   on completion, quits and hint taps.
@@ -244,9 +274,8 @@ What's wrong with it, measured:
 
 | Item | Cost | Needs |
 | --- | --- | --- |
-| H3 ladder loop | under $10 | Josh's OK |
 | H5 Thinky bar | about $5 | Josh's OK |
-| Ladders for AI posts | under $10 a week | Josh's OK, after H3 |
+| Ladders for AI posts | under $10 a week | Josh's OK |
 | G4 Opus review of generator changes | about $3 a round | Josh's OK |
 | Ladders for all published puzzles | $500-2,500 once per 10,000 puzzles | after the A/B |
 | H4, G0-G3 | free CPU | – |
