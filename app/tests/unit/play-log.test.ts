@@ -73,4 +73,12 @@ describe("the server's check", () => {
     expect(checkBatch({ ...ok, events: [] }, 200).ok).toBe(false);
     expect(checkBatch(ok, MAX_BATCH_BYTES + 1).ok).toBe(false);
   });
+  it("takes a hint with its ladder, rung and technique, or the shape logged before them", () => {
+    const hint = { ladder: "rule-1", rung: 1, rungs: 1, technique: "runs.line", rule: "runs", area: [0, 1, 2], cells: [1] };
+    expect(checkBatch({ ...ok, events: [[5, "h", hint]] }, 200).ok).toBe(true);
+    expect(checkBatch({ ...ok, events: [[5, "h", { ...hint, rung: 0, rungs: 0, technique: null, rule: null, area: [], cells: [] }]] }, 200).ok).toBe(true);
+    expect(checkBatch({ ...ok, events: [[5, "h", { area: [0], cells: [1] }], [6, "h", null]] }, 200).ok).toBe(true);
+    expect(checkBatch({ ...ok, events: [[5, "h", { ...hint, ladder: "" }]] }, 200).ok).toBe(false);
+    expect(checkBatch({ ...ok, events: [[5, "h", "a hint"]] }, 200).ok).toBe(false);
+  });
 });

@@ -53,13 +53,19 @@ does the rest through `/admin/assessments`. Each is kept in *assessments*; a fin
 difficulty replaces the rough one, and the quality is logged and never shown.
 **Solve logging** (`lib/play-log.ts`, research only): each play on a published puzzle is logged
 move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solving, leaving the tab)
-under a random id kept in the browser, never the account, and sent in batches to `POST /api/plays`
-(*plays*, *play_events*). It's on unless the player turns it off in Settings or on the privacy page
+with each event's time, under a random id kept in the browser and, while signed in, the account (set
+by the server from the session), and sent in batches to `POST /api/plays` (*plays*, *play_events*).
+Each hint is logged as a `HintLog` (`src/lib/game-api.ts`): the hint scheme and its version
+(`HINT_LADDER` in the player), the rung shown and how many there are, the technique it teaches
+(`Hint.technique`, else its rule) and its cells, so learning can be measured later: does a player
+solve later puzzles of a type faster, or with fewer hints, after a hint taught its technique. It's on unless the player turns it off in Settings or on the privacy page
 (`components/ShareSolves.tsx`); off forgets the id and sends nothing more.
 Players include children, many signed out, so the logs are for inkit's own puzzles only (difficulty,
-quality, hints): never share or publish per-player logs, never tie them to an account or use them to
-reach a player; research published outside inkit uses aggregates. That keeps them within COPPA's
-internal-operations exception, which the privacy page's notice relies on.
+quality, hints, learning): never share or publish per-player logs or use them to reach a player;
+research published outside inkit uses aggregates. Signed out, a play has only the browser's random
+id (COPPA's internal-operations exception, which the privacy page's notice relies on); accounts are
+13+ or parent-managed (the terms), and the privacy page says their plays are tied to the account.
+Deleting an account must clear its `plays.creator_id`.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as

@@ -16,7 +16,7 @@
 // stops at gaps and at itself, pushes out into an end, and with symmetry its mirror image draws
 // itself and the two lines can't meet.
 // One gesture is one undo step. The same rule checks the build used decide when it's solved.
-import type { MountGame } from "../../lib/game-api";
+import type { HintLog, MountGame } from "../../lib/game-api";
 import { addInk } from "../../lib/ink";
 import { celebrate, stamp, unstamp } from "./celebrate";
 import { check, makePuzzle } from "../../engine/puzzle.ts";
@@ -35,6 +35,11 @@ import { createFigure } from "./figure";
 import { createShaped, isShaped } from "./shaped.ts";
 import { assistFor, autoNotes, candidates, clashes, notesSeeing, placed } from "./sudoku-assist.ts";
 import { boardKey, familyOf, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
+
+/** The hint scheme solve logging records with each hint (HintLog.ladder): the rule blocks' own
+ *  hints, one rung each. Bump it when what a hint shows changes, so logs before and after can be
+ *  told apart. */
+export const HINT_LADDER = "rule-1";
 
 type Layer = keyof Board;
 interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
@@ -862,9 +867,13 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
   root.querySelector<HTMLButtonElement>("[data-hint]")?.addEventListener("click", () => {
     if (solved) return;
     clearProblems();
-    let h: Hint | null = null;
-    for (const s of p.rules) { h = blockFor(s).hint?.(s, p, board) ?? null; if (h) break; }
-    host.log?.("h", h ? { area: h.area, cells: h.cells.map((c) => c.cell) } : null);
+    let h: Hint | null = null, from: string | null = null;
+    for (const s of p.rules) { h = blockFor(s).hint?.(s, p, board) ?? null; if (h) { from = s.rule; break; } }
+    // one rung for now: the hint shows where to look and what it gives away at once
+    const logged: HintLog = h
+      ? { ladder: HINT_LADDER, rung: 1, rungs: 1, technique: h.technique ?? from, rule: from, area: h.area, cells: h.cells.map((c) => c.cell) }
+      : { ladder: HINT_LADDER, rung: 0, rungs: 0, technique: null, rule: null, area: [], cells: [] };
+    host.log?.("h", logged);
     if (!h) { say("No hints left. Check for mistakes?", "warn"); return; }
     for (const i of h.area) cellRect(i, "hint-area", gHint);
     for (const { cell, shade } of h.cells) {

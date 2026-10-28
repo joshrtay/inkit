@@ -16,8 +16,23 @@ export interface GameHost {
   solved(result?: Record<string, unknown>): void;
   /** Note what the player did, for solve logging (a page may leave it out; it sends nothing once
    *  the player turns it off: app/app/lib/play-log.ts). `kind`: "m" a move, "u" an undo (each with
-   *  [layer, index, value] changes), "h" a hint (its cells), "r" the board cleared, "s" solved. */
+   *  [layer, index, value] changes), "h" a hint shown (a `HintLog`), "r" the board cleared, "s" solved. */
   log?(kind: string, data?: unknown): void;
+}
+
+/** A hint as solve logging keeps it: enough to tell later whether a player learned what it taught.
+ *  `ladder` names the hint scheme and its version (a change to what the rungs say is a new
+ *  version); `rung` is which step of it was shown, 1 the most general, `rungs` how many it has (0
+ *  and 0: none was left); `technique` is what it teaches, `rule` the rule it came from. */
+export interface HintLog {
+  ladder: string;
+  rung: number;
+  rungs: number;
+  technique: string | null;
+  rule: string | null;
+  /** the cells it pointed at, and the ones it gave away */
+  area: number[];
+  cells: number[];
 }
 
 /** A game's entry point. It renders into `root` and may return a cleanup function. */
