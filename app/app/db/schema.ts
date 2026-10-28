@@ -13,7 +13,8 @@
 //                published like a puzzle: once published, its puzzles and their order stay put
 //   set_items    a set's puzzles, in order
 //   link_requests  a puzz.link or Penpa+ link pasted on /new whose type we don't have yet
-//   plays, play_events  how a player solved (or left) a puzzle, move by move, unless they turned it
+//   plays, play_events  how a player solved (or left) a puzzle, move by move, and with which hints,
+//                under a browser's random id and the account if signed in, unless they turned it
 //                off in Settings (app/lib/play-log.ts): research only, never shown
 //   assessments  the deduction solver's difficulty and the bad-puzzle checks for a published puzzle
 //                (puzzles/difficulty/assess.ts): logged, not shown, but a finished solve's
@@ -259,15 +260,19 @@ export const solves = sqliteTable("solves", {
 
 // ---- plays: how a puzzle was played, move by move (docs/research-review-2026-10-24.md, idea 10) ----
 // Unless the player turned it off in Settings or on the privacy page (app/lib/play-log.ts; then
-// nothing is sent). A player is a random id kept in their browser, never tied to an account; a play is one
-// attempt at one puzzle, carried across reloads until it's solved or reset. Research only: the
-// inter-person ceiling (two players on one puzzle), novice difficulty from times, hints.
+// nothing is sent). A player is a random id kept in their browser, and the account too when they're
+// signed in (set by the server, never sent by the browser); a play is one attempt at one puzzle,
+// carried across reloads until it's solved or reset. Research only: the inter-person ceiling (two
+// players on one puzzle), novice difficulty from times, hints, and learning (does a player solve
+// later puzzles of a type faster, or with fewer hints, after a hint taught its technique).
 export const plays = sqliteTable("plays", {
   /** random, made in the browser */
   id: text("id").primaryKey(),
   gameId: text("game_id").notNull().references(() => games.id),
   /** random, kept in the browser (inkit:player), the same for every puzzle on that browser */
   playerId: text("player_id").notNull(),
+  /** the signed-in account the play was sent from (the first batch sent signed in), or null */
+  creatorId: text("creator_id").references(() => creators.id),
   /** when the play began (the browser's clock) */
   startedAt: integer("started_at", { mode: "timestamp_ms" }).notNull(),
   /** when it was solved, if it was */
@@ -276,7 +281,7 @@ export const plays = sqliteTable("plays", {
   events: integer("events").notNull().default(0),
   createdAt: created(),
   updatedAt: updated(),
-}, (t) => [index("plays_game").on(t.gameId), index("plays_player").on(t.playerId)]);
+}, (t) => [index("plays_game").on(t.gameId), index("plays_player").on(t.playerId), index("plays_creator").on(t.creatorId)]);
 
 /** A play's events as sent, in order: [t (ms since the play began), kind, data?] each
  *  (app/lib/play-log.ts PlayEvent). */
