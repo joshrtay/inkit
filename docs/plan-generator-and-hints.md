@@ -107,6 +107,19 @@ entry), so the play log records which technique a player was shown and whether t
 unaided. The opening and habit hints name the genre's basics, so a player's first reveals show what
 they didn't know yet.
 
+**Does it teach?** It shows techniques; nothing yet shows it teaches them (H2 measured the next
+move, not later unaided use). Three additions aim at teaching:
+
+- **One name per technique.** The same technique gets the same name and wording on every puzzle, and
+  links to its guide page on /puzzles. Needs genre techniques in the library (today it has 20
+  genre-free patterns).
+- **Fading.** Once a player has been shown a technique a few times (per the user-linked logs), rung 2
+  shrinks to "this is a [name] spot", so they have to recall it.
+- **Practice.** Slate's lessons and the generator's planted key step (G3) put that technique into the
+  player's next puzzles.
+
+The test: does a player shown a technique later make that kind of move unaided, sooner or more often.
+
 Privacy: the Thinky data shapes only this schema and the counts above. None of its text goes into
 prompts or onto the site; the writer's prompt describes the structure in our own words.
 
@@ -256,8 +269,9 @@ What's wrong with it, measured:
 - **Thinky data is private.** Their ladders can't be published or, as recommended, used as prompt
   examples for site content.
 - **Play logs connected to users** (Josh, 2026-10-28), to measure learning later. This reverses the
-  ARCHITECTURE.md rule (random browser id, never tied to accounts, for children's accounts under
-  COPPA's internal-operations exception), so that rule needs revisiting first. Earlier: on by default, opt-out in Settings, logs internal only. Anything
+  ARCHITECTURE.md rule. Decided (Josh, 05:12Z): signed-in plays link to the account, signed-out
+  ones keep the browser id; each hint is logged with its ladder version, rung, technique and rule
+  (PR #30). Earlier: on by default, opt-out in Settings, logs internal only. Anything
   built on per-player logs needs a check before publishing.
 - **Likes are a weak target.** Interest from likes was a no-go (they follow size), so G5 should lean
   on completion, quits and hint taps.
