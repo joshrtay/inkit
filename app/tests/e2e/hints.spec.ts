@@ -30,6 +30,8 @@ test("hints open one at a time, outline the board, skip what the player is past,
   await page.goto(`/g/${GAME}`);
   await expect(page.locator(".sheet svg.board")).toBeVisible();
   await page.locator(".sheet [data-rules]").click();
+  // How to play has two tabs: the type's rules, and this puzzle's hints
+  await page.locator(".guide-pane").getByRole("tab", { name: "Hints" }).click();
   const hints = page.locator(".guide-pane .puzzle-hints");
   await expect(hints).toBeVisible();
   await expect(hints.locator(".hint")).toHaveCount(0);

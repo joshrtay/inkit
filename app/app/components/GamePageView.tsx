@@ -178,7 +178,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
     </main>
     {/* a type kept out of the listings has no guide page to open at: the pane starts at the list of types */}
     <GuidePane key={game.kind} start={isListed(game.kind) ? game.kind : undefined} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra}
-      top={play && (ladder || (canEditHints && !preview)) ? <HintsPanel gameId={game.id} kind={game.kind} ladder={ladder} board={board} link={link} canEdit={canEditHints && !preview} preview={preview} /> : null} />
+      hints={play && (ladder || (canEditHints && !preview)) ? <HintsPanel gameId={game.id} kind={game.kind} ladder={ladder} board={board} link={link} canEdit={canEditHints && !preview} preview={preview} /> : null} />
     </div>
   );
 }

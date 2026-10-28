@@ -75,7 +75,7 @@ export function HintsPanel({ gameId, kind, ladder: given, board, link, canEdit, 
   return (
     <section className="puzzle-hints" aria-label="Hints">
       <div className="hints-head">
-        <h3>Hints</h3>
+        <p className="muted small">Stuck? Open one hint at a time.</p>
         {canEdit && <button type="button" className="link" onClick={() => setEditing(true)}>{ladder ? "Edit hints" : "Write hints"}</button>}
       </div>
       {!ladder ? <p className="muted">This puzzle has no hints yet.</p> : (
