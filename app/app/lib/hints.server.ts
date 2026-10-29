@@ -1,7 +1,7 @@
 // Puzzles' hint ladders (src/lib/hint-ladder.ts): which games still need one, for the batch that
 // writes them off the Worker (puzzles/hints/write-site.ts, like the assessments' batch), storing
 // what it sends back, an author's own edit, and a game's ladder for its page.
-import { and, asc, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { schema, type Db } from "../db";
 import { sha256 } from "../ai/request";
 import Anthropic from "@anthropic-ai/sdk";
@@ -16,12 +16,13 @@ import { emptyBoard, type GridSpec } from "~site/engine/types.ts";
 const MAX_CELLS = 10000;
 
 /** Published games, and AI creators' scheduled drafts, with no ladder yet, oldest first: their
- *  sketch and its hash, which the answer must carry back. */
+ *  sketch and its hash, which the answer must carry back. (Not RYB's figures: the solver can't read
+ *  them, and they'd come back every run.) */
 export async function pendingLadders(db: Db, limit = 20) {
   const rows = await db.select({ id: schema.games.id, kind: schema.games.kind, sketch: schema.games.sketch, sketchVersion: schema.games.sketchVersion })
     .from(schema.games)
     .leftJoin(schema.hintLadders, eq(schema.hintLadders.gameId, schema.games.id))
-    .where(and(isNull(schema.hintLadders.gameId),
+    .where(and(isNull(schema.hintLadders.gameId), ne(schema.games.kind, "coats"),
       or(eq(schema.games.state, "published"), and(eq(schema.games.state, "draft"), isNotNull(schema.games.publishAt)))))
     .orderBy(asc(schema.games.createdAt)).limit(limit);
   return Promise.all(rows.map(async (r) => ({ ...r, sketchHash: await sha256(r.sketch) })));

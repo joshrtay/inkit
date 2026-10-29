@@ -91,7 +91,7 @@ export function PublishHints({ gameId, hints }: { gameId: string; hints: ReturnT
 
   if (editing) return (
     <div className="publish-hints">
-      <HintsEditor gameId={gameId} ladder={phase.ladder} clearable={false} onDone={(l) => { if (l) hints.edited(l); setEditing(false); }} />
+      <HintsEditor gameId={gameId} ladder={phase.ladder} onDone={(l) => { if (l) hints.edited(l); setEditing(false); }} />
     </div>);
   const rung = (r: Rung, key: string) => (
     <li key={key} className={`hint ${r.kind}`}>

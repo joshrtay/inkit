@@ -47,7 +47,6 @@ export interface GamePageProps {
   list?: MaybeLater<ListBar | null> | null;
   /** its hints (src/lib/hint-ladder.ts), at the top of How to play, and whether this viewer may rewrite them */
   hints?: MaybeLater<Ladder | null>;
-  canEditHints?: boolean;
 }
 
 // in UTC, so the server and the browser write the same date
@@ -55,7 +54,7 @@ const date = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "lo
 
 const RULES_OPEN = "inkit:rules-open";
 
-export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, editTo = null, canDelete = false, manage, error, newToType = false, list = null, hints = null, canEditHints = false }: GamePageProps) {
+export function GamePageView({ game, collection, author, play, summary, extra, errors, likes, solves, signedIn, preview = false, editTo = null, canDelete = false, manage, error, newToType = false, list = null, hints = null }: GamePageProps) {
   // How to play: the type's guide in the right-hand pane, open or closed as the player last left it
   const [rulesOpen, setRulesOpen] = useState(false);
   // back: to wherever the player came from on this site, or else this creator's page
@@ -178,7 +177,7 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
     </main>
     {/* a type kept out of the listings has no guide page to open at: the pane starts at the list of types */}
     <GuidePane key={game.kind} start={isListed(game.kind) ? game.kind : undefined} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra}
-      hints={play && (ladder || (canEditHints && !preview)) ? <HintsPanel gameId={game.id} kind={game.kind} ladder={ladder} board={board} link={link} canEdit={canEditHints && !preview} preview={preview} /> : null} />
+      hints={play && ladder ? <HintsPanel gameId={game.id} kind={game.kind} ladder={ladder} board={board} link={link} preview={preview} /> : null} />
     </div>
   );
 }

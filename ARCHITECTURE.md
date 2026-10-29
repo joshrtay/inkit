@@ -54,9 +54,10 @@ does the rest through `/admin/assessments`. Each is kept in *assessments*; a fin
 difficulty replaces the rough one, and the quality is logged and never shown.
 **Hints** (`src/lib/hint-ladder.ts`, [docs/plan-generator-and-hints.md](docs/plan-generator-and-hints.md)):
 each published puzzle can have a *hint ladder* (*hint_ladders*, kept beside the game, not in its
-sketch: the hints aren't the puzzle, so its author, a collection owner or an admin can rewrite them
-after publishing, `POST /g/<id>/hints`). A batch writes them off the Worker like the assessments
-(`puzzles/hints/write-site.ts` through `/admin/hints`) and never over an author's. Players open them
+sketch). Its author or a collection owner edits it on the publish page (`POST /g/<id>/hints`); once
+published it's locked with the puzzle. A batch writes ladders off the Worker for puzzles with none
+(AI posts, puzzles from before the gate below), like the assessments: `puzzles/hints/write-site.ts`
+through `/admin/hints`, Sonnet, every 6 hours (`.github/workflows/hints.yml`, capped per run). Players open them
 one at a time at the top of How to play (`components/HintsPanel.tsx`): a short opening, then each
 stuck point's rungs (where, a rule, the step), then the board's own hint (show me). A stuck point
 whose marks are on the board is skipped and folded, and a rule shown often enough shrinks to its short

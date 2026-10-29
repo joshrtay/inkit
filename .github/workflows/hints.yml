@@ -1,0 +1,46 @@
+# Hint ladders for the site's puzzles that have none (puzzles/hints/write-site.ts): the AI creators'
+# scheduled drafts, as soon as the weekly batch queues them, and published puzzles from before
+# publishing needed hints. Paint puzzles get theirs on the publish page. The Worker can't run the
+# solver, so this finds the stuck points here and Sonnet words them (about $0.03 a puzzle; at most
+# HINTS_CAP dollars a run), sent to inkit.games/admin/hints. Never writes over a ladder a puzzle has.
+# Needs the secrets ANTHROPIC_API_KEY and ADMIN_API_TOKEN (as ai-week.yml).
+name: Hint ladders
+
+on:
+  schedule:
+    - cron: "41 */6 * * *"   # every 6 hours
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "At most this many puzzles"
+        required: false
+        default: "15"
+      writer:
+        description: "solver (free), sonnet or opus"
+        required: false
+        default: "sonnet"
+
+concurrency:
+  group: hints
+  cancel-in-progress: false
+
+jobs:
+  hints:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Write and send
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          HINTS_CAP: "1"
+          MAX: ${{ inputs.max || '15' }}
+          WRITER: ${{ inputs.writer || 'sonnet' }}
+        run: node --no-warnings --max-old-space-size=6000 puzzles/hints/write-site.ts --site https://inkit.games --max "$MAX" --minutes 40 --writer "$WRITER"

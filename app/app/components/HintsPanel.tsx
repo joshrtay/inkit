@@ -2,7 +2,7 @@
 // player asks, in order. Stuck points the player has already got past are skipped and folded; once
 // every hint at the point they're on is open, the next is the board's own hint (show me). A rule the
 // player has been shown often shrinks to its name. Each hint opened is logged with the play, as a
-// move is. Its author (and admins) can rewrite the hints here.
+// move is. The hints are written and edited on the publish page (HintsEditor, below), then locked.
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import {
   expose, type Exposures, firstOpen, type Ladder, nextHint, nothingShown, readLadder, reveal, type Rung, type Shown, skipped, textFor, type BoardLike,
@@ -16,16 +16,14 @@ const shownKey = (id: string) => `inkit:hints:${id}`;
 const loadJson = <T,>(key: string, d: T): T => { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : d; } catch { return d; } };
 const keep = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* this visit only */ } };
 
-export function HintsPanel({ gameId, kind, ladder: given, board, link, canEdit, preview = false }: {
+export function HintsPanel({ gameId, kind, ladder: given, board, link, preview = false }: {
   gameId: string; kind: string; ladder: Ladder | null; board: BoardLike | null; link: MutableRefObject<BoardLink | null>;
-  canEdit: boolean; preview?: boolean;
+  preview?: boolean;
 }) {
-  const [ladder, setLadder] = useState(given);
-  useEffect(() => setLadder(given), [given]);
+  const ladder = given;
   const [shown, setShown] = useState<Shown>(nothingShown);
   const [seen, setSeen] = useState<Exposures>({});
   const [more, setMore] = useState<Set<string>>(new Set());
-  const [editing, setEditing] = useState(false);
   const [noShowMe, setNoShowMe] = useState(false);
   // what the player opened before (this browser), and the techniques they've met anywhere
   useEffect(() => { if (!preview) setShown(loadJson(shownKey(gameId), nothingShown())); setSeen(loadJson(SEEN, {})); }, [gameId, preview]);
@@ -36,8 +34,7 @@ export function HintsPanel({ gameId, kind, ladder: given, board, link, canEdit, 
   const next = ladder ? nextHint(ladder, shown, board) : null;
   const folded = useMemo(() => new Set(ladder ? skipped(ladder, shown, board) : []), [ladder, shown, board]);
 
-  if (!ladder && !canEdit) return null;
-  if (editing && canEdit) return <HintsEditor gameId={gameId} ladder={ladder} onDone={(l) => { if (l !== undefined) setLadder(l); setEditing(false); }} />;
+  if (!ladder) return null;
 
   const open = () => {
     if (!ladder || !next) return;
@@ -76,7 +73,6 @@ export function HintsPanel({ gameId, kind, ladder: given, board, link, canEdit, 
     <section className="puzzle-hints" aria-label="Hints">
       <div className="hints-head">
         <p className="muted small">Stuck? Open one hint at a time.</p>
-        {canEdit && <button type="button" className="link" onClick={() => setEditing(true)}>{ladder ? "Edit hints" : "Write hints"}</button>}
       </div>
       {!ladder ? <p className="muted">This puzzle has no hints yet.</p> : (
         <>
@@ -99,10 +95,9 @@ export function HintsPanel({ gameId, kind, ladder: given, board, link, canEdit, 
   );
 }
 
-/** The author's view: each hint's text, to rewrite or empty (an empty one goes). The stuck points
- *  and what they check on the board stay as the writer found them. (The publish page uses it too,
- *  without clearing: a puzzle publishes with hints.) */
-export function HintsEditor({ gameId, ladder, onDone, clearable = true }: { gameId: string; ladder: Ladder | null; onDone: (l?: Ladder | null) => void; clearable?: boolean }) {
+/** The author's view, on the publish page: each hint's text, to rewrite or empty (an empty one
+ *  goes). The stuck points and what they check on the board stay as the writer found them. */
+export function HintsEditor({ gameId, ladder, onDone }: { gameId: string; ladder: Ladder | null; onDone: (l?: Ladder | null) => void }) {
   const start: Ladder = ladder ?? { version: "author", opening: [{ kind: "start", text: "" }], points: [] };
   const [draft, setDraft] = useState<Ladder>(start);
   const [error, setError] = useState("");
@@ -146,7 +141,6 @@ export function HintsEditor({ gameId, ladder, onDone, clearable = true }: { game
       <div className="hints-actions">
         <button type="button" className="btn primary" disabled={busy} onClick={save}>Save</button>
         <button type="button" className="btn" disabled={busy} onClick={() => onDone()}>Cancel</button>
-        {ladder && clearable && <button type="button" className="link danger" disabled={busy} onClick={() => void send({ ladder: null })}>Clear all hints</button>}
       </div>
     </section>
   );
