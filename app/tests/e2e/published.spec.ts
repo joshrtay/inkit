@@ -133,6 +133,11 @@ test("a published puzzle's editors go to its page, and the server refuses a forg
     expect(res.status(), `${f.path} ${f.form.intent}`).toBe(["update", "unpublish"].includes(f.form.intent) ? 400 : 403);
     if (res.status() === 403) expect(await res.text()).toContain("A published puzzle can't be changed, only deleted.");
   }
+  // nor its hints: locked with it
+  const hints = await page.request.post(`/g/${id}/hints`, { data: { ladder: null } });
+  expect(hints.status()).toBe(403);
+  expect(await hints.text()).toContain("hints are locked");
+  expect(sql(`select 1 from hint_ladders where game_id = ${q(id)}`)).toHaveLength(0);
   expect(row(id)).toEqual(before);
   expect(row(coats).title).toBe("RYB, published");
   sql(`delete from games where id = ${q(coats)}`);

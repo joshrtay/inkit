@@ -57,6 +57,10 @@ export function canDelete(game: Pick<Game, "authorId" | "state">, viewer: Pick<C
   return viewer.isAdmin || (game.authorId === viewer.id && !!role);
 }
 
+/** Can this person rewrite the puzzle's hints (lib/hints.server.ts)? Whoever can edit the draft, on
+ *  its publish page; once published they're locked with the puzzle (Josh, 2026-10-29). */
+export const canEditHints = canChange;
+
 /** Can this person take the game down (hide it)? The collection's owners, and admins. */
 export const canHide = (viewer: Pick<Creator, "isAdmin"> | null, role: Role | null) => !!viewer && (viewer.isAdmin || role === "owner");
 

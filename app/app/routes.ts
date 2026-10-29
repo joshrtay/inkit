@@ -42,6 +42,8 @@ export default [
   route("g/:id/like", "routes/game-like.ts"),
   route("g/:id/solve", "routes/game-solve.ts"),
   route("g/:id/sketch", "routes/game-sketch.ts"),
+  route("g/:id/hints", "routes/game-hints.ts"),   // its author rewrites the puzzle's hints
+  route("g/:id/hints/write", "routes/game-hints-write.ts"),   // the publish page: a draft's hints, once its solve is verified
   // admin endpoints (JSON): app/lib/admin.server.ts
   route("admin/reads/stats", "routes/admin-reads-stats.ts"),
   route("admin/reads.jsonl", "routes/admin-reads-export.ts"),
@@ -51,6 +53,7 @@ export default [
   route("admin/ai/backfill", "routes/admin-ai-backfill.ts"),
   route("admin/ai/recommendations", "routes/admin-ai-recommendations.ts"),
   route("admin/assessments", "routes/admin-assessments.ts"),
+  route("admin/hints", "routes/admin-hints.ts"),   // the hint-ladder batch (puzzles/hints/write-site.ts)
   // bug reports (docs/bug-pipeline.md): sent from "Report a bug", reviewed by admins
   route("admin/bugs", "routes/admin-bugs.tsx"),
   route("admin/bugs/:id", "routes/admin-bug.tsx"),

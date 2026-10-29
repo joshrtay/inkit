@@ -3,8 +3,9 @@
 // is plain TypeScript, independent of React. React only provides the spot; the game owns
 // everything inside it.
 import { clearTimer, loadTimer, pause, saveTimer, startTimer, tick } from "./solve-timer";
-import { useEffect, useRef } from "react";
-import { createGrid } from "~site/game-types/grid/game";
+import { useEffect, useRef, type MutableRefObject } from "react";
+import { createGrid, OUTLINE_EVENT } from "~site/game-types/grid/game";
+import type { BoardLike } from "~site/lib/hint-ladder";
 import "~site/game-types/grid/styles.css";
 import { tool } from "./icons";
 import { createHost } from "~/lib/host";
@@ -57,15 +58,23 @@ function alignToBorder(root: HTMLElement) {
   if (sheet) root.parentElement?.parentElement?.style.setProperty("--sheet-w", `${Math.round(sheet.getBoundingClientRect().width)}px`);
 }
 
+/** What the page beside the board can do with it (the How to play pane's hints): log to the play's
+ *  log, outline cells, press the board's own hint (false: it has none). */
+export interface BoardLink { log?: (kind: string, data?: unknown) => void; outline?: (cells: number[]) => void; showMe?: () => boolean }
+
 /** `saveId` keeps the player's progress in this browser; without it (the editor's preview), nothing
  *  is saved. `description`: the creator's line about it, on the paper. `onRules`: the paper's ?
  *  (How to play), shown only when given. `tip`: a first-time note under it ("New to Akari?"),
  *  with its dismissal. */
-export function GameBoard({ play, saveId, onSolved, description = "", onRules, tip, logGame }: {
+export function GameBoard({ play, saveId, onSolved, description = "", onRules, tip, logGame, onBoard, link }: {
   play: Playable; saveId?: string; onSolved?: (ms: number | null) => void; description?: string;
   onRules?: () => void; tip?: { text: string; onDismiss: () => void } | null;
   /** a published puzzle's id: its play is logged unless the player turned that off (lib/play-log.ts) */
   logGame?: string;
+  /** the player's board after every change (and as loaded) */
+  onBoard?: (board: BoardLike | null) => void;
+  /** filled in once the board is up: see BoardLink */
+  link?: MutableRefObject<BoardLink | null>;
 }) {
   const spot = useRef<HTMLDivElement>(null);
   const solved = useRef(onSolved);
@@ -74,6 +83,8 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
   rules.current = onRules;
   const tipRef = useRef(tip);
   tipRef.current = tip;
+  const boardRef = useRef(onBoard);
+  boardRef.current = onBoard;
   // the page's data is reloaded after any action on it (a like, the solve being saved), which hands
   // over an equal but new puzzle: rebuilding then would cut the solve's celebration short
   const key = JSON.stringify(play);
@@ -105,12 +116,20 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     // (keys go to the page: the board reads them there)
     root.addEventListener("pointerdown", move); addEventListener("keydown", move);
     document.addEventListener("visibilitychange", hide);
-    const host = createHost(saveId ?? "", () => {
+    const base = createHost(saveId ?? "", () => {
       const ms = timer.total > 0 ? Math.round(timer.total) : null;
       if (saveId) clearTimer(saveId);
       solved.current?.(ms);
     }, !saveId, log);
+    // the board as it changes, for the hints beside it (every change saves it)
+    const host = { ...base, save(state: unknown) { base.save(state); boardRef.current?.(state as BoardLike); } };
+    boardRef.current?.(base.load<BoardLike>());
     const cleanup = createGrid({ spec: play.spec })(root, host);
+    if (link) link.current = {
+      log: (kind, data) => host.log?.(kind, data),
+      outline: (cells) => root.dispatchEvent(new CustomEvent(OUTLINE_EVENT, { detail: { cells } })),
+      showMe: () => { const b = root.querySelector<HTMLButtonElement>("[data-hint]"); b?.click(); return !!b; },
+    };
     const ask = root.querySelector<HTMLButtonElement>("[data-rules]");
     if (ask) { ask.hidden = !rules.current; ask.addEventListener("click", () => rules.current?.()); }
     root.querySelector(".paper-tip .tip-open")?.addEventListener("click", () => rules.current?.());
@@ -118,7 +137,7 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     const board = root.querySelector(".sheet > svg.board");
     const fit = new ResizeObserver(() => alignToBorder(root));
     if (board) fit.observe(board);
-    return () => { if (every) clearInterval(every); plays?.flush(true); fit.disconnect(); removeEventListener("keydown", move); document.removeEventListener("visibilitychange", hide); cleanup?.(); root.remove(); };
+    return () => { if (link) link.current = null; if (every) clearInterval(every); plays?.flush(true); fit.disconnect(); removeEventListener("keydown", move); document.removeEventListener("visibilitychange", hide); cleanup?.(); root.remove(); };
   }, [key, saveId, logGame]);
 
   // the description changes without rebuilding the board (the publish page edits it as you play)

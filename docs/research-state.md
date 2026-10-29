@@ -6,6 +6,8 @@
 > [research-review-2026-10-24.md](research-review-2026-10-24.md) is the latest critical review of
 > all of it: which results are solid, which are artifacts or underpowered, and the next experiments
 > ranked by value against cost.
+> The plan for the generator and hint ladders (2026-10-24) is
+> [plan-generator-and-hints.md](plan-generator-and-hints.md).
 
 
 A snapshot of the research agenda (2026-10-13): the aim, what's built, what we've learned, what's

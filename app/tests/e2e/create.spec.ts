@@ -101,6 +101,11 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   await expect(page.locator(".publish-meta")).toHaveText(`Akari · 3 × 3 · by @${run.handle} · not published yet`);
   await expect(page.locator("select")).toHaveCount(0);   // no collection picker
   const publish = page.locator(".studio-top").getByRole("button", { name: "Publish" });
+  // Publish waits for a verified solve and hints: the solver here finds the stuck points, the server
+  // words them (the solver's words, with no API key) and keeps them for this sketch
+  await expect(page.locator(".publish-hints-ok")).toHaveText("✓ Solve checked (by the solver) · hints ready", { timeout: 30_000 });
+  await expect(page.locator(".publish-hints .hint-point")).not.toHaveCount(0);
+  expect(sql(`select verified from hint_ladders where game_id = ${q(id)}`)).toEqual([{ verified: "solver" }]);
   await expect(publish).toBeEnabled({ timeout: 15_000 });
 
   // the title and description: edited in place on the dark page above the board, not on the paper
@@ -124,6 +129,7 @@ test("blank → an Akari drawn and typed → its publish page → played → pub
   expect(row(id).title).toBe("Night Light");
 
   // play it as players will: a light beside each side of the 4
+  await page.locator(".sheet svg.board").scrollIntoViewIfNeeded();
   const frame = (await page.locator(".sheet svg.board .frame").boundingBox())!;
   const s = frame.width / 3;
   for (const [r, c] of [[0, 1], [1, 0], [1, 2], [2, 1]]) await page.mouse.click(frame.x + (c + 0.5) * s, frame.y + (r + 0.5) * s);
@@ -170,6 +176,16 @@ test("the server won't publish a sketch the solver didn't pass", async ({ page }
   }, id);
   expect(status).toBe(400);
   expect(row(id).state).toBe("draft");
+  // nor hints for a solve that isn't verified: a stale sketch, an unsolved one, a creator's board that's wrong
+  const sketchHash = await page.evaluate(async (gid) => (await (await fetch(`/g/${gid}/publish.data`)).text()).match(/[0-9a-f]{64}/)?.[0] ?? "", id);
+  const write = (body: unknown) => page.evaluate(({ gid, body }) =>
+    fetch(`/g/${gid}/hints/write`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }).then((r) => r.status), { gid: id, body });
+  const stuck = { solved: true, rows: 3, cols: 3, points: [], creatorMoves: 1 };
+  expect(await write({ sketchHash: "0".repeat(64), stuck })).toBe(409);
+  expect(sketchHash).toMatch(/^[0-9a-f]{64}$/);
+  expect(await write({ sketchHash, stuck: { ...stuck, solved: false } })).toBe(400);
+  expect(await write({ sketchHash, stuck, board: { shade: [1, 1, 1, 1, 0, 1, 1, 1, 1] } })).toBe(400);
+  expect(sql(`select 1 from hint_ladders where game_id = ${q(id)}`)).toHaveLength(0);
 });
 
 test("a photo, read (a given reading: no Claude) and drawn in ink, with its doubts on the paper", async ({ page }) => {

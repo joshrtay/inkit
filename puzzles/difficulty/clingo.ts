@@ -2,11 +2,14 @@
 // calls per puzzle, and clingo-wasm's worker (src/engine/solve.ts) costs a round trip each. The
 // emscripten module is loaded once; each call is a fresh clingo run on the given program text
 // (ASP or aspif, the ground format clingo reads and writes).
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
-import { pathToFileURL } from "node:url";
+// In a browser (the publish page's worker, puzzles/hints/solve.worker.ts) the page hands over the
+// browser build of the module first (useClingoFactory); in Node it's found in node_modules.
 
 interface Module { ccall(name: string, ret: string, types: string[], args: unknown[]): number }
+type Factory = (opts: { print: (l: string) => void; printErr: (l: string) => void; locateFile?: (f: string) => string }) => Promise<Module>;
+let given: { factory: Factory; wasm?: string } | null = null;
+/** Use this emscripten factory (and its .wasm's address) instead of Node's (a browser worker). */
+export function useClingoFactory(factory: Factory, wasm?: string) { given = { factory, wasm }; }
 
 let mod: Module | null = null;
 export const MAX_PROGRAM = 1_200_000;
@@ -15,9 +18,12 @@ let out: string[] = [], err: string[] = [];
 /** Load clingo (once). */
 export async function loadClingo(): Promise<void> {
   if (mod) return;
+  const io = { print: (l: string) => out.push(l), printErr: (l: string) => err.push(l) };
+  if (given) { const wasm = given.wasm; mod = await given.factory({ ...io, ...(wasm ? { locateFile: () => wasm } : {}) }); return; }
+  const [{ createRequire }, { dirname, join }, { pathToFileURL }] = await Promise.all([import("node:module"), import("node:path"), import("node:url")]);
   const pkg = createRequire(import.meta.url).resolve("clingo-wasm/package.json");
-  const { default: factory } = await import(pathToFileURL(join(dirname(pkg), "dist/clingo.js")).href);
-  mod = await factory({ print: (l: string) => out.push(l), printErr: (l: string) => err.push(l) });
+  const { default: factory } = await import(/* @vite-ignore */ pathToFileURL(join(dirname(pkg), "dist/clingo.js")).href);
+  mod = await factory(io);
 }
 
 /** Run clingo on `program` with command-line `args`; its standard output, as lines. */

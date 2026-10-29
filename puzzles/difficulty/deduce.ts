@@ -22,7 +22,7 @@
 // A step's cost counts the distinct rule and clue kinds, the instances and the earlier facts
 // (costOf). Each round takes the cheapest steps; the profile combines step costs by soft-max
 // (softmax) and adds rule load and case splits (estimateOf).
-import { readFileSync } from "node:fs";
+import STEP_PRICES from "./step-prices.json" with { type: "json" };
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
 import { blockFor, fillSlots, galaxyCore, pathEnds, pathNeighbours, symbolOf } from "../../src/engine/rules.ts";
@@ -262,7 +262,7 @@ export function priceCorrection(f: Record<string, number>, prices: { features: s
 }
 const PRICES: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number>; caps?: number[] } | null = (() => {
   if (process.env.DEDUCE_PRICES === "0") return null;
-  try { return JSON.parse(readFileSync(new URL("./step-prices.json", import.meta.url), "utf8")); } catch { return null; }
+  return STEP_PRICES as { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number>; caps?: number[] };
 })();
 
 /** A window family in the proposal language (puzzles/difficulty/miner.ts): units of the given kinds
