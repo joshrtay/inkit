@@ -1,7 +1,7 @@
 // A draft's hints, written on its publish page once its solve is verified: POST
 // inkit.games/g/<id>/hints/write with { sketchHash, stuck, board? }. `stuck`: the stuck points the
 // hint solver found in the creator's browser (app/games/hint-solve.client.ts); `board`: the
-// creator's finished board, when the solver needed their moves (it must check out here). Sonnet
+// creator's finished board, when the solver needed their moves (it must check out here). Opus
 // words the ladder (hints.server.ts writeLadder), once per sketch: asking again returns what was
 // written. Returns { ladder, verified, problems }.
 import { data } from "react-router";

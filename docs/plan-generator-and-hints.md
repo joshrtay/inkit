@@ -201,6 +201,15 @@ ceilings (`puzzles/hints/ceilings.json`, the 0.6 quantile of each type's non-spl
 count every case split as one (the Masyu finding). Sonnet costs about $0.03 a puzzle; a
 Sonnet-vs-Opus comparison on 20 puzzles (about $3) hasn't been run.
 
+**Sonnet vs Opus (2026-10-29, $1.44, `puzzles/hints/compare-writers.ts`).** The same stuck points on
+20 examples across 17 types, each worded by both at medium effort; Haiku judged blind, in both orders
+(a model wins a puzzle only if it wins both, or one and a tie). Opus won 17, Sonnet 1 (Hidoku: Opus
+added unchecked claims), 2 ties; the judge's picks agreed across orders every time. Sonnet's losses
+were mostly vague steps ("the outlined square takes…"), and several false rules or wrong steps
+(Masyu stacked pearls, a Sudoku single, a Nurikabe island). Opus about $0.06 a puzzle, Sonnet $0.01;
+5 Sonnet rungs fell back to the solver's words, none of Opus's. So the writer is Opus (publish page
+and batch). The judge is a model, not players: the hint A/B on the site is the real test.
+
 ## The generator
 
 Keep today's generate-and-select pipeline, but change what it selects for and how it shapes the clue

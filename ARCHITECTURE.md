@@ -20,7 +20,7 @@ browser, subscribe to creators, and like puzzles.
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
 | `puzzles/ai/` | The AI creators' weekly batch: `week.ts` makes, scores (`score.ts`), titles and queues each persona's posts; Slate's lessons are checked by `lesson.ts` against wrong readings of each rule (`rivals.ts`) ([docs/ai-creators.md](docs/ai-creators.md)) |
 | `puzzles/difficulty/` | The deduction solver: solves a puzzle step by step on the engine's own encoding, costs each step by its smallest explanation, and estimates difficulty (`deduce.ts`); `deductionScorer` for the AI creators (`scorer.ts`), a CLI (`cli.ts`) and calibration runs (`calibrate.ts`); difficulty bands as technique sets (`bands.ts`), a generated set of puzzles that afford them, solvable without search (`gen-set.ts`, the generator with the solver in the loop; run on a cloud spot VM by `puzzles/cloud/run-gen-job.sh`) and a shortlist of it for the site (`gen-best.ts`, which publishes nothing) |
-| `puzzles/hints/` | Hint ladders: where a player gets stuck (`stuck.ts`, the deduction solver against the reader's ceiling), the hints' words (`src/lib/hint-words.ts`, shared with the site; `words.ts`: the solver's, free, or Sonnet's/Opus's, paid and only when asked), the batch that writes them for the site (`write-site.ts`) and the publish page's solver worker (`solve.worker.ts`) |
+| `puzzles/hints/` | Hint ladders: where a player gets stuck (`stuck.ts`, the deduction solver against the reader's ceiling), the hints' words (`src/lib/hint-words.ts`, shared with the site; `words.ts`: the solver's, free, or Opus's (Sonnet for comparison), paid), the batch that writes them for the site (`write-site.ts`) and the publish page's solver worker (`solve.worker.ts`) |
 | `puzzles/difficulty/sudoku/` | The Sudoku technique solver: named techniques with Sudoku Explainer-style ratings, a solve path and a profile (hardest step, effort, dependency, refutation) for Sudoku, Irregular and Thermo Sudoku and plain puzzle strings, and a CLI for single puzzles or files of them (docs/sudoku-techniques.md) |
 | `.github/bug-fix/` | The AI bug fixer's gate, guard and prompt, run by `.github/workflows/bug-fix.yml` ([docs/bug-pipeline.md](docs/bug-pipeline.md)) |
 | `docs/` | The grid engine in depth, including how the editors (paint, RYB's) must keep up with it; the creation flow |
@@ -57,7 +57,7 @@ each published puzzle can have a *hint ladder* (*hint_ladders*, kept beside the 
 sketch). Its author or a collection owner edits it on the publish page (`POST /g/<id>/hints`); once
 published it's locked with the puzzle. A batch writes ladders off the Worker for puzzles with none
 (AI posts, puzzles from before the gate below), like the assessments: `puzzles/hints/write-site.ts`
-through `/admin/hints`, Sonnet, every 6 hours (`.github/workflows/hints.yml`, capped per run). Players open them
+through `/admin/hints`, Opus, every 6 hours (`.github/workflows/hints.yml`, capped per run). Players open them
 one at a time at the top of How to play (`components/HintsPanel.tsx`): a short opening, then each
 stuck point's rungs (where, a rule, the step), then the board's own hint (show me). A stuck point
 whose marks are on the board is skipped and folded, and a rule shown often enough shrinks to its short
@@ -68,7 +68,7 @@ refuses without a *hint_ladders* row for the very sketch with `verified` set). T
 (`games/hint-solve.client.ts` → `puzzles/hints/solve.worker.ts`, clingo-wasm) to find the stuck points;
 where it can't finish, the creator solves it on the board and their moves, in order
 (`games/creator-moves.ts`), fill the gaps, and the server checks their finished board with the engine.
-`POST /g/<id>/hints/write` then words the ladder with Sonnet (`hints.server.ts` writeLadder; the
+`POST /g/<id>/hints/write` then words the ladder with Opus (`hints.server.ts` writeLadder; the
 solver's words with no key) once per sketch, and the creator reviews and edits it before Publish
 wakes. Like the one-solution check, the solver's own "solved" is the browser's word. RYB and AI posts
 don't pass this gate (the batch gives AI posts theirs).

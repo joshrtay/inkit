@@ -1,7 +1,7 @@
 # Hint ladders for the site's puzzles that have none (puzzles/hints/write-site.ts): the AI creators'
 # scheduled drafts, as soon as the weekly batch queues them, and published puzzles from before
 # publishing needed hints. Paint puzzles get theirs on the publish page. The Worker can't run the
-# solver, so this finds the stuck points here and Sonnet words them (about $0.03 a puzzle; at most
+# solver, so this finds the stuck points here and Opus words them (about $0.06 a puzzle; at most
 # HINTS_CAP dollars a run), sent to inkit.games/admin/hints. Never writes over a ladder a puzzle has.
 # Needs the secrets ANTHROPIC_API_KEY and ADMIN_API_TOKEN (as ai-week.yml).
 name: Hint ladders
@@ -18,7 +18,7 @@ on:
       writer:
         description: "solver (free), sonnet or opus"
         required: false
-        default: "sonnet"
+        default: "opus"
 
 concurrency:
   group: hints
@@ -40,7 +40,7 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
-          HINTS_CAP: "1"
+          HINTS_CAP: "2"
           MAX: ${{ inputs.max || '15' }}
-          WRITER: ${{ inputs.writer || 'sonnet' }}
+          WRITER: ${{ inputs.writer || 'opus' }}
         run: node --no-warnings --max-old-space-size=6000 puzzles/hints/write-site.ts --site https://inkit.games --max "$MAX" --minutes 40 --writer "$WRITER"

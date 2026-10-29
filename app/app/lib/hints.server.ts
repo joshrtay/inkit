@@ -57,9 +57,11 @@ export async function saveAuthorLadder(db: Db, game: { id: string; sketch: strin
 }
 
 // ---------- written on the publish page ----------
-/** The model that words the hints on the publish page (Sonnet: about half Opus's price, and the
- *  solver hands it each step, so it explains rather than solves), and the ladder version it writes. */
-export const HINT_WRITER = { model: "claude-sonnet-5-5", effort: "medium", version: "sonnet-1" } as const;
+/** The model that words the hints on the publish page, and the ladder version it writes: Opus,
+ *  which a blind judge preferred to Sonnet on 17 of 20 examples (2 ties) for about $0.06 a puzzle
+ *  against $0.01; Sonnet stated false rules and wrong steps more often
+ *  (puzzles/hints/compare-writers.ts, 2026-10-29). */
+export const HINT_WRITER = { model: "claude-opus-5-5", effort: "medium", version: "opus-1" } as const;
 
 const Reply = z.object({
   start: z.string(), habit: z.string(),

@@ -1,7 +1,7 @@
 // The publish page's hints (docs/plan-generator-and-hints.md, "Publishing"): a puzzle publishes only
 // with a verified solve and hints for players. Once the one-solution check passes, the deduction
 // solver works through the puzzle in this browser (app/games/hint-solve.client.ts) and finds where
-// a player would stall; Sonnet words the hints on the server (routes/game-hints-write.ts). Where the
+// a player would stall; Opus words the hints on the server (routes/game-hints-write.ts). Where the
 // solver can't finish, the creator solves it on the board and their moves fill the gaps (the solve
 // must check out). The creator then reviews the hints, and can rewrite any of them.
 import { useEffect, useRef, useState } from "react";
