@@ -258,6 +258,27 @@ What's wrong with it, measured:
    taps, quits, likes. Run old and new generators side by side across personas for a few weeks. The
    quality weights get fitted here, on inkit's own data.
 
+### G0 result and the Opus designer pilot (2026-10-29)
+
+`puzzles/ai/gen-eval.ts` measures any maker alike; `gen-baseline.ts` runs it on human and old-fleet
+puzzles (20 per type, reused from the human-gap set), a 26-post dry run of the AI accounts, and
+`opus-design.ts`'s puzzles: Opus 5.5 writes a text grid and calls the solver as a tool (uniqueness
+with the cells two solutions differ on, estimate, flags, symmetry, stuck points; 10 checks at most).
+Data in the bucket (`private/refs/ml/gen-baseline/`).
+
+- **Posts are toys:** median 16 cells, none symmetric, classifier P(human) about 0 on most types.
+  Size floors per genre come first.
+- **Opus plus the harness:** 16 of 20 tries gave a unique puzzle, $0.64 each. Symmetric 33-100%
+  (fleet 0% outside Akari), first stuck point earlier (0.09-0.19 of the solve vs 0.20-0.31).
+  Human-like on Slitherlink (0.84-0.85 at easy/medium vs fleet median 0.04) and Masyu (0.99+, but all
+  harder than the fleet's range, so partly extrapolation); not on Akari or Star Battle.
+- **The quality flags fire on human puzzles** (Masyu 85% dull and 85% guessing, Slitherlink 85% and
+  65%), so they need refitting on the human corpus before G1 and G2 optimise against them.
+
+Next: size floors, symmetry in G2, refit the flags (all free); Opus as a second maker for Slitherlink
+and Masyu featured puzzles; a ~$25 run at 10x10 with a blind solve, if wanted. Write-up:
+generator-baseline-and-opus-pilot-2026-10-29.md in the project's research files.
+
 ### Where it falls short
 
 - **Coverage holes:** Simple Loop and Simple Path have no medium band, Galaxies no easy or expert,
