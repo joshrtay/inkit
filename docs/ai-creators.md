@@ -143,7 +143,17 @@ The site accepts backdated posts up to 400 days old.
    genre and settings (seeded by the persona and date, so a rerun picks the same; a pair shares
    the week's rule mix, the second on the transposed board), and the day's target difficulty.
 3. It makes several candidates with the generator (`puzzles/grid/generate.ts`, the same code
-   as `npm run new`; each already minimal: no clue can be removed), scores each with the
+   as `npm run new`; each already minimal: no clue can be removed). Candidates are the day's
+   size or larger, never smaller (`sizesFor`; the size below only if nothing comes out), and in
+   the types whose clue layout the generator can make symmetric (`SYMMETRY_GENRES`) a persona
+   that prefers symmetry asks for a 180° layout every time, the rest every other candidate
+   (`symmetryFor`): the generator baseline found the posts were mostly 4×4 and never symmetric
+   (docs/plan-generator-and-hints.md, "G0 result"). A genre plan with `designer: "opus"`
+   (Lumen's Masyu and Slitherlink) asks the Opus designer first
+   ([`puzzles/ai/designer.ts`](../puzzles/ai/designer.ts): Opus sets the grid at the day's size
+   and difficulty, checking each draft with the solvers, up to 10 checks); its puzzle goes
+   through the same scorer and quality bar, and if it gives up the generator makes the post.
+   It scores each with the
    pluggable scorer ([`puzzles/ai/score.ts`](../puzzles/ai/score.ts)), drops those below the
    persona's quality bar, and keeps the one closest to the target, less 0.3 × its quality. The
    weekly batch's scorer is `checkedScorer` (`puzzles/difficulty/scorer.ts`): the proxy scorer
@@ -152,8 +162,9 @@ The site accepts backdated posts up to 400 days old.
    case splits (guessing, except in the types where the solver lacks people's techniques) and a
    long run of easy steps (grind) take their share off its quality, ranking it below a clean one
    but never under the persona's bar on their own; a kind of clue or an added rule that could all
-   go with the puzzle still unique (dull) rejects it. The weights are provisional, not yet fitted
-   to likes. The assessment goes with the post (`meta.assessment`) and the site keeps it (the
+   go with the puzzle still unique (dull) rejects it. Redundant clues and splits count only
+   beyond what human puzzles of the type have (`quality-norms.json`). The weights are
+   provisional, not yet fitted to likes. The assessment goes with the post (`meta.assessment`) and the site keeps it (the
    `assessments` table): the solver's difficulty becomes the game's when its solve finished, and
    the quality is logged, never shown.
 4. It proves the puzzle has one solution (clingo, `solve(p, 2)`; a panel needs a line), asks
@@ -245,7 +256,8 @@ will replace it; they read the same persona targets.
 
 About 50 posts a week. Claude: one call per post at low effort, roughly 600 input and 150 output
 tokens, so a few cents a week at Sonnet 5.5's $2 / $10 per million tokens (the script prints the
-week's tokens and cost). GitHub Actions: generation is the slow part (big Panes, Shikaku and 6×6
+week's tokens and cost). The Opus designer: about $0.65 a puzzle (Opus 5.5 at high effort, $4 /
+$20), for Lumen's two or three Masyu and Slitherlink posts a week, so about $2 a week. GitHub Actions: generation is the slow part (big Panes, Shikaku and 6×6
 panels take up to a minute or two per candidate); a week takes well under the job's 5-hour limit.
 The Worker's cron costs one D1 query a minute.
 

@@ -7,7 +7,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { guides } from "../../src/guides/guides.ts";
-import type { GenerateOptions } from "../grid/generate.ts";
+import { SYMMETRY_GENRES, type GenerateOptions, type Symmetry } from "../grid/generate.ts";
 import type { GenrePlan, Persona } from "../../src/ai/personas.ts";
 import { difficultyOf, lessonFor, localDate, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../src/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Score, type Scorer } from "./score.ts";
@@ -18,14 +18,17 @@ export const PRICE = { input: 2, output: 10 };
 
 export const hash = (s: string) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h; };
 
-/** Candidate sizes, nearest the day's difficulty first. */
+/** Candidate sizes: the day's size first, then larger ones, never smaller. A smaller board can
+ *  still score near the target (the estimate runs high on tiny boards), and picking those made the
+ *  posts toys: a dry run's median was 4x4 (docs/plan-generator-and-hints.md, "G0 result"). makeFor
+ *  falls back to the size below only when nothing at these sizes comes out. */
 export function sizesFor(plan: GenrePlan, difficulty: number, n: number, transpose: boolean, rules?: string): [number, number][] {
   // Panes with a fixed region size: only boards that size divides
   const region = Number(rules?.match(/(?:^|,)size=(\d+)/)?.[1] ?? 0);
   const fits = region ? plan.sizes.filter(([r, c]) => (r * c) % region === 0) : plan.sizes;
   const sizes = fits.length ? fits : plan.sizes;
   const base = Math.round(difficulty * (sizes.length - 1));
-  const order = [0, 1, -1, 0, 2, -2, 0];
+  const order = [0, 1, 0, 2, 0, 1, 0];
   const out: [number, number][] = [];
   for (let k = 0; out.length < n; k++) {
     const i = Math.min(sizes.length - 1, Math.max(0, base + order[k % order.length]));
@@ -51,7 +54,20 @@ export function generateWithin(opts: GenerateOptions, ms: number, log: (s: strin
   });
 }
 
-export interface Made { spec: GridSpec; score: Score; size: [number, number]; mix?: string; rules?: string; moves?: string; tries: number }
+/** The clue layout to ask the generator for, candidate k: people lay clues out symmetrically far
+ *  more often than random removal does (G0: human Akari 95%, Slitherlink 45%, our posts 0%). A
+ *  persona that prefers symmetry asks for it every time; the rest every other candidate, so the
+ *  scorer picks between the two. */
+export function symmetryFor(p: Persona, genre: string, k: number): Symmetry | undefined {
+  if (!SYMMETRY_GENRES.includes(genre)) return undefined;
+  return p.quality.symmetry === "prefer" || k % 2 === 1 ? "rot180" : undefined;
+}
+
+export interface Made {
+  spec: GridSpec; score: Score; size: [number, number]; mix?: string; rules?: string; moves?: string; tries: number;
+  /** set by the Opus designer (GenrePlan.designer): its one-line idea and what it cost */
+  designed?: { idea: string; cost: number; checks: number };
+}
 
 export interface MakeOptions {
   /** candidates to make (default: the persona's) */
@@ -65,6 +81,9 @@ export interface MakeOptions {
   /** added to the generator's seeds, for another try at the same slot ("" for the usual seeds) */
   salt?: string;
   log?: (s: string) => void;
+  /** the client for the Opus designer (./designer.ts), for genre plans with `designer`; without it
+   *  (dry runs, the backfill) those plans use the generator */
+  designer?: Anthropic | null;
   /** a tutor's Tuesday or Wednesday: the day before's puzzle, which it changes (./lesson.ts);
    *  without it, that day's is made again */
   previous?: GridSpec | null;
@@ -91,12 +110,32 @@ export async function makeFor(p: Persona, slot: Slot, o: MakeOptions): Promise<M
   // a pair's second post is the first's board turned on its side: size it by the first day
   const sizeDifficulty = role === 1 ? difficultyOf(p.difficulty, slot.at, slot.date, p.pairs!.days[0]) : slot.difficulty;
   const sizes = sizesFor(plan, sizeDifficulty, n, role === 1, rules);
+  if (plan.designer === "opus" && o.designer) {
+    // Opus sets it at the day's size; if it gives up, or its puzzle is a repeat or fails the
+    // persona's quality bar, the generator makes the post as usual
+    const { design } = await import("./designer.ts");
+    const [rows, cols] = sizes[0];
+    const d = await design(o.designer, { genre: plan.genre, rows, cols, difficulty: slot.difficulty, log }).catch((e) => { log(`  designer failed: ${(e as Error).message}`); return null; });
+    if (d?.spec && (!o.isNew || o.isNew(d.spec))) {
+      const score = await scorer({ spec: d.spec, plan }, p, slot);
+      if (score.quality >= p.quality.minQuality) return { spec: d.spec, score, size: [rows, cols], mix, rules, moves, tries: 1, designed: { idea: d.idea ?? "", cost: d.cost, checks: d.checks } };
+      log(`  designer's puzzle below ${p.handle}'s quality bar (${score.quality.toFixed(2)}): ${score.notes.join("; ")}`);
+    }
+  }
   const started = Date.now();
   let best: Made | null = null, bestKey = Infinity, tries = 0, lastNotes: string[] = [];
-  for (let k = 0; k < n * 2 && tries < n; k++) {
+  // nothing at the day's sizes: once more at the size below (a size the generator is slow at)
+  const below = sizesFor(plan, Math.max(0, sizeDifficulty - 1 / Math.max(1, plan.sizes.length - 1)), 1, role === 1, rules)[0];
+  for (let k = 0; k < n * 2 + 1 && tries < n; k++) {
     if (k > 0 && Date.now() - started > o.budgetMs) break;
-    const [rows, cols] = sizes[k % sizes.length];
-    const spec = await generateWithin({ genre: plan.genre, rows, cols, seed: 1 + (hash(`${p.handle}/${slot.date}/${k}${o.salt ?? ""}`) % 1e6), mix, rules, moves, cipher }, o.candidateMs, log);
+    const fallback = k === n * 2;
+    if (fallback && (best || tries > 0)) break;
+    const [rows, cols] = fallback ? below : sizes[k % sizes.length];
+    const symmetry = symmetryFor(p, plan.genre, k);
+    const seed = 1 + (hash(`${p.handle}/${slot.date}/${k}${o.salt ?? ""}`) % 1e6);
+    let spec = await generateWithin({ genre: plan.genre, rows, cols, seed, mix, rules, moves, cipher, symmetry }, o.candidateMs, log);
+    // a symmetric layout can need more clues than the generator manages in time: the plain one then
+    if (!spec && symmetry) spec = await generateWithin({ genre: plan.genre, rows, cols, seed, mix, rules, moves, cipher }, o.candidateMs, log);
     if (!spec) continue;
     if (o.isNew && !o.isNew(spec)) { lastNotes = ["a repeat of an earlier post"]; continue; }
     tries++;

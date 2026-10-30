@@ -88,7 +88,7 @@ const { taken, titles } = dryRun ? { taken: new Set<string>(), titles: new Map<s
 mkdirSync(outDir, { recursive: true });
 console.log(`${dryRun ? "dry run: " : ""}posts from ${from.toISOString()} to ${to.toISOString()}${dryRun ? "" : ` for ${site}`}\n`);
 const rows: string[] = [];
-let made = 0, failed = 0;
+let made = 0, failed = 0, designCost = 0;
 for (const p of PERSONAS) {
   if (only && p.handle !== only) continue;
   if (p.paused) { console.log(`${p.handle}: paused`); continue; }
@@ -98,7 +98,8 @@ for (const p of PERSONAS) {
     if (made >= limit) break;
     if (taken.has(`${p.handle}@${slot.at.getTime()}`)) { console.log(`${p.handle} ${slot.date}: already queued`); previous = null; continue; }
     const t0 = Date.now();
-    const best = await makeFor(p, slot, { candidates: candidatesOverride, budgetMs: BUDGET_MS, candidateMs: CANDIDATE_MS, scorer, previous });
+    const best = await makeFor(p, slot, { candidates: candidatesOverride, budgetMs: BUDGET_MS, candidateMs: CANDIDATE_MS, scorer, previous, designer: client });
+    if (best?.designed) designCost += best.designed.cost;
     previous = best?.spec ?? null;
     if (!best) { failed++; console.log(`${p.handle} ${slot.date}: no candidate good enough`); continue; }
     const sketch = sketchOf(best.spec);
@@ -117,9 +118,9 @@ for (const p of PERSONAS) {
     const line = `${p.handle.padEnd(16)} ${slot.date} ${local.padEnd(10)} ${best.spec.genre}${best.mix ? `/${best.mix}` : ""}${best.rules ? `[${best.rules}]` : ""} ${r}x${c} ${String(cluesOf(best.spec).length).padStart(2)} clues  target ${slot.difficulty.toFixed(2)} got ${s.difficulty.toFixed(2)} q ${s.quality.toFixed(2)}  (${best.tries} tried, ${((Date.now() - t0) / 1000).toFixed(0)}s)  "${words.title}"  ${queued}`;
     console.log(line + (s.notes.length ? `\n${" ".repeat(17)}${s.notes.join("; ")}` : "") + (dryRun ? "" : `\n${" ".repeat(17)}${words.description}`));
     rows.push(line);
-    writeFileSync(join(outDir, `${slot.date}-${p.handle}.json`), JSON.stringify({ persona: p.handle, slot: { ...slot, at: slot.at.toISOString() }, ...words, sketch, solutions, score: s }, null, 1) + "\n");
+    writeFileSync(join(outDir, `${slot.date}-${p.handle}.json`), JSON.stringify({ persona: p.handle, slot: { ...slot, at: slot.at.toISOString() }, ...words, sketch, solutions, score: s, designed: best.designed }, null, 1) + "\n");
   }
 }
 const cost = costOf(usage);
-console.log(`\n${made} posts${failed ? `, ${failed} failed` : ""}; written to ${outDir}${usage.calls ? `; Claude (${MODEL}): ${usage.calls} calls, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}` : ""}`);
+console.log(`\n${made} posts${failed ? `, ${failed} failed` : ""}; written to ${outDir}${usage.calls ? `; Claude (${MODEL}): ${usage.calls} calls, ${usage.input} in / ${usage.output} out tokens, about $${cost.toFixed(3)}` : ""}${designCost ? `; Opus designer about $${designCost.toFixed(2)}` : ""}`);
 if (failed) process.exitCode = 1;

@@ -1,0 +1,70 @@
+{
+ "note": "per type, from human-made puzzles (Janko, puzsq): redundantShare = median share of clues that could go one at a time; splitShare = 75th percentile share of solver steps that are case splits. quality.ts penalises only beyond these. Written by quality-norms.ts.",
+ "pooled": {
+  "n": 337,
+  "redundantShare": 0.083,
+  "splitShare": 0.064
+ },
+ "types": {
+  "akari": {
+   "n": 40,
+   "redundantShare": 0,
+   "splitShare": 0
+  },
+  "aquarium": {
+   "n": 14,
+   "redundantShare": 0,
+   "splitShare": 0
+  },
+  "cave": {
+   "n": 19,
+   "redundantShare": 0.182,
+   "splitShare": 0.471
+  },
+  "hitori": {
+   "n": 28,
+   "redundantShare": 0,
+   "splitShare": 0.4
+  },
+  "masyu": {
+   "n": 40,
+   "redundantShare": 0.167,
+   "splitShare": 0.029
+  },
+  "nurikabe": {
+   "n": 14,
+   "redundantShare": 0,
+   "splitShare": 0.603
+  },
+  "simple-loop": {
+   "n": 30,
+   "redundantShare": 0,
+   "splitShare": 0.022
+  },
+  "skyscrapers": {
+   "n": 30,
+   "redundantShare": 0.143,
+   "splitShare": 0
+  },
+  "slitherlink": {
+   "n": 36,
+   "redundantShare": 0.188,
+   "splitShare": 0.094
+  },
+  "spiral-galaxies": {
+   "n": 30,
+   "redundantShare": 0,
+   "splitShare": 0
+  },
+  "star-battle": {
+   "n": 36,
+   "redundantShare": 0,
+   "splitShare": 0
+  },
+  "sudoku": {
+   "n": 30,
+   "redundantShare": 0.12,
+   "splitShare": 0
+  }
+ }
+}

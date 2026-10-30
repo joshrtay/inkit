@@ -47,6 +47,23 @@ describe("the checks", () => {
     expect(qualityOf({ spec: akari, path: long.slice(0, 10), profile: solved }).flags).toEqual([]);
   });
 
+  it("lets a puzzle have the redundant clues and splits a typical human one of its type has", async () => {
+    const { normFor } = await import("../../../puzzles/difficulty/quality.ts");
+    const n = normFor("masyu");
+    const pearls = Array.from({ length: 20 }, (_, i) => cell(Math.floor(i / 5), i % 5, "pearl", { value: "white" }));
+    const masyu: GridSpec = { genre: "masyu", size: [5, 5], givens: pearls };
+    const free = Math.round(n.redundantShare * 20);
+    const within = qualityOf({ spec: masyu, path: [step(2)], profile: solved, redundant: Array.from({ length: free }, (_, i) => `pearl ${i}`) });
+    expect(within.flags.some((f) => f.startsWith("dull"))).toBe(false);
+    const beyond = qualityOf({ spec: masyu, path: [step(2)], profile: solved, redundant: Array.from({ length: free + 2 }, (_, i) => `pearl ${i}`) });
+    expect(beyond.score).toBeCloseTo(1 - 2 * PENALTY.redundant);
+    // a split share at the human norm costs nothing; well above it, it's guessing
+    const steps = 100, few = Math.floor(n.splitShare * steps);
+    const path = (k: number) => [...Array.from({ length: k }, () => step(6, 2)), ...Array.from({ length: steps - k }, (_, i) => step(2 + (i % 3)))];
+    expect(qualityOf({ spec: masyu, path: path(few), profile: solved }).flags.some((f) => f.startsWith("guessing"))).toBe(false);
+    expect(qualityOf({ spec: masyu, path: path(Math.min(70, few + 20)), profile: solved }).flags.some((f) => f.startsWith("guessing"))).toBe(true);
+  });
+
   it("never goes below 0", () => {
     const q = qualityOf({ spec: akari, path: [step(6, 3)], profile: solved, redundant: ["a", "b", "c", "d", "e"], idle: ["x", "y"] });
     expect(q.score).toBe(0);

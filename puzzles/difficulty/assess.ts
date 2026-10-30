@@ -14,11 +14,12 @@ import type { Given, GridSpec } from "../../src/engine/types.ts";
 import { clingoJson, loadClingo } from "./clingo.ts";
 import type { deduce, Step } from "./deduce.ts";
 import { deduceGuarded } from "./deduce-guarded.ts";
-import { qualityOf } from "./quality.ts";
+import { qualityOf, STRUCTURE } from "./quality.ts";
 
 /** Bumped when what an assessment means changes (the solver's settings, the checks), so the site's
- *  batch assesses every puzzle again. 2 (2026-10-24): the estimate's case-split term (deduce.ts estimateOf). */
-export const ASSESS_VERSION = 2;
+ *  batch assesses every puzzle again. 2 (2026-10-24): the estimate's case-split term (deduce.ts estimateOf).
+ *  3 (2026-10-30): quality measured against human puzzles of the type (quality-norms.json). */
+export const ASSESS_VERSION = 3;
 
 export interface Assessment {
   version: number;
@@ -48,7 +49,6 @@ export interface AssessOptions {
 /** The batch's settings: the guard's call budget (aim 4), with room for slow types. */
 export const SITE_BUDGET: AssessOptions = { budgetCalls: 1000, budgetMs: 120000, capMs: 180000, redundancy: true };
 
-const STRUCTURE = new Set(["block", "wall", "gap", "start", "end", "door", "bank", "lengths"]);
 const where = (g: Given) => (g.at === "cell" ? `${g.kind} at r${g.cell[0] + 1}c${g.cell[1] + 1}` : g.kind);
 
 /** The clues that removing leaves exactly one solution: clues that do nothing. None for a type

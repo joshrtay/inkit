@@ -275,9 +275,28 @@ Data in the bucket (`private/refs/ml/gen-baseline/`).
 - **The quality flags fire on human puzzles** (Masyu 85% dull and 85% guessing, Slitherlink 85% and
   65%), so they need refitting on the human corpus before G1 and G2 optimise against them.
 
-Next: size floors, symmetry in G2, refit the flags (all free); Opus as a second maker for Slitherlink
-and Masyu featured puzzles; a ~$25 run at 10x10 with a blind solve, if wanted. Write-up:
-generator-baseline-and-opus-pilot-2026-10-29.md in the project's research files.
+Write-up: generator-baseline-and-opus-pilot-2026-10-29.md in the project's research files.
+
+Done on Josh's go (2026-10-30):
+
+- **Sizes and symmetry** (`puzzles/ai/make.ts`): candidates are the day's size or larger, never
+  smaller; symmetric layouts are asked for (always where the persona prefers symmetry, every other
+  candidate otherwise). A dry run of four personas: 13 of 24 posts symmetric (was 2 of 23), and the
+  sizes grow through the week (Night Clerk's 9x9 Sudoku, Granny Rect's 5x6). Cost: on the days the
+  board grew, the solver's estimate now overshoots the target (Night Clerk's 6x6 Thermo 0.88 for
+  0.53), so G1's re-check of the persona targets on the solver's scale matters more now.
+- **Quality against human norms** (`puzzles/difficulty/quality-norms.ts`, `quality-norms.json`,
+  337 human puzzles in 12 types): redundant clues count only beyond the human median share,
+  splits only beyond the human 75th percentile. Human Masyu flagged dull 85% to 42% and guessing
+  78% to 22%; Slitherlink 75% to 47% and 61% to 25%. ASSESS_VERSION 3, so the site re-assesses.
+- **Opus designer for Lumen** (`puzzles/ai/designer.ts`, `GenrePlan.designer`): Masyu and
+  Slitherlink posts are designed by Opus at 5x5 to 7x7, the generator when it gives up.
+- **10x10 run** ($10.11): only 5 of 16 unique within 10 checks (Masyu 3/8, Slitherlink 2/8), about
+  $2 per puzzle, against 8 of 10 at 6x6-8x8. The designer suits small and medium boards; big boards
+  need more checks or a generator-made start.
+- **Blind solve**: 15 10x10 puzzles (5 Opus, 5 generator, 5 human, matched on the solver's
+  estimate), shuffled on a rating page for Josh and Wyatt (`puzzles/ai/blind-set.ts` makes the
+  puzz.link links; the key is kept apart).
 
 ### Where it falls short
 

@@ -14,11 +14,24 @@
 //   grind     a long run of easy steps that make up most of the solve
 //
 // Each sets a flag and takes something off a 0..1 score. The weights follow the order above but are
-// provisional: they aren't fitted to likes or beauty yet. The AI creators' generator uses the score
+// provisional: they aren't fitted to likes or beauty yet. What counts is measured against human-made
+// puzzles of the type (./quality-norms.json, from ./quality-norms.ts): a puzzle loses quality only
+// for redundant clues beyond the human median share, and for a split share above the human 75th
+// percentile; below that it's what people's puzzles have too, and the flag says so without a cost. The AI creators' generator uses the score
 // (scorer.ts, withQualityChecks); every published puzzle's is logged on the site and not shown
 // (assess.ts, POST /admin/assessments). Pure, so it's unit-tested (app/tests/unit/quality.test.ts).
 import type { GridSpec } from "../../src/engine/types.ts";
 import type { Profile, Step } from "./deduce.ts";
+import NORMS from "./quality-norms.json" with { type: "json" };
+
+/** Given kinds that are the board, not clues (a black square, a wall): never redundant. */
+export const STRUCTURE = new Set(["block", "wall", "gap", "start", "end", "door", "bank", "lengths"]);
+
+/** What human puzzles of a type have (pooled for a type with too few): the median share of clues
+ *  that could go one at a time, and the 75th percentile share of solver steps that are splits. */
+export function normFor(genre: string | undefined): { redundantShare: number; splitShare: number } {
+  return (NORMS.types as Record<string, { redundantShare: number; splitShare: number }>)[genre ?? ""] ?? NORMS.pooled;
+}
 
 /** Types whose people's moves the solver mostly can't make without a split (human-misses: Hitori
  *  93%, Hidoku 85%, Numberlink 91%), or where its solves stall (Nurikabe, Spiral Galaxies,
@@ -47,7 +60,8 @@ export const EASY = 3;
 export interface Quality {
   /** 0 (bad) .. 1 (nothing found) */
   score: number;
-  /** what was found, one line each: "dull: …", "guessing: …", "grind: …", "unfinished: …" */
+  /** what was found, one line each: "dull: …", "guessing: …", "grind: …", "unfinished: …" (and,
+   *  costing nothing, "redundant: …" and "splits: …" within what human puzzles have) */
   flags: string[];
   measures: {
     /** clues that removing leaves one solution (null: not checked) */
@@ -79,10 +93,18 @@ export function qualityOf({ spec, path, profile, usage, redundant, idle }: Quali
   let off = 0;
   const real = path.filter((s) => !s.choice);
 
+  const norm = normFor(spec.genre);
+
   // ---- dull ----
   if (redundant?.length) {
-    off += Math.min(PENALTY.redundantMax, PENALTY.redundant * redundant.length);
-    flags.push(`dull: ${redundant.length} clue${redundant.length > 1 ? "s" : ""} could go and it'd still have one solution (${redundant.slice(0, 4).join(", ")}${redundant.length > 4 ? ", …" : ""})`);
+    // as many as a typical human puzzle of the type has go free
+    const clues = (spec.givens ?? []).filter((g) => !STRUCTURE.has(g.kind)).length;
+    const excess = redundant.length - Math.round(norm.redundantShare * clues);
+    const list = `${redundant.slice(0, 4).join(", ")}${redundant.length > 4 ? ", …" : ""}`;
+    if (excess > 0) {
+      off += Math.min(PENALTY.redundantMax, PENALTY.redundant * excess);
+      flags.push(`dull: ${redundant.length} clue${redundant.length > 1 ? "s" : ""} could go and it'd still have one solution (${list})`);
+    } else flags.push(`redundant: ${redundant.length} clue${redundant.length > 1 ? "s" : ""} could go one at a time (${list}), no more than human ${spec.genre} puzzles have; not counted`);
   }
   if (idle?.length) {
     off += PENALTY.idleKind * idle.length;
@@ -93,6 +115,7 @@ export function qualityOf({ spec, path, profile, usage, redundant, idle }: Quali
   const splits = real.filter((s) => s.tier >= 2).length, splitShare = real.length ? splits / real.length : 0;
   if (splits) {
     if (SPLIT_GAP.has(spec.genre ?? "") || splitShare >= SOLVER_GAP_SHARE) flags.push(`splits: ${splits} of ${real.length} steps (the solver lacks this type's techniques; not counted)`);
+    else if (splitShare <= norm.splitShare) flags.push(`splits: ${splits} of ${real.length} steps, no more than human ${spec.genre} puzzles need (the solver splits where people use a technique it lacks); not counted`);
     else {
       off += PENALTY.split + PENALTY.splitShare * splitShare;
       flags.push(`guessing: ${splits} of ${real.length} steps are case splits`);

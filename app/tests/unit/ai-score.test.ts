@@ -119,3 +119,25 @@ describe("the personas' caps", () => {
     }
   });
 });
+
+describe("the candidates' sizes and layouts", () => {
+  it("never goes below the day's size", async () => {
+    const { sizesFor } = await import("../../../puzzles/ai/make.ts");
+    const plan = { genre: "akari", weight: 1, sizes: [[4, 4], [5, 5], [6, 6], [7, 7]] } as GenrePlan;
+    for (const d of [0, 0.3, 0.5, 0.7, 1]) {
+      const base = Math.round(d * 3) + 4;
+      const got = sizesFor(plan, d, 7, false);
+      expect(got[0]).toEqual([base, base]);
+      expect(got.every(([r]) => r >= base)).toBe(true);
+    }
+  });
+
+  it("asks for symmetry always when the persona prefers it, every other candidate otherwise", async () => {
+    const { symmetryFor } = await import("../../../puzzles/ai/make.ts");
+    const prefers = PERSONAS.find((p) => p.quality.symmetry === "prefer")!, any = PERSONAS.find((p) => p.quality.symmetry === "any")!;
+    expect([0, 1, 2].map((k) => symmetryFor(prefers, "masyu", k))).toEqual(["rot180", "rot180", "rot180"]);
+    expect([0, 1, 2].map((k) => symmetryFor(any, "masyu", k))).toEqual([undefined, "rot180", undefined]);
+    // a type the generator can't lay out symmetrically
+    expect(symmetryFor(prefers, "nurikabe", 0)).toBeUndefined();
+  });
+});

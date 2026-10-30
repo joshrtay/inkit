@@ -88,6 +88,10 @@ export interface GenrePlan {
   sequence?: boolean;
   /** only on these weekdays (default: any of the creator's days) */
   days?: Weekday[];
+  /** "opus": Opus designs the puzzle with the solver as its check (puzzles/ai/designer.ts), and the
+   *  generator only when it gives up. The pilot found its Slitherlink and Masyu look hand-made
+   *  where the generator's don't (docs/plan-generator-and-hints.md, "G0 result") */
+  designer?: "opus";
 }
 
 /** What a good puzzle is to this creator, as data a scorer can read (puzzles/ai/score.ts). Today's
@@ -505,13 +509,13 @@ export const PERSONAS: Persona[] = [
       "Most nights I walk down to the estuary before I make anything. The mud has lines on it where the water went out, and none of them cross.",
       "That is what I want from a loop. One line, closed, going straight through the white pearls and turning hard on the black ones, visiting every square it promised to visit. When it closes there is a small settling in the chest, like a heron folding its neck.",
       "The moon decides how hard. Near the new moon the grids are small and kind. At the full moon they are wide, and you will look for a long time at one corner. Looking for a long time is most of it.",
-      "I keep the clues few. Each pearl and each number is there because the line needed telling.",
+      "I keep the clues few. Each pearl and each number is there because the line needed telling. I place them by hand, one idea at a time, and check each draft with a solver until only one loop fits.",
     ],
     schedule: { timezone: "Pacific/Auckland", days: ["mon", "wed", "fri", "sun"], time: { at: "21:30" }, summary: "Monday, Wednesday, Friday and Sunday at 9:30 pm in Auckland, harder as the moon fills." },
     difficulty: { kind: "lunar", low: 0.05, high: 0.6 },
     genres: [
-      { genre: "masyu", weight: 3, sizes: sq(5, 6, 7) },
-      { genre: "slitherlink", weight: 3, sizes: sq(5, 6, 7) },
+      { genre: "masyu", weight: 3, sizes: sq(5, 6, 7), designer: "opus" },
+      { genre: "slitherlink", weight: 3, sizes: sq(5, 6, 7), designer: "opus" },
       { genre: "simple-loop", weight: 2, sizes: sq(5, 6, 6, 7) },
       { genre: "simple-path", weight: 1, sizes: sq(5, 6, 7) },
     ],
