@@ -180,6 +180,22 @@ per type mean agreement figures can be off by 0.15.
   specific (symmetry, sparse clues, clue kinds, 2-star Star Battle); at chance on Hitori and
   Spiral Galaxies. A reviewer of generator changes, not a replacement for the classifier.
 
+### Models as solvers, and hint ladders (2026-10-23 to 25)
+
+Full results: [research-model-benchmarks-and-hints.md](research-model-benchmarks-and-hints.md) (about $320 of approved spend).
+
+- **Whole solves on puzz.link are the model benchmark of record.** Every setup solves fewer puzzles as the band rises: Opus high 93%, Sonnet high 84%, Opus low 57%, Haiku high 54%, Haiku low 31%, Sonnet low 26%. Stuck states rank models but barely track human ratings (rho 0.14 to 0.34). Effort matters more than model size.
+- **Hints:**
+  - The library hint (a seed pattern's nudge plus an Opus question) is the best fair hint. It beats the solver's free "look at row 3" by 10 to 17 points.
+  - Grounding helps the location hint (+12 over the solver's hint, against +3 written without it).
+  - The 4-rung ladder succeeds 90 to 98% of the time.
+- **Automatic chapter ladders work:**
+  - Construction: the solver's key steps, then Opus chapters (look, idea, step), then a solver check. All 416 checked claims were true, at 13 cents a puzzle.
+  - They match the Thinky authors' hand-written ladders for Haiku (68% vs 61% solved).
+  - Chapter order makes no difference to Haiku.
+  - Revealed one at a time, look plus idea before the step means 41% fewer answers given. Look earns the most per reveal. Theme, look, step is the efficient ladder.
+- **What still needs people:** order, and how a hint feels. That waits on the inkit hint A/B test.
+
 ## Open questions, by product
 
 | Question | Product | What would answer it | Status |

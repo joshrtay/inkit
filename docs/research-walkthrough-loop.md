@@ -244,6 +244,8 @@ grain.
 
 ## Hints: which kind helps a stuck solver
 
+> Results (H1, H2, chapter ladders, 2026-10-24/25): [research-model-benchmarks-and-hints.md](research-model-benchmarks-and-hints.md).
+
 Josh (2026-10-22): hints are what people will use, so test several kinds of hint directly. Nothing
 like a library of reasoning hints exists to borrow: puzzle apps give location hints or the answer,
 and tutoring research (worked examples, hint ladders that end in a bottom-out hint) says how to
