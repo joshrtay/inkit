@@ -148,7 +148,7 @@ export const VALUES: Record<string, [string, string]> = {
   "star-battle": ["star", "no star"], akari: ["bulb", "no bulb"], hitori: ["shaded", "unshaded"], nurikabe: ["wall", "island"],
   minesweeper: ["mine", "no mine"], nonogram: ["filled", "empty"],
   masyu: ["line", "no line"], numberlink: ["line", "no line"], slitherlink: ["line", "no line"],
-  fillomino: ["wall", "same region"], "spiral-galaxies": ["wall", "same region"],
+  fillomino: ["wall", "same region"], "spiral-galaxies": ["wall", "same region"], cave: ["shaded", "cave"],
 };
 export function rules(spec: GridSpec): string {
   const p = makePuzzle(spec), R = spec.size[0], C = spec.size[1];
@@ -156,7 +156,7 @@ export function rules(spec: GridSpec): string {
     case "fillomino": return "Fillomino: divide the grid into regions; each region's size equals every number in it, a given number belongs to a region of that size, and two regions of the same size never touch side by side.";
     case "easy-as-abc": { const D = (p.rules.find((x) => x.rule === "letters") as any)?.count ?? 3; return `Easy as ABC: place the letters ${"ABCDEFG".slice(0, D).split("").join(", ")} so every row and column has each exactly once; the other cells stay empty. A letter outside the grid is the first letter seen from that side.`; }
     case "hidoku": return `Hidoku: fill every cell with the numbers 1 to ${R * C}, each once, so consecutive numbers are in neighbouring cells (side by side or diagonally).`;
-    case "numberlink": return "Numberlink: join each pair of equal numbers with one line through cell centres, moving horizontally and vertically. Lines never branch, cross or share a cell, and never pass through another number. Not every cell need be used.";
+    case "numberlink": { const cover = (p.rules.find((x) => x.rule === "links") as { cover?: boolean } | undefined)?.cover; return `Numberlink: join each pair of equal numbers with one line through cell centres, moving horizontally and vertically. Lines never branch, cross or share a cell, and never pass through another number. ${cover ? "Every cell is used: a line passes through each empty cell." : "Not every cell need be used."}`; }
     case "minesweeper": return "Minesweeper: some empty cells hide mines. A number is how many of its eight neighbours (sides and corners) hold mines; a numbered cell has no mine.";
     case "nonogram": return "Nonogram: fill cells so each row's and column's runs of filled cells match its clue, in order (the numbers to the left of a row, and above a column, read top to bottom); runs are separated by at least one empty cell.";
     case "skyscrapers": return `Skyscrapers: fill the grid with heights 1–${R} so each row and column has each height once. A number outside the grid is how many buildings are seen from that side, taller ones hiding shorter ones behind them.`;
@@ -171,17 +171,18 @@ export function draw(spec: GridSpec, known: Map<string, boolean>): string {
   const table = (cell: (i: number) => string, legend: string, left?: string[], top?: string[]) => {
     const cells = Array.from({ length: R }, (_, r) => Array.from({ length: C }, (_, c) => cell(g.cell(r, c))));
     const w = Math.max(3, ...cells.flat().map((x) => x.length + 1));
-    const lw = left ? Math.max(...left.map((x) => x.length)) + 2 : 0;
+    const lw = left ? Math.max(0, ...left.map((x) => x.length)) + 2 : 0;
     const head = [...(top ?? []), "     " + " ".repeat(lw) + Array.from({ length: C }, (_, c) => `c${c + 1}`.padEnd(w)).join("")];
-    return [legend, ...head, ...cells.map((row, r) => `r${String(r + 1).padEnd(4)}${left ? left[r].padStart(lw - 2) + "  " : ""}${row.map((x) => x.padEnd(w)).join("")}`)].join("\n");
+    return [legend, ...head, ...cells.map((row, r) => `r${String(r + 1).padEnd(4)}${left ? (left[r] ?? "").padStart(lw - 2) + "  " : ""}${row.map((x) => x.padEnd(w)).join("")}`)].join("\n");
   };
   const digitAt = (i: number, D: number) => [...Array(D)].map((_, k) => k + 1).find((d) => known.get(`digit(${i},${d})`) === true);
   if (genre === "minesweeper") return table((i) => (num(i) ? String(num(i)!.value) : sh(i) === true ? "*" : sh(i) === false ? "o" : "."), "(a number is a clue (no mine there), * a known mine, o a cell known to have no mine, . undecided)");
   if (genre === "nonogram") {
-    const rowsG = (spec.givens ?? []).filter((x: any) => x.at === "row").sort((a: any, b: any) => a.index - b.index).map((x: any) => (x.value as number[]).join(" "));
-    const colsG = (spec.givens ?? []).filter((x: any) => x.at === "col").sort((a: any, b: any) => a.index - b.index).map((x: any) => x.value as number[]);
-    const tops = colsG.map((v, c) => `c${c + 1}: ${v.join(" ")}`).join("; ");
-    return table((i) => (sh(i) === true ? "#" : sh(i) === false ? "x" : "."), `Column clues, top to bottom: ${tops}\n(row clues to the left of each row; # a filled cell, x a cell known empty, . undecided)`, rowsG);
+    // by index: a row or column may have no clue (any runs allowed there), shown as -
+    const clueOf = (at: string, n: number) => { const out = Array<string>(n).fill("-"); for (const x of (spec.givens ?? []) as any[]) if (x.at === at && x.index < n) out[x.index] = (x.value as number[]).join(" "); return out; };
+    const rowsG = clueOf("row", R), colsG = clueOf("col", C);
+    const tops = colsG.map((v, c) => `c${c + 1}: ${v}`).join("; ");
+    return table((i) => (sh(i) === true ? "#" : sh(i) === false ? "x" : "."), `Column clues, top to bottom: ${tops}\n(row clues to the left of each row; - is no clue, any runs allowed; # a filled cell, x a cell known empty, . undecided)`, rowsG);
   }
   if (genre === "hidoku") return table((i) => String(num(i)?.value ?? digitAt(i, R * C) ?? "."), "(a number is given or placed; . is empty)");
   if (genre === "easy-as-abc") {
@@ -236,7 +237,7 @@ export function draw(spec: GridSpec, known: Map<string, boolean>): string {
 export function moveForm(genre: string): string {
   if (genre === "slitherlink") return `{"at": "r3c4 top" (a cell and one of its sides: top, bottom, left, right), "value": "line" | "no line", "reason": "one line"}`;
   if (["masyu", "numberlink", "fillomino", "spiral-galaxies"].includes(genre)) { const [a, b] = VALUES[genre]; return `{"at": "r3c4-r3c5" (two cells side by side), "value": "${a}" | "${b}", "reason": "one line"}`; }
-  if (genre === "skyscrapers" || genre === "hidoku") return `{"at": "r3c4", "value": "<number>", "reason": "one line"}: a number to write in an empty cell`;
+  if (genre === "skyscrapers" || genre === "hidoku" || genre === "sudoku") return `{"at": "r3c4", "value": "<number>", "reason": "one line"}: a number to write in an empty cell`;
   if (genre === "easy-as-abc") return `{"at": "r3c4", "value": "<letter>" | "empty", "reason": "one line"}`;
   const [a, b] = VALUES[genre];
   return `{"at": "r3c4", "value": "${a}" | "${b}", "reason": "one line"}`;
@@ -246,7 +247,7 @@ export function moveForm(genre: string): string {
 export function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }): MV | null {
   const p = makePuzzle(spec), g = p.grid, genre = spec.genre!, at = String(move.at ?? "").toLowerCase().trim(), value = String(move.value ?? "").toLowerCase().trim();
   const cell = (s: string) => { const q = /r(\d+)\s*c(\d+)/.exec(s); if (!q) return null; const [r, c] = [+q[1] - 1, +q[2] - 1]; return r >= 0 && c >= 0 && r < g.rows && c < g.cols ? g.cell(r, c) : null; };
-  if (genre === "skyscrapers" || genre === "hidoku" || genre === "easy-as-abc") {
+  if (genre === "skyscrapers" || genre === "hidoku" || genre === "sudoku" || genre === "easy-as-abc") {
     const i = cell(at);
     if (i === null) return null;
     if (genre === "easy-as-abc") {
@@ -280,7 +281,7 @@ export function markOf(spec: GridSpec, move: { at?: unknown; value?: unknown }):
 
 /** The state spelled out, one line per cell (or per link, or per cell side): its clue and what is
  *  known, so a model reads relations rather than counting columns in a drawing. */
-function listed(spec: GridSpec, known: Map<string, boolean>): string {
+export function listed(spec: GridSpec, known: Map<string, boolean>): string {
   const p = makePuzzle(spec), g = p.grid, R = g.rows, C = g.cols, genre = spec.genre!;
   const name = (i: number) => `r${Math.floor(i / C) + 1}c${(i % C) + 1}`;
   const area = (i: number) => (p.areas ? `area ${String.fromCharCode(65 + p.areas.of[i])}` : "");
@@ -300,8 +301,8 @@ function listed(spec: GridSpec, known: Map<string, boolean>): string {
       const where = b - a === 1 ? (r < R ? `r${r + 1}c${c + 1} top` : `r${r}c${c + 1} bottom`) : (c < C ? `r${r + 1}c${c + 1} left` : `r${r + 1}c${c} right`);
       lines.push(`${where}: ${state(`fence(${bd.id})`, VALUES.slitherlink)}`);
     }
-  } else if (["skyscrapers", "hidoku", "easy-as-abc"].includes(genre)) {
-    const D = genre === "hidoku" ? R * C : genre === "easy-as-abc" ? (p.rules.find((x) => x.rule === "letters") as any)?.count ?? 3 : R;
+  } else if (["skyscrapers", "hidoku", "sudoku", "easy-as-abc"].includes(genre)) {
+    const D = genre === "hidoku" ? R * C : genre === "easy-as-abc" ? (p.rules.find((x) => x.rule === "letters") as any)?.count ?? 3 : genre === "sudoku" ? p.digits : R;
     const show = (d: number) => (genre === "easy-as-abc" ? "ABCDEFG"[d - 1] : String(d));
     for (let i = 0; i < R * C; i++) {
       if (isBlock(i)) { lines.push(`${name(i)}: ${clue(i)}`); continue; }
@@ -334,7 +335,7 @@ What single move will this person most likely make next? It must be a move you a
 // ======== ask ========
 export const loadItems = (): Item[] => JSON.parse(readFileSync(`${OUT}items.json`, "utf8")).items;
 export const readJsonl = (f: string) => (existsSync(f) ? readFileSync(f, "utf8").split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l)) : []);
-function lastJson(text: string): any {
+export function lastJson(text: string): any {
   for (let end = text.lastIndexOf("}"); end >= 0; end = text.lastIndexOf("}", end - 1))
     for (let start = text.lastIndexOf("{", end); start >= 0; start = text.lastIndexOf("{", start - 1)) {
       try { const x = JSON.parse(text.slice(start, end + 1)); if (x && typeof x === "object" && "at" in x) return x; } catch { /* not this span */ }

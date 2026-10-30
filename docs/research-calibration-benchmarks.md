@@ -1,5 +1,7 @@
 # Research: benchmarks for the model calibration ladder
 
+> Results (2026-10-23/25): [research-model-benchmarks-and-hints.md](research-model-benchmarks-and-hints.md).
+
 2026-10-22. Design only: nothing here has been run on a paid model. Companion to the walkthrough
 loop design (`research-walkthrough-loop.md` in the project files, PR #14), which proposed running
 Opus 4.8, Opus 5.5, Sonnet 5.5 and Haiku 5.5 at several effort levels as a "calibration ladder".

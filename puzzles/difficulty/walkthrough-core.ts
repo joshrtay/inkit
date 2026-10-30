@@ -352,20 +352,22 @@ export function cellsInText(text: string, rows: number, cols: number): number[] 
 /** Does a hint give the answer away? Per sentence: it pinpoints when it names a cell the next step
  *  decides, and it leaks when the same sentence also uses a word for its value ("r3c4 must be a
  *  bulb"; either polarity: "r3c4 can't be a bulb" gives "no bulb" away just as well). A heuristic (a value said in other words gets past it), so the report also shows hints to read. */
-export function hintLeak(text: string, targets: { cells: number[]; words: string[] }[], rows: number, cols: number): { pinpoint: boolean; leak: boolean } {
-  let pinpoint = false, leak = false;
+export function hintLeak(text: string, targets: { cells: number[]; words: string[] }[], rows: number, cols: number): { pinpoint: boolean; leak: boolean; posit: boolean } {
+  let pinpoint = false, leak = false, posit = false;
   for (const sentence of text.split(/(?<=[.!?;])\s+|\n+/)) {
     const named = new Set(cellsInText(sentence, rows, cols)), low = sentence.toLowerCase();
+    // "if r3c4 were a bulb …?" puts a value to the student to test: a posit, not a leak
+    const hypothetical = /\b(if|suppose|supposing|imagine|were)\b/.test(low);
     for (const t of targets) {
       if (!t.cells.some((c) => named.has(c))) continue;
       pinpoint = true;
       for (const word of t.words) {
         const w = word.toLowerCase().trim().replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
-        if (w && new RegExp("(^|[^a-z0-9])" + w + "($|[^a-z0-9])").test(low)) leak = true;
+        if (w && new RegExp("(^|[^a-z0-9])" + w + "($|[^a-z0-9])").test(low)) { if (hypothetical) posit = true; else leak = true; }
       }
     }
   }
-  return { pinpoint, leak };
+  return { pinpoint, leak, posit };
 }
 
 /** What a student's move did: success (true, not known yet, and on the frontier: one step or a short

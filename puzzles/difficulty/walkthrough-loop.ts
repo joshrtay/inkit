@@ -34,7 +34,7 @@
 //   node --no-warnings puzzles/difficulty/walkthrough-loop.ts dry [akari/1,nurikabe/1]    (free: the whole loop on the repo's
 //     example puzzles, with a stand-in for Opus built from the solver's own path)
 //
-// Opus is asked from Anthropic (ANTHROPIC_API_KEY); fixed rounds can also go through OpenRouter
+// Opus is asked from Anthropic (INKIT_ANTHROPIC_KEY, or ANTHROPIC_API_KEY); fixed rounds can also go through OpenRouter
 // (OPENROUTER_API_KEY), tool use can't. LOOP_CAP (dollars, default 25) stops any paid command before
 // its ledger would pass it; LOOP_EFFORT (default medium) and LOOP_TOKENS (default 32000) as the
 // pilot's. WALK_MOCK=1 uses the stand-in instead of Opus anywhere. Everything goes to
@@ -76,11 +76,13 @@ export const FINISH = process.env.LOOP_FINISH !== "0";
 
 // ======== items ========
 export interface LoopItem {
-  id: string; set: "abc" | "lib" | "example"; genre: string; known: MV[];
+  id: string; set: "abc" | "lib" | "example" | "bench"; genre: string; known: MV[];
   /** Janko: the record's name and the person; lib: train or test, and the place in the sequence */
   name?: string; person?: string; part?: "train" | "test"; seq?: number;
   /** example: the file under src/games/ */
   file?: string;
+  /** a puzzle carried whole (the benchmark's sets): solved with clingo for its one solution */
+  spec?: GridSpec;
 }
 export const dir = (set: string) => { const d = `${OUT}${set}/`; mkdirSync(d, { recursive: true }); return d; };
 export const loadSet = (set: string): LoopItem[] => JSON.parse(readFileSync(`${dir(set)}items.json`, "utf8")).items;
@@ -153,9 +155,9 @@ const ctxCache = new Map<string, Ctx>();
 export async function ctxOf(item: LoopItem): Promise<Ctx> {
   if (ctxCache.has(item.id)) return ctxCache.get(item.id)!;
   let spec: GridSpec, truth: Map<string, boolean>;
-  if (item.set === "example") {
-    const d = JSON.parse(readFileSync(`${repo}src/games/${item.file}`, "utf8"));
-    spec = { ...d.grid, genre: d.grid.genre ?? item.genre };
+  if (item.set === "example" || item.spec) {
+    if (item.spec) spec = item.spec;
+    else { const d = JSON.parse(readFileSync(`${repo}src/games/${item.file}`, "utf8")); spec = { ...d.grid, genre: d.grid.genre ?? item.genre }; }
     await loadClingo();
     const r = clingoJson(program(makePuzzle(spec)), 2), ws = r.Call?.[0]?.Witnesses ?? [];
     if (ws.length !== 1) throw new Error(`${item.id}: ${ws.length} solutions`);
@@ -383,8 +385,10 @@ function guard(promptChars: number, who: Model) {
 export async function askOpus(turns: Turn[], tools?: Anthropic.Tool[], who: Model = OPUS): Promise<Reply> {
   const PRICE = who.price;
   guard(JSON.stringify(turns).length, who);
-  if (process.env.ANTHROPIC_API_KEY) {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 20 * 60 * 1000, maxRetries: 4 });
+  // INKIT_ANTHROPIC_KEY first: a cloud session's own ANTHROPIC_API_KEY would clash with Claude Code's sign-in
+  const anthropicKey = process.env.INKIT_ANTHROPIC_KEY || process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    const client = new Anthropic({ apiKey: anthropicKey, timeout: 20 * 60 * 1000, maxRetries: 4 });
     const res = await client.messages.stream({
       model: who.id, max_tokens: who.maxTokens, thinking: { type: "adaptive" }, output_config: { effort: who.effort as "medium" },
       messages: turns as Anthropic.MessageParam[], ...(tools ? { tools } : {}),
@@ -396,7 +400,7 @@ export async function askOpus(turns: Turn[], tools?: Anthropic.Tool[], who: Mode
       toolUses: res.content.filter((b) => b.type === "tool_use").map((b: any) => ({ id: b.id, name: b.name, input: b.input })),
     };
   }
-  if (tools) throw new Error("tool use needs ANTHROPIC_API_KEY");
+  if (tools) throw new Error("tool use needs INKIT_ANTHROPIC_KEY (or ANTHROPIC_API_KEY)");
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("no ANTHROPIC_API_KEY or OPENROUTER_API_KEY");
   let res: Response | null = null;
