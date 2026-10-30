@@ -6,6 +6,8 @@
 > [research-review-2026-10-24.md](research-review-2026-10-24.md) is the latest critical review of
 > all of it: which results are solid, which are artifacts or underpowered, and the next experiments
 > ranked by value against cost.
+> [research-coding-labs-2026-10-30.md](research-coding-labs-2026-10-30.md) maps how AI labs trained
+> coding models (verifiers, sampling, RL, reward hacking) onto Inkit's checks, generator and play logs.
 
 
 A snapshot of the research agenda (2026-10-13): the aim, what's built, what we've learned, what's
