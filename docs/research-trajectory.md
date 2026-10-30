@@ -64,6 +64,431 @@ stand-in for "the path a good solver takes"; the human model is that path direct
 types, where the network fails and the readable model beats it (Easy as ABC 23% over nearness);
 whether nearness is people's habit or partly Janko's recording.
 
+## Aim 4: a fast solver that still reasons like a person (proposed 2026-10-21)
+
+Proposed by Josh in the project thread. The first three products (difficulty, hints, interesting
+puzzles and sets) all run the deduction solver, and today it is too slow on the hard tail to run
+when a puzzle is uploaded, inside the simulated person, or at generation scale: 73% of the human
+corpus finishes by 30 s, 89% by 300 s (research/solver-speed-2026-10-21.md, project files), and
+step 3's techniques took the 196 stalled puzzles from 139 to 170 finished by 300 s
+(step3-missing-techniques-2026-10-21.md). The aim: **solve even the hardest puzzles in under 10
+seconds, without the path drifting far from how a person reasons.** This partly reopens the
+capability loop withdrawn below, but with a different measure: time to a human-style proof, not
+the share solved at any cost.
+
+**The tension.** The two halves pull against each other. clingo's search solves a whole puzzle in a
+median of about 2 s (the uniqueness check) and is the least human thing we have: it decides marks
+nobody could explain. The deduction solver is human-shaped because each step is a small window
+proved by a minimal explanation, and that is exactly where its time goes (Hidoku's rounds were
+~100 s of explaining eliminations, ~5 s of finding them). Every way to go faster sits somewhere on
+a line from "same proof, less work" to "let clingo decide":
+
+1. **Same path, faster** (no divergence by construction): fewer clingo calls (a persistent process,
+   incremental solving), windows not rechecked until their marks change, cheaper explanations
+   (step 3's batching; the rules near a fact first). Test: identical paths on the example puzzles
+   and the dev set.
+2. **The techniques people use and the solver lacks** (both goals agree): a technique replaces a
+   case split, and is faster. Nurikabe and Spiral Galaxies are the obvious next ones (both still
+   split every round); Fillomino's tail too. These change the path, toward people.
+3. **Scheduling and fallbacks** (speed for divergence): try the shallow split pool sooner instead of
+   running every window first; past a time budget with no progress, take a tier-3 search step or
+   let clingo settle a mark outright, labelled as such. This is what may be needed to hit 10 s on
+   the last few percent, and the guards below are what meter it.
+
+The order of work follows the line: 1 and 2 first, 3 only for what they leave.
+
+**Definitions.**
+
+- **Hardest corpus.** The human corpus build human-20261014-2153, unique puzzles with side ≤ 20
+  (27,978). The *hard pool* is the puzzles it didn't finish within 30 s (about 7,500, 27%).
+  *Dev set:* the 196 already sampled from it (solver-speed-300-1021); step 3 was tuned on them, so
+  their numbers are optimistic. *Test set:* a fresh sample of 400 from the same pool, stratified by
+  genre (equal counts per genre where the pool allows, so Nurikabe and Hidoku weigh as much as
+  Masyu), fixed seed, drawn once and only scored at a gate. Boards over 20 (413) are a separate
+  stretch band, reported but not in the target.
+- **Hardware and clock.** One vCPU of an n2-standard-32 (Cloud Batch, 32 solves a machine as in the
+  build; spot allowed, it runs about 10% slower), single-threaded. Wall clock from the spec to the
+  finished path, explanations and clingo included. Parallelism inside a solve doesn't count toward
+  the target; report it separately if it's tried.
+- **Human-style divergence**, three measures on the same runs:
+  - *Opaque share:* the share of marks settled by tier-3 search or a clingo fallback (marks no
+    window or shallow split explains). Tier-2 shallow splits (assume a mark, propagation
+    contradicts it) are human-like trial and counted separately as the *split share*.
+  - *Agreement with people:* on held-out Janko states, the share where the solver's next step is in
+    the person's next 3 moves (today: solver 21%, human-tuned network 45%); and the human move
+    model's bits a move along the solver's path, against the 300 s solver's path on the same puzzle.
+  - *Difficulty unchanged:* the scoreboard's Spearman against Puzzle Square JP and Tatham with the
+    fast solver's proofs, against today's. Difficulty is a readout of the path, so a path that moves
+    shows up here. The rule (Josh, 2026-10-21): scored with a budget of 200 clingo calls (not wall
+    clock, so it repeats exactly), neither mean more than 0.02 lower (one-sided since 2026-10-22, Josh: a
+    gain passes, but a type above its interval's high end counts as a gain only once held-out PSJP
+    puzzles confirm it: guard-report.ts lists those, scoreboard `--psjp-shift`), and no type worse than the low end of its
+    own bootstrap interval (one-sided: a type that agrees better is no failure). At gates, 60 puzzles a
+    type (`--psjp 60`, about 3× the usual cost); between gates 20 and the means. Nurikabe gets a
+    bigger call budget, since at 200 none of its 20 finish and every one rates 0.9: 1,000 calls (with
+    the local encoding 56 of 60 finish there). So does any type where fewer than about 1 in 5 runs
+    finish at 200 calls (Josh, 2026-10-22: Numberlink, 2 of 60), whose agreement there only ranks how
+    runs stop.
+    Proposed (pending Josh): Janko's levels (PR #19, 14,229 puzzles, ranks within a genre) as a third
+    source, for types PSJP and Tatham don't rate (Hidoku first), holding out network-training and dev
+    puzzles. A Janko verdict is per type and within grid size, never pooled with PSJP or Tatham: the
+    levels rank solving time, which is mostly size (on 466 Hidokus cell count alone gets 0.72), while
+    PSJP gains nothing from size at any weight (size-term-2026-10-23.md). So Janko is a target for a
+    time-to-solve score, not for the difficulty price, except where PSJP agrees (Hitori: a size term,
+    w ≈ 0.8, under the finish set gains on guard and both fresh draws).
+
+**Targets** (on the test set, the clock above).
+
+| | today (dev set, 196) | milestone M1 | aim |
+|---|---|---|---|
+| finished ≤ 10 s | 0% (none finish by 30 s, by construction) | 90% | 100% |
+| finished ≤ 60 s | 39% | 100% | 100% |
+| unfinished at 300 s (gave up, died or still going) | 13% | 0 | 0 |
+| whole corpus (side ≤ 20) ≤ 10 s | ~62% of attempts in the build | 97% | 99% |
+| opaque share of marks | to measure | ≤ 2% | ≤ 1%, and none on puzzles that finish today without it |
+| split share of marks | to measure | ≤ 1.25 × the 300 s solver's | ≤ the 300 s solver's |
+| agreement with people (top 3) | 21% | ≥ 21% | ≥ 21% |
+| bits a move vs the 300 s path | 0 | ≤ +5% | ≤ +5% |
+| difficulty Spearman vs today | 0 | within 0.02 | within 0.02 |
+
+The speed rows are about a 10–30× speedup on the hard tail (step 3's median finishes there are
+40–185 s). The divergence rows are guards, not goals: a change that meets the speed target by
+breaking one is reported with the trade, and the choice of how much opacity to buy is Josh's.
+
+**First step: freeze the test set and profile where the time goes.** Draw the 400-puzzle test set
+from the build's status in the bucket (CPU, free). Extend deduce's `timing` (today build and clingo
+time) to split each round's time into window finding, explanation, shallow splits and tier-3
+search, and log the opaque and split shares. Run the dev set with `finish` on and a 60 s budget on
+Cloud Batch (4 spot n2-standard-32 for about 10 minutes, under $2, needs Josh's OK), plus the
+divergence baselines on the scoreboard and the Janko states (CPU). Deliverable: per genre, where
+the seconds go and which lever (1, 2 or 3) each genre needs, with a rough speedup bound for
+levers 1 and 2. **Gate:** if 1 and 2 can plausibly reach M1, build them first; if the profile says
+only fallbacks can, bring the trade (how much opaque share for how many seconds) to Josh before
+building them.
+
+**The steps after it, one at a time** (Josh, 2026-10-21: pursue all of these, in turn). Each is
+measured on the dev set against the targets above, and each starts only after the one before it has
+been read.
+
+1. **Engineering, same path** (lever 1): a persistent, incremental clingo process; cheaper
+   explanations. Proof unchanged, checked by identical paths.
+2. **Learned window ranking** (lever 1, with the network): a head on the graph network
+   (relations-tuned-2026-10-20 as parent) ranks the windows and marks to check next; the solver
+   checks the top few and sweeps everything only when they find nothing. clingo still proves every
+   step, so it stays sound. Labels are free: every logged round says which windows produced a fact.
+   Trained on people's moves too, so it should move the path toward people, not away.
+3. **Predicted explanations** (lever 1): a head guesses the set of rules and facts a step needs,
+   and one clingo call confirms it (deletion from there if it's too big, the full search if it's
+   wrong). Same proof, if the guess is checked to be minimal.
+4. **Predicted case splits** (lever 3, cheaper): a classifier on which marks propagation refutes,
+   from the logged tier-2 rounds, so a split round tries 20 candidates, not 300.
+5. **Techniques written by a model** (lever 2): Opus or Fable writes candidate Nurikabe and Spiral
+   Galaxies techniques as clingo rules; kept only if each is proved sound (no answer of any test
+   puzzle breaks it, and clingo shows it follows from the rules) and it cuts splits on the dev set.
+   Open-weight models only if it takes thousands of tries. Not inside the solve: one model call is
+   seconds, the budget 10.
+6. **Offline RL on the schedule**, last and only if 2–4 leave a gap: the order of checks as a
+   policy, reward minus time with the divergence guards as penalties, from the logged runs.
+
+**The profile (2026-10-21, run solver-speed-profile-1021; research/solver-timing-profile-2026-10-21.md
+in project files).** The dev set with `finish` on and a 60 s budget: 3% finished by 10 s, 14% by
+30 s, 50% by 60 s. Median per puzzle: setup 1.4 s, window checks 14.5 s, explanations 9.0 s, case
+split rounds 0.4 s. Four groups:
+
+- *Window-bound* (window checks 70–95% of the time, tiers 0–1 settle ≥ 92% of facts): Akari, Star
+  Battle, Sudoku, Skyscrapers, Easy as ABC, Irregular Sudoku, Wittgenstein Briquet.
+- *Explain-bound:* Hidoku (42 s, 66%), Simple Loop (74%), Masyu (59%), Cave (49%).
+- *Split-bound:* Nurikabe (split rounds 54 s; tier 2 settles 70% of facts, tier 3 23%) and
+  Fillomino (23 s; 27% and 12%); both also spend ~9 s in setup. Cave gets 41% of its facts from
+  tier 3, so it is far from human-style as well as slow.
+- *Spiral Galaxies:* none finished by 60 s, its time split between windows and explanations.
+
+So step 1 starts with the window checks (most genres, and the median), then explanations; the
+split-bound genres need steps 4 and 5 (Nurikabe settles 93% of its facts by splits or search, so a
+faster split is still not human-style). The 14 example puzzles had pointed at explanations; the
+dev set says windows, which is why the profile came before any building.
+
+**Step 1 so far (2026-10-21; runs solver-speed-profile-1021b and 1021c, same settings).** Two
+changes, each with the proof unchanged (identical paths on every example puzzle that finishes and on
+30 dev-set puzzles, and identical as far as both go where one runs out of budget):
+
+- *Window checks* (bf8eebe): clingo's cautious mode drops facts from the running intersection one
+  answer at a time, and by default each answer is the nearest to the last, so a call over a few
+  hundred windows took ~3,600 answers. Random signs, no saved phases and a restart after each
+  answer: ~6. Star Battle finished by 30 s 0% → 93%, Akari 20% → 100%.
+- *Explanations* (1b6fcfd): the windows' rules are ground already, but were written as ASP text that
+  clingo parsed and ground again on every call (about half the time). They now go through clingo's
+  backend as number tables. Explain median 12.3 → 7.1 s.
+
+| dev set, 196 | finished ≤ 10 s | ≤ 30 s | ≤ 60 s | median total |
+|---|---|---|---|---|
+| before (1021) | 3% | 14% | 50% | 60.3 s |
+| window checks (1021b) | 7% | 32% | 60% | 44.5 s |
+| and explanations (1021c) | 9% | 41% | 62% | 37.0 s |
+| and Spiral Galaxies' cell atoms (1021d) | 9% | 42% | 70% | 33.4 s |
+| and islands, joins (1021e, 16 solves a VM) | 10% | 48% | 73% | 31.2 s |
+| and core wide, Nurikabe encoding, listing fix, answers supplied (1022a) | 21% | 64% | 86% | 23.0 s |
+
+1022a (4a27191): Nurikabe went from 0/19/31% to 69/100/100% by 10/30/60 s (median 60.9 s → 7.0 s). Supplied answers cut setup everywhere (median 1.5 s → 0.9 s), so part of the gain in untouched types is that. Time over 10 s now sits in Fillomino (18%, splits median 44 s, 50% by 60 s), Hidoku (16%, explaining 36 s), Spiral Galaxies (11%), Cave (10%) and Numberlink (9%).
+
+Native clingo was not faster than the WebAssembly build on these calls (1.26 s against 1.39 s), and
+clingo-wasm exposes only a one-shot `run`, so a persistent grounded control isn't available without
+rebuilding it. What's left, by genre: Sudoku (16 × 16), Skyscrapers and Irregular Sudoku spend
+20–45 s checking many large windows that find nothing, which is step 2's case; Cave, Masyu, Simple
+Loop, Slitherlink, Hidoku and Spiral Galaxies spend 15–37 s explaining, which is step 3's; Nurikabe,
+Fillomino and Cave are split-bound (steps 4 and 5). Setup on some Nurikabes is dominated by clingo
+finding the answer (up to 47 s on one 10 × 10; no configuration fixes it), which a puzzle that comes
+with its answer (every published and inkit puzzle has one) would skip.
+
+**Step 2, first read (2026-10-21, local).** Traces of 35 dev-set solves (2 a genre, not the ones
+measured below): only 0.7% (Akari) to 20% (Masyu) of window checks find a fact, outside Hidoku and
+Fillomino. A logistic model on what a trace row knows (size, open and changed marks, whether the
+window found something last time, its kind) ranks them with held-out AUC 0.88 (gradient boosting
+with the genre 0.90). `Options.rankWindows` (DEDUCE_RANK; off by default) checks a stage's likeliest
+30% first and the rest only when those find nothing. On 20 other dev puzzles of ten genres, 60 s
+budget: 487 → 425 s in all (13%), most on the Sudokus (Irregular Sudoku 37 → 16 s and 17 → 11 s,
+Sudoku 46 → 30 s), 0–15% elsewhere; every puzzle still finishes; case splits and search unchanged;
+the difficulty estimate moved by more than 0.02 on 3 of 20 (Irregular Sudoku 0.57 → 0.64, Nonogram
+0.29 → 0.26, Easy as ABC 0.75 → 0.80). So after step 1 window checks are no longer the main cost,
+and a better ranker (the network) can't buy much: it stays off, and step 3 comes next.
+
+**Step 3, first read (2026-10-21).** Two findings. *Spiral Galaxies* wasn't slow, it was blind:
+its helper atoms had no footprint, so every window held the whole puzzle and each was too big to
+check (1,134 skipped a round), leaving only case splits. The finish set now turns on `cellAtoms` for
+it (b2d30d0): finished by 60 s 6% → 94% (1021d), median explain 47 → 11 s; at 300 s all 16 finish,
+the fifteen 10 × 10s in 10–24 s and the one 17 × 17 in 150 s (109 s explaining); facts 73% tier 0,
+8% tier 1, 19% tier 2, none from search. Other genres stayed within a puzzle of 1021c.
+*Core-seeded explanations* (`DEDUCE_CORE`, 4152705; off by default): deletion starts from clasp's
+unsat core instead of the whole window, 10–20% faster on most of 16 explain-bound dev puzzles (one
+Masyu 26 → 14 s), estimates within 0.02 but one (Hidoku 0.71 → 0.69); the sets differ, so it waits,
+with `rankWindows`, for a refit of the prices on the new paths.
+
+**Step 4, first read (2026-10-21, local): case splits hide search.** A split round is one clingo
+call that assumes each candidate the wrong way in turn (about 80 on a 10 × 10 Nurikabe; the first 12
+searched up to 3,000 conflicts, the rest up to 50) and counts a candidate as tier 2 when it's refuted
+with no choices. Rounds are about 2 s and 70% of a Nurikabe's time, but mostly fixed cost (grounding
+about 0.5 s, the 12 searches about 0.5 s): trying only the nearest 20 first was slower, because a miss
+costs a second call and the pool kept for later rounds is lost. The bigger finding: clingo keeps what
+each candidate's search taught it, so later candidates are refuted "with no choices" thanks to the
+earlier searches. Checked alone, in a fresh call (`DEDUCE_SPLIT_FRESH`, a debug check on each split
+taken; 3 dev puzzles a genre, 4 for Nurikabe), the share of tier-2 splits that still need search:
+
+| genre | splits taken | need search alone |
+|---|---|---|
+| Simple Loop | 37 | 92% |
+| Hitori | 41 | 54% |
+| Nurikabe | 124 | 52% |
+| Cave | 50 | 40% |
+| Masyu | 31 | 29% |
+| Slitherlink | 22 | 5% |
+| Fillomino | 47 | 2% |
+| Spiral Galaxies | 73 | 0% |
+
+So the split share and the opaque share (the divergence guards) undercount search on those first
+five genres, and their difficulty estimates price some search as a split. The honest version (a
+split is tier 2 only if a fresh call refutes it with no choices; the rest are search) would move
+them toward tier 3 until step 5's techniques replace it. It changes estimates, so it waits for the
+same refit as `rankWindows` and `DEDUCE_CORE`; Aim 4's guards should count it from now on.
+
+**Step 5, first techniques (2026-10-21, local; written by Claude here, not by a model in a loop).**
+Two techniques a person uses, each a sound constraint from what's known (any wrong fact throws, and
+none did), in the finish set:
+
+- *islands* (Nurikabe): where each island can still grow, through cells not shaded and not beside
+  another numbered island, at most its number less its size away. A cell no island reaches is
+  shaded; an island short of its number keeps a way out. On the 16 dev Nurikabes (60 s, three solves
+  on four cores): 8 finish, against 1 without (one 10 × 10, 45 → 9 s); on the first 8, splits that
+  still need search alone go from 54% to 18% of those taken, and there are fewer of them.
+- *joins* (any shaded or unshaded area that must be connected: Hitori, Cave, Nurikabe's sea): an
+  open cell whose loss would part two known cells of the area goes their way. Small gains: 8 dev
+  Hitoris 131 → 109 s in all (one 25 → 9 s), 8 Caves 272 → 245 s and one more finishes.
+
+On the whole dev set (1021e, 16 solves to a VM): Nurikabe finished by 60 s 0% → 31% (5 of 16), its
+facts by tier 7/69/24% → 62/26/12% (windows now settle most), though split rounds are still a 41 s
+median and setup 10 s; Hitori median 22.4 → 13.8 s, 88% by 30 s; Cave 7% → 21% by 30 s. Genres the
+change didn't touch moved by under a second at half the load, so the load effect is small there;
+Spiral Galaxies' 2.2× (42.8 s median here, about 16 s alone at a 300 s budget) is still unexplained
+and needs checking before the gate's timing rule is fixed.
+
+**The difficulty guard (2026-10-21, cloud; research/aim4/guard-check-2026-10-21.md in project
+files).** The scoreboard's Puzzle Square JP and Tatham sections with each parked change, mean
+Spearman against the baseline's 0.57 / 0.71: `rankWindows` 0.3, −0.00 / +0.00 (passes: it's now on
+with `finish`); `DEDUCE_CORE`, −0.01 / −0.02 (at the line; Singles 8 × 8 −0.15: stays off);
+islands and joins, +0.00 / −0.18 (fails, all of it joins on Hitori: Singles 0.75 → 0.22 at 6 × 6,
+as the component lemma did before, so joins leaves Hitori's finish set until it's priced; islands
+alone leaves Tatham unchanged and lifts Puzzle Square JP Nurikabe 0.00 → 0.13). No wrong facts
+anywhere. A repeat of the baseline on another VM moved loop genres by up to 0.17 from timing alone,
+so single-type moves there are noise.
+
+**Where explaining goes on loop genres (2026-10-21, local).** On a 14 × 14 Simple Loop all but a
+second of 30 s explaining is the case splits' explanations: the first neighbourhood never entails
+the split and the second is already the whole grid (about 1 s each, 27 of them); Masyu likewise (9
+of 9 s). Growing the neighbourhood a ring at a time doesn't help (the refutations are global: the
+loop). Core-seeded deletion only there (`DEDUCE_CORE=wide`, windows' explanations untouched): that
+Simple Loop finishes (61 s, unfinished → 44 s), Cave 21 → 19 s, Masyu 16 → 15 s, Hidoku unchanged
+(it has no splits). Under the gate rule it passes (means +0.002 / +0.004, no type below its
+interval; the Singles 8 × 8 −0.15 that plain `DEDUCE_CORE` had comes from these explanations too,
+but stays inside its interval), so it's on with `finish`.
+
+**Nurikabe can't be judged yet.** Under the gate rule islands changes nothing outside Nurikabe, and
+Nurikabe's verdict is an artifact: the 200-call baseline finishes 1 of 60 (every other one rates
+0.9), and the puzzles islands lets finish carry case splits explained over the whole grid, which on
+Nurikabe is a 7.6 MB program even at 8 × 8 (the engine's connectivity encoding), past the 1.2 MB
+our clingo-wasm wrapper takes (clingo.ts MAX_PROGRAM), so those steps go unexplained and price at the fallback (rating about 0.95). Explaining them
+needs a smaller encoding of the island rules for explanations (a local encoding, as Fillomino and
+Shikaku have) or native clingo; until then Nurikabe is left out of the guard.
+
+**A local encoding for Nurikabe.** local.ts now encodes Nurikabe the way people think of it: each
+unshaded cell belongs to one number within reach (own(I,C)), neighbours both unshaded share an
+owner, a number owns its size and each owned cell joins it, the shaded cells join, no 2 × 2 is all
+shaded. It never pairs regions, so a whole-grid program is 40–130 kB where the engine's is 4–7.6 MB,
+and it gives the engine's answers (unique on all 16 dev Nurikabes). With finish and the answer
+supplied, all 16 dev Nurikabes finish in 0.9–11.3 s (13 by 10 s; before: 9 of 16 by 60 s), every
+step explained. The two examples solve in 0.25–0.37 s (engine encoding 1–2.5 s) with no search
+steps (engine: 1 and 3): owner atoms let propagation see what the engine's reach encoding needed
+search for, so ratings move (example 1: 0.76 → 0.49 with finish). Whether they move the right
+way is the guard's call (Nurikabe on PSJP at 200 calls). DEDUCE_LOCAL=0 turns it off.
+
+The guard sample showed a gain (Nurikabe rho −0.24 → +0.22 at 200 calls), but it did not hold on
+180 held-out PSJP Nurikabes: engine +0.09 against local −0.02 at 200 calls, +0.07 against +0.02 at
+1,000. The guard sample's −0.24 was an artifact of the sample. So the encoding is a speed and
+finishing win (157 against 59 of the 180 finish, none too big to explain, a quarter of the time),
+not a difficulty gain. Nurikabe's agreement is held back by stall pricing instead: an unfinished
+solve rates 0.9, below finished Nurikabes (0.95–1.0 whatever their rating), though the unfinished
+are the hardest. Finished-only rho is 0.36–0.46, and ranking stalls above every finish gives 0.45
+(local) and 0.35 (engine) held out. That is post hoc on one type, so changing stall pricing needs
+its own guard run on every type and a held-out check.
+
+**A local encoding for Fillomino.** The engine counts every region at every size (size/2 over all
+roots, 2.5 MB ground at 6 × 6, 14 MB at 8 × 8), so whole-grid steps were too big to explain and
+windows saw nothing: every step was a case split or search. local.ts now gives each cell a size and
+an owner (its region's first cell, close enough for some size); uncut links join cells of one size
+and owner, and an owner's cells are joined to it and number its size. A numberless region is no
+bigger than the numberless cells joined to it, which bounds the sizes. Ground: 170–420 kB at 6 × 6,
+1.2 MB at 8 × 8; the same unique answers on all 16 dev Fillominos and the examples (unit test). With
+finish and the answer supplied, all 16 finish in 4–29 s (1022a: half by 60 s); splits 37–63 s fall to
+0.1–13 s, and windows now find steps (tier 0 a third to a half of the facts). Prices are the open
+question: explained steps carry many size-clue groups (the region rules are tagged size-clue; left
+untagged, each was a group of its own), so 9 of 16 rate at the ceiling, and the 8 × 8s still have
+whole-grid splits too big to explain, which price below explained ones.
+
+The guard failed it (Fillomino agreement 0.12 on the guard sample, below the engine's interval;
+0.29 against 0.37 held out; 16 of 31 held-out finishes at 0.88–0.90 whatever the rating), so it is
+off by default (DEDUCE_LOCAL=fillomino turns it on) until its steps are priced. Narrowing the owner
+atoms' footprint (own(I,C) on cells I and C) made windows faster on some puzzles but the 16 slower
+in all (232 s → 268 s) and stalled one, so it was dropped.
+
+Pricing fixed (8b4734b): the region rules are now free in explanations, as the engine's region
+definitions are, instead of each counting as a size-clue group. The guard then passes it with the
+finish set at 200 calls: guard sample 0.37 against the engine's 0.37, held out 0.47 against 0.39, a
+fresh draw 0.45 against 0.42; the ceiling is mostly gone (1 of 31 held-out finishes at 0.88 or more,
+was 16). So it is on with the finish set (and DEDUCE_LOCAL=fillomino); the default solve keeps the
+engine's encoding, which the guard didn't judge against it. Puzzles with more than 3,500 owner and
+size choices fall back to the engine's: on the guard a few ran out of clingo-wasm's memory or size.
+
+**Hidoku: a cell's candidates as one fact.** On the 16 dev Hidokus explaining is about 70% of the
+time (7 finish by 60 s, with the answer supplied). Nearly every explained fact is taken (4,039
+explained, 3,847 taken on one), at about 6 solves a fact, so the cost is how many elements deletion
+works over: a window's known marks, hundreds of eliminated digits. With DEDUCE_KNOWN_BY_CELL=1 a
+cell's known digits are one element (what's left in the cell, as a person reads its candidates),
+and an explanation counts the cells it reads. Explaining is 40–50% faster and 12 of 16 finish by
+60 s; it lowers prices (fewer facts counted; dev estimates 0.62–0.85 against 0.72–0.85), so it is
+off until the guard judges it. Off, every estimate is unchanged.
+
+It passed the guard's rule (finish, 200 calls: PSJP −0.006, Tatham −0.014, held out −0.001/−0.001,
+no type below its interval; only digit types move, Sudoku −0.14 and Solo −0.10 on the guard sample),
+but on a fresh draw Sudoku falls 0.75 → 0.48 (below its interval) and Skyscrapers 0.79 → 0.73, so the
+guard sample's Sudoku drop was real. PSJP and Tatham rate no Hidokus, but Janko's levels do (PR #19:
+levels 1–7 on 530). On 466 of them (the 16 dev Hidokus and the 49 in the human-label set held out),
+few finish at 200 calls (46 with the finish set), so Hidoku is judged at 1,000. Spearman with level
+at 1,000 calls: default solver 0.50 (11 finish, all level 1, so it ranks how runs stop), finish set
+0.59 (357 finish; interval 0.52–0.66), finish set with DEDUCE_KNOWN_BY_CELL=1 0.55 (−0.039, fails
+the means rule; on the 353 both finish, 0.32 against 0.40). It stays off (DEDUCE_KNOWN_BY_CELL=1
+turns it on). Reading a cell's candidates as one fact prices a step too cheaply, on Hidoku as on
+Sudoku: which digits are gone, and why, is the step. Levels are coarse (70% at levels 3 and 4).
+Details: guard-check Follow-up 14 (run guard-hidoku-1022).
+
+**Stop prices confirmed.** On a second fresh draw (801 rated PSJP puzzles in 14 types no run had
+touched), 9afa78c passes against the pre-change baseline: PSJP +0.048, Tatham 0, no type below its
+interval; Nurikabe 0.13 → 0.52, Numberlink +0.16, Spiral Galaxies +0.11, the rest within 0.01.
+
+**Stalls on top.** An unsolved estimate was 0.9 or its path's, below the solves that price above
+0.9, though the unfinished are the hardest. Ranking every unfinished solve above every finished one
+passed the guard on every type and moved only Nurikabe on the default solver (held out 0.12 → 0.29,
+above its interval: a confirmed gain; means PSJP +0.034 held out, Tatham 0). Proposed in the price
+(245a137; Josh adopted it 2026-10-22 02:34Z): a solve stops at 0.9 and an unsolved one was 0.91 and
+up by its path so far. That failed the guard (PSJP mean −0.073, Numberlink 0.29 → −0.48): capped runs
+priced 0.91, the bottom of the unsolved, though they're the hardest, and the path term runs against
+the ratings among unsolved runs (Numberlink −0.66, Spiral Galaxies −0.43). So unsolved is now one
+price, whatever its path: 0.95 out of clingo calls, 0.97 out of time or stuck, 1 capped from outside
+(8b4734b priced out of time at 1 with the capped; on Numberlink, which finishes about 1 in 8 even at
+1,000 calls, that failed every sample, since capped runs are rated 2.8–3.0 and out of time 1.8–1.9;
+the three prices give it 0.71/0.57/0.64 at 1,000 calls and move nothing else down, a fit to how
+runs stop that held in six samples, but found post hoc, after looking at Numberlink on all three;
+it counts once a second fresh draw, unused in choosing it, confirms it). On 344aafa's rows that ordering gives the guard 0.605 and held-out PSJP 0.538 (was 0.409). On a
+fresh draw of 967 rated PSJP puzzles never used before, it passes the means (guard +0.016, held out
++0.105, fresh −0.013) but fails Numberlink on the fresh draw (0.67 → 0.41): Numberlink finishes 2 of
+60 at 200 calls, so its agreement only ranks how runs stop. Nurikabe's gain replicates (+0.13 fresh).
+
+The same run found a listing bug in every genre: a fact another window claimed was also listed by
+any larger window that found it, unexplained, whenever the claimer's explanation was cached, and
+those unexplained duplicates were taken at times (priced at the fallback). A window now lists a
+claimed fact only with an explanation of its own (deduce.ts candidates).
+
+**Estimates depend on the clock.** The paths are deterministic (every other type repeated exactly);
+what isn't is the budget. The scoreboard gives each solve 15 s of wall clock, and an unsolved puzzle
+rates at least 0.9, so a slow puzzle near the line (Masyu and Simple Loop are explain-bound) rates
+0.9 on a busy machine and its true estimate on a quiet one. `budgetCalls` (DEDUCE_BUDGET_CALLS, also
+read by the scoreboard) stops after a number of clingo calls instead, with the wall clock only as a
+90 s guard: the same example puzzles give identical results alone and with three other solves
+running. Calls vary in cost (one tier-3 search can take 10 s), so the count wants calibrating
+against the 15 s board before it replaces it, and a finer unit (clingo's conflicts and choices)
+may be needed if a few puzzles still reach the guard. Calibrated (2026-10-21, cloud): at 100, 200
+and 400 calls all 544 estimates were identical at 16 and 32 solves to a VM (the two 15 s baselines
+differed on 3). At 200 the means match the 15 s board exactly (Puzzle Square JP 0.57, Tatham 0.71;
+100 is 0.07 lower, 400 slightly lower); 19 Puzzle Square JP solves (Nurikabe, Numberlink, Spiral
+Galaxies) reach the 90 s guard, but they rate 0.9 either way. So the guard uses 200 calls, with
+its per-type baseline taken again at 200 (types differ from the 15 s board by up to 0.2, Shikaku
+−0.19, Simple Loop +0.22).
+At 200 calls (exact repeats), per type with n ≥ 10, no setting stays within 0.02 everywhere:
+`rankWindows` moves Masyu −0.24, Slitherlink +0.17, Spiral Galaxies +0.15, Numberlink −0.14;
+`DEDUCE_CORE` Masyu −0.22, Singles 8 × 8 −0.15; islands changes only Nurikabe (+0.10, three new
+solves); joins on Cave −0.03. Means stay within 0.02 for all. But at n = 20 a type's Spearman has
+about ±0.2 sampling error, so a 0.02 per-type rule flags any change of path, not harm; and Nurikabe
+can't be judged at 200 calls (the baseline solves none of 20, so all rate 0.9). The per-type rule
+needs rewriting: bigger samples, or one-sided (no type worse than its bootstrap interval).
+
+**Puzzles that come with their answer.** Setup solves the puzzle once with clingo to know the answer
+(case splits are aimed with it, and every fact is checked against it). On Nurikabe that's slow: for
+the 16 dev puzzles a median of about 6 s and up to 58 s. Every published puzzle comes with its
+answer, so a solve given `answer` now takes it instead (a wrong one shows as a wrong fact), and
+`speed-answers.ts` finds them once for a sample (solver-speed.ts hands them on with
+SPEED_ANSWERS=1). On four dev Nurikabes setup fell 50 → 3.6 s, 30 → 4.4 s, 11 → 2.3 s and 5.2 →
+2.0 s, with the same estimates; the one that finishes went 14.6 → 11.7 s.
+
+Simple Loop is different: few splits (most of its time is explaining), so the existing rules for
+it don't buy much. `cuts` (a part of the grid with few ways out) made 5 of 8 dev puzzles slower,
+and the `parity` lemma was mixed (one more finishes, 24 → 9 s on another, three slower), so neither
+goes in its finish set.
+
+A third islands rule, a cell an island can't reach its number without (without it, too few cells
+are within reach), with answers supplied: 9 of 16 dev Nurikabes finish in 60 s (two hard ones newly,
+a 6 × 7 with five clues in 54 s), and the quick ones get quicker (12 → 7 s, 16 → 11 s).
+
+What's left on Nurikabe is search a person would struggle with too (a 6 × 7 with five clues, two of
+them 6 and 8, takes about 7 s a fact by tier 3), plus puzzles with big islands (sizes 6–9).
+
+**Timing needs a fixed load.** The same Spiral Galaxies ran a median 2.2× slower with 32 solves to a
+VM (1021d) than with 16 over 128 vCPUs: full-VM runs overstate one solve's time, here by up to about
+2×. Before the gate the "one vCPU, wall clock" rule gets a fixed load (say 16 solves on an
+n2-standard-32) or a calibration against a few puzzles timed alone.
+
+**Open questions.** Whether the 300 s solver is the right reference for "human-style" (it is
+cheapest-first, and people aren't: 21% against the tuned network's 45%); a later version could
+measure divergence against the human move model's own path. Whether hints need a different
+target: a hint is one next step from a position, which wants about a second, not a full solve in
+10.
+
 ## The reframe
 
 Solving is not the game. clingo solves every puzzle we have; a policy that solves faster is a

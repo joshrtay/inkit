@@ -8,7 +8,7 @@
 //     sparseness  how few clues it gives, against what's usual for its type: 0 at the usual
 //                 density or more, 1 with none (types whose clues aren't givens count as 0.5)
 //     lean        a small nudge per type, for types that are harder or easier than their size says
-//   level   1 below 0.4, 2 below 0.62, 3 above (easy, medium, hard)
+//   level   1 below 0.4, 2 below 0.62, 3 above (easy, medium, hard); the solver's estimate uses its type's SOLVER_CUTS
 //   minutes cells · (0.06 + 0.5 · d²), at least 1 and at most 90
 //
 // An AI creator's post brings its scorer's difficulty (puzzles/ai/score.ts, the `meta` of
@@ -46,7 +46,18 @@ const STRUCTURE = new Set(["start", "end", "block", "wall", "gap", "door", "bank
 const clamp = (x: number, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
 const round2 = (x: number) => Math.round(x * 100) / 100;
 
-export const levelOf = (d: number): 1 | 2 | 3 => (d < 0.4 ? 1 : d < 0.62 ? 2 : 3);
+export const levelOf = (d: number, cuts: readonly [number, number] = [0.4, 0.62]): 1 | 2 | 3 => (d < cuts[0] ? 1 : d < cuts[1] ? 2 : 3);
+
+/** Level cuts for the deduction solver's estimate (./assessment.ts), per type: each puts the same
+ *  share of a type's finished solves at each level as Puzzle Square JP's raters do (1–2 easy, 3
+ *  medium, 4–5 hard), fitted on 90–570 rated puzzles a type (puzzles/difficulty/level_cuts.py,
+ *  2026-10-24). The level matches the raters' band 61–74% of the time with these, against 13–68%
+ *  with the shared cuts; held-out halves agree. Types not listed keep the shared cuts: Nurikabe and
+ *  Spiral Galaxies too, where the estimate barely separates puzzles. */
+export const SOLVER_CUTS: Record<string, readonly [number, number]> = {
+  masyu: [0.68, 0.75], akari: [0.29, 0.63], slitherlink: [0.61, 0.73], "simple-loop": [0.65, 0.74],
+  "star-battle": [0.29, 0.61], hitori: [0.79, 0.85], shikaku: [0.58, 0.61],
+};
 export const minutesOf = (cells: number, d: number) => Math.min(90, Math.max(1, Math.round(cells * (0.06 + 0.5 * d * d))));
 
 /** The estimate for a puzzle of type `kind`; `scored` is a scorer's difficulty (0..1), if it has one. */

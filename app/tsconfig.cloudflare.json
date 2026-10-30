@@ -16,6 +16,7 @@
     "../src/engine/encode.ts",
     "../src/engine/paint.ts",
     "../src/engine/panel.ts",
+    "../src/ai/*.ts",
     "../src/lib/ink.ts",
     "../src/lib/game-api.ts",
     "../src/guides/*.ts",

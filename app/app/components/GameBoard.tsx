@@ -8,6 +8,7 @@ import { createGrid } from "~site/game-types/grid/game";
 import "~site/game-types/grid/styles.css";
 import { tool } from "./icons";
 import { createHost } from "~/lib/host";
+import { createPlayLog, FLUSH_MS, sendBatch, shareAllowed } from "~/lib/play-log";
 import type { Layout, Playable } from "~/games/layout";
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -60,9 +61,11 @@ function alignToBorder(root: HTMLElement) {
  *  is saved. `description`: the creator's line about it, on the paper. `onRules`: the paper's ?
  *  (How to play), shown only when given. `tip`: a first-time note under it ("New to Akari?"),
  *  with its dismissal. */
-export function GameBoard({ play, saveId, onSolved, description = "", onRules, tip }: {
+export function GameBoard({ play, saveId, onSolved, description = "", onRules, tip, logGame }: {
   play: Playable; saveId?: string; onSolved?: (ms: number | null) => void; description?: string;
   onRules?: () => void; tip?: { text: string; onDismiss: () => void } | null;
+  /** a published puzzle's id: its play is logged unless the player turned that off (lib/play-log.ts) */
+  logGame?: string;
 }) {
   const spot = useRef<HTMLDivElement>(null);
   const solved = useRef(onSolved);
@@ -87,7 +90,18 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     // playing time (components/solve-timer.ts): moves on the board, nothing while the tab is hidden
     let timer = saveId ? loadTimer(saveId) : startTimer();
     const move = () => { timer = tick(timer, Date.now()); if (saveId) saveTimer(saveId, timer); };
-    const hide = () => { if (document.hidden) timer = pause(timer); };
+    // solve logging, unless the player turned it off (lib/play-log.ts); started at the first event
+    let plays: ReturnType<typeof createPlayLog> | null = null;
+    const log = logGame ? (kind: string, data?: unknown) => {
+      if (!shareAllowed()) { plays = null; return; }
+      plays ??= createPlayLog(logGame, sendBatch);
+      plays.log(kind, data);
+    } : undefined;
+    const hide = () => {
+      if (document.hidden) { timer = pause(timer); if (plays && shareAllowed()) { plays.log("a"); plays.flush(true); } }
+      else if (plays && shareAllowed()) plays.log("b");
+    };
+    const every = logGame ? window.setInterval(() => { if (plays && shareAllowed()) plays.flush(); }, FLUSH_MS) : 0;
     // (keys go to the page: the board reads them there)
     root.addEventListener("pointerdown", move); addEventListener("keydown", move);
     document.addEventListener("visibilitychange", hide);
@@ -95,7 +109,7 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
       const ms = timer.total > 0 ? Math.round(timer.total) : null;
       if (saveId) clearTimer(saveId);
       solved.current?.(ms);
-    }, !saveId);
+    }, !saveId, log);
     const cleanup = createGrid({ spec: play.spec })(root, host);
     const ask = root.querySelector<HTMLButtonElement>("[data-rules]");
     if (ask) { ask.hidden = !rules.current; ask.addEventListener("click", () => rules.current?.()); }
@@ -104,8 +118,8 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     const board = root.querySelector(".sheet > svg.board");
     const fit = new ResizeObserver(() => alignToBorder(root));
     if (board) fit.observe(board);
-    return () => { fit.disconnect(); removeEventListener("keydown", move); document.removeEventListener("visibilitychange", hide); cleanup?.(); root.remove(); };
-  }, [key, saveId]);
+    return () => { if (every) clearInterval(every); plays?.flush(true); fit.disconnect(); removeEventListener("keydown", move); document.removeEventListener("visibilitychange", hide); cleanup?.(); root.remove(); };
+  }, [key, saveId, logGame]);
 
   // the description changes without rebuilding the board (the publish page edits it as you play)
   useEffect(() => {

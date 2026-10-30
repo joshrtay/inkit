@@ -5,8 +5,8 @@
 // refused, and without the token the endpoint isn't there.
 import { readFileSync } from "node:fs";
 import { expect, test, type APIRequestContext } from "@playwright/test";
-import { personaByHandle } from "~/ai/personas";
-import { backfillSlots } from "~/ai/schedule";
+import { personaByHandle } from "~site/ai/personas.ts";
+import { backfillSlots } from "~site/ai/schedule.ts";
 import { sha256 } from "~/ai/request";
 import { q, sql } from "./db";
 

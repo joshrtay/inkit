@@ -149,7 +149,7 @@ export async function solveCached(spec: GridSpec): Promise<Solve> {
   mkdirSync(dir, { recursive: true }); writeFileSync(file, JSON.stringify(slim));
   return slim as Solve;
 }
-const estimateOf = (r: Solve) => (r ? r.profile.estimate : 0.9);
+const estimateOf = (r: Solve) => (r ? r.profile.estimate : 1);   // (no answer: capped, the hardest)
 
 // ---- seeded shuffles ----
 export function rng(seed: string) {

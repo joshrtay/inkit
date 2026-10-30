@@ -34,14 +34,17 @@ const perType = Number(args[args.indexOf("--psjp") + 1]) || 20;
 const only = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 const want = (section: string) => !only || only === section;
 const games = args.includes("--games") ? args[args.indexOf("--games") + 1].split(",") : null;
-const BUDGET = 15000, CAP = 120000;
+// DEDUCE_BUDGET_CALLS: a budget in clingo calls instead (the same on any machine and load), with
+// the wall clock only as a guard
+const CALLS = process.env.DEDUCE_BUDGET_CALLS ? Number(process.env.DEDUCE_BUDGET_CALLS) : undefined;
+const BUDGET = CALLS !== undefined ? 90000 : 15000, CAP = 120000;
 
 interface Solve { name: string; estimate: number; solved: boolean; ms: number; capped: boolean; note: string }
 const solve = async (name: string, spec: GridSpec): Promise<Solve> => {
   const t0 = Date.now();
   try {
-    const r = await deduceGuarded(spec, { budgetMs: BUDGET }, CAP);
-    if (!r) return { name, estimate: 0.9, solved: false, ms: Date.now() - t0, capped: true, note: "cap" };
+    const r = await deduceGuarded(spec, { budgetMs: BUDGET, ...(CALLS !== undefined ? { budgetCalls: CALLS } : {}) }, CAP);
+    if (!r) return { name, estimate: 1, solved: false, ms: Date.now() - t0, capped: true, note: "cap" };
     return { name, estimate: r.profile.estimate, solved: r.profile.solved, ms: Date.now() - t0, capped: false, note: r.profile.notes.join("; ") };
   } catch (e) { return { name, estimate: NaN, solved: false, ms: Date.now() - t0, capped: false, note: `error: ${(e as Error).message.slice(0, 80)}` }; }
 };
@@ -49,7 +52,7 @@ const secs = (xs: Solve[]) => Math.round(xs.reduce((a, x) => a + x.ms, 0) / 1000
 const t0 = Date.now();
 // budgets are wall-clock time, so results depend on how many solves share the machine: the board
 // records its job count, and a comparison at a different count is flagged
-const board: Record<string, unknown> = { at: new Date().toISOString(), jobs: JOBS };
+const board: Record<string, unknown> = { at: new Date().toISOString(), jobs: JOBS, ...(CALLS !== undefined ? { budgetCalls: CALLS } : {}) };
 const last = existsSync(boardFile) ? JSON.parse(readFileSync(boardFile, "utf8")) : null;
 const out: string[] = [];
 

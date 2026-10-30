@@ -18,6 +18,7 @@ export default [
   route("api/sets", "routes/api.sets.ts"),   // your draft sets; make one
   route("api/sets/:id", "routes/api.set.ts"),   // a draft set, for the drawer
   route("api/bugs", "routes/api.bugs.ts"),   // Report a bug
+  route("api/plays", "routes/api.plays.ts"),   // solve logging (off in Settings)
   // moved under /api: the old addresses keep working (308 keeps a POST's method and body)
   route("feed", "routes/moved.ts", { id: "moved-feed" }),
   route("bugs", "routes/moved.ts", { id: "moved-bugs" }),
@@ -49,6 +50,7 @@ export default [
   route("admin/ai/schedule", "routes/admin-ai-schedule.ts"),
   route("admin/ai/backfill", "routes/admin-ai-backfill.ts"),
   route("admin/ai/recommendations", "routes/admin-ai-recommendations.ts"),
+  route("admin/assessments", "routes/admin-assessments.ts"),
   // bug reports (docs/bug-pipeline.md): sent from "Report a bug", reviewed by admins
   route("admin/bugs", "routes/admin-bugs.tsx"),
   route("admin/bugs/:id", "routes/admin-bug.tsx"),

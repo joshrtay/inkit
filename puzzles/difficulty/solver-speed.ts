@@ -9,16 +9,19 @@
 // - Each solve runs in its own process: budget SPEED_BUDGET_S (300 s, checked between rounds),
 //   killed at SPEED_CAP_S (400 s); one row per puzzle appended to references/<OUT>/rows.jsonl
 //   (OUT default solver-speed), skipping keys already there (a resumed Batch task):
-//   { key, genre, side, marks, finished, killed, ms, notes, uses, maxCost, perTier, estimate, rounds: [[ms, open, splits, searches]] }
+//   { key, genre, side, marks, finished, killed, ms, notes, uses, maxCost, perTier, estimate, byTier, phases, rounds: [[ms, open, splits, searches]] }
 //   where rounds has the marks still open at the start of each round and at the end, and the
-//   tier-2 (case split) and tier-3 (search) steps taken so far, and uses the steps each rule,
-//   lemma or technique took part in.
+//   tier-2 (case split) and tier-3 (search) steps taken so far, uses the steps each rule,
+//   lemma or technique took part in, byTier the marks each tier settled (0–3), and phases the ms
+//   spent in setup, windows, explain, splits, lemmas and other (deduce's timing.phases).
 // - With --shard k --of N it takes the puzzles whose key hashes to shard k (run-batch.sh).
 // - Solver settings beyond human-shard.ts's (to measure a technique before and after):
 //   SPEED_TECH, deduce's techniques ("all": every TECHNIQUES entry, each where it applies);
 //   SPEED_LEMMAS, its lemmas (comma-separated); SPEED_CELL_ATOMS=1, its cellAtoms;
 //   SPEED_MAX_TIER, its maxTier; SPEED_FINISH=1, its finish (each genre's FINISH techniques and
-//   lemmas); SPEED_GENRES, only these genres (comma-separated).
+//   lemmas); SPEED_GENRES, only these genres (comma-separated); SPEED_ANSWERS=1, a record's
+//   `answer` (its true marks, speed-answers.ts) is handed to deduce, so setup needn't find it (a
+//   published puzzle comes with its answer).
 import { spawn } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -33,10 +36,10 @@ if (process.argv[2] === "--child") {
   let input = "";
   process.stdin.on("data", (d) => { input += d; });
   process.stdin.on("end", async () => {
-    const { spec, budgetMs } = JSON.parse(input);
+    const { spec, budgetMs, answer } = JSON.parse(input);
     try {
       const r = await deduce(spec, {
-        budgetMs, structure: true,
+        budgetMs, structure: true, ...(answer ? { answer } : {}),
         ...(tech ? { techniques: tech } : {}), ...(env.SPEED_LEMMAS !== undefined ? { lemmas: env.SPEED_LEMMAS.split(",").filter(Boolean) } : {}),
         ...(env.SPEED_CELL_ATOMS === "1" ? { cellAtoms: true } : {}), ...(env.SPEED_FINISH === "1" ? { finish: true } : {}), ...(env.SPEED_MAX_TIER ? { maxTier: Number(env.SPEED_MAX_TIER) as 1 | 2 | 3 } : {}),
         onRound: (ms, open, marks, path) => {
@@ -48,7 +51,10 @@ if (process.argv[2] === "--child") {
       // the steps each rule, lemma or technique took part in
       const uses: Record<string, number> = {};
       for (const s of r.path) for (const u of new Set(s.uses)) uses[u] = (uses[u] ?? 0) + 1;
-      process.stdout.write(`R ${JSON.stringify({ solved: r.profile.solved, notes: r.profile.notes, ms: r.profile.ms, uses, maxCost: r.profile.maxCost, perTier: r.profile.perTier, estimate: r.profile.estimate })}\n`);
+      // marks settled by each tier (0–1 windows, 2 case splits, 3 search), and where the time went
+      const byTier = [0, 0, 0, 0];
+      for (const s of r.path) byTier[s.tier] += s.facts.length;
+      process.stdout.write(`R ${JSON.stringify({ solved: r.profile.solved, notes: r.profile.notes, ms: r.profile.ms, uses, maxCost: r.profile.maxCost, perTier: r.profile.perTier, estimate: r.profile.estimate, byTier, phases: r.timing?.phases })}\n`);
     } catch (e) { process.stdout.write(`R ${JSON.stringify({ error: String((e as Error).message ?? e).slice(0, 200) })}\n`); }
   });
 } else await main();
@@ -91,11 +97,11 @@ async function main() {
     child.on("close", () => {
       clearTimeout(timer);
       const row = { key: r.key, genre: r.genre, side: Math.max(...r.spec.size), marks, finished: !!result?.solved, killed, ms: Date.now() - t0,
-        notes: result?.notes ?? (result?.error ? [`error: ${result.error}`] : killed ? [] : ["child died"]), uses: result?.uses, maxCost: result?.maxCost, perTier: result?.perTier, estimate: result?.estimate, rounds };
+        notes: result?.notes ?? (result?.error ? [`error: ${result.error}`] : killed ? [] : ["child died"]), uses: result?.uses, maxCost: result?.maxCost, perTier: result?.perTier, estimate: result?.estimate, byTier: result?.byTier, phases: result?.phases, rounds };
       appendFileSync(out, JSON.stringify(row) + "\n");
       console.error(`${++n}/${todo.length} ${r.genre} ${row.finished ? "finished" : killed ? "killed" : "unfinished"} ${(row.ms / 1000).toFixed(0)} s`);
       resolve();
     });
-    child.stdin.end(JSON.stringify({ spec: r.spec, budgetMs: BUDGET }));
+    child.stdin.end(JSON.stringify({ spec: r.spec, budgetMs: BUDGET, ...(process.env.SPEED_ANSWERS === "1" && r.answer ? { answer: r.answer } : {}) }));
   }));
 }

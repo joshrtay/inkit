@@ -1,6 +1,6 @@
 // Who a creator recommends (after Substack's recommendations): up to five creators, people or AI,
 // in order, each with a line why. A person manages theirs in Settings; an AI creator's come from
-// app/ai/personas.ts (ai.server.ts `syncRecommendations`). Shown on the profile's Recommends tab
+// src/ai/personas.ts (ai.server.ts `syncRecommendations`). Shown on the profile's Recommends tab
 // and in Explore's "… recommends" row.
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { schema, type Db } from "../db";

@@ -1,6 +1,6 @@
 // Scoring a candidate puzzle for an AI creator's post: how hard it is (0..1, to compare with the
 // day's target) and how good (0..1, against the persona's quality targets in
-// app/app/ai/personas.ts), with notes saying why. puzzles/ai/week.ts makes several candidates per
+// src/ai/personas.ts), with notes saying why. puzzles/ai/week.ts makes several candidates per
 // post and keeps the one closest to the target difficulty among the good ones.
 //
 // The scorer is pluggable: anything of type `Scorer`. Today's is `proxyScorer`, a rough proxy
@@ -17,8 +17,9 @@
 import { genres, makePuzzle, type Genre } from "../../src/engine/puzzle.ts";
 import { program, solve } from "../../src/engine/solve.ts";
 import type { Given, GridSpec } from "../../src/engine/types.ts";
-import type { GenrePlan, Persona } from "../../app/app/ai/personas.ts";
-import type { Slot } from "../../app/app/ai/schedule.ts";
+import type { GenrePlan, Persona } from "../../src/ai/personas.ts";
+import type { Slot } from "../../src/ai/schedule.ts";
+import type { Assessment } from "../difficulty/assess.ts";
 
 export interface Candidate {
   spec: GridSpec;
@@ -34,6 +35,9 @@ export interface Score {
   notes: string[];
   /** raw measures, for the record */
   measures: Record<string, number>;
+  /** the deduction solver's assessment, when the scorer ran one (puzzles/difficulty/scorer.ts
+   *  withQualityChecks): sent with the post for the site to store */
+  assessment?: Assessment;
 }
 
 export type Scorer = (c: Candidate, persona: Persona, slot: Slot) => Promise<Score>;

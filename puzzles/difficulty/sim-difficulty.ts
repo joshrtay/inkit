@@ -193,7 +193,11 @@ if (cmd === "report") {
     return [rs[10], rs[389]];
   };
   const groups = [...new Set(rows.map((r) => `${r.set} ${r.type}`))].sort();
-  console.log(`| set and type | n | model | ${cols.join(" | ")} |\n|${"---|".repeat(cols.length + 3)}`);
+  // beside each PSJP type, what cell count alone scores and the ceiling (difficulty-baselines.json,
+  // size_audit.py): a figure under the first reads only size, and the second is as high as it goes
+  const base = JSON.parse(readFileSync(new URL("./difficulty-baselines.json", import.meta.url), "utf8")).types as Record<string, { cells: number; ceiling?: number }>;
+  const context = (g: string) => { const [set, type] = g.split(" "), b = set === "psjp" ? base[type] : undefined; return b ? `${b.cells.toFixed(2)} | ${b.ceiling?.toFixed(2) ?? "-"}` : "- | -"; };
+  console.log(`| set and type | n | model | cells alone | ceiling | ${cols.join(" | ")} |\n|${"---|".repeat(cols.length + 5)}`);
   const within: Record<string, { rho: number; n: number }[]> = {};
   for (const g of groups) {
     const rs = rows.filter((r) => `${r.set} ${r.type}` === g && Array.isArray(r.sims) && typeof r.solver === "object");
@@ -204,10 +208,10 @@ if (cmd === "report") {
       if (g.startsWith("psjp")) (within[c] ??= []).push({ rho, n: ok.length });
       return c === "sim lse" || c === "sim costSum" || c === "solver costPeak" ? `${rho.toFixed(2)} (${boot(x, y).map((v) => v.toFixed(2)).join(", ")})` : rho.toFixed(2);
     });
-    console.log(`| ${g} | ${rs.length} | ${rs[0].model} | ${cells.join(" | ")} |`);
+    console.log(`| ${g} | ${rs.length} | ${rs[0].model} | ${context(g)} | ${cells.join(" | ")} |`);
   }
   const mean = (c: string) => { const w = within[c] ?? []; const n = w.reduce((a, x) => a + x.n, 0); return n ? (w.reduce((a, x) => a + x.rho * x.n, 0) / n).toFixed(2) : "-"; };
-  console.log(`| psjp, within type (n-weighted) | | | ${cols.map(mean).join(" | ")} |`);
+  console.log(`| psjp, within type (n-weighted) | | | | | ${cols.map(mean).join(" | ")} |`);
   const solved = rows.filter((r) => Array.isArray(r.sims)), simSolved = solved.flatMap((r) => r.sims).filter((s: any) => s.solved).length;
   console.log(`\n${rows.length} puzzles; simulated solves finished: ${simSolved} of ${solved.flatMap((r) => r.sims).length}; caps or errors: ${rows.filter((r) => !Array.isArray(r.sims)).length}`);
 }

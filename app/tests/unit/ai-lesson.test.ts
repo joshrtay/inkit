@@ -3,8 +3,8 @@
 // through and reject one a wrong reading also solves, and the words never state the rule.
 import { describe, expect, it } from "vitest";
 import type { Given, GridSpec } from "~site/engine/types.ts";
-import { personaByHandle, SLATE_CURRICULUM } from "~/ai/personas";
-import { historySlots, lessonFor, lessonSettings, lessonSizes, localDate, planFor, slotsBetween, mondayOf } from "~/ai/schedule";
+import { personaByHandle, SLATE_CURRICULUM } from "~site/ai/personas.ts";
+import { historySlots, lessonFor, lessonSettings, lessonSizes, localDate, planFor, slotsBetween, mondayOf } from "~site/ai/schedule.ts";
 import { areaOf, checkLesson, contrastEdits, givensApart, pointsTooMuch, rivalsOf, ruleWords, swapped, tellsRule, titlePrefix } from "../../../puzzles/ai/lesson.ts";
 import { RIVALS } from "../../../puzzles/ai/rivals.ts";
 

@@ -1,0 +1,37 @@
+# Assess newly published puzzles (puzzles/difficulty/assess-site.ts): the deduction solver's
+# difficulty, which becomes the puzzle's on Explore when its solve finishes, and the bad-puzzle
+# checks, logged and never shown. The Worker can't run the solver, so this runs it hourly and sends
+# the results to inkit.games/admin/assessments. Needs the secret ADMIN_API_TOKEN (as ai-week.yml).
+name: Assess new puzzles
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # hourly
+  workflow_dispatch:
+    inputs:
+      max:
+        description: "At most this many puzzles"
+        required: false
+        default: "200"
+
+concurrency:
+  group: assess
+  cancel-in-progress: false
+
+jobs:
+  assess:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Assess and send
+        env:
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          MAX: ${{ inputs.max || '200' }}
+        run: node --no-warnings puzzles/difficulty/assess-site.ts --site https://inkit.games --max "$MAX" --minutes 40

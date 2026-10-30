@@ -8,8 +8,8 @@ import { z } from "zod";
 import type { GridSpec } from "../../src/engine/types.ts";
 import { guides } from "../../src/guides/guides.ts";
 import type { GenerateOptions } from "../grid/generate.ts";
-import type { GenrePlan, Persona } from "../../app/app/ai/personas.ts";
-import { difficultyOf, lessonFor, localDate, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../app/app/ai/schedule.ts";
+import type { GenrePlan, Persona } from "../../src/ai/personas.ts";
+import { difficultyOf, lessonFor, localDate, moonLit, pairRole, planFor, tideStrength, type Slot } from "../../src/ai/schedule.ts";
 import { cluesOf, proxyScorer, type Score, type Scorer } from "./score.ts";
 
 /** The model that writes titles and descriptions, and its price per million tokens (input, output). */
@@ -70,8 +70,11 @@ export interface MakeOptions {
   previous?: GridSpec | null;
 }
 
+/** How much quality weighs against distance from the target difficulty when picking a candidate. */
+export const QUALITY_WEIGHT = 0.3;
+
 /** Make candidates for a slot and keep the best: among those good enough, the closest to the
- *  target difficulty (quality breaks near-ties). */
+ *  target difficulty, less QUALITY_WEIGHT × quality. */
 export async function makeFor(p: Persona, slot: Slot, o: MakeOptions): Promise<Made | null> {
   const log = o.log ?? console.log, scorer = o.scorer ?? proxyScorer;
   const { plan, role, mix, rules, moves, cipher, lesson } = planFor(p, slot);
@@ -99,7 +102,9 @@ export async function makeFor(p: Persona, slot: Slot, o: MakeOptions): Promise<M
     tries++;
     const score = await scorer({ spec, plan }, p, slot);
     if (score.quality < p.quality.minQuality) { lastNotes = score.notes; continue; }
-    const key = Math.abs(score.difficulty - slot.difficulty) - 0.15 * score.quality;
+    // quality counts for more than a near-tie since the bad-puzzle checks (puzzles/difficulty/quality.ts):
+    // a candidate with an unused kind of clue (−0.3) gives way to a clean one up to 0.09 further off target
+    const key = Math.abs(score.difficulty - slot.difficulty) - QUALITY_WEIGHT * score.quality;
     if (key < bestKey) { best = { spec, score, size: [rows, cols], mix, rules, moves, tries: 0 }; bestKey = key; }
   }
   if (best) best.tries = tries;

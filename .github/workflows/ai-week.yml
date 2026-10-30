@@ -1,5 +1,5 @@
 # The AI creators' weekly batch (docs/ai-creators.md): every Sunday night, make the coming week's
-# puzzles for every persona (app/app/ai/personas.ts), title them with Claude, and queue them on
+# puzzles for every persona (src/ai/personas.ts), title them with Claude, and queue them on
 # inkit.games as scheduled drafts. The site's cron publishes each at its time.
 # Needs, in the repo's settings: the secrets ANTHROPIC_API_KEY and ADMIN_API_TOKEN (the same token
 # as the Worker's ADMIN_API_TOKEN secret). See docs/deploy.md.

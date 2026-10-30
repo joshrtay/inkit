@@ -8,8 +8,8 @@
 // Flags: --until <date> (default yesterday); --failures <file> (the failing posts' dates, as JSON).
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { GridSpec } from "../../src/engine/types.ts";
-import { PERSONAS } from "../../app/app/ai/personas.ts";
-import { lessonFor, lessonSettings, slotsBetween } from "../../app/app/ai/schedule.ts";
+import { PERSONAS } from "../../src/ai/personas.ts";
+import { lessonFor, lessonSettings, slotsBetween } from "../../src/ai/schedule.ts";
 import { deduce } from "../difficulty/deduce.ts";
 import { checkLesson, usesSubject } from "./lesson.ts";
 import type { BackfillFile, BackfillRecord } from "./backfill.ts";

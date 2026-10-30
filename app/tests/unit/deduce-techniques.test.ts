@@ -31,8 +31,12 @@ const GENRES: Record<string, string[]> = {
   slots: ["fill-in"],
   sizes: ["fillomino"],
   shapes: ["fillomino"],
+  islands: ["nurikabe"],
+  joins: ["cave", "connect-the-critters", "hitori", "nurikabe", "wittgenstein-briquet"],
 };
-const UNSOLVED = new Set(["fillomino/1.json", "fillomino/2.json", "fillomino/3.json"]);
+// (the expert band makes no case splits: these need one, with or without islands and joins)
+const UNSOLVED = new Set(["fillomino/1.json", "fillomino/2.json", "fillomino/3.json", "nurikabe/2.json", "cave/1.json", "cave/2.json",
+  "connect-the-critters/2.json", "connect-the-critters/3.json", "wittgenstein-briquet/2.json"]);
 const expert = bandNamed("expert");
 
 describe("per-genre techniques", () => {

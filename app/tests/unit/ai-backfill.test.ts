@@ -3,10 +3,10 @@
 // changes), a teaching sequence carries on through it, a backdated post is for an AI creator's own
 // slot only, and sending one twice does nothing the second time.
 import { describe, expect, it } from "vitest";
-import { PERSONAS, personaByHandle } from "~/ai/personas";
-import { backfillRange, backfillSlots, difficultyOf, isoWeek, localDate, moonLit, planFor, slotKey, slotsBetween, type Slot } from "~/ai/schedule";
+import { PERSONAS, personaByHandle } from "~site/ai/personas.ts";
+import { backfillRange, backfillSlots, difficultyOf, isoWeek, localDate, moonLit, planFor, slotKey, slotsBetween, type Slot } from "~site/ai/schedule.ts";
 import { backfillAction, checkBackfillPost, checkScheduleRequest, sha256 } from "~/ai/request";
-import { clashingTitle, nearDuplicateTitle } from "~/ai/titles";
+import { clashingTitle, nearDuplicateTitle } from "~site/ai/titles.ts";
 
 const DAY = 86400e3;
 const p = (h: string) => personaByHandle(h)!;

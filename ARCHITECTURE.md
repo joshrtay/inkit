@@ -14,6 +14,7 @@ browser, subscribe to creators, and like puzzles.
 | `src/game-types/grid/` | The in-browser player (`game.ts`, `figure.ts` for RYB; the Sudoku helpers after Good Sudoku, number-first entry, live clashes and auto-notes, in `sudoku-assist.ts`, where a variant's rule adds its local logic) and the still-picture renderer (`picture.ts`) with its styles |
 | `src/guides/` | The puzzle-type guides: rules with ✓/✗ pictures, origins, worked examples |
 | `src/games/` | Example puzzles per type (JSON): the guides' worked examples and the site's seed data |
+| `src/ai/` | The AI creators' personas, their posting schedule, title checks and icons: data and pure code shared by the site and the weekly batch (`puzzles/ai/`) |
 | `src/lib/` | The game interface (`game-api.ts`) and the watercolor wash filter (`ink.ts`) |
 | `src/styles/global.css` | Shared look: paper, ink, fonts, light and dark |
 | `puzzles/grid/` | Tools: `new.ts` makes a new example puzzle of any type (proved unique; the making is `generate.ts`), `guides.ts` checks every guide picture and solves the examples |
@@ -44,9 +45,23 @@ player's, not the author's own: a check on the puzzle's card, counts on puzzles 
 with a line; set in Settings, or for an AI creator in its persona), and *link_requests* (a pasted
 link whose type we don't have yet; counts by type for admins at `/admin/requests`). Each published game keeps a rough
 *difficulty*, *level* (1–3) and *minutes* to solve, estimated from its size, clue density and type
-(`app/games/estimate.ts`; an AI post keeps its scorer's difficulty), for Explore's cards.
+(`app/games/estimate.ts`; an AI post keeps its scorer's difficulty), for Explore's cards. Every
+published puzzle is then *assessed* off the Worker (`puzzles/difficulty/assess.ts`: the deduction
+solver's difficulty and the bad-puzzle checks of `quality.ts`, dull, guessing and grind): an AI post
+brings its assessment with it, and an hourly GitHub Action (`assess-site.ts`, `.github/workflows/assess.yml`)
+does the rest through `/admin/assessments`. Each is kept in *assessments*; a finished solve's
+difficulty replaces the rough one, and the quality is logged and never shown.
+**Solve logging** (`lib/play-log.ts`, research only): each play on a published puzzle is logged
+move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solving, leaving the tab)
+under a random id kept in the browser, never the account, and sent in batches to `POST /api/plays`
+(*plays*, *play_events*). It's on unless the player turns it off in Settings or on the privacy page
+(`components/ShareSolves.tsx`); off forgets the id and sends nothing more.
+Players include children, many signed out, so the logs are for inkit's own puzzles only (difficulty,
+quality, hints): never share or publish per-player logs, never tie them to an account or use them to
+reach a player; research published outside inkit uses aggregates. That keeps them within COPPA's
+internal-operations exception, which the privacy page's notice relies on.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
-**AI creators** (`app/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
+**AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as
 drafts with `publish_at`, and the Worker's cron publishes each at its time.
 

@@ -21,7 +21,7 @@
 // instances and earlier facts that entails it, found by deletion in a Lua script inside clingo.
 // A step's cost counts the distinct rule and clue kinds, the instances and the earlier facts
 // (costOf). Each round takes the cheapest steps; the profile combines step costs by soft-max
-// (softmax) and adds rule load (estimateOf).
+// (softmax) and adds rule load and case splits (estimateOf).
 import { readFileSync } from "node:fs";
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
@@ -114,6 +114,10 @@ export interface Profile {
 export interface Options {
   /** stop deducing after this long (the profile says so; default 20 s) */
   budgetMs?: number;
+  /** stop deducing after this many clingo calls as well (or DEDUCE_BUDGET_CALLS): a budget that
+   *  doesn't depend on the machine or its load, so a solve that runs out does so at the same place
+   *  every time. With it, a wall-clock budget left unset is a minute and a half (a guard only) */
+  budgetCalls?: number;
   /** tier-1 windows at most (smallest first) */
   maxPairWindows?: number;
   /** marks tried as tier-2 case splits per clingo call (most constrained first) */
@@ -136,6 +140,7 @@ export interface Options {
    *  labels, without our solve). With `answer` (the solution's true marks, from elsewhere) those
    *  first facts are checked against it; without, no answer is looked for. Returns no steps. */
   setupOnly?: boolean;
+  /** the answer's true marks, if known (setupOnly, above; or a solve, which then doesn't look for it) */
   answer?: string[];
   /** extra window families (or DEDUCE_FAMILIES, as JSON): checked with the pairs */
   families?: FamilySpec[];
@@ -159,6 +164,12 @@ export interface Options {
    *  says unsolved, with a note); 2 allows shallow case splits (refuted by propagation alone) but no
    *  search, and spends no clingo time on deep candidates. Default 3 */
   maxTier?: Tier;
+  /** Aim 4, step 2: check each stage's windows likeliest first. The share given (0–1) of a stage's
+   *  windows, ranked by WINDOW_ODDS, is checked first, and the rest only if those find nothing, so
+   *  a round takes the cheapest step among the likely windows' (the path can change; nothing
+   *  unsound is taken, and a stage that finds nothing still checks everything). Default (or
+   *  DEDUCE_RANK) off, 0.3 with `finish`. */
+  rankWindows?: number;
   /** case splits (tier-2 steps) allowed in the whole solve: past this many it stops, unsolved, with
    *  a note (bands.ts's "beyond": a few shallow splits, not a split-driven solve). Default no limit */
   maxSplitSteps?: number;
@@ -314,6 +325,10 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
   // one before it beside it too (dead ends)
   distance: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
   deadends: (p) => !p.figure && p.rules.some((r) => r.rule === "number-path"),
+  // Shaded or unshaded cells that must join (Nurikabe, Hitori, Cave...): a cell they can't do without
+  joins: (p) => p.grid.kind === "square" && !p.figure && p.marks.includes("shade") && p.rules.some((r) => r.rule === "connected" || r.rule === "unshaded-connected"),
+  // Nurikabe: where each island can still grow
+  islands: (p) => p.grid.kind === "square" && !p.figure && p.marks.includes("shade") && ["size-clue", "connected"].every((x) => p.rules.some((r) => r.rule === x)) && p.rules.some((r) => r.rule === "one-each" && r.of === "number"),
   // Easy as ABC: a letter's places in two rows and two columns (an X-wing)
   fish: (p) => p.grid.kind === "square" && !p.figure && p.rules.some((r) => r.rule === "letters"),
   // Fill-in: the entries each slot still fits, the slots each entry still fits (needs Options.cellAtoms)
@@ -325,12 +340,22 @@ export const TECHNIQUES: Record<string, (p: Puzzle, genre?: string) => boolean> 
  *  flattens Tatham's Singles grades as priced now (0.71/0.80 to 0.58/0.44); citing the group's
  *  cells (DEDUCE_COMPONENT_CITE) brings Singles back (0.70/0.84) but not Puzzle Square JP's
  *  Hitori (0.66 to 0.40). */
-export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[] }> = {
+// (cellAtoms: Options.cellAtoms. Spiral Galaxies' helper atoms have no footprint without it, so every
+// window held the whole puzzle; past 8 × 8 or so each was too big to check, and only case splits went
+// on: none of 16 dev-set 10 × 10s finished in 60 s; with it, 3 of 3 tried in 13-29 s, 2026-10-21)
+export const FINISH: Record<string, { techniques?: string[]; lemmas?: string[]; cellAtoms?: boolean; knownByCell?: boolean }> = {
   numberlink: { techniques: ["routes", "unique", "ends", "owners", "cuts"] },
   fillomino: { techniques: ["sizes", "shapes"] },
+  // (knownByCell, see explainByClingo, is off: much faster on Hidoku, but no rated Hidokus exist to
+  // judge it by, and on fresh Sudokus it took agreement 0.75 → 0.48, 2026-10-22)
   hidoku: { techniques: ["distance", "deadends"] },
   "honeycomb-paths": { techniques: ["distance", "deadends"] },
+  // (not joins: with it Tatham's Singles agreement falls from 0.75 to 0.22, as the component
+  // lemma's did; it needs pricing first)
   hitori: { lemmas: ["component"] },
+  nurikabe: { techniques: ["islands", "joins"] },
+  cave: { techniques: ["joins"] },
+  "spiral-galaxies": { cellAtoms: true },
 };
 /** Techniques that hold only because the puzzle has one answer (a published puzzle does; a
  *  generator's candidate may not): kept out of the generator's bands. */
@@ -359,6 +384,9 @@ const SPLIT_LIMIT = 50, DEEP_LIMIT = 3000;
 /** Step cost = 1 per distinct rule or clue kind held in mind + GROUP_COST per rule instance (a
  *  row, a box, a clue) + FACT_COST per earlier fact used + a case split's surcharge. */
 export const GROUP_COST = 0.5, FACT_COST = 0.2, TIER_COST = [0, 0, 2, 4] as const;
+/** explanations take a cell's known digits as one fact (DEDUCE_KNOWN_BY_CELL=1, or a finish set's
+ *  knownByCell; =0 off): see explainByClingo */
+const KNOWN_BY_CELL_ENV = process.env.DEDUCE_KNOWN_BY_CELL;
 /** Each round takes every step within SLACK of the cheapest (Options.minPeak: within PEAK_TIE). */
 const SLACK = 1, PEAK_TIE = 0.05;
 /** the component lemma's constraints cite the group's cells (DEDUCE_COMPONENT_CITE=1): see
@@ -368,6 +396,34 @@ const COMPONENT_CITE = process.env.DEDUCE_COMPONENT_CITE === "1";
  *  for a model of the whole call every time deletion keeps an element (a 10 × 10 Hidoku: 33 ms a
  *  fact at 900,000, 10 ms at 100,000) */
 const EXPLAIN_CHUNK = Number(process.env.DEDUCE_EXPLAIN_CHUNK) || 100_000;
+/** clingo's search settings for the window checks (cautious consequences: what holds in every
+ *  answer). Each refinement must drop a fact from the running intersection, and by default clingo
+ *  finds the answer nearest the last one, so a call over a few hundred windows took thousands of
+ *  answers to drop nothing at a time; random signs, no saved phases and a restart after each answer
+ *  make each answer differ widely (a Star Battle call: 3,680 answers, 1.2 s → 6, 0.06 s). The
+ *  consequences are the same whatever the search does, so every path is unchanged.
+ *  DEDUCE_CAUTIOUS_SLOW=1 puts back clingo's defaults (to compare). */
+const CAUTIOUS = process.env.DEDUCE_CAUTIOUS_SLOW === "1" ? [] : ["--save-progress=0", "--sign-def=rnd", "--restart-on-model"];
+/** Explanations build each window's ground program through clingo's backend from number tables
+ *  (the rules are ground already), not as ASP text clingo must parse and ground again: about half
+ *  of an explanation call was reading the text. The same rules, switches and deletion order, so
+ *  the same sets. DEDUCE_EXPLAIN_TEXT=1 goes back to the text (to compare). */
+const EXPLAIN_TEXT = process.env.DEDUCE_EXPLAIN_TEXT === "1";
+/** Aim 4, step 3: an explanation's deletion starts from the elements clasp's refutation used (its
+ *  unsat core) instead of the whole window, so far fewer solves. Still a subset-minimal set, but
+ *  not always the same one, so step prices (and paths) can move. Off by default (DEDUCE_CORE=1);
+ *  needs the backend (not EXPLAIN_TEXT). */
+const EXPLAIN_CORE = process.env.DEDUCE_CORE === "1" && !EXPLAIN_TEXT;
+/** DEDUCE_CORE=wide: core-seeded deletion only for case splits' and searches' explanations (wide
+ *  steps), most of the explaining on loop genres, the windows' left as they are (on with `finish`;
+ *  DEDUCE_CORE=0 turns it off there) */
+/** the largest window program (characters) an explanation is tried for; DEDUCE_EXPLAIN_MAX */
+const EXPLAIN_MAX = Number(process.env.DEDUCE_EXPLAIN_MAX ?? 900_000);
+const WIDE_CORE = process.env.DEDUCE_CORE === "wide" && !EXPLAIN_TEXT;
+/** Options.rankWindows' logistic weights (lsize, lmarks, lopen, lchanged, changed share, open
+ *  share, found last time, found nothing last time; per kind of window; fit 2026-10-21) */
+const WINDOW_ODDS = { b: -3.5217, w: [0.3831, -0.1833, 0.4256, 0.0089, 3.0288, -2.3744, 2.2513, 1.3486],
+  kinds: { area: 0.4048, around: 0.1545, clue: 0.7796, column: 0.1435, count: 0.0493, pair: -2.7454, row: 0.048, strip: -2.2674 } as Record<string, number> };
 /** clingo solves allowed per explanation (deletion stops there, keeping a larger set) */
 const MUS_SOLVES = 400;
 
@@ -471,19 +527,21 @@ function givenCells(p: Puzzle, g: Given): number[] {
 const STRUCTURE = new Set(["start", "end", "block", "gap", "wall", "door", "bank", "lengths", "peg"]);
 
 /** Solve `spec` step by step. */
-export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean; open: number }[] }> {
-  const t0 = Date.now(), budget = opts.budgetMs ?? 20000;
+export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path: Step[]; menus?: (Step & { stage: number })[][]; profile: Profile; trace?: TraceRow[]; timing?: { buildMs: number; clingoMs: number; phases: Record<string, number> }; answer?: string[]; initial?: string[]; structure?: Structure; usage?: { used: number; of: number }; search?: Record<string, unknown>; sims?: { path: Step[]; solved: boolean; open: number }[] }> {
+  const budgetCalls = opts.budgetCalls ?? (process.env.DEDUCE_BUDGET_CALLS ? Number(process.env.DEDUCE_BUDGET_CALLS) : undefined);
+  const t0 = Date.now(), budget = opts.budgetMs ?? (budgetCalls !== undefined ? 90000 : 20000);
   const maxPairs = opts.maxPairWindows ?? 1500, maxSplits = opts.maxSplits ?? 300, maxDeep = opts.maxDeep ?? 12;
   await loadClingo();
   const p = makePuzzle(spec), g = p.grid, n = g.cellCount, notes: string[] = [];
   let calls = 0;
+  const overBudget = () => Date.now() - t0 > budget || (budgetCalls !== undefined && calls > budgetCalls);
   const dbg = (what: string) => { if (process.env.DEDUCE_DEBUG) console.error(`${Date.now() - t0} ms: ${what}`); };
   // the rectangle puzzles have a local encoding (./local.ts); everything else, the engine's
   // DEDUCE_TECHNIQUES: the default techniques ("all": every one, where it applies)
   const techEnv = process.env.DEDUCE_TECHNIQUES === "all" ? Object.keys(TECHNIQUES) : process.env.DEDUCE_TECHNIQUES?.split(",").filter(Boolean);
   const finish = (opts.finish ?? process.env.DEDUCE_FINISH === "1") ? FINISH[spec.genre ?? ""] ?? {} : {};
   const techOn = new Set([...(opts.techniques ?? techEnv ?? []), ...(finish.techniques ?? [])].filter((t) => techniqueApplies(t, p, spec.genre)));
-  const local = localProgram(p, spec.genre, techOn.has("rects") || techOn.has("rectpairs"));
+  const local = localProgram(p, spec.genre, techOn.has("rects") || techOn.has("rectpairs"), !!(opts.finish ?? process.env.DEDUCE_FINISH === "1"));
   // rule blocks past the puzzle's own rules: lemmas the solver adds (loop parity; components and
   // their exits, added while solving)
   const lemmaNames: string[] = [];
@@ -504,22 +562,24 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   const ruleName = (block: number) => (block < p.rules.length ? p.rules[block].rule : lemmaNames[block - p.rules.length]);
   // Options.cellAtoms: Spiral Galaxies' gal(I,G) (cell I is in galaxy G) shown, to take cell I as
   // its footprint
-  const galAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "galaxies") && !local;
+  const galAtoms = !!(opts.cellAtoms ?? finish.cellAtoms) && p.rules.some((r) => r.rule === "galaxies") && !local;
   // and Fill-in's put(E,S) (entry E goes in slot S), footprint the slot's cells
-  const putAtoms = !!opts.cellAtoms && p.rules.some((r) => r.rule === "fill-in") && !local;
+  const putAtoms = !!(opts.cellAtoms ?? finish.cellAtoms) && p.rules.some((r) => r.rule === "fill-in") && !local;
   const slots = putAtoms ? fillSlots(p) : [];
-  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
+  const prog = local ? `${local.text}\n#external rbk(0..${Math.max(0, p.rules.length - 1, local.free ?? 0)}).\n#show rbk/1.` : `${taggedProgram(p)}${parity ? `\n${parity}` : ""}${galAtoms ? "\n#show gal/2." : ""}${putAtoms ? "\n#show put/2." : ""}`;
   const G: Ground = parseAspif(ground(prog));
   dbg(`ground: ${G.rules.length} rules${local ? " (local encoding)" : ""}`);
   calls++;
 
   // ---- blocks: strip the rbk tags ----
-  const tagAtom = new Map<number, number>();
+  const tagAtom = new Map<number, number>(), freeRules = new Set<unknown>();
   for (const [name, lit] of G.outputs) { const m = /^rbk\((\d+)\)$/.exec(name); if (m && lit > 0) tagAtom.set(lit, +m[1]); }
   for (const r of G.rules) {
     if (!tagAtom.size) break;
     const k = r.body.findIndex((l) => tagAtom.has(l));
     if (k >= 0) { r.block = tagAtom.get(r.body[k])!; r.body.splice(k, 1); if (r.bound !== null) r.weights.splice(k, 1); }
+    // (a local encoding's definitions, Local.free: no rule's, and no group in any explanation)
+    if (local?.free !== undefined && r.block === local.free) { r.block = -1; freeRules.add(r); }
   }
   const rules = G.rules;
 
@@ -547,6 +607,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // chosen freely, from facts), every constraint over them would hold in every window, so each
   // window would hold the whole puzzle
   if (galAtoms) for (const [name, lit] of G.outputs) { const x = /^gal\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); }
+  if (local?.cellAtoms) { const re = new RegExp(`^(?:${local.cellAtoms.join("|")})\\((\\d+),`); for (const [name, lit] of G.outputs) { const x = re.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, [+x[1]]); } }
   if (putAtoms) for (const [name, lit] of G.outputs) { const x = /^put\((\d+),(\d+)\)$/.exec(name); if (x && lit > 0) fp[lit] = bitsOf(n, slots[+x[2]]); }
   const defs: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
   const usedIn: number[][] = Array.from({ length: G.maxAtom + 1 }, () => []);
@@ -617,10 +678,11 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the answer (to aim case splits at, and to check every deduction against) ----
   calls++;
   // (a local encoding gives the same answer as the engine's: tests/unit/deduce-local.test.ts)
-  // (setupOnly: the answer given, or none looked for)
+  // (setupOnly: the answer given, or none looked for; otherwise the answer given, if one is, is
+  // taken as it is: a published puzzle comes with it, and a wrong one shows as a wrong fact)
   const answer = new Uint8Array(M), markOf = new Map(markName.map((x, m) => [x, m]));
   for (let m = 0; m < M; m++) if (markAtom[m] === 0) answer[m] = 1;
-  if (!opts.setupOnly) {
+  if (!opts.setupOnly && !opts.answer) {
     const first = clingoJson(local ? local.plain : program(p), 1);
     if (first.Result !== "SATISFIABLE") throw new Error("the puzzle has no solution");
     for (const v of first.Call?.[0]?.Witnesses?.[0]?.Value ?? []) { const m = markOf.get(v); if (m !== undefined) answer[m] = 1; }
@@ -857,7 +919,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     constraints.forEach((k, j) => { if (cellsOf(cfp[j]).length) for (const w of within(j)) { const key = `${rules[k].block}|${w.label}`; count.set(key, (count.get(key) ?? 0) + 1); } });
     constraints.forEach((k, j) => {
       const cs = cellsOf(cfp[j]), block = rules[k].block;
-      if (block < 0 && cs.length <= 1) return;
+      if (block < 0 && (cs.length <= 1 || freeRules.has(rules[k]))) return;
       const kind = block >= 0 ? ruleName(block) : "regions";
       const u = cs.length ? within(j).sort((a, b) => (count.get(`${block}|${b.label}`) ?? 0) - (count.get(`${block}|${a.label}`) ?? 0) || a.size - b.size)[0] : undefined;
       const label = u ? u.label : cs.length === 0 || cs.length > cap0 ? "the whole grid" : cs.length <= 3 ? cs.map(rc).join(" ") : `near ${rc(cs[0])}–${rc(cs.at(-1)!)}`;
@@ -913,8 +975,17 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // ---- the solve ----
   const path: Step[] = [];
   const decidedAt = new Int32Array(M).fill(-1);   // the round each mark was settled in
-  const trace: TraceRow[] = [], lastFound = new Map<Window, number>(), timing = { buildMs: 0, clingoMs: 0 };
+  const trace: TraceRow[] = [], lastFound = new Map<Window, number>(), timing = { buildMs: 0, clingoMs: 0, phases: {} as Record<string, number> };
   const evaluatedAt = new Map<Window, number>();
+  // where the time goes (timing.phases, ms): each named phase exclusive of the phases it calls;
+  // "setup" is everything before the solve, "other" the rest
+  timing.phases.setup = Date.now() - t0;
+  let phase = "other", phaseT = Date.now();
+  const switchTo = (to: string) => { const now = Date.now(); timing.phases[phase] = (timing.phases[phase] ?? 0) + now - phaseT; phase = to; phaseT = now; };
+  const timed = <A extends unknown[], R>(name: string, f: (...a: A) => R) => (...a: A): R => {
+    const prev = phase; switchTo(name);
+    try { return f(...a); } finally { switchTo(prev); }
+  };
   let round = 0, undecided = known.filter((v) => v < 0).length, outOfTime = false;
   const settle = (m: number, v: boolean) => {
     if (known[m] >= 0) return false;
@@ -924,7 +995,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   };
 
   /** Cautious consequences of each (changed) window; returns the windows' new facts. */
-  const runWindows = (ws: Window[]): Map<Window, [number, boolean][]> => {
+  const runWindows = timed("windows", (ws: Window[]): Map<Window, [number, boolean][]> => {
     const todo = ws.filter((w) => {
       const pr = progOf(w);
       if (!pr.marks.some((m) => known[m] < 0)) return false;
@@ -947,7 +1018,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       calls++;
       const tc = Date.now();
       timing.buildMs += tc - tb;
-      const res = clingoJson(["asp 1 0 0", ...lines, "0"].join("\n"), 0, ["--enum-mode=cautious", "--quiet=1"]);
+      const res = clingoJson(["asp 1 0 0", ...lines, "0"].join("\n"), 0, ["--enum-mode=cautious", "--quiet=1", ...CAUTIOUS]);
       timing.clingoMs += Date.now() - tc;
       dbg(`round ${round}: ${members.length} windows, ${chars} chars, ${res.Call?.[0]?.Witnesses?.length} models, ${Date.now() - tc} ms`);
       if (res.Result === "UNSATISFIABLE") throw new Error("a window has no answer: the known facts are wrong");
@@ -984,6 +1055,23 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
     for (const w of todo) lastFound.set(w, found.has(w) ? 1 : 0);
     if (opts.trace) for (const [w, r] of rowsHere) { r.facts = found.get(w)?.length ?? 0; trace.push(r); }
     return found;
+  });
+
+  // Aim 4, step 2 (Options.rankWindows): how likely a window's check is to find a fact, a logistic
+  // fit on the traces of 35 dev-set solves (held-out AUC 0.88); features as in TraceRow
+  // (the finish set ranks windows: the guard check of 2026-10-21 found agreement with Puzzle Square
+  // JP's and Tatham's ratings unchanged at 0.3)
+  const finishing = opts.finish ?? process.env.DEDUCE_FINISH === "1";
+  const knownByCell = KNOWN_BY_CELL_ENV === "1" || (KNOWN_BY_CELL_ENV !== "0" && !!finish.knownByCell);
+  const rankShare = opts.rankWindows ?? (process.env.DEDUCE_RANK !== undefined ? Number(process.env.DEDUCE_RANK) || 0 : finishing ? 0.3 : 0);
+  const windowOdds = (w: Window): number => {
+    const pr = progOf(w), marks = pr.marks.length, open = pr.marks.filter((m) => known[m] < 0).length, last = evaluatedAt.get(w);
+    if (!open) return -Infinity;
+    const changed = last === undefined ? marks : pr.marks.filter((m) => decidedAt[m] >= last).length, before = lastFound.get(w) ?? -1;
+    const x = [Math.log1p(w.size), Math.log1p(marks), Math.log1p(open), Math.log1p(changed), changed / Math.max(1, marks), open / Math.max(1, marks), before === 1 ? 1 : 0, before === 0 ? 1 : 0];
+    let z = WINDOW_ODDS.b + x.reduce((a, v, i) => a + v * WINDOW_ODDS.w[i], 0);
+    z += WINDOW_ODDS.kinds[windowKind(w.label)] ?? 0;
+    return z;
   };
 
   // ---- explanations ----
@@ -1003,7 +1091,7 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
   // starting deletion from the rules round a fact's cells instead moved Sudoku 2's hardest step
   // from 5.9 to 3.7, so it waits for a refit).
   const techBlocks = new Set(techBlock.values());
-  const explain = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
+  const explain = timed("explain", (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
     const out = new Map<Window, (Expl | null)[]>(), rest: { w: Window; facts: [number, boolean][] }[] = [], at = new Map<Window, number[]>();
     for (const job of jobs) {
       // literal → the cheapest such constraint, with the known facts the rest of its body needs
@@ -1035,40 +1123,111 @@ export async function deduce(spec: GridSpec, opts: Options = {}): Promise<{ path
       out.set(w, res);
     }
     return out;
-  };
+  });
   const explainByClingo = (jobs: { w: Window; facts: [number, boolean][] }[]): Map<Window, (Expl | null)[]> => {
     const out = new Map<Window, (Expl | null)[]>();
-    let text: string[] = [], tables: string[] = [], members: { w: Window; facts: [number, boolean][] }[] = [];
+    let text: string[] = [], tables: string[] = [], data: string[] = [], members: { w: Window; facts: [number, boolean][] }[] = [];
     const flush = () => {
       if (!members.length) return;
       calls++;
-      const lua = `#script (lua)
-local function S(n, W, x) return clingo.Function(n, {clingo.Number(W), clingo.Number(x)}) end
-function main(prg)
-  prg:ground({{"base", {}}})
+      // the script, from the windows' text (EXPLAIN_TEXT) or their number tables (data): each
+      // window W is { W, its groups, its known marks, the facts to explain, and (data) its atom
+      // count, its rules flat [type (0 rule, 1 choice, 2 constraint; +3 with a weight body), gate
+      // (0 none, -1 e, g + 1), heads n, heads..., body n, body..., (weight) bound, weights...], the
+      // known marks' forbidden literals, the facts' forbidden literals }
+      const build = EXPLAIN_TEXT ? `  prg:ground({{"base", {}}})
   local wins = {${tables.join(",")}}
   for _, w in ipairs(wins) do
     local W = w[1]
     local elems = {}
-    for _, G in ipairs(w[2]) do elems[#elems + 1] = {"g", G, S("g", W, G)} end
-    for _, m in ipairs(w[3]) do elems[#elems + 1] = {"k", m, S("k", W, m)} end
+    for _, G in ipairs(w[2]) do elems[#elems + 1] = {"g", G, {S("g", W, G), true}} end
+    for _, m in ipairs(w[3]) do elems[#elems + 1] = {"k", m, {S("k", W, m), true}} end
     local on = {clingo.Function("e", {clingo.Number(W)}), true}
+    local tOf = function(m) return {S("t", W, m), true} end` : `  local wins = {${data.join(",")}}
+  local b = prg:backend()
+  local built = {}
+  for _, w in ipairs(wins) do
+    local A = {}
+    for i = 1, w[5] do A[i] = b:add_atom() end
+    local function lit(x) if x > 0 then return A[x] else return -A[-x] end end
+    local e, gA, kA, tA, free = b:add_atom(), {}, {}, {}, {}
+    free[1] = e
+    for _, G in ipairs(w[2]) do gA[G] = b:add_atom(); free[#free + 1] = gA[G] end
+    for _, m in ipairs(w[3]) do kA[m] = b:add_atom(); free[#free + 1] = kA[m] end
+    for _, m in ipairs(w[4]) do tA[m] = b:add_atom(); free[#free + 1] = tA[m] end
+    b:add_rule{head = free, body = {}, choice = true}
+    local R, i = w[6], 1
+    while i <= #R do
+      local ty, gate, h, body = R[i], R[i + 1], {}, {}
+      local nh = R[i + 2]
+      for j = 1, nh do h[j] = A[R[i + 2 + j]] end
+      i = i + 3 + nh
+      local nb = R[i]
+      for j = 1, nb do body[j] = lit(R[i + j]) end
+      i = i + 1 + nb
+      if ty >= 3 then
+        ty = ty - 3
+        local wl = {}
+        for j = 1, nb do wl[j] = {body[j], R[i + j]} end
+        local aux = b:add_atom()
+        b:add_weight_rule{head = {aux}, lower = R[i], body = wl}
+        body = {aux}
+        i = i + 1 + nb
+      end
+      if gate == -1 then body[#body + 1] = e elseif gate > 0 then body[#body + 1] = gA[gate - 1] end
+      b:add_rule{head = h, body = body, choice = ty == 1}
+    end
+    for j, m in ipairs(w[3]) do for _, x in ipairs(w[7][j]) do b:add_rule{head = {}, body = {lit(x), kA[m]}} end end
+    for j, m in ipairs(w[4]) do b:add_rule{head = {}, body = {lit(w[8][j]), tA[m]}} end
+    built[#built + 1] = {e, gA, kA, tA}
+  end
+  b:close()
+  for n, w in ipairs(wins) do
+    local W = w[1]
+    local e, gA, kA, tA = built[n][1], built[n][2], built[n][3], built[n][4]
+    local elems = {}
+    for _, G in ipairs(w[2]) do elems[#elems + 1] = {"g", G, gA[G]} end
+    for _, m in ipairs(w[3]) do elems[#elems + 1] = {"k", m, kA[m]} end
+    local on = e
+    local tOf = function(m) return tA[m] end`;
+      const lua = `#script (lua)
+local function S(n, W, x) return clingo.Function(n, {clingo.Number(W), clingo.Number(x)}) end
+function main(prg)
+${build}
     local solves = 0
     local function unsat(t, set)
-      local a = {on, {t, true}}
-      for _, i in ipairs(set) do a[#a + 1] = {elems[i][3], true} end
+      local a = {on, t}
+      for _, i in ipairs(set) do a[#a + 1] = elems[i][3] end
       solves = solves + 1
       return prg:solve({assumptions = a}).unsatisfiable == true
     end
     local cache = {}
+    -- (EXPLAIN_CORE) the whole set's check, and if it holds, deletion starts from clasp's core:
+    -- the elements the refutation used, in their order
+    local function coreOf(t, set)
+      local a = {on, t}
+      for _, i in ipairs(set) do a[#a + 1] = elems[i][3] end
+      solves = solves + 1
+      local h = prg:solve({assumptions = a, yield = true})
+      local r = h:get()
+      if r.unsatisfiable ~= true then h:close() return false end
+      local inCore = {}
+      for _, l in ipairs(h:core()) do inCore[math.floor(l)] = true end
+      h:close()
+      local keep = {}
+      for _, i in ipairs(set) do if inCore[elems[i][3]] then keep[#keep + 1] = i end end
+      for k = #set, 1, -1 do set[k] = nil end
+      for k, i in ipairs(keep) do set[k] = i end
+      return true
+    end
     for _, m in ipairs(w[4]) do
-      local t = S("t", W, m)
+      local t = tOf(m)
       local found, capped = nil, false
       for _, c in ipairs(cache) do if unsat(t, c) then found = c break end end
       if not found then
         local set = {}
         for i = 1, #elems do set[i] = i end
-        if unsat(t, set) then
+        if ${EXPLAIN_CORE || coreNow ? "coreOf(t, set)" : "unsat(t, set)"} then
           local size = math.max(1, math.floor(#set / 2))
           while true do
             local i = 1
@@ -1091,13 +1250,14 @@ function main(prg)
         print("E " .. W .. " " .. m .. " " .. (capped and "1" or "0") .. " " .. table.concat(parts, ","))
       else print("X " .. W .. " " .. m) end
     end
+    print("S " .. solves)
   end
 end
 #end.
 `;
       const te = Date.now();
-      const { lines, status, errors } = clingoRaw(lua + text.join("\n"), "--outf=3");
-      dbg(`explain: ${members.length} windows, ${members.reduce((a, j) => a + j.facts.length, 0)} facts, ${text.reduce((a, l) => a + l.length, 0)} chars, ${Date.now() - te} ms`);
+      const { lines, status, errors } = clingoRaw(EXPLAIN_TEXT ? lua + text.join("\n") : lua, "--outf=3");
+      dbg(`explain: ${lines.filter((l) => l.startsWith("S ")).reduce((a, l) => a + +l.slice(2), 0)} solves, ${members.length} windows, ${members.reduce((a, j) => a + j.facts.length, 0)} facts, ${text.reduce((a, l) => a + l.length, 0)} chars, ${Date.now() - te} ms`);
       if (status === 33 || status === 65 || status === 128) throw new Error(`clingo failed (${status}): ${errors.join("\n").slice(0, 300)}`);
       for (const l of lines) {
         const x = /^([EX]) (\d+) (\d+)(?: (\d) ?(.*))?$/.exec(l);
@@ -1108,7 +1268,7 @@ end
         const parts = (x[5] ?? "").split(",").filter(Boolean);
         out.get(job.w)![k] = { groups: parts.filter((q) => q[0] === "g").map((q) => +q.slice(1)), facts: parts.filter((q) => q[0] === "k").map((q) => +q.slice(1)), capped: x[4] === "1" };
       }
-      text = []; tables = []; members = [];
+      text = []; tables = []; data = []; members = [];
     };
     let chars = 0;
     for (const job of jobs) {
@@ -1135,10 +1295,37 @@ end
       // free externals: switched on by assumptions, otherwise the solver may leave them off
       mine.push(`#external e(${W}). [free]`, ...[...gs].map((gi) => `#external g(${W},${gi}). [free]`), ...kn.map((m) => `#external k(${W},${m}). [free]`), ...job.facts.map(([m]) => `#external t(${W},${m}). [free]`));
       const table = `{${W},{${[...gs].join(",")}},{${kn.join(",")}},{${job.facts.map(([m]) => m).join(",")}}}`;
+      // (chunks are cut by the text's size either way, so a window is explained in the same company)
       const size = mine.reduce((x, l) => x + l.length + 1, 0) + table.length;
-      if (size > 900_000) { notes.push(`${job.w.label}: too big to explain`); continue; }
+      let datum = "";
+      if (!EXPLAIN_TEXT) {
+        const local = new Map<number, number>(), id = (a: number) => { let i = local.get(a); if (i === undefined) local.set(a, (i = local.size + 1)); return i; };
+        const lid = (l: number) => (l < 0 ? -id(-l) : id(l));
+        const flat: number[] = [];
+        for (const k of pr.rules) {
+          const r = rules[k], j = consOf[k], gi = j >= 0 ? groupOf[j] : -1;
+          if (j < 0 && r.choice && !r.head.length) continue;
+          const ty = (j >= 0 ? 2 : r.choice ? 1 : 0) + (r.bound === null ? 0 : 3);
+          const gate = j >= 0 ? (gi >= 0 ? gi + 1 : -1) : r.choice ? -1 : 0;
+          const head = j >= 0 ? [] : r.head.map(id);
+          flat.push(ty, gate, head.length, ...head, r.body.length, ...r.body.map(lid));
+          if (r.bound !== null) flat.push(r.bound, ...r.weights);
+        }
+        // the known marks, one element each; or (KNOWN_BY_CELL) a cell's known digits as one, what's
+        // left in it, as a person reads a cell's candidates (an explanation then counts the cells)
+        const reps: number[] = [], lits: number[][] = [], at = new Map<string, number>();
+        for (const m of kn) {
+          const key = knownByCell && markName[m].startsWith("digit(") ? `c${markCells[m][0]}` : `m${m}`;
+          let j = at.get(key);
+          if (j === undefined) { j = reps.length; at.set(key, j); reps.push(m); lits.push([]); }
+          lits[j].push(known[m] ? -id(markAtom[m]) : id(markAtom[m]));
+        }
+        const tl = job.facts.map(([m, v]) => (v ? id(markAtom[m]) : -id(markAtom[m])));
+        datum = `{${W},{${[...gs].join(",")}},{${reps.join(",")}},{${job.facts.map(([m]) => m).join(",")}},${local.size},{${flat.join(",")}},{${lits.map((l) => `{${l.join(",")}}`).join(",")}},{${tl.join(",")}}}`;
+      }
+      if (size > EXPLAIN_MAX) { notes.push(`${job.w.label}: too big to explain (${size} characters)`); continue; }
       if (members.length && chars + size > EXPLAIN_CHUNK) { flush(); chars = 0; return explainRest(jobs.slice(jobs.indexOf(job)), out); }
-      members.push(job); text.push(...mine); tables.push(table); chars += size;
+      members.push(job); text.push(...mine); tables.push(table); data.push(datum); chars += size;
     }
     flush();
     return out;
@@ -1219,7 +1406,7 @@ end
    *  it, and facts with the same explanation make one step. */
   const explained = new Map<string, { stamp: number; e: Expl | null }>();
   const sigOf = (w: Window) => { let x = ""; for (const m of progOf(w).marks) x += known[m] < 0 ? "." : known[m]; return x; };
-  const candidates = (found: Map<Window, [number, boolean][]>, tier: Tier): (Step & { w: Window })[] => {
+  const candidates = (found: Map<Window, [number, boolean][]>, tier: Tier, pre?: Map<Window, (Expl | null)[]>): (Step & { w: Window })[] => {
     const ws = [...found.keys()].sort((a, b) => a.size - b.size);
     const claimed = new Set<number>(), jobs: { w: Window; facts: [number, boolean][] }[] = [];
     const stamp = (w: Window) => opts.search || opts.simulate ? 0 : progOf(w).marks.reduce((a, m) => Math.max(a, decidedAt[m]), -1);
@@ -1230,17 +1417,22 @@ end
       let x = sigs.get(w); if (x === undefined) { x = sigOf(w); sigs.set(w, x); }
       return `${w.label}|${m}|${x}`;
     };
+    const claimer = new Map<number, Window>();
     for (const w of ws) {
       const facts = found.get(w)!.filter(([m]) => !claimed.has(m));
-      for (const [m] of facts) claimed.add(m);
+      for (const [m] of facts) { claimed.add(m); claimer.set(m, w); }
       // explained before, with nothing new known in the window since: the same explanation
       const fresh = facts.filter(([m]) => explained.get(ek(w, m))?.stamp !== stamp(w));
       if (fresh.length) jobs.push({ w, facts: fresh });
     }
-    const ex = explain(jobs), steps: (Step & { w: Window })[] = [];
+    // (pre: the jobs' explanations, found already by the caller)
+    const ex = pre ?? explain(jobs), steps: (Step & { w: Window })[] = [];
     for (const { w, facts } of jobs) ex.get(w)?.forEach((e, k) => explained.set(ek(w, facts[k][0]), { stamp: stamp(w), e }));
     for (const w of ws) {
-      const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m)));
+      // (a fact another window claimed is listed here only with an explanation of its own: before
+      // 2026-10-22 it was listed unexplained when the claimer's was cached, and taken at times)
+      const facts = found.get(w)!.filter(([m]) => known[m] < 0 && claimed.has(m) && jobs.every((j) => j.w === w || !j.facts.some(([x]) => x === m))
+        && (claimer.get(m) === w || explained.has(ek(w, m))));
       if (!facts.length) continue;
       const es = facts.map(([m]) => explained.get(ek(w, m))?.e ?? null), byKey = new Map<string, Step & { w: Window }>();
       facts.forEach(([m, v], k) => {
@@ -1268,9 +1460,12 @@ end
   /** A fact found by a case split or search: explained in the smallest neighbourhood that
    *  entails it (the tier-0 windows through its cells, then those touching them, and so on),
    *  falling back to the whole grid. */
+  let coreNow = false;
   const wideStep = (m: number, v: boolean, tier: Tier) => {
     const tw = Date.now();
-    try { return wideStepIn(m, v, tier); } finally { dbg(`wide step: ${Date.now() - tw} ms`); }
+    // (on with `finish`: it passed the gate rule of 2026-10-21, means +0.002 / +0.004)
+    coreNow = WIDE_CORE || (finishing && process.env.DEDUCE_CORE === undefined && !EXPLAIN_TEXT);
+    try { return wideStepIn(m, v, tier); } finally { coreNow = false; dbg(`wide step: ${Date.now() - tw} ms`); }
   };
   const wideStepIn = (m: number, v: boolean, tier: Tier) => {
     let bits = bitsOf(n, markCells[m]);
@@ -1281,8 +1476,10 @@ end
       bits = next;
       const w: Window = { label: `around ${markCells[m].map(rc).join("/")} (${level + 1} deep)`, cells: cellsOf(bits), bits, size: cellsOf(bits).length };
       if (!progOf(w).marks.includes(m)) continue;
-      const e = explain([{ w, facts: [[m, v]] }]).get(w)?.[0];
-      if (e) return candidates(new Map([[w, [[m, v]]]]), tier)[0];
+      const tl = Date.now(), ex = explain([{ w, facts: [[m, v]] }]);
+      dbg(`wide step level ${level + 1}: ${w.size} cells, ${ex.get(w)?.[0] ? "explained" : "not entailed"}, ${Date.now() - tl} ms`);
+      // (handed on, so the step isn't explained a second time)
+      if (ex.get(w)?.[0]) return candidates(new Map([[w, [[m, v]]]]), tier, ex)[0];
     }
     return candidates(new Map([[ALL, [[m, v]]]]), tier)[0];
   };
@@ -1308,7 +1505,7 @@ end
   // solving, each with a window of the group and its neighbours; once true, true for good.
   const componentW: Window[] = [], lemmaSeen = new Set<string>(), firstAdded = constraints.length;
   let techAdded = 0;   // constraints the per-genre techniques added (counted apart from ROOM)
-  const addComponentLemmas = () => {
+  const addComponentLemmas = timed("lemmas", () => {
     if (g.kind !== "square" || p.figure || !lemmasOn.includes("component")) return;
     const kinds: [boolean, boolean][] = [[false, p.rules.some((r) => r.rule === "unshaded-connected")], [true, p.rules.some((r) => r.rule === "connected")]];
     // a cell's shading: true, false, null unknown, undefined blocked
@@ -1356,14 +1553,14 @@ end
         if (cells.length <= 3 * Math.max(g.rows, g.cols)) componentW.push(win(`the group at ${rc(comp[0])} and its ways out`, cells));
       }
     }
-  };
+  });
 
   // premature loops (Tatham's loop deductions): for a single loop, a known chain of line that isn't
   // all the line known can't close on itself, so the gap between its two ends stays empty. Added
   // as constraints while solving (the chain, the gap and one known piece of line elsewhere), each
   // with a window of the chain; once true, true for good.
   const LOOP = lemmaNames.indexOf("loop") >= 0 ? p.rules.length + lemmaNames.indexOf("loop") : -1;
-  const addLoopLemmas = () => {
+  const addLoopLemmas = timed("lemmas", () => {
     const loop = p.rules.find((r) => r.rule === "loop");
     if (LOOP < 0 || !loop || g.kind !== "square" || p.figure) return;
     const fence = loop.of === "fence";
@@ -1411,7 +1608,7 @@ end
       groups.push({ kind: "premature", label: `the line through ${rc(mid)}`, cells: cs, extent: chain.length });
       if (cs.length <= 4 * Math.max(g.rows, g.cols)) componentW.push(win(`the line ending at ${rc(mid)}`, cs));
     }
-  };
+  });
 
   // pockets (asked for again and again by the mining harness): for a loop, an open area of its
   // graph, the points (or cells) that still need line, joined by undecided edges, with the loose
@@ -2186,11 +2383,111 @@ end
     }
   };
 
-  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, routes: routesRound, unique: uniqueRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound };
-  const addTechniques = () => {
+  // Nurikabe (technique "islands"): where each island can still grow. An island is its number's
+  // known unshaded cells; it grows through cells not shaded and not beside another numbered
+  // island, at most its number less its size away. A cell no island can reach is shaded, and an
+  // island short of its number can't have every way out shaded. Each constraint holds given
+  // what's known (it only grows), as the component lemma's do.
+  const islandsRound = (): Window[] => {
+    if (g.kind !== "square") return [];
+    const atomAt = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? undefined : markAtom[m] || (known[m] === 1 ? 0 : undefined); };
+    const state = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
+    const nums = new Map<number, number>();
+    for (const [i, gs] of p.cellGivens) for (const x of gs) if (x.kind === "number" && typeof x.value === "number") nums.set(i, x.value);
+    const near = (i: number) => g.cellLinks[i].map((l) => otherEnd(l, i)).filter((d) => !p.blocked.has(d));
+    // the known unshaded groups, and their numbers
+    const comp = new Int32Array(n).fill(-1), comps: { cells: number[]; num: number[] }[] = [];
+    for (let i = 0; i < n; i++) {
+      if (comp[i] >= 0 || p.blocked.has(i) || state(i) !== 0) continue;
+      const cells = [i]; comp[i] = comps.length;
+      for (let k = 0; k < cells.length; k++) for (const d of near(cells[k])) if (comp[d] < 0 && state(d) === 0) { comp[d] = comps.length; cells.push(d); }
+      comps.push({ cells, num: cells.filter((c) => nums.has(c)) });
+    }
+    const islands = comps.map((c, k) => ({ ...c, k })).filter((c) => c.num.length === 1);
+    if (comps.some((c) => c.num.length > 1)) return [];
+    const reached = new Uint8Array(n), ws: Window[] = [];
+    for (const I of islands) {
+      const left = nums.get(I.num[0])! - I.cells.length;
+      if (left < 0) return [];
+      // beside another numbered island: never this one's
+      const ok = (d: number) => state(d) !== 1 && !(comp[d] >= 0 && comp[d] !== I.k && comps[comp[d]].num.length)
+        && !near(d).some((e) => comp[e] >= 0 && comp[e] !== I.k && comps[comp[e]].num.length);
+      const dist = new Int32Array(n).fill(-1), q = [...I.cells];
+      for (const c of q) { dist[c] = 0; reached[c] = 1; }
+      for (let k = 0; k < q.length; k++) {
+        const c = q[k];
+        if (dist[c] >= left) continue;
+        for (const d of near(c)) if (dist[d] < 0 && ok(d)) { dist[d] = dist[c] + 1; reached[d] = 1; q.push(d); }
+      }
+      // a cell it can't grow to its number without: without it, too few cells within reach
+      if (left > 0) {
+        const room = (cut: number) => {
+          const d2 = new Int32Array(n).fill(-1), q2 = [...I.cells];
+          for (const c of q2) d2[c] = 0;
+          let count = 0;
+          for (let k = 0; k < q2.length; k++) {
+            const c = q2[k];
+            if (dist[c] > 0) count++;
+            if (d2[c] >= left) continue;
+            for (const d of near(c)) if (d !== cut && d2[d] < 0 && dist[d] >= 0) { d2[d] = d2[c] + 1; q2.push(d); }
+          }
+          return count;
+        };
+        for (const c of q) if (dist[c] > 0 && state(c) < 0 && room(c) < left) {
+          const b = addTech("islands", [LIT(atomAt(c), true)], `what the island at ${rc(I.num[0])} needs`, I.cells.length);
+          if (b && I.cells.length + 1 <= techCap) ws.push(techWin(`islands: what ${rc(I.num[0])} needs`, unionBits(b, bitsOf(n, I.cells))));
+        }
+      }
+      // short of its number: some way out stays unshaded
+      if (left > 0) {
+        const out = [...new Set(I.cells.flatMap(near))].filter((d) => state(d) < 0);
+        const b = addTech("islands", out.map((d) => LIT(atomAt(d), true)), `the ways out of the island at ${rc(I.num[0])}`, I.cells.length);
+        if (b && I.cells.length + out.length <= techCap) ws.push(techWin(`islands: the ways out of ${rc(I.num[0])}`, unionBits(b, bitsOf(n, I.cells))));
+      }
+    }
+    for (let i = 0; i < n; i++) {
+      if (p.blocked.has(i) || state(i) >= 0 || reached[i]) continue;
+      if (addTech("islands", [LIT(atomAt(i), false)], `the islands that reach ${rc(i)}`)) ws.push(techWin(`islands: ${rc(i)}`, bitsOf(n, [i, ...near(i)])));
+    }
+    return ws;
+  };
+
+  // Shaded or unshaded cells that must all join (techniques "joins": rules connected and
+  // unshaded-connected): a cell they can't do without. Were an open cell to go the other way and
+  // two known cells of the kind be left with no way to each other through cells that could still
+  // be of it, they'd never join; so it goes their way. Each constraint holds given what's known.
+  const joinsRound = (): Window[] => {
+    if (g.kind !== "square") return [];
+    const state = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? 0 : known[m]; };
+    const atomAt = (i: number) => { const m = markOf.get(`shaded(${i})`); return m === undefined ? undefined : markAtom[m] || (known[m] === 1 ? 0 : undefined); };
+    const near = (i: number) => g.cellLinks[i].map((l) => otherEnd(l, i)).filter((d) => !p.blocked.has(d));
+    const ws: Window[] = [];
+    for (const [want, rule] of [[1, "connected"], [0, "unshaded-connected"]] as const) {
+      if (!p.rules.some((r) => r.rule === rule)) continue;
+      const kin = [...Array(n).keys()].filter((i) => !p.blocked.has(i) && state(i) === want);
+      if (kin.length < 2) continue;
+      // open cells whose loss parts the known cells: those still joined to the first without it
+      const parts = (cut?: number) => {
+        const seen = new Uint8Array(n), q = [kin[0]];
+        seen[kin[0]] = 1; if (cut !== undefined) seen[cut] = 1;
+        for (let k = 0; k < q.length; k++) for (const d of near(q[k])) if (!seen[d] && state(d) !== 1 - want) { seen[d] = 1; q.push(d); }
+        return kin.some((c) => !seen[c]);
+      };
+      if (parts()) continue;   // apart already: the solver's own rules will say so
+      for (let i = 0; i < n; i++) {
+        if (p.blocked.has(i) || state(i) >= 0 || !parts(i)) continue;
+        const b = addTech("joins", [LIT(atomAt(i), want === 0)], `what ${rc(i)} joins`);
+        if (b) ws.push(techWin(`joins: ${rc(i)}`, bitsOf(n, [i, ...near(i)])));
+      }
+    }
+    return ws;
+  };
+
+  const ROUNDS: Record<string, () => Window[]> = { sizes: () => sizesRound(true, techOn.has("shapes")), shapes: () => (techOn.has("sizes") ? [] : sizesRound(false, true)), owners: ownersRound, routes: routesRound, unique: uniqueRound, slots: slotsRound, fish: fishRound, rects: () => rectsRound(true, techOn.has("rectpairs")), rectpairs: () => (techOn.has("rects") ? [] : rectsRound(false, true)), mines: () => minesRound(true, false), chains: () => minesRound(false, true), ends: endsRound, cuts: cutsRound, mirror: mirrorRound, distance: distanceRound, deadends: deadendsRound, islands: islandsRound, joins: joinsRound };
+  const addTechniques = timed("lemmas", () => {
     if (!techOn.size) return;
     pushTechWindows([...techOn].flatMap((t) => ROUNDS[t]?.() ?? []));
-  };
+  });
 
   dbg("setup");
   // single cells first, silently: a given's own cell (a printed digit rules out the others)
@@ -2215,7 +2512,7 @@ end
     // listed only what changed near the last position)
     const lastFacts = new Map<Window, [number, boolean][]>();
     for (const add of opts.menus) {
-      if (Date.now() - t0 > budget) { outOfTime = true; break; }
+      if (overBudget()) { outOfTime = true; break; }
       round++;
       for (const name of add) { const m = markOf.get(name); if (m !== undefined) settle(m, answer[m] === 1); }
       addComponentLemmas(); addLoopLemmas(); addTechniques();
@@ -2260,7 +2557,7 @@ end
   /** One clingo call (a Lua script over the engine's program): for each candidate mark, assume
    *  it the other way from the answer and see what it takes to refute. The first `deepCount`
    *  candidates get a real search (tier 3); the rest only propagation (tier 2). */
-  const hardRound = (cand: number[], deepCount: number, deepLimit = DEEP_LIMIT) => {
+  const hardRound = timed("splits", (cand: number[], deepCount: number, deepLimit = DEEP_LIMIT) => {
     calls++;
     const lit = (m: number, v: boolean) => `{clingo.parse_term("${markName[m]}"), ${v}}`;
     const knowns: string[] = [];
@@ -2294,12 +2591,13 @@ end
     // the program case splits work on: the local encoding where there is one (small), else the engine's
     const { lines, status, errors } = clingoRaw(lua + (local ? local.plain : program(p)), "--outf=3 --stats --forget-on-step=varScores,signs,lemmaScores,lemmas");
     dbg(`hard round: ${cand.length} candidates, ${Date.now() - th} ms`);
+    if (process.env.DEDUCE_DEBUG_SPLITS) dbg(lines.filter((l) => l.startsWith("C ")).join(" | "));
     if (status === 33 || status === 65 || status === 128) throw new Error(`clingo failed (${status}): ${errors.join("\n").slice(0, 300)}`);
     return lines.flatMap((l) => {
       const x = /^C (\d+) (\w+) (\w+) (\d+) (\d+)$/.exec(l);
       return x ? [{ m: +x[1], sat: x[2] === "true", unsat: x[3] === "true", choices: +x[4], cost: +x[4] + +x[5] }] : [];
     });
-  };
+  });
   let pool: number[] = [], deep: { m: number; cost: number }[] = [], sat: number[] = [], escalated = false, escalatedDeep = false;
   let splitSteps = 0;   // tier-2 steps taken (Options.maxSplitSteps)
   // Options.minPeak: facts windows found that weren't taken yet (still sound: what's known only
@@ -2454,7 +2752,7 @@ end
     const chain = (name: string, push: (n: SNode) => void): SNode | null => {
       let n = root;
       while (n.open > 0) {
-        if (Date.now() - t0 > budget) { outBudget = true; return null; }
+        if (overBudget()) { outBudget = true; return null; }
         const c = expand(n);
         const next = c.find((x) => x.names.includes(name)) ?? c.find((x) => x.names.includes("split"));
         for (const x of c) if (x !== next) push(x.child);
@@ -2479,7 +2777,7 @@ end
     for (const x of later) push(x);
     let improvedAt = -1;
     while (queue.length && expanded < nodes) {
-      if (Date.now() - t0 > budget) { outBudget = true; break; }
+      if (overBudget()) { outBudget = true; break; }
       let bi = 0;
       for (let i = 1; i < queue.length; i++) if (queue[i].f < queue[bi].f) bi = i;
       const { n } = queue.splice(bi, 1)[0];
@@ -2521,7 +2819,7 @@ end
       const steps: Step[] = [];
       let prev: { r: number; c: number } | null = null, stuck = false;
       while (undecided > 0) {
-        if (Date.now() - t0 > budget) { outOfTime = true; break; }
+        if (overBudget()) { outOfTime = true; break; }
         round++;
         addComponentLemmas(); addLoopLemmas(); addTechniques();
         // the menu, as movesOf lists it: every stage's windows, each fact in its earliest stage
@@ -2581,7 +2879,7 @@ end
 
   while (undecided > 0 && !(opts.search && !opts.quick)) {
     opts.onRound?.(Date.now() - t0, undecided, M, path);
-    if (Date.now() - t0 > budget) { outOfTime = true; break; }
+    if (overBudget()) { outOfTime = true; break; }
     if (untilMarks.length && untilMarks.every((m) => known[m] >= 0)) { notes.push("until: reached"); break; }
     round++;
     addComponentLemmas();
@@ -2607,7 +2905,15 @@ end
     else if ((opts.minPeak || opts.ceiling !== undefined) && !opts.quick) progressed = minPeakRound();
     else for (const [k, stage] of stages.entries()) {
       const tagged = stage.flatMap((fam) => family(fam).map((w) => [w, fam] as const));
-      const f = runWindows(tagged.map(([w]) => w));
+      let f: Map<Window, [number, boolean][]>;
+      if (rankShare > 0 && rankShare < 1 && tagged.length > 1) {
+        // likeliest first; the rest only if those find nothing
+        const ws = tagged.map(([w]) => w), odds = new Map(ws.map((w) => [w, windowOdds(w)]));
+        const ranked = [...new Set(ws)].sort((a, b) => odds.get(b)! - odds.get(a)!);
+        const cut = Math.max(1, Math.ceil(ranked.length * rankShare));
+        f = runWindows(ranked.slice(0, cut));
+        if (!f.size) f = runWindows(ranked.slice(cut));
+      } else f = runWindows(tagged.map(([w]) => w));
       if (k === 0 && entryPoints < 0 && !f.size) entryPoints = 0;
       if (!f.size) continue;
       if (opts.quick) {
@@ -2653,6 +2959,9 @@ end
       pool.sort((a, b) => rank.get(a)! - rank.get(b)!);
       const m = pool.shift()!, v = answer[m] === 1;
       splitSteps++;
+      // DEDUCE_SPLIT_FRESH: is the split refuted with no choices by a solver that hasn't searched
+      // the round's other candidates first? (what they taught it stays: lemmas are forgotten, units aren't)
+      if (process.env.DEDUCE_SPLIT_FRESH) { const r = hardRound([m], 0)[0]; dbg(`split fresh: ${r && r.unsat && r.choices === 0 ? "refuted" : "not refuted"} (${r?.choices} choices, ${r ? r.cost - r.choices : 0} conflicts)`); }
       if (opts.quick) {
         // settled at once, unexplained, as the windows' facts are
         path.push({ tier: 2, round, where: `assume ${factText(m, !v)}: a contradiction`, cells: markCells[m], facts: [{ mark: markName[m], value: v, text: factText(m, v) }], uses: ["splits"], cost: 0 });
@@ -2689,7 +2998,7 @@ end
       break;
     }
   }
-  if (outOfTime) notes.push(`out of time after ${budget} ms with ${undecided} marks open`);
+  if (outOfTime) notes.push(budgetCalls !== undefined && calls > budgetCalls ? `out of budget after ${calls} clingo calls with ${undecided} marks open` : `out of time after ${budget} ms with ${undecided} marks open`);
   opts.onRound?.(Date.now() - t0, undecided, M, path);
 
   const profile = profileOf(path, undecided === 0, entryPoints < 0 ? 0 : entryPoints, round, Date.now() - t0, calls, [...new Set(notes)]);
@@ -2702,6 +3011,7 @@ end
   const own = new Set(groups.slice(0, ownGroups).filter((x) => x.label !== "the whole grid").map((x) => `${x.kind} (${x.label})`));
   const cited = new Set(path.flatMap((s) => s.because?.clues ?? []).filter((x) => own.has(x)));
   const usage = { used: cited.size, of: own.size };
+  switchTo("other");
   return { path, profile, answer: answerMarks, initial, usage, ...(searchReport ? { search: searchReport } : {}), ...(structure ? { structure } : {}), ...(opts.trace ? { trace, timing } : { timing }) };
 }
 
@@ -2746,12 +3056,24 @@ export function profileOf(path: Step[], solved: boolean, entryPoints: number, ro
   return p;
 }
 
-/** One 0..1 number: f(D_steps) + w·rule load. D_steps of 3 (only easy and medium steps) maps to
- *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. Unsolved (out
- *  of time) counts as hard. */
-export const LOAD_WEIGHT = 0.25;
-export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved">): number {
+/** One 0..1 number: f(D_steps) + w·rule load + w'·case splits. D_steps of 3 (only easy and medium steps) maps to
+ *  0 and 11 to 1; rule load counts from 2 kinds (one rule and one clue kind) to 7. A solve stops at
+ *  0.9; unsolved counts as harder than any solve, whatever its path so far: 0.95 out of clingo
+ *  calls (Options.budgetCalls), 0.97 out of time or stuck, and a run capped from outside (no
+ *  result: the scoreboard's) 1. On the guard (2026-10-22) unsolved below some solves held Nurikabe
+ *  down; pricing unsolved by its path instead ran against the ratings (Numberlink −0.66); and capped
+ *  runs are the hardest (Numberlink rated 2.8–3.0 against 1.8–1.9 for out of time).
+ *  A third term counts case splits and search (steps of tier 2 or more): log2(1 + splits) / 5, so
+ *  32 splits or more count as 1. Without it one split reached the soft-max's top and Masyu sat at
+ *  the cap (2026-10-24: 80% at 0.85 or more, 0.19 against PSJP ratings; with it 0.54 on fresh PSJP
+ *  Masyus, Slitherlink 0.40 to 0.64, Simple Loop 0.36 to 0.55, Nurikabe 0.37 to 0.47, other types
+ *  unchanged; docs/research-masyu-difficulty-2026-10-24.md). Its weight comes out of the soft-max's. */
+export const LOAD_WEIGHT = 0.25, SPLIT_WEIGHT = 0.35;
+export function estimateOf(p: Pick<Profile, "dSteps" | "ruleLoad" | "solved"> & { perTier?: Profile["perTier"]; notes?: string[] }): number {
   const clamp = (x: number) => Math.min(1, Math.max(0, x));
-  const x = (1 - LOAD_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5);
-  return +clamp(p.solved ? x : Math.max(x, 0.9)).toFixed(3);
+  const splits = p.perTier ? p.perTier[2] + p.perTier[3] : 0;
+  const x = (1 - LOAD_WEIGHT - SPLIT_WEIGHT) * clamp((p.dSteps - 3) / 8) + LOAD_WEIGHT * clamp((p.ruleLoad - 2) / 5)
+    + SPLIT_WEIGHT * clamp(Math.log2(1 + splits) / 5);
+  if (!p.solved) return p.notes?.some((n) => n.startsWith("out of budget after")) ? 0.95 : 0.97;
+  return +Math.min(x, 0.9).toFixed(3);
 }
