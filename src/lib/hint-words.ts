@@ -101,13 +101,31 @@ function factText(spec: GridSpec, f: StuckFact): string {
   return `The outlined square ${f.value ? v[0] : v[1]}.`;
 }
 
+/** The squares a stuck point's "where" outlines. A what-if's own cells are everything the solver
+ *  touched following it (often the whole grid), so it outlines what it decides and the squares
+ *  around that instead. */
+export function focusOf(spec: GridSpec, s: KeyStep, rows: number, cols: number): number[] {
+  if (!leap(s)) return s.cells;
+  const decided = [...new Set(s.facts.flatMap((x) => cellsOfMark(spec, x.mark)))];
+  if (!decided.length) return s.cells;
+  const out = new Set<number>();
+  for (const c of decided) {
+    const r = Math.floor(c / cols), k = c % cols;
+    for (let dr = -1; dr <= 1; dr++) for (let dk = -1; dk <= 1; dk++) {
+      const rr = r + dr, kk = k + dk;
+      if (rr >= 0 && rr < rows && kk >= 0 && kk < cols) out.add(rr * cols + kk);
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 /** The solver's words for one stuck point. */
-export function solverRungs(spec: GridSpec, f: StuckPoint): Rung[] {
+export function solverRungs(spec: GridSpec, f: StuckPoint, rows: number, cols: number): Rung[] {
   const s = f.key, fact = s.facts.find((x) => x.value) ?? s.facts[0];
-  const rule = guideRule(spec, s), technique = solverTechnique(s);
-  const where: Rung = { kind: "where", text: `${phase(f.progress)}, look at the outlined ${unitOf(s.where)}.`, area: s.cells };
+  const rule = guideRule(spec, s), technique = solverTechnique(s), focus = focusOf(spec, s, rows, cols);
+  const where: Rung = { kind: "where", text: `${phase(f.progress)}, look at the outlined ${unitOf(s.where)}.`, area: focus };
   const ruleRung: Rung = leap(s)
-    ? { kind: "rule", text: "Whenever nothing follows directly, try a what-if: suppose one outlined square went the other way. Which rule breaks?", technique, short: "Try a what-if here.", area: s.cells }
+    ? { kind: "rule", text: "Whenever nothing follows directly, try a what-if: suppose one outlined square went the other way. Which rule breaks?", technique, short: "Try a what-if here.", area: focus }
     : { kind: "rule", text: clip(`${rule ? `Remember: ${rule}` : "Look at what the clues here allow."} What must be true here?`), technique, short: `This is a ${technique} spot.`, ...(f.clueCells.length ? { area: f.clueCells } : {}) };
   const rungs = [where, ruleRung];
   if (fact) rungs.push({ kind: "step", text: factText(spec, fact), area: cellsOfMark(spec, fact.mark) });
@@ -128,7 +146,7 @@ export function solverOpening(spec: GridSpec): Rung[] {
 
 /** A ladder in the solver's words: free, for every puzzle. */
 export function solverLadder(spec: GridSpec, stuck: Stuck): Ladder {
-  return { version: SOLVER_WRITER, opening: solverOpening(spec), points: stuck.points.map((f) => ({ marks: f.marks, rungs: solverRungs(spec, f) })) };
+  return { version: SOLVER_WRITER, opening: solverOpening(spec), points: stuck.points.map((f) => ({ marks: f.marks, rungs: solverRungs(spec, f, stuck.rows, stuck.cols) })) };
 }
 
 // ---------- a model's ladder ----------
@@ -155,8 +173,9 @@ export function writerPrompt(spec: GridSpec, stuck: Stuck): string {
     const s = f.key;
     const how = s.by === "creator" ? "The solver could not continue by itself here; the puzzle's creator's next move was"
       : `The solver looked at ${s.where} (${s.cells.map(cell).join(" ")}) and found`;
+    const shown = s.by === "creator" ? "" : ` The page outlines ${focusOf(spec, s, stuck.rows, stuck.cols).map(cell).join(" ")} for "where" and "rule".`;
     return `${k + 1}. About ${Math.round(100 * f.progress)}% through the solve. ${how}: ${s.facts.map((x) => x.text).join("; ")}.` +
-      (s.by === "creator" ? "" : ` It used: ${s.clues.join(", ") || s.uses.join(", ")}${s.tier >= 2 ? " (a case split: one value leads to a contradiction)" : ""}.`);
+      (s.by === "creator" ? "" : ` It used: ${s.clues.join(", ") || s.uses.join(", ")}${s.tier >= 2 ? " (a case split: one value leads to a contradiction)" : ""}.${shown}`);
   }).join("\n");
   return `You are writing the hints for a ${name} puzzle (${stuck.rows} rows × ${stuck.cols} columns) on a puzzle site. A player who is stuck opens them one at a time.
 
