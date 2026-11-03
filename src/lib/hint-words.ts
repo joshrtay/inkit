@@ -52,7 +52,7 @@ const VALUES: Record<string, [string, string]> = {
 };
 
 const genreOf = (spec: GridSpec) => spec.genre ?? "";
-const guideOf = (spec: GridSpec) => (guides as Record<string, (typeof guides)[keyof typeof guides] | undefined>)[genreOf(spec)];
+export const guideOf = (spec: GridSpec) => (guides as Record<string, (typeof guides)[keyof typeof guides] | undefined>)[genreOf(spec)];
 const firstSentence = (s: string) => s.split(/(?<=[.!?])\s+/)[0];
 const clip = (s: string, n: number = LIMITS.words) => { const w = s.trim().split(/\s+/); return w.length <= n ? s.trim() : `${w.slice(0, n - 1).join(" ")}…`; };
 

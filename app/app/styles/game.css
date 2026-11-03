@@ -224,6 +224,13 @@
 .puzzle-hints .hint.passed { color: var(--muted); font-size: 14px; }
 .puzzle-hints > .btn { justify-self: start; }
 .puzzle-hints .hint-edit { display: grid; gap: 2px; }
+.tutor-chat { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: 15px; }
+.tutor-turn { display: grid; gap: 2px; max-width: 92%; }
+.tutor-turn.player { justify-self: end; padding: 6px 10px; border-radius: 12px; background: var(--surface-2, rgba(127, 127, 127, 0.15)); }
+.tutor-turn .link { justify-self: start; font-size: 13px; }
+.tutor-asks { display: flex; flex-wrap: wrap; gap: 6px; }
+.tutor-input { display: flex; gap: 6px; }
+.tutor-input input { flex: 1; min-width: 0; }
 .puzzle-hints .hint-edit textarea { font: inherit; font-size: 15px; width: 100%; box-sizing: border-box; }
 .puzzle-hints fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .puzzle-hints legend { font-weight: 600; font-size: 14px; margin-bottom: 4px; }

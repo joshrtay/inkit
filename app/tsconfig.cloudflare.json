@@ -21,6 +21,7 @@
     "../src/lib/game-api.ts",
     "../src/lib/hint-ladder.ts",
     "../src/lib/hint-words.ts",
+    "../src/lib/tutor.ts",
     "../src/guides/*.ts",
     "../src/guides/examples.json"
   ],

@@ -210,7 +210,7 @@ export interface Options {
    *  known (at the answer's values), then every step available there is listed, over every
    *  stage's windows (no case splits), none taken. Entries add to what's known, so a person's
    *  positions in order (the lemmas found at one stay true at the next). Returned as `menus`, with
-   *  no path */
+   *  no path (and the answer's true marks, to check a person's marks against) */
   menus?: string[][];
   /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
    *  mark from everything every stage's windows find, under the move model, and takes the cheapest
@@ -2536,7 +2536,7 @@ end
       }
       menus.push(menu);
     }
-    return { path: [], menus, profile: profileOf([], false, 0, 0, Date.now() - t0, calls, outOfTime ? ["menus: out of time"] : ["menus"]), initial, ...(opts.structure ? { structure: structureOf() } : {}) };
+    return { path: [], menus, profile: profileOf([], false, 0, 0, Date.now() - t0, calls, outOfTime ? ["menus: out of time"] : ["menus"]), initial, answer: markName.filter((_, m) => answer[m] === 1), ...(opts.structure ? { structure: structureOf() } : {}) };
   }
 
   let entryPoints = -1;

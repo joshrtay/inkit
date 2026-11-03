@@ -7,6 +7,7 @@ import { Link } from "~/components/Link";
 import type { Playable } from "~/games/layout";
 import { GameBoard, type BoardLink } from "./GameBoard";
 import { HintsPanel } from "./HintsPanel";
+import { TutorPanel } from "./TutorPanel";
 import type { BoardLike, Ladder } from "~site/lib/hint-ladder";
 import { GuidePane } from "./GuidePane";
 import { isListed } from "~/games/kinds";
@@ -177,7 +178,8 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
     </main>
     {/* a type kept out of the listings has no guide page to open at: the pane starts at the list of types */}
     <GuidePane key={game.kind} start={isListed(game.kind) ? game.kind : undefined} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra}
-      hints={play && ladder ? <HintsPanel gameId={game.id} kind={game.kind} ladder={ladder} board={board} link={link} preview={preview} /> : null} />
+      hints={play && !preview && game.state === "published" && !play.spec.figure ? <TutorPanel gameId={game.id} spec={play.spec} board={board} link={link} />
+        : play && ladder ? <HintsPanel gameId={game.id} kind={game.kind} ladder={ladder} board={board} link={link} preview={preview} /> : null} />
     </div>
   );
 }

@@ -21,6 +21,8 @@
 //                difficulty becomes the game's
 //   hint_ladders the hints a puzzle's How to play offers, one at a time (src/lib/hint-ladder.ts):
 //                written by a batch (puzzles/hints/), editable by the puzzle's author
+//   tutor_answers the tutor's first answers to its suggested questions, kept per puzzle and what
+//                the solver found on the board (src/lib/tutor.ts)
 //
 // Rules the database can't express are enforced in app/lib/permissions.server.ts
 // (e.g. a collection always keeps at least one owner).
@@ -399,3 +401,16 @@ export const linkRequests = sqliteTable("link_requests", {
   link: text("link").notNull(),
   createdAt: created(),
 }, (t) => [index("link_requests_genre").on(t.genreId)]);
+
+// ---- tutor_answers: the tutor's kept answers (src/lib/tutor.ts, app/lib/tutor.server.ts) ----
+// A suggested question's first answer, for a puzzle's sketch and what the solver found on the board
+// (its mistakes, or its cheapest move): many boards share the next move, so most asks reuse one.
+export const tutorAnswers = sqliteTable("tutor_answers", {
+  gameId: text("game_id").notNull().references(() => games.id),
+  /** the sketch's sha256, the question and the board's signature (tutor.ts cacheKey) */
+  key: text("key").notNull(),
+  /** the reply, and the move or mistake it points at ({ text, move, mistake }) */
+  answer: text("answer", { mode: "json" }).$type<unknown>().notNull(),
+  model: text("model").notNull(),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.gameId, t.key] })]);
