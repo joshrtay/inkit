@@ -42,11 +42,19 @@ function mistakeText([layer, , v]: KeyMark, cells: string[]): string {
 export async function readBoard(spec: GridSpec, board: BoardLike, { budgetMs = 30_000 } = {}): Promise<BoardRead> {
   const cols = spec.size[1], rows = spec.size[0], cell = rc(cols);
   const placed = marksOn(board).map((m) => ({ m, name: markOfBoard(spec, m[0], m[1], m[2]) })).filter((x): x is { m: KeyMark; name: string } => !!x.name);
-  const r = await deduce(spec, { menus: [placed.map((x) => x.name)], structure: true, budgetMs });
+  let r = await deduce(spec, { menus: [placed.map((x) => x.name)], structure: true, budgetMs });
   const answer = new Set(r.answer ?? []);
   const yes = (l: string, v: number) => l === "digit" || l === "color" || l === "cut" || v === 1;
-  const mistakes: Mistake[] = placed.filter(({ m, name }) => yes(m[0], m[2]) !== answer.has(name))
-    .map(({ m, name }) => { const cells = cellsOfMark(spec, name); return { mark: name, cells, text: mistakeText(m, cells.map(cell)) }; });
+  const wrong = placed.filter(({ m, name }) => yes(m[0], m[2]) !== answer.has(name));
+  const right = placed.filter((x) => !wrong.includes(x)).map((x) => x.name);
+  // with wrong marks: what's open from the right ones alone (the first read took every mark at
+  // its true value), which also tells a guess from a mark the board already rules out
+  if (wrong.length) r = await deduce(spec, { menus: [right], structure: true, budgetMs, answer: r.answer });
+  const menu = r.menus?.[0] ?? [];
+  const mistakes: Mistake[] = wrong.map(({ m, name }) => {
+    const cells = cellsOfMark(spec, name), against = menu.filter((s) => s.facts.some((f) => f.mark === name)).sort((a, b) => a.cost - b.cost)[0];
+    return { mark: name, cells, text: mistakeText(m, cells.map(cell)), ruledOut: !!against, ...(against ? { why: against.because?.clues ?? [] } : {}) };
+  });
   const groups = new Map((r.structure?.groups ?? []).map((g) => [`${g.kind} (${g.label})`, g.cells]));
   const moveOf = (s: { where: string; cells: number[]; facts: Fact[]; cost: number; tier: number; because?: { clues: string[] } }): TutorMove => {
     const clues = s.because?.clues ?? [];
@@ -59,14 +67,13 @@ export async function readBoard(spec: GridSpec, board: BoardLike, { budgetMs = 3
   };
   // each move once (several windows can find the same facts: the cheapest stays)
   const seen = new Set<string>();
-  let moves = (r.menus?.[0] ?? []).slice().sort((a, b) => a.cost - b.cost)
+  let moves = menu.slice().sort((a, b) => a.cost - b.cost)
     .filter((s) => { const k = s.facts.map((f) => `${f.mark}=${f.value}`).sort().join(" "); return !seen.has(k) && (seen.add(k), true); })
     .slice(0, MAX_MOVES).map(moveOf);
   let done = false;
   if (!moves.length) {
     // nothing simple is open: the solver's next step from here (a case split), or the end
-    const right = placed.filter(({ m, name }) => yes(m[0], m[2]) === answer.has(name)).map((x) => x.name);
-    const on = await deduce(spec, { from: right, finish: true, budgetMs });
+    const on = await deduce(spec, { from: right, finish: true, budgetMs, answer: r.answer });
     const first = on.path.find((s) => !s.choice);
     if (first) moves = [moveOf(first)];
     else done = on.profile.solved;

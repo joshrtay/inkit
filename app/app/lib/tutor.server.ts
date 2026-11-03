@@ -9,8 +9,9 @@ import { schema, type Db } from "../db";
 import type { GridSpec } from "~site/engine/types.ts";
 import { type Ask, ASKS, type BoardRead, cacheKey, type ChatTurn, tutorSystem } from "~site/lib/tutor";
 
-/** The tutor's model. Opus for now, while we judge the replies; a cheaper one may do once they're good. */
-export const TUTOR = { model: "claude-opus-5-5", effort: "low" } as const;
+/** The tutor's model. Opus for now, while we judge the replies; a cheaper one may do once they're good.
+ *  `version`: bump it when the instructions change, so kept answers from older ones aren't reused. */
+export const TUTOR = { model: "claude-opus-5-5", effort: "low", version: 2 } as const;
 
 const Reply = z.object({ text: z.string(), move: z.number().int(), mistake: z.boolean() });
 export type TutorReply = z.infer<typeof Reply> & { kept?: boolean };
@@ -33,7 +34,7 @@ export function turnsOfBody(x: unknown): ChatTurn[] | null {
 /** Reply to the player's latest turn (the last of `turns`). `ask`: the suggested question it is, if
  *  it is one and the chat has just started (then a kept answer is reused, or this one kept). */
 export async function tutorReply(env: Env, db: Db, game: { id: string; sketchHash: string }, spec: GridSpec, read: BoardRead, turns: ChatTurn[], ask: Ask | null): Promise<TutorReply> {
-  const key = ask && turns.length === 1 ? `${game.sketchHash}|${cacheKey(ask, read)}` : null;
+  const key = ask && turns.length === 1 ? `${game.sketchHash}|v${TUTOR.version}|${cacheKey(ask, read)}` : null;
   if (key) {
     const had = await db.query.tutorAnswers.findFirst({ where: and(eq(schema.tutorAnswers.gameId, game.id), eq(schema.tutorAnswers.key, key)) });
     const parsed = had && Reply.safeParse(had.answer);

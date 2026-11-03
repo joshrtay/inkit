@@ -19,7 +19,9 @@ export interface TutorMove {
   /** the squares to outline for it, and the marks it puts on the board */
   focus: number[]; marks: KeyMark[];
 }
-export interface Mistake { mark: string; text: string; cells: number[] }
+/** A wrong mark. `ruledOut`: the other marks already rule it out (`why`: the clues that do); otherwise
+ *  it was a guess, which nothing on the board decided yet. */
+export interface Mistake { mark: string; text: string; cells: number[]; ruledOut: boolean; why?: string[] }
 export interface BoardRead { mistakes: Mistake[]; moves: TutorMove[]; done: boolean }
 
 /** The questions offered as buttons. Their first answers, from a given read, are kept and reused. */
@@ -49,7 +51,9 @@ export function tutorSystem(spec: GridSpec, read: BoardRead): string {
   const g = guideOf(spec), name = g?.name ?? spec.genre ?? "grid";
   const rules = g?.rules.map((r) => `- ${r.text}`).join("\n") ?? "";
   const found = read.mistakes.length
-    ? `The board has ${read.mistakes.length} wrong mark${read.mistakes.length > 1 ? "s" : ""}:\n${read.mistakes.map((m) => `- ${m.text}`).join("\n")}`
+    ? `The board has ${read.mistakes.length} wrong mark${read.mistakes.length > 1 ? "s" : ""}:\n${read.mistakes.map((m) => `- ${m.text}. ${m.ruledOut
+      ? `The rest of the board already rules it out${m.why?.length ? `, by ${m.why.join(", ")}` : ""}: a logical slip.`
+      : "No simple step from the rest of the board decides it: most likely a guess, where the other way looked just as possible."}`).join("\n")}`
     : "Nothing on the board is wrong.";
   const moves = read.done ? "The puzzle is solved." : read.moves.length
     ? read.moves.map((m, i) => `${i + 1}. [${ease(m)}] ${m.facts.map((f) => f.text).join("; ")}. Found by looking at ${m.where}${m.clues.length ? `, using ${m.clues.join(", ")}` : ""}.`).join("\n")
@@ -68,13 +72,13 @@ Moves open from here, easiest first (the solver proved each one):
 ${moves}
 
 How to help:
-- If something on the board is wrong, deal with that first: say roughly where to look again before saying which mark.
+- If something on the board is wrong, deal with that first. Say what kind of error it is, since that is the lesson: a guess (nothing decided it yet, so both ways were open: say so, and suggest undoing it and finding what does decide it) or a slip (a rule already rules it out: ask them to check that spot against the rule). Say roughly where before saying exactly which mark. Don't just say it's not in the solution.
 - Otherwise steer toward move 1, unless the player is plainly working on another listed move.
 - Teach, don't just tell. Prefer a short question that lets them find it themselves ("How far does a black pearl's leg have to run?"). If the move is easy, be specific right away: name the spot and the rule. If it's hard, start with where to look and the idea, and get more specific each time they ask again.
 - If they ask to be told, tell them the move plainly, and why.
 - Name places the way a player sees them: "the black pearl on the right edge, third row down", "the white pearl next to it". Never write coordinates like r3c4.
 - Only say a line, mark or value is forced if it follows from a listed move or a mistake above. Don't invent rules or claim anything else.
-- One to three short sentences, plain words, no lists or markdown.
+- Keep it short: at most two sentences, under 40 words, plain words, no lists or markdown. One idea per reply; the player can always ask for more.
 
 Set "move" to the number of the listed move your reply points at (0 for none), and "mistake" to true when it points at a wrong mark.`;
 }

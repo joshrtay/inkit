@@ -32,3 +32,11 @@ test("a wrong line is a mistake", async () => {
   assert.equal(r.mistakes.length, 1);
   assert.match(r.mistakes[0].text, /r4c4 and r4c5/);
 });
+
+test("a turn taken before anything decides it is a guess", async () => {
+  // past the white pearl in row 3, the line turned down: up was just as open
+  const r = await readBoard(spec, board([[2, 6, 2, 5], [2, 5, 2, 4], [2, 4, 3, 4]]));
+  assert.equal(r.mistakes.length, 1);
+  assert.match(r.mistakes[0].text, /r3c5 and r4c5/);
+  assert.equal(r.mistakes[0].ruledOut, false);
+});
