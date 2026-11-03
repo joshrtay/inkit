@@ -20,6 +20,8 @@
 #     --args "..."     extra arguments for the script
 #     --dry            write the job's config and print it, submit nothing
 #
+#   A .py script runs under uv (Python 3.12) with the packages named in --env PY_DEPS="a b".
+#
 #   e.g. puzzles/cloud/run-batch.sh puzzles/difficulty/proof-bulk.ts proof-bulk --tasks 12 \
 #          --seed references/proof-bulk --env PROOF_CAP=60000
 #

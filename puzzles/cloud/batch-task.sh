@@ -34,6 +34,20 @@ cp -r "$B/$CODE/." "$W/"
 ln -sfn /opt/deps/node_modules "$W/node_modules"
 for pair in $INPUTS; do mkdir -p "${pair#*:}"; cp -r "$B/${pair%%:*}/." "${pair#*:}/"; done
 
+# A Python script (puzzles/mathbank/embed.py) runs under uv with the packages in PY_DEPS and
+# keeps its own progress (it writes its results straight to the bucket mount and skips what is
+# there), so it skips the row syncing below.
+if [ "${SCRIPT##*.}" = py ]; then
+  [ -x /opt/uv/uv ] || { mkdir -p /opt/uv && curl -fsSL https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C /opt/uv --strip-components=1; }
+  WITH=; for d in ${PY_DEPS:-}; do WITH="$WITH --with $d"; done
+  timeout $((HOURS * 3600 - SECONDS - 300)) /opt/uv/uv run --python 3.12 --no-project $WITH \
+    python -I "$SCRIPT" --shard "$K" --of "$N" $ARGS > run.log 2>&1
+  STATUS=$?; cp run.log "$SOUT/run.log"; tail -20 run.log
+  if [ $STATUS -eq 0 ]; then echo done > "$SOUT/done"; exit 0; fi
+  [ $STATUS -eq 124 ] && exit 75
+  exit $STATUS
+fi
+
 # what's done: the seed, then this shard's own rows (a retry carries on from them)
 mkdir -p "references/$OUT"
 [ -d "$B/results/$RUN/seed" ] && cp -r "$B/results/$RUN/seed/." "references/$OUT/"
