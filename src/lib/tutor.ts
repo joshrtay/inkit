@@ -85,6 +85,14 @@ export type Ask = keyof typeof ASKS;
 
 export interface ChatTurn { role: "player" | "tutor"; text: string }
 
+/** The turns of a chat that are sent with a question: the latest SENT_TURNS, starting at one of the
+ *  player's (a long chat's start is left behind; the board's read is fresh each time anyway). */
+export const SENT_TURNS = 12;
+export function recentTurns<T extends ChatTurn>(turns: T[]): T[] {
+  const late = turns.slice(-SENT_TURNS), from = late.findIndex((t) => t.role === "player");
+  return from < 0 ? [] : late.slice(from);
+}
+
 /** How hard a move is, in words (the solver's step costs: under 4 is a glance, a case split is hard). */
 export const ease = (m: TutorMove) => (m.tier >= 2 ? "hard (a case split: suppose one way, find a contradiction)" : m.cost < 4 ? "easy" : m.cost < 7 ? "medium" : "hard");
 
@@ -152,4 +160,30 @@ export function plainReply(read: BoardRead): { text: string; move: number; mista
   if (read.done) return { text: "That's solved.", move: 0, mistake: false };
   if (read.moves.length) return { text: "There's a move in the squares I've outlined. Which rule applies there?", move: 1, mistake: false };
   return { text: "I couldn't find the next move in time. Try the board's own hint button.", move: 0, mistake: false };
+}
+
+/** A tutor reply in the play's log (kind "t"; app/lib/play-log.ts), so the chat sits among the moves
+ *  around it: the question and the reply as written, which suggested question it was (null: typed),
+ *  the move the reply pointed at (the solver's marks for it) and what the solver saw on the board. */
+export interface TutorLog {
+  ask: Ask | null;
+  /** the player's words, and the tutor's */
+  q: string; reply: string;
+  /** the marks of the move pointed at, as the solver names them with their values ("line(12)=true") */
+  target: string[];
+  cost: number | null; tier: number | null;
+  mistake: boolean;
+  /** wrong marks on the board, and how many of them were guesses */
+  wrong: number; guesses: number;
+  /** "model", "kept" (a reused answer), "plain" (no model) */
+  by: "model" | "kept" | "plain";
+}
+
+/** What a reply was about, for the play's log. */
+export function tutorLog(ask: Ask | null, q: string, read: BoardRead, out: { text: string; move?: number; mistake?: boolean; by?: TutorLog["by"] }): TutorLog {
+  const m = out.move ? read.moves[out.move - 1] : undefined;
+  return {
+    ask, q, reply: out.text, target: m ? m.facts.map((f) => `${f.mark}=${f.value}`) : [], cost: m?.cost ?? null, tier: m?.tier ?? null,
+    mistake: !!out.mistake, wrong: read.mistakes.length, guesses: read.mistakes.filter((x) => !x.ruledOut).length, by: out.by ?? "model",
+  };
 }

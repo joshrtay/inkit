@@ -1,7 +1,9 @@
 // The tutor's guards (src/lib/tutor.ts, app/lib/tutor.server.ts): the checks on a reply's words,
 // the plain reply given without the model, and what the limits allow.
 import { describe, expect, it } from "vitest";
-import { type BoardRead, plainReply, replyProblems, REPLY_WORDS } from "~site/lib/tutor";
+import { type BoardRead, plainReply, recentTurns, replyProblems, REPLY_WORDS, SENT_TURNS, tutorLog } from "~site/lib/tutor";
+import { checkBatch } from "~/games/plays";
+import { chatOfStored } from "~/components/TutorPanel";
 import { allowed, DAILY, dailyLimit, isAsk, PER_HOUR, readOfBody, turnsOfBody } from "~/lib/tutor.server";
 
 const move = { facts: [{ mark: "line(3)", value: true, text: "a line" }], where: "the top row", clues: [], cost: 1, tier: 0, focus: [3] };
@@ -52,4 +54,30 @@ describe("what the page sends", () => {
     expect(readOfBody({ mistakes: [], moves: Array(13).fill(move) })).toBeNull();
   });
   it("knows the suggested questions", () => { expect(isAsk("tell")).toBe(true); expect(isAsk("toString")).toBe(false); });
+});
+
+describe("a long chat", () => {
+  const chat = (n: number) => Array.from({ length: n }, (_, i) => ({ role: i % 2 ? "tutor" as const : "player" as const, text: `${i}` }));
+  it("is sent whole while short", () => expect(recentTurns(chat(5))).toHaveLength(5));
+  it("sends its latest turns, from one of the player's, ending with the question", () => {
+    const sent = recentTurns(chat(41));
+    expect(sent.length).toBeLessThanOrEqual(SENT_TURNS);
+    expect(sent[0].role).toBe("player");
+    expect(sent.at(-1)!.text).toBe("40");
+    expect(turnsOfBody(sent)).not.toBeNull();
+  });
+});
+
+describe("the chat in the play's log and in the browser", () => {
+  const entry = tutorLog("look", "Where should I look?", read({ moves: [move], mistakes: [{ text: "x", cells: [1], ruledOut: false }] } as Partial<BoardRead>), { text: "Look at the top row.", move: 1, mistake: false, by: "model" });
+  it("notes the words, the move pointed at and what the solver saw", () => expect(entry).toMatchObject({ ask: "look", q: "Where should I look?", reply: "Look at the top row.", target: ["line(3)=true"], cost: 1, wrong: 1, guesses: 1, by: "model" }));
+  it("is taken by the play log", () => {
+    const body = { play: { id: "abcdefgh", gameId: "g1", playerId: "abcdefgh", startedAt: 1 }, seq: 0, events: [[10, "t", entry]] };
+    expect(checkBatch(body, 500).ok).toBe(true);
+  });
+  it("reads a kept chat back, and nothing from anything else", () => {
+    expect(chatOfStored(JSON.stringify([{ role: "player", text: "hi" }, { role: "tutor", text: "hello", area: [1, 2] }, { role: "x", text: "no" }]))).toEqual([{ role: "player", text: "hi" }, { role: "tutor", text: "hello", area: [1, 2] }]);
+    expect(chatOfStored("{")).toEqual([]);
+    expect(chatOfStored(null)).toEqual([]);
+  });
 });

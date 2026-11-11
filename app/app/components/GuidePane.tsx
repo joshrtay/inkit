@@ -51,7 +51,8 @@ export function GuidePane({ start, drawer = false, side = false, open: shown, on
           {kind ? <button className="link pane-back" type="button" onClick={() => setKind(null)}>← All puzzle types</button> : <h2>Puzzle types</h2>}
           {!hints && <button className="pane-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>}
         </div>}
-        {onHints && hints}
+        {/* kept in the page while How to play shows, so the tutor's chat isn't lost on a look at the rules */}
+        {hints && <div hidden={!onHints} style={onHints ? { display: "contents" } : undefined}>{hints}</div>}
         {!onHints && !kind && (
           <>
             <input className="pane-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search, like “Light Up”" aria-label="Search puzzle types" />

@@ -58,8 +58,9 @@ function alignToBorder(root: HTMLElement) {
   if (sheet) root.parentElement?.parentElement?.style.setProperty("--sheet-w", `${Math.round(sheet.getBoundingClientRect().width)}px`);
 }
 
-/** What the page beside the board can do with it (the tutor in the How to play pane): outline cells. */
-export interface BoardLink { outline?: (cells: number[]) => void }
+/** What the page beside the board can do with it (the tutor in the How to play pane): note
+ *  something in the play's log, and outline cells. */
+export interface BoardLink { log?: (kind: string, data?: unknown) => void; outline?: (cells: number[]) => void }
 
 /** `saveId` keeps the player's progress in this browser; without it (the editor's preview), nothing
  *  is saved. `description`: the creator's line about it, on the paper. `onRules`: the paper's ?
@@ -125,6 +126,7 @@ export function GameBoard({ play, saveId, onSolved, description = "", onRules, t
     boardRef.current?.(base.load<BoardLike>());
     const cleanup = createGrid({ spec: play.spec })(root, host);
     if (link) link.current = {
+      log: (kind, data) => host.log?.(kind, data),
       outline: (cells) => root.dispatchEvent(new CustomEvent(OUTLINE_EVENT, { detail: { cells } })),
     };
     const ask = root.querySelector<HTMLButtonElement>("[data-rules]");

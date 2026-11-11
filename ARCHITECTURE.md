@@ -52,7 +52,7 @@ brings its assessment with it, and an hourly GitHub Action (`assess-site.ts`, `.
 does the rest through `/admin/assessments`. Each is kept in *assessments*; a finished solve's
 difficulty replaces the rough one, and the quality is logged and never shown.
 **Solve logging** (`lib/play-log.ts`, research only): each play on a published puzzle is logged
-move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solving, leaving the tab)
+move by move (the player's `GameHost.log`: moves, undos, hints, the tutor's chat, clearing, solving, leaving the tab)
 under a random id kept in the browser, never the account, and sent in batches to `POST /api/plays`
 (*plays*, *play_events*). It's on unless the player turns it off in Settings or on the privacy page
 (`components/ShareSolves.tsx`); off forgets the id and sends nothing more.
@@ -69,8 +69,11 @@ players only. Its guards: replies an hour per player, the model's replies a day 
 (`TUTOR_DAILY_REPLIES`; 0 turns the model off), and a check of each reply's words in code; past a
 limit or a failed check the reply is a plain one from the solver's read, and the board outlines the
 spot. A suggested question's first answer is kept per puzzle and board (*tutor_answers*); every reply
-is recorded with the account (*tutor_turns*: never the player's words), which the limits count. It
-stays out of the play's log, which is never tied to an account.
+is recorded with the account (*tutor_turns*: never the player's words), which the limits count. The
+chat is kept in the player's browser, and each question with its reply goes into the play's log
+among the moves (kind "t", a `TutorLog`), under the play's random id like the rest of it. Since
+*tutor_turns* has the account and the time, the two could be matched: the rule above stands, never
+join them to tie a play to an account.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as
