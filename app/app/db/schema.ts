@@ -372,3 +372,50 @@ export const linkRequests = sqliteTable("link_requests", {
   link: text("link").notNull(),
   createdAt: created(),
 }, (t) => [index("link_requests_genre").on(t.genreId)]);
+
+// ---- tutor_answers: the tutor's kept answers (src/lib/tutor.ts, app/lib/tutor.server.ts) ----
+// A suggested question's first answer, for a puzzle's sketch and what the solver found on the board
+// (its mistakes, or its cheapest move): many boards share the next move, so most asks reuse one.
+export const tutorAnswers = sqliteTable("tutor_answers", {
+  gameId: text("game_id").notNull().references(() => games.id),
+  /** the sketch's sha256, the question and the board's signature (tutor.ts cacheKey) */
+  key: text("key").notNull(),
+  /** the reply, and the move or mistake it points at ({ text, move, mistake }) */
+  answer: text("answer", { mode: "json" }).$type<unknown>().notNull(),
+  model: text("model").notNull(),
+  createdAt: created(),
+}, (t) => [primaryKey({ columns: [t.gameId, t.key] })]);
+
+// ---- tutor_turns: every reply the tutor gave (app/lib/tutor.server.ts) ----
+// What the limits count (a player's replies this hour, the model's replies today), and the record
+// of what the tutor said for later study. The player's words aren't kept: only which suggested
+// question it was, or that it was typed.
+export const tutorTurns = sqliteTable("tutor_turns", {
+  id: text("id").primaryKey(),
+  gameId: text("game_id").notNull().references(() => games.id),
+  creatorId: text("creator_id").notNull().references(() => creators.id),
+  /** the suggested question (tutor.ts ASKS), or null when the player typed */
+  ask: text("ask"),
+  /** which turn of the chat this reply is, from 1 */
+  turn: integer("turn").notNull(),
+  /** "model", "kept" (a reused answer) or "plain" (no model: the day's limit, failed checks, no key) */
+  by: text("by", { enum: ["model", "kept", "plain"] }).notNull(),
+  /** the tutor's reply, the listed move it pointed at (0: none) and whether it pointed at a wrong mark */
+  reply: text("reply").notNull(),
+  move: integer("move").notNull(),
+  mistake: integer("mistake", { mode: "boolean" }).notNull(),
+  /** what the solver found: wrong marks, and the cheapest move's marks ("line(12)=true") and cost */
+  wrong: integer("wrong").notNull(),
+  target: text("target", { mode: "json" }).$type<string[]>().notNull(),
+  cost: real("cost"),
+  /** why a model's reply was dropped for a plain one, if it was */
+  problems: text("problems", { mode: "json" }).$type<string[]>(),
+  model: text("model"),
+  version: integer("version").notNull(),
+  /** the model's tokens for this reply (both tries, when the first was dropped); null when no model
+   *  was called. The day's limit counts the rows that have them. */
+  inputTokens: integer("input_tokens"),
+  outputTokens: integer("output_tokens"),
+  ms: integer("ms"),
+  createdAt: created(),
+}, (t) => [index("tutor_turns_creator").on(t.creatorId, t.createdAt), index("tutor_turns_created").on(t.createdAt), index("tutor_turns_game").on(t.gameId)]);

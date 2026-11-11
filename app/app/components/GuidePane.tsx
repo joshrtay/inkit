@@ -1,7 +1,7 @@
 // The puzzle types beside the new-game page, so a creator can look up the rules while drawing or
 // checking a reading: search, a compact list, and a type's full guide in place. Wide screens show
 // it as a right-hand pane; narrower ones as a drawer behind a "Puzzle types" button.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useFetcher } from "react-router";
 import type { loader as listLoader } from "~/routes/puzzles";
 import type { loader as typeLoader } from "~/routes/puzzle-type";
@@ -13,10 +13,12 @@ const fold = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 /** `drawer`: always a drawer behind its button (for pages that need the width).
  *  `side`: opened and closed by the page (`open` / `onClose`): a column beside the page on wide
  *  screens and a drawer on narrower ones (a game's How to play). `extra`: rules of this particular
- *  puzzle beyond its type's, shown first. */
-export function GuidePane({ start, drawer = false, side = false, open: shown, onClose, extra = [] }: {
-  start?: string; drawer?: boolean; side?: boolean; open?: boolean; onClose?: () => void; extra?: string[];
+ *  puzzle beyond its type's, shown first. `hints`: a game's hints, on a second tab beside How to play. */
+export function GuidePane({ start, drawer = false, side = false, open: shown, onClose, extra = [], hints }: {
+  start?: string; drawer?: boolean; side?: boolean; open?: boolean; onClose?: () => void; extra?: string[]; hints?: ReactNode;
 }) {
+  const [tab, setTab] = useState<"rules" | "hints">("rules");
+  const onHints = !!hints && tab === "hints";
   const list = useFetcher<typeof listLoader>();
   const detail = useFetcher<typeof typeLoader>();
   const [q, setQ] = useState("");
@@ -38,11 +40,19 @@ export function GuidePane({ start, drawer = false, side = false, open: shown, on
     <>
       {!side && <button className={`btn pane-toggle${drawer ? " drawer" : ""}`} type="button" aria-expanded={open} onClick={() => setOpen(!open)}>Puzzle types</button>}
       <aside className={`guide-pane${open ? " open" : ""}${drawer ? " drawer" : ""}${side ? " side" : ""}`} aria-label="Puzzle types" inert={side && !open ? true : undefined}>
-        <div className="pane-head">
+        {hints && (
+          <div className="pane-tabs" role="tablist" aria-label="How to play and hints">
+            <button type="button" role="tab" aria-selected={!onHints} onClick={() => setTab("rules")}>How to play</button>
+            <button type="button" role="tab" aria-selected={onHints} onClick={() => setTab("hints")}>Hints</button>
+            <button className="pane-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>
+          </div>
+        )}
+        {!onHints && <div className="pane-head">
           {kind ? <button className="link pane-back" type="button" onClick={() => setKind(null)}>← All puzzle types</button> : <h2>Puzzle types</h2>}
-          <button className="pane-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>
-        </div>
-        {!kind && (
+          {!hints && <button className="pane-close" type="button" aria-label="Close" onClick={() => setOpen(false)}>×</button>}
+        </div>}
+        {onHints && hints}
+        {!onHints && !kind && (
           <>
             <input className="pane-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search, like “Light Up”" aria-label="Search puzzle types" />
             {!list.data ? <p className="muted">Loading…</p> : (
@@ -60,7 +70,7 @@ export function GuidePane({ start, drawer = false, side = false, open: shown, on
             )}
           </>
         )}
-        {kind && (g ? (
+        {!onHints && kind && (g ? (
           <div className="pane-guide" style={{ "--paper-ink": g.ink } as React.CSSProperties}>
             <h2>{g.name}</h2>
             {g.aka.length > 0 && <p className="aka">Also called {g.aka.join(", ")}</p>}

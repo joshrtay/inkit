@@ -22,7 +22,7 @@
 // A step's cost counts the distinct rule and clue kinds, the instances and the earlier facts
 // (costOf). Each round takes the cheapest steps; the profile combines step costs by soft-max
 // (softmax) and adds rule load and case splits (estimateOf).
-import { readFileSync } from "node:fs";
+import STEP_PRICES from "./step-prices.json" with { type: "json" };
 import { makePuzzle, genres } from "../../src/engine/puzzle.ts";
 import { program } from "../../src/engine/encode.ts";
 import { blockFor, fillSlots, galaxyCore, pathEnds, pathNeighbours, symbolOf } from "../../src/engine/rules.ts";
@@ -210,7 +210,7 @@ export interface Options {
    *  known (at the answer's values), then every step available there is listed, over every
    *  stage's windows (no case splits), none taken. Entries add to what's known, so a person's
    *  positions in order (the lemmas found at one stay true at the next). Returned as `menus`, with
-   *  no path */
+   *  no path (and the answer's true marks, to check a person's marks against) */
   menus?: string[][];
   /** a simulated person (docs/research-trajectory.md, step 2): from the start, each move samples a
    *  mark from everything every stage's windows find, under the move model, and takes the cheapest
@@ -262,7 +262,7 @@ export function priceCorrection(f: Record<string, number>, prices: { features: s
 }
 const PRICES: { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number>; caps?: number[] } | null = (() => {
   if (process.env.DEDUCE_PRICES === "0") return null;
-  try { return JSON.parse(readFileSync(new URL("./step-prices.json", import.meta.url), "utf8")); } catch { return null; }
+  return STEP_PRICES as { features: string[]; weights: number[]; offset?: number; offsets?: Record<string, number>; caps?: number[] };
 })();
 
 /** A window family in the proposal language (puzzles/difficulty/miner.ts): units of the given kinds
@@ -2536,7 +2536,7 @@ end
       }
       menus.push(menu);
     }
-    return { path: [], menus, profile: profileOf([], false, 0, 0, Date.now() - t0, calls, outOfTime ? ["menus: out of time"] : ["menus"]), initial, ...(opts.structure ? { structure: structureOf() } : {}) };
+    return { path: [], menus, profile: profileOf([], false, 0, 0, Date.now() - t0, calls, outOfTime ? ["menus: out of time"] : ["menus"]), initial, answer: markName.filter((_, m) => answer[m] === 1), ...(opts.structure ? { structure: structureOf() } : {}) };
   }
 
   let entryPoints = -1;

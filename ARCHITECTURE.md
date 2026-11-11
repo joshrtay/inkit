@@ -60,6 +60,17 @@ Players include children, many signed out, so the logs are for inkit's own puzzl
 quality, hints): never share or publish per-player logs, never tie them to an account or use them to
 reach a player; research published outside inkit uses aggregates. That keeps them within COPPA's
 internal-operations exception, which the privacy page's notice relies on.
+**The tutor** (`src/lib/tutor.ts`, a published grid puzzle's Hints tab: `components/TutorPanel.tsx`): a chat
+about the player's board. When they ask, the solver reads the board in their browser, in a worker
+(`games/tutor.client.ts`, `puzzles/hints/tutor.ts`: wrong marks, each a slip or a guess, and the moves
+open from there, cheapest first), and `POST /g/<id>/tutor` (`lib/tutor.server.ts`) has a model word a
+short reply from that read: how it teaches is the prompt (`tutorSystem`), nothing else. Signed-in
+players only. Its guards: replies an hour per player, the model's replies a day for everyone
+(`TUTOR_DAILY_REPLIES`; 0 turns the model off), and a check of each reply's words in code; past a
+limit or a failed check the reply is a plain one from the solver's read, and the board outlines the
+spot. A suggested question's first answer is kept per puzzle and board (*tutor_answers*); every reply
+is recorded with the account (*tutor_turns*: never the player's words), which the limits count. It
+stays out of the play's log, which is never tied to an account.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as

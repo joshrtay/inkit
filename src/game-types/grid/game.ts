@@ -36,6 +36,10 @@ import { createShaped, isShaped } from "./shaped.ts";
 import { assistFor, autoNotes, candidates, clashes, notesSeeing, placed } from "./sudoku-assist.ts";
 import { boardKey, familyOf, FLASH_MS, flashes, flashStart, flashStep, flashTargets, isDone } from "./flash.ts";
 
+/** Sent to the board's root, with { cells }, to outline them a moment (where the tutor points:
+ *  app/components/TutorPanel.tsx). */
+export const OUTLINE_EVENT = "inkit:outline";
+
 type Layer = keyof Board;
 interface Saved extends Partial<Record<Layer, number[]>> { ticks?: string[]; trail?: number[] }
 type Change = [Layer, number, number];          // layer, index, previous value
@@ -875,6 +879,14 @@ export const createGrid = (config: GridClientConfig): MountGame => (root, host) 
     status.className = "status good";
     errTimer = window.setTimeout(() => { gHint.replaceChildren(); if (status.textContent === h!.message) say(""); }, 4000);
   });
+  // the tutor beside the board outlines where it points, for a few seconds, as the board's own hint does
+  const outline = (e: Event) => {
+    const cells = ((e as CustomEvent<{ cells?: number[] }>).detail?.cells ?? []).filter((i) => Number.isInteger(i) && i >= 0 && i < g.cellCount);
+    clearProblems();
+    for (const i of cells) cellRect(i, "hint-area", gHint);
+    errTimer = window.setTimeout(() => gHint.replaceChildren(), 4000);
+  };
+  root.addEventListener(OUTLINE_EVENT, outline);
   const reset = q<HTMLButtonElement>("[data-reset]");
   let confirming = false;
   reset.addEventListener("click", () => {
