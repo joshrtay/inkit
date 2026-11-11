@@ -12,6 +12,8 @@
 //   "u" an undo: the same, the values it went back to  "h" a hint asked for: its cells
 //   "r" the board cleared (the play ends)             "s" solved (the play ends)
 //   "a" away (the tab hidden)                          "b" back
+//   "t" a tutor reply and the question it answered: a TutorLog (src/lib/tutor.ts), from the tutor
+//       beside the board (components/TutorPanel.tsx)
 export type PlayEvent = [number, string, unknown?];
 
 /** "no" once the player turns it off (anything else: on). */

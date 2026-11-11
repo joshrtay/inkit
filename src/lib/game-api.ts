@@ -16,7 +16,8 @@ export interface GameHost {
   solved(result?: Record<string, unknown>): void;
   /** Note what the player did, for solve logging (a page may leave it out; it sends nothing once
    *  the player turns it off: app/app/lib/play-log.ts). `kind`: "m" a move, "u" an undo (each with
-   *  [layer, index, value] changes), "h" a hint (its cells), "r" the board cleared, "s" solved. */
+   *  [layer, index, value] changes), "h" a hint (its cells), "r" the board cleared, "s" solved. The page
+   *  beside the board adds "t", a tutor reply with its question (a `TutorLog`, src/lib/tutor.ts). */
   log?(kind: string, data?: unknown): void;
 }
 

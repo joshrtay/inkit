@@ -52,7 +52,7 @@ brings its assessment with it, and an hourly GitHub Action (`assess-site.ts`, `.
 does the rest through `/admin/assessments`. Each is kept in *assessments*; a finished solve's
 difficulty replaces the rough one, and the quality is logged and never shown.
 **Solve logging** (`lib/play-log.ts`, research only): each play on a published puzzle is logged
-move by move (the player's `GameHost.log`: moves, undos, hints, clearing, solving, leaving the tab)
+move by move (the player's `GameHost.log`: moves, undos, hints, the tutor's chat, clearing, solving, leaving the tab)
 under a random id kept in the browser, never the account, and sent in batches to `POST /api/plays`
 (*plays*, *play_events*). It's on unless the player turns it off in Settings or on the privacy page
 (`components/ShareSolves.tsx`); off forgets the id and sends nothing more.
@@ -60,6 +60,20 @@ Players include children, many signed out, so the logs are for inkit's own puzzl
 quality, hints): never share or publish per-player logs, never tie them to an account or use them to
 reach a player; research published outside inkit uses aggregates. That keeps them within COPPA's
 internal-operations exception, which the privacy page's notice relies on.
+**The tutor** (`src/lib/tutor.ts`, a published grid puzzle's Hints tab: `components/TutorPanel.tsx`): a chat
+about the player's board. When they ask, the solver reads the board in their browser, in a worker
+(`games/tutor.client.ts`, `puzzles/hints/tutor.ts`: wrong marks, each a slip or a guess, and the moves
+open from there, cheapest first), and `POST /g/<id>/tutor` (`lib/tutor.server.ts`) has a model word a
+short reply from that read: how it teaches is the prompt (`tutorSystem`), nothing else. Signed-in
+players only. Its guards: replies an hour per player, the model's replies a day for everyone
+(`TUTOR_DAILY_REPLIES`; 0 turns the model off), and a check of each reply's words in code; past a
+limit or a failed check the reply is a plain one from the solver's read, and the board outlines the
+spot. A suggested question's first answer is kept per puzzle and board (*tutor_answers*); every reply
+is recorded with the account (*tutor_turns*: never the player's words), which the limits count. The
+chat is kept in the player's browser, and each question with its reply goes into the play's log
+among the moves (kind "t", a `TutorLog`), under the play's random id like the rest of it. Since
+*tutor_turns* has the account and the time, the two could be matched: the rule above stands, never
+join them to tie a play to an account.
 Rules the database can't express are in `app/lib/permissions.server.ts`.
 **AI creators** (`src/ai/personas.ts`, [docs/ai-creators.md](docs/ai-creators.md)) are creators
 with `is_ai` set, labelled AI wherever they're named; a weekly batch queues their puzzles as

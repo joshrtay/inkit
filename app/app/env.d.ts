@@ -9,6 +9,9 @@ interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   /** Reads uploaded sketches with Claude (app/lib/read-sketch.server.ts). */
   ANTHROPIC_API_KEY?: string;
+  /** The most replies the tutor's model writes in a day, for everyone (app/lib/tutor.server.ts;
+   *  default 400). Past it the tutor answers plainly from the solver's read. "0" turns the model off. */
+  TUTOR_DAILY_REPLIES?: string;
   /** Lets scripts (and Claude) call the admin endpoints: `Authorization: Bearer <token>` (app/lib/admin.server.ts). */
   ADMIN_API_TOKEN?: string;
   /** Files GitHub issues for bug reports an admin sends (app/lib/bugs/github.server.ts): a

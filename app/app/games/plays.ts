@@ -4,7 +4,7 @@ import { z } from "zod";
 
 const id = z.string().regex(/^[a-z0-9]{8,32}$/);
 /** [t, kind, data?]: t in ms since the play began (at most a week), a one-letter kind */
-const Event = z.tuple([z.number().int().min(0).max(7 * 86400e3), z.enum(["o", "m", "u", "h", "r", "s", "a", "b"])]).rest(z.unknown());
+const Event = z.tuple([z.number().int().min(0).max(7 * 86400e3), z.enum(["o", "m", "u", "h", "t", "r", "s", "a", "b"])]).rest(z.unknown());
 
 export const PlayBatch = z.object({
   play: z.object({ id, gameId: z.string().min(1).max(40), playerId: id, startedAt: z.number().int().positive() }),

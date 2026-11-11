@@ -42,6 +42,7 @@ export default [
   route("g/:id/like", "routes/game-like.ts"),
   route("g/:id/solve", "routes/game-solve.ts"),
   route("g/:id/sketch", "routes/game-sketch.ts"),
+  route("g/:id/tutor", "routes/game-tutor.ts"),   // the tutor's replies (src/lib/tutor.ts)
   // admin endpoints (JSON): app/lib/admin.server.ts
   route("admin/reads/stats", "routes/admin-reads-stats.ts"),
   route("admin/reads.jsonl", "routes/admin-reads-export.ts"),

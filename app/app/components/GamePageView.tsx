@@ -1,11 +1,13 @@
 // A game's page as players see it: back, the title and who made it, How to play, the board and
 // the description. The game route shows it, and the editor's Preview shows the same thing. (A draft drawn in paint is
 // published from its own page in paint's chrome: routes/game-publish.tsx.)
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Form, useFetcher, useLocation, useNavigate, useSubmit } from "react-router";
 import { Link } from "~/components/Link";
 import type { Playable } from "~/games/layout";
-import { GameBoard } from "./GameBoard";
+import { GameBoard, type BoardLink } from "./GameBoard";
+import { TutorPanel } from "./TutorPanel";
+import type { BoardLike } from "~site/lib/tutor";
 import { GuidePane } from "./GuidePane";
 import { isListed } from "~/games/kinds";
 import { LikeButton } from "./LikeButton";
@@ -90,6 +92,9 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
   const seenRules = () => { setTipShown(false); if (signedIn) try { localStorage.setItem(tipKey, "1"); } catch { /* this page only */ } };
   const openRules = (v: boolean) => { toggleRules(v); if (v) seenRules(); };
   const tip = tipShown ? { text: `New to ${typeName}?`, onDismiss: seenRules } : null;
+  // the tutor beside the board: the player's board as it changes, and the board's link
+  const [board, setBoard] = useState<BoardLike | null>(null);
+  const link = useRef<BoardLink | null>(null);
 
   // a signed-in player's solve is kept (routes/game-solve.ts): it marks the puzzle solved for them
   // everywhere, and counts toward the puzzle's solves
@@ -151,7 +156,8 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       <div className="game-body">
         <div className="game-play">
           {play ? <GameBoard play={play} saveId={preview ? undefined : `g-${game.id}`} onSolved={onSolved} description={game.description}
-              onRules={() => openRules(true)} tip={tip} logGame={!preview && game.state === "published" ? game.id : undefined} />
+              onRules={() => openRules(true)} tip={tip} logGame={!preview && game.state === "published" ? game.id : undefined}
+              onBoard={setBoard} link={link} />
             : <div className="problems"><p>This game's sketch has problems:</p><ul>{errors.map((e) => <li key={e}>{e}</li>)}</ul></div>}
           {list && !preview && (
             <Later value={list} fallback={<div className="list-bar skel-list-bar" aria-hidden="true"><span className="skel" /></div>}>
@@ -162,7 +168,8 @@ export function GamePageView({ game, collection, author, play, summary, extra, e
       </div>
     </main>
     {/* a type kept out of the listings has no guide page to open at: the pane starts at the list of types */}
-    <GuidePane key={game.kind} start={isListed(game.kind) ? game.kind : undefined} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra} />
+    <GuidePane key={game.kind} start={isListed(game.kind) ? game.kind : undefined} side open={rulesOpen} onClose={() => toggleRules(false)} extra={extra}
+      hints={play && !preview && game.state === "published" && !play.spec.figure ? <TutorPanel gameId={game.id} spec={play.spec} board={board} link={link} signedIn={signedIn} /> : null} />
     </div>
   );
 }
